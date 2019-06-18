@@ -1,7 +1,7 @@
 # plenoptic
 
 
-**{x, θ, y}**  : inputs, outputs, parameters
+**{x, y, θ}**  : inputs, outputs, parameters
 
 |            	|   fixed  	| variable  |
 |:----------:	|:------:	|:------:	|
