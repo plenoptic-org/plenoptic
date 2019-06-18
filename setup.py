@@ -14,10 +14,12 @@ setup(
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3.7'],
     keywords='Visual Information Processing',
-    packages=['plenoptic'],
+    packages=['plenoptic', 'plenoptic.simulate', 'plenoptic.synthesize',
+              'plenoptic.tools'],
     install_requires=['numpy>=1.1',
                       'torch>=1.1',
                       'pyrtools>=0.1',
                       'scipy>=1.0',
-                      'matplotlib>=2.2']
+                      'matplotlib>=2.2',
+                      'torchvision>=0.3']
      )
