@@ -1,17 +1,23 @@
 import unittest
-import numpy as np
 import torch
 import plenoptic as po
+import os.path as op
 
-numpy = lambda x : x.detach().cpu().numpy().squeeze()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
-data_path = '../data/'
+DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 
 # self.assertEqual('foo'.upper(), 'FOO')
 # self.assertTrue
 # self.assertFalse
+
+def to_numpy(x):
+    """helper function to detach tensor, get it on cpu, and convert it to numpy array
+
+    """
+    return x.detach().cpu().numpy().squeeze()
 
 
 class Basics(unittest.TestCase):
@@ -23,7 +29,6 @@ class Basics(unittest.TestCase):
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
-        
 
 
 if __name__ == '__main__':

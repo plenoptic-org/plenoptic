@@ -18,8 +18,12 @@ setup(
               'plenoptic.tools'],
     install_requires=['numpy>=1.1',
                       'torch>=1.1',
-                      'pyrtools>=0.1',
+                      'pyrtools>=0.9',
                       'scipy>=1.0',
                       'matplotlib>=2.2',
-                      'torchvision>=0.3']
+                      'torchvision>=0.3',
+                      'tqdm>=4.29',
+                      'requests>=2.21',
+                      'pytest'],
+    tests='tests',
      )
