@@ -1,6 +1,15 @@
 #! /usr/bin/env python
 
 from setuptools import setup, Extension
+import importlib
+import os
+
+# copied from kymatio's setup.py: https://github.com/kymatio/kymatio/blob/master/setup.py
+plenoptic_version_spec = importlib.util.spec_from_file_location('plenoptic_version',
+                                                                'plenoptic/version.py')
+plenoptic_version_module = importlib.util.module_from_spec(plenoptic_version_spec)
+plenoptic_version_spec.loader.exec_module(plenoptic_version_module)
+VERSION = plenoptic_version_module.version
 
 setup(
     name='plenoptic',
