@@ -10,3 +10,5 @@ from .steerable_pyramid_freq import Steerable_Pyramid_Freq
 from .texture_statistics import Texture_Statistics
 
 from .portilla_simoncelli import PS
+
+from .spectral import Spectral
