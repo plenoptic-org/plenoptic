@@ -10,3 +10,5 @@ from .tools.signal import *
 from .tools.data import *
 
 from .version import version as __version__
+
+from .tools.metamer_utils import *

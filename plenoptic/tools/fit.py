@@ -2,12 +2,19 @@ import torch
 import numpy as np
 
 
-def pretty_print(i, max_iter, t, loss, g_norm):
-    print('iter', i + 1, '/', max_iter,
-          '\tloss',      round(loss, 4),
-          '\ttime',      round(t, 3),
-          '\tgrad norm', round(g_norm, 3))
+def pretty_print(i, max_iter, t, loss, g_norm,lr=[]):
+    if lr==[]:
+        print('iter', i + 1, '/', max_iter,
+              '\tloss',      round(loss, 4),
+              '\ttime',      round(t, 3),
+              '\tgrad norm', round(g_norm, 3))
 
+    else:
+        print('iter', i + 1, '/', max_iter,
+              '\tloss',      round(loss, 4),
+              '\ttime',      round(t, 3),
+              '\tgrad norm', round(g_norm, 3),
+              '\tlr', round(lr,6))
 
 def stretch(z):
     """soft rescaling, the inverse of squish
