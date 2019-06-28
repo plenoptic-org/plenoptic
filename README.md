@@ -31,6 +31,7 @@ conda activate plenoptic_docs
 pip install -e .
 # build documentation
 cd docs/
+sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
 
@@ -44,3 +45,13 @@ documentation. You also need to install `plenoptic` from your local
 version so that `sphinx` can import the library and grab all of the
 docstrings (you're installing the local version so you can see all the
 changes you've made).
+
+And then whenever you want to recreate / update your local
+documentation, run:
+
+```
+conda activate plenoptic_docs
+cd docs/
+sphinx-apidoc -f -o . ../plenoptic
+make html
+```
