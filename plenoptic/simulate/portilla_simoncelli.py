@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import pyrtools
 from .steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ..tools.signal import batch_fftshift2d
 import numpy as np
 
 
@@ -96,7 +97,7 @@ class PS(nn.Module):
         ac_tmp = torch.fft(torch.stack((im.squeeze(), torch.zeros_like(im.squeeze())), -1), 2)
         ac_tmp2 = torch.stack((ac_tmp[:, :, 0].pow(2) + ac_tmp[:, :, 1].pow(2), torch.zeros_like(ac_tmp[:, :, 0])), -1)
         ac = torch.ifft(ac_tmp2, 2)
-        ac= PS.fftshift(ac)/torch.numel(ch)
+        ac= batch_fftshift2d(ac.unsqueeze(0)).squeeze()/torch.numel(ch)
         ac = ac[cx-le:cx+le+1, cy-le:cy+le+1,0]
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales] = ac
         vari = ac[le,le]
@@ -124,7 +125,7 @@ class PS(nn.Module):
                 ac_tmp = torch.fft(torch.stack((ch.squeeze(), torch.zeros_like(ch.squeeze())), -1), 2)
                 ac_tmp2 = torch.stack((ac_tmp[:, :, 0].pow(2) + ac_tmp[:, :, 1].pow(2), torch.zeros_like(ac_tmp[:, :, 0])), -1)
                 ac = torch.ifft(ac_tmp2, 2)
-                ac = PS.fftshift(ac)/torch.numel(ch)
+                ac = batch_fftshift2d(ac.unsqueeze(0)).squeeze()/torch.numel(ch)
                 ac = ac[cx-le:cx+le+1, cy-le:cy+le+1,0]
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor] = ac
 
@@ -136,7 +137,7 @@ class PS(nn.Module):
             ac_tmp = torch.fft(ch, 2)
             ac_tmp2 = torch.stack((ac_tmp[:, :, 0]**2 + ac_tmp[:, :, 1]**2, torch.zeros_like(ac_tmp[:, :, 0])), -1)
             ac = torch.ifft(ac_tmp2, 2)
-            ac = PS.fftshift(ac)/torch.numel(ch)
+            ac = batch_fftshift2d(ac.unsqueeze(0)).squeeze()/torch.numel(ch)
             ac = ac[cx-le:cx+le+1, cy-le:cy+le+1,0]
             acr[la-le:la+le+1, la-le:la+le+1, n_scales] = ac
 
@@ -197,22 +198,22 @@ class PS(nn.Module):
                 np0 = parents.shape[1]
             else:
                 np0 = 0
-            C0[0:nc, 0:nc, n_scales] = PS.innerprod(cousins)/cousinSz
+            C0[0:nc, 0:nc, n_scales] = torch.mm(cousins.t(),cousins)/cousinSz
             if np0 > 0:
                 Cx0[0:nc, 0:np0, n_scales] = torch.mm(cousins.t(), parents)/cousinSz
                 if n_scales==self.n_scales-1:
-                    C0[0:np0, 0:np0, n_scales+1] = PS.innerprod(parents)/(cousinSz/4)
+                    C0[0:np0, 0:np0, n_scales+1] = torch.mm(parents.t(),parents)/(cousinSz/4)
 
             cousins = torch.stack(tuple([a[:,:,0].t() for a in pyr0[n_scales*self.n_orientations+1:(n_scales+1)*self.n_orientations+1]])).view((self.n_orientations,cousinSz)).t()
             nrc = cousins.shape[1]
             nrp = 0
             if rparents.shape[0]>0:
                 nrp = rparents.shape[1]
-            Cr0[0:nrc,0:nrc,n_scales]=PS.innerprod(cousins)/cousinSz
+            Cr0[0:nrc,0:nrc,n_scales]=torch.mm(cousins.t(),cousins)/cousinSz
             if nrp>0:
                 Crx0[0:nrc,0:nrp,n_scales] = torch.mm(cousins.t(),rparents)/cousinSz
                 if n_scales==self.n_scales-1:
-                    Cr0[0:nrp,0:nrp,n_scales+1]=PS.innerprod(rparents)/(cousinSz/4)
+                    Cr0[0:nrp,0:nrp,n_scales+1]=torch.mm(rparents.t(),rparents)/(cousinSz/4)
 
         channel = pyr0[0]
         vHPR0 = channel.pow(2).mean()
@@ -230,23 +231,6 @@ class PS(nn.Module):
     def skew(mtx, mn, v):
         return torch.mean((mtx-mn).pow(3))/(v.pow(1.5))
 
-    def fftshift(X):
-        real = X[:,:,0]
-        imag = X[:,:,1]
-        for dim in range(0, len(real.size())):
-            real = PS.roll_n(real, axis=dim, n=real.size(dim)//2)
-            imag = PS.roll_n(imag, axis=dim, n=imag.size(dim)//2)
-        return torch.stack((real, imag),-1)
-
-    def roll_n(X, axis, n):
-        f_idx = tuple(slice(None, None, None) if i != axis else slice(0,n,None)
-                      for i in range(X.dim()))
-        b_idx = tuple(slice(None, None, None) if i != axis else slice(n,None,None)
-                      for i in range(X.dim()))
-        front = X[f_idx]
-        back = X[b_idx]
-        return torch.cat([back, front],axis)
-
     def expand(t,f):
 
         t = t.squeeze()
@@ -261,7 +245,7 @@ class PS(nn.Module):
         if len(t.shape)==2:
             t=torch.stack((t,torch.zeros_like(t)),-1)
 
-        T =  f**2*PS.fftshift(torch.fft(t,2))
+        T =  f**2*batch_fftshift2d(torch.fft(t.unsqueeze(0),2)).squeeze()
 
         y1=int(my/2 + 1 - my/(2*f))
         y2=int(my/2 + my/(2*f))
@@ -280,13 +264,10 @@ class PS(nn.Module):
         Te[y2,x1-1,:]=esq;
         Te[y2,x2,:]=esq;
 
-        Te = PS.fftshift(Te)
+        Te = batch_fftshift2d(Te.unsqueeze(0)).squeeze()
 
         # finish this
         te = torch.ifft(Te,2)
 
 
         return te
-
-    def innerprod(mtx):
-        return torch.mm(mtx.t(),mtx)

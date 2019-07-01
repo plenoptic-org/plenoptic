@@ -9,6 +9,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from ..simulate import Steerable_Pyramid_Freq
 import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 
 class Metamer(nn.Module):
