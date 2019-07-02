@@ -364,6 +364,10 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     as done in [1]_. This is returned as a 3d torch tensor for further use with a model, and will
     also return the theta and eccentricity grids necessary for plotting, if desired.
 
+    Note that this is returned in polar coordinates and so if you wish to apply it to an image in
+    rectangular coordinates, you'll need to make use of pyrtools's ``project_polar_to_cartesian``
+    function (see Examples section)
+
     Parameters
     ----------
     scaling : `float` or `None`.
@@ -404,6 +408,38 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     eccentricity_grid : `torch.tensor`
         The 2d array of eccentricity values, as returned by meshgrid. Will have the shape
         ``(ecc_n_steps, theta_n_steps)``
+
+    Examples
+    --------
+    To use, simply call with the desired scaling (for the version seen in the paper, don't change
+    any of the default arguments; compare this image to the right side of Supplementary Figure 1C)
+
+    .. plot::
+       :include-source:
+
+       import matplotlib.pyplot as plt
+       import plenoptic as po
+       windows, theta, ecc = po.simul.create_pooling_windows(.87, theta_n_steps=256,
+                                                             ecc_n_steps=256)
+       fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+       for w in windows:
+           ax.contour(theta, ecc, w, [.5])
+       plt.show()
+
+    If you wish to convert this to the Cartesian coordinates, in order to apply to an image, for
+    example, you must use pyrtools's ``project_polar_to_cartesian`` function
+
+    .. plot::
+       :include-source:
+
+       import matplotlib.pyplot as plt
+       import pyrtools as pt
+       import plenoptic as po
+       windows, theta, ecc = po.simul.create_pooling_windows(.87, theta_n_steps=256,
+                                                             ecc_n_steps=256)
+       windows_cart = [pt.project_polar_to_cartesian(w) for w in windows]
+       pt.imshow(windows_cart, col_wrap=8, zoom=.5)
+       plt.show()
 
     Notes
     -----

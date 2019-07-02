@@ -34,6 +34,7 @@ release = plenoptic.__version__
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
@@ -42,6 +43,8 @@ extensions = [
     'numpydoc',
     'nbsphinx',
     'nbsphinx_link',
+    'matplotlib.sphinxext.plot_directive',
+    'matplotlib.sphinxext.mathmpl',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
