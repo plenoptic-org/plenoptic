@@ -1,10 +1,10 @@
 import warnings
 import numpy as np
+from collections import OrderedDict
 from scipy.special import factorial
 from ..tools.signal import rcosFn, roll_n, batch_fftshift2d, batch_ifftshift2d, pointOp
 import torch
 import torch.nn as nn
-# from ..config import *
 dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -84,9 +84,11 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.lutsize = 1024
         self.Xcosn = np.pi * np.array(range(-(2*self.lutsize + 1), (self.lutsize+2)))/self.lutsize
         self.alpha = (self.Xcosn + np.pi) % (2*np.pi) - np.pi
+        self.complex_fact_reconstruct = np.power(np.complex(0, 1), self.order)
 
-        self.pyr_coeffs = {}
-        self.pyr_size = {}
+
+        self.pyr_coeffs = OrderedDict()
+        self.pyr_size = OrderedDict()
 
         max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1]))) - 2
         if height == 'auto':
@@ -152,9 +154,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         hi0 = batch_ifftshift2d(hi0dft)
         hi0 = torch.ifft(hi0, signal_ndim=2)
         hi0_real = torch.unbind(hi0, -1)[0]
-        self.coeffout = [hi0_real]
         self.pyr_coeffs['residual_highpass'] = hi0_real
-
+        self.pyr_size['residual_highpass'] = tuple(hi0_real.shape)
 
         lodft = imdft * lo0mask
 
@@ -206,12 +207,11 @@ class Steerable_Pyramid_Freq(nn.Module):
                 band = torch.ifft(band, signal_ndim=2)
                 if not self.is_complex:
                     band = torch.unbind(band, -1)[0]
-                    self.coeffout.append(band)
                     self.pyr_coeffs[(i, b)] = band
-
+                    self.pyr_size[(i,b)] = tuple(band.shape)
                 else:
-                    self.coeffout.append(band)
                     self.pyr_coeffs[(i, b)] = band
+                    self.pyr_size[(i,b)] = tuple(band.shape)
 
             self._anglemasks.append(anglemasks)
 
@@ -241,30 +241,162 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0 = batch_ifftshift2d(lodft)
         lo0 = torch.ifft(lo0, signal_ndim=2)
         lo0_real = torch.unbind(lo0, -1)[0]
-        self.coeffout.append(lo0_real)
 
         self.pyr_coeffs['residual_lowpass'] = lo0_real
+        self.pyr_size['residual_lowpass'] = tuple(lo0_real.shape)
 
-        if self.return_list:
-            return self.coeffout
+        return self.pyr_coeffs
+
+    def _recon_levels_check(self, levels):
+        """Check whether levels arg is valid for reconstruction and return valid version
+
+        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
+        which levels to include. This makes sure those levels are valid and gets them in the form
+        we expect for the rest of the reconstruction. If the user passes `'all'`, this constructs
+        the appropriate list (based on the values of `self.pyr_coeffs`).
+
+        Parameters
+        ----------
+        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`, or `'residual_lowpass'`}
+            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
+            (inclusive) and `'residual_highpass'` and `'residual_lowpass'` (if appropriate for the
+            pyramid). If `'all'`, returned value will contain all valid levels. Otherwise, must be
+            one of the valid levels.
+
+        Returns
+        -------
+        levels : `list`
+            List containing the valid levels for reconstruction.
+
+        """
+        if isinstance(levels, str) and levels == 'all':
+            levels = ['residual_highpass'] + list(range(self.num_scales)) + ['residual_lowpass']
         else:
-            return self.pyr_coeffs
+            if not hasattr(levels, '__iter__') or isinstance(levels, str):
+                # then it's a single int or string
+                levels = [levels]
+            levs_nums = np.array([int(i) for i in levels if isinstance(i, int) or i.isdigit()])
+            assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
+            assert (levs_nums < self.num_scales).all(), "Level numbers must be in the range [0, %d]" % (self.num_scales-1)
+            levs_tmp = list(np.sort(levs_nums))  # we want smallest first
+            if 'residual_highpass' in levels:
+                levs_tmp = ['residual_highpass'] + levs_tmp
+            if 'residual_lowpass' in levels:
+                levs_tmp = levs_tmp + ['residual_lowpass']
+            levels = levs_tmp
+        # not all pyramids have residual highpass / lowpass, but it's easier to construct the list
+        # including them, then remove them if necessary.
+        if 'residual_lowpass' not in self.pyr_coeffs.keys() and 'residual_lowpass' in levels:
+            levels.pop(-1)
+        if 'residual_highpass' not in self.pyr_coeffs.keys() and 'residual_highpass' in levels:
+            levels.pop(0)
+        return levels
 
-    # TODO
-    # def steer_coeffs(self, angles, even_phase=True):
+    def _recon_bands_check(self, bands):
+        """Check whether bands arg is valid for reconstruction and return valid version
 
-    # TODO
-    def recon_pyr(self, coeff, twidth=1):
+        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
+        which orientations to include. This makes sure those orientations are valid and gets them
+        in the form we expect for the rest of the reconstruction. If the user passes `'all'`, this
+        constructs the appropriate list (based on the values of `self.pyr_coeffs`).
 
-        if self.num_orientations != len(coeff[1]):
-            raise Exception("Number of orientations in pyramid don't match coefficients")
+        Parameters
+        ----------
+        bands : `list`, `int`, or `'all'`.
+            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
+            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
+            of the valid orientations.
+
+        Returns
+        -------
+        bands: `list`
+            List containing the valid orientations for reconstruction.
+        """
+        if isinstance(bands, str) and bands == "all":
+            bands = np.arange(self.num_orientations)
+        else:
+            bands = np.array(bands, ndmin=1)
+            assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
+            assert (bands < self.num_orientations).all(), "Error: band numbers must be in the range [0, %d]" % (self.num_orientations - 1)
+        return bands
+
+    def _recon_keys(self, levels, bands, max_orientations=None):
+        """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
+
+        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
+        some subset of the pyramid coefficients to include in the reconstruction. This function
+        takes in those specifications, checks that they're valid, and returns a list of tuples
+        that are keys into the `pyr_coeffs` dictionary.
+
+        Parameters
+        ----------
+        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`, `'residual_lowpass'`}
+            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
+            (inclusive) and `'residual_highpass'` and `'residual_lowpass'` (if appropriate for the
+            pyramid). If `'all'`, returned value will contain all valid levels. Otherwise, must be
+            one of the valid levels.
+        bands : `list`, `int`, or `'all'`.
+            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
+            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
+            of the valid orientations.
+        max_orientations: `None` or `int`.
+            The maximum number of orientations we allow in the reconstruction. when we determine
+            which ints are allowed for bands, we ignore all those greater than max_orientations.
+
+        Returns
+        -------
+        recon_keys : `list`
+            List of `tuples`, all of which are keys in `pyr_coeffs`. These are the coefficients to
+            include in the reconstruction of the image.
+
+        """
+        levels = self._recon_levels_check(levels)
+        bands = self._recon_bands_check(bands)
+        if max_orientations is not None:
+            for i in bands:
+                if i >= max_orientations:
+                    warnings.warn(("You wanted band %d in the reconstruction but max_orientation"
+                                   " is %d, so we're ignoring that band" % (i, max_orientations)))
+            bands = [i for i in bands if i < max_orientations]
+        recon_keys = []
+        for level in levels:
+            # residual highpass and lowpass
+            if isinstance(level, str):
+                recon_keys.append(level)
+            # else we have to get each of the (specified) bands at
+            # that level
+            else:
+                recon_keys.extend([(level, band) for band in bands])
+        return recon_keys
+
+    def recon_pyr(self, levels = 'all', bands = 'all', twidth = 1):
 
         if twidth <= 0:
             warnings.warn("twidth must be positive. Setting to 1.")
             twidth = 1
 
-        dims = (coeff[0].shape[2], coeff[0].shape[1])
+        recon_keys = self._recon_keys(levels, bands)
 
+        # make list of dims and bounds
+        bound_list = []
+        dim_list = []
+        # we go through pyr_sizes from smallest to largest
+        for dims in sorted(self.pyr_size.values()):
+            if dims in dim_list:
+                continue
+            dim_list.append(dims)
+            dims = np.array(dims)
+            ctr = np.ceil((dims+0.5)/2).astype(int)
+            lodims = np.ceil((dims-0.5)/2).astype(int)
+            loctr = np.ceil((lodims+0.5)/2).astype(int)
+            lostart = ctr - loctr
+            loend = lostart + lodims
+            bounds = (lostart[0], lostart[1], loend[0], loend[1])
+            bound_list.append(bounds)
+        bound_list.append((0, 0, dim_list[-1][0], dim_list[-1][1]))
+        dim_list.append((dim_list[-1][0], dim_list[-1][1]))
+
+        dims = np.array(self.pyr_size['residual_highpass'])
         ctr = np.ceil((dims+0.5)/2.0).astype(int)
 
         (xramp, yramp) = np.meshgrid((np.arange(1, dims[1]+1)-ctr[1]) / (dims[1]/2.),
@@ -275,26 +407,73 @@ class Steerable_Pyramid_Freq(nn.Module):
         log_rad = np.log2(log_rad)
 
         # Radial transition function (a raised cosine in log-frequency):
-        Xrcos, Yrcos = rcosFn(twidth, (-twidth/2.0), np.array([0, 1]))
+        (Xrcos, Yrcos) = rcosFn(twidth, (-twidth/2.0), np.array([0, 1]))
         Yrcos = np.sqrt(Yrcos)
-        YIrcos = np.sqrt(np.abs(1.0 - Yrcos**2))
+        YIrcos = np.sqrt(1.0 - Yrcos**2)
 
-        # from reconSFpyrLevs
-        lutsize = 1024
+        #create masks
+        lo0mask = pointOp(log_rad, YIrcos, Xrcos)
+        hi0mask = pointOp(log_rad, Yrcos, Xrcos)
 
-        Xcosn = np.pi * np.arange(-(2*lutsize+1), (lutsize+2)) / lutsize
+        # Note that we expand dims to support broadcasting later
+        lo0mask = torch.from_numpy(lo0mask).float()[None,:,:,None].to(self.device)
+        hi0mask = torch.from_numpy(hi0mask).float()[None,:,:,None].to(self.device)
 
-        order = self.num_orientations - 1
-        const = (2**(2*order))*(factorial(order, exact=True)**2) / float(self.num_orientations*factorial(2*order, exact=True))
-        Ycosn = np.sqrt(const) * (np.cos(Xcosn))**order
+        for i in range(self.num_scales):
+
+            if len(self.pyr_coeffs) == 1:
+                tempdft = torch.rfft(self.pyr_coeffs.values()[0], signal_ndim=2, onesided=False)
+                tempdft = batch_fftshift2d(dft)
+                break
+
+            Xrcos -= np.log(2)
+
+            himask = pointOp(log_rad, Yrcos, Xrcos)
+            himask = torch.from_numpy(himask[None,:,:,None]).float().to(self.device)
+
+            Xcosn = np.pi * np.arange(-(2*self.lutsize+1), (self.lutsize+2)) / self.lutsize
+            const = (2**(2*self.order))*(factorial(self.order, exact=True)**2) / float(self.num_orientations*factorial(2*self.order, exact=True))
+            Ycosn = np.sqrt(const) * (np.cos(Xcosn))**self.order
+
+            orientdft = torch.zeros_like(self.pyr_coeffs.values()[1][0])
+            anglemasks = []
+            for band in range(self.num_orientations):
+                anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
+                anglemasks.append(anglemask)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(device)
+
+                if (i,b) in recon_keys:
+                    banddft = torch.fft(self.pyr_coeffs[(i,b)], signal_ndim=2)
+                    banddft = batch_fftshift2d(banddft)
+                    banddft = torch.unbind(banddft, -1)
+
+                    banddft_real = self.complex_fact_reconstruct.real*banddft[0] - self.complex_fact_reconstruct.imag*banddft[1]
+                    banddft_imag = self.complex_fact_reconstruct.real*banddft[1] + self.complex_fact_reconstruct.imag*banddft[0]
+                    banddft = torch.stack((banddft_real, banddft_imag), -1)
+                    if self.is_complex:
+                        banddft_imag = self.complex_fact_reconstruct.real*banddft[1] + self.complex_fact_reconstruct.imag*banddft[0]
+                        banddft = torch.stack((banddft_real, banddft_imag), -1)
+                    else:
+                        banddft = banddft_real
+                else:
+                    banddft = torch.zeros_like(self.pyr_coeffs[(i,b)])
+
+                orientdft = orientdft + banddft
+
+            dims = np.array(self.pyr_coeffs[])
+
+
+
+
+
 
         # lowest band
         # initialize reconstruction
         if 'residual_lowpass' in recon_keys:
-            nresdft = np.fft.fftshift(np.fft.fft2(self.pyr_coeffs['residual_lowpass']))
+            nresdft = batch_fftshift2d(torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided=False))
         else:
-            nresdft = np.zeros_like(self.pyr_coeffs['residual_lowpass'])
-        resdft = np.zeros(dim_list[1]) + 0j
+            nresdft = torch.zeros_like(self.pyr_coeffs['residual_lowpass'])
+        resdft = torch.zeros(dim_list[1]) + 0j
 
         bounds = (0, 0, 0, 0)
         for idx in range(len(bound_list)-2, 0, -1):
