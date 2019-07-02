@@ -294,6 +294,7 @@ def polar_angle_windows(n_windows, theta_n_steps=100, transition_region_width=.5
                                            (window_width * (1-transition_region_width)) / 2)) /
                              window_width)
         windows.append(mother_window(mother_window_arg, transition_region_width))
+    windows = [i for i in windows if not np.isnan(i).all()]
     return theta, np.array(windows)
 
 
@@ -350,6 +351,7 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
     for n in range(math.ceil(n_windows)):
         mother_window_arg = (np.log(ecc) - (np.log(min_ecc) + window_width * (n+1))) / window_width
         windows.append(mother_window(mother_window_arg, transition_region_width))
+    windows = [i for i in windows if not np.isnan(i).all()]
     return ecc, np.array(windows)
 
 
