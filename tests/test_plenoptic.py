@@ -8,10 +8,12 @@ import os
 import numpy as np
 import plenoptic as po
 import os.path as op
+import matplotlib.pyplot as plt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
+DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 
 @pytest.fixture
@@ -93,6 +95,20 @@ class TestPooling(object):
         assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
         assert po.simul.pooling.calc_scaling(4, 5, 10) == 0.17350368946058647
         assert np.isinf(po.simul.pooling.calc_scaling(4, 0))
+
+
+class TestVentralStream(object):
+    def test_rgc(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        rgc(im)
+
+    def test_v1(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        v1(im)
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
