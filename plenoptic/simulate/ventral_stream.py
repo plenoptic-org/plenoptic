@@ -149,8 +149,8 @@ class RetinalGanglionCells(VentralModel):
             each pooling window for ``image``
 
         """
-        self.image = image
-        self.windowed_image = torch.einsum('jk,ijk->ijk', [self.image, self.windows[0]])
+        self.image = image.clone().detach()
+        self.windowed_image = torch.einsum('jk,ijk->ijk', [image, self.windows[0]])
         # we want to normalize by the size of each window
         representation = self.windowed_image.sum((1, 2))
         self.representation = representation / self.window_sizes[0]
@@ -243,9 +243,9 @@ class PrimaryVisualCortex(VentralModel):
             that is, the squared and summed outputs of the complex steerable pyramid.
 
         """
-        self.image = image
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
+        self.image = image.clone().detach()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         # SHOULD THIS BE COMPLEX MODULUS (sqrt) OR SQUARED? (in which case we've just squared and
         # summed); paper seems to describe both
