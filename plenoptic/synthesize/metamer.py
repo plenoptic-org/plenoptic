@@ -245,13 +245,11 @@ class Metamer(nn.Module):
         self.matched_representation = self.analyze(self.matched_image)
         # there's a +1 in each of thes because we want to save the initial state as well
         if save_representation:
-            self.saved_representation = torch.cat(
-                [self.saved_representation,
-                 torch.empty((max_iter+1, *self.target_representation.shape))])
+            self.saved_representation = torch.empty((max_iter+1,
+                                                     *self.target_representation.shape))
             self.saved_representation[0, :] = self.analyze(self.matched_image)
         if save_image:
-            self.saved_image = torch.cat([self.saved_image,
-                                          torch.empty((max_iter+1, *self.target_image.shape))])
+            self.saved_image = torch.empty((max_iter+1, *self.target_image.shape))
             self.saved_image[0, :] = self.matched_image
 
         with torch.no_grad():
@@ -262,7 +260,7 @@ class Metamer(nn.Module):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            pbar.set_description('Iteration %d' % i)
+            pbar.set_description('Iteration %d' % (i+1))
             loss = self._optimizer_step(pbar)
             if np.isnan(loss.item()):
                 warnings.warn("Loss is NaN, quitting out!")
@@ -289,9 +287,11 @@ class Metamer(nn.Module):
 
         pbar.close()
         # drop any empty columns (that is, if we don't reach the max iterations, don't want to hold
-        # onto these zeroes)
+        # onto these zeroes). we go to i+2 so we include the first entry (which is the initial
+        # state of things) and the last one of interest (in python, a[:i] gives you from 0 to entry
+        # i-1)
         if save_representation:
-            self.saved_representation = self.saved_representation[:i, :]
+            self.saved_representation = self.saved_representation[:i+2, :]
         if save_image:
-            self.saved_image = self.saved_image[:i, :]
+            self.saved_image = self.saved_image[:i+2, :]
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
