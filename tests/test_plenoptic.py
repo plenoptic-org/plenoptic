@@ -104,11 +104,27 @@ class TestVentralStream(object):
         rgc = po.simul.RetinalGanglionCells(.5, im.shape)
         rgc(im)
 
+    def test_rgc_metamer(self):
+        # literally just testing that it runs
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=10)
+
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         v1(im)
+
+    def test_v1_metamer(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize()
+
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
