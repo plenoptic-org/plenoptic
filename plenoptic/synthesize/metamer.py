@@ -80,8 +80,11 @@ class Metamer(nn.Module):
     ----
     (musts)
     - [ ] synthesize an image of a different size than the target image
-    - [ ] flexible objective function
-    - [ ] flexibility on the optimizer / scheduler (or at least parameterize the stuff)
+    - [ ] flexible objective function: make objective_function an attribute, have user set it
+          during optimization, have variety of standard ones as static methods
+          (https://realpython.com/instance-class-and-static-methods-demystified/) to choose from?
+    - [ ] flexibility on the optimizer / scheduler (or at least parameterize the stuff): do similar
+          to above?
     - [ ] should we initialize optimizer / scheduler at initialization or during the call to
           synthesize? seems reasonable to me that you'd want to change it I guess...
     - [ ] is that note in analyze still up-to-date?
@@ -90,6 +93,9 @@ class Metamer(nn.Module):
           plot of differences in representation over time, and the loss over time (as a red point
           on the loss curve)
     - [ ] how to handle device?
+    - [ ] how do we handle continuation? right now the way to do it is to just pass matched_im
+          again, but is there a better way? how then to handle self.time and
+          self.saved_image/representation?
 
     (other)
     - [ ] batch
@@ -183,8 +189,7 @@ class Metamer(nn.Module):
         comes first
 
         Note that you can run this several times in sequence by setting ``initial_image`` to the
-        ``matched_image`` we return (or, if you create ``initial_image`` yourself and pass it to
-        this function, repeated calls with the same object will work too).
+        ``matched_image`` we return
 
         Parameters
         ----------
@@ -288,8 +293,7 @@ class Metamer(nn.Module):
         pbar.close()
         # drop any empty columns (that is, if we don't reach the max iterations, don't want to hold
         # onto these zeroes). we go to i+2 so we include the first entry (which is the initial
-        # state of things) and the last one of interest (in python, a[:i] gives you from 0 to entry
-        # i-1)
+        # state of things) and the last one of interest (in python, a[:i] gives you from 0 to i-1)
         if save_representation:
             self.saved_representation = self.saved_representation[:i+2, :]
         if save_image:
