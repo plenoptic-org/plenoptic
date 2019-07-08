@@ -123,7 +123,7 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize()
+        metamer.synthesize(max_iter=10)
 
 
 # class SteerablePyramid(unittest.TestCase):
