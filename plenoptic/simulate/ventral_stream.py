@@ -30,13 +30,21 @@ class VentralModel(nn.Module):
     img_res : tuple
         The resolution of our image (should therefore contains integers). Will use this to generate
         appropriately sized pooling windows.
-    min_eccentricity : float
+    min_eccentricity : float, optional
         The eccentricity at which the pooling windows start.
-    max_eccentricity : float
+    max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
-    num_scales : int
+    num_scales : int, optional
         The number of scales to generate masks for. For the RGC model, this should be 1, otherwise
         should match the number of scales in the steerable pyramid.
+    zero_thresh : float, optional
+        The "cut-off value" below which we consider numbers to be zero. We want to determine the
+        number of non-zero elements in each window (in order to properly average them), but after
+        projecting (and interpolating) the windows from polar into rectangular coordinates, we end
+        up with some values very near zero (on the order 1e-40 to 1e-30). These are so small that
+        they don't matter for actually computing the values within the windows but they will mess
+        up our calculation of the number of non-zero elements in each window, so we treat all
+        numbers below ``zero_thresh`` as being zero for the purpose of computing ``window_sizes``.
 
     Attributes
     ----------
@@ -96,10 +104,18 @@ class RetinalGanglionCells(VentralModel):
     img_res : tuple
         The resolution of our image (should therefore contains integers). Will use this to generate
         appropriately sized pooling windows.
-    min_eccentricity : float
+    min_eccentricity : float, optional
         The eccentricity at which the pooling windows start.
-    max_eccentricity : float
+    max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
+    zero_thresh : float, optional
+        The "cut-off value" below which we consider numbers to be zero. We want to determine the
+        number of non-zero elements in each window (in order to properly average them), but after
+        projecting (and interpolating) the windows from polar into rectangular coordinates, we end
+        up with some values very near zero (on the order 1e-40 to 1e-30). These are so small that
+        they don't matter for actually computing the values within the windows but they will mess
+        up our calculation of the number of non-zero elements in each window, so we treat all
+        numbers below ``zero_thresh`` as being zero for the purpose of computing ``window_sizes``.
 
     Attributes
     ----------
@@ -172,15 +188,37 @@ class PrimaryVisualCortex(VentralModel):
     img_res : tuple
         The resolution of our image (should therefore contains integers). Will use this to generate
         appropriately sized pooling windows.
-    min_eccentricity : float
+    num_scales : int, optional
+        The number of scales (spatial frequency bands) in the steerable pyramid we use to build the
+        V1 representation
+    order : int, optional
+        The Gaussian derivative order used for the steerable filters. Default value is 3.
+        Note that to achieve steerability the minimum number of orientation is ``order`` + 1,
+        and is used here (that's currently all we support, though could extend fairly simply)
+    min_eccentricity : float, optional
         The eccentricity at which the pooling windows start.
-    max_eccentricity : float
+    max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
+    zero_thresh : float, optional
+        The "cut-off value" below which we consider numbers to be zero. We want to determine the
+        number of non-zero elements in each window (in order to properly average them), but after
+        projecting (and interpolating) the windows from polar into rectangular coordinates, we end
+        up with some values very near zero (on the order 1e-40 to 1e-30). These are so small that
+        they don't matter for actually computing the values within the windows but they will mess
+        up our calculation of the number of non-zero elements in each window, so we treat all
+        numbers below ``zero_thresh`` as being zero for the purpose of computing ``window_sizes``.
 
     Attributes
     ----------
     scaling : float
         Scaling parameter that governs the size of the pooling windows.
+    num_scales : int, optional
+        The number of scales (spatial frequency bands) in the steerable pyramid we use to build the
+        V1 representation
+    order : int, optional
+        The Gaussian derivative order used for the steerable filters. Default value is 3.
+        Note that to achieve steerability the minimum number of orientation is ``order`` + 1,
+        and is used here (that's currently all we support, though could extend fairly simply)
     min_eccentricity : float
         The eccentricity at which the pooling windows start.
     max_eccentricity : float
