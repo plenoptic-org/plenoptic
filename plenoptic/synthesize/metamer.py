@@ -86,18 +86,26 @@ class Metamer(nn.Module):
           during optimization, have variety of standard ones as static methods
           (https://realpython.com/instance-class-and-static-methods-demystified/) to choose from?
     - [ ] flexibility on the optimizer / scheduler (or at least parameterize the stuff): do similar
-          to above?
+          to above? -- not as important right now
     - [ ] should we initialize optimizer / scheduler at initialization or during the call to
-          synthesize? seems reasonable to me that you'd want to change it I guess...
-    - [ ] is that note in analyze still up-to-date?
+          synthesize? seems reasonable to me that you'd want to change it I guess... --  not
+          important right now, same as above
+    - [x] is that note in analyze still up-to-date? -- No
     - [x] add save method
+    - [ ] add example for load method
     - [ ] add animate method, which creates a three-subplot animation: the metamer over time, the
           plot of differences in representation over time, and the loss over time (as a red point
-          on the loss curve)
-    - [ ] how to handle device?
+          on the loss curve) -- some models' representation might not be practical to plot, add the
+          ability to take a function for the plot representation and if it's set to None, don't
+          plot anything; make this a separate class or whatever because we'll want to be able to do
+          this for eigendistortions, etc (this will require standardizing our API, which we want to
+          do anyway)
+    - [x] how to handle device? -- get rid of device in here, expect the user to set .to(device)
+          (and then check self.target_image.device when initializing any tensors)
     - [ ] how do we handle continuation? right now the way to do it is to just pass matched_im
           again, but is there a better way? how then to handle self.time and
-          self.saved_image/representation?
+          self.saved_image/representation? -- don't worry about this, add note about how this works
+          but don't worry about this; add ability to save every n steps, not just or every
 
     (other)
     - [ ] batch
