@@ -240,7 +240,7 @@ class Metamer(nn.Module):
         # random initialization
         torch.manual_seed(seed)
         np.random.seed(seed)
-        # making sure we don't break the graph -- WHAT?
+
         start_time = time.time()
 
         if initial_image is None:
