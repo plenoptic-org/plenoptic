@@ -28,15 +28,9 @@ class Metamer(nn.Module):
         A differentiable model that takes an image as an input and transforms it into a
         representation of some sort. We only require that it has a forward method, which returns
         the representation to match.
-    device : torch.device, optional
-        The device all the tensors are run on. We try to figure this out by default, but you can
-        over-ride it
 
     Attributes
     ----------
-    device : torch.device
-        The device all the tensors are run on. We try to figure this out by default, but you can
-        over-ride it
     target_image : torch.tensor
         A 2d tensor, this is the image whose representation we wish to match.
     model : torch.nn.Module
@@ -113,19 +107,12 @@ class Metamer(nn.Module):
 
     """
 
-    def __init__(self, target_image, model, device=None):
+    def __init__(self, target_image, model):
         super().__init__()
 
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = device
-
         if not isinstance(target_image, torch.Tensor):
-            target_image = torch.tensor(target_image, torch.float32, device=self.device)
+            target_image = torch.tensor(target_image, torch.float32)
         self.target_image = target_image
-        if target_image.device != self.device:
-            raise Exception("target_image must be on same device as Metamer object!")
         self.model = model
         self.target_representation = self.analyze(self.target_image)
         self.matched_image = None
@@ -182,6 +169,7 @@ class Metamer(nn.Module):
         loss.backward(retain_graph=True)
         g = self.matched_image.grad.data
         self.optimizer.step()
+        # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
                          learning_rate=self.optimizer.param_groups[0]['lr'])
         return loss
@@ -245,15 +233,13 @@ class Metamer(nn.Module):
 
         if initial_image is None:
             self.matched_image = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                 device=self.device)
+                                                 device=self.target_image.device)
             self.matched_image.requires_grad = True
         else:
             if not isinstance(initial_image, torch.Tensor):
                 initial_image = torch.tensor(initial_image, dtype=torch.float32,
-                                             device=self.device)
+                                             device=self.target_image.device)
             self.matched_image = torch.nn.Parameter(initial_image, requires_grad=True)
-        if self.matched_image.device != self.device:
-            raise Exception("matched_image must be on same device as Metamer object!")
 
         # self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
         self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, momentum=0.8)
@@ -329,16 +315,13 @@ class Metamer(nn.Module):
                     'saved_image': self.saved_image}, file_path)
 
     @classmethod
-    def load(cls, file_path, device=None):
+    def load(cls, file_path):
         """load all relevant stuff from a .pt file
 
         Parameters
         ----------
         file_path : str
             The path to load the metamer object from
-        device : torch.device, optional
-            The device all the tensors are run on. We try to figure this out by default, but you
-            can over-ride it
 
         Returns
         -------
@@ -347,7 +330,7 @@ class Metamer(nn.Module):
 
         """
         tmp_dict = torch.load(file_path)
-        metamer = cls(tmp_dict.pop('target_image'), tmp_dict.pop('model'), device)
+        metamer = cls(tmp_dict.pop('target_image'), tmp_dict.pop('model'))
         for k, v in tmp_dict.items():
             setattr(metamer, k, v)
         return metamer
