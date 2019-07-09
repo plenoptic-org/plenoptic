@@ -287,7 +287,7 @@ class PrimaryVisualCortex(VentralModel):
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         # SHOULD THIS BE COMPLEX MODULUS (sqrt) OR SQUARED? (in which case we've just squared and
         # summed); paper seems to describe both
-        self.complex_cell_responses = dict((k, complex_modulus(v)**2) for k, v in
+        self.complex_cell_responses = dict((k, complex_modulus(v)) for k, v in
                                            self.pyr_coeffs.items() if not isinstance(k, str))
         self.windowed_complex_cell_responses = dict(
             (k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
