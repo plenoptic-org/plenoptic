@@ -68,6 +68,8 @@ class Metamer(nn.Module):
         ``self.matched_image`` at each iteration, for later examination.
     time : list
         A list of time, in seconds, relative to the most recent call to ``synthesize``.
+    seed : int
+        Number with which to seed pytorch and numy's random number generators
 
     References
     -----
@@ -88,7 +90,7 @@ class Metamer(nn.Module):
     - [ ] should we initialize optimizer / scheduler at initialization or during the call to
           synthesize? seems reasonable to me that you'd want to change it I guess...
     - [ ] is that note in analyze still up-to-date?
-    - [ ] add save method
+    - [x] add save method
     - [ ] add animate method, which creates a three-subplot animation: the metamer over time, the
           plot of differences in representation over time, and the loss over time (as a red point
           on the loss curve)
@@ -126,6 +128,7 @@ class Metamer(nn.Module):
         self.saved_representation = torch.empty((0, *self.target_representation.shape))
         self.saved_image = torch.empty((0, *self.target_image.shape))
         self.time = []
+        self.seed = None
 
     def analyze(self, x):
         """Analyze the image, that is, obtain the model's representation of it
@@ -225,6 +228,7 @@ class Metamer(nn.Module):
             The model's representation of the metamer
 
         """
+        self.seed = seed
         # random initialization
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -265,7 +269,6 @@ class Metamer(nn.Module):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            pbar.set_description('Iteration %d' % (i+1))
             loss = self._optimizer_step(pbar)
             if np.isnan(loss.item()):
                 warnings.warn("Loss is NaN, quitting out!")
@@ -299,3 +302,44 @@ class Metamer(nn.Module):
         if save_image:
             self.saved_image = self.saved_image[:i+2, :]
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
+
+    def save(self, file_path):
+        """save all relevant variables in .pt file
+
+        Note that if save_representation and save_image are True, this will probably be very large
+
+        Parameters
+        ----------
+        file_path : str
+            The path to save the metamer object to
+        """
+        torch.save({'matched_image': self.matched_image, 'target_image': self.target_image,
+                    'model': self.model, 'seed': self.seed, 'time': self.time, 'loss': self.loss,
+                    'target_representation': self.target_representation,
+                    'matched_representation': self.matched_representation,
+                    'saved_representation': self.saved_representation,
+                    'saved_image': self.saved_image}, file_path)
+
+    @classmethod
+    def load(cls, file_path, device=None):
+        """load all relevant stuff from a .pt file
+
+        Parameters
+        ----------
+        file_path : str
+            The path to load the metamer object from
+        device : torch.device, optional
+            The device all the tensors are run on. We try to figure this out by default, but you
+            can over-ride it
+
+        Returns
+        -------
+        metamer : plenoptic.synth.Metamer
+            The loaded metamer object
+
+        """
+        tmp_dict = torch.load(file_path)
+        metamer = cls(tmp_dict.pop('target_image'), tmp_dict.pop('model'), device)
+        for k, v in tmp_dict.items():
+            setattr(metamer, k, v)
+        return metamer
