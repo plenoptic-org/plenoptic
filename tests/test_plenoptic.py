@@ -125,6 +125,20 @@ class TestVentralStream(object):
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10)
 
+    def test_rgc_metamer_save_load(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.save('test.pt')
+        met_copy = po.synth.Metamer.load("test.pt")
+        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
+                  'matched_image', 'target_representation']:
+            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):

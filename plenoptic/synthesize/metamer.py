@@ -328,6 +328,12 @@ class Metamer(nn.Module):
         metamer : plenoptic.synth.Metamer
             The loaded metamer object
 
+        Examples
+        --------
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        >>> metamer.save('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
         """
         tmp_dict = torch.load(file_path)
         metamer = cls(tmp_dict.pop('target_image'), tmp_dict.pop('model'))
