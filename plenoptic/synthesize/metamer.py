@@ -55,10 +55,10 @@ class Metamer(nn.Module):
     loss : list
         A list of our loss over time.
     saved_representation : torch.tensor
-        If the ``save_representation`` arg in ``synthesize`` is set to True, we will save
-        ``self.matched_representation`` at each iteration, for later examination.
+        If the ``save_representation`` arg in ``synthesize`` is set to True or an int>0, we will
+        save ``self.matched_representation`` at each iteration, for later examination.
     saved_image : torch.tensor
-        If the ``save_image`` arg in ``synthesize`` is set to True, we will save
+        If the ``save_image`` arg in ``synthesize`` is set to True or an int>0, we will save
         ``self.matched_image`` at each iteration, for later examination.
     time : list
         A list of time, in seconds, relative to the most recent call to ``synthesize``.
@@ -86,7 +86,7 @@ class Metamer(nn.Module):
           important right now, same as above
     - [x] is that note in analyze still up-to-date? -- No
     - [x] add save method
-    - [ ] add example for load method
+    - [x] add example for load method
     - [ ] add animate method, which creates a three-subplot animation: the metamer over time, the
           plot of differences in representation over time, and the loss over time (as a red point
           on the loss curve) -- some models' representation might not be practical to plot, add the
@@ -96,7 +96,7 @@ class Metamer(nn.Module):
           do anyway)
     - [x] how to handle device? -- get rid of device in here, expect the user to set .to(device)
           (and then check self.target_image.device when initializing any tensors)
-    - [ ] how do we handle continuation? right now the way to do it is to just pass matched_im
+    - [x] how do we handle continuation? right now the way to do it is to just pass matched_im
           again, but is there a better way? how then to handle self.time and
           self.saved_image/representation? -- don't worry about this, add note about how this works
           but don't worry about this; add ability to save every n steps, not just or every
@@ -188,7 +188,10 @@ class Metamer(nn.Module):
         comes first
 
         Note that you can run this several times in sequence by setting ``initial_image`` to the
-        ``matched_image`` we return
+        ``matched_image`` we return. However, everything that stores the progress of the
+        optimization (``loss``, ``time``, ``saved_representation``, ``saved_image``) will get
+        created anew, so if you want to hold onto this history, you should copy them off the object
+        between calls.
 
         Parameters
         ----------
@@ -206,11 +209,15 @@ class Metamer(nn.Module):
             Clamper makes a change to the image in order to ensure that it stays reasonable. The
             classic example is making sure the range lies between 0 and 1, see
             plenoptic.RangeClamper for an example.
-        save_representation : bool, optional
+        save_representation : bool or int, optional
             Whether we should save the representation of the metamer in progress on every
-            iteration. If yes, ``self.saved_representation`` contains the saved representations.
-        save_image : bool, optional
-            Whether we should save the metamer in progress on every iteration. If yes,
+            iteration. If False, we don't save anything. If True, we save every iteration. If an
+            int, we save every ``save_image`` iterations (note then that 0 is the same as False and
+            1 the same as True). If True or int>0, ``self.saved_image`` contains the saved images.
+        save_image : bool or int, optional
+            Whether we should save the metamer in progress. If False, we don't save anything. If
+            True, we save every iteration. If an int, we save every ``save_image`` iterations (note
+            then that 0 is the same as False and 1 the same as True). If True or int>0,
             ``self.saved_image`` contains the saved images.
         loss_thresh : float, optional
             The value of the loss function that we consider "good enough", at which point we stop
@@ -246,19 +253,29 @@ class Metamer(nn.Module):
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
 
         self.matched_representation = self.analyze(self.matched_image)
-        # there's a +1 in each of thes because we want to save the initial state as well
+        # python's implicit boolean-ness means we can do this! it will evaluate to False for False
+        # and 0, and True for True and every int >= 1
         if save_representation:
-            self.saved_representation = torch.empty((max_iter+1,
+            if save_representation is True:
+                save_representation = 1
+            # there's a +1 in each of thes because we want to save the initial state as well
+            self.saved_representation = torch.empty(((max_iter//save_representation) + 1,
                                                      *self.target_representation.shape))
             self.saved_representation[0, :] = self.analyze(self.matched_image)
+            saved_representation_ticker = 1
+        # python's implicit boolean-ness means we can do this! it will evaluate to False for False
+        # and 0, and True for True and every int >= 1
         if save_image:
-            self.saved_image = torch.empty((max_iter+1, *self.target_image.shape))
+            if save_image is True:
+                save_image = 1
+            self.saved_image = torch.empty(((max_iter//save_image) + 1, *self.target_image.shape))
             self.saved_image[0, :] = self.matched_image
+            saved_image_ticker = 1
 
         with torch.no_grad():
-            self.loss.append(self.objective_function(self.matched_representation,
-                                                     self.target_representation).item())
-        self.time.append(time.time() - start_time)
+            self.loss = [self.objective_function(self.matched_representation,
+                                                 self.target_representation).item()]
+        self.time = [time.time() - start_time]
 
         pbar = tqdm(range(max_iter))
 
@@ -276,25 +293,31 @@ class Metamer(nn.Module):
                 if clamper is not None:
                     self.matched_image.data = clamper.clamp(self.matched_image.data)
 
-                if save_representation:
+                # i is 0-indexed but in order for the math to work out we want to be checking a
+                # 1-indexed thing against the modulo (e.g., if max_iter=10 and
+                # save_representation=3, then if it's 0-indexed, we'll try to save this four times,
+                # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
+                if save_representation and ((i+1) % save_representation == 0):
                     # save stats from this step
-                    self.saved_representation[i+1, :] = self.analyze(self.matched_image)
+                    self.saved_representation[saved_representation_ticker, :] = self.analyze(self.matched_image)
+                    saved_representation_ticker += 1
 
-                if save_image:
+                if save_image and ((i+1) % save_image == 0):
                     # save stats from this step
-                    self.saved_image[i+1, :] = self.matched_image
+                    self.saved_image[saved_image_ticker, :] = self.matched_image
+                    saved_image_ticker += 1
 
             if loss.item() < loss_thresh:
                 break
 
         pbar.close()
         # drop any empty columns (that is, if we don't reach the max iterations, don't want to hold
-        # onto these zeroes). we go to i+2 so we include the first entry (which is the initial
-        # state of things) and the last one of interest (in python, a[:i] gives you from 0 to i-1)
+        # onto these zeroes). we go to ticker+1 so we include the last entry of interest (in
+        # python, a[:i] gives you from 0 to i-1)
         if save_representation:
-            self.saved_representation = self.saved_representation[:i+2, :]
+            self.saved_representation = self.saved_representation[:saved_representation_ticker+1, :]
         if save_image:
-            self.saved_image = self.saved_image[:i+2, :]
+            self.saved_image = self.saved_image[:saved_image_ticker+1, :]
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
     def save(self, file_path):

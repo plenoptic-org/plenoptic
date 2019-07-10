@@ -125,7 +125,9 @@ class TestVentralStream(object):
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10)
 
-    def test_rgc_metamer_save_load(self):
+
+class TestMetamers(object):
+    def test_metamer_save_load(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
@@ -138,6 +140,34 @@ class TestVentralStream(object):
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
+
+    def test_metamer_save_rep(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=2)
+
+    def test_metamer_save_rep_2(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=True)
+
+    def test_metamer_save_rep_3(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=True)
+
+    def test_metamer_save_rep_4(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=3)
 
 
 # class SteerablePyramid(unittest.TestCase):
