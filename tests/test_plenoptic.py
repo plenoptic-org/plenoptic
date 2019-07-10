@@ -8,10 +8,12 @@ import os
 import numpy as np
 import plenoptic as po
 import os.path as op
+import matplotlib.pyplot as plt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
+DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 
 @pytest.fixture
@@ -93,6 +95,80 @@ class TestPooling(object):
         assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
         assert po.simul.pooling.calc_scaling(4, 5, 10) == 0.17350368946058647
         assert np.isinf(po.simul.pooling.calc_scaling(4, 0))
+
+
+class TestVentralStream(object):
+    def test_rgc(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        rgc(im)
+
+    def test_rgc_metamer(self):
+        # literally just testing that it runs
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=10)
+
+    def test_v1(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        v1(im)
+
+    def test_v1_metamer(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10)
+
+
+class TestMetamers(object):
+    def test_metamer_save_load(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.save('test.pt')
+        met_copy = po.synth.Metamer.load("test.pt")
+        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
+                  'matched_image', 'target_representation']:
+            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+
+    def test_metamer_save_rep(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=2)
+
+    def test_metamer_save_rep_2(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=True)
+
+    def test_metamer_save_rep_3(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=True)
+
+    def test_metamer_save_rep_4(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=3)
+
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
