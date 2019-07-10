@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import numpy as np
 import pyrtools as pt
-from ..tools.fit import complex_modulus
+from .non_linearities import complex_modulus
 from .pooling import create_pooling_windows
 from .steerable_pyramid_freq import Steerable_Pyramid_Freq
 
