@@ -5,9 +5,6 @@ import math
 import tqdm
 import tarfile
 import os
-# need to wrap pytest's tmp_dir in pathlib.Path for python 3.5:
-# https://github.com/pytest-dev/pytest/issues/5017
-import pathlib
 import numpy as np
 import plenoptic as po
 import os.path as op
@@ -120,8 +117,13 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         rgc = po.simul.PrimaryVisualCortex(.5, im.shape)
         rgc(im)
-        rgc.save_sparse(op.join(pathlib.Path(tmp_path), 'test_rgc_save_load.pt'))
-        rgc_copy = po.simul.RetinalGanglionCells.load_sparse(op.join(pathlib.Path(tmp_path),
+        # because of this issue
+        # https://github.com/pytest-dev/pytest/issues/5017, need to cast
+        # the path object to a string on python 3.5 (just wrapping in
+        # pathlib.Path, as I took the final comment in that issue to
+        # mean, does not work)
+        rgc.save_sparse(op.join(tmp_path.as_posix(), 'test_rgc_save_load.pt'))
+        rgc_copy = po.simul.RetinalGanglionCells.load_sparse(op.join(tmp_path.as_posix(),
                                                                      'test_rgc_save_load.pt'))
         if not len(rgc.windows) == len(rgc_copy.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
@@ -143,8 +145,13 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         v1(im)
-        v1.save_sparse(op.join(pathlib.Path(tmp_path), 'test_v1_save_load.pt'))
-        v1_copy = po.simul.PrimaryVisualCortex.load_sparse(op.join(pathlib.Path(tmp_path),
+        # because of this issue
+        # https://github.com/pytest-dev/pytest/issues/5017, need to cast
+        # the path object to a string on python 3.5 (just wrapping in
+        # pathlib.Path, as I took the final comment in that issue to
+        # mean, does not work)
+        v1.save_sparse(op.join(tmp_path.as_posix(), 'test_v1_save_load.pt'))
+        v1_copy = po.simul.PrimaryVisualCortex.load_sparse(op.join(tmp_path.as_posix(),
                                                                    'test_v1_save_load.pt'))
         if not len(v1.windows) == len(v1_copy.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
@@ -170,8 +177,13 @@ class TestMetamers(object):
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
-        metamer.save(op.join(pathlib.Path(tmp_path), 'test_metamer_save_load.pt'))
-        met_copy = po.synth.Metamer.load(op.join(pathlib.Path(tmp_path), "test_metamer_save_load.pt"))
+        # because of this issue
+        # https://github.com/pytest-dev/pytest/issues/5017, need to cast
+        # the path object to a string on python 3.5 (just wrapping in
+        # pathlib.Path, as I took the final comment in that issue to
+        # mean, does not work)
+        metamer.save(op.join(tmp_path.as_posix(), 'test_metamer_save_load.pt'))
+        met_copy = po.synth.Metamer.load(op.join(tmp_path.as_posix(), "test_metamer_save_load.pt"))
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
@@ -184,10 +196,17 @@ class TestMetamers(object):
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
-        metamer.save(op.join(pathlib.Path(tmp_path), 'test_metamer_save_load_sparse.pt'), True)
+        # because of this issue
+        # https://github.com/pytest-dev/pytest/issues/5017, need to cast
+        # the path object to a string on python 3.5 (just wrapping in
+        # pathlib.Path, as I took the final comment in that issue to
+        # mean, does not work)
+        metamer.save(op.join(tmp_path.as_posix(), 'test_metamer_save_load_sparse.pt'), True)
         with pytest.raises(Exception):
-            met_copy = po.synth.Metamer.load(op.join(pathlib.Path(tmp_path), "test_metamer_save_load_sparse.pt"))
-        met_copy = po.synth.Metamer.load(op.join(pathlib.Path(tmp_path), 'test_metamer_save_load_sparse.pt'),
+            met_copy = po.synth.Metamer.load(op.join(tmp_path.as_posix(),
+                                                     "test_metamer_save_load_sparse.pt"))
+        met_copy = po.synth.Metamer.load(op.join(tmp_path.as_posix(),
+                                                 'test_metamer_save_load_sparse.pt'),
                                          po.simul.PrimaryVisualCortex.from_state_dict_sparse)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
