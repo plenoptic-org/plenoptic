@@ -376,6 +376,10 @@ class Metamer(nn.Module):
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
 
+        Things are slightly more complicated if you saved a sparse representation of the model by
+        setting the ``save_model_sparse`` flag to ``True``. In that case, you also need to pass a
+        model constructor argument, like so:
+
         >>> model = po.simul.RetinalGanglionCells(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
