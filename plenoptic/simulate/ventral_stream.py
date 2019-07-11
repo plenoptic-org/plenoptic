@@ -3,12 +3,12 @@
 """
 import torch
 from torch import nn
-import numpy as np
 import pyrtools as pt
 from ..tools.fit import complex_modulus
 from .pooling import create_pooling_windows
 from .steerable_pyramid_freq import Steerable_Pyramid_Freq
 
+# add a soft circular mask to target image before synthesizing
 
 class VentralModel(nn.Module):
     """Generic class that everyone inherits. Sets up the scaling windows
@@ -62,6 +62,12 @@ class VentralModel(nn.Module):
         A list of 1d tensors containing the number of non-zero elements in each window; we use this
         to correctly average within each window. Each entry in the list corresponds to a different
         scale (they should all have the same number of elements).
+    state_dict_sparse : dict
+        A dictionary containing those attributes necessary to initialize the model, plus a
+        'model_name' field. This is used for saving/loading the models, since we don't want to keep
+        the (very large) representation and intermediate steps around. To save, use
+        ``self.save_sparse(filename)``, and then load from that same file using the class method
+        ``po.simul.VentralModel(filename)``
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
@@ -74,6 +80,9 @@ class VentralModel(nn.Module):
         self.max_eccentricity = max_eccentricity
         self.windows = []
         self.window_sizes = []
+        self.state_dict_sparse = {'scaling': scaling, 'img_res': img_res,
+                                  'min_eccentricity': min_eccentricity, 'zero_thresh': zero_thresh,
+                                  'max_eccentricity': max_eccentricity}
         for i in range(num_scales):
             windows, theta, ecc = create_pooling_windows(scaling, min_eccentricity,
                                                          max_eccentricity,
@@ -85,6 +94,52 @@ class VentralModel(nn.Module):
             # need this to be float32 so we can divide the representation by it.
             self.window_sizes.append((windows > zero_thresh).sum((1, 2), dtype=torch.float32))
             self.windows.append(windows)
+
+    def save_sparse(self, file_path):
+        """save the relevant parameters to make saving/loading more efficient
+
+        This saves self.state_dict_sparse, which, by default, just contains scaling, img_res,
+        min_eccentricity, max_eccentricity, zero_thresh
+
+        Parameters
+        ----------
+        file_path : str
+            The path to save the model object to
+
+        """
+        torch.save(self.state_dict_sparse, file_path)
+
+    @classmethod
+    def load_sparse(cls, file_path):
+        """load from the dictionary put together by ``save_sparse``
+
+        Parameters
+        ----------
+        file_path : str
+            The path to load the model object from
+        """
+        state_dict_sparse = torch.load(file_path)
+        return cls.from_state_dict_sparse(state_dict_sparse)
+
+    @classmethod
+    def from_state_dict_sparse(cls, state_dict_sparse):
+        """load from the dictionary put together by ``save_sparse``
+
+        Parameters
+        ----------
+        state_dict_sparse : dict
+            The sparse state dict to load
+        """
+        state_dict_sparse = state_dict_sparse.copy()
+        model_name = state_dict_sparse.pop('model_name')
+        # want to remove class if it's here
+        state_dict_sparse.pop('class', None)
+        if model_name == 'RGC':
+            return RetinalGanglionCells(**state_dict_sparse)
+        elif model_name == 'V1':
+            return PrimaryVisualCortex(**state_dict_sparse)
+        else:
+            raise Exception("Don't know how to handle model_name %s!" % model_name)
 
 
 class RetinalGanglionCells(VentralModel):
@@ -140,12 +195,19 @@ class RetinalGanglionCells(VentralModel):
     representation : torch.tensor
         A flattened (ergo 1d) tensor containing the averages of the pixel intensities within each
         pooling window for ``self.image``
+    state_dict_sparse : dict
+        A dictionary containing those attributes necessary to initialize the model, plus a
+        'model_name' field. This is used for saving/loading the models, since we don't want to keep
+        the (very large) representation and intermediate steps around. To save, use
+        ``self.save_sparse(filename)``, and then load from that same file using the class method
+        ``po.simul.VentralModel(filename)``
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
                  zero_thresh=1e-20):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          zero_thresh=zero_thresh)
+        self.state_dict_sparse.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
         self.representation = None
@@ -250,12 +312,20 @@ class PrimaryVisualCortex(VentralModel):
     representation : torch.tensor
         A flattened (ergo 1d) tensor containing the averages of the 'complex cell responses', that
         is, the squared and summed outputs of the complex steerable pyramid.
+    state_dict_sparse : dict
+        A dictionary containing those attributes necessary to initialize the model, plus a
+        'model_name' field. This is used for saving/loading the models, since we don't want to keep
+        the (very large) representation and intermediate steps around. To save, use
+        ``self.save_sparse(filename)``, and then load from that same file using the class method
+        ``po.simul.VentralModel(filename)``
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, zero_thresh=1e-20):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          zero_thresh)
+        self.state_dict_sparse.update({'order': order, 'model_name': 'V1',
+                                       'num_scales': num_scales})
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,

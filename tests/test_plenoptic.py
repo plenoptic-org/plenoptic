@@ -112,11 +112,45 @@ class TestVentralStream(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=10)
 
+    def test_rgc_save_load(self, tmp_path):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.PrimaryVisualCortex(.5, im.shape)
+        rgc(im)
+        rgc.save_sparse(op.join(tmp_path, 'test_rgc_save_load.pt'))
+        rgc_copy = po.simul.RetinalGanglionCells.load_sparse(op.join(tmp_path,
+                                                                     'test_rgc_save_load.pt'))
+        if not len(rgc.windows) == len(rgc_copy.windows):
+            raise Exception("Something went wrong saving and loading, the lists of windows are"
+                            " not the same length!")
+        # we don't recreate everything, e.g., the representation, but windows is the most important
+        for i in range(len(rgc.windows)):
+            if not rgc.windows[i].allclose(rgc_copy.windows[i]):
+                raise Exception("Something went wrong saving and loading, the windows %d are"
+                                " not identical!" % i)
+
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         v1(im)
+
+    def test_v1_save_load(self, tmp_path):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        v1(im)
+        v1.save_sparse(op.join(tmp_path, 'test_v1_save_load.pt'))
+        v1_copy = po.simul.PrimaryVisualCortex.load_sparse(op.join(tmp_path,
+                                                                   'test_v1_save_load.pt'))
+        if not len(v1.windows) == len(v1_copy.windows):
+            raise Exception("Something went wrong saving and loading, the lists of windows are"
+                            " not the same length!")
+        # we don't recreate everything, e.g., the representation, but windows is the most important
+        for i in range(len(v1.windows)):
+            if not v1.windows[i].allclose(v1_copy.windows[i]):
+                raise Exception("Something went wrong saving and loading, the windows %d are"
+                                " not identical!" % i)
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -127,14 +161,31 @@ class TestVentralStream(object):
 
 
 class TestMetamers(object):
-    def test_metamer_save_load(self):
+    def test_metamer_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
-        metamer.save('test.pt')
-        met_copy = po.synth.Metamer.load("test.pt")
+        metamer.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
+        met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"))
+        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
+                  'matched_image', 'target_representation']:
+            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+
+    def test_metamer_save_load_sparse(self, tmp_path):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.save(op.join(tmp_path, 'test_metamer_save_load_sparse.pt'), True)
+        with pytest.raises(Exception):
+            met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load_sparse.pt"))
+        met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_sparse.pt'),
+                                         po.simul.PrimaryVisualCortex.from_state_dict_sparse)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):

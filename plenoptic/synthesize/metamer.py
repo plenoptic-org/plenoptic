@@ -320,7 +320,7 @@ class Metamer(nn.Module):
             self.saved_image = self.saved_image[:saved_image_ticker+1, :]
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
-    def save(self, file_path):
+    def save(self, file_path, save_model_sparse=False):
         """save all relevant variables in .pt file
 
         Note that if save_representation and save_image are True, this will probably be very large
@@ -329,27 +329,45 @@ class Metamer(nn.Module):
         ----------
         file_path : str
             The path to save the metamer object to
+        save_model_sparse : bool
+            Whether we save the full model or just its attribute ``state_dict_sparse`` (this is a
+            custom attribute of ours, the basic idea being that it only contains the attributes
+            necessary to initialize the model, none of the (probably much larger) ones it gets
+            during run-time).
+
         """
+        if save_model_sparse:
+            model = self.model.state_dict_sparse
+        else:
+            model = self.model
         torch.save({'matched_image': self.matched_image, 'target_image': self.target_image,
-                    'model': self.model, 'seed': self.seed, 'time': self.time, 'loss': self.loss,
+                    'model': model, 'seed': self.seed, 'time': self.time, 'loss': self.loss,
                     'target_representation': self.target_representation,
                     'matched_representation': self.matched_representation,
                     'saved_representation': self.saved_representation,
                     'saved_image': self.saved_image}, file_path)
 
     @classmethod
-    def load(cls, file_path):
+    def load(cls, file_path, model_constructor=None):
         """load all relevant stuff from a .pt file
 
         Parameters
         ----------
         file_path : str
             The path to load the metamer object from
+        model_constructor : callable or None, optional
+            When saving the metamer object, we have the option to only save the
+            ``state_dict_sparse`` (in order to save space). If we do that, then we need some way to
+            construct that model again and, not knowing its class or anything, this object doesn't
+            know how. Therefore, a user must pass a constructor for the model that takes in the
+            ``state_dict_sparse`` dictionary and returns the initialized model. See the
+            VentralModel class for an example of this.
 
         Returns
         -------
         metamer : plenoptic.synth.Metamer
             The loaded metamer object
+
 
         Examples
         --------
@@ -357,9 +375,21 @@ class Metamer(nn.Module):
         >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+
+        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        >>> metamer.save('metamers.pt', save_model_sparse=True)
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
+                                                 po.simul.RetinalGanglionCells.from_state_dict_sparse)
+
         """
         tmp_dict = torch.load(file_path)
-        metamer = cls(tmp_dict.pop('target_image'), tmp_dict.pop('model'))
+        model = tmp_dict.pop('model')
+        if isinstance(model, dict):
+            # then we've got a state_dict_sparse and we need the model_constructor
+            model = model_constructor(model)
+        metamer = cls(tmp_dict.pop('target_image'), model)
         for k, v in tmp_dict.items():
             setattr(metamer, k, v)
         return metamer
