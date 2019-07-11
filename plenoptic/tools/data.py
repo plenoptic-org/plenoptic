@@ -48,7 +48,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
     # image = plt.imread('/Users/pe/Pictures/umbrella.jpg').astype(float)
     # image = image[500:500+2**11,1000:1000+2**11,0]
     # image = pt.blurDn(image, 4, 'qmf9')
-    image = plt.imread(op.join(DATA_PATH, 'einstein.pgm')).astype(float)
+    image = plt.imread(op.join(DATA_PATH, 'einstein.png')).astype(float)[:,:,0]
     # image = pt.blurDn(image, 1, 'qmf9')
 
     stim = [impulse, step_edge, ramp, bar, curv_edge,

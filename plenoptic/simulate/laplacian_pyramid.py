@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import transforms
-
+from ..tools.conv import blur_downsample, upsample_blur
 
 class Laplacian_Pyramid(nn.Module):
     """
@@ -11,6 +11,39 @@ class Laplacian_Pyramid(nn.Module):
 
     def __init__(self, n_scales=5, downsample_filter=None, upsample_filter=None, edge_type='reflect1'):
         super(Laplacian_Pyramid, self).__init__()
+
+        self.n_scales = n_scales
+
+    def analysis(self, x):
+
+        y = []
+        for scale in range(self.n_scales - 1):
+            x_down = blur_downsample(x)
+            x_up = upsample_blur(x_down)
+            y.append(x - x_up)
+            x = x_down
+        y.append(x)
+
+        return y
+
+    def synthesis(self, y):
+
+        x = y[self.n_scales - 1]
+        for scale in range(self.n_scales - 1, 0, -1):
+            y_up = upsample_blur(x)
+            x = y[scale - 1] + y_up
+
+        return x
+
+
+class Laplacian_Pyramid_Learnable(nn.Module):
+    """
+    TODO learning filters
+
+    """
+
+    def __init__(self, n_scales=5, downsample_filter=None, upsample_filter=None, edge_type='reflect1'):
+        super(Laplacian_Pyramid_Learnable, self).__init__()
 
         self.n_scales = n_scales
 

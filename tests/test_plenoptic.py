@@ -55,6 +55,13 @@ class TestBasics(object):
         assert model(x).requires_grad
 
 
+class TestLaplacianPyramid(object):
+    def test_grad(self):
+        L = po.simul.Laplacian_Pyramid()
+        y = L.analysis(po.make_basic_stimuli())
+        assert y.requires_grad
+
+
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
 
