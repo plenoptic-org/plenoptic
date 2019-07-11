@@ -34,6 +34,7 @@ release = plenoptic.__version__
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
@@ -42,6 +43,8 @@ extensions = [
     'numpydoc',
     'nbsphinx',
     'nbsphinx_link',
+    'matplotlib.sphinxext.plot_directive',
+    'matplotlib.sphinxext.mathmpl',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -68,6 +71,20 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
+
+# Napoleon settings
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+
 
 # -- Options for HTML output -------------------------------------------------
 

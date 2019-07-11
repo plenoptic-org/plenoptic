@@ -36,6 +36,14 @@ plenoptic.simulate.linear\_nonlinear module
    :undoc-members:
    :show-inheritance:
 
+plenoptic.simulate.pooling module
+---------------------------------
+
+.. automodule:: plenoptic.simulate.pooling
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 plenoptic.simulate.steerable\_pyramid\_freq module
 --------------------------------------------------
 

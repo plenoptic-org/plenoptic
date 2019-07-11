@@ -5,16 +5,15 @@ import math
 import tqdm
 import tarfile
 import os
+import numpy as np
 import plenoptic as po
 import os.path as op
+import matplotlib.pyplot as plt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
-
-# self.assertEqual('foo'.upper(), 'FOO')
-# self.assertTrue
-# self.assertFalse
+DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 
 @pytest.fixture
@@ -53,12 +52,123 @@ class TestBasics(object):
     def test_one(self):
         model = po.simul.Linear()
         x = po.make_basic_stimuli()
-        print('hi')
         assert model(x).requires_grad
 
 
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
+
+
+class TestPooling(object):
+    def test_creation(self):
+        windows, theta, ecc = po.simul.create_pooling_windows(.87)
+
+    def test_creation_args(self):
+        windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
+
+    def test_ecc_windows(self):
+        ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4)
+        ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4.5)
+        ecc, windows = po.simul.pooling.log_eccentricity_windows(window_width=.5)
+        ecc, windows = po.simul.pooling.log_eccentricity_windows(window_width=1)
+
+    def test_angle_windows(self):
+        theta, windows = po.simul.pooling.polar_angle_windows(4)
+        theta, windows = po.simul.pooling.polar_angle_windows(4, 1000)
+        with pytest.raises(Exception):
+            theta, windows = po.simul.pooling.polar_angle_windows(1.5)
+        with pytest.raises(Exception):
+            theta, windows = po.simul.pooling.polar_angle_windows(1)
+
+    def test_calculations(self):
+        # these really shouldn't change, but just in case...
+        assert po.simul.pooling.calc_polar_window_width(2) == np.pi
+        assert po.simul.pooling.calc_polar_n_windows(2) == np.pi
+        with pytest.raises(Exception):
+            po.simul.pooling.calc_eccentricity_window_width()
+        assert po.simul.pooling.calc_eccentricity_window_width(n_windows=4) == 0.8502993454155389
+        assert po.simul.pooling.calc_eccentricity_window_width(scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, n_windows=4) == 0.1732867951399864
+        assert po.simul.pooling.calc_eccentricity_n_windows(0.8502993454155389) == 4
+        assert po.simul.pooling.calc_eccentricity_n_windows(0.1732867951399864, 5, 10) == 4
+        assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
+        assert po.simul.pooling.calc_scaling(4, 5, 10) == 0.17350368946058647
+        assert np.isinf(po.simul.pooling.calc_scaling(4, 0))
+
+
+class TestVentralStream(object):
+    def test_rgc(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        rgc(im)
+
+    def test_rgc_metamer(self):
+        # literally just testing that it runs
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=10)
+
+    def test_v1(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        v1(im)
+
+    def test_v1_metamer(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10)
+
+
+class TestMetamers(object):
+    def test_metamer_save_load(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.save('test.pt')
+        met_copy = po.synth.Metamer.load("test.pt")
+        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
+                  'matched_image', 'target_representation']:
+            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+
+    def test_metamer_save_rep(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=2)
+
+    def test_metamer_save_rep_2(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=2, save_image=True)
+
+    def test_metamer_save_rep_3(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=True)
+
+    def test_metamer_save_rep_4(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, save_representation=3, save_image=3)
+
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
