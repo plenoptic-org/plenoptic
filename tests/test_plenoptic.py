@@ -109,6 +109,9 @@ class TestVentralStream(object):
         _ = rgc.plot_window_sizes('degrees')
         _ = rgc.plot_window_sizes('degrees', jitter=0)
         _ = rgc.plot_window_sizes('pixels')
+        rgc.plot_representation()
+        fig, axes = plt.subplots(2, 1)
+        rgc.plot_representation(ax=axes[1])
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -148,6 +151,9 @@ class TestVentralStream(object):
         _ = v1.plot_window_sizes('pixels')
         for i in range(v1.num_scales):
             _ = v1.plot_window_sizes('pixels', i)
+        v1.plot_representation()
+        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation(ax=axes[1])
 
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:

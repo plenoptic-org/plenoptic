@@ -2,10 +2,14 @@
 
 """
 import torch
+import itertools
+import warnings
 from torch import nn
+import matplotlib as mpl
 import numpy as np
 import pyrtools as pt
 from ..tools.fit import complex_modulus
+from ..tools.display import clean_up_axes
 from .pooling import (create_pooling_windows, calc_window_widths_actual, calc_angular_n_windows,
                       calc_eccentricity_window_width, calc_angular_window_width,
                       calc_windows_central_eccentricity)
@@ -101,6 +105,11 @@ class VentralModel(nn.Module):
         ``window_num_pixels``. See above for explanation of the
         dictionaries. To visualize these, see the ``plot_window_sizes``
         method.
+    n_polar_windows : int
+        The number of windows we have in the polar angle dimension
+        (within each eccentricity band)
+    n_eccentricity_bands : int
+        The number of eccentricity bands in our model
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
@@ -117,8 +126,8 @@ class VentralModel(nn.Module):
         self.window_width_pixels = []
         ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
                                                           scaling=scaling)
-        n_polar_windows = calc_angular_n_windows(ecc_window_width / 2)
-        angular_window_width = calc_angular_window_width(round(n_polar_windows))
+        self.n_polar_windows = round(calc_angular_n_windows(ecc_window_width / 2))
+        angular_window_width = calc_angular_window_width(self.n_polar_windows)
         window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
                                                   min_eccentricity, max_eccentricity)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
@@ -144,6 +153,7 @@ class VentralModel(nn.Module):
             # to scale them all appropriately
             self.window_width_pixels.append(dict((k, [i*deg_to_pix for i in v]) for k, v in
                                                  self.window_width_degrees.copy().items()))
+        self.n_eccentricity_bands = int(self.windows[0].shape[0] // self.n_polar_windows)
 
     def save_sparse(self, file_path):
         r"""save the relevant parameters to make saving/loading more efficient
@@ -256,6 +266,98 @@ class VentralModel(nn.Module):
         ax.legend(loc='upper left')
         return fig
 
+    def _expand_representation_for_plotting(self):
+        """Expand the representation, adding nans to make plotting easier
+
+        To make things simpler for the optimization, VentralStream
+        object's representation is a straightforward 1d tensor. However,
+        that hides a lot of structure to the representation: each
+        consists of some number of different representation types, each
+        averaged per window. And the windows themselves are structured:
+        we have several different eccentricity bands, each of which
+        contains the same number of angular windows. We want to use this
+        structure when plotting the representation, as it makes it
+        easier to see what's goin on. So we take a copy of the
+        representation and make it 2d, separating out each
+        representation type. We then take each representation type and
+        add ``np.nan`` between each eccentricity band. This way we can
+        make a separate plot for each representation type and, at a
+        glance, see the eccentricity bands separated out.
+
+        We expect this to be plotted using ``plt.stem``, and return a
+        tuple ``xvals`` for use with ``plt.hlines`` to replace the base
+        line (by default, ``plt.stem`` doesn't insert a break in the
+        baseline if there's a NaN in the data, but we want that for ease
+        of visualization)
+
+        Returns
+        -------
+        representation_copy : np.array
+            The expanded copy of the representation, which is now 2d,
+            ``(num_representation_types, num_windows+x)`` (where ``x``
+            is the number of NaNs we've inserted), and contains np.nan
+            between each eccentricity band
+        xvals : tuple
+            A 2-tuple of lists, containing the start (``xvals[0]``) and
+            stop (``xvals[1]``) x values for plotting. For use with
+            plt.hlines, like so: ``plt.hlines(len(xvals[0])*[0],
+            xvals[0], xvals[1])``
+
+        """
+        representation_len = int(self.n_polar_windows * self.n_eccentricity_bands)
+        # we can't compute this during initialization, but could move it
+        # to the forward pass if it looks useful...
+        num_representation_types = int(self.representation.shape[0] / representation_len)
+        rep_copy = np.nan*np.empty((num_representation_types,
+                                    representation_len+self.n_eccentricity_bands))
+        xvals = ([], [])
+        for i in range(self.n_eccentricity_bands):
+            new_idx = (int(i*self.n_polar_windows), int((i+1)*self.n_polar_windows))
+            xvals[0].append(new_idx[0]+i)
+            xvals[1].append(new_idx[1]+(i-1))
+            for j in range(num_representation_types):
+                old_idx = [num + j*representation_len for num in new_idx]
+                rep_copy[j, new_idx[0]+i:new_idx[1]+i] = self.representation[old_idx[0]:
+                                                                             old_idx[1]]
+        return rep_copy, xvals
+
+    @staticmethod
+    def _plot_representation(ax, data, xvals, title, ylim):
+        """convenience wrapper for plotting representation
+
+        This plots the data, baseline, cleans up the axis, and sets the
+        title
+
+        Should not be called by users directly, but helper function for
+        the various plot_representation() functions
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.axis
+            The axis to plot the data on
+        data : np.array
+            The data to plot (as a stem plot)
+        xvals : tuple
+            A 2-tuple of lists, containing the start (``xvals[0]``) and
+            stop (``xvals[1]``) x values for plotting.
+        title : str
+            The title to put on the axis
+        ylim : tuple or None, optional
+            If not None, the y-limits to use for this plot. If None, we
+            use the default, slightly adjusted so that the minimum is 0
+
+        Returns
+        -------
+        ax : matplotlib.pyplot.axis
+            The axis with the plot
+
+        """
+        ax.stem(data, basefmt=' ')
+        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3')
+        ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
+        ax.set_title(title)
+        return ax
+
 
 class RetinalGanglionCells(VentralModel):
     r"""A wildly simplistic model of retinal ganglion cells (RGCs)
@@ -345,6 +447,11 @@ class RetinalGanglionCells(VentralModel):
         ``window_num_pixels``. See above for explanation of the
         dictionaries. To visualize these, see the ``plot_window_sizes``
         method.
+    n_polar_windows : int
+        The number of windows we have in the polar angle dimension
+        (within each eccentricity band)
+    n_eccentricity_bands : int
+        The number of eccentricity bands in our model
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
@@ -377,6 +484,49 @@ class RetinalGanglionCells(VentralModel):
         representation = self.windowed_image.sum((1, 2))
         self.representation = representation / self.window_num_pixels[0]
         return self.representation
+
+    def plot_representation(self, figsize=(10, 5), ylim=None, ax=None,
+                            title='Mean pixel intensity in each window'):
+        """plot the representation of the RGC model
+
+        Because our model just takes the average pixel intensities in
+        each window, our representation plot is just a simple stem plot
+        showing each of these average intensities (different positions
+        on the x axis correspond to different windows). We have a small
+        break in the data to show where we've moved out to the next
+        eccentricity ring.
+
+        Note that this looks better when it's wider than it is tall
+        (like the default figsize suggests)
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create
+        ylim : tuple or None, optional
+            If not None, the y-limits to use for this plot. If None, we
+            use the default, slightly adjusted so that the minimum is 0
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        title : str, optional
+            The title to put above this axis. If you want no title, pass
+            the empty string (``''``)
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+        rep_copy, xvals = self._expand_representation_for_plotting()
+        self._plot_representation(ax, rep_copy[0], xvals, title, ylim)
+        # fig won't always be defined, but this will return the figure belonging to our axis
+        return ax.figure
 
 
 class PrimaryVisualCortex(VentralModel):
@@ -507,6 +657,11 @@ class PrimaryVisualCortex(VentralModel):
         ``window_num_pixels``. See above for explanation of the
         dictionaries. To visualize these, see the ``plot_window_sizes``
         method.
+    n_polar_windows : int
+        The number of windows we have in the polar angle dimension
+        (within each eccentricity band)
+    n_eccentricity_bands : int
+        The number of eccentricity bands in our model
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
@@ -559,3 +714,75 @@ class PrimaryVisualCortex(VentralModel):
                                         for k, v in self.windowed_complex_cell_responses.items()])
         self.representation = torch.cat([mean_complex_cells, self.mean_luminance])
         return self.representation
+
+    def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, titles=None):
+        """plot the representation of the V1 model
+
+        Since our PrimaryVisualCortex model has more statistics than the
+        RetinalGanglionCell model, this is a much more complicated
+        plot. We end up creating a grid, showing each band and scale
+        separately, and then a separate plot, off to the side, for the
+        mean pixel intensity.
+
+        Despite this complication, we can still take an ``ax`` argument
+        to plot on some portion of a figure. We make use of matplotlib's
+        powerful ``GridSpec`` to arrange things to our liking.
+
+        Each plot has a small break in the data to show where we've
+        moved out to the next eccentricity ring.
+
+        Note that this looks better when it's wider than it is tall
+        (like the default figsize suggests)
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create (ignored if ``ax`` is not
+            None)
+        ylim : tuple or None, optional
+            If not None, the y-limits to use for this plot. If None, we
+            use the default, slightly adjusted so that the minimum is 0
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on (in
+            which case we ignore ``figsize``). If None, we create our
+            own figure to hold it
+        titles : list or None, optional
+            A list of strings, each of which is the title to put above
+            the subplots. If None, we use the default choice, which
+            specifies the scale and orientation of each plot (and the
+            mean intensity). If a list, must have the right number of
+            titles: ``self.num_scales*(self.order+1)+1`` (the last one
+            is ``self.mean_luminance``)
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        if ax is None:
+            # we add 2 to order because we're adding one to get the
+            # number of orientations and then another one to add an
+            # extra column for the mean luminance plot
+            fig = plt.figure(figsize=figsize)
+            gs = mpl.gridspec.GridSpec(2*self.num_scales, 2*(self.order+2), fig)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+            # want to make sure the axis we're taking over is basically invisible.
+            ax = clean_up_axes(ax, spines_to_remove=['top', 'right', 'bottom', 'left'])
+            ax.yaxis.set_visible(False)
+            gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
+            fig = ax.figure
+        rep_copy, xvals = self._expand_representation_for_plotting()
+        if titles is None:
+            titles = ["scale %02d, band %02d" % (h, b) for h, b in
+                      itertools.product(range(self.num_scales), range(self.order+1))]
+            titles += ['Mean pixel intensity']
+        for i in range(self.num_scales):
+            for j in range(self.order+1):
+                ax = fig.add_subplot(gs[2*i:2*(i+1), 2*j:2*(j+1)])
+                ax = self._plot_representation(ax, rep_copy[i*self.num_scales+j], xvals,
+                                               titles[i*self.num_scales+j], ylim)
+        ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
+        ax = self._plot_representation(ax, rep_copy[-1], xvals, titles[-1], ylim)
+        return fig
