@@ -328,6 +328,23 @@ class RetinalGanglionCells(VentralModel):
         large) representation and intermediate steps around. To save,
         use ``self.save_sparse(filename)``, and then load from that same
         file using the class method ``po.simul.VentralModel(filename)``
+    window_width_degrees : dict
+        Dictionary containing the widths of the windows in
+        degrees. There are four keys: 'radial_top', 'radial_full',
+        'angular_top', and 'angular_full', corresponding to a 2x2 for
+        the widths in the radial and angular directions by the 'top' and
+        'full' widths (top is the width of the flat-top region of each
+        window, where the window's value is 1; full is the width of the
+        entire window). Each value is a list containing the widths for
+        the windows in different eccentricity bands. To visualize these,
+        see the ``plot_window_sizes`` method.
+    window_width_pixels : list
+        List of dictionaries containing the widths of the windows in
+        pixels; each entry in the list corresponds to the widths for a
+        different scale, as in ``windows`` and
+        ``window_num_pixels``. See above for explanation of the
+        dictionaries. To visualize these, see the ``plot_window_sizes``
+        method.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
@@ -465,6 +482,23 @@ class PrimaryVisualCortex(VentralModel):
         large) representation and intermediate steps around. To save,
         use ``self.save_sparse(filename)``, and then load from that same
         file using the class method ``po.simul.VentralModel(filename)``
+    window_width_degrees : dict
+        Dictionary containing the widths of the windows in
+        degrees. There are four keys: 'radial_top', 'radial_full',
+        'angular_top', and 'angular_full', corresponding to a 2x2 for
+        the widths in the radial and angular directions by the 'top' and
+        'full' widths (top is the width of the flat-top region of each
+        window, where the window's value is 1; full is the width of the
+        entire window). Each value is a list containing the widths for
+        the windows in different eccentricity bands. To visualize these,
+        see the ``plot_window_sizes`` method.
+    window_width_pixels : list
+        List of dictionaries containing the widths of the windows in
+        pixels; each entry in the list corresponds to the widths for a
+        different scale, as in ``windows`` and
+        ``window_num_pixels``. See above for explanation of the
+        dictionaries. To visualize these, see the ``plot_window_sizes``
+        method.
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
