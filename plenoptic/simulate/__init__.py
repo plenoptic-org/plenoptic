@@ -8,6 +8,7 @@ from .frontend import Front_End
 from .spectral import Spectral
 
 from . import pooling
+from .pooling import create_pooling_windows
 from . import non_linearities
 from .ventral_stream import RetinalGanglionCells, PrimaryVisualCortex
 

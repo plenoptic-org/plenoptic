@@ -59,7 +59,7 @@ class TestLaplacianPyramid(object):
     def test_grad(self):
         L = po.simul.Laplacian_Pyramid()
         y = L.analysis(po.make_basic_stimuli())
-        assert y.requires_grad
+        assert y[0].requires_grad
 
 
 def test_find_files(test_files_dir):
@@ -179,3 +179,34 @@ class TestMetamers(object):
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
+
+
+class TestPerceptualMetrics(object):
+
+    im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
+    im1 = torch.tensor(im1, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+    im2 = torch.rand_like(im1, requires_grad=True, device=device)
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_ssim(self, im1, im2):
+        assert po.synth.ssim(im1, im2).requires_grad
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_msssim(self, im1, im2):
+        assert po.synth.msssim(im1, im2).requires_grad
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_nlpd(self, im1, im2):
+        assert po.synth.nlpd(im1, im2).requires_grad
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_nspd(self, im1, im2):
+        assert po.synth.nspd(im1, im2).requires_grad
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_nspd2(self, im1, im2):
+        assert po.synth.nspd(im1, im2, O=3, S=5, complex=True).requires_grad
+
+    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
+    def test_nspd3(self, im1, im2):
+        assert po.synth.nspd(im1, im2, O=1, S=5, complex=False).requires_grad

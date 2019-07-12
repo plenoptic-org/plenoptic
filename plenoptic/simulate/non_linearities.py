@@ -2,7 +2,7 @@ import torch
 from ..tools.conv import blur_downsample, upsample_blur
 
 
-def complex_modulus(x, dim=-1):
+def complex_modulus(x, dim=-1, keepdim=False):
     """Return the complex modulus of a complex tensor
     Since complex numbers aren't implemented in torch, we represent complex tensors as having an
     extra dimension with two slices, where one contains the real and the other contains the
@@ -21,7 +21,23 @@ def complex_modulus(x, dim=-1):
     y : torch.tensor
         The tensor containing the complex modulus of ``x``.
     """
-    return torch.sqrt(torch.sum(torch.pow(x, 2), dim, keepdim=True))
+    return torch.sqrt(torch.sum(torch.pow(x, 2), dim, keepdim=keepdim))
+
+def quadrature_energy(coeff_dict, epsilon=1e-12):
+    """
+
+
+    local energy
+    local phase / local unit vector
+    """
+
+    energy = {}
+    state = {}
+    for key in coeff_dict.keys():
+        energy[key] = complex_modulus(coeff_dict[key], keepdim=True)
+        state[key] = coeff_dict[key] / (energy[key] + epsilon)
+
+    return energy, state
 
 
 def local_rectangular_to_polar(x, p=2.0, epsilon=1e-12):
@@ -52,14 +68,14 @@ def local_gain_control(coeff_dict, residuals=True):
     local phase / local unit vector
     """
     energy = {}
-    normalized_energy = {}
+    state = {}
 
     for key in coeff_dict.keys():
         if isinstance(key, tuple):
-            energy[key], normalized_energy[key] = local_rectangular_to_polar(coeff_dict[key])
+            energy[key], state[key] = local_rectangular_to_polar(coeff_dict[key])
 
     if residuals:
         energy['residual_lowpass'] = coeff_dict['residual_lowpass']
         energy['residual_highpass'] = coeff_dict['residual_highpass']
 
-    return energy, normalized_energy
+    return energy, state

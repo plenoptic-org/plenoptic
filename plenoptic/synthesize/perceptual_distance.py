@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from ..simulate.laplacian_pyramid import Laplacian_Pyramid
 from ..simulate.steerable_pyramid_freq import Steerable_Pyramid_Freq
-from ..simulate.non_linearities import local_gain_control
+from ..simulate.non_linearities import local_gain_control, quadrature_energy
 
 import os
 dirname = os.path.dirname(__file__)
@@ -140,10 +140,11 @@ class MSSSIM(torch.nn.Module):
         return msssim(img1, img2, window_size=self.window_size, size_average=self.size_average)
 
 
-def nlp(im, N_levels=6):
+def nlp(im):
 
     (_, channel, height, width) = im.size()
 
+    N_levels = 6
     DN_filts = np.load(dirname + '/DN_filts.npy')
     sigmas = np.load(dirname + '/DN_sigmas.npy')
 
@@ -172,34 +173,35 @@ def nlpd(IM_1, IM_2):
     Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
-    y1 = nlp(IM_1)
-    y2 = nlp(IM_2)
+    y = nlp(torch.cat((IM_1, IM_2), 0))
 
     dist = []
     for i in range(6):
-        dist.append(torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2)))
+        dist.append(torch.sqrt(torch.mean((y[i][0] - y[i][1]) ** 2)))
 
-    return 1 / torch.stack(dist).mean()
+    return torch.stack(dist).mean()
 
 
-def nspd(IM_1, IM_2, O=1, S=5):
+def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     """normalized steerable pyramid distance
 
     ongoing work
     """
 
-    L1 = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
-    G1 = local_gain_control
+    if complex:
+        linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S, is_complex=True)
+        non_linear = quadrature_energy
+    else:
+        linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
+        non_linear = local_gain_control
 
-    pyr_1 = L1(IM_1)
-    pyr_2 = L1(IM_2)
+    pyr = linear(torch.cat((IM_1, IM_2), 0))
 
-    norm_1, state_1 = G1(pyr_1)
-    norm_2, state_2 = G1(pyr_2)
+    norm, state = non_linear(pyr)
 
     dist = []
-    for key in state_1.keys():
-        dist.append(torch.sqrt(torch.mean((norm_1[key] - norm_2[key]) ** 2)))
-        dist.append(torch.sqrt(torch.mean((state_1[key] - state_2[key]) ** 2)))
+    for key in state.keys():
+        # dist.append(torch.sqrt(torch.mean((norm[key][0] - norm[key][1]) ** 2)))
+        dist.append(torch.sqrt(torch.mean((state[key][0] - state[key][1]) ** 2)))
 
-    return 1 / torch.stack(dist).mean()
+    return torch.stack(dist).mean()
