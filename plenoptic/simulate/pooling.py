@@ -6,30 +6,33 @@ import torch
 import numpy as np
 
 
-def calc_polar_window_width(n_windows):
-    r"""calculate and return the window width for the polar windows
+def calc_angular_window_width(n_windows):
+    r"""calculate and return the window width for the angular windows
 
-    this is the :math:`w_{\theta }` term in equation 10 of the paper's online methods
+    this is the :math:`w_{\theta }` term in equation 10 of the paper's
+    online methods
 
     Parameters
     ----------
     n_windows : `float`
-        The number of windows to pack into 2 pi. Note that we don't require it to be an integer
-        here, but the code that makes use of this does.
+        The number of windows to pack into 2 pi. Note that we don't
+        require it to be an integer here, but the code that makes use of
+        this does.
 
     Returns
     -------
     window_width : `float`
         The width of the polar angle windows.
+
     """
     return (2*np.pi) / n_windows
 
 
-def calc_polar_n_windows(window_width):
-    r"""calculate and return the number of polar windows
+def calc_angular_n_windows(window_width):
+    r"""calculate and return the number of angular windows
 
-    this is the :math:`N_{\theta }` term in equation 10 of the paper's online method, which we've
-    rearranged in order to get this.
+    this is the :math:`N_{\theta }` term in equation 10 of the paper's
+    online method, which we've rearranged in order to get this.
 
     Parameters
     ----------
@@ -40,6 +43,7 @@ def calc_polar_n_windows(window_width):
     -------
     n_windows : `float`
         The number of windows that fit into 2 pi.
+
     """
     return (2*np.pi) / window_width
 
@@ -47,24 +51,28 @@ def calc_polar_n_windows(window_width):
 def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scaling=None):
     r"""calculate and return the window width for the eccentricity windows
 
-    this is the :math:`w_e` term in equation 11 of the paper's online methods. Note that we take
-    exactly one of ``n_windows`` or ``scaling`` in order to determine this value.
+    this is the :math:`w_e` term in equation 11 of the paper's online
+    methods, which we also refer to as the radial width. Note that we
+    take exactly one of ``n_windows`` or ``scaling`` in order to
+    determine this value.
 
     Parameters
     ----------
-    min_ecc : `float`
-        The minimum eccentricity, the eccentricity below which we do not compute pooling windows
-        (in degrees). Parameter :math:`e_0` in equation 11 of the online methods.
+    min_ecc : `float`, optional
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
     max_ecc : `float`, optional
-        The maximum eccentricity, the outer radius of the image (in degrees). Parameter :math:`e_r`
-        in equation 11 of the online methods.
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
     n_windows : `float` or `None`
-        The number of log-eccentricity windows we create. ``n_windows`` xor ``scaling`` must be
-        set.
+        The number of log-eccentricity windows we create. ``n_windows``
+        xor ``scaling`` must be set.
     scaling : `float` or `None`.
-        The ratio of the eccentricity window's radial full-width at half-maximum to
-        eccentricity (see the ``calc_scaling`` function). ``n_windows`` xor ``scaling`` must be
-        set.
+        The ratio of the eccentricity window's radial full-width at
+        half-maximum to eccentricity (see the ``calc_scaling``
+        function). ``n_windows`` xor ``scaling`` must be set.
 
     Returns
     -------
@@ -73,8 +81,9 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
 
     Notes
     -----
-    No equation was given in the paper to calculate the window width, :math:`w_e` from the scaling,
-    :math:`s`, so we derived it ourselves. We start with the final equation for the scaling, given
+    No equation was given in the paper to calculate the window width,
+    :math:`w_e` from the scaling, :math:`s`, so we derived it
+    ourselves. We start with the final equation for the scaling, given
     in the Notes for the ``calc_scaling`` function.
 
     .. math::
@@ -96,8 +105,8 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
         e^{w_e} &= \frac{s^2+2\pm s\sqrt{s^2+4}}{2} \\
         w_e &= \log\left(\frac{s^2+2\pm s\sqrt{s^2+4}}{2}\right)
 
-    The window width is strictly positive, so we only return the positive quadratic root (the one
-    with plus in the numerator).
+    The window width is strictly positive, so we only return the
+    positive quadratic root (the one with plus in the numerator).
 
     """
     if scaling is not None:
@@ -111,24 +120,27 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
 def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15):
     r"""calculate and return the number of eccentricity windows
 
-    this is the :math:`N_e` term in equation 11 of the paper's online method, which we've
-    rearranged in order to get this.
+    this is the :math:`N_e` term in equation 11 of the paper's online
+    method, which we've rearranged in order to get this.
 
     Parameters
     ----------
     window_width : `float`
         The width of the log-eccentricity windows.
     min_ecc : `float`, optional
-        The minimum eccentricity, the eccentricity below which we do not compute pooling windows
-        (in degrees). Parameter :math:`e_0` in equation 11 of the online methods.
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
     max_ecc : `float`, optional
-        The maximum eccentricity, the outer radius of the image (in degrees). Parameter :math:`e_r`
-        in equation 11 of the online methods.
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
 
     Returns
     -------
     n_windows : `float`
         The number of log-eccentricity windows we create.
+
     """
     return (np.log(max_ecc) - np.log(min_ecc)) / window_width
 
@@ -136,36 +148,46 @@ def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15):
 def calc_scaling(n_windows, min_ecc=.5, max_ecc=15):
     r"""calculate and return the scaling value, as reported in the paper
 
-    Scaling is the ratio of the eccentricity window's radial full-width at half-maximum to
-    eccentricity. For eccentricity, we use the window's "central eccentricity", the one where the
-    input to the mother window (:math:`x` in equation 9 in the online methods) is 0.
+    Scaling is the ratio of the eccentricity window's radial full-width
+    at half-maximum to eccentricity. For eccentricity, we use the
+    window's "central eccentricity", the one where the input to the
+    mother window (:math:`x` in equation 9 in the online methods) is 0.
 
     Parameters
     ----------
     n_windows : `float`
         The number of log-eccentricity windows we create.
     min_ecc : `float`, optional
-        The minimum eccentricity, the eccentricity below which we do not compute pooling windows
-        (in degrees). Parameter :math:`e_0` in equation 11 of the online methods.
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
     max_ecc : `float`, optional
-        The maximum eccentricity, the outer radius of the image (in degrees). Parameter :math:`e_r`
-        in equation 11 of the online methods.
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
 
     Returns
     -------
     scaling : `float`.
-        The ratio of the eccentricity window's radial full-width at half-maximum to
-        eccentricity
+        The ratio of the eccentricity window's radial full-width at
+        half-maximum to eccentricity
 
     Notes
     -----
-    No equation for the scaling, :math:`s`, was included in the paper, so we derived this
-    ourselves. To start, we note that the mother window equation (equation 9) reaches its half-max
-    (.5) at :math:`x=\pm .5`, and that, as above, we treat :math:`x=0` as the
-    central eccentricity of the window. Then we must solve for these, using the values given within
-    the parenthese in equation 11 as the value for :math:`x`, and take their ratios.
+    WARNING: In the following, I am assuming that the
+    transition_region_width, :math:`t`, is .5. If you want a different
+    value, you'll need to make some changes
 
-    Full-width half-maximum, :math:`W`, the difference between the two values of :math:`e_h`:
+    No equation for the scaling, :math:`s`, was included in the paper,
+    so we derived this ourselves. To start, we note that the mother
+    window equation (equation 9) reaches its half-max (.5) at
+    :math:`x=\pm .5`, and that, as above, we treat :math:`x=0` as the
+    central eccentricity of the window. Then we must solve for these,
+    using the values given within the parenthese in equation 11 as the
+    value for :math:`x`, and take their ratios.
+
+    Full-width half-maximum, :math:`W`, the difference between the two
+    values of :math:`e_h`:
 
     .. math::
 
@@ -189,20 +211,154 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15):
         s &= \exp(w_e(n+1.5-n-1)) -  \exp(w_e(n+.5-n-1)) \\
         s &= \exp(.5\cdot w_e) -  \exp(-.5\cdot w_e)
 
+    Note that we don't actually use the value returned by
+    ``calc_windows_central_eccentricity`` for :math:`e_c`; we simplify
+    it away in the calculation above.
+
     """
     window_width = (np.log(max_ecc) - np.log(min_ecc)) / n_windows
     return np.exp(.5*window_width) - np.exp(-.5*window_width)
 
 
-def mother_window(x, transition_region_width=.5):
-    r"""Raised cosine 'mother' window function
+def calc_windows_central_eccentricity(n_windows, window_width, min_ecc=.5):
+    r"""calculate the central eccentricity of each window
 
-    Used to give the weighting in each direction for the spatial pooling performed during the
-    construction of visual metamers
+    These are the values :math:`e_c`, as referred to in ``calc_scaling``
+    (for each of the n windows)
+
+    Parameters
+    ----------
+    n_windows : `float`
+        The number of log-eccentricity windows we create. n_windows can
+        be a non-integer, in which case we round it up (thus one of our
+        central eccentricities might be above the maximum eccentricity
+        for the windows actually created)
+    window_width : `float`
+        The width of the log-eccentricity windows.
+    min_ecc : `float`, optional
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
+
+    Returns
+    -------
+    central_eccentricity : list
+        A list of length ``n_windows``, with each entry giving
+        :math:`e_c`, as below.
 
     Notes
     -----
-    For ``x`` values outside the function's domain, we return ``np.nan`` (not 0)
+    To find this value, we solve for the eccentricity where :math:`x=0`
+    in equation 9:
+
+    .. math::
+
+        0 &= \frac{\log(e_c) -(log(e_0)+w_e(n+1))}{w_e} \\
+        e_c &= e_0 \cdot \exp(w_e(n+1))
+
+    """
+    return [min_ecc * np.exp(window_width * (i+1)) for i in np.arange(np.ceil(n_windows))]
+
+
+def calc_window_widths_actual(angular_window_width, radial_window_width, min_ecc=.5, max_ecc=15,
+                              transition_region_width=.5):
+    r"""calculate and return the actual widths of the windows, in angular and radial directions
+
+    whereas ``calc_angular_window_width`` returns a term used in the
+    equations to generate the windows, this returns the actual angular
+    and radial widths of each set of windows (in degrees).
+
+    We return four total widths, two by two for radial and angular by
+    'top' and 'full'. By 'top', we mean the width of the flat-top region
+    of each window (where the windows value is 1), and by 'full', we
+    mean the width of the entire window
+
+    Parameters
+    ----------
+    angular_window_width : float
+        The width of the windows in the angular direction, as returned
+        by ``calc_angular_window_width``
+    radial_window_width : float
+        The width of the windows in the radial direction, as returned by
+        ``calc_eccentricity_window_width``
+    min_ecc : `float`, optional
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
+    max_ecc : `float`, optional
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
+
+    Returns
+    -------
+    radial_top_width : list
+        The width of the flat-top region of the windows in the radial
+        direction (each value corresponds to a different ring of
+        windows, from the fovea to the periphery).
+    radial_full_width : list
+        The full width of the windows in the radial direction (each
+        value corresponds to a different ring of windows, from the fovea
+        to the periphery).
+    angular_top_width : list
+        The width of the flat-top region of the windows in the angular
+        direction (each value corresponds to a different ring of
+        windows, from the fovea to the periphery).
+    angular_full_width : list
+        The full width of the windows in the angular direction (each
+        value corresponds to a different ring of windows, from the fovea
+        to the periphery).
+
+    Notes
+    -----
+    In order to calculate the width in the angular direction, we start
+    with the angular window width (:math:`w_{\theta }`). The 'top' width
+    is then :math:`\frac{w_{\theta}}{2}` and the 'full' width is
+    :math:`\frac{3 w_{\theta}}{2}`. This gives us the width in radians,
+    so we convert it to degrees by finding the windows' central
+    eccentricity (:math:`e_c`, as referred to in ``calc_scaling`` and
+    returned by ``calc_windows_central_eccentricity``), and find the
+    circumference (in degrees) of the circle that goes through that
+    eccentricity. We then multiply our width in radians by
+    :math:`\frac{2\pi e_c}{2\pi}=e_c`.
+
+    Calculating the width in the radial direction is slightly more
+    complicated, because they're not symmetric or constant across the
+    visual field. We start by noting, based on equation 9 in the paper,
+    that the flat-top region is the region between :math:`x=\frac{\pm
+    (1-t)}{2}` and the whole window is the region between
+    :math:`x=\frac{\pm (1+t)}{2}`. We can then do a little bit of
+    rearranging to forms used in this function.
+
+    """
+    n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_width, min_ecc, max_ecc))
+    window_central_eccentricities = calc_windows_central_eccentricity(n_radial_windows,
+                                                                      radial_window_width, min_ecc)
+    radial_top_width = [min_ecc*(np.exp((radial_window_width*(3+2*i-transition_region_width))/2) -
+                                 np.exp((radial_window_width*(1+2*i+transition_region_width))/2))
+                        for i in np.arange(n_radial_windows)]
+    radial_full_width = [min_ecc*(np.exp((radial_window_width*(3+2*i+transition_region_width))/2) -
+                                  np.exp((radial_window_width*(1+2*i-transition_region_width))/2))
+                         for i in np.arange(n_radial_windows)]
+    angular_top_width = [(angular_window_width/2) * e_c for e_c in window_central_eccentricities]
+    angular_full_width = [(3*angular_window_width/2) * e_c for e_c in
+                          window_central_eccentricities]
+    return radial_top_width, radial_full_width, angular_top_width, angular_full_width
+
+
+def mother_window(x, transition_region_width=.5):
+    r"""Raised cosine 'mother' window function
+
+    Used to give the weighting in each direction for the spatial pooling
+    performed during the construction of visual metamers
+
+    Notes
+    -----
+    For ``x`` values outside the function's domain, we return ``np.nan``
+    (not 0)
 
     Equation 9 from the online methods of [1]_.
 
@@ -210,9 +366,9 @@ def mother_window(x, transition_region_width=.5):
     ----------
     x : `float` or `array_like`
         The distance in a direction
-    transition_region_width : `float`
-        The width of the transition region, parameter :math:`t` in equation 9 from the online
-        methods.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
 
     Returns
     -------
@@ -254,22 +410,23 @@ def polar_angle_windows(n_windows, theta_n_steps=100, transition_region_width=.5
     theta_n_steps : `int`, optional
         The number of times we sample theta.
     transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in equation 9 from the online
-        methods.
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
 
     Returns
     -------
     theta : `np.array`
-        A 1d array containing the samples of the polar angle: ``np.linspace(0, 2*np.pi,
-        theta_n_steps)``
+        A 1d array containing the samples of the polar angle:
+        ``np.linspace(0, 2*np.pi, theta_n_steps)``
     windows : `np.array`
-        A 2d array containing the (1d) polar angle windows. Windows will be indexed along the
-        first dimension.
+        A 2d array containing the (1d) polar angle windows. Windows will
+        be indexed along the first dimension.
 
     References
     ----------
-    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the ventral stream. Nature
-       Neuroscience, 14(9), 1195–1201. http://dx.doi.org/10.1038/nn.2889
+    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+       ventral stream. Nature Neuroscience, 14(9),
+       1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
     def remap_theta(x):
@@ -283,7 +440,7 @@ def polar_angle_windows(n_windows, theta_n_steps=100, transition_region_width=.5
     if n_windows == 1:
         raise Exception("We cannot handle one window correctly!")
     # this is `w_\theta` in the paper
-    window_width = calc_polar_window_width(n_windows)
+    window_width = calc_angular_window_width(n_windows)
     windows = []
     for n in range(int(n_windows)):
         if n == 0:
@@ -302,7 +459,8 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
                              ecc_n_steps=100, transition_region_width=.5):
     r"""Create log eccentricity windows
 
-    Note that exactly one of ``n_windows`` or ``window_width`` must be set.
+    Note that exactly one of ``n_windows`` or ``window_width`` must be
+    set.
 
     Notes
     -----
@@ -311,36 +469,42 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
     Parameters
     ----------
     n_windows : `float` or `None`
-        The number of log-eccentricity windows we create. ``n_windows`` xor ``window_width`` must
-        be set.
+        The number of log-eccentricity windows we create. ``n_windows``
+        xor ``window_width`` must be set.
     window_width : `float` or `None`
-        The width of the log-eccentricity windows. ``n_windows`` xor ``window_width`` must be set.
+        The width of the log-eccentricity windows. ``n_windows`` xor
+        ``window_width`` must be set.
     min_ecc : `float`, optional
-        The minimum eccentricity, the eccentricity below which we do not compute pooling windows
-        (in degrees). Parameter :math:`e_0` in equation 11 of the online methods.
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
     max_ecc : `float`, optional
-        The maximum eccentricity, the outer radius of the image (in degrees). Parameter :math:`e_r`
-        in equation 11 of the online methods.
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
     ecc_n_steps : `int`, optional
         The number of times we sample the eccentricity.
     transition_region_width : `float`
-        The width of the transition region, parameter :math:`t` in equation 9 from the online
-        methods.
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
 
     Returns
     -------
     eccentricity : `np.array`
-        A 1d array containing the samples of eccentricity: ``np.linspace(0, max_ecc, ecc_n_steps)``
-        (note that the windows start having non-NaN values at ``min_ecc`` degrees, but are sampled
-        all the way down to 0 degrees)
+        A 1d array containing the samples of eccentricity:
+        ``np.linspace(0, max_ecc, ecc_n_steps)`` (note that the windows
+        start having non-NaN values at ``min_ecc`` degrees, but are
+        sampled all the way down to 0 degrees)
     windows : `np.array`
-        A 2d array containing the (1d) log-eccentricity windows. Windows will be indexed along the
-        first dimension.
+        A 2d array containing the (1d) log-eccentricity windows. Windows
+        will be indexed along the first dimension.
 
     References
     ----------
-    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the ventral stream. Nature
-       Neuroscience, 14(9), 1195–1201. http://dx.doi.org/10.1038/nn.2889
+    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+       ventral stream. Nature Neuroscience, 14(9),
+       1195–1201. http://dx.doi.org/10.1038/nn.2889
+
     """
     ecc = np.linspace(0, max_ecc, ecc_n_steps)
     if window_width is None:
@@ -358,37 +522,52 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
 def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, transition_region_width=.5,
                            theta_n_steps=1000, ecc_n_steps=1000):
-    """Create 2d pooling windows (log-eccentricity by polar angle) that span the visual field
+    r"""Create 2d pooling windows (log-eccentricity by polar angle) that span the visual field
 
-    This creates the pooling windows that we use to average image statistics for metamer generation
-    as done in [1]_. This is returned as a 3d torch tensor for further use with a model, and will
-    also return the theta and eccentricity grids necessary for plotting, if desired.
+    This creates the pooling windows that we use to average image
+    statistics for metamer generation as done in [1]_. This is returned
+    as a 3d torch tensor for further use with a model, and will also
+    return the theta and eccentricity grids necessary for plotting, if
+    desired.
 
-    Note that this is returned in polar coordinates and so if you wish to apply it to an image in
-    rectangular coordinates, you'll need to make use of pyrtools's ``project_polar_to_cartesian``
-    function (see Examples section)
+    Note that this is returned in polar coordinates and so if you wish
+    to apply it to an image in rectangular coordinates, you'll need to
+    make use of pyrtools's ``project_polar_to_cartesian`` function (see
+    Examples section)
+
+    WARNING: I'm fairly certain the calculation we use to compute the
+    width of the windows from scaling only works when
+    ``transition_region_width=.5``, you'll probably have to make some
+    changes to the various ``calc_`` functions in the ``pooling.py``
+    script (they shouldn't be difficult).
 
     Parameters
     ----------
     scaling : `float` or `None`.
-        The ratio of the eccentricity window's radial full-width at half-maximum to
-        eccentricity (see the `calc_scaling` function).
+        The ratio of the eccentricity window's radial full-width at
+        half-maximum to eccentricity (see the `calc_scaling` function).
     min_eccentricity : `float`, optional
-        The minimum eccentricity, the eccentricity below which we do not compute pooling windows
-        (in degrees). Parameter :math:`e_0` in equation 11 of the online methods.
+        The minimum eccentricity, the eccentricity below which we do not
+        compute pooling windows (in degrees). Parameter :math:`e_0` in
+        equation 11 of the online methods.
     max_eccentricity : `float`, optional
-        The maximum eccentricity, the outer radius of the image (in degrees). Parameter :math:`e_r`
-        in equation 11 of the online methods.
+        The maximum eccentricity, the outer radius of the image (in
+        degrees). Parameter :math:`e_r` in equation 11 of the online
+        methods.
     radial_to_circumferential_ratio : `float`, optional
-        ``scaling`` determines the number of log-eccentricity windows we can create; this ratio
-        gives us the number of polar angle ones. Based on `scaling`, we calculate the width of the
-        windows in log-eccentricity, and then divide that by this number to get their width in
-        polar angle. Because we require an integer number of polar angle windows, we round the
-        resulting number of polar angle windows to the nearest integer, so the ratio in the
-        generated windows approximate this. 2 (the default) is the value used in the paper [1]_.
+        ``scaling`` determines the number of log-eccentricity windows we
+        can create; this ratio gives us the number of polar angle
+        ones. Based on `scaling`, we calculate the width of the windows
+        in log-eccentricity, and then divide that by this number to get
+        their width in polar angle. Because we require an integer number
+        of polar angle windows, we round the resulting number of polar
+        angle windows to the nearest integer, so the ratio in the
+        generated windows approximate this. 2 (the default) is the value
+        used in the paper [1]_.
     transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in equation 9 from the online
-        methods. 0.5 (the default) is the value used in the paper [1]_.
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
     theta_n_steps : `int`, optional
         The number of times we sample theta.
     ecc_n_steps : `int`, optional
@@ -397,22 +576,25 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     Returns
     -------
     windows : `torch.tensor`
-        The 3d array of 2d windows (in polar angle and eccentricity). Separate windows will be
-        alonged the first dimension and the tensor has the shape
-        ``(n_polar_windows*n_ecc_windows, ecc_n_steps, theta_n_steps)`` (where the number of
-        windows is inferred in this function based on the values of ``scaling`` and
+        The 3d array of 2d windows (in polar angle and
+        eccentricity). Separate windows will be alonged the first
+        dimension and the tensor has the shape
+        ``(n_polar_windows*n_ecc_windows, ecc_n_steps, theta_n_steps)``
+        (where the number of windows is inferred in this function based
+        on the values of ``scaling`` and
         ``radial_to_circumferential_width``)
     theta_grid : `torch.tensor`
-        The 2d array of polar angle values, as returned by meshgrid. Will have the shape
-        ``(ecc_n_steps, theta_n_steps)``
+        The 2d array of polar angle values, as returned by
+        meshgrid. Will have the shape ``(ecc_n_steps, theta_n_steps)``
     eccentricity_grid : `torch.tensor`
-        The 2d array of eccentricity values, as returned by meshgrid. Will have the shape
-        ``(ecc_n_steps, theta_n_steps)``
+        The 2d array of eccentricity values, as returned by
+        meshgrid. Will have the shape ``(ecc_n_steps, theta_n_steps)``
 
     Examples
     --------
-    To use, simply call with the desired scaling (for the version seen in the paper, don't change
-    any of the default arguments; compare this image to the right side of Supplementary Figure 1C)
+    To use, simply call with the desired scaling (for the version seen
+    in the paper, don't change any of the default arguments; compare
+    this image to the right side of Supplementary Figure 1C)
 
     .. plot::
        :include-source:
@@ -426,8 +608,9 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
            ax.contour(theta, ecc, w, [.5])
        plt.show()
 
-    If you wish to convert this to the Cartesian coordinates, in order to apply to an image, for
-    example, you must use pyrtools's ``project_polar_to_cartesian`` function
+    If you wish to convert this to the Cartesian coordinates, in order
+    to apply to an image, for example, you must use pyrtools's
+    ``project_polar_to_cartesian`` function
 
     .. plot::
        :include-source:
@@ -443,18 +626,24 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
 
     Notes
     -----
-    These create the pooling windows, as seen in Supplementary Figure 1C, in [1]_.
+    These create the pooling windows, as seen in Supplementary Figure
+    1C, in [1]_.
 
     References
     ----------
-    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the ventral stream. Nature
-       Neuroscience, 14(9), 1195–1201. http://dx.doi.org/10.1038/nn.2889
+    .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+       ventral stream. Nature Neuroscience, 14(9),
+       1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
+    if transition_region_width != .5:
+        raise Exception("Calculations necessary for converting scaling to window width assume that"
+                        " transition_region_width is .5; need to change the equations in calc_"
+                        "scaling and calc_eccentricity_window_width")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    ecc_window_width = calc_eccentricity_window_width(max_eccentricity, min_eccentricity,
+    ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
                                                       scaling=scaling)
-    n_polar_windows = calc_polar_n_windows(ecc_window_width / radial_to_circumferential_ratio)
+    n_polar_windows = calc_angular_n_windows(ecc_window_width / radial_to_circumferential_ratio)
     # we want to set the number of polar windows where the ratio of widths is approximately what
     # the user specified. the constraint that it's an integer is more important
     theta, angle_tensor = polar_angle_windows(round(n_polar_windows), theta_n_steps,

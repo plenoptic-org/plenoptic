@@ -64,7 +64,10 @@ class TestPooling(object):
         windows, theta, ecc = po.simul.create_pooling_windows(.87)
 
     def test_creation_args(self):
-        windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
+        with pytest.raises(Exception):
+            # we can't create these with transition_region_width != .5
+            windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
+        windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .5, 100, 100)
 
     def test_ecc_windows(self):
         ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4)
@@ -82,8 +85,8 @@ class TestPooling(object):
 
     def test_calculations(self):
         # these really shouldn't change, but just in case...
-        assert po.simul.pooling.calc_polar_window_width(2) == np.pi
-        assert po.simul.pooling.calc_polar_n_windows(2) == np.pi
+        assert po.simul.pooling.calc_angular_window_width(2) == np.pi
+        assert po.simul.pooling.calc_angular_n_windows(2) == np.pi
         with pytest.raises(Exception):
             po.simul.pooling.calc_eccentricity_window_width()
         assert po.simul.pooling.calc_eccentricity_window_width(n_windows=4) == 0.8502993454155389
@@ -103,6 +106,9 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape)
         rgc(im)
+        _ = rgc.plot_window_sizes('degrees')
+        _ = rgc.plot_window_sizes('degrees', jitter=0)
+        _ = rgc.plot_window_sizes('pixels')
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -139,6 +145,9 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         v1(im)
+        _ = v1.plot_window_sizes('pixels')
+        for i in range(v1.num_scales):
+            _ = v1.plot_window_sizes('pixels', i)
 
     def test_v1_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
