@@ -149,6 +149,21 @@ class TestVentralStream(object):
         for i in range(v1.num_scales):
             _ = v1.plot_window_sizes('pixels', i)
 
+    def test_v1_mean_luminance(self):
+        for fname in ['nuts', 'einstein']:
+            im = plt.imread(op.join(DATA_DIR, fname+'.pgm'))
+            im = torch.tensor(im, dtype=torch.float32, device=device)
+            v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+            v1_rep = v1(im)
+            rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+            rgc_rep = rgc(im)
+            if not torch.allclose(rgc_rep, v1.mean_luminance):
+                raise Exception("Somehow RGC and V1 mean luminance representations are not the "
+                                "same for image %s!" % fname)
+            if not torch.allclose(rgc_rep, v1_rep[-rgc_rep.shape[0]:]):
+                raise Exception("Somehow V1's representation does not have the mean luminance "
+                                "in the location expected! for image %s!" % fname)
+
     def test_v1_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
