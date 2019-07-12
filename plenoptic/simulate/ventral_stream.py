@@ -382,11 +382,13 @@ class RetinalGanglionCells(VentralModel):
 class PrimaryVisualCortex(VentralModel):
     r"""Model V1 using the Steerable Pyramid
 
-    This just models V1 as containing complex cells: we take the outputs
-    of the complex steerable pyramid and takes the complex modulus of
-    them (that is, squares, sums, and takes the square root across the
-    real and imaginary parts; this is a phase-invariant measure of the
-    local magnitude).
+    This just models V1 as containing complex cells and a representation
+    of the mean luminance. For the complex cells, we take the outputs of
+    the complex steerable pyramid and takes the complex modulus of them
+    (that is, squares, sums, and takes the square root across the real
+    and imaginary parts; this is a phase-invariant measure of the local
+    magnitude). The mean luminance representation is the same as that
+    computed by the RetinalGanglionCell model.
 
     Parameters
     ----------
@@ -471,10 +473,16 @@ class PrimaryVisualCortex(VentralModel):
         Dictionary containing the windowed complex cell responses. Each
         of these is 5d: ``(1, 1, W, *img_res)``, where ``W`` is the
         number of windows (which depends on the ``scaling`` parameter).
+    mean_luminance : torch.tensor
+        A 1d tensor representing the mean luminance of the image, found
+        by averaging the pixel values of the image using the windows at
+        the lowest scale. This is identical to the RetinalGanglionCell
+        representation of the image with the same ``scaling`` value.
     representation : torch.tensor
         A flattened (ergo 1d) tensor containing the averages of the
-        'complex cell responses', that is, the squared and summed
-        outputs of the complex steerable pyramid.
+        'complex cell responses' (that is, the squared, summed, and
+        square-rooted outputs of the complex steerable pyramid) and the
+        mean luminance of the image in the pooling windows.
     state_dict_sparse : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field. This is used for
@@ -515,6 +523,7 @@ class PrimaryVisualCortex(VentralModel):
         self.pyr_coeffs = None
         self.complex_cell_responses = None
         self.windowed_complex_cell_responses = None
+        self.mean_luminance = None
         self.representation = None
 
     def forward(self, image):
@@ -537,13 +546,16 @@ class PrimaryVisualCortex(VentralModel):
             image = image.unsqueeze(0)
         self.image = image.clone().detach()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
-        # SHOULD THIS BE COMPLEX MODULUS (sqrt) OR SQUARED? (in which case we've just squared and
-        # summed); paper seems to describe both
         self.complex_cell_responses = dict((k, complex_modulus(v)) for k, v in
                                            self.pyr_coeffs.items() if not isinstance(k, str))
         self.windowed_complex_cell_responses = dict(
             (k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
             for k, v in self.complex_cell_responses.items())
-        self.representation = torch.cat([(v.sum((-1, -2)) / self.window_num_pixels[k[0]]).flatten()
-                                         for k, v in self.windowed_complex_cell_responses.items()])
+        windowed_image = torch.einsum('ijkl,wkl->ijwkl', [image, self.windows[0]])
+        # we want to normalize by the size of each window
+        mean_luminance = windowed_image.sum((-1, -2))
+        self.mean_luminance = (mean_luminance / self.window_num_pixels[0]).flatten()
+        mean_complex_cells = torch.cat([(v.sum((-1, -2)) / self.window_num_pixels[k[0]]).flatten()
+                                        for k, v in self.windowed_complex_cell_responses.items()])
+        self.representation = torch.cat([mean_complex_cells, self.mean_luminance])
         return self.representation
