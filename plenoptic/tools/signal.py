@@ -141,3 +141,11 @@ def make_disk(imgSize, outerRadius=None, innerRadius=None):
                 mask[i][j] = ( 1 + np.cos( np.pi * ( r - innerRadius ) / ( outerRadius - innerRadius ) ) ) / 2
 
     return mask
+
+
+def kurtosis(mtx):
+    # implementation is only for real components
+    return torch.mean(torch.abs(mtx-mtx.mean()).pow(4))/(mtx.var().pow(2))
+
+def skew(mtx):
+    return torch.mean((mtx-mtx.mean()).pow(3))/(mtx.var().pow(1.5))
