@@ -4,6 +4,7 @@ from . import synthesize as synth
 
 from .tools.conv import *
 from .tools.signal import *
+from .tools.visualization import *
 # from .tools.stats import *
 # from .tools.linalg import *
 # from .tools.display import *

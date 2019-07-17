@@ -131,8 +131,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
 
-        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None].to(device)
-        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None].to(device)
+        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,None,:,:,None].to(device)
+        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,None,:,:,None].to(device)
 
 
     def forward(self, x):
@@ -146,6 +146,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         hi0mask = self.hi0mask.clone()
 
         # x is a torch tensor batch of images of size [N,C,W,H]
+
+        #x = x.squeeze(1) #flatten channel dimension first
         imdft = torch.rfft(x, signal_ndim=2, onesided=False)
         imdft = batch_fftshift2d(imdft)
 
@@ -155,7 +157,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         hi0 = torch.ifft(hi0, signal_ndim=2)
         hi0_real = torch.unbind(hi0, -1)[0]
         self.pyr_coeffs['residual_highpass'] = hi0_real
-        self.pyr_size['residual_highpass'] = tuple(hi0_real.shape)
+        self.pyr_size['residual_highpass'] = tuple(hi0_real.shape[-2:])
 
         lodft = imdft * lo0mask
 
@@ -186,13 +188,13 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             himask = pointOp(log_rad, Yrcos, Xrcos)
             self._himasks.append(himask)
-            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(device)
+            himask = torch.tensor(himask, dtype=dtype)[None, None, :, :, None].to(device)
 
             anglemasks = []
             for b in range(self.num_orientations):
                 anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(device)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, None, :, :, None].to(device)
 
                 # bandpass filtering
                 banddft = lodft * anglemask * himask
@@ -208,10 +210,11 @@ class Steerable_Pyramid_Freq(nn.Module):
                 if not self.is_complex:
                     band = torch.unbind(band, -1)[0]
                     self.pyr_coeffs[(i, b)] = band
-                    self.pyr_size[(i,b)] = tuple(band.shape)
+                    self.pyr_size[(i,b)] = tuple(band.shape[-2:])
                 else:
+                    band = torch.einsum('ijklm->imkl', band)
                     self.pyr_coeffs[(i, b)] = band
-                    self.pyr_size[(i,b)] = tuple(band.shape)
+                    self.pyr_size[(i,b)] = tuple(band.shape[-2:])
 
             self._anglemasks.append(anglemasks)
 
@@ -233,7 +236,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
             lomask = pointOp(log_rad, YIrcos, Xrcos)
             self._lomasks.append(lomask)
-            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(device)
+            lomask = torch.tensor(lomask, dtype=dtype)[None,None, :, :, None].to(device)
             # convolution in spatial domain
             lodft = lodft * lomask
 
@@ -243,9 +246,36 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0_real = torch.unbind(lo0, -1)[0]
 
         self.pyr_coeffs['residual_lowpass'] = lo0_real
-        self.pyr_size['residual_lowpass'] = tuple(lo0_real.shape)
+        self.pyr_size['residual_lowpass'] = tuple(lo0_real.shape[-2:])
 
-        return self.pyr_coeffs
+
+    def _reorder_complex(self, pyr_coeffs):
+        """helper function for reconstruction from complex pyramid filters.
+
+        Torch ffts assume imaginary/real dimensions are the last dimension but in the
+        pyramid we output filters such that the real/imaginary are treated as channels (2nd dim)
+        This function reorders the channel back to the last dimension for processing of the ffts
+        in the Reconstruction
+
+        Arguments
+        ----------
+        pyr_coeffs: input coeff dict where each
+        filter (except residuals) are tensors of shape (NCHW) (where C is of size 2 for the two imaginary/real dimensions)
+
+        Returns
+        -------
+        coeff_out: output dict with the reordered filters
+
+        """
+
+        coeff_out = OrderedDict()
+        for k in pyr_coeffs.keys():
+            if pyr_coeffs[k].shape[1] == 2:
+                coeff_out[k] = torch.einsum('nchw->nhwc', pyr_coeffs[k]).unsqueeze(1)
+            else:
+                coeff_out[k] = pyr_coeffs[k]
+
+        return coeff_out
 
     def _recon_levels_check(self, levels):
         """Check whether levels arg is valid for reconstruction and return valid version
@@ -376,27 +406,10 @@ class Steerable_Pyramid_Freq(nn.Module):
             twidth = 1
 
         recon_keys = self._recon_keys(levels, bands)
+        pyr_coeffs = self._reorder_complex(self.pyr_coeffs)
 
-        # make list of dims and bounds
-        bound_list = []
-        dim_list = []
-        # we go through pyr_sizes from smallest to largest
-        for dims in sorted(self.pyr_size.values()):
-            if dims in dim_list:
-                continue
-            dim_list.append(dims)
-            dims = np.array(dims)
-            ctr = np.ceil((dims+0.5)/2).astype(int)
-            lodims = np.ceil((dims-0.5)/2).astype(int)
-            loctr = np.ceil((lodims+0.5)/2).astype(int)
-            lostart = ctr - loctr
-            loend = lostart + lodims
-            bounds = (lostart[0], lostart[1], loend[0], loend[1])
-            bound_list.append(bounds)
-        bound_list.append((0, 0, dim_list[-1][0], dim_list[-1][1]))
-        dim_list.append((dim_list[-1][0], dim_list[-1][1]))
 
-        dims = np.array(self.pyr_size['residual_highpass'])
+        dims = np.array(self.pyr_size['residual_lowpass'])
         ctr = np.ceil((dims+0.5)/2.0).astype(int)
 
         (xramp, yramp) = np.meshgrid((np.arange(1, dims[1]+1)-ctr[1]) / (dims[1]/2.),
@@ -413,54 +426,95 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         #create masks
         lo0mask = pointOp(log_rad, YIrcos, Xrcos)
-        hi0mask = pointOp(log_rad, Yrcos, Xrcos)
+        #hi0mask = pointOp(log_rad, Yrcos, Xrcos)
 
         # Note that we expand dims to support broadcasting later
-        lo0mask = torch.from_numpy(lo0mask).float()[None,:,:,None].to(self.device)
-        hi0mask = torch.from_numpy(hi0mask).float()[None,:,:,None].to(self.device)
+        lo0mask = torch.from_numpy(lo0mask).float()[None, None, :,:,None].to(device)
+        #hi0mask = torch.from_numpy(hi0mask).float()[None, None, :,:,None].to(device)
+
+        if 'residual_lowpass' in recon_keys:
+            lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided=False)
+            lodft = batch_fftshift2d(lodft)
+        else:
+            lodft = torch.zeros_like(self.pyr_coeffs['residual_lowpass'])
+
+        lodft = lodft*lo0mask
+        dims = np.array(pyr_coeffs[(self.num_scales-1,self.num_scales-1)].shape[2:4])
+        lostart = (np.ceil((dims+0.5)/2) - np.ceil((np.ceil((dims-0.5)/2)+0.5)/2)).astype(np.int32)
+        loend = lostart + np.ceil((dims-0.5)/2).astype(np.int32)
+        nlog_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
+        nangle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
+        YIrcos = np.sqrt(np.abs(1 - Yrcos**2))
+        lomask = pointOp(nlog_rad, YIrcos, Xrcos)
+
+        resdft[:,:, lostart[0]:loend[0], lostart[1]:loend[1],:] = lodft
 
         for i in range(self.num_scales):
 
-            if len(self.pyr_coeffs) == 1:
-                tempdft = torch.rfft(self.pyr_coeffs.values()[0], signal_ndim=2, onesided=False)
-                tempdft = batch_fftshift2d(dft)
-                break
-
-            Xrcos -= np.log(2)
+            Xrcos += np.log(2)
 
             himask = pointOp(log_rad, Yrcos, Xrcos)
-            himask = torch.from_numpy(himask[None,:,:,None]).float().to(self.device)
+            himask = torch.from_numpy(himask[None, None, :, :,None]).float().to(device)
 
             Xcosn = np.pi * np.arange(-(2*self.lutsize+1), (self.lutsize+2)) / self.lutsize
             const = (2**(2*self.order))*(factorial(self.order, exact=True)**2) / float(self.num_orientations*factorial(2*self.order, exact=True))
             Ycosn = np.sqrt(const) * (np.cos(Xcosn))**self.order
 
-            orientdft = torch.zeros_like(self.pyr_coeffs.values()[1][0])
+            curlev = self.num_scales-1 - i
+            orientdft = torch.zeros_like(pyr_coeffs[(curlev,0)]).to(device)
+
             anglemasks = []
-            for band in range(self.num_orientations):
+            for b in range(self.num_orientations):
                 anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(device)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, None, :, :, None].to(device)
 
-                if (i,b) in recon_keys:
-                    banddft = torch.fft(self.pyr_coeffs[(i,b)], signal_ndim=2)
+                if (curlev,b) in recon_keys:
+                    banddft = torch.fft(pyr_coeffs[(curlev,b)], signal_ndim=2)
                     banddft = batch_fftshift2d(banddft)
+                    banddft = banddft * anglemask * himask
+                    print(banddft.shape, anglemask.shape, himask.shape)
                     banddft = torch.unbind(banddft, -1)
 
                     banddft_real = self.complex_fact_reconstruct.real*banddft[0] - self.complex_fact_reconstruct.imag*banddft[1]
-                    banddft_imag = self.complex_fact_reconstruct.real*banddft[1] + self.complex_fact_reconstruct.imag*banddft[0]
-                    banddft = torch.stack((banddft_real, banddft_imag), -1)
                     if self.is_complex:
                         banddft_imag = self.complex_fact_reconstruct.real*banddft[1] + self.complex_fact_reconstruct.imag*banddft[0]
                         banddft = torch.stack((banddft_real, banddft_imag), -1)
                     else:
                         banddft = banddft_real
                 else:
-                    banddft = torch.zeros_like(self.pyr_coeffs[(i,b)])
+                    banddft = torch.zeros_like(self.pyr_coeffs[(curlev,b)])
 
                 orientdft = orientdft + banddft
 
-            dims = np.array(self.pyr_coeffs[])
+            #now upsample and convolve the lowpass component
+
+            dims = np.array(pyr_coeffs[(curlev,0)].shape[2:4])
+            lostart = (np.ceil((dims+0.5)/2) - np.ceil((np.ceil((dims-0.5)/2)+0.5)/2)).astype(np.int32)
+            loend = lostart + np.ceil((dims-0.5)/2).astype(np.int32)
+            nlog_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
+            nangle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
+            YIrcos = np.sqrt(np.abs(1 - Yrcos**2))
+            lomask = pointOp(nlog_rad, YIrcos, Xrcos)
+
+            # Filtering
+            lomask = pointOp(nlog_rad, YIrcos, Xrcos)
+            lomask = torch.from_numpy(lomask[None,None,:,:,None])
+            lomask = lomask.float().to(device)
+
+            resdft[:,:, lostart[0]:loend[0], lostart[1]:loend[1],:] = orientdft * lomask
+
+        #add highpass residual
+        hidft = torch.rfft(pyr_coeffs['highpass_residual'], signal_ndim=2, onesided=False)
+        hidft = math.utils.batch_fftshift2d(hidft)
+
+        outdft = resdft*lo0mask + hidft*hi0mask
+
+        recons = math_utils.batch_ifftshift2d(outdft)
+        recons = torch.ifft(recons, signal_ndim=2)
+        recons = torch.unbind(recons,-1)[0]
+
+        return recons
 
 
 
