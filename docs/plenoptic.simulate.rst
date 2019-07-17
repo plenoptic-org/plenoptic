@@ -44,6 +44,22 @@ plenoptic.simulate.pooling module
    :undoc-members:
    :show-inheritance:
 
+plenoptic.simulate.portilla\_simoncelli module
+----------------------------------------------
+
+.. automodule:: plenoptic.simulate.portilla_simoncelli
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+plenoptic.simulate.spectral module
+----------------------------------
+
+.. automodule:: plenoptic.simulate.spectral
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 plenoptic.simulate.steerable\_pyramid\_freq module
 --------------------------------------------------
 
@@ -56,6 +72,14 @@ plenoptic.simulate.texture\_statistics module
 ---------------------------------------------
 
 .. automodule:: plenoptic.simulate.texture_statistics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+plenoptic.simulate.ventral\_stream module
+-----------------------------------------
+
+.. automodule:: plenoptic.simulate.ventral_stream
    :members:
    :undoc-members:
    :show-inheritance:

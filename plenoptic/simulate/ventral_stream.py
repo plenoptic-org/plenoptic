@@ -9,7 +9,7 @@ import matplotlib as mpl
 import numpy as np
 import pyrtools as pt
 from ..tools.fit import complex_modulus
-from ..tools.display import clean_up_axes
+from ..tools.display import clean_up_axes, update_stem
 from .pooling import (create_pooling_windows, calc_window_widths_actual, calc_angular_n_windows,
                       calc_eccentricity_window_width, calc_angular_window_width,
                       calc_windows_central_eccentricity)
@@ -202,6 +202,45 @@ class VentralModel(nn.Module):
         else:
             raise Exception("Don't know how to handle model_name %s!" % model_name)
 
+    def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
+        r"""plot the pooling windows on an image.
+
+        This is just a simple little helper to plot the pooling windows
+        on an existing axis. The use case is overlaying this on top of
+        the image we're pooling (as returned by ``pyrtools.imshow``),
+        and so we require an axis to be passed
+
+        Any additional kwargs get passed to ``ax.contour``
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.axis
+            The existing axis to plot the windows on
+        contour_levels : array-like or int, optional
+            The ``levels`` argument to pass to ``ax.contour``. From that
+            documentation: "Determines the number and positions of the
+            contour lines / regions. If an int ``n``, use ``n`` data
+            intervals; i.e. draw ``n+1`` contour lines. The level
+            heights are automatically chosen. If array-like, draw
+            contour lines at the specified levels. The values must be in
+            increasing order". ``[.5]`` (the default) is recommended for
+            these windows.
+        colors : color string or sequence of colors, optional
+            The ``colors`` argument to pass to ``ax.contour``. If a
+            single character, all will have the same color; if a
+            sequence, will cycle through the colors in ascending order
+            (repeating if necessary)
+
+        Returns
+        -------
+        ax : matplotlib.pyplot.axis
+            The axis with the windows
+
+        """
+        for w in self.windows[0]:
+            ax.contour(w.detach(), contour_levels, colors=colors, **kwargs)
+        return ax
+
     def plot_window_sizes(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
         r"""plot the size of the windows, in degrees or pixels
 
@@ -260,29 +299,29 @@ class VentralModel(nn.Module):
         marker_styles = ['C0o', 'C0.', 'C1o', 'C1.']
         line_styles = ['C0-', 'C0-', 'C1-', 'C1-']
         for k, m, l in zip(keys, marker_styles, line_styles):
-            ax.stem(np.array(central_ecc)+jitter_vals[k.split('_')[0]], data[k], l, m, label=k)
+            ax.stem(np.array(central_ecc)+jitter_vals[k.split('_')[0]], data[k], l, m, label=k,
+                    use_line_collection=True)
         ax.set_ylabel('Window size (%s)' % units)
         ax.set_xlabel('Window central eccentricity (%s)' % units)
         ax.legend(loc='upper left')
         return fig
 
-    def _expand_representation_for_plotting(self):
-        """Expand the representation, adding nans to make plotting easier
+    def _representation_for_plotting(self):
+        r"""Get the representation in the form required for plotting
 
-        To make things simpler for the optimization, VentralStream
-        object's representation is a straightforward 1d tensor. However,
-        that hides a lot of structure to the representation: each
-        consists of some number of different representation types, each
-        averaged per window. And the windows themselves are structured:
-        we have several different eccentricity bands, each of which
-        contains the same number of angular windows. We want to use this
-        structure when plotting the representation, as it makes it
-        easier to see what's goin on. So we take a copy of the
-        representation and make it 2d, separating out each
-        representation type. We then take each representation type and
-        add ``np.nan`` between each eccentricity band. This way we can
-        make a separate plot for each representation type and, at a
-        glance, see the eccentricity bands separated out.
+        VentralStream objects' representation is a straightforward 1d
+        tensor. However, that hides a lot of structure to the
+        representation: each consists of some number of different
+        representation types, each averaged per window. And the windows
+        themselves are structured: we have several different
+        eccentricity bands, each of which contains the same number of
+        angular windows. We want to use this structure when plotting the
+        representation, as it makes it easier to see what's goin on. So
+        we take a copy of the representation and make it 2d, separating
+        out each representation type. We then take each representation
+        type and add ``np.nan`` between each eccentricity band. This way
+        we can make a separate plot for each representation type and, at
+        a glance, see the eccentricity bands separated out.
 
         We expect this to be plotted using ``plt.stem``, and return a
         tuple ``xvals`` for use with ``plt.hlines`` to replace the base
@@ -323,7 +362,7 @@ class VentralModel(nn.Module):
 
     @staticmethod
     def _plot_representation(ax, data, xvals, title, ylim):
-        """convenience wrapper for plotting representation
+        r"""convenience wrapper for plotting representation
 
         This plots the data, baseline, cleans up the axis, and sets the
         title
@@ -352,11 +391,62 @@ class VentralModel(nn.Module):
             The axis with the plot
 
         """
-        ax.stem(data, basefmt=' ')
-        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3')
+        ax.stem(data, basefmt=' ', use_line_collection=True)
+        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3', zorder=10)
         ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
         ax.set_title(title)
         return ax
+
+    def _update_plot(self, axes):
+        r"""Update the information in our representation plot
+
+        This is used for creating an animation of the representation
+        over time. In order to create the animation, we need to know how
+        to update the matplotlib Artists, and this provides a simple way
+        of doing that. It relies on the fact that we've used
+        ``plot_representation`` to create the plots we want to update
+        and so know that they're stem plots.
+
+        We take the axes containing the representation information (note
+        that this is probably a subset of the total number of axes in
+        the figure, if we're showing other information, as done by
+        ``Metamer.animate``), grab the representation from plotting and,
+        since these are both lists, iterate through them, updating as we
+        go.
+
+        Note that this means we DO NOT accept the data to update on the
+        plot; we grab it from the model's representation. This means
+        you'll probably need to do a fake update of the representation
+        by setting the value fo the ``representation`` attribute
+        directly. This is a little indirect, but means that we can rely
+        on our ``_representation_for_plotting`` function to get the data
+        in the right shape
+
+        In order for this to be used by ``FuncAnimation``, we need to
+        return Artists, so we return a list of the relevant artists, the
+        ``markerline`` and ``stemlines`` from the ``StemContainer``.
+
+        Parameters
+        ----------
+        axes : list
+            A list of axes to update. We assume that these are the axes
+            created by ``plot_representation`` and so contain stem plots
+            in the correct order.
+
+        Returns
+        -------
+        stem_artists : list
+            A list of the artists used to update the information on the
+            stem plots
+
+        """
+        stem_artists = []
+        axes = [ax for ax in axes if len(ax.containers) == 1]
+        data, _ = self._representation_for_plotting()
+        for ax, d in zip(axes, data):
+            sc = update_stem(ax.containers[0], d)
+            stem_artists.extend([sc.markerline, sc.stemlines])
+        return stem_artists
 
 
 class RetinalGanglionCells(VentralModel):
@@ -485,9 +575,8 @@ class RetinalGanglionCells(VentralModel):
         self.representation = representation / self.window_num_pixels[0]
         return self.representation
 
-    def plot_representation(self, figsize=(10, 5), ylim=None, ax=None,
-                            title='Mean pixel intensity in each window'):
-        """plot the representation of the RGC model
+    def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None):
+        r"""plot the representation of the RGC model
 
         Because our model just takes the average pixel intensities in
         each window, our representation plot is just a simple stem plot
@@ -509,24 +598,30 @@ class RetinalGanglionCells(VentralModel):
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
-        title : str, optional
+        title : str or None, optional
             The title to put above this axis. If you want no title, pass
-            the empty string (``''``)
+            the empty string (``''``). If None, will use the default,
+            'Mean pixel intensity in each window'
 
         Returns
         -------
         fig : matplotlib.figure.Figure
             The figure containing the plot
+        axes : list
+            A list of axes (with one element) that contain the plots
+            we've created
 
         """
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             warnings.warn("ax is not None, so we're ignoring figsize...")
-        rep_copy, xvals = self._expand_representation_for_plotting()
+        rep_copy, xvals = self._representation_for_plotting()
+        if title is None:
+            title = 'Mean pixel intensity in each window'
         self._plot_representation(ax, rep_copy[0], xvals, title, ylim)
         # fig won't always be defined, but this will return the figure belonging to our axis
-        return ax.figure
+        return ax.figure, [ax]
 
 
 class PrimaryVisualCortex(VentralModel):
@@ -716,7 +811,7 @@ class PrimaryVisualCortex(VentralModel):
         return self.representation
 
     def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, titles=None):
-        """plot the representation of the V1 model
+        r"""plot the representation of the V1 model
 
         Since our PrimaryVisualCortex model has more statistics than the
         RetinalGanglionCell model, this is a much more complicated
@@ -758,8 +853,11 @@ class PrimaryVisualCortex(VentralModel):
         -------
         fig : matplotlib.figure.Figure
             The figure containing the plot
+        axes : list
+            A list of axes that contain the plots we've created
 
         """
+        axes = []
         if ax is None:
             # we add 2 to order because we're adding one to get the
             # number of orientations and then another one to add an
@@ -773,7 +871,7 @@ class PrimaryVisualCortex(VentralModel):
             ax.yaxis.set_visible(False)
             gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
             fig = ax.figure
-        rep_copy, xvals = self._expand_representation_for_plotting()
+        rep_copy, xvals = self._representation_for_plotting()
         if titles is None:
             titles = ["scale %02d, band %02d" % (h, b) for h, b in
                       itertools.product(range(self.num_scales), range(self.order+1))]
@@ -783,6 +881,8 @@ class PrimaryVisualCortex(VentralModel):
                 ax = fig.add_subplot(gs[2*i:2*(i+1), 2*j:2*(j+1)])
                 ax = self._plot_representation(ax, rep_copy[i*self.num_scales+j], xvals,
                                                titles[i*self.num_scales+j], ylim)
+                axes.append(ax)
         ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
         ax = self._plot_representation(ax, rep_copy[-1], xvals, titles[-1], ylim)
-        return fig
+        axes.append(ax)
+        return fig, axes

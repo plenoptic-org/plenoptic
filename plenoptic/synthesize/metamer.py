@@ -6,69 +6,89 @@ from torch import optim
 import numpy as np
 import time
 from torch.optim import lr_scheduler
+import matplotlib.pyplot as plt
+import pyrtools as pt
+from ..tools.display import rescale_ylim
+from matplotlib import animation
 
 
 class Metamer(nn.Module):
-    """Synthesize metamers for image-computable differentiable models!
+    r"""Synthesize metamers for image-computable differentiable models!
 
-    Following the basic idea in [1]_, this module creates a metamer for a given model on a given
-    image. We start with some random noise (typically, though users can choose to start with
-    something else) and iterative adjust the pixel values so as to match the representation of this
-    metamer-to-be and the ``target_image``. This is optimization though, so you'll probably need to
-    experiment with the optimization hyper-parameters before you find a good solution.
+    Following the basic idea in [1]_, this module creates a metamer for
+    a given model on a given image. We start with some random noise
+    (typically, though users can choose to start with something else)
+    and iterative adjust the pixel values so as to match the
+    representation of this metamer-to-be and the ``target_image``. This
+    is optimization though, so you'll probably need to experiment with
+    the optimization hyper-parameters before you find a good solution.
 
     Currently we do not: support batch creation of images.
 
     Parameters
     ----------
     target_image : torch.tensor or array_like
-        A 2d tensor, this is the image whose representation we wish to match. If this is not a
-        tensor, we try to cast it as one.
+        A 2d tensor, this is the image whose representation we wish to
+        match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module
-        A differentiable model that takes an image as an input and transforms it into a
-        representation of some sort. We only require that it has a forward method, which returns
-        the representation to match.
-
+        A differentiable model that takes an image as an input and
+        transforms it into a representation of some sort. We only
+        require that it has a forward method, which returns the
+        representation to match. However, if you want to use the various
+        plot and animate function, it should also have a
+        ``state_dict_sparse`` attribute, and ``from_state_dict_sparse``,
+        ``plot_representation``, and ``_update_plot`` functions.
     Attributes
     ----------
     target_image : torch.tensor
-        A 2d tensor, this is the image whose representation we wish to match.
+        A 2d tensor, this is the image whose representation we wish to
+        match.
     model : torch.nn.Module
-        A differentiable model that takes an image as an input and transforms it into a
-        representation of some sort. We only require that it has a forward method, which returns
-        the representation to match.
+        A differentiable model that takes an image as an input and
+        transforms it into a representation of some sort. We only
+        require that it has a forward method, which returns the
+        representation to match.
     target_representation : torch.tensor
-        Whatever is returned by ``model.foward(target_image)``, this is what we match in order to
-        create a metamer
+        Whatever is returned by ``model.foward(target_image)``, this is
+        what we match in order to create a metamer
     matched_image : torch.tensor
-        The metamer. This may be unfinished depending on how many iterations we've run for.
+        The metamer. This may be unfinished depending on how many
+        iterations we've run for.
     matched_represetation: torch.tensor
-        Whatever is returned by ``model.forward(matched_image)``; we're trying to make this
-        identical to ``self.target_representation``
+        Whatever is returned by ``model.forward(matched_image)``; we're
+        trying to make this identical to ``self.target_representation``
     optimizer : torch.optim.Optimizer
-        A pytorch optimization method. Currently, user cannot specify the method they want, and we
-        use SGD (stochastic gradient descent).
+        A pytorch optimization method. Currently, user cannot specify
+        the method they want, and we use SGD (stochastic gradient
+        descent).
     scheduler : torch.optim.lr_scheduler._LRScheduler
-        A pytorch scheduler, which tells us how to change the learning rate over
-        iterations. Currently, user cannot set and we use ReduceLROnPlateau (so that the learning
-        rate gets reduced if it seems like we're on a plateau i.e., the loss isn't changing much)
+        A pytorch scheduler, which tells us how to change the learning
+        rate over iterations. Currently, user cannot set and we use
+        ReduceLROnPlateau (so that the learning rate gets reduced if it
+        seems like we're on a plateau i.e., the loss isn't changing
+        much)
     loss : list
         A list of our loss over time.
     saved_representation : torch.tensor
-        If the ``save_representation`` arg in ``synthesize`` is set to True or an int>0, we will
-        save ``self.matched_representation`` at each iteration, for later examination.
+        If the ``save_representation`` arg in ``synthesize`` is set to
+        True or an int>0, we will save ``self.matched_representation``
+        at each iteration, for later examination.
     saved_image : torch.tensor
-        If the ``save_image`` arg in ``synthesize`` is set to True or an int>0, we will save
-        ``self.matched_image`` at each iteration, for later examination.
+        If the ``save_image`` arg in ``synthesize`` is set to True or an
+        int>0, we will save ``self.matched_image`` at each iteration,
+        for later examination.
     time : list
-        A list of time, in seconds, relative to the most recent call to ``synthesize``.
+        A list of time, in seconds, relative to the most recent call to
+        ``synthesize``.
     seed : int
-        Number with which to seed pytorch and numy's random number generators
+        Number with which to seed pytorch and numy's random number
+        generators
 
     References
     -----
-    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on Joint Statistics of
-       Complex Wavelet Coefficients. Int'l Journal of Computer Vision. 40(1):49-71, October, 2000.
+    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model
+       based on Joint Statistics of Complex Wavelet Coefficients. Int'l
+       Journal of Computer Vision. 40(1):49-71, October, 2000.
        http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        http://www.cns.nyu.edu/~lcv/texture/
 
@@ -87,7 +107,7 @@ class Metamer(nn.Module):
     - [x] is that note in analyze still up-to-date? -- No
     - [x] add save method
     - [x] add example for load method
-    - [ ] add animate method, which creates a three-subplot animation: the metamer over time, the
+    - [x] add animate method, which creates a three-subplot animation: the metamer over time, the
           plot of differences in representation over time, and the loss over time (as a red point
           on the loss curve) -- some models' representation might not be practical to plot, add the
           ability to take a function for the plot representation and if it's set to None, don't
@@ -126,12 +146,13 @@ class Metamer(nn.Module):
         self.seed = None
 
     def analyze(self, x):
-        """Analyze the image, that is, obtain the model's representation of it
+        r"""Analyze the image, that is, obtain the model's representation of it
 
-        Note: analysis is applied on the squished input, so as to softly enforce the desired range
-        during the optimization, (as a consequence, there is a discrepency to corresponding
-        statistics during the optimization- which is fixed at the moment of returning an output in
-        the synthesize method)
+        Note: analysis is applied on the squished input, so as to softly
+        enforce the desired range during the optimization, (as a
+        consequence, there is a discrepency to corresponding statistics
+        during the optimization- which is fixed at the moment of
+        returning an output in the synthesize method)
 
         """
         y = self.model(x)
@@ -141,20 +162,21 @@ class Metamer(nn.Module):
             return y
 
     def objective_function(self, x, y):
-        """Calculate the loss between x and y
+        r"""Calculate the loss between x and y
 
         This is what we minimize. Currently it's the L2-norm
         """
         return torch.norm(x - y, p=2)
 
     def _optimizer_step(self, pbar):
-        """step the optimizer, propagating the gradients, and updating our matched_image
+        r"""step the optimizer, propagating the gradients, and updating our matched_image
 
         Parameters
         ----------
         pbar : tqdm.tqdm
-            A tqdm progress-bar, which we update with a postfix describing the current loss,
-            gradient norm, and learning rate (it already tells us which iteration and the time
+            A tqdm progress-bar, which we update with a postfix
+            describing the current loss, gradient norm, and learning
+            rate (it already tells us which iteration and the time
             elapsed)
 
         Returns
@@ -176,52 +198,61 @@ class Metamer(nn.Module):
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, save_representation=False, save_image=False, loss_thresh=1e-4):
-        """synthesize a metamer
+        r"""synthesize a metamer
 
-        This is the main method, trying to update the ``initial_image`` until its representation
-        matches that of ``target_image``. If ``initial_image`` is not set, we initialize with
-        uniformly-distributed random noise between 0 and 1. NOTE: This means that the value of
-        ``target_image`` should probably lie between 0 and 1. If that's not the case, you might
-        want to pass something to act as the initial image.
+        This is the main method, trying to update the ``initial_image``
+        until its representation matches that of ``target_image``. If
+        ``initial_image`` is not set, we initialize with
+        uniformly-distributed random noise between 0 and 1. NOTE: This
+        means that the value of ``target_image`` should probably lie
+        between 0 and 1. If that's not the case, you might want to pass
+        something to act as the initial image.
 
-        We run this until either we reach ``max_iter`` or loss is below ``loss_thresh``, whichever
-        comes first
+        We run this until either we reach ``max_iter`` or loss is below
+        ``loss_thresh``, whichever comes first
 
-        Note that you can run this several times in sequence by setting ``initial_image`` to the
-        ``matched_image`` we return. However, everything that stores the progress of the
-        optimization (``loss``, ``time``, ``saved_representation``, ``saved_image``) will get
-        created anew, so if you want to hold onto this history, you should copy them off the object
-        between calls.
+        Note that you can run this several times in sequence by setting
+        ``initial_image`` to the ``matched_image`` we return. However,
+        everything that stores the progress of the optimization
+        (``loss``, ``time``, ``saved_representation``, ``saved_image``)
+        will get created anew, so if you want to hold onto this history,
+        you should copy them off the object between calls.
 
         Parameters
         ----------
         seed : int, optional
-            Number with which to seed pytorch and numy's random number generators
+            Number with which to seed pytorch and numy's random number
+            generators
         learning_rate : float, optional
             The learning rate for our optimizer
         max_iter : int, optinal
             The maximum number of iterations to run before we end
         initial_image : torch.tensor, array_like, or None, optional
-            The 2d tensor we use to initialize the metamer. If None (the default), we initialize
-            with uniformly-distributed random noise lying between 0 and 1. If this is not a tensor
-            or None, we try to cast it as a tensor.
+            The 2d tensor we use to initialize the metamer. If None (the
+            default), we initialize with uniformly-distributed random
+            noise lying between 0 and 1. If this is not a tensor or
+            None, we try to cast it as a tensor.
         clamper : plenoptic.Clamper or None, optional
-            Clamper makes a change to the image in order to ensure that it stays reasonable. The
-            classic example is making sure the range lies between 0 and 1, see
-            plenoptic.RangeClamper for an example.
+            Clamper makes a change to the image in order to ensure that
+            it stays reasonable. The classic example is making sure the
+            range lies between 0 and 1, see plenoptic.RangeClamper for
+            an example.
         save_representation : bool or int, optional
-            Whether we should save the representation of the metamer in progress on every
-            iteration. If False, we don't save anything. If True, we save every iteration. If an
-            int, we save every ``save_image`` iterations (note then that 0 is the same as False and
-            1 the same as True). If True or int>0, ``self.saved_image`` contains the saved images.
-        save_image : bool or int, optional
-            Whether we should save the metamer in progress. If False, we don't save anything. If
-            True, we save every iteration. If an int, we save every ``save_image`` iterations (note
-            then that 0 is the same as False and 1 the same as True). If True or int>0,
+            Whether we should save the representation of the metamer in
+            progress on every iteration. If False, we don't save
+            anything. If True, we save every iteration. If an int, we
+            save every ``save_image`` iterations (note then that 0 is
+            the same as False and 1 the same as True). If True or int>0,
             ``self.saved_image`` contains the saved images.
+        save_image : bool or int, optional
+            Whether we should save the metamer in progress. If False, we
+            don't save anything. If True, we save every iteration. If an
+            int, we save every ``save_image`` iterations (note then that
+            0 is the same as False and 1 the same as True). If True or
+            int>0, ``self.saved_image`` contains the saved images.
         loss_thresh : float, optional
-            The value of the loss function that we consider "good enough", at which point we stop
-            optimizing
+            The value of the loss function that we consider "good
+            enough", at which point we stop optimizing
 
         Returns
         -------
@@ -321,19 +352,21 @@ class Metamer(nn.Module):
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
     def save(self, file_path, save_model_sparse=False):
-        """save all relevant variables in .pt file
+        r"""save all relevant variables in .pt file
 
-        Note that if save_representation and save_image are True, this will probably be very large
+        Note that if save_representation and save_image are True, this
+        will probably be very large
 
         Parameters
         ----------
         file_path : str
             The path to save the metamer object to
         save_model_sparse : bool
-            Whether we save the full model or just its attribute ``state_dict_sparse`` (this is a
-            custom attribute of ours, the basic idea being that it only contains the attributes
-            necessary to initialize the model, none of the (probably much larger) ones it gets
-            during run-time).
+            Whether we save the full model or just its attribute
+            ``state_dict_sparse`` (this is a custom attribute of ours,
+            the basic idea being that it only contains the attributes
+            necessary to initialize the model, none of the (probably
+            much larger) ones it gets during run-time).
 
         """
         if save_model_sparse:
@@ -349,18 +382,20 @@ class Metamer(nn.Module):
 
     @classmethod
     def load(cls, file_path, model_constructor=None):
-        """load all relevant stuff from a .pt file
+        r"""load all relevant stuff from a .pt file
 
         Parameters
         ----------
         file_path : str
             The path to load the metamer object from
         model_constructor : callable or None, optional
-            When saving the metamer object, we have the option to only save the
-            ``state_dict_sparse`` (in order to save space). If we do that, then we need some way to
-            construct that model again and, not knowing its class or anything, this object doesn't
-            know how. Therefore, a user must pass a constructor for the model that takes in the
-            ``state_dict_sparse`` dictionary and returns the initialized model. See the
+            When saving the metamer object, we have the option to only
+            save the ``state_dict_sparse`` (in order to save space). If
+            we do that, then we need some way to construct that model
+            again and, not knowing its class or anything, this object
+            doesn't know how. Therefore, a user must pass a constructor
+            for the model that takes in the ``state_dict_sparse``
+            dictionary and returns the initialized model. See the
             VentralModel class for an example of this.
 
         Returns
@@ -372,17 +407,20 @@ class Metamer(nn.Module):
         Examples
         --------
         >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        >>> metamer.synthesize(max_iter=10, save_representation=True,
+                               save_image=True)
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
 
-        Things are slightly more complicated if you saved a sparse representation of the model by
-        setting the ``save_model_sparse`` flag to ``True``. In that case, you also need to pass a
-        model constructor argument, like so:
+        Things are slightly more complicated if you saved a sparse
+        representation of the model by setting the ``save_model_sparse``
+        flag to ``True``. In that case, you also need to pass a model
+        constructor argument, like so:
 
         >>> model = po.simul.RetinalGanglionCells(1)
         >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        >>> metamer.synthesize(max_iter=10, save_representation=True,
+                               save_image=True)
         >>> metamer.save('metamers.pt', save_model_sparse=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
                                                  po.simul.RetinalGanglionCells.from_state_dict_sparse)
@@ -397,3 +435,318 @@ class Metamer(nn.Module):
         for k, v in tmp_dict.items():
             setattr(metamer, k, v)
         return metamer
+
+    def representation_ratio(self, iteration=None):
+        r"""Get the representation ratio
+
+        This is (matched_representation - target_representation) /
+        target_representation. If ``iteration`` is not None, we use
+        ``self.saved_representation[iteration]`` for
+        matched_representation
+
+        Parameters
+        ----------
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+
+        Returns
+        -------
+        np.array
+
+        """
+        if iteration is not None:
+            matched_rep = self.saved_representation[iteration]
+        else:
+            matched_rep = self.matched_representation
+        return ((matched_rep - self.target_representation) /
+                self.target_representation).detach().numpy()
+
+    def plot_representation_ratio(self, iteration=None, figsize=(5, 5), ylim=None, ax=None,
+                                  title=None):
+        r"""Plot distance ratio showing how close we are to convergence
+
+        We plot ``self.representation_ratio(iteration)``
+
+        The goal is to use the model's ``plot_representation``
+        method. However, in order for this to work, it needs to not only
+        have that method, but a way to make a 'mock copy', a separate
+        model that has the same initialization parameters, but whose
+        representation we can set. For the VentralStream models, we can
+        do this using their ``state_dict_sparse`` attribute. If we can't
+        do this, then we'll fall back onto using ``plt.plot``
+
+        In order for this to work, we also count on
+        ``plot_representation`` to return the figure and the axes it
+        modified (axes should be a list)
+
+        Parameters
+        ----------
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+        figsize : tuple, optional
+            The size of the figure to create
+        ylim : tuple or None, optional
+            If not None, the y-limits to use for this plot. If None, we
+            scale the y-limits so that it's symmetric about 0 with a
+            limit of ``np.abs(representation_ratio).max()``
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        title : str, optional
+            The title to put above this axis. If you want no title, pass
+            the empty string (``''``)
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+        representation_ratio = self.representation_ratio(iteration)
+        try:
+            mock_model = self.model.from_state_dict_sparse(self.model.state_dict_sparse)
+            mock_model.representation = representation_ratio
+            fig, axes = mock_model.plot_representation(figsize, ylim, ax, title)
+        except AttributeError:
+            ax.plot(representation_ratio)
+            fig = ax.figure
+            axes = [ax]
+        if ylim is None:
+            rescale_ylim(axes, representation_ratio)
+        return fig
+
+    def plot_metamer_status(self, iteration=None, figsize=(17, 5), ylim=None,
+                            plot_representation_ratio=True, imshow_zoom=None):
+        r"""Make a plot showing metamer, loss, and (optionally) representation ratio
+
+        We create two or three subplots on a new figure. The first one
+        contains the metamer, the second contains the loss, and the
+        (optional) third contains the representation ratio, as plotted
+        by ``self.plot_representation_ratio``.
+
+        You can specify what iteration to view by using the
+        ``iteration`` arg. The default, ``None``, shows the final one.
+
+        The loss plot shows the loss as a function of iteration for all
+        iterations (even if we didn't save the representation or metamer
+        at each iteration), with a red dot showing the location of the
+        iteration.
+
+        We use ``pyrtools.imshow`` to display the metamer and attempt to
+        automatically find the most reasonable zoom value. You can
+        override this value using the imshow_zoom arg, but remember that
+        ``pyrtools.imshow`` is opinionated about the size of the
+        resulting image and will throw an Exception if the axis created
+        is not big enough for the selected zoom. We currently cannot
+        shrink the image, so figsize must be big enough to display the
+        image
+
+        Parameters
+        ----------
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. It may take a little bit
+            of playing around to find a reasonable value. If you're not
+            showing the representation, (12, 5) probably makes sense. If
+            you are showing the representation, it depends on the level
+            of detail in that plot. If it only creates one set of axes,
+            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            but you may need much larger if it's more complicated; e.g.,
+            for PrimaryVisualCortex, try (39, 11).
+        ylim : tuple or None, optional
+            The ylimit to use for the representation_ratio plot. We pass
+            this value directly to ``self.plot_representation_ratio``
+        plot_representation_ratio : bool, optional
+            Whether to plot the representation ratio or not.
+        imshow_zoom : None or float, optional
+            How much to zoom in / enlarge the metamer image, the ratio
+            of display pixels to image pixels. If None (the default), we
+            attempt to find the best value ourselves. Else, if >1, must
+            be an integer.  If <1, must be 1/d where d is a a divisor of
+            the size of the largest image.
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if plot_representation_ratio:
+            n_subplots = 3
+        else:
+            n_subplots = 2
+        if iteration is None:
+            image = self.matched_image
+            loss_idx = len(self.loss) - 1
+        else:
+            image = self.saved_image[iteration]
+            if iteration < 0:
+                # in order to get the x-value of the dot to line up,
+                # need to use this work-around
+                loss_idx = len(self.loss) + iteration
+            else:
+                loss_idx = iteration
+        fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
+        if imshow_zoom is None:
+            imshow_zoom = axes[0].bbox.width // self.matched_image.shape[0]
+            if imshow_zoom == 0:
+                raise Exception("imshow_zoom would be 0, cannot display metamer image! Enlarge "
+                                "your figure")
+        fig = pt.imshow(image.detach().numpy(), ax=axes[0], title='Metamer', zoom=imshow_zoom)
+        axes[0].xaxis.set_visible(False)
+        axes[0].yaxis.set_visible(False)
+        axes[1].semilogy(self.loss)
+        axes[1].scatter(loss_idx, self.loss[loss_idx], c='r')
+        axes[1].set_title('Loss')
+        if plot_representation_ratio:
+            fig = self.plot_representation_ratio(iteration, ax=axes[2], ylim=ylim)
+        return fig
+
+    def animate(self, figsize=(17, 5), framerate=10, ylim='rescale',
+                plot_representation_ratio=True):
+        r"""Animate metamer synthesis progress!
+
+        This is essentially the figure produced by
+        ``self.plot_metamer_status`` animated over time, for each stored
+        iteration.
+
+        It's difficult to determine a reasonable figsize, because we
+        don't know how much information is in the plot showing the
+        representation ratio. Therefore, it's recommended you play
+        around with ``plot_metamer_status`` until you find a
+        good-looking value for figsize.
+
+        We return the matplotlib FuncAnimation object. In order to view
+        it in a Jupyter notebook, use the
+        ``plenoptic.convert_anim_to_html(anim)`` function. In order to
+        save, use ``anim.save(filename)`` (note for this that you'll
+        need the appropriate writer installed and on your path, e.g.,
+        ffmpeg, imagemagick, etc). Either of these will probably take a
+        reasonably long amount of time.
+
+        NOTE: This requires that the model has a ``state_dict_sparse``
+        attribute, ``from_state_dict_sparse``, ``_update_plot``, and
+        ``plot_representation`` functions in order to work nicely. It
+        will work otherwise, but we'll just create a simple line plot
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create. It may take a little bit
+            of playing around to find a reasonable value. If you're not
+            showing the representation, (12, 5) probably makes sense. If
+            you are showing the representation, it depends on the level
+            of detail in that plot. If it only creates one set of axes,
+            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            but you may need much larger if it's more complicated; e.g.,
+            for PrimaryVisualCortex, try (39, 11).
+        framerate : int, optional
+            How many frames a second to display.
+        ylim : str, None, or tuple, optional
+            The y-limits of the representation_ratio plot (ignored if
+            ``plot_representation_ratio`` arg is False).
+
+            * If a tuple, then this is the ylim of all plots
+
+            * If None, then all plots have the same limits, all
+              symmetric about 0 with a limit of
+              ``np.abs(representation_ratio).max()`` (for the initial
+              representation_ratio)
+
+            * If a string, must be 'rescale' or of the form 'rescaleN',
+              where N can be any integer. If 'rescaleN', we rescale the
+              limits every N frames (we rescale as if ylim = None). If
+              'rescale', then we do this 10 times over the course of the
+              animation
+
+        plot_representation_ratio : bool, optional
+            Whether to plot the representation ratio or not.
+
+        Returns
+        -------
+        anim : matplotlib.animation.FuncAnimation
+            The animation object. In order to view, must convert to HTML
+            or save.
+
+        """
+        if len(self.saved_image) != len(self.saved_representation):
+            raise Exception("saved_image and saved_representation need to be the same length in "
+                            "order for this to work!")
+        # this recovers the save_image / save_representation arg used
+        # with the call to synthesize(), which we need for updating the
+        # progress of the loss
+        saved_subsample = (len(self.loss) - 1) // (self.saved_representation.shape[0] - 1)
+        try:
+            if ylim.startswith('rescale'):
+                try:
+                    ylim_rescale_interval = int(ylim.replace('rescale', ''))
+                except ValueError:
+                    # then there's nothing we can convert to an int there
+                    ylim_rescale_interval = int((self.saved_representation.shape[0] - 1) // 10)
+                ylim = None
+            else:
+                raise Exception("Don't know how to handle ylim %s!" % ylim)
+        except AttributeError:
+            # this way we'll never rescale
+            ylim_rescale_interval = len(self.saved_image)+1
+        # initialize the figure
+        fig = self.plot_metamer_status(0, figsize, ylim, plot_representation_ratio)
+        # grab the artists for the first two plots (we don't need to do
+        # this for the representation plot, because the model has an
+        # _update_plot method that handles this for us)
+        image_artist = fig.axes[0].images[0]
+        scat = fig.axes[1].collections[0]
+        if plot_representation_ratio:
+            # if we can, we make a mock model that we update. this
+            # allows us to make use of its _update_plot method
+            try:
+                mock_model = self.model.from_state_dict_sparse(self.model.state_dict_sparse)
+            except AttributeError:
+                pass
+
+        def movie_plot(i):
+            artists = []
+            image_artist.set_data(self.saved_image[i].detach().numpy())
+            artists.append(image_artist)
+            if plot_representation_ratio:
+                representation_ratio = self.representation_ratio(i)
+                try:
+                    mock_model.representation = representation_ratio
+                    # we know that the first two axes are the image and
+                    # loss, so we pass everything after that to update
+                    rep_artists = mock_model._update_plot(fig.axes[2:])
+                    try:
+                        # if this is a list, we just want to include its
+                        # members (not include a list of its members)...
+                        artists.extend(rep_artists)
+                    except TypeError:
+                        # but if it's not a list, we just want the one
+                        # artist
+                        artists.append(rep_artists)
+                except AttributeError:
+                    artists.append(fig.axes[2].lines[0])
+                    artists[-1].set_ydata(representation_ratio)
+                # again, we know that fig.axes[2:] contains all the axes
+                # with the representation ratio info
+                if ((i+1) % ylim_rescale_interval) == 0:
+                    rescale_ylim(fig.axes[2:], representation_ratio)
+            # loss always contains values from every iteration, but
+            # everything else will be subsampled
+            scat.set_offsets((i*saved_subsample, self.loss[i*saved_subsample]))
+            artists.append(scat)
+            # as long as blitting is True, need to return a sequence of artists
+            return artists
+
+        # don't need an init_func, since we handle initialization ourselves
+        anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_image),
+                                       blit=True, interval=1000./framerate, repeat=False)
+        plt.close(fig)
+        return anim

@@ -6,6 +6,7 @@ import tqdm
 import tarfile
 import os
 import numpy as np
+import pyrtools as pt
 import plenoptic as po
 import os.path as op
 import matplotlib.pyplot as plt
@@ -109,6 +110,8 @@ class TestVentralStream(object):
         _ = rgc.plot_window_sizes('degrees')
         _ = rgc.plot_window_sizes('degrees', jitter=0)
         _ = rgc.plot_window_sizes('pixels')
+        fig = pt.imshow(im.detach())
+        _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         fig, axes = plt.subplots(2, 1)
         rgc.plot_representation(ax=axes[1])
@@ -272,6 +275,17 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, save_representation=3, save_image=3)
 
+    def test_metamer_animate(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=10, save_image=True, save_representation=True)
+        # this will test several related functions for us:
+        # plot_metamer_status, plot_representation_ratio,
+        # representation_ratio
+        metamer.animate(figsize=(17, 5), plot_representation_ratio=True, ylim='rescale100',
+                        framerate=40)
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):

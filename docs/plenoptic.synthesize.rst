@@ -36,6 +36,14 @@ plenoptic.synthesize.matched\_representation module
    :undoc-members:
    :show-inheritance:
 
+plenoptic.synthesize.metamer module
+-----------------------------------
+
+.. automodule:: plenoptic.synthesize.metamer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 Module contents
 ---------------
