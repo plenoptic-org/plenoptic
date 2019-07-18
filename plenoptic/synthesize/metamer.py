@@ -324,7 +324,11 @@ class Metamer(nn.Module):
         for i in pbar:
             loss = self._optimizer_step(pbar)
             if np.isnan(loss.item()):
-                warnings.warn("Loss is NaN, quitting out!")
+                warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
+                              "representation to our last saved values (which means this will "
+                              "throw an exception if you're not saving anything)!")
+                self.matched_image = nn.Parameter(self.saved_image[-1])
+                self.matched_representation = nn.Parameter(self.saved_representation[-1])
                 break
             self.loss.append(loss.item())
             self.time.append(time.time() - start_time)
