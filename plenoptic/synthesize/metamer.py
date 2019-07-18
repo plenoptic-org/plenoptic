@@ -197,7 +197,8 @@ class Metamer(nn.Module):
         return loss
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, save_representation=False, save_image=False, loss_thresh=1e-4):
+                   clamper=None, save_representation=False, save_image=False, loss_thresh=1e-4,
+                   save_progress=False, save_path='metamer.pt'):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -253,6 +254,16 @@ class Metamer(nn.Module):
         loss_thresh : float, optional
             The value of the loss function that we consider "good
             enough", at which point we stop optimizing
+        save_progress : bool, optional
+            Whether to save the metamer as we go (so that you can check
+            it periodically and so you don't lose everything if you have
+            to kill the job / it dies before it finishes running). If
+            True, we save to ``save_path`` every time we update the
+            saved_representation. We attempt to save with the
+            ``save_model_sparse`` flag set to True
+        save_path : str, optional
+            The path to save the synthesis-in-progress to (ignored if
+            ``save_progress`` is False)
 
         Returns
         -------
@@ -332,6 +343,8 @@ class Metamer(nn.Module):
                     # save stats from this step
                     self.saved_representation[saved_representation_ticker, :] = self.analyze(self.matched_image)
                     saved_representation_ticker += 1
+                    if save_progress:
+                        self.save(save_path, True)
 
                 if save_image and ((i+1) % save_image == 0):
                     # save stats from this step
@@ -369,10 +382,13 @@ class Metamer(nn.Module):
             much larger) ones it gets during run-time).
 
         """
-        if save_model_sparse:
-            model = self.model.state_dict_sparse
-        else:
-            model = self.model
+        model = self.model
+        try:
+            if save_model_sparse:
+                model = self.model.state_dict_sparse
+        except AttributeError:
+            warnings.warn("self.model doesn't have a state_dict_sparse attribute, will pickle the "
+                          "whole model object")
         torch.save({'matched_image': self.matched_image, 'target_image': self.target_image,
                     'model': model, 'seed': self.seed, 'time': self.time, 'loss': self.loss,
                     'target_representation': self.target_representation,
