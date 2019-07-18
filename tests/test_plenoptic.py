@@ -265,5 +265,41 @@ class TestMetamers(object):
         metamer.animate(figsize=(17, 5), plot_representation_ratio=True, ylim='rescale100',
                         framerate=40)
 
+    def test_metamer_nans(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = im / 255
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
+                                           dtype=torch.float32)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        clamper = po.RangeClamper((0, 1))
+        # this gets raised because we try to use saved_image_ticker,
+        # which was never initialized, since we're not saving images
+        with pytest.raises(UnboundLocalError):
+            metamer.synthesize(clamper=clamper, learning_rate=10, max_iter=10, loss_thresh=1e-8,
+                               initial_image=initial_image)
+        # need to re-initialize this for the following run
+        initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
+                                           dtype=torch.float32)
+        matched_im, _ = metamer.synthesize(clamper=clamper, learning_rate=10, save_image=True,
+                                           save_representation=True, max_iter=10, loss_thresh=1e-8,
+                                           initial_image=initial_image)
+        # this should hit a nan as it runs, leading the second saved
+        # image to be all nans, but, because of our way of handling
+        # this, matched_image should have no nans
+        assert torch.isnan(metamer.saved_image[-1]).all(), "This should be all NaNs!"
+        assert not torch.isnan(metamer.matched_image).any(), "There should be no NaNs!"
+
+    def test_metamer_save_progress(self, tmp_path):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=torch.float32, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        metamer = po.synth.Metamer(im, v1)
+        save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
+        metamer.synthesize(max_iter=10, save_representation=True, save_image=True,
+                           save_progress=True, save_path=save_path)
+        po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_sparse)
+
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):
