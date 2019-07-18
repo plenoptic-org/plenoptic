@@ -304,7 +304,7 @@ class Metamer(nn.Module):
             self.saved_representation = torch.empty(((max_iter//save_representation) + 1,
                                                      *self.target_representation.shape))
             self.saved_representation[0, :] = self.analyze(self.matched_image)
-            saved_representation_ticker = 1
+            saved_representation_ticker = 0
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
         # and 0, and True for True and every int >= 1
         if save_image:
@@ -312,7 +312,7 @@ class Metamer(nn.Module):
                 save_image = 1
             self.saved_image = torch.empty(((max_iter//save_image) + 1, *self.target_image.shape))
             self.saved_image[0, :] = self.matched_image
-            saved_image_ticker = 1
+            saved_image_ticker = 0
 
         with torch.no_grad():
             self.loss = [self.objective_function(self.matched_representation,
@@ -326,9 +326,9 @@ class Metamer(nn.Module):
             if np.isnan(loss.item()):
                 warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
                               "representation to our last saved values (which means this will "
-                              "throw an exception if you're not saving anything)!")
-                self.matched_image = nn.Parameter(self.saved_image[-1])
-                self.matched_representation = nn.Parameter(self.saved_representation[-1])
+                              "throw an UnboundLocalError if you're not saving anything)!")
+                self.matched_image = nn.Parameter(self.saved_image[saved_image_ticker-1])
+                self.matched_representation = nn.Parameter(self.saved_representation[saved_representation_ticker-1])
                 break
             self.loss.append(loss.item())
             self.time.append(time.time() - start_time)
@@ -345,15 +345,15 @@ class Metamer(nn.Module):
                 # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
                 if save_representation and ((i+1) % save_representation == 0):
                     # save stats from this step
-                    self.saved_representation[saved_representation_ticker, :] = self.analyze(self.matched_image)
                     saved_representation_ticker += 1
+                    self.saved_representation[saved_representation_ticker, :] = self.analyze(self.matched_image)
                     if save_progress:
                         self.save(save_path, True)
 
                 if save_image and ((i+1) % save_image == 0):
                     # save stats from this step
-                    self.saved_image[saved_image_ticker, :] = self.matched_image
                     saved_image_ticker += 1
+                    self.saved_image[saved_image_ticker, :] = self.matched_image
 
             if loss.item() < loss_thresh:
                 break
