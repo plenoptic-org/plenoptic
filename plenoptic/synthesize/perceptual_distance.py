@@ -141,23 +141,29 @@ class MSSSIM(torch.nn.Module):
 
 
 def nlp(im):
+    """Normalized Laplacian Pyramid
+
+    Normalized Laplacian model parameters were optimized for redundancy reduction over an independent database of
+    (undistorted) natural images.
+    """
 
     (_, channel, height, width) = im.size()
 
     N_levels = 6
-    DN_filts = np.load(dirname + '/DN_filts.npy')
+    spatialpooling_filts = np.load(dirname + '/DN_filts.npy')
     sigmas = np.load(dirname + '/DN_sigmas.npy')
 
     L = Laplacian_Pyramid(n_scales=N_levels)
-    Lap_dom = L.analysis(im)
+    laplacian_activations = L.analysis(im)
 
     padd = 2
     DN_dom = []
     for N_b in range(0, N_levels):
-        A2 = F.conv2d(torch.abs(Lap_dom[N_b]), torch.tensor(DN_filts[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0), padding=padd, groups=channel)
+        filt = torch.tensor(spatialpooling_filts[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        A2 = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
 
         # Divisive Normalization
-        DN_dom.append(Lap_dom[N_b]/(sigmas[N_b]+A2))
+        DN_dom.append(laplacian_activations[N_b] / (sigmas[N_b] + A2))
 
     return DN_dom
 
@@ -165,12 +171,20 @@ def nlp(im):
 def nlpd(IM_1, IM_2):
     """Normalized Laplacian Pyramid Distance
 
-    compute root mean squared error for each scale, and then average over these,
-    effectively giving larger weight to the lower frequency coefficients
-    (which are fewer in number, due to subsampling)
+    As described in  [1]_, this is an image quality metric based on the transformations associated with the early
+    visual system: local luminance subtraction and local contrast gain control
+
+    A laplacian pyramid subtracts a local estimate of the mean luminance at multiple scales.
+    Then a local gain control divides these centered coefficients by a weighted sum of absolute values in spatial neighborhood.
+
+    Note that we compute root mean squared error for each scale, and then average over these,
+    effectively giving larger weight to the lower frequency coefficients (which are fewer in number, due to subsampling).
 
 
-    Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+    References
+    ----------
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016.
+    Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
     y = nlp(torch.cat((IM_1, IM_2), 0))
@@ -183,9 +197,9 @@ def nlpd(IM_1, IM_2):
 
 
 def nspd(IM_1, IM_2, O=1, S=5, complex=True):
-    """normalized steerable pyramid distance
+    """Normalized steerable pyramid distance
 
-    ongoing work
+    spatially local normalization pool
     """
 
     if complex:

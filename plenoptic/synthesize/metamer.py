@@ -114,24 +114,23 @@ class Metamer(nn.Module):
             target_image = torch.tensor(target_image, torch.float32)
         self.target_image = target_image
         self.model = model
+        self.seed = None
+
         self.target_representation = self.analyze(self.target_image)
         self.matched_image = None
         self.matched_representation = None
         self.optimizer = None
         self.scheduler = None
-        self.loss = []
+
         self.saved_representation = torch.empty((0, *self.target_representation.shape))
         self.saved_image = torch.empty((0, *self.target_image.shape))
+
+        self.loss = []
         self.time = []
-        self.seed = None
+
 
     def analyze(self, x):
         """Analyze the image, that is, obtain the model's representation of it
-
-        Note: analysis is applied on the squished input, so as to softly enforce the desired range
-        during the optimization, (as a consequence, there is a discrepency to corresponding
-        statistics during the optimization- which is fixed at the moment of returning an output in
-        the synthesize method)
 
         """
         y = self.model(x)
@@ -165,10 +164,14 @@ class Metamer(nn.Module):
         """
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
+        # TODO randomness
+
         loss = self.objective_function(self.matched_representation, self.target_representation)
         loss.backward(retain_graph=True)
         g = self.matched_image.grad.data
         self.optimizer.step()
+        self.scheduler.step(loss.item())
+
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
                          learning_rate=self.optimizer.param_groups[0]['lr'])
@@ -253,6 +256,7 @@ class Metamer(nn.Module):
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
 
         self.matched_representation = self.analyze(self.matched_image)
+
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
         # and 0, and True for True and every int >= 1
         if save_representation:
@@ -273,9 +277,9 @@ class Metamer(nn.Module):
             saved_image_ticker = 1
 
         with torch.no_grad():
-            self.loss = [self.objective_function(self.matched_representation,
-                                                 self.target_representation).item()]
-        self.time = [time.time() - start_time]
+            self.loss.append(self.objective_function(self.matched_representation,
+                                                 self.target_representation).item())
+        self.time.append(time.time() - start_time)
 
         pbar = tqdm(range(max_iter))
 
@@ -287,7 +291,7 @@ class Metamer(nn.Module):
             self.loss.append(loss.item())
             self.time.append(time.time() - start_time)
 
-            self.scheduler.step(loss.item())
+
 
             with torch.no_grad():
                 if clamper is not None:

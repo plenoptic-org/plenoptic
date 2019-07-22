@@ -3,7 +3,7 @@ from ..tools.conv import blur_downsample, upsample_blur
 
 
 def complex_modulus(x, dim=-1, keepdim=False):
-    """Return the complex modulus of a complex tensor
+    """Return the complex modulus of a complex tensor.
     Since complex numbers aren't implemented in torch, we represent complex tensors as having an
     extra dimension with two slices, where one contains the real and the other contains the
     imaginary components. E.g., ``1+2j`` would be represented as ``torch.tensor([1, 2])`` and
@@ -23,6 +23,7 @@ def complex_modulus(x, dim=-1, keepdim=False):
     """
     return torch.sqrt(torch.sum(torch.pow(x, 2), dim, keepdim=keepdim))
 
+
 def quadrature_energy(coeff_dict, epsilon=1e-12):
     """
 
@@ -40,28 +41,33 @@ def quadrature_energy(coeff_dict, epsilon=1e-12):
     return energy, state
 
 
-def local_rectangular_to_polar(x, p=2.0, epsilon=1e-12):
+def local_rectangular_to_polar(x, step=(2, 2), p=2.0, epsilon=1e-12):
     """Spatially local gain control
+
     Parameters
     ----------
     x : torch.tensor
        The complex tensor to take the modulus of.
+    step: tuple of integers
+        The down-sampling factor
     p : int, float
        The power.
+    epsilon: float
+        Small constant to avoid division by zero.
     Returns
     -------
     norm : torch.tensor
         The local energy of ``x``.
-    dicrection: torch.tensor
+    direction: torch.tensor
         The local phase of ``x`` (aka. local unit vector, local state)
     """
-    norm = torch.pow(blur_downsample(torch.abs(x ** p)), 1 / p)
-    direction = (x / (upsample_blur(norm) + epsilon))
+    norm = torch.pow(blur_downsample(torch.abs(x ** p), step=step), 1 / p)
+    direction = (x / (upsample_blur(norm, step=step) + epsilon))
 
     return norm, direction
 
 
-def local_gain_control(coeff_dict, residuals=True):
+def local_gain_control(coeff_dict, step=(2, 2), residuals=True):
     """Spatially local gain control
 
     local energy
@@ -72,10 +78,11 @@ def local_gain_control(coeff_dict, residuals=True):
 
     for key in coeff_dict.keys():
         if isinstance(key, tuple):
-            energy[key], state[key] = local_rectangular_to_polar(coeff_dict[key])
+            energy[key], state[key] = local_rectangular_to_polar(coeff_dict[key], step=step)
 
     if residuals:
         energy['residual_lowpass'] = coeff_dict['residual_lowpass']
         energy['residual_highpass'] = coeff_dict['residual_highpass']
 
     return energy, state
+
