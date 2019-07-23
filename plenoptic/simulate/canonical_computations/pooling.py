@@ -3,7 +3,10 @@
 """
 import math
 import torch
+from torch import nn
 import numpy as np
+import pyrtools as pt
+import matplotlib.pyplot as plt
 
 
 def calc_angular_window_width(n_windows):
@@ -660,3 +663,286 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     theta_grid = torch.tensor(theta_grid, dtype=torch.float32, device=device)
     ecc_grid = torch.tensor(ecc_grid, dtype=torch.float32, device=device)
     return windows_tensor, theta_grid, ecc_grid
+
+
+class PoolingWindows(nn.Module):
+    r"""Generic class to set up scaling windows for use with other models
+
+    This just generates the pooling windows given a small number of
+    parameters. One tricky thing we do is generate a set of scaling
+    windows for each scale (appropriately) sized. For example, the V1
+    model will have 4 scales, so for a 256 x 256 image, the coefficients
+    will have shape (256, 256), (128, 128), (64, 64), and (32,
+    32). Therefore, we need windows of the same size (could also
+    up-sample the coefficient tensors, but since that would need to
+    happen each iteration of the metamer synthesis, pre-generating
+    appropriately sized windows is more efficient).
+
+    Parameters
+    ----------
+    scaling : float
+        Scaling parameter that governs the size of the pooling
+        windows. Other pooling windows parameters
+        (``radial_to_circumferential_ratio``,
+        ``transition_region_width``) cannot be set here. If that ends up
+        being of interest, will change that.
+    img_res : tuple
+        The resolution of our image (should therefore contains
+        integers). Will use this to generate appropriately sized pooling
+        windows.
+    min_eccentricity : float, optional
+        The eccentricity at which the pooling windows start.
+    max_eccentricity : float, optional
+        The eccentricity at which the pooling windows end.
+    num_scales : int, optional
+        The number of scales to generate masks for. For the RGC model,
+        this should be 1, otherwise should match the number of scales in
+        the steerable pyramid.
+    zero_thresh : float, optional
+        The "cut-off value" below which we consider numbers to be
+        zero. We want to determine the number of non-zero elements in
+        each window (in order to properly average them), but after
+        projecting (and interpolating) the windows from polar into
+        rectangular coordinates, we end up with some values very near
+        zero (on the order 1e-40 to 1e-30). These are so small that they
+        don't matter for actually computing the values within the
+        windows but they will mess up our calculation of the number of
+        non-zero elements in each window, so we treat all numbers below
+        ``zero_thresh`` as being zero for the purpose of computing
+        ``window_num_pixels``.
+
+    Attributes
+    ----------
+    scaling : float
+        Scaling parameter that governs the size of the pooling windows.
+    min_eccentricity : float
+        The eccentricity at which the pooling windows start.
+    max_eccentricity : float
+        The eccentricity at which the pooling windows end.
+    windows : list
+        A list of 3d tensors containing the pooling windows in which the
+        model parameters are averaged. Each entry in the list
+        corresponds to a different scale and thus is a different size
+        (though they should all have the same number of windows)
+    window_num_pixels : list
+        A list of 1d tensors containing the number of non-zero elements
+        in each window; we use this to correctly average within each
+        window. Each entry in the list corresponds to a different scale
+        (they should all have the same number of elements).
+    state_dict_sparse : dict
+        A dictionary containing those attributes necessary to initialize
+        the model, plus a 'model_name' field. This is used for
+        saving/loading the models, since we don't want to keep the (very
+        large) representation and intermediate steps around. To save,
+        use ``self.save_sparse(filename)``, and then load from that same
+        file using the class method ``po.simul.VentralModel(filename)``
+    window_width_degrees : dict
+        Dictionary containing the widths of the windows in
+        degrees. There are four keys: 'radial_top', 'radial_full',
+        'angular_top', and 'angular_full', corresponding to a 2x2 for
+        the widths in the radial and angular directions by the 'top' and
+        'full' widths (top is the width of the flat-top region of each
+        window, where the window's value is 1; full is the width of the
+        entire window). Each value is a list containing the widths for
+        the windows in different eccentricity bands. To visualize these,
+        see the ``plot_window_sizes`` method.
+    window_width_pixels : list
+        List of dictionaries containing the widths of the windows in
+        pixels; each entry in the list corresponds to the widths for a
+        different scale, as in ``windows`` and
+        ``window_num_pixels``. See above for explanation of the
+        dictionaries. To visualize these, see the ``plot_window_sizes``
+        method.
+    n_polar_windows : int
+        The number of windows we have in the polar angle dimension
+        (within each eccentricity band)
+    n_eccentricity_bands : int
+        The number of eccentricity bands in our model
+
+    """
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
+                 zero_thresh=1e-20):
+        super().__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        if img_res[0] != img_res[1]:
+            raise Exception("For now, we only support square images!")
+        self.scaling = scaling
+        self.min_eccentricity = min_eccentricity
+        self.max_eccentricity = max_eccentricity
+        self.windows = []
+        self.window_num_pixels = []
+        self.window_width_pixels = []
+        ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
+                                                          scaling=scaling)
+        self.n_polar_windows = round(calc_angular_n_windows(ecc_window_width / 2))
+        angular_window_width = calc_angular_window_width(self.n_polar_windows)
+        window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
+                                                  min_eccentricity, max_eccentricity)
+        self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
+                                              'angular_full'], window_widths))
+        self.state_dict_sparse = {'scaling': scaling, 'img_res': img_res,
+                                  'min_eccentricity': min_eccentricity, 'zero_thresh': zero_thresh,
+                                  'max_eccentricity': max_eccentricity}
+        for i in range(num_scales):
+            windows, theta, ecc = create_pooling_windows(scaling, min_eccentricity,
+                                                         max_eccentricity,
+                                                         ecc_n_steps=img_res[0] // 2**i,
+                                                         theta_n_steps=img_res[1] // 2**i)
+
+            windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
+                                   dtype=torch.float32, device=self.device)
+            # need this to be float32 so we can divide the representation by it.
+            self.window_num_pixels.append((windows > zero_thresh).sum((1, 2), dtype=torch.float32))
+            self.windows.append(windows)
+            # we convert from degrees to pixels here, by multiplying the
+            # width in degrees by (radius in pixels) / (radius in degrees)
+            deg_to_pix = (img_res[0] / (2**(i+1))) / max_eccentricity
+            # each value is a list, so we need to use list comprehension
+            # to scale them all appropriately
+            self.window_width_pixels.append(dict((k, [i*deg_to_pix for i in v]) for k, v in
+                                                 self.window_width_degrees.copy().items()))
+        self.n_eccentricity_bands = int(self.windows[0].shape[0] // self.n_polar_windows)
+
+    def forward(self, x, idx=0):
+        r"""Pool the input
+
+        We take an input, either a 4d tensor or a dictionary of 4d
+        tensors, and return a pooled version of it. If it's a 4d tensor,
+        we return a 5d tensor, with windows indexed along the 3rd
+        dimension. If it's a dictionary, we return a dictionary with the
+        same keys and have changed all the values to 5d tensors, with
+        windows indexed along the 3rd dimension
+
+        If it's a 5d tensor, we use the ``idx`` entry in the ``windows``
+        list. If it's a dictionary, we assume it's keys are ``(scale,
+        orientation)`` tuples and so use ``windows[key[0]]`` to find the
+        appropriately-sized window (this is the case for, e.g., the
+        steerable pyramid). If we want to use differently-structured
+        dictionaries, we'll need to restructure this
+
+        Parameters
+        ----------
+        x : dict or torch.Tensor
+            Either a 4d tensor or a dictionary of 4d tensors.
+        idx : int, optional
+            Which entry in the ``windows`` list to use. Only used if
+            ``x`` is a tensor
+
+        Returns
+        -------
+        dict or torch.Tensor
+            Same type as ``x``, see above for how it's created.
+
+        """
+        if isinstance(x, dict):
+            # one way to make this more general: figure out the size of
+            # the tensors in x and in self.windows, and intelligently
+            # lookup which should be used.
+            return dict((k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
+                        for k, v in x.items())
+        else:
+            return torch.einsum('ijkl,wkl->ijwkl', [x, self.windows[idx]])
+
+    def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
+        r"""plot the pooling windows on an image.
+
+        This is just a simple little helper to plot the pooling windows
+        on an existing axis. The use case is overlaying this on top of
+        the image we're pooling (as returned by ``pyrtools.imshow``),
+        and so we require an axis to be passed
+
+        Any additional kwargs get passed to ``ax.contour``
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.axis
+            The existing axis to plot the windows on
+        contour_levels : array-like or int, optional
+            The ``levels`` argument to pass to ``ax.contour``. From that
+            documentation: "Determines the number and positions of the
+            contour lines / regions. If an int ``n``, use ``n`` data
+            intervals; i.e. draw ``n+1`` contour lines. The level
+            heights are automatically chosen. If array-like, draw
+            contour lines at the specified levels. The values must be in
+            increasing order". ``[.5]`` (the default) is recommended for
+            these windows.
+        colors : color string or sequence of colors, optional
+            The ``colors`` argument to pass to ``ax.contour``. If a
+            single character, all will have the same color; if a
+            sequence, will cycle through the colors in ascending order
+            (repeating if necessary)
+
+        Returns
+        -------
+        ax : matplotlib.pyplot.axis
+            The axis with the windows
+
+        """
+        for w in self.windows[0]:
+            ax.contour(w.detach(), contour_levels, colors=colors, **kwargs)
+        return ax
+
+    def plot_window_sizes(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
+        r"""plot the size of the windows, in degrees or pixels
+
+        We plot the size of the window in both angular and radial
+        direction, as well as showing both the 'top' and 'full' width
+        (top is the width of the flat-top region of each window, where
+        the window's value is 1; full is the width of the entire window)
+
+        We plot this as a stem plot against eccentricity, showing the
+        windows at their central eccentricity
+
+        If the unit is 'pixels', then we also need to know which
+        ``scale_num`` to plot (the windows are created at different
+        scales, and so come in different pixel sizes)
+
+        Parameters
+        ----------
+        units : {'degrees', 'pixels'}, optional
+            Whether to show the information in degrees or pixels (both
+            the width and the window location will be presented in the
+            same unit).
+        scale_num : int, optional
+            Which scale window we should plot
+        figsize : tuple, optional
+            The size of the figure to create
+        jitter : float or None, optional
+            Whether to add a little bit of jitter to the x-axis to
+            separate the radial and angular widths. There are only two
+            values we separate, so we don't add actual jitter, just move
+            one up by the value specified by jitter, the other down by
+            that much (we use the same value at each eccentricity)
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        if units == 'degrees':
+            data = self.window_width_degrees
+        elif units == 'pixels':
+            data = self.window_width_pixels[scale_num]
+        else:
+            raise Exception("units must be one of {'pixels', 'degrees'}, not %s!" % units)
+        ecc_window_width = calc_eccentricity_window_width(self.min_eccentricity,
+                                                          self.max_eccentricity,
+                                                          scaling=self.scaling)
+        central_ecc = calc_windows_central_eccentricity(len(data['radial_top']), ecc_window_width,
+                                                        self.min_eccentricity)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        if jitter is not None:
+            jitter_vals = {'radial': -jitter, 'angular': jitter}
+        else:
+            jitter_vals = {'radial': 0, 'angular': 0}
+        keys = ['radial_top', 'radial_full', 'angular_top', 'angular_full']
+        marker_styles = ['C0o', 'C0.', 'C1o', 'C1.']
+        line_styles = ['C0-', 'C0-', 'C1-', 'C1-']
+        for k, m, l in zip(keys, marker_styles, line_styles):
+            ax.stem(np.array(central_ecc)+jitter_vals[k.split('_')[0]], data[k], l, m, label=k,
+                    use_line_collection=True)
+        ax.set_ylabel('Window size (%s)' % units)
+        ax.set_xlabel('Window central eccentricity (%s)' % units)
+        ax.legend(loc='upper left')
+        return fig

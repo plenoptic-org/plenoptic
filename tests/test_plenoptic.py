@@ -132,12 +132,12 @@ class TestVentralStream(object):
         rgc.save_sparse(op.join(tmp_path, 'test_rgc_save_load.pt'))
         rgc_copy = po.simul.RetinalGanglionCells.load_sparse(op.join(tmp_path,
                                                                      'test_rgc_save_load.pt'))
-        if not len(rgc.windows) == len(rgc_copy.windows):
+        if not len(rgc.PoolingWindows.windows) == len(rgc_copy.PoolingWindows.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
                             " not the same length!")
         # we don't recreate everything, e.g., the representation, but windows is the most important
-        for i in range(len(rgc.windows)):
-            if not rgc.windows[i].allclose(rgc_copy.windows[i]):
+        for i in range(len(rgc.PoolingWindows.windows)):
+            if not rgc.PoolingWindows.windows[i].allclose(rgc_copy.PoolingWindows.windows[i]):
                 raise Exception("Something went wrong saving and loading, the windows %d are"
                                 " not identical!" % i)
 
@@ -176,12 +176,12 @@ class TestVentralStream(object):
         v1.save_sparse(op.join(tmp_path, 'test_v1_save_load.pt'))
         v1_copy = po.simul.PrimaryVisualCortex.load_sparse(op.join(tmp_path,
                                                                    'test_v1_save_load.pt'))
-        if not len(v1.windows) == len(v1_copy.windows):
+        if not len(v1.PoolingWindows.windows) == len(v1_copy.PoolingWindows.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
                             " not the same length!")
         # we don't recreate everything, e.g., the representation, but windows is the most important
-        for i in range(len(v1.windows)):
-            if not v1.windows[i].allclose(v1_copy.windows[i]):
+        for i in range(len(v1.PoolingWindows.windows)):
+            if not v1.PoolingWindows.windows[i].allclose(v1_copy.PoolingWindows.windows[i]):
                 raise Exception("Something went wrong saving and loading, the windows %d are"
                                 " not identical!" % i)
 
