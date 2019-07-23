@@ -12,7 +12,7 @@ class Spectral(nn.Module):
 
     def __init__(self,image_size, Nsc=4, Nor=4):
         super().__init__()
-        self.complex_steerable_pyramid =  Steerable_Pyramid_Freq(image_size,height=Nsc,is_complex=False)
+        self.complex_steerable_pyramid =  Steerable_Pyramid_Freq(image_size,height=Nsc,is_complex=True,order = Nor-1)
         self.Nsc = Nsc
         self.Nor = Nor
 
@@ -38,8 +38,8 @@ class Spectral(nn.Module):
         stats = torch.empty((len(pyr0),1))  
         cnt=0
         for mat in pyr0:
-
-            stats[cnt]=(mat.pow(2)+.001).pow(.5).mean()
+            tmp = torch.unbind(mat,-1)
+            stats[cnt]=torch.abs(((tmp[0]**2+tmp[1]**2)**.5).squeeze()).mean()
             cnt+=1            
 
 

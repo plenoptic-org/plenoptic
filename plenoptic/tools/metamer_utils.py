@@ -1,5 +1,6 @@
 import torch
 import abc
+from .signal import skew, kurtosis
 
 
 class Clamper(metaclass=abc.ABCMeta):
@@ -29,6 +30,21 @@ class RangeClamper(Clamper):
 		im = im.clamp(self.range[0],self.range[1])
 		return im
 
+class TwoMomentsClamper(Clamper):
+    
+    def __init__(self,targ):
+        self.targ = targ
+    
+    def clamp(self,im):
+        
+        # mean and variance
+        im = (im - im.mean())/im.std() * self.targ.std() + self.targ.mean()
+        
+        # range
+        im = im.clamp(self.targ.min(),self.targ.max())
+        
+        return im
+
 class FourMomentsClamper(Clamper):
 
     def __init__(self,targ):
@@ -48,16 +64,6 @@ class FourMomentsClamper(Clamper):
         im = im.clamp(self.targ.min(),self.targ.max())
 
         return im
-
-
-def kurtosis(mtx):
-    # implementation is only for real components
-    return torch.mean(torch.abs(mtx-mtx.mean()).pow(4))/(mtx.var().pow(2))
-
-def skew(mtx):
-    return torch.mean((mtx-mtx.mean()).pow(3))/(mtx.var().pow(1.5))
-
-
 
 def snr(s,n):
 
