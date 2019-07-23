@@ -8,12 +8,13 @@ from torch import nn
 import matplotlib as mpl
 import numpy as np
 import pyrtools as pt
-from ..tools.fit import complex_modulus
-from ..tools.display import clean_up_axes, update_stem
-from .pooling import (create_pooling_windows, calc_window_widths_actual, calc_angular_n_windows,
-                      calc_eccentricity_window_width, calc_angular_window_width,
-                      calc_windows_central_eccentricity)
-from .steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ...tools.fit import complex_modulus
+from ...tools.display import clean_up_axes, update_stem
+from ..canonical_computations.pooling import (
+    create_pooling_windows, calc_window_widths_actual, calc_angular_n_windows,
+    calc_eccentricity_window_width, calc_angular_window_width,
+    calc_windows_central_eccentricity)
+from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 import matplotlib.pyplot as plt
 
 

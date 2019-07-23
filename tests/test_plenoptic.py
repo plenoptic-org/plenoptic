@@ -62,13 +62,13 @@ def test_find_files(test_files_dir):
 
 class TestPooling(object):
     def test_creation(self):
-        windows, theta, ecc = po.simul.create_pooling_windows(.87)
+        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87)
 
     def test_creation_args(self):
         with pytest.raises(Exception):
             # we can't create these with transition_region_width != .5
-            windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
-        windows, theta, ecc = po.simul.create_pooling_windows(.87, .2, 30, 1.2, .5, 100, 100)
+            windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
+        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .5, 100, 100)
 
     def test_ecc_windows(self):
         ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4)

@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import pyrtools
-from .steerable_pyramid_freq import Steerable_Pyramid_Freq
-from ..tools.signal import batch_fftshift2d, skew, kurtosis
+from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ...tools.signal import batch_fftshift2d, skew, kurtosis
 import numpy as np
 
 

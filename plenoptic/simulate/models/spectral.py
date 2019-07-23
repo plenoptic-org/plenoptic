@@ -1,11 +1,6 @@
 import torch
 import torch.nn as nn
-import numpy as np
-from torchvision import transforms
-import scipy.io as sio
-import matplotlib
-import matplotlib.pyplot as plt
-from .steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 
 
 class Spectral(nn.Module):
