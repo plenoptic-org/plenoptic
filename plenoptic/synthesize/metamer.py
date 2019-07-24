@@ -4,7 +4,6 @@ from tqdm import tqdm
 import torch.nn as nn
 from torch import optim
 import numpy as np
-import time
 from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 import pyrtools as pt
