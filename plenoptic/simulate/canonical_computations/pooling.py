@@ -729,13 +729,15 @@ class PoolingWindows(nn.Module):
         in each window; we use this to correctly average within each
         window. Each entry in the list corresponds to a different scale
         (they should all have the same number of elements).
-    state_dict_sparse : dict
+    state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
-        the model, plus a 'model_name' field. This is used for
-        saving/loading the models, since we don't want to keep the (very
-        large) representation and intermediate steps around. To save,
-        use ``self.save_sparse(filename)``, and then load from that same
-        file using the class method ``po.simul.VentralModel(filename)``
+        the model, plus a 'model_name' field which the ``load_reduced``
+        method uses to determine which model constructor to call. This
+        is used for saving/loading the models, since we don't want to
+        keep the (very large) representation and intermediate steps
+        around. To save, use ``self.save_reduced(filename)``, and then
+        load from that same file using the class method
+        ``po.simul.VentralModel.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -780,9 +782,10 @@ class PoolingWindows(nn.Module):
                                                   min_eccentricity, max_eccentricity)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
-        self.state_dict_sparse = {'scaling': scaling, 'img_res': img_res,
-                                  'min_eccentricity': min_eccentricity, 'zero_thresh': zero_thresh,
-                                  'max_eccentricity': max_eccentricity}
+        self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
+                                   'min_eccentricity': min_eccentricity,
+                                   'zero_thresh': zero_thresh,
+                                   'max_eccentricity': max_eccentricity}
         for i in range(num_scales):
             windows, theta, ecc = create_pooling_windows(scaling, min_eccentricity,
                                                          max_eccentricity,

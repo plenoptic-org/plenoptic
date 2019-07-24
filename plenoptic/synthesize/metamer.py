@@ -35,8 +35,9 @@ class Metamer(nn.Module):
         require that it has a forward method, which returns the
         representation to match. However, if you want to use the various
         plot and animate function, it should also have a
-        ``state_dict_sparse`` attribute, and ``from_state_dict_sparse``,
+        ``state_dict_reduced`` attribute, and ``from_state_dict_reduced``,
         ``plot_representation``, and ``_update_plot`` functions.
+
     Attributes
     ----------
     target_image : torch.tensor
@@ -249,7 +250,7 @@ class Metamer(nn.Module):
             to kill the job / it dies before it finishes running). If
             True, we save to ``save_path`` every time we update the
             saved_representation. We attempt to save with the
-            ``save_model_sparse`` flag set to True
+            ``save_model_reduced`` flag set to True
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -333,7 +334,7 @@ class Metamer(nn.Module):
             self.saved_image = torch.stack(self.saved_image)
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
-    def save(self, file_path, save_model_sparse=False):
+    def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
 
         Note that if store_progress is True, this will probably be very
@@ -343,9 +344,9 @@ class Metamer(nn.Module):
         ----------
         file_path : str
             The path to save the metamer object to
-        save_model_sparse : bool
+        save_model_reduced : bool
             Whether we save the full model or just its attribute
-            ``state_dict_sparse`` (this is a custom attribute of ours,
+            ``state_dict_reduced`` (this is a custom attribute of ours,
             the basic idea being that it only contains the attributes
             necessary to initialize the model, none of the (probably
             much larger) ones it gets during run-time).
@@ -353,11 +354,11 @@ class Metamer(nn.Module):
         """
         model = self.model
         try:
-            if save_model_sparse:
-                model = self.model.state_dict_sparse
+            if save_model_reduced:
+                model = self.model.state_dict_reduced
         except AttributeError:
-            warnings.warn("self.model doesn't have a state_dict_sparse attribute, will pickle the "
-                          "whole model object")
+            warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
+                          "the whole model object")
         torch.save({'matched_image': self.matched_image, 'target_image': self.target_image,
                     'model': model, 'seed': self.seed, 'loss': self.loss,
                     'target_representation': self.target_representation,
@@ -375,11 +376,11 @@ class Metamer(nn.Module):
             The path to load the metamer object from
         model_constructor : callable or None, optional
             When saving the metamer object, we have the option to only
-            save the ``state_dict_sparse`` (in order to save space). If
+            save the ``state_dict_reduced`` (in order to save space). If
             we do that, then we need some way to construct that model
             again and, not knowing its class or anything, this object
             doesn't know how. Therefore, a user must pass a constructor
-            for the model that takes in the ``state_dict_sparse``
+            for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
             VentralModel class for an example of this.
 
@@ -396,23 +397,23 @@ class Metamer(nn.Module):
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
 
-        Things are slightly more complicated if you saved a sparse
-        representation of the model by setting the ``save_model_sparse``
-        flag to ``True``. In that case, you also need to pass a model
-        constructor argument, like so:
+        Things are slightly more complicated if you saved a reduced
+        representation of the model by setting the
+        ``save_model_reduced`` flag to ``True``. In that case, you also
+        need to pass a model constructor argument, like so:
 
         >>> model = po.simul.RetinalGanglionCells(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_sparse=True)
+        >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_sparse)
+                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced)
 
         """
         tmp_dict = torch.load(file_path)
         model = tmp_dict.pop('model')
         if isinstance(model, dict):
-            # then we've got a state_dict_sparse and we need the model_constructor
+            # then we've got a state_dict_reduced and we need the model_constructor
             model = model_constructor(model)
         metamer = cls(tmp_dict.pop('target_image'), model)
         for k, v in tmp_dict.items():
@@ -456,7 +457,7 @@ class Metamer(nn.Module):
         have that method, but a way to make a 'mock copy', a separate
         model that has the same initialization parameters, but whose
         representation we can set. For the VentralStream models, we can
-        do this using their ``state_dict_sparse`` attribute. If we can't
+        do this using their ``state_dict_reduced`` attribute. If we can't
         do this, then we'll fall back onto using ``plt.plot``
 
         In order for this to work, we also count on
@@ -493,7 +494,7 @@ class Metamer(nn.Module):
             warnings.warn("ax is not None, so we're ignoring figsize...")
         representation_ratio = self.representation_ratio(iteration)
         try:
-            mock_model = self.model.from_state_dict_sparse(self.model.state_dict_sparse)
+            mock_model = self.model.from_state_dict_reduced(self.model.state_dict_reduced)
             mock_model.representation = representation_ratio
             fig, axes = mock_model.plot_representation(figsize, ylim, ax, title)
         except AttributeError:
@@ -615,8 +616,8 @@ class Metamer(nn.Module):
         ffmpeg, imagemagick, etc). Either of these will probably take a
         reasonably long amount of time.
 
-        NOTE: This requires that the model has a ``state_dict_sparse``
-        attribute, ``from_state_dict_sparse``, ``_update_plot``, and
+        NOTE: This requires that the model has a ``state_dict_reduced``
+        attribute, ``from_state_dict_reduced``, ``_update_plot``, and
         ``plot_representation`` functions in order to work nicely. It
         will work otherwise, but we'll just create a simple line plot
 
@@ -691,7 +692,7 @@ class Metamer(nn.Module):
             # if we can, we make a mock model that we update. this
             # allows us to make use of its _update_plot method
             try:
-                mock_model = self.model.from_state_dict_sparse(self.model.state_dict_sparse)
+                mock_model = self.model.from_state_dict_reduced(self.model.state_dict_reduced)
             except AttributeError:
                 pass
 

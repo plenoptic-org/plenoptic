@@ -67,8 +67,10 @@ class TestPooling(object):
     def test_creation_args(self):
         with pytest.raises(Exception):
             # we can't create these with transition_region_width != .5
-            windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7, 100, 100)
-        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .5, 100, 100)
+            windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7,
+                                                                          100, 100)
+        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .5, 100,
+                                                                      100)
 
     def test_ecc_windows(self):
         ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4)
@@ -129,9 +131,9 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         rgc = po.simul.PrimaryVisualCortex(.5, im.shape)
         rgc(im)
-        rgc.save_sparse(op.join(tmp_path, 'test_rgc_save_load.pt'))
-        rgc_copy = po.simul.RetinalGanglionCells.load_sparse(op.join(tmp_path,
-                                                                     'test_rgc_save_load.pt'))
+        rgc.save_reduced(op.join(tmp_path, 'test_rgc_save_load.pt'))
+        rgc_copy = po.simul.RetinalGanglionCells.load_reduced(op.join(tmp_path,
+                                                                      'test_rgc_save_load.pt'))
         if not len(rgc.PoolingWindows.windows) == len(rgc_copy.PoolingWindows.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
                             " not the same length!")
@@ -173,9 +175,9 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         v1(im)
-        v1.save_sparse(op.join(tmp_path, 'test_v1_save_load.pt'))
-        v1_copy = po.simul.PrimaryVisualCortex.load_sparse(op.join(tmp_path,
-                                                                   'test_v1_save_load.pt'))
+        v1.save_reduced(op.join(tmp_path, 'test_v1_save_load.pt'))
+        v1_copy = po.simul.PrimaryVisualCortex.load_reduced(op.join(tmp_path,
+                                                                    'test_v1_save_load.pt'))
         if not len(v1.PoolingWindows.windows) == len(v1_copy.PoolingWindows.windows):
             raise Exception("Something went wrong saving and loading, the lists of windows are"
                             " not the same length!")
@@ -208,17 +210,18 @@ class TestMetamers(object):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
 
-    def test_metamer_save_load_sparse(self, tmp_path):
+    def test_metamer_save_load_reduced(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3, store_progress=True)
-        metamer.save(op.join(tmp_path, 'test_metamer_save_load_sparse.pt'), True)
+        metamer.save(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'), True)
         with pytest.raises(Exception):
-            met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load_sparse.pt"))
-        met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_sparse.pt'),
-                                         po.simul.PrimaryVisualCortex.from_state_dict_sparse)
+            met_copy = po.synth.Metamer.load(op.join(tmp_path,
+                                                     "test_metamer_save_load_reduced.pt"))
+        met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'),
+                                         po.simul.PrimaryVisualCortex.from_state_dict_reduced)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
@@ -292,7 +295,7 @@ class TestMetamers(object):
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
                            save_path=save_path)
-        po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_sparse)
+        po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
 
 # class SteerablePyramid(unittest.TestCase):
 #     def test1(self):

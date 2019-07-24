@@ -76,13 +76,15 @@ class VentralModel(nn.Module):
         in each window; we use this to correctly average within each
         window. Each entry in the list corresponds to a different scale
         (they should all have the same number of elements).
-    state_dict_sparse : dict
+    state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
-        the model, plus a 'model_name' field. This is used for
-        saving/loading the models, since we don't want to keep the (very
-        large) representation and intermediate steps around. To save,
-        use ``self.save_sparse(filename)``, and then load from that same
-        file using the class method ``po.simul.VentralModel(filename)``
+        the model, plus a 'model_name' field which the ``load_reduced``
+        method uses to determine which model constructor to call. This
+        is used for saving/loading the models, since we don't want to
+        keep the (very large) representation and intermediate steps
+        around. To save, use ``self.save_reduced(filename)``, and then
+        load from that same file using the class method
+        ``po.simul.VentralModel.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -113,7 +115,7 @@ class VentralModel(nn.Module):
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
                                              num_scales, zero_thresh)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'window_num_pixels', 'scaling',
-                     'window_width_pixels', 'window_width_degrees', 'state_dict_sparse',
+                     'window_width_pixels', 'window_width_degrees', 'state_dict_reduced',
                      'min_eccentricity', 'max_eccentricity', 'device']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
 
@@ -194,12 +196,13 @@ class VentralModel(nn.Module):
         """
         self.PoolingWindows.plot_window_sizes(units, scale_num, figsize, jitter)
 
-    def save_sparse(self, file_path):
+    def save_reduced(self, file_path):
         r"""save the relevant parameters to make saving/loading more efficient
 
-        This saves self.state_dict_sparse, which, by default, just
-        contains scaling, img_res, min_eccentricity, max_eccentricity,
-        zero_thresh
+        This saves self.state_dict_reduced, which contains the
+        attributes necessary to initialize the model plus a 'model_name'
+        key, which the ``load_reduced`` method uses to determine which
+        model constructor to call
 
         Parameters
         ----------
@@ -207,37 +210,37 @@ class VentralModel(nn.Module):
             The path to save the model object to
 
         """
-        torch.save(self.state_dict_sparse, file_path)
+        torch.save(self.state_dict_reduced, file_path)
 
     @classmethod
-    def load_sparse(cls, file_path):
-        r"""load from the dictionary put together by ``save_sparse``
+    def load_reduced(cls, file_path):
+        r"""load from the dictionary saved by ``save_reduced``
 
         Parameters
         ----------
         file_path : str
             The path to load the model object from
         """
-        state_dict_sparse = torch.load(file_path)
-        return cls.from_state_dict_sparse(state_dict_sparse)
+        state_dict_reduced = torch.load(file_path)
+        return cls.from_state_dict_reduced(state_dict_reduced)
 
     @classmethod
-    def from_state_dict_sparse(cls, state_dict_sparse):
-        r"""load from the dictionary put together by ``save_sparse``
+    def from_state_dict_reduced(cls, state_dict_reduced):
+        r"""initialize model from ``state_dict_reduced``
 
         Parameters
         ----------
-        state_dict_sparse : dict
-            The sparse state dict to load
+        state_dict_reduced : dict
+            The reduced state dict to load
         """
-        state_dict_sparse = state_dict_sparse.copy()
-        model_name = state_dict_sparse.pop('model_name')
+        state_dict_reduced = state_dict_reduced.copy()
+        model_name = state_dict_reduced.pop('model_name')
         # want to remove class if it's here
-        state_dict_sparse.pop('class', None)
+        state_dict_reduced.pop('class', None)
         if model_name == 'RGC':
-            return RetinalGanglionCells(**state_dict_sparse)
+            return RetinalGanglionCells(**state_dict_reduced)
         elif model_name == 'V1':
-            return PrimaryVisualCortex(**state_dict_sparse)
+            return PrimaryVisualCortex(**state_dict_reduced)
         else:
             raise Exception("Don't know how to handle model_name %s!" % model_name)
 
@@ -448,13 +451,15 @@ class RetinalGanglionCells(VentralModel):
     representation : torch.tensor
         A flattened (ergo 1d) tensor containing the averages of the
         pixel intensities within each pooling window for ``self.image``
-    state_dict_sparse : dict
+    state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
-        the model, plus a 'model_name' field. This is used for
-        saving/loading the models, since we don't want to keep the (very
-        large) representation and intermediate steps around. To save,
-        use ``self.save_sparse(filename)``, and then load from that same
-        file using the class method ``po.simul.VentralModel(filename)``
+        the model, plus a 'model_name' field which the ``load_reduced``
+        method uses to determine which model constructor to call. This
+        is used for saving/loading the models, since we don't want to
+        keep the (very large) representation and intermediate steps
+        around. To save, use ``self.save_reduced(filename)``, and then
+        load from that same file using the class method
+        ``po.simul.VentralModel.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -483,7 +488,7 @@ class RetinalGanglionCells(VentralModel):
                  zero_thresh=1e-20):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          zero_thresh=zero_thresh)
-        self.state_dict_sparse.update({'model_name': 'RGC'})
+        self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
         self.representation = None
@@ -668,13 +673,15 @@ class PrimaryVisualCortex(VentralModel):
         'complex cell responses' (that is, the squared, summed, and
         square-rooted outputs of the complex steerable pyramid) and the
         mean luminance of the image in the pooling windows.
-    state_dict_sparse : dict
+    state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
-        the model, plus a 'model_name' field. This is used for
-        saving/loading the models, since we don't want to keep the (very
-        large) representation and intermediate steps around. To save,
-        use ``self.save_sparse(filename)``, and then load from that same
-        file using the class method ``po.simul.VentralModel(filename)``
+        the model, plus a 'model_name' field which the ``load_reduced``
+        method uses to determine which model constructor to call. This
+        is used for saving/loading the models, since we don't want to
+        keep the (very large) representation and intermediate steps
+        around. To save, use ``self.save_reduced(filename)``, and then
+        load from that same file using the class method
+        ``po.simul.VentralModel.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -703,8 +710,8 @@ class PrimaryVisualCortex(VentralModel):
                  max_eccentricity=15, zero_thresh=1e-20):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          zero_thresh)
-        self.state_dict_sparse.update({'order': order, 'model_name': 'V1',
-                                       'num_scales': num_scales})
+        self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
+                                        'num_scales': num_scales})
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
