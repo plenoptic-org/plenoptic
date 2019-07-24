@@ -28,10 +28,10 @@ plenoptic.synthesize.geodesic module
    :undoc-members:
    :show-inheritance:
 
-plenoptic.synthesize.matched\_representation module
----------------------------------------------------
+plenoptic.synthesize.metamer module
+-----------------------------------
 
-.. automodule:: plenoptic.synthesize.matched_representation
+.. automodule:: plenoptic.synthesize.metamer
    :members:
    :undoc-members:
    :show-inheritance:

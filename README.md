@@ -9,6 +9,8 @@
 |   learn    	| {x, y} 	|   {θ}  	|
 | synthesize 	| {y, θ} 	|   {x}  	|
 
+NOTE: We only support python 3.6 and 3.7
+
 # Build the documentation
 
 NOTE: We currently don't have a readthedocs page set up, because they

@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 from scipy.special import factorial
-from ..tools.signal import rcosFn, roll_n, batch_fftshift2d, batch_ifftshift2d, pointOp
+from ...tools.signal import rcosFn, batch_fftshift2d, batch_ifftshift2d, pointOp
 import torch
 import torch.nn as nn
 # from ..config import *

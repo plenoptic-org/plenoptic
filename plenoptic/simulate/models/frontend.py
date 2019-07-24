@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 
 import numpy as np
-from ..tools.signal import make_disk
+from ...tools.signal import make_disk
 
 import os
 dirname = os.path.dirname(__file__)
