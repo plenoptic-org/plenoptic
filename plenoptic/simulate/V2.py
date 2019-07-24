@@ -78,6 +78,8 @@ class V2(nn.Module):
     def __init__(self, frontend=False, steer=False):
         super(V2, self).__init__()
 
+        # todo descriptive names
+
         self.frontend = frontend
         if self.frontend:
             self.F = Front_End()

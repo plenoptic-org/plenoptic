@@ -86,23 +86,20 @@ def pointOp(im, Y, X):
     return np.reshape(out, im.shape)
 
 
-def rect2pol(X):
-    """Takes complex value signal and returns amlitude and phase
-
-    TODO
-    if Y is None and X.shape[-1] == 2
+def rect2pol(real, imaginary):
+    """Rectangular to polar coordinate transform
     """
-    amplitude = torch.sqrt(X.select(-1,0) ** 2 + X.select(-1,1) ** 2)
-    phase = torch.atan2(X.select(-1,1), X.select(-1,0))
+    amplitude = torch.sqrt(real ** 2 + imaginary ** 2) # aka. complex modulus
+    phase = torch.atan2(imaginary, real)
     return amplitude, phase
 
 
 def pol2rect(amplitude, phase):
-    """
+    """Polar to rectangular coordinate transform
     """
     real = amplitude * torch.cos(phase)
     imag = amplitude * torch.sin(phase)
-    return torch.stack((real, imag), dim=-1)
+    return real, imag
 
 
 def power_spectrum(x, log=True):

@@ -3,9 +3,8 @@
 """
 import torch
 from torch import nn
-import numpy as np
 import pyrtools as pt
-from .non_linearities import complex_modulus
+from .non_linearities import rect2pol_dict
 from .pooling import create_pooling_windows
 from .steerable_pyramid_freq import Steerable_Pyramid_Freq
 
@@ -287,8 +286,9 @@ class PrimaryVisualCortex(VentralModel):
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         # SHOULD THIS BE COMPLEX MODULUS (sqrt) OR SQUARED? (in which case we've just squared and
         # summed); paper seems to describe both
-        self.complex_cell_responses = dict((k, complex_modulus(v)) for k, v in
-                                           self.pyr_coeffs.items() if not isinstance(k, str))
+        # self.complex_cell_responses = dict((k, rect2pol(v)[0]) for k, v in
+        #                                    self.pyr_coeffs.items() if not isinstance(k, str))
+        self.complex_cell_responses = rect2pol_dict(self.pyr_coeffs)[0]
         self.windowed_complex_cell_responses = dict(
             (k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
             for k, v in self.complex_cell_responses.items())

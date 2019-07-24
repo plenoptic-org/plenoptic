@@ -9,6 +9,33 @@
 |   learn    	| {x, y} 	|   {θ}  	|
 | synthesize 	| {y, θ} 	|   {x}  	|
 
+# Testing
+
+from the [pytest documentation](http://doc.pytest.org/en/latest/usage.html):
+
+- Run tests by keyword expressions:
+
+```
+pytest -k "MyClass and not method"
+```
+
+This will run tests which contain names that match the given string expression, which can include Python operators
+that use filenames, class names and function names as variables. The example above will run `TestMyClass.test_something`
+but not `TestMyClass.test_method_simple`.
+
+- To run a specific test within a module:
+
+```
+pytest test_mod.py::test_func
+```
+Another example specifying a test method in the command line:
+
+```
+pytest test_mod.py::TestClass::test_method
+```
+
+
+
 # Build the documentation
 
 NOTE: We currently don't have a readthedocs page set up, because they

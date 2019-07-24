@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ..simulate.laplacian_pyramid import Laplacian_Pyramid
-from ..simulate.steerable_pyramid_freq import Steerable_Pyramid_Freq
-from ..simulate.non_linearities import local_gain_control, quadrature_energy
+from plenoptic.simulate.laplacian_pyramid import Laplacian_Pyramid
+from plenoptic.simulate.steerable_pyramid_freq import Steerable_Pyramid_Freq
+from plenoptic.simulate.non_linearities import local_gain_control, rect2pol_dict
 
 import os
 dirname = os.path.dirname(__file__)
@@ -140,11 +140,8 @@ class MSSSIM(torch.nn.Module):
         return msssim(img1, img2, window_size=self.window_size, size_average=self.size_average)
 
 
-def nlp(im):
+def normalized_laplacian_pyramid(im):
     """Normalized Laplacian Pyramid
-
-    Normalized Laplacian model parameters were optimized for redundancy reduction over an independent database of
-    (undistorted) natural images.
     """
 
     (_, channel, height, width) = im.size()
@@ -160,10 +157,10 @@ def nlp(im):
     DN_dom = []
     for N_b in range(0, N_levels):
         filt = torch.tensor(spatialpooling_filts[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        A2 = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
+        filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
 
         # Divisive Normalization
-        DN_dom.append(laplacian_activations[N_b] / (sigmas[N_b] + A2))
+        DN_dom.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
     return DN_dom
 
@@ -174,24 +171,44 @@ def nlpd(IM_1, IM_2):
     As described in  [1]_, this is an image quality metric based on the transformations associated with the early
     visual system: local luminance subtraction and local contrast gain control
 
-    A laplacian pyramid subtracts a local estimate of the mean luminance at multiple scales.
-    Then a local gain control divides these centered coefficients by a weighted sum of absolute values in spatial neighborhood.
+    A laplacian pyramid subtracts a local estimate of the mean luminance at six scales.
+    Then a local gain control divides these centered coefficients by a weighted sum of absolute values
+    in spatial neighborhood.
+
+    These weights parameters were optimized for redundancy reduction over an training
+    database of (undistorted) natural images.
 
     Note that we compute root mean squared error for each scale, and then average over these,
-    effectively giving larger weight to the lower frequency coefficients (which are fewer in number, due to subsampling).
+    effectively giving larger weight to the lower frequency coefficients
+    (which are fewer in number, due to subsampling).
 
+    Parameters
+    ----------
+    IM_1: torch.Tensor
+        image, (1 x 1 x H x W)
+    IM_2: torch.Tensor
+        image, (1 x 1 x H x W)
+
+    Returns
+    -------
+    distance: float
+
+    Note
+    ----
+    only accepts single channel images
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016.
-    Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
-    y = nlp(torch.cat((IM_1, IM_2), 0))
+    y = normalized_laplacian_pyramid(torch.cat((IM_1, IM_2), 0))
 
+    # for optimization purpose (stabilizing the gradient around zero)
+    epsilon = 1e-10
     dist = []
     for i in range(6):
-        dist.append(torch.sqrt(torch.mean((y[i][0] - y[i][1]) ** 2)))
+        dist.append(torch.sqrt(torch.mean((y[i][0] - y[i][1]) ** 2) + epsilon))
 
     return torch.stack(dist).mean()
 
@@ -200,11 +217,15 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
+
+    TODO
+
+    under construction
     """
 
     if complex:
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S, is_complex=True)
-        non_linear = quadrature_energy
+        non_linear = rect2pol_dict
     else:
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
         non_linear = local_gain_control
@@ -213,9 +234,12 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
 
     norm, state = non_linear(pyr)
 
+    # for optimization purpose (stabilizing the gradient around zero)
+    epsilon = 1e-10
     dist = []
     for key in state.keys():
-        # dist.append(torch.sqrt(torch.mean((norm[key][0] - norm[key][1]) ** 2)))
-        dist.append(torch.sqrt(torch.mean((state[key][0] - state[key][1]) ** 2)))
+        # TODO learn weights on TID2013
+        dist.append(torch.sqrt(torch.mean((norm[key][0] - norm[key][1]) ** 2) + epsilon))
+        dist.append(torch.sqrt(torch.mean((state[key][0] - state[key][1]) ** 2) + epsilon))
 
     return torch.stack(dist).mean()

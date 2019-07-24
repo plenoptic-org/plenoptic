@@ -1,53 +1,56 @@
 import torch
 from ..tools.conv import blur_downsample, upsample_blur
+from ..tools.signal import rect2pol
 
 
-def complex_modulus(x, dim=-1, keepdim=False):
-    """Return the complex modulus of a complex tensor.
+def rect2pol_dict(coeff_dict, dim=-1):
+    """Return the complex modulus and the phase of each complex tensor in a dictionary.
+
+    Parameters
+    ----------
+    x : dictionary
+       A dictionary containing complex tensor.
+    dim : int
+       The dimension that contains the real and imaginary components.
+    Returns
+    -------
+    energy : dictionary
+        The dictionary of torch.tensors containing the complex modulus of ``x``.
+    state: dictionary
+        The dictionary of torch.tensors containing the phase of ``x``.
+
+    Note
+    ----
+    This is local gain control in disguise, see 'real_rectangular_to_polar' and 'local_gain_control'.
+
     Since complex numbers aren't implemented in torch, we represent complex tensors as having an
     extra dimension with two slices, where one contains the real and the other contains the
     imaginary components. E.g., ``1+2j`` would be represented as ``torch.tensor([1, 2])`` and
     ``[1+2j, 4+5j]`` would be ``torch.tensor([[1, 2], [4, 5]])``. In the cases represented here,
     this "complex dimension" is the last one, and so the default argument ``dim=-1`` would work.
 
-    Parameters
-    ----------
-    x : torch.tensor
-       The complex tensor to take the modulus of.
-    dim : int
-       The dimension that contains the real and iamginary components.
-    Returns
-    -------
-    y : torch.tensor
-        The tensor containing the complex modulus of ``x``.
-    """
-    return torch.sqrt(torch.sum(torch.pow(x, 2), dim, keepdim=keepdim))
-
-
-def quadrature_energy(coeff_dict, epsilon=1e-12):
-    """
-
-
-    local energy
-    local phase / local unit vector
     """
 
     energy = {}
     state = {}
     for key in coeff_dict.keys():
-        energy[key] = complex_modulus(coeff_dict[key], keepdim=True)
-        state[key] = coeff_dict[key] / (energy[key] + epsilon)
+        if isinstance(key, tuple):
+            energy[key], state[key] = rect2pol(coeff_dict[key].select(dim, 0), coeff_dict[key].select(dim, 1))
 
     return energy, state
 
 
-def local_rectangular_to_polar(x, step=(2, 2), p=2.0, epsilon=1e-12):
-    """Spatially local gain control
+def real_rectangular_to_polar(x, epsilon=1e-12):
+    """This function is analogue to rect2pol for real valued signals.
+
+    Norm and direction (analogous to complex modulus and phase) are defined using blurring operator and division.
+    Spatial neighborhood
+    Hence the connection to local gain control
 
     Parameters
     ----------
     x : torch.tensor
-       The complex tensor to take the modulus of.
+
     step: tuple of integers
         The down-sampling factor
     p : int, float
@@ -57,17 +60,22 @@ def local_rectangular_to_polar(x, step=(2, 2), p=2.0, epsilon=1e-12):
     Returns
     -------
     norm : torch.tensor
-        The local energy of ``x``.
+        The local energy of ``x``. Note that it is down sampled (differs from rect2pol).
     direction: torch.tensor
-        The local phase of ``x`` (aka. local unit vector, local state)
+        The local phase of ``x`` (aka. local unit vector, or local state)
     """
+
+    # these could be parameters, but no use case so far
+    step = (2,2)
+    p = 2.0
+
     norm = torch.pow(blur_downsample(torch.abs(x ** p), step=step), 1 / p)
     direction = (x / (upsample_blur(norm, step=step) + epsilon))
 
     return norm, direction
 
 
-def local_gain_control(coeff_dict, step=(2, 2), residuals=True):
+def local_gain_control(coeff_dict, residuals=True):
     """Spatially local gain control
 
     local energy
@@ -78,11 +86,10 @@ def local_gain_control(coeff_dict, step=(2, 2), residuals=True):
 
     for key in coeff_dict.keys():
         if isinstance(key, tuple):
-            energy[key], state[key] = local_rectangular_to_polar(coeff_dict[key], step=step)
+            energy[key], state[key] = real_rectangular_to_polar(coeff_dict[key])
 
     if residuals:
         energy['residual_lowpass'] = coeff_dict['residual_lowpass']
         energy['residual_highpass'] = coeff_dict['residual_highpass']
 
     return energy, state
-
