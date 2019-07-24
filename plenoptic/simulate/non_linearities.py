@@ -3,7 +3,7 @@ from ..tools.conv import blur_downsample, upsample_blur
 from ..tools.signal import rect2pol
 
 
-def rect2pol_dict(coeff_dict, dim=-1):
+def rect2pol_dict(coeff_dict, dim=-1, residuals=False):
     """Return the complex modulus and the phase of each complex tensor in a dictionary.
 
     Parameters
@@ -12,6 +12,9 @@ def rect2pol_dict(coeff_dict, dim=-1):
        A dictionary containing complex tensors.
     dim : int
        The dimension that contains the real and imaginary components.
+    residuals: boolean, optional
+        An option to carry around residuals in the energy branch.
+
     Returns
     -------
     energy : dictionary
@@ -38,6 +41,10 @@ def rect2pol_dict(coeff_dict, dim=-1):
         # ignore residuals
         if isinstance(key, tuple):
             energy[key], state[key] = rect2pol(coeff_dict[key].select(dim, 0), coeff_dict[key].select(dim, 1))
+
+    if residuals:
+        energy['residual_lowpass'] = coeff_dict['residual_lowpass']
+        energy['residual_highpass'] = coeff_dict['residual_highpass']
 
     return energy, state
 
@@ -75,14 +82,15 @@ def real_rectangular_to_polar(x, epsilon=1e-12):
     return norm, direction
 
 
-def local_gain_control(coeff_dict):
+def local_gain_control(coeff_dict, residuals=False):
     """Spatially local gain control. This function is an analogue to rect2pol_dict for real valued signals.
 
     Parameters
     ----------
     coeff_dict : dictionary
-       A dictionary containing tensors of shape (B,C,H,W)
-
+        A dictionary containing tensors of shape (B,C,H,W)
+    residuals: boolean, optional
+        An option to carry around residuals in the energy branch.
     Returns
     -------
     energy : dictionary
