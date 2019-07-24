@@ -122,7 +122,7 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape)
         metamer = po.synth.Metamer(im, rgc)
-        metamer.synthesize(max_iter=10)
+        metamer.synthesize(max_iter=3)
 
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -190,7 +190,7 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10)
+        metamer.synthesize(max_iter=3)
 
 
 class TestMetamers(object):
@@ -199,7 +199,7 @@ class TestMetamers(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.synthesize(max_iter=3, store_progress=True)
         metamer.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
         met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"))
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
@@ -213,7 +213,7 @@ class TestMetamers(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=True, save_image=True)
+        metamer.synthesize(max_iter=3, store_progress=True)
         metamer.save(op.join(tmp_path, 'test_metamer_save_load_sparse.pt'), True)
         with pytest.raises(Exception):
             met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load_sparse.pt"))
@@ -230,35 +230,28 @@ class TestMetamers(object):
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=2, save_image=2)
+        metamer.synthesize(max_iter=4, store_progress=2)
 
     def test_metamer_save_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=2, save_image=True)
+        metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_save_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=3, save_image=True)
-
-    def test_metamer_save_rep_4(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device)
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
-        metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=10, save_representation=3, save_image=3)
+        metamer.synthesize(max_iter=6, store_progress=3)
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape)
         metamer = po.synth.Metamer(im, rgc)
-        metamer.synthesize(max_iter=10, save_image=True, save_representation=True)
+        metamer.synthesize(max_iter=3, store_progress=True)
         # this will test several related functions for us:
         # plot_metamer_status, plot_representation_ratio,
         # representation_ratio
@@ -276,14 +269,14 @@ class TestMetamers(object):
         clamper = po.RangeClamper((0, 1))
         # this gets raised because we try to use saved_image_ticker,
         # which was never initialized, since we're not saving images
-        with pytest.raises(UnboundLocalError):
-            metamer.synthesize(clamper=clamper, learning_rate=10, max_iter=10, loss_thresh=1e-8,
+        with pytest.raises(IndexError):
+            metamer.synthesize(clamper=clamper, learning_rate=10, max_iter=4, loss_thresh=1e-8,
                                initial_image=initial_image)
         # need to re-initialize this for the following run
         initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
                                            dtype=torch.float32)
-        matched_im, _ = metamer.synthesize(clamper=clamper, learning_rate=10, save_image=True,
-                                           save_representation=True, max_iter=10, loss_thresh=1e-8,
+        matched_im, _ = metamer.synthesize(clamper=clamper, learning_rate=10, store_progress=True,
+                                           max_iter=4, loss_thresh=1e-8,
                                            initial_image=initial_image)
         # this should hit a nan as it runs, leading the second saved
         # image to be all nans, but, because of our way of handling
@@ -297,8 +290,8 @@ class TestMetamers(object):
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
-        metamer.synthesize(max_iter=10, save_representation=True, save_image=True,
-                           save_progress=True, save_path=save_path)
+        metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
+                           save_path=save_path)
         po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_sparse)
 
 # class SteerablePyramid(unittest.TestCase):
