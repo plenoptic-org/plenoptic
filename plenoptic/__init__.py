@@ -7,8 +7,9 @@ from .tools.conv import *
 from .tools.signal import *
 # from .tools.stats import *
 # from .tools.linalg import *
-# from .tools.display import *
+from .tools.display import *
 from .tools.data import *
+
 
 from .version import version as __version__
 

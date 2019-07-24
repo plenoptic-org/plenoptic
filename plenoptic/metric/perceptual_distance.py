@@ -2,9 +2,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from plenoptic.simulate.laplacian_pyramid import Laplacian_Pyramid
-from plenoptic.simulate.steerable_pyramid_freq import Steerable_Pyramid_Freq
-from plenoptic.simulate.non_linearities import local_gain_control, rect2pol_dict
+from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
+from ..simulate.canonical_computations import local_gain_control, rect2pol_dict
 
 import os
 dirname = os.path.dirname(__file__)

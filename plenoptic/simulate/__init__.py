@@ -1,17 +1,2 @@
-from .linear import Linear
-from .linear_nonlinear import Linear_Nonlinear
-
-from .laplacian_pyramid import Laplacian_Pyramid
-from .steerable_pyramid_freq import Steerable_Pyramid_Freq
-
-from .frontend import Front_End
-from .spectral import Spectral
-
-from . import non_linearities
-from .pooling import create_pooling_windows
-from . import pooling
-from .ventral_stream import RetinalGanglionCells, PrimaryVisualCortex
-from .V2 import V2
-
-from .texture_statistics import Texture_Statistics
-# from .portilla_simoncelli import PS
+from .models import *
+from .canonical_computations import *

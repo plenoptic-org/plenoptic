@@ -9,6 +9,10 @@
 |   learn    	| {x, y} 	|   {θ}  	|
 | synthesize 	| {y, θ} 	|   {x}  	|
 
+# NOTE
+
+We only support python 3.6 and 3.7
+
 # Testing
 
 from the [pytest documentation](http://doc.pytest.org/en/latest/usage.html):
@@ -33,8 +37,6 @@ Another example specifying a test method in the command line:
 ```
 pytest test_mod.py::TestClass::test_method
 ```
-
-
 
 # Build the documentation
 
