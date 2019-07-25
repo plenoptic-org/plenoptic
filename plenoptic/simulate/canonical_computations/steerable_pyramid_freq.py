@@ -26,6 +26,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     Notes
     -----
     Transform described in [1]_, filter kernel design described in [2]_.
+    For further information see the project webpage_
 
     Parameters
     ----------
@@ -69,6 +70,7 @@ class Steerable_Pyramid_Freq(nn.Module):
        Oct 1995.
     .. [2] A Karasaridis and E P Simoncelli, "A Filter Design Technique for Steerable Pyramid
        Image Transforms", ICASSP, Atlanta, GA, May 1996.
+    .. _webpage: https://www.cns.nyu.edu/~eero/steerpyr/
     """
 
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False, store_unoriented_bands=False, return_list=False):
