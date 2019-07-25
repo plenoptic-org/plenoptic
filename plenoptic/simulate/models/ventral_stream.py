@@ -47,18 +47,6 @@ class VentralModel(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
-    zero_thresh : float, optional
-        The "cut-off value" below which we consider numbers to be
-        zero. We want to determine the number of non-zero elements in
-        each window (in order to properly average them), but after
-        projecting (and interpolating) the windows from polar into
-        rectangular coordinates, we end up with some values very near
-        zero (on the order 1e-40 to 1e-30). These are so small that they
-        don't matter for actually computing the values within the
-        windows but they will mess up our calculation of the number of
-        non-zero elements in each window, so we treat all numbers below
-        ``zero_thresh`` as being zero for the purpose of computing
-        ``window_num_pixels``.
 
     Attributes
     ----------
@@ -71,11 +59,6 @@ class VentralModel(nn.Module):
     PoolingWindows : plenoptic.simulate.PoolingWindows
         A pooling windows object which contains the windows we use to
         pool our model's summary statistics across the image.
-    window_num_pixels : list
-        A list of 1d tensors containing the number of non-zero elements
-        in each window; we use this to correctly average within each
-        window. Each entry in the list corresponds to a different scale
-        (they should all have the same number of elements).
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -98,10 +81,9 @@ class VentralModel(nn.Module):
     window_width_pixels : list
         List of dictionaries containing the widths of the windows in
         pixels; each entry in the list corresponds to the widths for a
-        different scale, as in ``windows`` and
-        ``window_num_pixels``. See above for explanation of the
-        dictionaries. To visualize these, see the ``plot_window_sizes``
-        method.
+        different scale, as in ``windows``. See above for explanation of
+        the dictionaries. To visualize these, see the
+        ``plot_window_sizes`` method.
     n_polar_windows : int
         The number of windows we have in the polar angle dimension
         (within each eccentricity band)
@@ -109,12 +91,11 @@ class VentralModel(nn.Module):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 zero_thresh=1e-20):
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales, zero_thresh)
-        for attr in ['n_polar_windows', 'n_eccentricity_bands', 'window_num_pixels', 'scaling',
+                                             num_scales)
+        for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling',
                      'window_width_pixels', 'window_width_degrees', 'state_dict_reduced',
                      'min_eccentricity', 'max_eccentricity', 'device']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
@@ -413,18 +394,6 @@ class RetinalGanglionCells(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
-    zero_thresh : float, optional
-        The "cut-off value" below which we consider numbers to be
-        zero. We want to determine the number of non-zero elements in
-        each window (in order to properly average them), but after
-        projecting (and interpolating) the windows from polar into
-        rectangular coordinates, we end up with some values very near
-        zero (on the order 1e-40 to 1e-30). These are so small that they
-        don't matter for actually computing the values within the
-        windows but they will mess up our calculation of the number of
-        non-zero elements in each window, so we treat all numbers below
-        ``zero_thresh`` as being zero for the purpose of computing
-        ``window_num_pixels``.
 
     Attributes
     ----------
@@ -439,11 +408,6 @@ class RetinalGanglionCells(VentralModel):
         pixel intensities are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
-    window_num_pixels : list
-        A list of 1d tensors containing the number of non-zero elements
-        in each window; we use this to correctly average within each
-        window. Each entry in the list corresponds to a different scale
-        (they should all have the same number of elements).
     image : torch.tensor
         A 2d containing the image most recently analyzed.
     windowed_image : torch.tensor
@@ -473,10 +437,9 @@ class RetinalGanglionCells(VentralModel):
     window_width_pixels : list
         List of dictionaries containing the widths of the windows in
         pixels; each entry in the list corresponds to the widths for a
-        different scale, as in ``windows`` and
-        ``window_num_pixels``. See above for explanation of the
-        dictionaries. To visualize these, see the ``plot_window_sizes``
-        method.
+        different scale, as in ``windows``. See above for explanation of
+        the dictionaries. To visualize these, see the
+        ``plot_window_sizes`` method.
     n_polar_windows : int
         The number of windows we have in the polar angle dimension
         (within each eccentricity band)
@@ -484,10 +447,8 @@ class RetinalGanglionCells(VentralModel):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 zero_thresh=1e-20):
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
-                         zero_thresh=zero_thresh)
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
@@ -514,10 +475,7 @@ class RetinalGanglionCells(VentralModel):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         self.image = image.clone().detach()
-        self.windowed_image = self.PoolingWindows(image)
-        # we want to normalize by the size of each window
-        representation = self.windowed_image.sum((-1, -2)).flatten()
-        self.representation = representation / self.window_num_pixels[0]
+        self.representation = self.PoolingWindows(image).flatten()
         return self.representation
 
     def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None):
@@ -605,18 +563,6 @@ class PrimaryVisualCortex(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
-    zero_thresh : float, optional
-        The "cut-off value" below which we consider numbers to be
-        zero. We want to determine the number of non-zero elements in
-        each window (in order to properly average them), but after
-        projecting (and interpolating) the windows from polar into
-        rectangular coordinates, we end up with some values very near
-        zero (on the order 1e-40 to 1e-30). These are so small that they
-        don't matter for actually computing the values within the
-        windows but they will mess up our calculation of the number of
-        non-zero elements in each window, so we treat all numbers below
-        ``zero_thresh`` as being zero for the purpose of computing
-        ``window_num_pixels``.
 
     Attributes
     ----------
@@ -640,11 +586,6 @@ class PrimaryVisualCortex(VentralModel):
         complex cell responses are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
-    window_num_pixels : list
-        A list of 1d tensors containing the number of non-zero elements
-        in each window; we use this to correctly average within each
-        window. Each entry in the list corresponds to a different scale
-        (they should all have the same number of elements).
     image : torch.tensor
         A 2d containing the most recent image analyzed.
     pyr_coeffs : dict
@@ -695,10 +636,9 @@ class PrimaryVisualCortex(VentralModel):
     window_width_pixels : list
         List of dictionaries containing the widths of the windows in
         pixels; each entry in the list corresponds to the widths for a
-        different scale, as in ``windows`` and
-        ``window_num_pixels``. See above for explanation of the
-        dictionaries. To visualize these, see the ``plot_window_sizes``
-        method.
+        different scale, as in ``windows``. See above for explanation of
+        the dictionaries. To visualize these, see the
+        ``plot_window_sizes`` method.
     n_polar_windows : int
         The number of windows we have in the polar angle dimension
         (within each eccentricity band)
@@ -707,9 +647,8 @@ class PrimaryVisualCortex(VentralModel):
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
-                 max_eccentricity=15, zero_thresh=1e-20):
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
-                         zero_thresh)
+                 max_eccentricity=15):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales})
         self.num_scales = num_scales
@@ -747,14 +686,10 @@ class PrimaryVisualCortex(VentralModel):
         self.image = image.clone().detach()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
-        self.windowed_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        windowed_image = self.PoolingWindows(image)
-        # we want to normalize by the size of each window
-        mean_luminance = windowed_image.sum((-1, -2))
-        self.mean_luminance = (mean_luminance / self.window_num_pixels[0]).flatten()
-        mean_complex_cells = torch.cat([(v.sum((-1, -2)) / self.window_num_pixels[k[0]]).flatten()
-                                        for k, v in self.windowed_complex_cell_responses.items()])
-        self.representation = torch.cat([mean_complex_cells, self.mean_luminance])
+        self.mean_complex_cell_responses = torch.cat(list(self.PoolingWindows(
+            self.complex_cell_responses).values())).flatten()
+        self.mean_luminance = self.PoolingWindows(image).flatten()
+        self.representation = torch.cat([self.mean_complex_cell_responses, self.mean_luminance])
         return self.representation
 
     def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, titles=None):

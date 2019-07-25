@@ -698,18 +698,6 @@ class PoolingWindows(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
-    zero_thresh : float, optional
-        The "cut-off value" below which we consider numbers to be
-        zero. We want to determine the number of non-zero elements in
-        each window (in order to properly average them), but after
-        projecting (and interpolating) the windows from polar into
-        rectangular coordinates, we end up with some values very near
-        zero (on the order 1e-40 to 1e-30). These are so small that they
-        don't matter for actually computing the values within the
-        windows but they will mess up our calculation of the number of
-        non-zero elements in each window, so we treat all numbers below
-        ``zero_thresh`` as being zero for the purpose of computing
-        ``window_num_pixels``.
 
     Attributes
     ----------
@@ -724,11 +712,6 @@ class PoolingWindows(nn.Module):
         model parameters are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
-    window_num_pixels : list
-        A list of 1d tensors containing the number of non-zero elements
-        in each window; we use this to correctly average within each
-        window. Each entry in the list corresponds to a different scale
-        (they should all have the same number of elements).
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -751,10 +734,9 @@ class PoolingWindows(nn.Module):
     window_width_pixels : list
         List of dictionaries containing the widths of the windows in
         pixels; each entry in the list corresponds to the widths for a
-        different scale, as in ``windows`` and
-        ``window_num_pixels``. See above for explanation of the
-        dictionaries. To visualize these, see the ``plot_window_sizes``
-        method.
+        different scale, as in ``windows``. See above for explanation of
+        the dictionaries. To visualize these, see the
+        ``plot_window_sizes`` method.
     n_polar_windows : int
         The number of windows we have in the polar angle dimension
         (within each eccentricity band)
@@ -762,8 +744,7 @@ class PoolingWindows(nn.Module):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 zero_thresh=1e-20):
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if img_res[0] != img_res[1]:
@@ -772,7 +753,6 @@ class PoolingWindows(nn.Module):
         self.min_eccentricity = min_eccentricity
         self.max_eccentricity = max_eccentricity
         self.windows = []
-        self.window_num_pixels = []
         self.window_width_pixels = []
         ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
                                                           scaling=scaling)
@@ -784,7 +764,6 @@ class PoolingWindows(nn.Module):
                                               'angular_full'], window_widths))
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': min_eccentricity,
-                                   'zero_thresh': zero_thresh,
                                    'max_eccentricity': max_eccentricity}
         for i in range(num_scales):
             windows, theta, ecc = create_pooling_windows(scaling, min_eccentricity,
@@ -795,7 +774,6 @@ class PoolingWindows(nn.Module):
             windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
                                    dtype=torch.float32, device=self.device)
             # need this to be float32 so we can divide the representation by it.
-            self.window_num_pixels.append((windows > zero_thresh).sum((1, 2), dtype=torch.float32))
             self.windows.append(windows)
             # we convert from degrees to pixels here, by multiplying the
             # width in degrees by (radius in pixels) / (radius in degrees)
@@ -807,16 +785,58 @@ class PoolingWindows(nn.Module):
         self.n_eccentricity_bands = int(self.windows[0].shape[0] // self.n_polar_windows)
 
     def forward(self, x, idx=0):
-        r"""Pool the input
+        r"""Window and pool the input
+
+        We take either a 4d tensor or a dictionary of 4d tensors and
+        return a pooled version of it. If it's a 4d tensor, we return a
+        3d tensor, with windows indexed along the final dimension. If
+        it's a dictionary, we return a dictionary with the same keys,
+        with all 3d values, with windows indexed along the final
+        dimension.
+
+        If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
+        list. If it's a dictionary, we assume it's keys are ``(scale,
+        orientation)`` tuples and so use ``windows[key[0]]`` to find the
+        appropriately-sized window (this is the case for, e.g., the
+        steerable pyramid). If we want to use differently-structured
+        dictionaries, we'll need to restructure this
+
+        This is equivalent to calling ``self.pool(self.window(x, idx),
+        idx)``
+
+        Parameters
+        ----------
+        x : dict or torch.Tensor
+            Either a 4d tensor or a dictionary of 4d tensors.
+        idx : int, optional
+            Which entry in the ``windows`` list to use. Only used if
+            ``x`` is a tensor
+
+        Returns
+        -------
+        pooled_x : dict or torch.Tensor
+            Same type as ``x``, see above for how it's created.
+
+        See also
+        --------
+        window : window the input
+        pool : pool the windowed input (get the weighted average)
+
+        """
+        windowed_x = self.window(x, idx)
+        return self.pool(windowed_x, idx)
+
+    def window(self, x, idx=0):
+        r"""Window the input
 
         We take an input, either a 4d tensor or a dictionary of 4d
-        tensors, and return a pooled version of it. If it's a 4d tensor,
-        we return a 5d tensor, with windows indexed along the 3rd
-        dimension. If it's a dictionary, we return a dictionary with the
-        same keys and have changed all the values to 5d tensors, with
-        windows indexed along the 3rd dimension
+        tensors, and return a windowed version of it. If it's a 4d
+        tensor, we return a 5d tensor, with windows indexed along the
+        3rd dimension. If it's a dictionary, we return a dictionary with
+        the same keys and have changed all the values to 5d tensors,
+        with windows indexed along the 3rd dimension
 
-        If it's a 5d tensor, we use the ``idx`` entry in the ``windows``
+        If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
         list. If it's a dictionary, we assume it's keys are ``(scale,
         orientation)`` tuples and so use ``windows[key[0]]`` to find the
         appropriately-sized window (this is the case for, e.g., the
@@ -833,8 +853,13 @@ class PoolingWindows(nn.Module):
 
         Returns
         -------
-        dict or torch.Tensor
+        windowed_x : dict or torch.Tensor
             Same type as ``x``, see above for how it's created.
+
+        See also
+        --------
+        pool : pool the windowed input (get the weighted average)
+        forward : perform the windowing and pooling simultaneously
 
         """
         if isinstance(x, dict):
@@ -845,6 +870,53 @@ class PoolingWindows(nn.Module):
                         for k, v in x.items())
         else:
             return torch.einsum('ijkl,wkl->ijwkl', [x, self.windows[idx]])
+
+    def pool(self, windowed_x, idx=0):
+        r"""Pool the windowed input
+
+        We take the windowed input (as returned by ``self.window()``)
+        and perform a weighted average, dividing each windowed statistic
+        by the sum of the window that generated it.
+
+        The input must either be a 5d tensor or a dictionary of 5d
+        tensors and we collapse across the spatial dimensions, returning
+        a 3d tensor or a dictionary of 3d tensors.
+
+        Similar to ``self.window()``, if it's a 5d tensor, we use the
+        ``idx`` entry in the ``windows`` list. If it's a dictionary, we
+        assume it's keys are ``(scale, orientation)`` tuples and so use
+        ``windows[key[0]]`` to find the appropriately-sized window (this
+        is the case for, e.g., the steerable pyramid). If we want to use
+        differently-structured dictionaries, we'll need to restructure
+        this
+
+        Parameters
+        ----------
+        windowed_x : dict or torch.Tensor
+            Either a 5d tensor or a dictionary of 5d tensors
+        idx : int, optional
+            Which entry in the ``windows`` list to use. Only used if
+            ``x`` is a tensor
+
+        Returns
+        -------
+        pooled_x : dict or torch.Tensor
+            Same type as ``windowed_x``, see above for how it's created.
+
+        See also
+        --------
+        window : window the input
+        forward : perform the windowing and pooling simultaneously
+
+        """
+        if isinstance(windowed_x, dict):
+            # one way to make this more general: figure out the size of
+            # the tensors in x and in self.windows, and intelligently
+            # lookup which should be used.
+            return dict((k, v.sum((-1, -2)) / self.windows[k[0]].sum((-1, -2)))
+                        for k, v in windowed_x.items())
+        else:
+            return windowed_x.sum((-1, -2)) / self.windows[idx].sum((-1, -2))
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
         r"""plot the pooling windows on an image.
