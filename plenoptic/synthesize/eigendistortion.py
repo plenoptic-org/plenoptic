@@ -207,11 +207,11 @@ def implicit_block_power_method(x, y, r, l=0, init='randn', seed=0, tol=1e-10, n
 
 
 class Eigendistortion(nn.Module):
-    '''Synthesize the eigendistortions induced by a model on an image.
+    r"""Synthesize the eigendistortions induced by a model on an image.
 
     Parameters
     -----------
-    image: torch tensor
+    image: torch.Tensor
         image, (B x C x H x W)
     model: torch class
         torch model with defined forward and backward operations
@@ -254,7 +254,7 @@ class Eigendistortion(nn.Module):
     handle batch input
     handle color image
     make sure that the class cashes learnt distortions, every couple iterations, to prevent from loosing things when crahses
-    '''
+    """
 
     def __init__(self, image, model):
         super().__init__()
