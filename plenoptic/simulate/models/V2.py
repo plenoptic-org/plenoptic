@@ -8,6 +8,7 @@ from .frontend import Front_End
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 from ..canonical_computations.non_linearities import local_gain_control
 
+# under construction, documentation to come
 
 def steer(pyr_coeffs, residuals=True):
     S = np.max(np.array([k for k in pyr_coeffs.keys() if isinstance(k, tuple)])[:, 0]) + 1

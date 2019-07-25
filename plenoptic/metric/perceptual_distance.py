@@ -3,10 +3,13 @@ import torch
 import torch.nn.functional as F
 
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
-from ..simulate.canonical_computations import local_gain_control, rect2pol_dict
+from ..simulate.canonical_computations import local_gain_control, rectangular_to_polar_dict
 
 import os
 dirname = os.path.dirname(__file__)
+
+# TODO
+# clean up, test and document (MS)SSIM
 
 
 def gaussian(window_size, sigma):
@@ -22,7 +25,34 @@ def create_window(window_size, channel=1):
 
 
 def ssim(img1, img2, window_size=11, window=None, size_average=True, full=False, val_range=None):
-    # Value range can be different from 255. Other common ranges are 1 (sigmoid) and 2 (tanh).
+    """Structural similarity index
+
+    As described in  [1]_,
+
+    Argument
+    --------
+    img1:
+    img2:
+    window_size:
+    window:
+    size_average:
+    full:
+        contrast sensitivity
+    val_range:
+        Value range can be different from 255. Other common ranges are 1 (sigmoid) and 2 (tanh).
+    Return
+    ------
+    ssim
+    cs
+    ssim_map: TODO
+
+    References
+    ----------
+    .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image quality assessment: From error measurement to structural similarity" IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
+    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
+    """
+
     if val_range is None:
         if torch.max(img1) > 128:
             max_val = 255
@@ -140,28 +170,33 @@ class MSSSIM(torch.nn.Module):
 
 
 def normalized_laplacian_pyramid(im):
-    """Normalized Laplacian Pyramid
+    """computes the normalized Laplacian Pyramid using pre-optimized parameters
+
+    Arguments
+    --------
+    im: torch.Tensor
+    Returns
+    -------
+    normalized_laplacian_activations: list of torch.Tensor
     """
 
     (_, channel, height, width) = im.size()
 
-    N_levels = 6
-    spatialpooling_filts = np.load(dirname + '/DN_filts.npy')
+    N_scales = 6
+    spatialpooling_filters = np.load(dirname + '/DN_filts.npy')
     sigmas = np.load(dirname + '/DN_sigmas.npy')
 
-    L = Laplacian_Pyramid(n_scales=N_levels)
+    L = Laplacian_Pyramid(n_scales=N_scales)
     laplacian_activations = L.analysis(im)
 
     padd = 2
-    DN_dom = []
-    for N_b in range(0, N_levels):
-        filt = torch.tensor(spatialpooling_filts[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    normalized_laplacian_activations = []
+    for N_b in range(0, N_scales):
+        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
+        normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
-        # Divisive Normalization
-        DN_dom.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
-
-    return DN_dom
+    return normalized_laplacian_activations
 
 
 def nlpd(IM_1, IM_2):
@@ -224,7 +259,7 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
 
     if complex:
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S, is_complex=True)
-        non_linear = rect2pol_dict
+        non_linear = rectangular_to_polar_dict
     else:
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
         non_linear = local_gain_control

@@ -61,7 +61,7 @@ class TestLinear(object):
         image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
         im0 = torch.tensor(image, requires_grad=True, dtype=dtype).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=10, learning_rate=1, seed=1)
+        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
 
 class TestLinearNonlinear(object):
 
@@ -75,7 +75,7 @@ class TestLinearNonlinear(object):
         image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
         im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=10, learning_rate=1,seed=0)
+        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
 
 
 # class TestConv(object):
@@ -115,7 +115,7 @@ class TestNonLinearities(object):
         a = torch.randn(10, 5, 256, 256)
         b = torch.randn(10, 5, 256, 256)
 
-        A, B = po.pol2rect(*po.rect2pol(a, b))
+        A, B = po.polar_to_rectangular(*po.rectangular_to_polar(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
@@ -123,20 +123,20 @@ class TestNonLinearities(object):
         a = torch.rand(10, 5, 256, 256)
         b = po.rescale(torch.randn(10, 5, 256, 256), -np.pi / 2, np.pi / 2)
 
-        A, B = po.rect2pol(*po.pol2rect(a, b))
+        A, B = po.rectangular_to_polar(*po.polar_to_rectangular(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
-    def test_rect2pol_dict(self):
+    def test_rectangular_to_polar_dict(self):
         x = po.make_basic_stimuli()
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1, is_complex=True)
         y = spc(x)
-        energy, state = po.simul.non_linearities.rect2pol_dict(y)
+        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y)
 
-    def test_real_rectangular_to_polar(self):
+    def test_rectangular_to_polar_real(self):
         x = torch.randn(10, 1, 256, 256)
-        po.simul.non_linearities.real_rectangular_to_polar(x)
+        po.simul.non_linearities.rectangular_to_polar_real(x)
 
     def test_local_gain_control(self):
         x = po.make_basic_stimuli()
@@ -315,7 +315,7 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device, requires_grad=True).unsqueeze(0).unsqueeze(0)
         v2 = po.simul.V2(frontend=frontend, steer=steer)
         metamer = po.synth.Metamer(im, v2)
-        metamer.synthesize(max_iter=10)
+        metamer.synthesize(max_iter=3)
 
 
 class TestMetamers(object):
@@ -357,7 +357,7 @@ class TestMetamers(object):
         im = torch.tensor(im, dtype=dtype, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
         metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=4, store_progress=2)
+        metamer.synthesize(max_iter=3, store_progress=2)
 
     def test_metamer_save_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))

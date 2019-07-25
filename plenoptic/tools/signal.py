@@ -8,7 +8,7 @@ def rescale(x, a=0, b=1):
     Linearly rescale the dynamic of a vector to the range [a,b]
     """
     v = x.max() - x.min()
-    g = (x - x.min())  # .copy()
+    g = (x - x.min()) #.clone()
     if v > 0:
         g = g / v
     return a + g * (b-a)
@@ -86,20 +86,56 @@ def pointOp(im, Y, X):
     return np.reshape(out, im.shape)
 
 
-def rect2pol(real, imaginary):
+def rectangular_to_polar(real, imaginary):
     """Rectangular to polar coordinate transform
+
+    Argument
+    --------
+    real: torch.Tensor
+        tensor containing the real component
+    imaginary: torch.Tensor
+        tensor containing the imaginary component
+    Returns
+    -------
+    amplitude: torch.Tensor
+        tensor containing the amplitude (aka. complex modulus)
+    phase: torch.Tensor
+        tensor containing the phase
+    Note
+    ----
+    Since complex numbers are not supported by pytorch, this function expects two tensors of the same shape.
+    One containing the real component, one containing the imaginary component. This means that if complex
+    numbers are represented as an extra dimension in the tensor of interest, the user needs to index through
+    that dimension.
     """
-    amplitude = torch.sqrt(real ** 2 + imaginary ** 2) # aka. complex modulus
+    amplitude = torch.sqrt(real ** 2 + imaginary ** 2)
     phase = torch.atan2(imaginary, real)
     return amplitude, phase
 
 
-def pol2rect(amplitude, phase):
+def polar_to_rectangular(amplitude, phase):
     """Polar to rectangular coordinate transform
+
+    Argument
+    --------
+    amplitude: torch.Tensor
+        tensor containing the amplitude (aka. complex modulus)
+    phase: torch.Tensor
+        tensor containing the phase
+    Returns
+    -------
+    real: torch.Tensor
+        tensor containing the real component
+    imaginary: torch.Tensor
+        tensor containing the imaginary component
+    Note
+    ----
+    Since complex numbers are not supported by pytorch, this function returns two tensors of the same shape.
+    One containing the real component, one containing the imaginary component.
     """
     real = amplitude * torch.cos(phase)
-    imag = amplitude * torch.sin(phase)
-    return real, imag
+    imaginary = amplitude * torch.sin(phase)
+    return real, imaginary
 
 
 def power_spectrum(x, log=True):

@@ -1,11 +1,10 @@
 import numpy as np
 import torch
 from torch import nn
-# from torchvision import transforms
 import pyrtools as pt
 
 # TODO
-# tests
+# documentation
 # test that it does the right thing for multiple channels
 # handle batch dimension and infer dimension 1,2,3
 # faster implementation with separable 1d conv
