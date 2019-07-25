@@ -1,3 +1,4 @@
 from .eigendistortion import Eigendistortion
-from .geodesic import Geodesic
 from .metamer import Metamer
+from .geodesic import Geodesic
+# from .mad import MAD

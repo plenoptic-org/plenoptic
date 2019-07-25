@@ -1,5 +1,6 @@
 from . import simulate as simul
 from . import synthesize as synth
+from . import metric
 # from . import learn as learn
 
 from .tools.conv import *

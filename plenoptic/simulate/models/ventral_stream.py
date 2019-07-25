@@ -7,7 +7,7 @@ import warnings
 from torch import nn
 import matplotlib as mpl
 import numpy as np
-from ...tools.fit import complex_modulus
+from ..canonical_computations.non_linearities import rectangular_to_polar_dict
 from ...tools.display import clean_up_axes, update_stem
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
@@ -746,8 +746,7 @@ class PrimaryVisualCortex(VentralModel):
             image = image.unsqueeze(0)
         self.image = image.clone().detach()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
-        self.complex_cell_responses = dict((k, complex_modulus(v)) for k, v in
-                                           self.pyr_coeffs.items() if not isinstance(k, str))
+        self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
         self.windowed_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
         windowed_image = self.PoolingWindows(image)
         # we want to normalize by the size of each window

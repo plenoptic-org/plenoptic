@@ -26,6 +26,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     Notes
     -----
     Transform described in [1]_, filter kernel design described in [2]_.
+    For further information see the project webpage_
 
     Parameters
     ----------
@@ -69,6 +70,7 @@ class Steerable_Pyramid_Freq(nn.Module):
        Oct 1995.
     .. [2] A Karasaridis and E P Simoncelli, "A Filter Design Technique for Steerable Pyramid
        Image Transforms", ICASSP, Atlanta, GA, May 1996.
+    .. _webpage: https://www.cns.nyu.edu/~eero/steerpyr/
     """
 
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False, store_unoriented_bands=False, return_list=False):
@@ -85,7 +87,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.Xcosn = np.pi * np.array(range(-(2*self.lutsize + 1), (self.lutsize+2)))/self.lutsize
         self.alpha = (self.Xcosn + np.pi) % (2*np.pi) - np.pi
 
-        self.pyr_coeffs = {}
         self.pyr_size = {}
 
         max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1]))) - 2
@@ -134,6 +135,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
 
     def forward(self, x):
+        pyr_coeffs = {}
+
         # create local variables from class variables
         Xrcos = self.Xrcos.copy()
         Yrcos = self.Yrcos.copy()
@@ -152,8 +155,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         hi0 = batch_ifftshift2d(hi0dft)
         hi0 = torch.ifft(hi0, signal_ndim=2)
         hi0_real = torch.unbind(hi0, -1)[0]
-        self.coeffout = [hi0_real]
-        self.pyr_coeffs['residual_highpass'] = hi0_real
+        # self.coeffout = [hi0_real]
+        pyr_coeffs['residual_highpass'] = hi0_real
 
 
         lodft = imdft * lo0mask
@@ -206,12 +209,12 @@ class Steerable_Pyramid_Freq(nn.Module):
                 band = torch.ifft(band, signal_ndim=2)
                 if not self.is_complex:
                     band = torch.unbind(band, -1)[0]
-                    self.coeffout.append(band)
-                    self.pyr_coeffs[(i, b)] = band
+                    # self.coeffout.append(band)
+                    pyr_coeffs[(i, b)] = band
 
                 else:
-                    self.coeffout.append(band)
-                    self.pyr_coeffs[(i, b)] = band
+                    # self.coeffout.append(band)
+                    pyr_coeffs[(i, b)] = band
 
             self._anglemasks.append(anglemasks)
 
@@ -241,14 +244,14 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0 = batch_ifftshift2d(lodft)
         lo0 = torch.ifft(lo0, signal_ndim=2)
         lo0_real = torch.unbind(lo0, -1)[0]
-        self.coeffout.append(lo0_real)
+        # self.coeffout.append(lo0_real)
 
-        self.pyr_coeffs['residual_lowpass'] = lo0_real
+        pyr_coeffs['residual_lowpass'] = lo0_real
 
         if self.return_list:
-            return self.coeffout
+            return [k for k in pyr_coeffs.values()]
         else:
-            return self.pyr_coeffs
+            return pyr_coeffs
 
     # TODO
     # def steer_coeffs(self, angles, even_phase=True):
@@ -291,9 +294,9 @@ class Steerable_Pyramid_Freq(nn.Module):
         # lowest band
         # initialize reconstruction
         if 'residual_lowpass' in recon_keys:
-            nresdft = np.fft.fftshift(np.fft.fft2(self.pyr_coeffs['residual_lowpass']))
+            nresdft = np.fft.fftshift(np.fft.fft2(pyr_coeffs['residual_lowpass']))
         else:
-            nresdft = np.zeros_like(self.pyr_coeffs['residual_lowpass'])
+            nresdft = np.zeros_like(pyr_coeffs['residual_lowpass'])
         resdft = np.zeros(dim_list[1]) + 0j
 
         bounds = (0, 0, 0, 0)
@@ -363,7 +366,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                     # former case, this np.real() does nothing. in the latter, we want to only
                     # reconstruct with the real portion
                     curLev = self.num_scales - 1 - (idx-1)
-                    band = np.real(self.pyr_coeffs[(curLev, b)])
+                    band = np.real(pyr_coeffs[(curLev, b)])
                     if (curLev, b) in recon_keys:
                         banddft = np.fft.fftshift(np.fft.fft2(band))
                     else:
@@ -383,9 +386,9 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         hi0mask = hi0mask.reshape(resdft.shape[0], resdft.shape[1])
         if 'residual_highpass' in recon_keys:
-            hidft = np.fft.fftshift(np.fft.fft2(self.pyr_coeffs['residual_highpass']))
+            hidft = np.fft.fftshift(np.fft.fft2(pyr_coeffs['residual_highpass']))
         else:
-            hidft = np.zeros_like(self.pyr_coeffs['residual_highpass'])
+            hidft = np.zeros_like(pyr_coeffs['residual_highpass'])
         resdft += hidft * hi0mask
 
         outresdft = np.real(np.fft.ifft2(np.fft.ifftshift(resdft)))

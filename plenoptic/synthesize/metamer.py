@@ -129,24 +129,20 @@ class Metamer(nn.Module):
             target_image = torch.tensor(target_image, torch.float32)
         self.target_image = target_image
         self.model = model
+        self.seed = None
+
         self.target_representation = self.analyze(self.target_image)
         self.matched_image = None
         self.matched_representation = None
         self.optimizer = None
         self.scheduler = None
+
         self.loss = []
         self.saved_representation = []
         self.saved_image = []
-        self.seed = None
 
     def analyze(self, x):
         r"""Analyze the image, that is, obtain the model's representation of it
-
-        Note: analysis is applied on the squished input, so as to softly
-        enforce the desired range during the optimization, (as a
-        consequence, there is a discrepency to corresponding statistics
-        during the optimization- which is fixed at the moment of
-        returning an output in the synthesize method)
 
         """
         y = self.model(x)
@@ -181,11 +177,14 @@ class Metamer(nn.Module):
         """
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
+        # TODO randomness
+
         loss = self.objective_function(self.matched_representation, self.target_representation)
         loss.backward(retain_graph=True)
         g = self.matched_image.grad.data
         self.optimizer.step()
         self.scheduler.step(loss.item())
+
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
                          learning_rate=self.optimizer.param_groups[0]['lr'])
