@@ -155,10 +155,8 @@ class TestPooling(object):
         windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87)
 
     def test_creation_args(self):
-        with pytest.raises(Exception):
-            # we can't create these with transition_region_width != .5
-            windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7,
-                                                                          100, 100)
+        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7,
+                                                                      100, 100)
         windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .5, 100,
                                                                       100)
 
@@ -213,6 +211,20 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1)
         rgc.plot_representation(ax=axes[1])
 
+    def test_rgc_2(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape, transition_region_width=1)
+        rgc(im)
+        _ = rgc.plot_window_sizes('degrees')
+        _ = rgc.plot_window_sizes('degrees', jitter=0)
+        _ = rgc.plot_window_sizes('pixels')
+        fig = pt.imshow(im.detach())
+        _ = rgc.plot_windows(fig.axes[0])
+        rgc.plot_representation()
+        fig, axes = plt.subplots(2, 1)
+        rgc.plot_representation(ax=axes[1])
+
     def test_rgc_metamer(self):
         # literally just testing that it runs
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -242,7 +254,7 @@ class TestVentralStream(object):
         im = po.make_basic_stimuli()
         frontend = po.simul.Front_End()
         frontend(im)
-        
+
     def test_frontend_eigendistortion(self):
         im = plt.imread(op.join(DATA_DIR, 'einstein.png'))[:,:,0]
         im = torch.tensor(im, dtype=dtype, device=device, requires_grad=True).unsqueeze(0).unsqueeze(0)
@@ -254,6 +266,18 @@ class TestVentralStream(object):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape)
+        v1(im)
+        _ = v1.plot_window_sizes('pixels')
+        for i in range(v1.num_scales):
+            _ = v1.plot_window_sizes('pixels', i)
+        v1.plot_representation()
+        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation(ax=axes[1])
+
+    def test_v1_2(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape, transition_region_width=1)
         v1(im)
         _ = v1.plot_window_sizes('pixels')
         for i in range(v1.num_scales):

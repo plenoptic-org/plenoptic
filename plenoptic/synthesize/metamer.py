@@ -666,7 +666,10 @@ class Metamer(nn.Module):
         # this recovers the store_progress arg used with the call to
         # synthesize(), which we need for updating the progress of the
         # loss
-        saved_subsample = (len(self.loss) - 1) // (self.saved_representation.shape[0] - 1)
+        saved_subsample = len(self.loss) // (self.saved_representation.shape[0] - 1)
+        # we have one extra frame of saved_image compared to loss, so we
+        # just duplicate the loss value at the end
+        loss = self.loss + [self.loss[-1]]
         try:
             if ylim.startswith('rescale'):
                 try:
@@ -723,7 +726,7 @@ class Metamer(nn.Module):
                     rescale_ylim(fig.axes[2:], representation_ratio)
             # loss always contains values from every iteration, but
             # everything else will be subsampled
-            scat.set_offsets((i*saved_subsample, self.loss[i*saved_subsample]))
+            scat.set_offsets((i*saved_subsample, loss[i*saved_subsample]))
             artists.append(scat)
             # as long as blitting is True, need to return a sequence of artists
             return artists

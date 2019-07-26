@@ -177,17 +177,17 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15):
 
     Notes
     -----
-    WARNING: In the following, I am assuming that the
-    transition_region_width, :math:`t`, is .5. If you want a different
-    value, you'll need to make some changes
-
     No equation for the scaling, :math:`s`, was included in the paper,
     so we derived this ourselves. To start, we note that the mother
     window equation (equation 9) reaches its half-max (.5) at
     :math:`x=\pm .5`, and that, as above, we treat :math:`x=0` as the
     central eccentricity of the window. Then we must solve for these,
-    using the values given within the parenthese in equation 11 as the
+    using the values given within the parentheses in equation 11 as the
     value for :math:`x`, and take their ratios.
+
+    It turns out that this holds for all permissible values of
+    ``transition_region_width`` (:math:`t` in the equations) (try
+    playing around with some plots if you don't believe me).
 
     Full-width half-maximum, :math:`W`, the difference between the two
     values of :math:`e_h`:
@@ -319,9 +319,10 @@ def calc_window_widths_actual(angular_window_width, radial_window_width, min_ecc
     -----
     In order to calculate the width in the angular direction, we start
     with the angular window width (:math:`w_{\theta }`). The 'top' width
-    is then :math:`\frac{w_{\theta}}{2}` and the 'full' width is
-    :math:`\frac{3 w_{\theta}}{2}`. This gives us the width in radians,
-    so we convert it to degrees by finding the windows' central
+    is then :math:`w_{\theta}(1-t)` and the 'full' width is
+    :math:`w_{\theta}(1+t)`, where :math:`t` is the
+    ``transition_region_width``. This gives us the width in radians, so
+    we convert it to degrees by finding the windows' central
     eccentricity (:math:`e_c`, as referred to in ``calc_scaling`` and
     returned by ``calc_windows_central_eccentricity``), and find the
     circumference (in degrees) of the circle that goes through that
@@ -346,8 +347,9 @@ def calc_window_widths_actual(angular_window_width, radial_window_width, min_ecc
     radial_full_width = [min_ecc*(np.exp((radial_window_width*(3+2*i+transition_region_width))/2) -
                                   np.exp((radial_window_width*(1+2*i-transition_region_width))/2))
                          for i in np.arange(n_radial_windows)]
-    angular_top_width = [(angular_window_width/2) * e_c for e_c in window_central_eccentricities]
-    angular_full_width = [(3*angular_window_width/2) * e_c for e_c in
+    angular_top_width = [angular_window_width * (1-transition_region_width) * e_c for e_c in
+                         window_central_eccentricities]
+    angular_full_width = [angular_window_width * (1+transition_region_width) * e_c for e_c in
                           window_central_eccentricities]
     return radial_top_width, radial_full_width, angular_top_width, angular_full_width
 
@@ -371,7 +373,7 @@ def mother_window(x, transition_region_width=.5):
         The distance in a direction
     transition_region_width : `float`, optional
         The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
+        equation 9 from the online methods. Must lie between 0 and 1.
 
     Returns
     -------
@@ -384,6 +386,8 @@ def mother_window(x, transition_region_width=.5):
        Neuroscience, 14(9), 1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
+    if transition_region_width > 1 or transition_region_width < 0:
+        raise Exception("transition_region_width must lie between 0 and 1!")
     if hasattr(x, '__iter__'):
         return np.array([mother_window(i, transition_region_width) for i in x])
     if -(1 + transition_region_width) / 2 < x <= (transition_region_width - 1) / 2:
@@ -538,12 +542,6 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     make use of pyrtools's ``project_polar_to_cartesian`` function (see
     Examples section)
 
-    WARNING: I'm fairly certain the calculation we use to compute the
-    width of the windows from scaling only works when
-    ``transition_region_width=.5``, you'll probably have to make some
-    changes to the various ``calc_`` functions in the ``pooling.py``
-    script (they shouldn't be difficult).
-
     Parameters
     ----------
     scaling : `float` or `None`.
@@ -639,10 +637,6 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
        1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
-    if transition_region_width != .5:
-        raise Exception("Calculations necessary for converting scaling to window width assume that"
-                        " transition_region_width is .5; need to change the equations in calc_"
-                        "scaling and calc_eccentricity_window_width")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
                                                       scaling=scaling)
@@ -698,6 +692,10 @@ class PoolingWindows(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
 
     Attributes
     ----------
@@ -707,6 +705,9 @@ class PoolingWindows(nn.Module):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float
         The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
     windows : list
         A list of 3d tensors containing the pooling windows in which the
         model parameters are averaged. Each entry in the list
@@ -744,12 +745,14 @@ class PoolingWindows(nn.Module):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1):
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
+                 transition_region_width=.5):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if img_res[0] != img_res[1]:
             raise Exception("For now, we only support square images!")
         self.scaling = scaling
+        self.transition_region_width = transition_region_width
         self.min_eccentricity = min_eccentricity
         self.max_eccentricity = max_eccentricity
         self.windows = []
@@ -759,17 +762,18 @@ class PoolingWindows(nn.Module):
         self.n_polar_windows = round(calc_angular_n_windows(ecc_window_width / 2))
         angular_window_width = calc_angular_window_width(self.n_polar_windows)
         window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
-                                                  min_eccentricity, max_eccentricity)
+                                                  min_eccentricity, max_eccentricity,
+                                                  transition_region_width)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': min_eccentricity,
-                                   'max_eccentricity': max_eccentricity}
+                                   'max_eccentricity': max_eccentricity,
+                                   'transition_region_width': transition_region_width}
         for i in range(num_scales):
-            windows, theta, ecc = create_pooling_windows(scaling, min_eccentricity,
-                                                         max_eccentricity,
-                                                         ecc_n_steps=img_res[0] // 2**i,
-                                                         theta_n_steps=img_res[1] // 2**i)
+            windows, theta, ecc = create_pooling_windows(
+                scaling, min_eccentricity, max_eccentricity, ecc_n_steps=img_res[0] // 2**i,
+                theta_n_steps=img_res[1] // 2**i, transition_region_width=transition_region_width)
 
             windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
                                    dtype=torch.float32, device=self.device)

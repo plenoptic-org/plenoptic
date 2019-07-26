@@ -47,6 +47,10 @@ class VentralModel(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
 
     Attributes
     ----------
@@ -56,6 +60,9 @@ class VentralModel(nn.Module):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float
         The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
     PoolingWindows : plenoptic.simulate.PoolingWindows
         A pooling windows object which contains the windows we use to
         pool our model's summary statistics across the image.
@@ -91,12 +98,13 @@ class VentralModel(nn.Module):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1):
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
+                 transition_region_width=.5):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales)
-        for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling',
-                     'window_width_pixels', 'window_width_degrees', 'state_dict_reduced',
+                                             num_scales, transition_region_width)
+        for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
+                     'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'device']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
 
@@ -394,6 +402,10 @@ class RetinalGanglionCells(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
 
     Attributes
     ----------
@@ -403,6 +415,9 @@ class RetinalGanglionCells(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float
         The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
     windows : torch.tensor
         A list of 3d tensors containing the pooling windows in which the
         pixel intensities are averaged. Each entry in the list
@@ -447,8 +462,10 @@ class RetinalGanglionCells(VentralModel):
         The number of eccentricity bands in our model
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15):
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity)
+    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
+                 transition_region_width=.5):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
+                         transition_region_width=transition_region_width)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
@@ -563,6 +580,10 @@ class PrimaryVisualCortex(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float, optional
         The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
 
     Attributes
     ----------
@@ -571,6 +592,9 @@ class PrimaryVisualCortex(VentralModel):
     num_scales : int, optional
         The number of scales (spatial frequency bands) in the steerable
         pyramid we use to build the V1 representation
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
     order : int, optional
         The Gaussian derivative order used for the steerable
         filters. Default value is 3.  Note that to achieve steerability
@@ -647,8 +671,9 @@ class PrimaryVisualCortex(VentralModel):
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
-                 max_eccentricity=15):
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales)
+                 max_eccentricity=15, transition_region_width=.5):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
+                         transition_region_width=transition_region_width)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales})
         self.num_scales = num_scales
