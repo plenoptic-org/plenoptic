@@ -8,7 +8,7 @@ from torch import nn
 import matplotlib as mpl
 import numpy as np
 from ..canonical_computations.non_linearities import rectangular_to_polar_dict
-from ...tools.display import clean_up_axes, update_stem
+from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 import matplotlib.pyplot as plt
@@ -250,11 +250,12 @@ class VentralModel(nn.Module):
         we can make a separate plot for each representation type and, at
         a glance, see the eccentricity bands separated out.
 
-        We expect this to be plotted using ``plt.stem``, and return a
-        tuple ``xvals`` for use with ``plt.hlines`` to replace the base
-        line (by default, ``plt.stem`` doesn't insert a break in the
-        baseline if there's a NaN in the data, but we want that for ease
-        of visualization)
+        We expect this to be plotted using
+        ``plenoptic.tools.display.clean_stem_plot``, and return a tuple
+        ``xvals`` for use with that function to replace the base line
+        (by default, ``plt.stem`` doesn't insert a break in the baseline
+        if there's a NaN in the data, but we want that for ease of
+        visualization)
 
         Returns
         -------
@@ -286,43 +287,6 @@ class VentralModel(nn.Module):
                 rep_copy[j, new_idx[0]+i:new_idx[1]+i] = self.representation[old_idx[0]:
                                                                              old_idx[1]]
         return rep_copy, xvals
-
-    @staticmethod
-    def _plot_representation(ax, data, xvals, title, ylim):
-        r"""convenience wrapper for plotting representation
-
-        This plots the data, baseline, cleans up the axis, and sets the
-        title
-
-        Should not be called by users directly, but helper function for
-        the various plot_representation() functions
-
-        Parameters
-        ----------
-        ax : matplotlib.pyplot.axis
-            The axis to plot the data on
-        data : np.array
-            The data to plot (as a stem plot)
-        xvals : tuple
-            A 2-tuple of lists, containing the start (``xvals[0]``) and
-            stop (``xvals[1]``) x values for plotting.
-        title : str
-            The title to put on the axis
-        ylim : tuple or None, optional
-            If not None, the y-limits to use for this plot. If None, we
-            use the default, slightly adjusted so that the minimum is 0
-
-        Returns
-        -------
-        ax : matplotlib.pyplot.axis
-            The axis with the plot
-
-        """
-        ax.stem(data, basefmt=' ', use_line_collection=True)
-        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3', zorder=10)
-        ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
-        ax.set_title(title)
-        return ax
 
     def _update_plot(self, axes):
         r"""Update the information in our representation plot
@@ -539,7 +503,7 @@ class RetinalGanglionCells(VentralModel):
         rep_copy, xvals = self._representation_for_plotting()
         if title is None:
             title = 'Mean pixel intensity in each window'
-        self._plot_representation(ax, rep_copy[0], xvals, title, ylim)
+        clean_stem_plot(rep_copy[0], ax, title, ylim, xvals)
         # fig won't always be defined, but this will return the figure belonging to our axis
         return ax.figure, [ax]
 
@@ -786,10 +750,10 @@ class PrimaryVisualCortex(VentralModel):
         for i in range(self.num_scales):
             for j in range(self.order+1):
                 ax = fig.add_subplot(gs[2*i:2*(i+1), 2*j:2*(j+1)])
-                ax = self._plot_representation(ax, rep_copy[i*self.num_scales+j], xvals,
-                                               titles[i*self.num_scales+j], ylim)
+                ax = clean_stem_plot(rep_copy[i*self.num_scales+j], ax,
+                                     titles[i*self.num_scales+j], ylim, xvals)
                 axes.append(ax)
         ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
-        ax = self._plot_representation(ax, rep_copy[-1], xvals, titles[-1], ylim)
+        ax = clean_stem_plot(rep_copy[-1], ax, titles[-1], ylim, xvals)
         axes.append(ax)
         return fig, axes
