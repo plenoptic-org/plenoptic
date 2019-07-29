@@ -1,29 +1,68 @@
 import numpy as np
 import torch
 from torch import nn
-from torchvision import transforms
 import pyrtools as pt
 
 # TODO
-# tests
-# faster implementation with separable 1d conv
-# handle batch dimension and infer dimension 1,2,3
-# fft - circular
+# documentation
 # test that it does the right thing for multiple channels
+# handle batch dimension and infer dimension 1,2,3
+# faster implementation with separable 1d conv
+# fft - circular
 
-def correlate_downsample(image, filt, edges="reflect1", step=(2, 2), start=(0, 0), stop=None):
+
+def correlate_downsample(image, filt, edges="reflect1", step=2, start=(0, 0), stop=None):
 
     n_channels = image.shape[1]
 
-    if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
-        filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1, 1)
+    if len(image.shape) == 3:
 
-    if edges == 'zero':
-        return nn.functional.conv2d(image, filt, bias=None, stride=step, padding=(filt.shape[-2] // 2, filt.shape[-1] // 2), dilation=1, groups=n_channels)
+        if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
+            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1)
 
-    elif edges == 'reflect1':
-        pad = nn.ReflectionPad2d(filt.shape[-1]//2)
-        return nn.functional.conv2d(pad(image), filt, bias=None, stride=step, padding=0, dilation=1, groups=n_channels)
+        if edges == 'zero':
+            return nn.functional.conv1d(image, filt, bias=None, stride=step,
+                                        padding=(filt.shape[-1] // 2),
+                                        dilation=1, groups=n_channels)
+
+        elif edges == 'reflect1':
+            pad = nn.ReflectionPad1d(filt.shape[-1]//2)
+            return nn.functional.conv1d(pad(image), filt, bias=None, stride=step,
+                                        padding=0, dilation=1, groups=n_channels)
+
+    if len(image.shape) == 4:
+
+        if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
+            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1, 1)
+
+        if edges == 'zero':
+            return nn.functional.conv2d(image, filt, bias=None, stride=step,
+                                        padding=(filt.shape[-2] // 2, filt.shape[-1] // 2),
+                                        dilation=1, groups=n_channels)
+
+        elif edges == 'reflect1':
+            pad = nn.ReflectionPad2d(filt.shape[-1]//2)
+            return nn.functional.conv2d(pad(image), filt, bias=None, stride=step,
+                                        padding=0, dilation=1, groups=n_channels)
+
+    if len(image.shape) == 5:
+
+        edges = 'zero'
+        step = (2, 2, 2)
+
+
+        if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
+            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels, 1, 1, 1, 1)
+
+        if edges == 'zero':
+            return nn.functional.conv3d(image, filt, bias=None, stride=step,
+                                        padding=(filt.shape[-3] // 2, filt.shape[-2] // 2, filt.shape[-1] // 2),
+                                        dilation=1, groups=n_channels)
+
+        # elif edges == 'reflect1':
+        #     pad = nn.ReflectionPad3d(filt.shape[-1] // 2)
+        #     return nn.functional.conv3d(pad(image), filt, bias=None, stride=step,
+        #                                 padding=0, dilation=1, groups=n_channels)
 
 
 def upsample_convolve(image, filt, edges="reflect1", step=(2, 2), start=(0, 0), stop=None):
@@ -43,10 +82,12 @@ def upsample_convolve(image, filt, edges="reflect1", step=(2, 2), start=(0, 0), 
         pad = nn.ReflectionPad2d(1)
         return nn.functional.conv_transpose2d(pad(image), filt, bias=None, stride=step, padding=4, output_padding=1, groups=n_channels, dilation=1)
 
-def blur_downsample(x):
-    f = pt.named_filter('binom5')
-    return correlate_downsample(x, filt=np.outer(f, f))
 
-def upsample_blur(x):
+def blur_downsample(x, step=(2, 2)):
     f = pt.named_filter('binom5')
-    return upsample_convolve(x, filt=np.outer(f, f))
+    return correlate_downsample(x, filt=np.outer(f, f), step=step)
+
+
+def upsample_blur(x, step=(2, 2)):
+    f = pt.named_filter('binom5')
+    return upsample_convolve(x, filt=np.outer(f, f), step=step)
