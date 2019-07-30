@@ -422,6 +422,9 @@ class TestMetamers(object):
                            save_path=save_path)
         po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
 
+    # def test_metamer_fraction_removed(self):
+        # TODO
+
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])

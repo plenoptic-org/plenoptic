@@ -136,6 +136,7 @@ class Metamer(nn.Module):
         self.matched_representation = None
         self.optimizer = None
         self.scheduler = None
+        self.fraction_removed = None
 
         self.loss = []
         self.saved_representation = []
@@ -158,7 +159,7 @@ class Metamer(nn.Module):
         """
         return torch.norm(x - y, p=2)
 
-    def _optimizer_step(self, pbar):
+    def _closure(self):
         r"""step the optimizer, propagating the gradients, and updating our matched_image
 
         Parameters
@@ -177,12 +178,26 @@ class Metamer(nn.Module):
         """
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
-        # TODO randomness
+
+        if self.fraction_removed is not None:
+            m = self.matched_representation.flatten().shape[0]
+            idx = torch.randperm(m)
+            idx_sub = idx[:int((1 - self.fraction_removed) * m)]
+            loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
+                                           self.target_representation.flatten()[idx_sub])
+        else:
+            loss = self.objective_function(self.matched_representation, self.target_representation)
+
+        loss.backward(retain_graph=True)
+
+        return loss
+
+    def _optimizer_step(self, pbar):
+
+        self.optimizer.step(self._closure)
+        g = self.matched_image.grad.data
 
         loss = self.objective_function(self.matched_representation, self.target_representation)
-        loss.backward(retain_graph=True)
-        g = self.matched_image.grad.data
-        self.optimizer.step()
         self.scheduler.step(loss.item())
 
         # add extra info here if you want it to show up in progress bar
@@ -191,7 +206,7 @@ class Metamer(nn.Module):
         return loss
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, store_progress=False, loss_thresh=1e-4, save_progress=False,
+                   clamper=None, fraction_removed=None, loss_thresh=1e-4, store_progress=False, save_progress=False,
                    save_path='metamer.pt'):
         r"""synthesize a metamer
 
@@ -231,6 +246,15 @@ class Metamer(nn.Module):
             it stays reasonable. The classic example is making sure the
             range lies between 0 and 1, see plenoptic.RangeClamper for
             an example.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        loss_thresh : float, optional
+            The value of the loss function that we consider "good
+            enough", at which point we stop optimizing
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -240,9 +264,6 @@ class Metamer(nn.Module):
             same as True). If True or int>0, ``self.saved_image``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
-        loss_thresh : float, optional
-            The value of the loss function that we consider "good
-            enough", at which point we stop optimizing
         save_progress : bool, optional
             Whether to save the metamer as we go (so that you can check
             it periodically and so you don't lose everything if you have
@@ -277,8 +298,13 @@ class Metamer(nn.Module):
                                              device=self.target_image.device)
             self.matched_image = torch.nn.Parameter(initial_image, requires_grad=True)
 
-        # self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
-        self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, momentum=0.8)
+        if fraction_removed is not None and fraction_removed > 0 and fraction_removed < 1:
+            self.fraction_removed = fraction_removed
+
+        self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
+        self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, nesterov=True, momentum=0.8)
+        # self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, history_size=10, max_iter=4)
+
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
 
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
