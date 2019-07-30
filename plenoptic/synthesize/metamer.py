@@ -34,9 +34,8 @@ class Metamer(nn.Module):
         transforms it into a representation of some sort. We only
         require that it has a forward method, which returns the
         representation to match. However, if you want to use the various
-        plot and animate function, it should also have a
-        ``state_dict_reduced`` attribute, and ``from_state_dict_reduced``,
-        ``plot_representation``, and ``_update_plot`` functions.
+        plot and animate function, it should also have
+        ``plot_representation`` and ``_update_plot`` functions.
 
     Attributes
     ----------
@@ -277,6 +276,8 @@ class Metamer(nn.Module):
                                              device=self.target_image.device)
             self.matched_image = torch.nn.Parameter(initial_image, requires_grad=True)
 
+        while self.matched_image.ndimension() < 4:
+            self.matched_image = self.matched_image.unsqueeze(0)
         # self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
         self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, momentum=0.8)
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
@@ -288,6 +289,10 @@ class Metamer(nn.Module):
                 store_progress = 1
             self.saved_image.append(self.matched_image.clone())
             self.saved_representation.append(self.analyze(self.matched_image))
+        else:
+            if save_progress:
+                raise Exception("Can't save progress if we're not storing it! If save_progress is"
+                                " True, store_progress must be not False")
 
         pbar = tqdm(range(max_iter))
 
@@ -445,8 +450,8 @@ class Metamer(nn.Module):
         return ((matched_rep - self.target_representation) /
                 self.target_representation).detach().numpy()
 
-    def plot_representation_ratio(self, iteration=None, figsize=(5, 5), ylim=None, ax=None,
-                                  title=None):
+    def plot_representation_ratio(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
+                                  ax=None, title=None):
         r"""Plot distance ratio showing how close we are to convergence
 
         We plot ``self.representation_ratio(iteration)``
@@ -465,6 +470,8 @@ class Metamer(nn.Module):
 
         Parameters
         ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
             None, we use the current ``matched_representation``
@@ -493,9 +500,8 @@ class Metamer(nn.Module):
             warnings.warn("ax is not None, so we're ignoring figsize...")
         representation_ratio = self.representation_ratio(iteration)
         try:
-            mock_model = self.model.from_state_dict_reduced(self.model.state_dict_reduced)
-            mock_model.representation = representation_ratio
-            fig, axes = mock_model.plot_representation(figsize, ylim, ax, title)
+            fig, axes = self.model.plot_representation(figsize, ylim, ax, title, batch_idx,
+                                                       data=representation_ratio)
         except AttributeError:
             ax.plot(representation_ratio)
             fig = ax.figure
@@ -504,8 +510,8 @@ class Metamer(nn.Module):
             rescale_ylim(axes, representation_ratio)
         return fig
 
-    def plot_metamer_status(self, iteration=None, figsize=(17, 5), ylim=None,
-                            plot_representation_ratio=True, imshow_zoom=None):
+    def plot_metamer_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
+                            ylim=None, plot_representation_ratio=True, imshow_zoom=None):
         r"""Make a plot showing metamer, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -532,6 +538,10 @@ class Metamer(nn.Module):
 
         Parameters
         ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -567,10 +577,10 @@ class Metamer(nn.Module):
         else:
             n_subplots = 2
         if iteration is None:
-            image = self.matched_image
+            image = self.matched_image[batch_idx, channel_idx]
             loss_idx = len(self.loss) - 1
         else:
-            image = self.saved_image[iteration]
+            image = self.saved_image[iteration, batch_idx, channel_idx]
             if iteration < 0:
                 # in order to get the x-value of the dot to line up,
                 # need to use this work-around
@@ -579,7 +589,7 @@ class Metamer(nn.Module):
                 loss_idx = iteration
         fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
         if imshow_zoom is None:
-            imshow_zoom = axes[0].bbox.width // self.matched_image.shape[0]
+            imshow_zoom = axes[0].bbox.width // image.shape[0]
             if imshow_zoom == 0:
                 raise Exception("imshow_zoom would be 0, cannot display metamer image! Enlarge "
                                 "your figure")
@@ -590,10 +600,10 @@ class Metamer(nn.Module):
         axes[1].scatter(loss_idx, self.loss[loss_idx], c='r')
         axes[1].set_title('Loss')
         if plot_representation_ratio:
-            fig = self.plot_representation_ratio(iteration, ax=axes[2], ylim=ylim)
+            fig = self.plot_representation_ratio(batch_idx, iteration, ax=axes[2], ylim=ylim)
         return fig
 
-    def animate(self, figsize=(17, 5), framerate=10, ylim='rescale',
+    def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
                 plot_representation_ratio=True):
         r"""Animate metamer synthesis progress!
 
@@ -615,13 +625,16 @@ class Metamer(nn.Module):
         ffmpeg, imagemagick, etc). Either of these will probably take a
         reasonably long amount of time.
 
-        NOTE: This requires that the model has a ``state_dict_reduced``
-        attribute, ``from_state_dict_reduced``, ``_update_plot``, and
+        NOTE: This requires that the model has ``_update_plot``, and
         ``plot_representation`` functions in order to work nicely. It
         will work otherwise, but we'll just create a simple line plot
 
         Parameters
         ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
         figsize : tuple, optional
             The size of the figure to create. It may take a little bit
             of playing around to find a reasonable value. If you're not
@@ -670,6 +683,7 @@ class Metamer(nn.Module):
         # we have one extra frame of saved_image compared to loss, so we
         # just duplicate the loss value at the end
         loss = self.loss + [self.loss[-1]]
+        images = self.saved_image[:, batch_idx, channel_idx]
         try:
             if ylim.startswith('rescale'):
                 try:
@@ -682,33 +696,27 @@ class Metamer(nn.Module):
                 raise Exception("Don't know how to handle ylim %s!" % ylim)
         except AttributeError:
             # this way we'll never rescale
-            ylim_rescale_interval = len(self.saved_image)+1
+            ylim_rescale_interval = len(images)+1
         # initialize the figure
-        fig = self.plot_metamer_status(0, figsize, ylim, plot_representation_ratio)
+        fig = self.plot_metamer_status(batch_idx, channel_idx, 0, figsize, ylim,
+                                       plot_representation_ratio)
         # grab the artists for the first two plots (we don't need to do
         # this for the representation plot, because the model has an
         # _update_plot method that handles this for us)
         image_artist = fig.axes[0].images[0]
         scat = fig.axes[1].collections[0]
-        if plot_representation_ratio:
-            # if we can, we make a mock model that we update. this
-            # allows us to make use of its _update_plot method
-            try:
-                mock_model = self.model.from_state_dict_reduced(self.model.state_dict_reduced)
-            except AttributeError:
-                pass
 
         def movie_plot(i):
             artists = []
-            image_artist.set_data(self.saved_image[i].detach().numpy())
+            image_artist.set_data(images[i].detach().numpy())
             artists.append(image_artist)
             if plot_representation_ratio:
                 representation_ratio = self.representation_ratio(i)
                 try:
-                    mock_model.representation = representation_ratio
                     # we know that the first two axes are the image and
                     # loss, so we pass everything after that to update
-                    rep_artists = mock_model._update_plot(fig.axes[2:])
+                    rep_artists = self.model._update_plot(fig.axes[2:], batch_idx,
+                                                          data=representation_ratio)
                     try:
                         # if this is a list, we just want to include its
                         # members (not include a list of its members)...
@@ -732,7 +740,7 @@ class Metamer(nn.Module):
             return artists
 
         # don't need an init_func, since we handle initialization ourselves
-        anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_image),
+        anim = animation.FuncAnimation(fig, movie_plot, frames=len(images),
                                        blit=True, interval=1000./framerate, repeat=False)
         plt.close(fig)
         return anim

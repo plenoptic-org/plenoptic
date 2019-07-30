@@ -528,7 +528,7 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
 
 def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, transition_region_width=.5,
-                           theta_n_steps=1000, ecc_n_steps=1000):
+                           theta_n_steps=1000, ecc_n_steps=1000, flatten=True):
     r"""Create 2d pooling windows (log-eccentricity by polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -573,14 +573,23 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
         The number of times we sample theta.
     ecc_n_steps : `int`, optional
         The number of times we sample the eccentricity.
+    flatten : bool, optional
+        If True, the returned ``windows`` Tensor will be 3d, with
+        different windows indexed along the first dimension. If False,
+        it will be 4d, with the first dimension corresponding to
+        different polar angle windows and the second to different
+        eccentricity bands.
 
     Returns
     -------
     windows : `torch.tensor`
-        The 3d array of 2d windows (in polar angle and
-        eccentricity). Separate windows will be alonged the first
-        dimension and the tensor has the shape
-        ``(n_polar_windows*n_ecc_windows, ecc_n_steps, theta_n_steps)``
+        The 3d or 4d array of 2d windows (in polar angle and
+        eccentricity). Whether its 3d or 4d depends on the value of the
+        ``flatten`` arg. If True, it will be 3d, with separate windows
+        indexed along the first dimension and the shape
+        ``(n_polar_windows*n_ecc_windows, ecc_n_steps,
+        theta_n_steps)``. If False, it will be 4d, with the shape
+        ``(n_polar_windows, n_ecc_windows, ecc_n_steps, theta_n_steps)``
         (where the number of windows is inferred in this function based
         on the values of ``scaling`` and
         ``radial_to_circumferential_width``)
@@ -651,8 +660,9 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
                                                transition_region_width=transition_region_width)
     ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32, device=device)
     windows_tensor = torch.einsum('ik,jl->ijkl', [ecc_tensor, angle_tensor])
-    windows_tensor = windows_tensor.reshape((windows_tensor.shape[0] * windows_tensor.shape[1],
-                                             *windows_tensor.shape[2:]))
+    if flatten:
+        windows_tensor = windows_tensor.reshape((windows_tensor.shape[0] * windows_tensor.shape[1],
+                                                 *windows_tensor.shape[2:]))
     theta_grid, ecc_grid = np.meshgrid(theta, ecc)
     theta_grid = torch.tensor(theta_grid, dtype=torch.float32, device=device)
     ecc_grid = torch.tensor(ecc_grid, dtype=torch.float32, device=device)
@@ -696,6 +706,12 @@ class PoolingWindows(nn.Module):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    flatten_windows : bool, optional
+        If True, each ``windows`` Tensor will be 3d, with
+        different windows indexed along the first dimension. If False,
+        it will be 4d, with the first dimension corresponding to
+        different polar angle windows and the second to different
+        eccentricity bands.
 
     Attributes
     ----------
@@ -709,8 +725,8 @@ class PoolingWindows(nn.Module):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
     windows : list
-        A list of 3d tensors containing the pooling windows in which the
-        model parameters are averaged. Each entry in the list
+        A list of 3d or 4d tensors containing the pooling windows in
+        which the model parameters are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
     state_dict_reduced : dict
@@ -746,11 +762,13 @@ class PoolingWindows(nn.Module):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5):
+                 transition_region_width=.5, flatten_windows=True):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if img_res[0] != img_res[1]:
             raise Exception("For now, we only support square images!")
+        if len(img_res) != 2:
+            raise Exception("img_res must be 2d!")
         self.scaling = scaling
         self.transition_region_width = transition_region_width
         self.min_eccentricity = min_eccentricity
@@ -773,10 +791,19 @@ class PoolingWindows(nn.Module):
         for i in range(num_scales):
             windows, theta, ecc = create_pooling_windows(
                 scaling, min_eccentricity, max_eccentricity, ecc_n_steps=img_res[0] // 2**i,
-                theta_n_steps=img_res[1] // 2**i, transition_region_width=transition_region_width)
+                theta_n_steps=img_res[1] // 2**i, transition_region_width=transition_region_width,
+                flatten=flatten_windows)
 
-            windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
-                                   dtype=torch.float32, device=self.device)
+            if windows.ndimension() == 3:
+                windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
+                                       dtype=torch.float32, device=self.device)
+            elif windows.ndimension() == 4:
+                # this is a little more complicated because we want to
+                # keep the structure we have before
+                windows_tmp = []
+                for j in windows:
+                    windows_tmp.append([pt.project_polar_to_cartesian(w) for w in j])
+                windows = torch.tensor(windows_tmp, dtype=torch.float32, device=self.device)
             # need this to be float32 so we can divide the representation by it.
             self.windows.append(windows)
             # we convert from degrees to pixels here, by multiplying the
@@ -791,12 +818,16 @@ class PoolingWindows(nn.Module):
     def forward(self, x, idx=0):
         r"""Window and pool the input
 
-        We take either a 4d tensor or a dictionary of 4d tensors and
-        return a pooled version of it. If it's a 4d tensor, we return a
-        3d tensor, with windows indexed along the final dimension. If
-        it's a dictionary, we return a dictionary with the same keys,
-        with all 3d values, with windows indexed along the final
-        dimension.
+        We take an input, either a 4d tensor or a dictionary of 4d
+        tensors, and return a windowed version of it. If it's a 4d
+        tensor, we return a 5d or 6d tensor, with windows indexed along
+        the 3rd or 3rd and 4th dimension. If it's a dictionary, we
+        return a dictionary with the same keys and have changed all the
+        values to 5d or 6d tensors, with windows indexed along the 3rd
+        or 3rd and 4th dimension(s)
+
+        Whether we return a 5d or 6d tensor depends on the value of the
+        ``flatten_windows`` during initialization.
 
         If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
         list. If it's a dictionary, we assume it's keys are ``(scale,
@@ -835,10 +866,14 @@ class PoolingWindows(nn.Module):
 
         We take an input, either a 4d tensor or a dictionary of 4d
         tensors, and return a windowed version of it. If it's a 4d
-        tensor, we return a 5d tensor, with windows indexed along the
-        3rd dimension. If it's a dictionary, we return a dictionary with
-        the same keys and have changed all the values to 5d tensors,
-        with windows indexed along the 3rd dimension
+        tensor, we return a 5d or 6d tensor, with windows indexed along
+        the 3rd or 3rd and 4th dimension. If it's a dictionary, we
+        return a dictionary with the same keys and have changed all the
+        values to 5d or 6d tensors, with windows indexed along the 3rd
+        or 3rd and 4th dimension(s)
+
+        Whether we return a 5d or 6d tensor depends on the value of the
+        ``flatten_windows`` during initialization.
 
         If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
         list. If it's a dictionary, we assume it's keys are ``(scale,
@@ -866,14 +901,24 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        if self.windows[0].ndimension() == 3:
+            ein_str = 'ijkl,wkl->ijwkl'
+        elif self.windows[0].ndimension() == 4:
+            ein_str = 'ijkl,wvkl->ijwvkl'
         if isinstance(x, dict):
+            if list(x.values())[0].ndimension() != 4:
+                raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
+                                " Unsqueeze until this is true!")
             # one way to make this more general: figure out the size of
             # the tensors in x and in self.windows, and intelligently
             # lookup which should be used.
-            return dict((k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
+            return dict((k, torch.einsum(ein_str, [v, self.windows[k[0]]]))
                         for k, v in x.items())
         else:
-            return torch.einsum('ijkl,wkl->ijwkl', [x, self.windows[idx]])
+            if x.ndimension() != 4:
+                raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
+                                " Unsqueeze until this is true!")
+            return torch.einsum(ein_str, [x, self.windows[idx]])
 
     def pool(self, windowed_x, idx=0):
         r"""Pool the windowed input
@@ -882,11 +927,16 @@ class PoolingWindows(nn.Module):
         and perform a weighted average, dividing each windowed statistic
         by the sum of the window that generated it.
 
-        The input must either be a 5d tensor or a dictionary of 5d
+        The input must either be a 5d/6d tensor or a dictionary of 5d/6d
         tensors and we collapse across the spatial dimensions, returning
-        a 3d tensor or a dictionary of 3d tensors.
+        a 3d/4d tensor or a dictionary of 3d/4d tensors.
 
-        Similar to ``self.window()``, if it's a 5d tensor, we use the
+        We return a 3d tensor if the input was 5d and a 4d tensor if it
+        was 6d (since we're averaging over the last two dimensions, the
+        spatial ones). This ultimately depends on the value of the
+        ``flatten_windows`` during initialization.
+
+        Similar to ``self.window()``, if it's a tensor, we use the
         ``idx`` entry in the ``windows`` list. If it's a dictionary, we
         assume it's keys are ``(scale, orientation)`` tuples and so use
         ``windows[key[0]]`` to find the appropriately-sized window (this
@@ -957,7 +1007,8 @@ class PoolingWindows(nn.Module):
             The axis with the windows
 
         """
-        for w in self.windows[0]:
+        # this will make sure our windows tensor is 3d: windows, height, width
+        for w in self.windows[0].flatten(0, -3):
             ax.contour(w.detach(), contour_levels, colors=colors, **kwargs)
         return ax
 
