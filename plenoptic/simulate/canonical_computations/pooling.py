@@ -3,6 +3,7 @@
 """
 import math
 import torch
+import warnings
 from torch import nn
 import numpy as np
 import pyrtools as pt
@@ -765,10 +766,14 @@ class PoolingWindows(nn.Module):
                  transition_region_width=.5, flatten_windows=True):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if img_res[0] != img_res[1]:
-            raise Exception("For now, we only support square images!")
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
+        if img_res[0] != img_res[1]:
+            warnings.warn("The windows must be created square initially, so we'll do that and then"
+                          " crop them down to the proper size")
+            window_res = 2*[np.max(img_res)]
+        else:
+            window_res = img_res
         self.scaling = scaling
         self.transition_region_width = transition_region_width
         self.min_eccentricity = min_eccentricity
@@ -789,11 +794,13 @@ class PoolingWindows(nn.Module):
                                    'max_eccentricity': max_eccentricity,
                                    'transition_region_width': transition_region_width}
         for i in range(num_scales):
+            scaled_window_res = [np.ceil(j / 2**i) for j in window_res]
             windows, theta, ecc = create_pooling_windows(
-                scaling, min_eccentricity, max_eccentricity, ecc_n_steps=img_res[0] // 2**i,
-                theta_n_steps=img_res[1] // 2**i, transition_region_width=transition_region_width,
-                flatten=flatten_windows)
+                scaling, min_eccentricity, max_eccentricity, ecc_n_steps=scaled_window_res[0],
+                theta_n_steps=scaled_window_res[1], flatten=flatten_windows,
+                transition_region_width=transition_region_width)
 
+            # need this to be float32 so we can divide the representation by it.
             if windows.ndimension() == 3:
                 windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
                                        dtype=torch.float32, device=self.device)
@@ -804,7 +811,12 @@ class PoolingWindows(nn.Module):
                 for j in windows:
                     windows_tmp.append([pt.project_polar_to_cartesian(w) for w in j])
                 windows = torch.tensor(windows_tmp, dtype=torch.float32, device=self.device)
-            # need this to be float32 so we can divide the representation by it.
+            if img_res[0] != window_res[0]:
+                slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[0], img_res[0], i)
+                windows = windows[..., slice_vals[0]:slice_vals[1], :]
+            elif img_res[1] != window_res[1]:
+                slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[1], img_res[1], i)
+                windows = windows[..., slice_vals[0]:slice_vals[1]]
             self.windows.append(windows)
             # we convert from degrees to pixels here, by multiplying the
             # width in degrees by (radius in pixels) / (radius in degrees)
@@ -814,6 +826,47 @@ class PoolingWindows(nn.Module):
             self.window_width_pixels.append(dict((k, [i*deg_to_pix for i in v]) for k, v in
                                                  self.window_width_degrees.copy().items()))
         self.n_eccentricity_bands = int(self.windows[0].shape[0] // self.n_polar_windows)
+
+    @staticmethod
+    def _get_slice_vals(scaled_window_res, img_res, scale):
+        r"""Helper function to find the values to use when slicing windows down to size
+
+        If we have a non-square image, we must create the windows as a
+        square array and then slice it down to the size of the image,
+        retaining the center of the windows array.
+
+        The one wrinkle on this is that we also sometimes need to do
+        this for different scales, so we need to make sure that
+        'down-sampled' windows we create have the same shape as those
+        created by our pyramid methods. It looks like that's always the
+        ceiling of shape/2**scale. NOTE: This means it will probably not
+        work if you're using something else that has multiple scales
+        that doesn't use our pyramid methods and thus ends up with
+        slightly differently sized down-sampled components. On images
+        that are a power of 2, this shouldn't be an issue regardless
+
+        This will only be for one dimension; because of how we've
+        constructed the windows, we know they only need to be cut down
+        in a single dimension
+
+        Parameters
+        ----------
+        scaled_window_res : float
+            The size of the square 'down-sampled'/scaled window we
+            created (in one dimension; this should not be a tuple).
+        img_res : float
+            The size of the 'down-sampled'/scaled image we want to match
+            (in one dimension; this should not be a tuple).
+
+        Returns
+        -------
+        slice_vals : list
+            A list of ints, use this to slice the window down correctly, e.g.,
+            ``window[..., slice_vals[0]:slice_vals[1]]``
+
+        """
+        slice_vals = (scaled_window_res - np.ceil(img_res/2**scale)) / 2
+        return [int(np.floor(slice_vals)), -int(np.ceil(slice_vals))]
 
     def forward(self, x, idx=0):
         r"""Window and pool the input

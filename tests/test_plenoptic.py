@@ -206,6 +206,16 @@ class TestPooling(object):
                                                   transition_region_width=1, flatten_windows=False)
         pooling(im)
 
+    def test_PoolingWindows_nonsquare(self):
+        # test PoolingWindows with weirdly-shaped iamges
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device)
+        for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
+            tmp = im[:sh[0], :sh[1]].unsqueeze(0).unsqueeze(0)
+            rgc = po.simul.RetinalGanglionCells(.9, tmp.shape[2:])
+            rgc(tmp)
+            v1 = po.simul.RetinalGanglionCells(.9, tmp.shape[2:])
+            v1(tmp)
 
 # class TestSpectral(object):
 #
