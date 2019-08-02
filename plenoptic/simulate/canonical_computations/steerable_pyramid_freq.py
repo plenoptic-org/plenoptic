@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 # from ..config import *
 dtype = torch.float32
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Steerable_Pyramid_Freq(nn.Module):
@@ -73,7 +72,13 @@ class Steerable_Pyramid_Freq(nn.Module):
     .. _webpage: https://www.cns.nyu.edu/~eero/steerpyr/
     """
 
-    def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False, store_unoriented_bands=False, return_list=False):
+    def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False,
+                 store_unoriented_bands=False, return_list=False, device=None):
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
+
         super(Steerable_Pyramid_Freq, self).__init__()
 
         self.order = order
@@ -130,8 +135,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
 
-        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None].to(device)
-        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None].to(device)
+        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None].to(self.device)
+        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None].to(self.device)
 
 
     def forward(self, x):
@@ -188,13 +193,13 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             himask = pointOp(log_rad, Yrcos, Xrcos)
             self._himasks.append(himask)
-            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(device)
+            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(self.device)
 
             anglemasks = []
             for b in range(self.num_orientations):
                 anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(device)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(self.device)
 
                 # bandpass filtering
                 banddft = lodft * anglemask * himask
@@ -236,7 +241,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
             lomask = pointOp(log_rad, YIrcos, Xrcos)
             self._lomasks.append(lomask)
-            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(device)
+            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(self.device)
             # convolution in spatial domain
             lodft = lodft * lomask
 
