@@ -647,7 +647,6 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
        1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
                                                       scaling=scaling)
     n_polar_windows = calc_angular_n_windows(ecc_window_width / radial_to_circumferential_ratio)
@@ -655,18 +654,18 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     # the user specified. the constraint that it's an integer is more important
     theta, angle_tensor = polar_angle_windows(round(n_polar_windows), theta_n_steps,
                                               transition_region_width)
-    angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32, device=device)
+    angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
     ecc, ecc_tensor = log_eccentricity_windows(None, ecc_window_width, min_eccentricity,
                                                max_eccentricity, ecc_n_steps,
                                                transition_region_width=transition_region_width)
-    ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32, device=device)
+    ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
     windows_tensor = torch.einsum('ik,jl->ijkl', [ecc_tensor, angle_tensor])
     if flatten:
         windows_tensor = windows_tensor.reshape((windows_tensor.shape[0] * windows_tensor.shape[1],
                                                  *windows_tensor.shape[2:]))
     theta_grid, ecc_grid = np.meshgrid(theta, ecc)
-    theta_grid = torch.tensor(theta_grid, dtype=torch.float32, device=device)
-    ecc_grid = torch.tensor(ecc_grid, dtype=torch.float32, device=device)
+    theta_grid = torch.tensor(theta_grid, dtype=torch.float32)
+    ecc_grid = torch.tensor(ecc_grid, dtype=torch.float32)
     return windows_tensor, theta_grid, ecc_grid
 
 
@@ -765,7 +764,6 @@ class PoolingWindows(nn.Module):
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
                  transition_region_width=.5, flatten_windows=True):
         super().__init__()
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
         if img_res[0] != img_res[1]:
@@ -803,14 +801,14 @@ class PoolingWindows(nn.Module):
             # need this to be float32 so we can divide the representation by it.
             if windows.ndimension() == 3:
                 windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
-                                       dtype=torch.float32, device=self.device)
+                                       dtype=torch.float32)
             elif windows.ndimension() == 4:
                 # this is a little more complicated because we want to
                 # keep the structure we have before
                 windows_tmp = []
                 for j in windows:
                     windows_tmp.append([pt.project_polar_to_cartesian(w) for w in j])
-                windows = torch.tensor(windows_tmp, dtype=torch.float32, device=self.device)
+                windows = torch.tensor(windows_tmp, dtype=torch.float32)
             if img_res[0] != window_res[0]:
                 slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[0], img_res[0], i)
                 windows = windows[..., slice_vals[0]:slice_vals[1], :]

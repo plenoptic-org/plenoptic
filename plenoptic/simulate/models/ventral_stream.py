@@ -106,7 +106,7 @@ class VentralModel(nn.Module):
                                              flatten_windows=False)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
-                     'min_eccentricity', 'max_eccentricity', 'device']:
+                     'min_eccentricity', 'max_eccentricity']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
