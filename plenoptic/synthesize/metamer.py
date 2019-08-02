@@ -8,6 +8,7 @@ from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 import pyrtools as pt
 from ..tools.display import rescale_ylim
+from ..tools.data import to_numpy
 from matplotlib import animation
 
 
@@ -447,8 +448,8 @@ class Metamer(nn.Module):
             matched_rep = self.saved_representation[iteration]
         else:
             matched_rep = self.matched_representation
-        return ((matched_rep - self.target_representation) /
-                self.target_representation).detach().numpy()
+        return to_numpy(((matched_rep - self.target_representation) /
+                         self.target_representation).detach())
 
     def plot_representation_ratio(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):
@@ -593,7 +594,7 @@ class Metamer(nn.Module):
             if imshow_zoom == 0:
                 raise Exception("imshow_zoom would be 0, cannot display metamer image! Enlarge "
                                 "your figure")
-        fig = pt.imshow(image.detach().numpy(), ax=axes[0], title='Metamer', zoom=imshow_zoom)
+        fig = pt.imshow(to_numpy(image.detach()), ax=axes[0], title='Metamer', zoom=imshow_zoom)
         axes[0].xaxis.set_visible(False)
         axes[0].yaxis.set_visible(False)
         axes[1].semilogy(self.loss)
@@ -710,7 +711,7 @@ class Metamer(nn.Module):
 
         def movie_plot(i):
             artists = []
-            image_artist.set_data(images[i].detach().numpy())
+            image_artist.set_data(to_numpy(images[i].detach()))
             artists.append(image_artist)
             if plot_representation_ratio:
                 representation_ratio = self.representation_ratio(i)
