@@ -147,6 +147,7 @@ class VentralModel(nn.Module):
         """
         self.PoolingWindows.to(*args, **kwargs)
         nn.Module.to(self, *args, **kwargs)
+        return self
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
         r"""plot the pooling windows on an image.
