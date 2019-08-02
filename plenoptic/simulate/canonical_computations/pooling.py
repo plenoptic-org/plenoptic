@@ -861,8 +861,8 @@ class PoolingWindows(nn.Module):
         Returns:
             Module: self
         """
-        for w in self.windows:
-            w = w.to(*args, **kwargs)
+        for i, w in enumerate(self.windows):
+            self.windows[i] = w.to(*args, **kwargs)
         return self
 
     @staticmethod
