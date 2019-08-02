@@ -691,6 +691,8 @@ class Metamer(nn.Module):
                 except ValueError:
                     # then there's nothing we can convert to an int there
                     ylim_rescale_interval = int((self.saved_representation.shape[0] - 1) // 10)
+                    if ylim_rescale_interval == 0:
+                        ylim_rescale_interval = int(self.saved_representation.shape[0] - 1)
                 ylim = None
             else:
                 raise Exception("Don't know how to handle ylim %s!" % ylim)
