@@ -7,7 +7,7 @@ import numpy as np
 from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 import pyrtools as pt
-from ..tools.display import rescale_ylim
+from ..tools.display import rescale_ylim, plot_representation
 from ..tools.data import to_numpy
 from matplotlib import animation
 
@@ -497,21 +497,9 @@ class Metamer(nn.Module):
             The figure containing the plot
 
         """
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-        else:
-            warnings.warn("ax is not None, so we're ignoring figsize...")
         representation_ratio = self.representation_ratio(iteration)
-        try:
-            fig, axes = self.model.plot_representation(figsize, ylim, ax, title, batch_idx,
-                                                       data=representation_ratio)
-        except AttributeError:
-            ax.plot(representation_ratio)
-            fig = ax.figure
-            axes = [ax]
-        if ylim is None:
-            rescale_ylim(axes, representation_ratio)
-        return fig
+        return plot_representation(self.model, representation_ratio, ax, figsize, ylim,
+                                   batch_idx, title)
 
     def plot_metamer_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
                             ylim=None, plot_representation_ratio=True, imshow_zoom=None):

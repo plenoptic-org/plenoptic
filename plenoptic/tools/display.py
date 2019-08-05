@@ -266,3 +266,80 @@ def update_plot(axes, data):
         sc = update_stem(ax.containers[0], d)
         stem_artists.extend([sc.markerline, sc.stemlines])
     return stem_artists
+
+
+def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=None, batch_idx=0,
+                        title=''):
+    r"""Helper function for plotting model representation
+
+    We are trying to plot ``data`` on ``ax``, using
+    ``model.plot_representation`` method, if it has it, and otherwise
+    default to a function that makes sense based on the shape of ``data``.
+
+    All of these arguments are optional, but at least some of them need
+    to be set:
+
+    - If ``model`` is ``None``, we fall-back to a type of plot based on
+      the shape of ``data``. If it looks image-like, we'll use
+      ``pyrtools.imshow`` and if it looks vector-like, we'll use
+      ``plenoptic.clean_stem_plot``
+
+    - If ``data`` is ``None``, we can only do something if
+      ``model.plot_representation`` has some default behavior when
+      ``data=None``; this is probably to plot its own ``representation``
+      attribute. Thus, this will raise an Exception if both ``model``
+      and ``data`` are ``None``, because we have no idea what to plot
+      then.
+
+    - If ``ax`` is ``None``, we create a one-subplot figure using
+      ``figsize``. If ``ax`` is not ``None``, we therefore ignore
+      ``figsize``.
+
+    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the
+      axes' y-limits to be ``(-y_max, y_max)``, where
+      ``y_max=np.abs(data).max()``
+
+    Parameters
+    ----------
+    model : torch.nn.Module or None, optional
+        A differentiable model that tells us how to plot ``data``. See
+        above for behavior if ``None``.
+    data : array_like or None, optional
+        The data to plot. See above for behavior if ``None``.
+    ax : matplotlib.pyplot.axis or None, optional
+        The axis to plot on. See above for behavior if ``None``.
+    figsize : tuple, optional
+        The size of the figure to create. Ignored if ``ax`` is not
+        ``None``.
+    ylim : tuple or None, optional
+        If not None, the y-limits to use for this plot. See above for
+        behavior if ``None``.
+    batch_idx : int, optional
+        Which index to take from the batch dimension (the first one)
+    title : str, optional
+        The title to put above this axis. If you want no title, pass
+        the empty string (``''``)
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The figure containing the plot
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+    else:
+        warnings.warn("ax is not None, so we're ignoring figsize...")
+    try:
+        # no point in passing figsize, because we've already created
+        # and are passing an axis or are passing the user-specified one
+        fig, axes = model.plot_representation(ylim=ylim, ax=ax, title=title,
+                                              batch_idx=batch_idx,
+                                              data=data)
+    except AttributeError:
+        ax.plot(data)
+        fig = ax.figure
+        axes = [ax]
+    if ylim is None:
+        rescale_ylim(axes, data)
+    return fig
