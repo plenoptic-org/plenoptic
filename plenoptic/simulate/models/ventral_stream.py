@@ -2,7 +2,6 @@
 
 """
 import torch
-import itertools
 import warnings
 from torch import nn
 import matplotlib as mpl
@@ -294,6 +293,9 @@ class VentralModel(nn.Module):
         windows onto one dimension, putting a NaN between each
         eccentricity band.
 
+        We allow an optional ``data`` argument. If set, we use this data
+        instead of ``self.representation``.
+
         We expect this to be plotted using
         ``plenoptic.tools.display.clean_stem_plot``, and return a tuple
         ``xvals`` for use with that function to replace the base line
@@ -531,6 +533,73 @@ class RetinalGanglionCells(VentralModel):
         # we keep the batch and channel indices, only flattening the
         # ones after that
         return self.representation.flatten(2)
+
+    def _representation_for_plotting(self, batch_idx=0, data=None):
+        r"""Get data into the form required for plotting
+
+        RetinalGanglionCell objects' representation has a lot of
+        structure: it consists of the pixel intensity, averaged per
+        window. And the windows themselves are structured: we have
+        several different eccentricity bands, each of which contains the
+        same number of angular windows. We want to use this structure
+        when plotting the representation, as it makes it easier to see
+        what's goin on.
+
+        The representation is either a 4d tensor, with (batch, channel,
+        polar angle windows, eccentricity bands). We transform those 4d
+        tensors into 1d tensors for ease of plotting, picking one of the
+        batches (we only ever have 1 channel) and collapsing the
+        different windows onto one dimension, putting a NaN between each
+        eccentricity band.
+
+        We allow an optional ``data`` argument. If set, we use this data
+        instead of ``self.representation``. In addition to being
+        structured like the ``self.representation`` 4d tensor, it can
+        also be a 3d array or tensor, like this object's ``forward``
+        method returns (and thus is stored by the various synthesis
+        objects). This function then transforms that array into the 4d
+        tensor we expect (taking advantage of the fact that, from
+        ``self.representation``, we know what shape it should be) and
+        passes it on to the parent class's
+        ``_representation_for_plotting`` to finish it up.
+
+        We expect this to be plotted using
+        ``plenoptic.tools.display.clean_stem_plot``, and return a tuple
+        ``xvals`` for use with that function to replace the base line
+        (by default, ``plt.stem`` doesn't insert a break in the baseline
+        if there's a NaN in the data, but we want that for ease of
+        visualization)
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array,or None, optional
+            The data to get in shape. If None, we use
+            ``self.representation``. Else, should be a 4d tensor, like
+            ``self.representation``, or a 3d tensor, like the value
+            returned by ``self.forward()`` (e.g., as returned by
+            ``metamer.representation_ratio()``).
+
+        Returns
+        -------
+        representation_copy : np.array
+            The expanded copy of the representation, which is either a
+            1d tensor (if ``data``/``self.representation`` was a tensor)
+            or a dict full of 1d tensors, with np.nan inserted between
+            each eccentricity band
+        xvals : tuple
+            A 2-tuple of lists, containing the start (``xvals[0]``) and
+            stop (``xvals[1]``) x values for plotting. For use with
+            plt.hlines, like so: ``plt.hlines(len(xvals[0])*[0],
+            xvals[0], xvals[1])``
+
+        """
+        if data is not None and len(data.shape) == 3:
+            # then this has the structure returned by ``self.forward``
+            # and we need to reshape it into 4d
+            data = data.reshape(self.representation.shape)
+        return super()._representation_for_plotting(batch_idx, data)
 
     def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
@@ -807,10 +876,10 @@ class PrimaryVisualCortex(VentralModel):
             Which index to take from the batch dimension (the first one)
         data : torch.Tensor, np.array, dict or None, optional
             The data to plot. If None, we use
-            ``self.representation``. Else, should look like
-            ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
-            another instance of this class).
+            ``self.representation``. Else, should be a dictionary of 4d
+            tensors like ``self.representation``, or a 3d tensor, like
+            the value returned by ``self.forward()`` (e.g., as returned
+            by ``metamer.representation_ratio()``).
 
         Returns
         -------
