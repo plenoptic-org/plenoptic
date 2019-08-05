@@ -1058,10 +1058,27 @@ class PoolingWindows(nn.Module):
             # one way to make this more general: figure out the size of
             # the tensors in x and in self.windows, and intelligently
             # lookup which should be used.
-            return dict((k, v.sum((-1, -2)) / self.windows[k[0]].sum((-1, -2)))
+            divisor = {}
+            # If a window is completely off the image, then the sum of
+            # its elements will be 0, which gives us a nan when we
+            # divide by it. To avoid this, we set this to 1 (the
+            # corresponding numerator will be 0, so it doesn't matter
+            # what we set it to)
+            for k in windowed_x.keys():
+                d = self.windows[k[0]].sum((-1, -2))
+                d[d == 0] = 1
+                divisor[k] = d
+            return dict((k, v.sum((-1, -2)) / divisor[k])
                         for k, v in windowed_x.items())
         else:
-            return windowed_x.sum((-1, -2)) / self.windows[idx].sum((-1, -2))
+            divisor = self.windows[idx].sum((-1, -2))
+            # If a window is completely off the image, then the sum of
+            # its elements will be 0, which gives us a nan when we
+            # divide by it. To avoid this, we set this to 1 (the
+            # corresponding numerator will be 0, so it doesn't matter
+            # what we set it to)
+            divisor[divisor == 0] = 1
+            return windowed_x.sum((-1, -2)) / divisor
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
         r"""plot the pooling windows on an image.
