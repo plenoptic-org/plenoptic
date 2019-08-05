@@ -442,15 +442,18 @@ class Steerable_Pyramid_Freq(nn.Module):
         #Recursively generate the reconstruction - function starts with fine scales going down to
         #coarse and then the reconstruction is built recursively from the coarse scale up
 
-        recondft = self._recon_levels(pyr_coeffs, scale, log_rad, Xrcos, Yrcos, angle)
+        recondft = self._recon_levels(pyr_coeffs,recon_keys, scale, log_rad, Xrcos, Yrcos, angle)
 
         #generate highpass residual Reconstruction
-        hidft = torch.rfft(pyr_coeffs['residual_highpass'], signal_ndim=2, onesided=False)
-        hidft = batch_fftshift2d(hidft)
-        #output dft is the sum of the recondft from the recursive function times the lomask (low pass component)
-        #with the highpass dft * the highpass mask
+        if 'residual_highpass' in recon_keys:
+            hidft = torch.rfft(pyr_coeffs['residual_highpass'], signal_ndim=2, onesided=False)
+            hidft = batch_fftshift2d(hidft)
 
-        outdft = recondft*lo0mask + hidft * hi0mask
+            #output dft is the sum of the recondft from the recursive function times the lomask (low pass component)
+            #with the highpass dft * the highpass mask
+            outdft = recondft * lo0mask + hidft * hi0mask
+        else:
+            outdft = recondft*lo0mask
 
         #get output reconstruction by inverting the fft
         reconstruction = batch_ifftshift2d(outdft)
@@ -461,17 +464,21 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         return reconstruction
 
-    def _recon_levels(self, pyr_coeffs, scale, log_rad, Xrcos, Yrcos, angle):
+    def _recon_levels(self, pyr_coeffs, recon_keys, scale, log_rad, Xrcos, Yrcos, angle):
         '''
         Recursive function to build the reconstruction in each layer
         '''
 
-        # Base case, return the low-pass residual
+        #base case, return the low-pass residual
 
         if scale == self.num_scales:
-            lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided = False)
-            lodft = batch_fftshift2d(lodft)
+            if 'residual_lowpass' in recon_keys:
+                lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided = False)
+                lodft = batch_fftshift2d(lodft)
+            else:
+                lodft = torch.zeros_like(pyr_coeffs['residual_lowpass'])
             return lodft
+
 
         Xrcos -= np.log2(2)
 
@@ -487,20 +494,21 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         orientdft = torch.zeros_like(pyr_coeffs[(scale,0)])
         for b in range(self.num_orientations):
-            anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi * b/self.num_orientations)
-            anglemask = torch.tensor(anglemask, dtype=dtype)[None, None, :, :, None].to(device)
+            if (scale, b) in recon_keys:
+                anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi * b/self.num_orientations)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, None, :, :, None].to(device)
 
-            banddft = torch.fft(pyr_coeffs[(scale,b)], signal_ndim=2)
-            banddft = batch_fftshift2d(banddft)
+                banddft = torch.fft(pyr_coeffs[(scale,b)], signal_ndim=2)
+                banddft = batch_fftshift2d(banddft)
 
-            banddft = banddft * anglemask * himask
-            banddft = torch.unbind(banddft, -1)
-            # (x+yi)(u+vi) = (xu-yv) + (xv+yu)i
-            complex_const = np.power(np.complex(0, 1), self.order)
-            banddft_real = complex_const.real * banddft[0] - complex_const.imag * banddft[1]
-            banddft_imag = complex_const.real * banddft[1] + complex_const.imag * banddft[0]
-            banddft = torch.stack((banddft_real, banddft_imag), -1)
-            orientdft = orientdft + banddft
+                banddft = banddft * anglemask * himask
+                banddft = torch.unbind(banddft, -1)
+                # (x+yi)(u+vi) = (xu-yv) + (xv+yu)i
+                complex_const = np.power(np.complex(0, 1), self.order)
+                banddft_real = complex_const.real * banddft[0] - complex_const.imag * banddft[1]
+                banddft_imag = complex_const.real * banddft[1] + complex_const.imag * banddft[0]
+                banddft = torch.stack((banddft_real, banddft_imag), -1)
+                orientdft = orientdft + banddft
 
         # create the upsampled mask for the lowpass component
         upsample_dims = np.array(pyr_coeffs[(scale,0)].shape[2:4])
