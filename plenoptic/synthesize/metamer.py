@@ -375,7 +375,7 @@ class Metamer(nn.Module):
                     'saved_image': self.saved_image}, file_path)
 
     @classmethod
-    def load(cls, file_path, model_constructor=None):
+    def load(cls, file_path, model_constructor=None, map_location='cpu'):
         r"""load all relevant stuff from a .pt file
 
         Parameters
@@ -391,6 +391,12 @@ class Metamer(nn.Module):
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
             VentralModel class for an example of this.
+        map_location : str, optional
+            map_location argument to pass to ``torch.load``. If you save
+            stuff that was being run on a GPU and are loading onto a
+            CPU, you'll need this to make sure everything lines up
+            properly. This should be structured like the str you would
+            pass to ``torch.device``
 
         Returns
         -------
@@ -418,7 +424,7 @@ class Metamer(nn.Module):
                                                  po.simul.RetinalGanglionCells.from_state_dict_reduced)
 
         """
-        tmp_dict = torch.load(file_path)
+        tmp_dict = torch.load(file_path, map_location=map_location)
         model = tmp_dict.pop('model')
         if isinstance(model, dict):
             # then we've got a state_dict_reduced and we need the model_constructor
