@@ -904,7 +904,7 @@ class PrimaryVisualCortex(VentralModel):
             data = data_dict
         return super()._representation_for_plotting(batch_idx, data)
 
-    def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, titles=None, batch_idx=0,
+    def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
         r"""plot the representation of the V1 model
 
@@ -936,12 +936,12 @@ class PrimaryVisualCortex(VentralModel):
             If not None, the axis to plot this representation on (in
             which case we ignore ``figsize``). If None, we create our
             own figure to hold it
-        titles : list or None, optional
+        title : list or None, optional
             A list of strings, each of which is the title to put above
             the subplots. If None, we use the default choice, which
             specifies the scale and orientation of each plot (and the
             mean intensity). If a list, must have the right number of
-            titles: ``self.num_scales*(self.order+1)+1`` (the last one
+            title: ``self.num_scales*(self.order+1)+1`` (the last one
             is ``self.mean_luminance``)
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
@@ -976,11 +976,15 @@ class PrimaryVisualCortex(VentralModel):
             gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
             fig = ax.figure
         rep_copy, xvals = self._representation_for_plotting(batch_idx, data)
-        for k, v in rep_copy.items():
+        for i, (k, v) in enumerate(rep_copy.items()):
             if isinstance(k, tuple):
-                title = "scale %02d, band%02d" % k
+                try:
+                    t = title[i]
+                except TypeError:
+                    # in this case, title is None
+                    t = "scale %02d, band%02d" % k
                 ax = fig.add_subplot(gs[2*k[0]:2*(k[0]+1), 2*k[1]:2*(k[1]+1)])
-                ax = clean_stem_plot(v, ax, title, ylim, xvals)
+                ax = clean_stem_plot(v, ax, t, ylim, xvals)
                 axes.append(ax)
             else:
                 ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
