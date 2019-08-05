@@ -310,7 +310,10 @@ class Metamer(nn.Module):
                 # matched_image; therefore the iteration where loss is
                 # NaN is the one *after* the iteration where
                 # matched_image (and thus matched_representation)
-                # started to have NaN values
+                # started to have NaN values. this will fail if it hits
+                # a nan before store_progress iterations (because then
+                # saved_image/saved_representation only has a length of
+                # 1) but in that case, you have more severe problems
                 self.matched_image = nn.Parameter(self.saved_image[-2])
                 self.matched_representation = nn.Parameter(self.saved_representation[-2])
                 break
