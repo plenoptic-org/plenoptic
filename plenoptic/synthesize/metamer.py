@@ -586,7 +586,8 @@ class Metamer(nn.Module):
                 loss_idx = iteration
         fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
         if imshow_zoom is None:
-            imshow_zoom = axes[0].bbox.width // image.shape[0]
+            # image.shape[0] is the height of the image
+            imshow_zoom = axes[0].bbox.height // image.shape[0]
             if imshow_zoom == 0:
                 raise Exception("imshow_zoom would be 0, cannot display metamer image! Enlarge "
                                 "your figure")
