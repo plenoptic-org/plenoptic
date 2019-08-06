@@ -508,7 +508,8 @@ class Metamer(nn.Module):
                                    batch_idx, title)
 
     def plot_metamer_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
-                            ylim=None, plot_representation_ratio=True, imshow_zoom=None):
+                            ylim=None, plot_representation_ratio=True, imshow_zoom=None,
+                            vrange=(0, 1)):
         r"""Make a plot showing metamer, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -562,6 +563,9 @@ class Metamer(nn.Module):
             attempt to find the best value ourselves. Else, if >1, must
             be an integer.  If <1, must be 1/d where d is a a divisor of
             the size of the largest image.
+        vrange : tuple or str, optional
+            The vrange option to pass to ``pyrtools.imshow``. See that
+            function for details
 
         Returns
         -------
@@ -591,7 +595,8 @@ class Metamer(nn.Module):
             if imshow_zoom == 0:
                 raise Exception("imshow_zoom would be 0, cannot display metamer image! Enlarge "
                                 "your figure")
-        fig = pt.imshow(to_numpy(image), ax=axes[0], title='Metamer', zoom=imshow_zoom)
+        fig = pt.imshow(to_numpy(image), ax=axes[0], title='Metamer', zoom=imshow_zoom,
+                        vrange=vrange)
         axes[0].xaxis.set_visible(False)
         axes[0].yaxis.set_visible(False)
         axes[1].semilogy(self.loss)
