@@ -144,6 +144,22 @@ class TestNonLinearities(object):
         y = spc(x)
         energy, state = po.simul.non_linearities.local_gain_control(y)
 
+    def test_normalize(self):
+        x = po.make_basic_stimuli()
+        # should operate on both of these, though it will do different
+        # things
+        po.simul.non_linearities.normalize(x[0].flatten())
+        po.simul.non_linearities.normalize(x[0].flatten(), 1)
+        po.simul.non_linearities.normalize(x[0])
+        po.simul.non_linearities.normalize(x[0], 1)
+        po.simul.non_linearities.normalize(x[0], sum_dim=1)
+
+    def test_normalize_dict(self):
+        x = po.make_basic_stimuli()
+        v1 = po.simul.PrimaryVisualCortex(1, x.shape[-2:])
+        v1(x[0])
+        po.simul.non_linearities.normalize_dict(v1.representation)
+
 
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
@@ -257,7 +273,7 @@ class TestVentralStream(object):
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc(im)
         rgc.save_reduced(op.join(tmp_path, 'test_rgc_save_load.pt'))
         rgc_copy = po.simul.RetinalGanglionCells.load_reduced(op.join(tmp_path,
@@ -287,6 +303,18 @@ class TestVentralStream(object):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        v1(im)
+        _ = v1.plot_window_sizes('pixels')
+        for i in range(v1.num_scales):
+            _ = v1.plot_window_sizes('pixels', i)
+        v1.plot_representation()
+        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation(ax=axes[1])
+
+    def test_v1_norm(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize=True)
         v1(im)
         _ = v1.plot_window_sizes('pixels')
         for i in range(v1.num_scales):

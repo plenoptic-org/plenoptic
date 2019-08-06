@@ -5,8 +5,7 @@ import torch
 import warnings
 from torch import nn
 import matplotlib as mpl
-import numpy as np
-from ..canonical_computations.non_linearities import rectangular_to_polar_dict
+from ..canonical_computations.non_linearities import rectangular_to_polar_dict, normalize_dict
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
@@ -686,7 +685,7 @@ class PrimaryVisualCortex(VentralModel):
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
-                 max_eccentricity=15, transition_region_width=.5, device=None):
+                 max_eccentricity=15, transition_region_width=.5, device=None, normalize=False):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
@@ -702,6 +701,7 @@ class PrimaryVisualCortex(VentralModel):
         self.windowed_complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
+        self.normalize = normalize
 
     def forward(self, image):
         r"""Generate the V1 representation of an image
@@ -731,6 +731,10 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = self.PoolingWindows(image)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
+        if self.normalize:
+            # the first one of these is the magnitude, which we don't
+            # need
+            self.representation = normalize_dict(self.representation)[1]
         return torch.cat(list(self.representation.values()), dim=2)
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
