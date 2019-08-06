@@ -766,6 +766,19 @@ class PoolingWindows(nn.Module):
             window_res = 2*[np.max(img_res)]
         else:
             window_res = img_res
+        # We construct the windows in polar space and then interpolate
+        # them back into cartesian. therefore, we need to construct them
+        # further out and then crop down. For example, if we want to
+        # create windows for a 256 x 256 image that runs out to 15
+        # degrees eccentricity, setting max_eccentricity to 15 and the
+        # number of theta and eccentricity steps to 256 each would mean
+        # we have no idea what to do in the far corners; we'd only
+        # properly create windows that fill a circle with diameter
+        # 256. so we create windows that go out to the furthest possible
+        # distance, sqrt(2) times the width of the image. we then
+        # similarly need to increase the max_eccentricity for this by
+        # sqrt(2) for the same reason
+        window_res = [int(np.ceil(i*np.sqrt(2))) for i in window_res]
         self.scaling = scaling
         self.transition_region_width = transition_region_width
         self.min_eccentricity = min_eccentricity
@@ -788,8 +801,10 @@ class PoolingWindows(nn.Module):
         for i in range(num_scales):
             scaled_window_res = [np.ceil(j / 2**i) for j in window_res]
             windows, theta, ecc = create_pooling_windows(
-                scaling, min_eccentricity, max_eccentricity, ecc_n_steps=scaled_window_res[0],
-                theta_n_steps=scaled_window_res[1],
+                # for why we're multiplying max_eccentricity by sqrt(2),
+                # see the long comment above
+                scaling, min_eccentricity, max_eccentricity*np.sqrt(2),
+                ecc_n_steps=scaled_window_res[0], theta_n_steps=scaled_window_res[1],
                 transition_region_width=transition_region_width)
 
             # need this to be float32 so we can divide the representation by it.
@@ -798,7 +813,7 @@ class PoolingWindows(nn.Module):
             if img_res[0] != window_res[0]:
                 slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[0], img_res[0], i)
                 windows = windows[..., slice_vals[0]:slice_vals[1], :]
-            elif img_res[1] != window_res[1]:
+            if img_res[1] != window_res[1]:
                 slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[1], img_res[1], i)
                 windows = windows[..., slice_vals[0]:slice_vals[1]]
             # this gets rid of the windows that are off the edge of the
