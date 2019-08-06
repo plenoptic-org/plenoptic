@@ -10,6 +10,7 @@ from ..canonical_computations.non_linearities import rectangular_to_polar_dict
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ...tools.data import to_numpy
 import matplotlib.pyplot as plt
 
 
@@ -101,8 +102,7 @@ class VentralModel(nn.Module):
                  transition_region_width=.5):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales, transition_region_width,
-                                             flatten_windows=False)
+                                             num_scales, transition_region_width)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity']:
@@ -284,24 +284,14 @@ class VentralModel(nn.Module):
         use this structure when plotting the representation, as it makes
         it easier to see what's goin on.
 
-        The representation is either a 4d tensor, with (batch, channel,
-        polar angle windows, eccentricity bands) or a dictionary of
-        tensors with that structure, with each key corresponding to a
-        different type of representation. We transform those 4d tensors
-        into 1d tensors for ease of plotting, picking one of the batches
-        (we only ever have 1 channel) and collapsing the different
-        windows onto one dimension, putting a NaN between each
-        eccentricity band.
+        The representation is either a 3d tensor, with (batch, channel,
+        windows) or a dictionary of tensors with that structure, with
+        each key corresponding to a different type of representation. We
+        transform those 3d tensors into 1d tensors for ease of plotting,
+        picking one of the batches (we only ever have 1 channel)
 
         We allow an optional ``data`` argument. If set, we use this data
         instead of ``self.representation``.
-
-        We expect this to be plotted using
-        ``plenoptic.tools.display.clean_stem_plot``, and return a tuple
-        ``xvals`` for use with that function to replace the base line
-        (by default, ``plt.stem`` doesn't insert a break in the baseline
-        if there's a NaN in the data, but we want that for ease of
-        visualization)
 
         Parameters
         ----------
@@ -319,39 +309,17 @@ class VentralModel(nn.Module):
         representation_copy : np.array
             The expanded copy of the representation, which is either a
             1d tensor (if ``data``/``self.representation`` was a tensor)
-            or a dict full of 1d tensors, with np.nan inserted between
-            each eccentricity band
-        xvals : tuple
-            A 2-tuple of lists, containing the start (``xvals[0]``) and
-            stop (``xvals[1]``) x values for plotting. For use with
-            plt.hlines, like so: ``plt.hlines(len(xvals[0])*[0],
-            xvals[0], xvals[1])``
+            or a dict full of 1d tensors
 
         """
         if data is None:
             data = self.representation
 
-        # this helper functions takes our 4d tensor and converts it to
-        # 1d, with nans inserted between the eccentricity bands. we want
-        # to plot this data as a stem plot, so we want something 1d
-        def add_nans(x):
-            nans = np.nan * np.ones((*x.shape[:-1], 1))
-            return np.concatenate([x, nans], -1).flatten()
         if isinstance(data, dict):
-            rep_copy = dict((k, add_nans(v[batch_idx])) for k, v in data.items())
-            rep_example = list(rep_copy.values())[0]
+            rep_copy = dict((k, to_numpy(v[batch_idx]).flatten()) for k, v in data.items())
         else:
-            rep_copy = add_nans(data[batch_idx])
-            rep_example = rep_copy
-        xvals = ([], [])
-        for i in np.where(np.isnan(rep_example))[0]:
-            try:
-                xvals[0].append(xvals[1][-1]+2)
-            except IndexError:
-                # this will happen on the first time through
-                xvals[0].append(0)
-            xvals[1].append(i-1)
-        return rep_copy, xvals
+            rep_copy = to_numpy(data[batch_idx]).flatten()
+        return rep_copy
 
     def _update_plot(self, axes, batch_idx=0, data=None):
         r"""Update the information in our representation plot
@@ -403,7 +371,7 @@ class VentralModel(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        data, _ = self._representation_for_plotting(batch_idx, data)
+        data = self._representation_for_plotting(batch_idx, data)
         if not isinstance(data, dict):
             data = {'rep': data}
         for ax, d in zip(axes, data.values()):
@@ -465,8 +433,8 @@ class RetinalGanglionCells(VentralModel):
         A 3d tensor containing windowed views of ``self.image``
     representation : torch.tensor
         A tensor containing the averages of the pixel intensities within
-        each pooling window for ``self.image``. This will be 4d: (batch,
-        channel, polar angle, eccentricity).
+        each pooling window for ``self.image``. This will be 3d: (batch,
+        channel, windows).
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -530,76 +498,7 @@ class RetinalGanglionCells(VentralModel):
             image = image.unsqueeze(0)
         self.image = image.clone().detach()
         self.representation = self.PoolingWindows(image)
-        # we keep the batch and channel indices, only flattening the
-        # ones after that
-        return self.representation.flatten(2)
-
-    def _representation_for_plotting(self, batch_idx=0, data=None):
-        r"""Get data into the form required for plotting
-
-        RetinalGanglionCell objects' representation has a lot of
-        structure: it consists of the pixel intensity, averaged per
-        window. And the windows themselves are structured: we have
-        several different eccentricity bands, each of which contains the
-        same number of angular windows. We want to use this structure
-        when plotting the representation, as it makes it easier to see
-        what's goin on.
-
-        The representation is either a 4d tensor, with (batch, channel,
-        polar angle windows, eccentricity bands). We transform those 4d
-        tensors into 1d tensors for ease of plotting, picking one of the
-        batches (we only ever have 1 channel) and collapsing the
-        different windows onto one dimension, putting a NaN between each
-        eccentricity band.
-
-        We allow an optional ``data`` argument. If set, we use this data
-        instead of ``self.representation``. In addition to being
-        structured like the ``self.representation`` 4d tensor, it can
-        also be a 3d array or tensor, like this object's ``forward``
-        method returns (and thus is stored by the various synthesis
-        objects). This function then transforms that array into the 4d
-        tensor we expect (taking advantage of the fact that, from
-        ``self.representation``, we know what shape it should be) and
-        passes it on to the parent class's
-        ``_representation_for_plotting`` to finish it up.
-
-        We expect this to be plotted using
-        ``plenoptic.tools.display.clean_stem_plot``, and return a tuple
-        ``xvals`` for use with that function to replace the base line
-        (by default, ``plt.stem`` doesn't insert a break in the baseline
-        if there's a NaN in the data, but we want that for ease of
-        visualization)
-
-        Parameters
-        ----------
-        batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array,or None, optional
-            The data to get in shape. If None, we use
-            ``self.representation``. Else, should be a 4d tensor, like
-            ``self.representation``, or a 3d tensor, like the value
-            returned by ``self.forward()`` (e.g., as returned by
-            ``metamer.representation_ratio()``).
-
-        Returns
-        -------
-        representation_copy : np.array
-            The expanded copy of the representation, which is either a
-            1d tensor (if ``data``/``self.representation`` was a tensor)
-            or a dict full of 1d tensors, with np.nan inserted between
-            each eccentricity band
-        xvals : tuple
-            A 2-tuple of lists, containing the start (``xvals[0]``) and
-            stop (``xvals[1]``) x values for plotting. For use with
-            plt.hlines, like so: ``plt.hlines(len(xvals[0])*[0],
-            xvals[0], xvals[1])``
-
-        """
-        if data is not None and len(data.shape) == 3:
-            # then this has the structure returned by ``self.forward``
-            # and we need to reshape it into 4d
-            data = data.reshape(self.representation.shape)
-        return super()._representation_for_plotting(batch_idx, data)
+        return self.representation
 
     def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
@@ -651,10 +550,10 @@ class RetinalGanglionCells(VentralModel):
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             warnings.warn("ax is not None, so we're ignoring figsize...")
-        rep_copy, xvals = self._representation_for_plotting(batch_idx, data)
+        rep_copy = self._representation_for_plotting(batch_idx, data)
         if title is None:
             title = 'Mean pixel intensity in each window'
-        clean_stem_plot(rep_copy, ax, title, ylim, xvals)
+        clean_stem_plot(rep_copy, ax, title, ylim)
         # fig won't always be defined, but this will return the figure belonging to our axis
         return ax.figure, [ax]
 
@@ -752,8 +651,8 @@ class PrimaryVisualCortex(VentralModel):
         A dictionary containing the 'complex cell responses' (that is,
         the squared, summed, and square-rooted outputs of the complex
         steerable pyramid) and the mean luminance of the image in the
-        pooling windows. Each of these is a 4d tensor: (batch, channel,
-        polar angle, eccentricity)
+        pooling windows. Each of these is a 3d tensor: (batch, channel,
+        windows)
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -832,7 +731,7 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = self.PoolingWindows(image)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
-        return torch.cat(list(self.representation.values()), dim=1).unsqueeze(0).flatten(2)
+        return torch.cat(list(self.representation.values()), dim=2)
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
         r"""Get data into the form required for plotting
@@ -898,9 +797,8 @@ class PrimaryVisualCortex(VentralModel):
             data_dict = {}
             idx = 0
             for k, v in self.representation.items():
-                numel = np.multiply(*v.shape[2:])
-                data_dict[k] = data[:, :, idx:idx+numel].reshape(v.shape)
-                idx += numel
+                data_dict[k] = data[:, :, idx:idx+v.shape[-1]].reshape(v.shape)
+                idx += v.shape[-1]
             data = data_dict
         return super()._representation_for_plotting(batch_idx, data)
 
@@ -975,7 +873,7 @@ class PrimaryVisualCortex(VentralModel):
             ax.yaxis.set_visible(False)
             gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
             fig = ax.figure
-        rep_copy, xvals = self._representation_for_plotting(batch_idx, data)
+        rep_copy = self._representation_for_plotting(batch_idx, data)
         for i, (k, v) in enumerate(rep_copy.items()):
             if isinstance(k, tuple):
                 try:
@@ -984,10 +882,10 @@ class PrimaryVisualCortex(VentralModel):
                     # in this case, title is None
                     t = "scale %02d, band%02d" % k
                 ax = fig.add_subplot(gs[2*k[0]:2*(k[0]+1), 2*k[1]:2*(k[1]+1)])
-                ax = clean_stem_plot(v, ax, t, ylim, xvals)
+                ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
             else:
                 ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
-                ax = clean_stem_plot(v, ax, "Mean pixel intensity", ylim, xvals)
+                ax = clean_stem_plot(v, ax, "Mean pixel intensity", ylim)
                 axes.append(ax)
         return fig, axes

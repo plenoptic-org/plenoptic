@@ -457,10 +457,7 @@ class Metamer(nn.Module):
             matched_rep = self.saved_representation[iteration]
         else:
             matched_rep = self.matched_representation
-        representation_ratio = to_numpy(((matched_rep - self.target_representation) /
-                                         self.target_representation))
-        representation_ratio[np.isnan(representation_ratio)] = 0
-        return representation_ratio
+        return ((matched_rep - self.target_representation) / self.target_representation)
 
     def plot_representation_ratio(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):

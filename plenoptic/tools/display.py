@@ -3,6 +3,7 @@
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
+from .data import to_numpy
 try:
     from IPython.display import HTML
 except ImportError:
@@ -103,7 +104,12 @@ def rescale_ylim(axes, data):
     data : array_like
         The data to use when rescaling
     """
-    y_max = np.abs(data).max()
+    try:
+        y_max = np.abs(data).max()
+    except RuntimeError:
+        # then we need to call to_numpy on it because it needs to be
+        # detached and converted to an array
+        y_max = np.abs(to_numpy(data)).max()
     for ax in axes:
         ax.set_ylim((-y_max, y_max))
 

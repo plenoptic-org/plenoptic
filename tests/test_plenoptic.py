@@ -196,14 +196,9 @@ class TestPooling(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
         pooling(im)
-        pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:], flatten_windows=False)
-        pooling(im)
         pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
         pooling(im)
         pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
-        pooling(im)
-        pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3,
-                                                  transition_region_width=1, flatten_windows=False)
         pooling(im)
 
     def test_PoolingWindows_nonsquare(self):
@@ -444,7 +439,7 @@ class TestMetamers(object):
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_ratio()
