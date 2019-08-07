@@ -133,7 +133,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
 
     def forward(self, x):
-        pyr_coeffs = {}
+        pyr_coeffs = OrderedDict()
 
         # create local variables from class variables
         Xrcos = self.Xrcos.copy()
@@ -213,9 +213,9 @@ class Steerable_Pyramid_Freq(nn.Module):
                     self.pyr_size[(i,b)] = tuple(band.shape[-2:])
                 else:
                     #TODO: decide what to do with imaginary/real axis
-                    band = torch.einsum('bchwi->bcihw', band)
+                    #band = torch.einsum('bchwi->bcihw', band)
                     pyr_coeffs[(i, b)] = band
-                    self.pyr_size[(i,b)] = tuple(band.shape[-2:])
+                    self.pyr_size[(i,b)] = tuple(band.shape[2:4])
 
             self._anglemasks.append(anglemasks)
 
@@ -411,7 +411,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             warnings.warn("twidth must be positive. Setting to 1.")
             twidth = 1
 
-        pyr_coeffs = self._reorder_complex(pyr_coeffs)
+        #pyr_coeffs = self._reorder_complex(pyr_coeffs)
         recon_keys = self._recon_keys(pyr_coeffs, levels, bands)
 
 
