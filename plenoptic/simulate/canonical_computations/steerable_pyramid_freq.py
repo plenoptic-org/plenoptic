@@ -453,7 +453,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             #with the highpass dft * the highpass mask
             outdft = recondft * lo0mask + hidft * hi0mask
         else:
-            outdft = recondft*lo0mask
+            outdft = recondft * lo0mask
 
         #get output reconstruction by inverting the fft
         reconstruction = batch_ifftshift2d(outdft)
@@ -476,7 +476,8 @@ class Steerable_Pyramid_Freq(nn.Module):
                 lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided = False)
                 lodft = batch_fftshift2d(lodft)
             else:
-                lodft = torch.zeros_like(pyr_coeffs['residual_lowpass'])
+                lodft = torch.rfft(torch.zeros_like(pyr_coeffs['residual_lowpass']), signal_ndim=2, onesided=False)
+
             return lodft
 
 
@@ -527,7 +528,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         lomask = lomask.float().to(device)
 
         # Recursively reconstruct by going to the next scale
-        reslevdft = self._recon_levels(pyr_coeffs, scale+1, nlog_rad, Xrcos, Yrcos, nangle)
+        reslevdft = self._recon_levels(pyr_coeffs,recon_keys, scale+1, nlog_rad, Xrcos, Yrcos, nangle)
         #create output for reconstruction result
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
 
