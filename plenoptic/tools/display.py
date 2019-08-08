@@ -2,6 +2,7 @@
 """
 import warnings
 import numpy as np
+import pyrtools as pt
 import matplotlib.pyplot as plt
 from .data import to_numpy
 try:
@@ -274,7 +275,7 @@ def update_plot(axes, data):
     return stem_artists
 
 
-def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=None, batch_idx=0,
+def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=False, batch_idx=0,
                         title=''):
     r"""Helper function for plotting model representation
 
@@ -303,7 +304,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Non
 
     - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the
       axes' y-limits to be ``(-y_max, y_max)``, where
-      ``y_max=np.abs(data).max()``
+      ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
 
     Parameters
     ----------
@@ -317,9 +318,9 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Non
     figsize : tuple, optional
         The size of the figure to create. Ignored if ``ax`` is not
         ``None``.
-    ylim : tuple or None, optional
+    ylim : tuple,None, or False, optional
         If not None, the y-limits to use for this plot. See above for
-        behavior if ``None``.
+        behavior if ``None``. If False, we do nothing.
     batch_idx : int, optional
         Which index to take from the batch dimension (the first one)
     title : str, optional
@@ -336,6 +337,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Non
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     else:
         warnings.warn("ax is not None, so we're ignoring figsize...")
+        fig = ax.figure
     try:
         # no point in passing figsize, because we've already created
         # and are passing an axis or are passing the user-specified one
@@ -343,9 +345,49 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Non
                                               batch_idx=batch_idx,
                                               data=data)
     except AttributeError:
-        ax.plot(data)
-        fig = ax.figure
-        axes = [ax]
+        if data is None:
+            data = model.representation
+        if not isinstance(data, dict):
+            data_dict = {}
+            for i, d in enumerate(data.unbind(1)):
+                # need to keep the shape the same because of how we
+                # check for shape below (unbinding removes a dimension,
+                # so we add it back)
+                data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+            data = data_dict
+        else:
+            warnings.warn("data has keys, so we're ignoring title!")
+        # want to make sure the axis we're taking over is basically invisible.
+        ax = clean_up_axes(ax, spines_to_remove=['top', 'right', 'bottom', 'left'])
+        ax.yaxis.set_visible(False)
+        axes = []
+        if len(list(data.values())[0].shape) == 3:
+            # then this is 'vector-like'
+            gs = ax.get_subplotspec().subgridspec(min(4, len(data)),
+                                                  int(np.ceil(len(data) / 4)))
+            for i, (k, v) in enumerate(data.items()):
+                ax = fig.add_subplot(gs[i % 4, i // 4])
+                # only plot the specified batch, but plot each channel
+                # in a separate call. there should probably only be one,
+                # and if there's not you probably want to do things
+                # differently
+                for d in v[batch_idx]:
+                    ax = clean_stem_plot(to_numpy(d), ax, k, ylim)
+                axes.append(ax)
+        elif len(list(data.values())[0].shape) == 4:
+            # then this is 'image-like'
+            gs = ax.get_subplotspec().subgridspec(int(np.ceil(len(data) / 4)),
+                                                  min(4, len(data)))
+            for i, (k, v) in enumerate(data.items()):
+                ax = fig.add_subplot(gs[i // 4, i % 4])
+                # only plot the specified batch
+                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax)
+                axes.append(ax)
+            # because we're plotting image data, don't want to change
+            # ylim at all
+            ylim = False
+        else:
+            raise Exception("Don't know what to do with data of shape %s" % data.shape)
     if ylim is None:
         rescale_ylim(axes, data)
     return fig
