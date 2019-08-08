@@ -878,6 +878,10 @@ class PrimaryVisualCortex(VentralModel):
             gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
             fig = ax.figure
         rep_copy = self._representation_for_plotting(batch_idx, data)
+        if isinstance(title, str):
+            # then this is a single str, so we'll make it the same on
+            # every subplot
+            title = len(rep_copy) * [title]
         for i, (k, v) in enumerate(rep_copy.items()):
             if isinstance(k, tuple):
                 try:
