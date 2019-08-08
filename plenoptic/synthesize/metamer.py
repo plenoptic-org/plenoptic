@@ -160,7 +160,32 @@ class Metamer(nn.Module):
         return torch.norm(x - y, p=2)
 
     def _closure(self):
-        r"""step the optimizer, propagating the gradients, and updating our matched_image
+        r"""An abstraction of the gradient calculation, before the optimization step. This enables optimization algorithms
+        that perform several evaluations of the gradient before taking a step (ie. second order methods like LBFGS).
+
+        Note that the fraction removed also happens here, and for now a fresh sample of noise is drwan at each iteration.
+            i) that means for now we do not support LBFGS with a random fraction removed.
+            ii) beyond removing random fraction of the coefficients, one could schedule the optimization (eg. coarse to fine)
+        """
+        self.optimizer.zero_grad()
+        self.matched_representation = self.analyze(self.matched_image)
+
+        if self.fraction_removed is not None:
+
+            representation_size = self.matched_representation.flatten().shape[0]
+            idx_shuffled = torch.randperm(representation_size)
+            idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
+            loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
+                                           self.target_representation.flatten()[idx_sub])
+        else:
+            loss = self.objective_function(self.matched_representation, self.target_representation)
+
+        loss.backward(retain_graph=True)
+
+        return loss
+
+    def _optimizer_step(self, pbar):
+        r"""Compute and propagate gradients, then step the optimizer to update matched_image
 
         Parameters
         ----------
@@ -176,23 +201,6 @@ class Metamer(nn.Module):
             1-element tensor containing the loss on this step
 
         """
-        self.optimizer.zero_grad()
-        self.matched_representation = self.analyze(self.matched_image)
-
-        if self.fraction_removed is not None:
-            m = self.matched_representation.flatten().shape[0]
-            idx = torch.randperm(m)
-            idx_sub = idx[:int((1 - self.fraction_removed) * m)]
-            loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
-                                           self.target_representation.flatten()[idx_sub])
-        else:
-            loss = self.objective_function(self.matched_representation, self.target_representation)
-
-        loss.backward(retain_graph=True)
-
-        return loss
-
-    def _optimizer_step(self, pbar):
 
         self.optimizer.step(self._closure)
         g = self.matched_image.grad.data
@@ -206,7 +214,7 @@ class Metamer(nn.Module):
         return loss
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, fraction_removed=None, loss_thresh=1e-4, store_progress=False, save_progress=False,
+                   clamper=None, optimizer='ADAM', fraction_removed=None, loss_thresh=1e-4, store_progress=False, save_progress=False,
                    save_path='metamer.pt'):
         r"""synthesize a metamer
 
@@ -246,6 +254,8 @@ class Metamer(nn.Module):
             it stays reasonable. The classic example is making sure the
             range lies between 0 and 1, see plenoptic.RangeClamper for
             an example.
+        optimizer: ['ADAM', 'SGD', 'LBFGS']
+            The choice of optimization algorithm
         fraction_removed: float, optional
             The fraction of the representation that will be ignored
             when computing the loss. At every step the loss is computed
@@ -301,9 +311,15 @@ class Metamer(nn.Module):
         if fraction_removed is not None and fraction_removed > 0 and fraction_removed < 1:
             self.fraction_removed = fraction_removed
 
-        self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
-        self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, nesterov=True, momentum=0.8)
-        # self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, history_size=10, max_iter=4)
+        if optimizer == 'SGD':
+            self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, nesterov=True, momentum=0.8)
+        elif optimizer == 'LBFGS':
+            self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, history_size=10, max_iter=4)
+            print('this second order optimization method is more intensive')
+            if self.fraction_removed is not None:
+                print('danger: for now the code is not designed to handle LBFGS and random subsampling of coeffs')
+        elif optimizer == 'ADAM':
+            self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
 
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
 
