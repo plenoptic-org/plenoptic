@@ -182,7 +182,7 @@ class VentralModel(nn.Module):
             The axis with the windows
 
         """
-        self.PoolingWindows.plot_windows(ax, contour_levels, colors, **kwargs)
+        return self.PoolingWindows.plot_windows(ax, contour_levels, colors, **kwargs)
 
     def plot_window_sizes(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
         r"""plot the size of the windows, in degrees or pixels
@@ -222,7 +222,7 @@ class VentralModel(nn.Module):
             The figure containing the plot
 
         """
-        self.PoolingWindows.plot_window_sizes(units, scale_num, figsize, jitter)
+        return self.PoolingWindows.plot_window_sizes(units, scale_num, figsize, jitter)
 
     def save_reduced(self, file_path):
         r"""save the relevant parameters to make saving/loading more efficient
