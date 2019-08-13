@@ -5,10 +5,11 @@ import math
 import itertools
 import torch
 import warnings
-from torch import nn
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
+import os.path as op
+from torch import nn
 
 
 def calc_angular_window_width(n_windows):
@@ -845,6 +846,14 @@ class PoolingWindows(nn.Module):
     creating the plots. In order to see what this value was, see
     ``self.calculated_min_eccentricity_degrees``
 
+    We can optionally cache the windows tensor we create, if
+    ``cache_dir`` is not None. In that case, we'll also check to see if
+    appropriate cached windows exist before creating them and load them
+    if they do. The path we'll use is
+    ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
+    em-{max_eccentricity}_t-{transition_region_width}.pt``. We'll cache
+    each scale separately, changing the img_res (and potentially
+    min_eccentricity) values in that save path appropriately.
 
     Parameters
     ----------
@@ -870,6 +879,11 @@ class PoolingWindows(nn.Module):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cache_dir : str or None, optional
+        The directory to cache the windows tensor in. If set, we'll look
+        there for cached versions of the windows we create, load them if
+        they exist and create and cache them if they don't. If None, we
+        don't check for or cache the windows.
 
     Attributes
     ----------
@@ -961,10 +975,16 @@ class PoolingWindows(nn.Module):
     deg_to_pix : list
         List of floats containing the degree-to-pixel conversion factor
         at each scale
+    cache_dir : str or None
+        If str, this is the directory where we cached / looked for
+        cached windows tensors
+    cached_paths : list
+        List of strings, one per scale, taht we either saved or loaded
+        the cached windows tensors from
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5):
+                 transition_region_width=.5, cache_dir=None):
         super().__init__()
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
@@ -993,6 +1013,14 @@ class PoolingWindows(nn.Module):
         self.max_eccentricity = max_eccentricity
         self.img_res = img_res
         self.windows = []
+        if cache_dir is not None:
+            self.cache_dir = op.expanduser(cache_dir)
+            cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_e0-"
+                                          "{min_eccentricity}_em-{max_eccentricity}_t-{transition_"
+                                          "region_width}.pt")
+        else:
+            self.cache_dir = cache_dir
+        self.cache_paths = []
         self.calculated_min_eccentricity_degrees = []
         self.calculated_min_eccentricity_pixels = []
         self._window_sizes(num_scales)
@@ -1002,6 +1030,7 @@ class PoolingWindows(nn.Module):
                                    'transition_region_width': transition_region_width}
         for i in range(num_scales):
             scaled_window_res = [np.ceil(j / 2**i) for j in window_res]
+            scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             # the first value returned is the min_ecc in degrees, the
             # second is in pixels
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_window_res,
@@ -1019,25 +1048,38 @@ class PoolingWindows(nn.Module):
                                   "windows smaller than 1 pixel in area" % (i, min_ecc))
             else:
                 min_ecc = self.min_eccentricity
-            windows, theta, ecc = create_pooling_windows(
-                # for why we're multiplying max_eccentricity by sqrt(2),
-                # see the long comment above window_res
-                scaling, min_ecc, max_eccentricity*np.sqrt(2),
-                ecc_n_steps=scaled_window_res[0], theta_n_steps=scaled_window_res[1],
-                transition_region_width=transition_region_width)
+            windows = None
+            if cache_dir is not None:
+                self.cache_paths.append(cache_path_template.format(
+                    scaling=scaling, min_eccentricity=min_ecc, max_eccentricity=max_eccentricity,
+                    img_res=','.join([str(i) for i in scaled_img_res]),
+                    transition_region_width=transition_region_width))
+                if op.exists(self.cache_paths[-1]):
+                    warnings.warn("Loading windows from cache: %s" % self.cache_paths[-1])
+                    windows = torch.load(self.cache_paths[-1])
+            if windows is None:
+                windows, theta, ecc = create_pooling_windows(
+                    # for why we're multiplying max_eccentricity by sqrt(2),
+                    # see the long comment above window_res
+                    scaling, min_ecc, max_eccentricity*np.sqrt(2),
+                    ecc_n_steps=scaled_window_res[0], theta_n_steps=scaled_window_res[1],
+                    transition_region_width=transition_region_width)
 
-            # need this to be float32 so we can divide the representation by it.
-            windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
-                                   dtype=torch.float32)
-            if img_res[0] != window_res[0]:
-                slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[0], img_res[0], i)
-                windows = windows[..., slice_vals[0]:slice_vals[1], :]
-            if img_res[1] != window_res[1]:
-                slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[1], img_res[1], i)
-                windows = windows[..., slice_vals[0]:slice_vals[1]]
-            # this gets rid of the windows that are off the edge of the
-            # image
-            windows = windows[windows.sum((-1, -2)) > 1]
+                # need this to be float32 so we can divide the representation by it.
+                windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
+                                       dtype=torch.float32)
+                if img_res[0] != window_res[0]:
+                    slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[0], scaled_img_res[0])
+                    windows = windows[..., slice_vals[0]:slice_vals[1], :]
+                if img_res[1] != window_res[1]:
+                    slice_vals = PoolingWindows._get_slice_vals(scaled_window_res[1], scaled_img_res[1])
+                    windows = windows[..., slice_vals[0]:slice_vals[1]]
+                # this gets rid of the windows that are off the edge of the
+                # image
+                windows = windows[windows.sum((-1, -2)) > 1]
+                if cache_dir is not None:
+                    warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
+                    torch.save(windows, self.cache_paths[-1])
             self.windows.append(windows)
 
     def _window_sizes(self, num_scales=1):
@@ -1136,7 +1178,7 @@ class PoolingWindows(nn.Module):
         return self
 
     @staticmethod
-    def _get_slice_vals(scaled_window_res, img_res, scale):
+    def _get_slice_vals(scaled_window_res, scaled_img_res):
         r"""Helper function to find the values to use when slicing windows down to size
 
         If we have a non-square image, we must create the windows as a
@@ -1162,7 +1204,7 @@ class PoolingWindows(nn.Module):
         scaled_window_res : float
             The size of the square 'down-sampled'/scaled window we
             created (in one dimension; this should not be a tuple).
-        img_res : float
+        scaled_img_res : float
             The size of the 'down-sampled'/scaled image we want to match
             (in one dimension; this should not be a tuple).
 
@@ -1173,7 +1215,7 @@ class PoolingWindows(nn.Module):
             ``window[..., slice_vals[0]:slice_vals[1]]``
 
         """
-        slice_vals = (scaled_window_res - np.ceil(img_res/2**scale)) / 2
+        slice_vals = (scaled_window_res - scaled_img_res) / 2
         return [int(np.floor(slice_vals)), -int(np.ceil(slice_vals))]
 
     def forward(self, x, idx=0):

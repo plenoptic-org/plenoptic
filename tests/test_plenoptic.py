@@ -242,6 +242,13 @@ class TestPooling(object):
         fig = pt.imshow(im)
         pw.plot_windows(fig.axes[0])
 
+    def test_PoolingWindows_caching(self, tmp_path):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device)
+        # first time we save, second we load
+        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
+        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
+
 # class TestSpectral(object):
 #
 
@@ -293,7 +300,8 @@ class TestVentralStream(object):
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
+        # first time we cache the windows...
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cache_dir=tmp_path)
         rgc(im)
         rgc.save_reduced(op.join(tmp_path, 'test_rgc_save_load.pt'))
         rgc_copy = po.simul.RetinalGanglionCells.load_reduced(op.join(tmp_path,
@@ -306,6 +314,8 @@ class TestVentralStream(object):
             if not rgc.PoolingWindows.windows[i].allclose(rgc_copy.PoolingWindows.windows[i]):
                 raise Exception("Something went wrong saving and loading, the windows %d are"
                                 " not identical!" % i)
+        # ...second time we load them
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cache_dir=tmp_path)
 
     def test_frontend(self):
         im = po.make_basic_stimuli()
@@ -379,7 +389,8 @@ class TestVentralStream(object):
     def test_v1_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        # first time we cache the windows...
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
         v1(im)
         v1.save_reduced(op.join(tmp_path, 'test_v1_save_load.pt'))
         v1_copy = po.simul.PrimaryVisualCortex.load_reduced(op.join(tmp_path,
@@ -392,6 +403,8 @@ class TestVentralStream(object):
             if not v1.PoolingWindows.windows[i].allclose(v1_copy.PoolingWindows.windows[i]):
                 raise Exception("Something went wrong saving and loading, the windows %d are"
                                 " not identical!" % i)
+        # ...second time we load them
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))

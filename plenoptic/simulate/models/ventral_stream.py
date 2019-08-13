@@ -16,6 +16,11 @@ import matplotlib.pyplot as plt
 class VentralModel(nn.Module):
     r"""Generic class that everyone inherits. Sets up the scaling windows
 
+    Note that we will calculate the minimum eccentricity at which the
+    area of the windows at half-max exceeds one pixel (based on
+    ``scaling``, ``img_res`` and ``max_eccentricity``) and, if
+    ``min_eccentricity`` is below that, will throw an Exception.
+
     This just generates the pooling windows necessary for these models,
     given a small number of parameters. One tricky thing we do is
     generate a set of scaling windows for each scale (appropriately)
@@ -25,6 +30,23 @@ class VentralModel(nn.Module):
     (could also up-sample the coefficient tensors, but since that would
     need to happen each iteration of the metamer synthesis,
     pre-generating appropriately sized windows is more efficient).
+
+    We will calculate the minimum eccentricity at which the area of the
+    windows at half-max exceeds one pixel at each scale. For scales
+    beyond the first however, we will not throw an Exception if this
+    value is below ``min_eccentricity``. We instead print a warning to
+    alert the user and use this value as ``min_eccentricity`` when
+    creating the plots. In order to see what this value was, see
+    ``self.calculated_min_eccentricity_degrees``
+
+    We can optionally cache the windows tensor we create, if
+    ``cache_dir`` is not None. In that case, we'll also check to see if
+    appropriate cached windows exist before creating them and load them
+    if they do. The path we'll use is
+    ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
+    em-{max_eccentricity}_t-{transition_region_width}.pt``. We'll cache
+    each scale separately, changing the img_res (and potentially
+    min_eccentricity) values in that save path appropriately.
 
     Parameters
     ----------
@@ -50,6 +72,11 @@ class VentralModel(nn.Module):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cache_dir : str or None, optional
+        The directory to cache the windows tensor in. If set, we'll look
+        there for cached versions of the windows we create, load them if
+        they exist and create and cache them if they don't. If None, we
+        don't check for or cache the windows.
 
     Attributes
     ----------
@@ -76,35 +103,86 @@ class VentralModel(nn.Module):
         ``po.simul.VentralModel.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
-        degrees. There are four keys: 'radial_top', 'radial_full',
-        'angular_top', and 'angular_full', corresponding to a 2x2 for
-        the widths in the radial and angular directions by the 'top' and
-        'full' widths (top is the width of the flat-top region of each
-        window, where the window's value is 1; full is the width of the
-        entire window). Each value is a list containing the widths for
-        the windows in different eccentricity bands. To visualize these,
-        see the ``plot_window_sizes`` method.
+        degrees. There are six keys, corresponding to a 2x2 for the
+        widths in the radial and angular directions by the 'top',
+        'half', and 'full' widths (top is the width of the flat-top
+        region of each window, where the window's value is 1; full is
+        the width of the entire window; half is the width at
+        half-max). Each value is a list containing the widths for the
+        windows in different eccentricity bands. To visualize these, see
+        the ``plot_window_widths`` method.
     window_width_pixels : list
         List of dictionaries containing the widths of the windows in
         pixels; each entry in the list corresponds to the widths for a
         different scale, as in ``windows``. See above for explanation of
         the dictionaries. To visualize these, see the
-        ``plot_window_sizes`` method.
+        ``plot_window_widths`` method.
     n_polar_windows : int
         The number of windows we have in the polar angle dimension
         (within each eccentricity band)
     n_eccentricity_bands : int
         The number of eccentricity bands in our model
+    calculated_min_eccentricity_degrees : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[0]``, that is, the minimum
+        eccentricity (in degrees) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    calculated_min_eccentricity_pixels : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[1]``, that is, the minimum
+        eccentricity (in pixels) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    central_eccentricity_degrees : np.array
+        A 1d array with shape ``(self.n_eccentricity_bands,)``, each
+        value gives the eccentricity of the center of each eccentricity
+        band of windows (in degrees).
+    central_eccentricity_pixels : list
+        List of 1d arrays (one for each scale), each with shape
+        ``(self.n_eccentricity_bands,)``, each value gives the
+        eccentricity of the center of each eccentricity band of windows
+        (in degrees).
+    window_approx_area_degrees : dict
+        Dictionary containing the approximate areas of the windows, in
+        degrees. There are three keys: 'top', 'half', and 'full',
+        corresponding to which width we used to calculate the area (top
+        is the width of the flat-top region of each window, where the
+        window's value is 1; full is the width of the entire window;
+        half is the width at half-max). To get this approximate area, we
+        multiply the radial and angular widths against each other and
+        then by pi/4 to get the area of the regular ellipse that has
+        those widths (our windows are elongated, so this is probably an
+        under-estimate). To visualize these, see the
+        ``plot_window_areas`` method
+    window_approx_area_pixels : list
+        List of dictionaries containing the approximate areasof the
+        windows in pixels; each entry in the list corresponds to the
+        areas for a different scale, as in ``windows``. See above for
+        explanation of the dictionaries. To visualize these, see the
+        ``plot_window_areas`` method.
+    deg_to_pix : list
+        List of floats containing the degree-to-pixel conversion factor
+        at each scale
+    cache_dir : str or None
+        If str, this is the directory where we cached / looked for
+        cached windows tensors
+    cached_paths : list
+        List of strings, one per scale, taht we either saved or loaded
+        the cached windows tensors from
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5):
+                 transition_region_width=.5, cache_dir=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales, transition_region_width)
+                                             num_scales, transition_region_width, cache_dir)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
-                     'min_eccentricity', 'max_eccentricity']:
+                     'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
+                     'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
+                     'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
+                     'central_eccentricity_pixels', 'central_eccentricity_degrees']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
 
     def to(self, *args, **kwargs):
@@ -434,6 +512,18 @@ class RetinalGanglionCells(VentralModel):
     cone lattice), or the center-surround nature of retinal ganglion
     cells' receptive fields.
 
+    Note that we will calculate the minimum eccentricity at which the
+    area of the windows at half-max exceeds one pixel (based on
+    ``scaling``, ``img_res`` and ``max_eccentricity``) and, if
+    ``min_eccentricity`` is below that, will throw an Exception.
+
+    We can optionally cache the windows tensor we create, if
+    ``cache_dir`` is not None. In that case, we'll also check to see if
+    appropriate cached windows exist before creating them and load them
+    if they do. The path we'll use is
+    ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
+    em-{max_eccentricity}_t-{transition_region_width}.pt``.
+
     Parameters
     ----------
     scaling : float
@@ -454,6 +544,11 @@ class RetinalGanglionCells(VentralModel):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cache_dir : str or None, optional
+        The directory to cache the windows tensor in. If set, we'll look
+        there for cached versions of the windows we create, load them if
+        they exist and create and cache them if they don't. If None, we
+        don't check for or cache the windows.
 
     Attributes
     ----------
@@ -509,12 +604,60 @@ class RetinalGanglionCells(VentralModel):
         (within each eccentricity band)
     n_eccentricity_bands : int
         The number of eccentricity bands in our model
+    calculated_min_eccentricity_degrees : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[0]``, that is, the minimum
+        eccentricity (in degrees) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    calculated_min_eccentricity_pixels : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[1]``, that is, the minimum
+        eccentricity (in pixels) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    central_eccentricity_degrees : np.array
+        A 1d array with shape ``(self.n_eccentricity_bands,)``, each
+        value gives the eccentricity of the center of each eccentricity
+        band of windows (in degrees).
+    central_eccentricity_pixels : list
+        List of 1d arrays (one for each scale), each with shape
+        ``(self.n_eccentricity_bands,)``, each value gives the
+        eccentricity of the center of each eccentricity band of windows
+        (in degrees).
+    window_approx_area_degrees : dict
+        Dictionary containing the approximate areas of the windows, in
+        degrees. There are three keys: 'top', 'half', and 'full',
+        corresponding to which width we used to calculate the area (top
+        is the width of the flat-top region of each window, where the
+        window's value is 1; full is the width of the entire window;
+        half is the width at half-max). To get this approximate area, we
+        multiply the radial and angular widths against each other and
+        then by pi/4 to get the area of the regular ellipse that has
+        those widths (our windows are elongated, so this is probably an
+        under-estimate). To visualize these, see the
+        ``plot_window_areas`` method
+    window_approx_area_pixels : list
+        List of dictionaries containing the approximate areasof the
+        windows in pixels; each entry in the list corresponds to the
+        areas for a different scale, as in ``windows``. See above for
+        explanation of the dictionaries. To visualize these, see the
+        ``plot_window_areas`` method.
+    deg_to_pix : list
+        List of floats containing the degree-to-pixel conversion factor
+        at each scale
+    cache_dir : str or None
+        If str, this is the directory where we cached / looked for
+        cached windows tensors
+    cached_paths : list
+        List of strings, one per scale, taht we either saved or loaded
+        the cached windows tensors from
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5):
+                 transition_region_width=.5, cache_dir=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
-                         transition_region_width=transition_region_width)
+                         transition_region_width=transition_region_width, cache_dir=cache_dir)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
@@ -613,6 +756,28 @@ class PrimaryVisualCortex(VentralModel):
     magnitude). The mean luminance representation is the same as that
     computed by the RetinalGanglionCell model.
 
+    Note that we will calculate the minimum eccentricity at which the
+    area of the windows at half-max exceeds one pixel (based on
+    ``scaling``, ``img_res`` and ``max_eccentricity``) and, if
+    ``min_eccentricity`` is below that, will throw an Exception.
+
+    We will calculate the minimum eccentricity at which the area of the
+    windows at half-max exceeds one pixel at each scale. For scales
+    beyond the first however, we will not throw an Exception if this
+    value is below ``min_eccentricity``. We instead print a warning to
+    alert the user and use this value as ``min_eccentricity`` when
+    creating the plots. In order to see what this value was, see
+    ``self.calculated_min_eccentricity_degrees``
+
+    We can optionally cache the windows tensor we create, if
+    ``cache_dir`` is not None. In that case, we'll also check to see if
+    appropriate cached windows exist before creating them and load them
+    if they do. The path we'll use is
+    ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
+    em-{max_eccentricity}_t-{transition_region_width}.pt``. We'll cache
+    each scale separately, changing the img_res (and potentially
+    min_eccentricity) values in that save path appropriately.
+
     Parameters
     ----------
     scaling : float
@@ -642,6 +807,11 @@ class PrimaryVisualCortex(VentralModel):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cache_dir : str or None, optional
+        The directory to cache the windows tensor in. If set, we'll look
+        there for cached versions of the windows we create, load them if
+        they exist and create and cache them if they don't. If None, we
+        don't check for or cache the windows.
 
     Attributes
     ----------
@@ -727,12 +897,61 @@ class PrimaryVisualCortex(VentralModel):
         (within each eccentricity band)
     n_eccentricity_bands : int
         The number of eccentricity bands in our model
+    calculated_min_eccentricity_degrees : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[0]``, that is, the minimum
+        eccentricity (in degrees) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    calculated_min_eccentricity_pixels : list
+        List of floats (one for each scale) that contain
+        ``calc_min_eccentricity()[1]``, that is, the minimum
+        eccentricity (in pixels) where the area of the window at
+        half-max exceeds one pixel (based on the scaling, size of the
+        image in pixels and in degrees).
+    central_eccentricity_degrees : np.array
+        A 1d array with shape ``(self.n_eccentricity_bands,)``, each
+        value gives the eccentricity of the center of each eccentricity
+        band of windows (in degrees).
+    central_eccentricity_pixels : list
+        List of 1d arrays (one for each scale), each with shape
+        ``(self.n_eccentricity_bands,)``, each value gives the
+        eccentricity of the center of each eccentricity band of windows
+        (in degrees).
+    window_approx_area_degrees : dict
+        Dictionary containing the approximate areas of the windows, in
+        degrees. There are three keys: 'top', 'half', and 'full',
+        corresponding to which width we used to calculate the area (top
+        is the width of the flat-top region of each window, where the
+        window's value is 1; full is the width of the entire window;
+        half is the width at half-max). To get this approximate area, we
+        multiply the radial and angular widths against each other and
+        then by pi/4 to get the area of the regular ellipse that has
+        those widths (our windows are elongated, so this is probably an
+        under-estimate). To visualize these, see the
+        ``plot_window_areas`` method
+    window_approx_area_pixels : list
+        List of dictionaries containing the approximate areasof the
+        windows in pixels; each entry in the list corresponds to the
+        areas for a different scale, as in ``windows``. See above for
+        explanation of the dictionaries. To visualize these, see the
+        ``plot_window_areas`` method.
+    deg_to_pix : list
+        List of floats containing the degree-to-pixel conversion factor
+        at each scale
+    cache_dir : str or None
+        If str, this is the directory where we cached / looked for
+        cached windows tensors
+    cached_paths : list
+        List of strings, one per scale, taht we either saved or loaded
+        the cached windows tensors from
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
-                 max_eccentricity=15, transition_region_width=.5, device=None, normalize=False):
+                 max_eccentricity=15, transition_region_width=.5, device=None, normalize=False,
+                 cache_dir=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
-                         transition_region_width=transition_region_width)
+                         transition_region_width=transition_region_width, cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales})
         self.num_scales = num_scales
