@@ -216,6 +216,8 @@ class TestPooling(object):
         pooling(im)
         pooling = po.simul.pooling.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
         pooling(im)
+        with pytest.raises(Exception):
+            po.simul.PoolingWindows(.2, (64, 64), .5)
 
     def test_PoolingWindows_nonsquare(self):
         # test PoolingWindows with weirdly-shaped iamges
@@ -228,6 +230,18 @@ class TestPooling(object):
             v1 = po.simul.RetinalGanglionCells(.9, tmp.shape[2:])
             v1(tmp)
 
+    def test_PoolingWindows_plotting(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device)
+        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2)
+        pw.plot_window_areas()
+        pw.plot_window_widths()
+        for i in range(2):
+            pw.plot_window_areas('pixels', i)
+            pw.plot_window_widths('pixels', i)
+        fig = pt.imshow(im)
+        pw.plot_windows(fig.axes[0])
+
 # class TestSpectral(object):
 #
 
@@ -239,9 +253,12 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc(im)
-        _ = rgc.plot_window_sizes('degrees')
-        _ = rgc.plot_window_sizes('degrees', jitter=0)
-        _ = rgc.plot_window_sizes('pixels')
+        _ = rgc.plot_window_widths('degrees')
+        _ = rgc.plot_window_widths('degrees', jitter=0)
+        _ = rgc.plot_window_widths('pixels')
+        _ = rgc.plot_window_areas('degrees')
+        _ = rgc.plot_window_areas('degrees')
+        _ = rgc.plot_window_areas('pixels')
         fig = pt.imshow(im.detach()[0, 0])
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
@@ -253,9 +270,12 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], transition_region_width=1)
         rgc(im)
-        _ = rgc.plot_window_sizes('degrees')
-        _ = rgc.plot_window_sizes('degrees', jitter=0)
-        _ = rgc.plot_window_sizes('pixels')
+        _ = rgc.plot_window_widths('degrees')
+        _ = rgc.plot_window_widths('degrees', jitter=0)
+        _ = rgc.plot_window_widths('pixels')
+        _ = rgc.plot_window_areas('degrees')
+        _ = rgc.plot_window_areas('degrees')
+        _ = rgc.plot_window_areas('pixels')
         fig = pt.imshow(im.detach()[0, 0])
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
@@ -304,9 +324,11 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1(im)
-        _ = v1.plot_window_sizes('pixels')
+        _ = v1.plot_window_widths('pixels')
+        _ = v1.plot_window_areas('pixels')
         for i in range(v1.num_scales):
-            _ = v1.plot_window_sizes('pixels', i)
+            _ = v1.plot_window_widths('pixels', i)
+            _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
         fig, axes = plt.subplots(2, 1)
         v1.plot_representation(ax=axes[1])
@@ -316,9 +338,11 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize=True)
         v1(im)
-        _ = v1.plot_window_sizes('pixels')
+        _ = v1.plot_window_widths('pixels')
+        _ = v1.plot_window_areas('pixels')
         for i in range(v1.num_scales):
-            _ = v1.plot_window_sizes('pixels', i)
+            _ = v1.plot_window_widths('pixels', i)
+            _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
         fig, axes = plt.subplots(2, 1)
         v1.plot_representation(ax=axes[1])
@@ -328,9 +352,11 @@ class TestVentralStream(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], transition_region_width=1)
         v1(im)
-        _ = v1.plot_window_sizes('pixels')
+        _ = v1.plot_window_widths('pixels')
+        _ = v1.plot_window_areas('pixels')
         for i in range(v1.num_scales):
-            _ = v1.plot_window_sizes('pixels', i)
+            _ = v1.plot_window_widths('pixels', i)
+            _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
         fig, axes = plt.subplots(2, 1)
         v1.plot_representation(ax=axes[1])

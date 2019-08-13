@@ -184,13 +184,15 @@ class VentralModel(nn.Module):
         """
         return self.PoolingWindows.plot_windows(ax, contour_levels, colors, **kwargs)
 
-    def plot_window_sizes(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
-        r"""plot the size of the windows, in degrees or pixels
+    def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
+        r"""plot the widths of the windows, in degrees or pixels
 
-        We plot the size of the window in both angular and radial
-        direction, as well as showing both the 'top' and 'full' width
-        (top is the width of the flat-top region of each window, where
-        the window's value is 1; full is the width of the entire window)
+        We plot the width of the window in both angular and radial
+        direction, as well as showing the 'top', 'half', and 'full'
+        widths (top is the width of the flat-top region of each window,
+        where the window's value is 1; full is the width of the entire
+        window; half is the width at the half-max value, which is what
+        corresponds to the scaling value)
 
         We plot this as a stem plot against eccentricity, showing the
         windows at their central eccentricity
@@ -222,7 +224,50 @@ class VentralModel(nn.Module):
             The figure containing the plot
 
         """
-        return self.PoolingWindows.plot_window_sizes(units, scale_num, figsize, jitter)
+        return self.PoolingWindows.plot_window_widths(units, scale_num, figsize, jitter)
+
+    def plot_window_areas(self, units='degrees', scale_num=0, figsize=(5, 5)):
+        r"""plot the approximate areas of the windows, in degrees or pixels
+
+        We plot the approximate area of the window, calculated using
+        'top', 'half', and 'full' widths (top is the width of the
+        flat-top region of each window, where the window's value is 1;
+        full is the width of the entire window; half is the width at the
+        half-max value, which is what corresponds to the scaling
+        value). To get the approximate area, we multiply the radial
+        width against the corresponding angular width, then divide by pi
+        / 4.
+
+        The half area shown here is what we use to compare against a
+        threshold value in the ``calc_min_eccentricity()`` in order to
+        determine what the minimum eccentricity where the windows
+        contain more than 1 pixel.
+
+        We plot this as a stem plot against eccentricity, showing the
+        windows at their central eccentricity
+
+        If the unit is 'pixels', then we also need to know which
+        ``scale_num`` to plot (the windows are created at different
+        scales, and so come in different pixel sizes)
+
+        Parameters
+        ----------
+        units : {'degrees', 'pixels'}, optional
+            Whether to show the information in degrees or pixels (both
+            the area and the window location will be presented in the
+            same unit).
+        scale_num : int, optional
+            Which scale window we should plot
+        figsize : tuple, optional
+            The size of the figure to create
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        return self.PoolingWindows.plot_window_areas(units, scale_num, figsize)
 
     def save_reduced(self, file_path):
         r"""save the relevant parameters to make saving/loading more efficient
