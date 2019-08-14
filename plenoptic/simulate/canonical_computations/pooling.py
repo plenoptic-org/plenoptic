@@ -1522,4 +1522,3 @@ class PoolingWindows(nn.Module):
         ax.set_xlabel('Window central eccentricity (%s)' % units)
         ax.legend(loc='upper left')
         return fig
-    
