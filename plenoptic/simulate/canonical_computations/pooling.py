@@ -1027,7 +1027,8 @@ class PoolingWindows(nn.Module):
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': min_eccentricity,
                                    'max_eccentricity': max_eccentricity,
-                                   'transition_region_width': transition_region_width}
+                                   'transition_region_width': transition_region_width,
+                                   'cache_dir': self.cache_dir}
         for i in range(num_scales):
             scaled_window_res = [np.ceil(j / 2**i) for j in window_res]
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
