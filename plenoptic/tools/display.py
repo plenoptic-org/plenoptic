@@ -11,7 +11,8 @@ except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
 
-def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom']):
+def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
+                  axes_to_remove=['x']):
     r"""Clean up an axis, as desired when making a stem plot of the representation
 
     This helper function takes in an axis
@@ -20,12 +21,15 @@ def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom']):
     ----------
     ax : matplotlib.pyplot.axis
         The axis to clean up
-    ylim : tuple or None
-        If not None, the y-limits to use for this plot. If None, we
-        use the default, slightly adjusted so that the minimum is 0
+    ylim : tuple, False, or None
+        If a tuple, the y-limits to use for this plot. If None, we use
+        the default, slightly adjusted so that the minimum is 0. If
+        False, we do nothing.
     spines_to_remove : list
         Some combination of 'top', 'right', 'bottom', and 'left'. The
         spines we remove from the axis
+    axes_to_remove : list
+        Some combination of 'x', 'y'. The axes to set as invisible
 
     Returns
     -------
@@ -34,10 +38,14 @@ def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom']):
 
     """
     if ylim is not None:
-        ax.set_ylim(ylim)
+        if ylim:
+            ax.set_ylim(ylim)
     else:
         ax.set_ylim((0, ax.get_ylim()[1]))
-    ax.xaxis.set_visible(False)
+    if 'x' in axes_to_remove:
+        ax.xaxis.set_visible(False)
+    if 'y' in axes_to_remove:
+        ax.yaxis.set_visible(False)
     for s in spines_to_remove:
         ax.spines[s].set_visible(False)
     return ax
@@ -358,8 +366,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         else:
             warnings.warn("data has keys, so we're ignoring title!")
         # want to make sure the axis we're taking over is basically invisible.
-        ax = clean_up_axes(ax, spines_to_remove=['top', 'right', 'bottom', 'left'])
-        ax.yaxis.set_visible(False)
+        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes = []
         if len(list(data.values())[0].shape) == 3:
             # then this is 'vector-like'

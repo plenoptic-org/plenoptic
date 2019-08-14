@@ -269,8 +269,10 @@ class TestVentralStream(object):
         fig = pt.imshow(im.detach()[0, 0])
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
-        fig, axes = plt.subplots(2, 1)
+        rgc.plot_representation_image()
+        fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
+        rgc.plot_representation_image(ax=axes[0])
 
     def test_rgc_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -286,8 +288,10 @@ class TestVentralStream(object):
         fig = pt.imshow(im.detach()[0, 0])
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
-        fig, axes = plt.subplots(2, 1)
+        rgc.plot_representation_image()
+        fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
+        rgc.plot_representation_image(ax=axes[0])
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -340,8 +344,10 @@ class TestVentralStream(object):
             _ = v1.plot_window_widths('pixels', i)
             _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
-        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation_image()
+        fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
+        v1.plot_representation_image(ax=axes[0])
 
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -354,8 +360,10 @@ class TestVentralStream(object):
             _ = v1.plot_window_widths('pixels', i)
             _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
-        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation_image()
+        fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
+        v1.plot_representation_image(ax=axes[0])
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -368,8 +376,10 @@ class TestVentralStream(object):
             _ = v1.plot_window_widths('pixels', i)
             _ = v1.plot_window_areas('pixels', i)
         v1.plot_representation()
-        fig, axes = plt.subplots(2, 1)
+        v1.plot_representation_image()
+        fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
+        v1.plot_representation_image(ax=axes[0])
 
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:
@@ -500,6 +510,7 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_ratio()
+        metamer.model.plot_representation_image(data=metamer.representation_ratio())
         metamer.plot_metamer_status()
         metamer.plot_metamer_status(iteration=1)
 
@@ -510,6 +521,7 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_ratio()
+        metamer.model.plot_representation_image(data=metamer.representation_ratio())
         metamer.plot_metamer_status()
         metamer.plot_metamer_status(iteration=1)
 

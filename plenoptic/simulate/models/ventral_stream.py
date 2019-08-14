@@ -3,14 +3,16 @@
 """
 import torch
 import warnings
-from torch import nn
+import numpy as np
+import pyrtools as pt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+from torch import nn
 from ..canonical_computations.non_linearities import rectangular_to_polar_dict, normalize_dict
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 from ...tools.data import to_numpy
-import matplotlib.pyplot as plt
 
 
 class VentralModel(nn.Module):
@@ -443,6 +445,55 @@ class VentralModel(nn.Module):
             rep_copy = to_numpy(data[batch_idx]).flatten()
         return rep_copy
 
+    @classmethod
+    def _get_title(cls, title_list, idx, default_title):
+        r"""helper function for dealing with the default way we handle title
+
+        We have a couple possible ways of handling title in these
+        plotting functions, so this helper function consolidates
+        that.
+
+        When picking a title, we know we'll either have a list of titles
+        or a single None.
+
+        - If it's None, we want to just use the default title.
+
+        - If it's a list, pick the appropriate element of the list
+
+          - If that includes '|' (the pipe character), then append the
+            default title on the other side of the pipe
+
+        Then return
+
+        Parameters
+        ----------
+        title_list : list or None
+            A list of strs or Non
+        idx : int
+            An index into title_list. Can be positive or negative.
+        default_title : str
+            The title to use if title_list is None or to include if
+            title_list[idx] includes a pipe
+
+        Returns
+        -------
+        title : str
+            The title to use
+        """
+        try:
+            title = title_list[idx]
+            if '|' in title:
+                if title.index('|') == 0:
+                    # then assume it's at the beginning
+                    title = default_title + ' ' + title
+                else:
+                    # then assume it's at the end
+                    title += ' ' + default_title
+        except TypeError:
+            # in this case, title is None
+            title = default_title
+        return title
+
     def _update_plot(self, axes, batch_idx=0, data=None):
         r"""Update the information in our representation plot
 
@@ -687,6 +738,47 @@ class RetinalGanglionCells(VentralModel):
         self.representation = self.PoolingWindows(image)
         return self.representation
 
+    def _plot_helper(self, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
+        r"""helper function for plotting that takes care of a lot of the standard stuff
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        title : str or None, optional
+            The title to put above this axis. If you want no title, pass
+            the empty string (``''``). If None, will use the default,
+            'Mean pixel intensity in each window'
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+            (e.g., as returned by ``metamer.representation_ratio()`` or
+            another instance of this class).
+
+        Returns
+        -------
+        ax : matplotlib.pyplot.axis
+            The axis we've set up
+        data : np.array
+            The output of self._representation_for_plotting(batch_idx, data)
+        title : str
+            The title to use
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+        data = self._representation_for_plotting(batch_idx, data)
+        title = self._get_title([title], 0, 'mean pixel intensity')
+        # fig won't always be defined, but this will return the figure belonging to our axis
+        return ax, data, title
+
     def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
         r"""plot the representation of the RGC model
@@ -714,7 +806,8 @@ class RetinalGanglionCells(VentralModel):
         title : str or None, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``). If None, will use the default,
-            'Mean pixel intensity in each window'
+            'mean pixel intensity'. If it includes a '|' (pipe), then
+            we'll append the default to the other side of the pipe.
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         data : torch.Tensor, np.array, dict or None, optional
@@ -733,15 +826,63 @@ class RetinalGanglionCells(VentralModel):
             we've created
 
         """
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-        else:
-            warnings.warn("ax is not None, so we're ignoring figsize...")
-        rep_copy = self._representation_for_plotting(batch_idx, data)
-        if title is None:
-            title = 'Mean pixel intensity in each window'
-        clean_stem_plot(rep_copy, ax, title, ylim)
+        ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
+        clean_stem_plot(data, ax, title, ylim)
         # fig won't always be defined, but this will return the figure belonging to our axis
+        return ax.figure, [ax]
+
+    def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
+                                  data=None, vrange='indep1'):
+        r"""Plot representation as an image, using the weights from PoolingWindows
+
+        Our representation has a single value for each pooling window,
+        so we take that value and multiply it by the pooling window, and
+        then sum across all windows. Thus the value at a single pixel
+        shows a weighted sum of the representation.
+
+        By setting ``data``, you can use this to visualize any vector
+        with the same length as the number of windows. For example, you
+        can view metamer synthesis error by setting
+        ``data=metamer.representation_ratio()`` (then you'd probably
+        want to set ``vrange='auto0'`` in order to change the colormap
+        to a diverging one cenetered at 0).
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        title : str or None, optional
+            The title to put above this axis. If you want no title, pass
+            the empty string (``''``). If None, will use the default,
+            'mean pixel intensity'. If it includes a '|' (pipe), then
+            we'll append the default to the other side of the pipe.
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+            (e.g., as returned by ``metamer.representation_ratio()`` or
+            another instance of this class).
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+        axes : list
+            A list of axes (with one element) that contain the plots
+            we've created
+
+        """
+        ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
+        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        # for some reason, np.einsum fails on this but torch.einsum
+        # doesn't...
+        data = torch.einsum('w,wkl->wkl', [torch.Tensor(data), self.PoolingWindows.windows[0]])
+        pt.imshow(to_numpy(data).sum(0), vrange=vrange, ax=ax, title=title)
         return ax.figure, [ax]
 
 
@@ -1070,6 +1211,72 @@ class PrimaryVisualCortex(VentralModel):
             data = data_dict
         return super()._representation_for_plotting(batch_idx, data)
 
+    def _plot_helper(self, n_rows, n_cols, figsize=(25, 15), ax=None, title=None, batch_idx=0,
+                     data=None):
+        r"""helper function for plotting that takes care of a lot of the standard stuff
+
+        Parameters
+        ----------
+        n_rows : int
+            The number of rows in the (sub-)figure we're creating
+        n_cols : int
+            The number oc columns in the (sub-)figure we're creating
+        figsize : tuple, optional
+            The size of the figure to create (ignored if ``ax`` is not
+            None)
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on (in
+            which case we ignore ``figsize``). If None, we create our
+            own figure to hold it
+        title : str, list, or None, optional
+            Titles to use. If list or None, this does nothing to it. If
+            a str, we turn it into a list with ``(n_rows*n_cols)``
+            entries, all identical and the same as the user-pecified
+            title
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure, or
+            the structure returned by ``self.forward`` (e.g., as
+            returned by ``metamer.representation_ratio()`` or another
+            instance of this class).
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing our subplots
+        gs : matplotlib.gridspec.GridSpec
+            The GridSpec object to use for creating subplots. You should
+            use it with ``fig`` to add subplots by indexing into it,
+            like so: ``fig.add_subplot(gs[0, 1])``
+        data : np.array
+            The output of self._representation_for_plotting(batch_idx, data)
+        title : list or None
+            If title was None or a list, we did nothing to it. If it was
+            a str, we made sure its length is (n_rows * n_cols)
+
+        """
+        if ax is None:
+            # we add 2 to order because we're adding one to get the
+            # number of orientations and then another one to add an
+            # extra column for the mean luminance plot
+            fig = plt.figure(figsize=figsize)
+            gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+            # want to make sure the axis we're taking over is basically invisible.
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
+            fig = ax.figure
+        data = self._representation_for_plotting(batch_idx, data)
+        if isinstance(title, str):
+            # then this is a single str, so we'll make it the same on
+            # every subplot
+            title = (n_rows * n_cols) * [title]
+        return fig, gs, data, title
+
     def plot_representation(self, figsize=(25, 15), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
         r"""plot the representation of the V1 model
@@ -1102,15 +1309,17 @@ class PrimaryVisualCortex(VentralModel):
             If not None, the axis to plot this representation on (in
             which case we ignore ``figsize``). If None, we create our
             own figure to hold it
-        title : list or None, optional
-            A list of strings, each of which is the title to put above
-            the subplots. If None, we use the default choice, which
+        title : str, list, or None, optional
+            Titles to use. If a list of strings, must be the same length
+            as ``data`` (or, if ``data`` is None, of
+            ``self.representation``), and each value will be put above
+            the subplots. If a str, the same title will be put above
+            each subplot. If None, we use the default choice, which
             specifies the scale and orientation of each plot (and the
-            mean intensity). If a list, must have the right number of
-            title: ``self.num_scales*(self.order+1)+1`` (the last one
-            is ``self.mean_luminance``)
-        batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            mean intensity). If it includes a '|' (pipe), then we'll
+            append the default to the other side of the pipe.
+        batch_idx : int, optional Which
+            index to take from the batch dimension (the first one)
         data : torch.Tensor, np.array, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1127,37 +1336,110 @@ class PrimaryVisualCortex(VentralModel):
             A list of axes that contain the plots we've created
 
         """
+        # order is number of orientations - 1 and we want to have
+        # columns equal to number of orientations + 1
+        fig, gs, data, title_list = self._plot_helper(2*self.num_scales, 2*(self.order+2), figsize,
+                                                      ax, title, batch_idx, data)
         axes = []
-        if ax is None:
-            # we add 2 to order because we're adding one to get the
-            # number of orientations and then another one to add an
-            # extra column for the mean luminance plot
-            fig = plt.figure(figsize=figsize)
-            gs = mpl.gridspec.GridSpec(2*self.num_scales, 2*(self.order+2), fig)
-        else:
-            warnings.warn("ax is not None, so we're ignoring figsize...")
-            # want to make sure the axis we're taking over is basically invisible.
-            ax = clean_up_axes(ax, spines_to_remove=['top', 'right', 'bottom', 'left'])
-            ax.yaxis.set_visible(False)
-            gs = ax.get_subplotspec().subgridspec(2*self.num_scales, 2*(self.order+2))
-            fig = ax.figure
-        rep_copy = self._representation_for_plotting(batch_idx, data)
-        if isinstance(title, str):
-            # then this is a single str, so we'll make it the same on
-            # every subplot
-            title = len(rep_copy) * [title]
-        for i, (k, v) in enumerate(rep_copy.items()):
+        for i, (k, v) in enumerate(data.items()):
             if isinstance(k, tuple):
-                try:
-                    t = title[i]
-                except TypeError:
-                    # in this case, title is None
-                    t = "scale %02d, band%02d" % k
+                t = self._get_title(title_list, i, "scale %02d, band%02d" % k)
                 ax = fig.add_subplot(gs[2*k[0]:2*(k[0]+1), 2*k[1]:2*(k[1]+1)])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
             else:
+                t = self._get_title(title_list, -1, "mean pixel intensity")
                 ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
-                ax = clean_stem_plot(v, ax, "Mean pixel intensity", ylim)
+                ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
+        return fig, axes
+
+    def plot_representation_image(self, figsize=(27, 5), ax=None, title=None, batch_idx=0,
+                                  data=None, vrange='auto1'):
+        r"""Plot representation as an image, using the weights from PoolingWindows
+
+        Our representation is composed of pooled energy at several
+        different scales and orientations, plus the pooled mean pixel
+        intensity. In order to visualize these as images, we take each
+        statistic, multiply it by the pooling windows, then sum across
+        windows, as in
+        ``RetinalGanglionCells.plot_representation_image``. We also sum
+        across orientations at the same scale, so that we end up with an
+        image for each scale (each will be a different size), plus one
+        for mean pixel intensity, which we attempt to zoom so that they
+        are all shown at approximately the same size.
+
+        Similar to ``self.plot_representation``, you can set ``data`` to
+        visualize something else. As in that function, ``data`` must
+        have the same structure as ``self.representation`` (i.e., a
+        dictionary of 3d tensors/arrays) or as the value returned by
+        ``self.forward()`` (i.e., a large 3d tensor/array). For example,
+        you can view metamer synthesis error by setting
+        ``data=metamer.representation_ratio()`` (then you'd probably
+        want to set ``vrange='auto0'`` in order to change the colormap
+        to a diverging one cenetered at 0).
+
+        Parameters
+        ----------
+        figsize : tuple, optional
+            The size of the figure to create (ignored if ``ax`` is not
+            None)
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on (in
+            which case we ignore ``figsize``). If None, we create our
+            own figure to hold it
+        title : str, list, or None, optional
+            Titles to use. If a list of strings, must be the same length
+            as ``data`` (or, if ``data`` is None, of
+            ``self.representation``), and each value will be put above
+            the subplots. If a str, the same title will be put above
+            each subplot. If None, we use the default choice, which
+            specifies the scale and orientation of each plot (and the
+            mean intensity). If it includes a '|' (pipe), then we'll
+            append the default to the other side of the pipe.
+        batch_idx : int, optional Which
+            index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure, or
+            the structure returned by ``self.forward`` (e.g., as
+            returned by ``metamer.representation_ratio()`` or another
+            instance of this class).
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+        axes : list
+            A list of axes that contain the plots we've created
+
+        """
+        fig, gs, data, title_list = self._plot_helper(1, self.num_scales+1, figsize, ax, title,
+                                                      batch_idx, data)
+        titles = []
+        axes = []
+        imgs = []
+        for i in range(self.num_scales):
+            titles.append(self._get_title(title_list, i, "scale %02d" % i))
+            windows = self.PoolingWindows.windows[i].detach().clone()
+            img = np.zeros(windows.shape[1:])
+            for j in range(self.order+1):
+                d = torch.einsum('w,wkl->wkl', [torch.Tensor(data[(i, j)]), windows])
+                img += to_numpy(d).sum(0)
+            ax = fig.add_subplot(gs[i])
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            imgs.append(img)
+            axes.append(ax)
+        ax = fig.add_subplot(gs[-1])
+        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        axes.append(ax)
+        titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
+        d = torch.einsum('w,wkl->wkl', [torch.Tensor(data['mean_luminance']),
+                                        self.PoolingWindows.windows[0]])
+        imgs.append(to_numpy(d).sum(0))
+        vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
+        for ax, img, t, vr in zip(axes, imgs, titles, vrange):
+            zoom = round(self.PoolingWindows.windows[0].shape[1] / img.shape[0])
+            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=zoom)
         return fig, axes
