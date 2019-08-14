@@ -73,11 +73,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     """
 
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False,
-                 store_unoriented_bands=False, return_list=False, device=None):
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = device
+                 store_unoriented_bands=False, return_list=False):
 
         super(Steerable_Pyramid_Freq, self).__init__()
 
@@ -135,9 +131,48 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
 
-        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None].to(self.device)
-        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None].to(self.device)
+        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None]
+        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None]
 
+    def to(self, *args, **kwargs):
+        r"""Moves and/or casts the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See below for examples.
+
+        .. note::
+            This method modifies the module in-place.
+
+        Args:
+            device (:class:`torch.device`): the desired device of the parameters
+                and buffers in this module
+            dtype (:class:`torch.dtype`): the desired floating point type of
+                the floating point parameters and buffers in this module
+            tensor (torch.Tensor): Tensor whose dtype and device are the desired
+                dtype and device for all parameters and buffers in this module
+
+        Returns:
+            Module: self
+        """
+        self.lo0mask = self.lo0mask.to(*args, **kwargs)
+        self.hi0mask = self.lo0mask.to(*args, **kwargs)
+        return self
 
     def forward(self, x):
         pyr_coeffs = {}
@@ -193,13 +228,13 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             himask = pointOp(log_rad, Yrcos, Xrcos)
             self._himasks.append(himask)
-            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(self.device)
+            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(x.device)
 
             anglemasks = []
             for b in range(self.num_orientations):
                 anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(self.device)
+                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(x.device)
 
                 # bandpass filtering
                 banddft = lodft * anglemask * himask
@@ -241,7 +276,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
             lomask = pointOp(log_rad, YIrcos, Xrcos)
             self._lomasks.append(lomask)
-            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(self.device)
+            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(x.device)
             # convolution in spatial domain
             lodft = lodft * lomask
 

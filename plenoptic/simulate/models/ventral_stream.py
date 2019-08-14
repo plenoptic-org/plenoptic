@@ -1089,8 +1089,7 @@ class PrimaryVisualCortex(VentralModel):
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
-                 max_eccentricity=15, transition_region_width=.5, device=None, normalize=False,
-                 cache_dir=None):
+                 max_eccentricity=15, transition_region_width=.5, normalize=False, cache_dir=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
@@ -1098,8 +1097,7 @@ class PrimaryVisualCortex(VentralModel):
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
-                                                                self.order, is_complex=True,
-                                                                device=device)
+                                                                self.order, is_complex=True)
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
@@ -1107,6 +1105,46 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = None
         self.representation = None
         self.normalize = normalize
+
+    def to(self, *args, **kwargs):
+        r"""Moves and/or casts the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See below for examples.
+
+        .. note::
+            This method modifies the module in-place.
+
+        Args:
+            device (:class:`torch.device`): the desired device of the parameters
+                and buffers in this module
+            dtype (:class:`torch.dtype`): the desired floating point type of
+                the floating point parameters and buffers in this module
+            tensor (torch.Tensor): Tensor whose dtype and device are the desired
+                dtype and device for all parameters and buffers in this module
+
+        Returns:
+            Module: self
+        """
+        self.complex_steerable_pyramid.to(*args, **kwargs)
+        super(self.__class__, self).to(*args, **kwargs)
+        return self
 
     def forward(self, image):
         r"""Generate the V1 representation of an image
