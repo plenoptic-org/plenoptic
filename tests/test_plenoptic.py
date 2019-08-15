@@ -352,7 +352,9 @@ class TestVentralStream(object):
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize=True)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        stats = po.simul.non_linearities.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize_dict=stats)
         v1(im)
         _ = v1.plot_window_widths('pixels')
         _ = v1.plot_window_areas('pixels')
