@@ -1033,9 +1033,11 @@ class PoolingWindows(nn.Module):
             scaled_window_res = [np.ceil(j / 2**i) for j in window_res]
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             # the first value returned is the min_ecc in degrees, the
-            # second is in pixels
+            # second is in pixels. for why we're multiplying
+            # max_eccentricity by sqrt(2), see the long comment above
+            # window_res
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_window_res,
-                                                         max_eccentricity)
+                                                         np.sqrt(2)*max_eccentricity)
             self.calculated_min_eccentricity_degrees.append(min_ecc)
             self.calculated_min_eccentricity_pixels.append(min_ecc_pix)
             if min_ecc > self.min_eccentricity:
