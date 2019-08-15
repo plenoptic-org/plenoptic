@@ -879,9 +879,9 @@ class RetinalGanglionCells(VentralModel):
         """
         ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device)
         # for some reason, np.einsum fails on this but torch.einsum
         # doesn't...
-        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device)
         data = torch.einsum('w,wkl->wkl', [data, self.PoolingWindows.windows[0]])
         pt.imshow(to_numpy(data).sum(0), vrange=vrange, ax=ax, title=title)
         return ax.figure, [ax]
