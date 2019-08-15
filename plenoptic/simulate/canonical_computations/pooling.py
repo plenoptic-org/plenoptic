@@ -10,7 +10,7 @@ import pyrtools as pt
 import matplotlib.pyplot as plt
 import os.path as op
 from torch import nn
-
+from ...tools.data import to_numpy
 
 def calc_angular_window_width(n_windows):
     r"""calculate and return the window width for the angular windows
@@ -1397,7 +1397,7 @@ class PoolingWindows(nn.Module):
 
         """
         for w in self.windows[0]:
-            ax.contour(w.detach(), contour_levels, colors=colors, **kwargs)
+            ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
         return ax
 
     def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):

@@ -881,7 +881,8 @@ class RetinalGanglionCells(VentralModel):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         # for some reason, np.einsum fails on this but torch.einsum
         # doesn't...
-        data = torch.einsum('w,wkl->wkl', [torch.Tensor(data), self.PoolingWindows.windows[0]])
+        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device)
+        data = torch.einsum('w,wkl->wkl', [data, self.PoolingWindows.windows[0]])
         pt.imshow(to_numpy(data).sum(0), vrange=vrange, ax=ax, title=title)
         return ax.figure, [ax]
 
@@ -1460,10 +1461,11 @@ class PrimaryVisualCortex(VentralModel):
         imgs = []
         for i in range(self.num_scales):
             titles.append(self._get_title(title_list, i, "scale %02d" % i))
-            windows = self.PoolingWindows.windows[i].detach().clone()
+            windows = self.PoolingWindows.windows[i]
             img = np.zeros(windows.shape[1:])
             for j in range(self.order+1):
-                d = torch.einsum('w,wkl->wkl', [torch.Tensor(data[(i, j)]), windows])
+                d = torch.Tensor(data[(i, j)]).to(windows.device)
+                d = torch.einsum('w,wkl->wkl', [d, windows])
                 img += to_numpy(d).sum(0)
             ax = fig.add_subplot(gs[i])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
@@ -1473,8 +1475,8 @@ class PrimaryVisualCortex(VentralModel):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
-        d = torch.einsum('w,wkl->wkl', [torch.Tensor(data['mean_luminance']),
-                                        self.PoolingWindows.windows[0]])
+        d = torch.Tensor(data['mean_luminance']).to(self.PoolingWindows.windows[0].device)
+        d = torch.einsum('w,wkl->wkl', [d, self.PoolingWindows.windows[0]])
         imgs.append(to_numpy(d).sum(0))
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr in zip(axes, imgs, titles, vrange):
