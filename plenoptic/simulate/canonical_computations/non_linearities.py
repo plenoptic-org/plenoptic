@@ -252,7 +252,8 @@ def normalize_dict(coeff_dict, power=2, sum_dim=-1):
     return energy, state
 
 
-def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gray=True):
+def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gray=True,
+                        index=None):
     r"""Generate the statistics we want to use for normalization in models
 
     We sometimes want to normalize our models by whitening their
@@ -291,6 +292,14 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
       more dimensions) or a dictionary containing tensors (with 2 or
       more dimensions)
 
+    - If you want to run this on a whole bunch of images, you may not be
+      able to do it all at once for memory reasons. If that's the case,
+      you can use the ``index`` arg. If you set that to a 2-tuple, we'll
+      glob to find all the files in the folder (getting a giant list)
+      and only go from index[0] to index[1] of them. In this case, make
+      sure you do something yourself to save them separately and later
+      concatenate them, because this function won't.
+
     In order to use this dictionary to actually z-score your statistics,
     use the ``zscore_stats`` function.
 
@@ -313,6 +322,10 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
     as_gray : bool, optional
         The ``as_gray`` argument to pass to ``imageio.imread``; whether
         we want to load in the image as grayscale or not
+    index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after globbing to
+        find all the files in a folder, we only go from index[0] to
+        index[1] of them. If None, we go through all files
 
     Returns
     -------
@@ -321,7 +334,10 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
 
     """
     images = []
-    for im in glob(op.join(input_dir, '*')):
+    paths = glob(op.join(input_dir, '*'))
+    if index is not None:
+        paths = paths[index[0]:index[1]]
+    for im in paths:
         try:
             im = imageio.imread(im, as_gray=as_gray)
         except ValueError:
