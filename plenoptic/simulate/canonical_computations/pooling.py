@@ -1065,8 +1065,8 @@ class PoolingWindows(nn.Module):
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
             cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
-                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity}_t-"
-                                          "{transition_region_width}.pt")
+                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity:.01f}_t"
+                                          "-{transition_region_width}.pt")
             if angle_index is not None:
                 cache_path_template = cache_path_template.replace('.pt', "_a-{angle_index}.pt")
                 warnings.warn("angle_index is advanced usage! make sure you know what you're"
