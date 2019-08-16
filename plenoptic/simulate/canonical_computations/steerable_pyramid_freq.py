@@ -5,7 +5,6 @@ from ...tools.signal import rcosFn, batch_fftshift2d, batch_ifftshift2d, pointOp
 import torch
 import torch.nn as nn
 # from ..config import *
-dtype = torch.float32
 
 
 class Steerable_Pyramid_Freq(nn.Module):
@@ -131,8 +130,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
 
-        self.lo0mask = torch.tensor(lo0mask, dtype=dtype)[None,:,:,None]
-        self.hi0mask = torch.tensor(hi0mask, dtype=dtype)[None,:,:,None]
+        self.lo0mask = torch.tensor(lo0mask)[None,:,:,None]
+        self.hi0mask = torch.tensor(hi0mask)[None,:,:,None]
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -228,13 +227,14 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             himask = pointOp(log_rad, Yrcos, Xrcos)
             self._himasks.append(himask)
-            himask = torch.tensor(himask, dtype=dtype)[None, :, :, None].to(x.device)
+            himask = torch.tensor(himask)[None, :, :, None].to(device=x.device, dtype=x.dtype)
 
             anglemasks = []
             for b in range(self.num_orientations):
                 anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask, dtype=dtype)[None, :, :, None].to(x.device)
+                anglemask = torch.tensor(anglemask)[None, :, :, None].to(device=x.device,
+                                                                         dtype=x.dtype)
 
                 # bandpass filtering
                 banddft = lodft * anglemask * himask
@@ -276,7 +276,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
             lomask = pointOp(log_rad, YIrcos, Xrcos)
             self._lomasks.append(lomask)
-            lomask = torch.tensor(lomask, dtype=dtype)[None, :, :, None].to(x.device)
+            lomask = torch.tensor(lomask)[None, :, :, None].to(device=x.device, dtype=x.dtype)
             # convolution in spatial domain
             lodft = lodft * lomask
 
