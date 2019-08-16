@@ -12,7 +12,7 @@ DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 def to_numpy(x):
     r"""cast tensor to numpy in the most conservative way possible
     """
-    return x.detach().cpu().numpy()
+    return x.detach().cpu().numpy().astype(np.float32)
 
 
 def make_basic_stimuli(size=256, requires_grad=True):
