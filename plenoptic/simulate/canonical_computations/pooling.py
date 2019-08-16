@@ -680,7 +680,8 @@ def log_eccentricity_windows(n_windows=None, window_width=None, min_ecc=.5, max_
 
 def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, transition_region_width=.5,
-                           theta_n_steps=1000, ecc_n_steps=1000, flatten=True):
+                           theta_n_steps=1000, ecc_n_steps=1000, flatten=True, angle_index=None,
+                           eccen_index=None):
     r"""Create 2d pooling windows (log-eccentricity by polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -731,6 +732,22 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
         it will be 4d, with the first dimension corresponding to
         different polar angle windows and the second to different
         eccentricity bands.
+    angle_index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after creating the
+        angular windows, we'll only use those windows from
+        angle_index[0] to angle_index[1] in order to create the 2d
+        windows. If None, We'll use all of them. The only reason to use
+        this is to reduce memory usage (window creation is more
+        memory-intensive than the finished object or using it), in which
+        case you're planning on caching and later, concatenating them.
+    eccen_index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after creating the
+        log-eccentricity windows, we'll only use those windows from
+        eccen_index[0] to eccen_index[1] in order to create the 2d
+        windows. If None, We'll use all of them. The only reason to use
+        this is to reduce memory usage (window creation is more
+        memory-intensive than the finished object or using it), in which
+        case you're planning on caching and later, concatenating them.
 
     Returns
     -------
@@ -806,10 +823,14 @@ def create_pooling_windows(scaling, min_eccentricity=.5, max_eccentricity=15,
     theta, angle_tensor = polar_angle_windows(round(n_polar_windows), theta_n_steps,
                                               transition_region_width)
     angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
+    if angle_index is not None:
+        angle_tensor = angle_tensor[angle_index[0]:angle_index[1]]
     ecc, ecc_tensor = log_eccentricity_windows(None, ecc_window_width, min_eccentricity,
                                                max_eccentricity, ecc_n_steps,
                                                transition_region_width=transition_region_width)
     ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
+    if eccen_index is not None:
+        ecc_tensor = ecc_tensor[eccen_index[0]:eccen_index[1]]
     windows_tensor = torch.einsum('ik,jl->ijkl', [ecc_tensor, angle_tensor])
     if flatten:
         # just flatten the first two dimensions, so its now 3d instead of 4d
@@ -855,6 +876,18 @@ class PoolingWindows(nn.Module):
     each scale separately, changing the img_res (and potentially
     min_eccentricity) values in that save path appropriately.
 
+    Additionally, in order to reduce memory usage (creation of the
+    windows uses way more memory than the finished object or using it),
+    you have the option to set ``angle_index`` and/or
+    ``eccen_index``. If you do, ``cache_dir`` must be set because it
+    will not be a complete set of windows and the understanding is that
+    you will be caching these partial windows and then combining them
+    later. These both must be 2-tuples of ints. In order to determine
+    what are reasonable values, calculate the number of eccentricity and
+    polar angle windows you'll have for your scaling values (using the
+    various ``calc_`` functions in ``plenoptic.simulate.pooling``; see
+    ``PoolingWindows._window_sizes()`` for an example of this).
+
     Parameters
     ----------
     scaling : float
@@ -884,6 +917,22 @@ class PoolingWindows(nn.Module):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
+    angle_index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after creating the
+        angular windows, we'll only use those windows from
+        angle_index[0] to angle_index[1] in order to create the 2d
+        windows. If None, We'll use all of them. The only reason to use
+        this is to reduce memory usage (window creation is more
+        memory-intensive than the finished object or using it), so if
+        this is set then cache_dir must also be set.
+    eccen_index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after creating the
+        log-eccentricity windows, we'll only use those windows from
+        eccen_index[0] to eccen_index[1] in order to create the 2d
+        windows. If None, We'll use all of them. The only reason to use
+        this is to reduce memory usage (window creation is more
+        memory-intensive than the finished object or using it), so if
+        this is set then cache_dir must also be set.
 
     Attributes
     ----------
@@ -984,7 +1033,7 @@ class PoolingWindows(nn.Module):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cache_dir=None):
+                 transition_region_width=.5, cache_dir=None, angle_index=None, eccen_index=None):
         super().__init__()
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
@@ -1009,24 +1058,35 @@ class PoolingWindows(nn.Module):
         window_res = [int(np.ceil(i*np.sqrt(2))) for i in window_res]
         self.scaling = scaling
         self.transition_region_width = transition_region_width
-        self.min_eccentricity = min_eccentricity
-        self.max_eccentricity = max_eccentricity
+        self.min_eccentricity = float(min_eccentricity)
+        self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
         self.windows = []
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
-            cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_e0-"
-                                          "{min_eccentricity}_em-{max_eccentricity}_t-{transition_"
-                                          "region_width}.pt")
+            cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
+                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity}_t-"
+                                          "{transition_region_width}.pt")
+            if angle_index is not None:
+                cache_path_template = cache_path_template.replace('.pt', "_a-{angle_index}.pt")
+                warnings.warn("angle_index is advanced usage! make sure you know what you're"
+                              " doing")
+            if eccen_index is not None:
+                warnings.warn("eccen_index is advanced usage! make sure you know what you're"
+                              " doing")
+                cache_path_template = cache_path_template.replace('.pt', "_e-{eccen_index}.pt")
         else:
             self.cache_dir = cache_dir
+            if angle_index is not None or eccen_index is not None:
+                raise Exception("Can only set angle_index or eccen_index if you're caching "
+                                "windows!")
         self.cache_paths = []
         self.calculated_min_eccentricity_degrees = []
         self.calculated_min_eccentricity_pixels = []
         self._window_sizes(num_scales)
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
-                                   'min_eccentricity': min_eccentricity,
-                                   'max_eccentricity': max_eccentricity,
+                                   'min_eccentricity': self.min_eccentricity,
+                                   'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': transition_region_width,
                                    'cache_dir': self.cache_dir}
         for i in range(num_scales):
@@ -1053,10 +1113,23 @@ class PoolingWindows(nn.Module):
                 min_ecc = self.min_eccentricity
             windows = None
             if cache_dir is not None:
-                self.cache_paths.append(cache_path_template.format(
-                    scaling=scaling, min_eccentricity=min_ecc, max_eccentricity=max_eccentricity,
-                    img_res=','.join([str(i) for i in scaled_img_res]),
-                    transition_region_width=transition_region_width))
+                format_kwargs = dict(scaling=scaling, min_eccentricity=float(min_ecc),
+                                     max_eccentricity=self.max_eccentricity,
+                                     img_res=','.join([str(int(i)) for i in scaled_img_res]),
+                                     transition_region_width=transition_region_width)
+                if angle_index is not None:
+                    format_kwargs['angle_index'] = ','.join([str(int(i)) for i in angle_index])
+                    if angle_index[0] >= self.n_polar_windows:
+                        raise Exception("You only have %s polar windows but angle_index is %s! "
+                                        "angle_index[0] must be less than n_polar_windows" %
+                                        (self.n_polar_windows, angle_index))
+                if eccen_index is not None:
+                    format_kwargs['eccen_index'] = ','.join([str(int(i)) for i in eccen_index])
+                    if eccen_index[0] >= self.n_eccentricity_bands:
+                        raise Exception("You only have %s eccen windows but eccen_index is %s! "
+                                        "eccen_index[0] must be less than n_eccentricity_bands" %
+                                        (self.n_eccentricity_bands, eccen_index))
+                self.cache_paths.append(cache_path_template.format(**format_kwargs))
                 if op.exists(self.cache_paths[-1]):
                     warnings.warn("Loading windows from cache: %s" % self.cache_paths[-1])
                     windows = torch.load(self.cache_paths[-1])
@@ -1066,7 +1139,8 @@ class PoolingWindows(nn.Module):
                     # see the long comment above window_res
                     scaling, min_ecc, max_eccentricity*np.sqrt(2),
                     ecc_n_steps=scaled_window_res[0], theta_n_steps=scaled_window_res[1],
-                    transition_region_width=transition_region_width)
+                    transition_region_width=transition_region_width, angle_index=angle_index,
+                    eccen_index=eccen_index)
 
                 # need this to be float32 so we can divide the representation by it.
                 windows = torch.tensor([pt.project_polar_to_cartesian(w) for w in windows],
@@ -1100,13 +1174,16 @@ class PoolingWindows(nn.Module):
         max_eccentricity, scaling, and transition_region_width)
 
         """
+        # for why we're multiplying max_eccentricity by sqrt(2), see the
+        # long comment above window_res in the initialization function
         ecc_window_width = calc_eccentricity_window_width(self.min_eccentricity,
-                                                          self.max_eccentricity,
+                                                          self.max_eccentricity*np.sqrt(2),
                                                           scaling=self.scaling)
         self.n_polar_windows = int(round(calc_angular_n_windows(ecc_window_width / 2)))
         angular_window_width = calc_angular_window_width(self.n_polar_windows)
         window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
-                                                  self.min_eccentricity, self.max_eccentricity,
+                                                  self.min_eccentricity,
+                                                  self.max_eccentricity*np.sqrt(2),
                                                   self.transition_region_width)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
