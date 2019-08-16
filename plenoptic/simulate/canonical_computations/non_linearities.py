@@ -1,4 +1,8 @@
 import torch
+import imageio
+from glob import glob
+import os.path as op
+import warnings
 from ...tools.conv import blur_downsample, upsample_blur
 from ...tools.signal import rectangular_to_polar
 
@@ -246,3 +250,165 @@ def normalize_dict(coeff_dict, power=2, sum_dim=-1):
         energy[key], state[key] = normalize(coeff_dict[key], power, sum_dim)
 
     return energy, state
+
+
+def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gray=True,
+                        index=None):
+    r"""Generate the statistics we want to use for normalization in models
+
+    We sometimes want to normalize our models by whitening their
+    internal representation (i.e., setting their mean to 0 and their
+    covariance to the identity matrix). In practice, you need many
+    samples to do this, but at the very least you can approximate this
+    by z-scoring them, subtracting their mean and dividing by their
+    standard deviation. In either case, to do this you need to get the
+    model's statistics across a variety of images.
+
+    This function will help you do that: by taking a model and an input
+    directory, will load every image we find in that directory
+    (non-recursively), and combine them into a giant 4d tensor. We then
+    pass this to the model (so it must be able to work on batched
+    images) to get its representation of all of these. If the model has
+    a ``to_normalize`` attribute (a list of strings specifying which
+    attributes you want to normalize), we'll go through and grab those
+    attributes; otherwise we'll use the value returned by
+    ``model(images)`` (i.e., from its forward method). This will be a
+    dictionary with keys for each value of ``to_normalize`` or just
+    ``"representation"`` if the model has no ``to_normalize``
+    attribute. We then average so that we have a single value per batch
+    and per channel (we should be able to figure out how many dimensions
+    that requires averaging over), and save the resulting dictionary at
+    save_path (if it's not None) and return it.
+
+    Caveats / notes:
+
+    - Since we're combining all the images into one tensor, they have to
+      be the same shape. This is specified using ``img_shape`` (so it
+      should be a tuple of ints) or, if it's None, inferred from the
+      first image we load
+
+    - The attributes contained within ``to_normalize`` or the value
+      returned by ``model(images)`` must either be a tensor (with 2 or
+      more dimensions) or a dictionary containing tensors (with 2 or
+      more dimensions)
+
+    - If you want to run this on a whole bunch of images, you may not be
+      able to do it all at once for memory reasons. If that's the case,
+      you can use the ``index`` arg. If you set that to a 2-tuple, we'll
+      glob to find all the files in the folder (getting a giant list)
+      and only go from index[0] to index[1] of them. In this case, make
+      sure you do something yourself to save them separately and later
+      concatenate them, because this function won't.
+
+    In order to use this dictionary to actually z-score your statistics,
+    use the ``zscore_stats`` function.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model we want to generate normalization statistics for.
+    input_dir : str
+        Path to a directory that contains the images we want to use for
+        generating the statistics.
+    save_path : str or None, optional
+        If a str, the path (should end in '.pt') to save the statistics
+        at. If None, we don't save.
+    img_shape : tuple or None, optional
+        The image shape we want to require that all images have. Since
+        we're concatenating all the images into one big tensor, they
+        need to have the same dimensions. If a tuple, we only add those
+        images that match this shape. If None, we grab that shape from
+        the first image we load in.
+    as_gray : bool, optional
+        The ``as_gray`` argument to pass to ``imageio.imread``; whether
+        we want to load in the image as grayscale or not
+    index : tuple or None, optional
+        If a tuple, must be a 2-tuple of ints. Then, after globbing to
+        find all the files in a folder, we only go from index[0] to
+        index[1] of them. If None, we go through all files
+
+    Returns
+    -------
+    stats : dict
+        A dictionary containing the statistics to use for normalization.
+
+    """
+    images = []
+    paths = glob(op.join(input_dir, '*'))
+    if index is not None:
+        paths = paths[index[0]:index[1]]
+    for im in paths:
+        try:
+            im = imageio.imread(im, as_gray=as_gray)
+        except ValueError:
+            warnings.warn("Unable to load in file %s, it's probably not an image, skipping..." %
+                          im)
+            continue
+        if img_shape is None:
+            img_shape == im.shape
+        if im.max() > 1:
+            im /= 255
+        if im.shape == img_shape:
+            images.append(im)
+    images = torch.Tensor(images).unsqueeze(1)
+    stats = {'representation': model(images)}
+    if hasattr(model, 'to_normalize'):
+        stats = {}
+        for attr in model.to_normalize:
+            stats[attr] = getattr(model, attr)
+    for k, v in stats.items():
+        if isinstance(v, dict):
+            for l, w in v.items():
+                ndim_to_avg = [-(i+1) for i in range(w.ndimension() - 2)]
+                stats[k][l] = w.mean(ndim_to_avg)
+        else:
+            ndim_to_avg = [-(i+1) for i in range(v.ndimension() - 2)]
+            stats[k] = v.mean(ndim_to_avg)
+    if save_path is not None:
+        torch.save(stats, save_path)
+    return stats
+
+
+def zscore_stats(model, stats_dict):
+    r"""zscore the model's statistics based on stats_dict
+
+    We'd like to use the dictionary of statistics generated by
+    ``generate_norm_stats`` to actually normalize some of the statistics
+    in our model. This will take a model and the ``stats_dict``
+    dictionary and z-score the appropriate attribute of the model
+    (whether it's a dictionary or a tensor), subtacting off the mean of
+    the value that's in ``stats_dict`` and dividing by the standard
+    deviation.
+
+    NOTE: There's no clever way to figure out *when* you want this to be
+    called, so you'll have to decide where to insert this in your
+    ``model.forward()`` call based on *your* knowledge of the contents
+    of ``stats_dict``
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model we want to normalize statistics for.
+    stats : dict
+        A dictionary containing the statistics to use for normalization
+        (as returned/saved by the ``generate_norm_stats`` function).
+
+    Results
+    -------
+    model : torch.nn.Module
+        THe normalized model.
+
+    """
+    for k, v in stats_dict.items():
+        if isinstance(v, dict):
+            attr = getattr(model, k)
+            for l, w in v.items():
+                mean_w = w.mean(0)
+                std_w = w.std(0)
+                attr[l] = (attr[l] - mean_w) / std_w
+            setattr(model, k, attr)
+        else:
+            mean_v = v.mean(0)
+            std_v = v.std(0)
+            setattr(model, k, (getattr(model, k) - mean_v) / std_v)
+    return model
