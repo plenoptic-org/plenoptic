@@ -879,7 +879,8 @@ class RetinalGanglionCells(VentralModel):
         """
         ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device)
+        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device,
+                                     self.PoolingWindows.windows[0].dtype)
         # for some reason, np.einsum fails on this but torch.einsum
         # doesn't...
         data = torch.einsum('w,wkl->wkl', [data, self.PoolingWindows.windows[0]])
@@ -1488,7 +1489,8 @@ class PrimaryVisualCortex(VentralModel):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
-        d = torch.Tensor(data['mean_luminance']).to(self.PoolingWindows.windows[0].device)
+        d = torch.Tensor(data['mean_luminance']).to(self.PoolingWindows.windows[0].device,
+                                                    self.PoolingWindows.windows[0].dtype)
         d = torch.einsum('w,wkl->wkl', [d, self.PoolingWindows.windows[0]])
         imgs.append(to_numpy(d).sum(0))
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
