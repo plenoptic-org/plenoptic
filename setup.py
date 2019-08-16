@@ -33,6 +33,7 @@ setup(
                       'torchvision>=0.3',
                       'tqdm>=4.29',
                       'requests>=2.21',
+                      'imageio>=2.5'
                       'pytest'],
     tests='tests',
      )
