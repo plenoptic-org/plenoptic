@@ -1109,6 +1109,15 @@ class PoolingWindows(nn.Module):
                 else:
                     warnings.warn("For scale %s, min_eccentricity set to %.2f in order to avoid "
                                   "windows smaller than 1 pixel in area" % (i, min_ecc))
+                    # this makes sure that whatever that third decimal
+                    # place is, we're always one above it. e.g., if
+                    # min_ecc was 1.3442, we want to use 1.345, and this
+                    # will ensure that. (and we care about third decimal
+                    # place because that's we're using in the save
+                    # string)
+                    min_ecc *= 1e3
+                    min_ecc -= min_ecc % 1
+                    min_ecc = (min_ecc+1) / 1e3
             else:
                 min_ecc = self.min_eccentricity
             windows = None
