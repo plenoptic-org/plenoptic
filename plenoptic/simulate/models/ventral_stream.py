@@ -1160,6 +1160,12 @@ class PrimaryVisualCortex(VentralModel):
             Module: self
         """
         self.complex_steerable_pyramid.to(*args, **kwargs)
+        for k, v in self.normalize_dict.items():
+            if isinstance(v, dict):
+                for l, w in v.items():
+                    self.normalize_dict[k][l] = w.to(*args, **kwargs)
+            else:
+                self.normalize_dict[k] = v.to(*args, **kwargs)
         super(self.__class__, self).to(*args, **kwargs)
         return self
 
