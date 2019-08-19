@@ -74,7 +74,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False,
                  store_unoriented_bands=False, return_list=False):
 
-        super(Steerable_Pyramid_Freq, self).__init__()
+        super().__init__()
 
         self.order = order
         self.image_shape = image_shape
@@ -182,8 +182,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         YIrcos = self.YIrcos.copy()
         angle = self.angle.copy()
         log_rad = self.log_rad.copy()
-        lo0mask = self.lo0mask.clone()
-        hi0mask = self.hi0mask.clone()
+        lo0mask = self.lo0mask.clone().to(x.dtype)
+        hi0mask = self.hi0mask.clone().to(x.dtype)
 
         # x is a torch tensor batch of images of size [N,C,W,H]
         imdft = torch.rfft(x, signal_ndim=2, onesided=False)
