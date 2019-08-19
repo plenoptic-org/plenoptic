@@ -375,8 +375,14 @@ class Metamer(nn.Module):
                     'saved_image': self.saved_image}, file_path)
 
     @classmethod
-    def load(cls, file_path, model_constructor=None, map_location='cpu'):
+    def load(cls, file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
         r"""load all relevant stuff from a .pt file
+
+        We will iterate through any additional key word arguments
+        provided and, if the model in the saved representation is a
+        dictionary, add them to the state_dict of the model. In this
+        way, you can replace, e.g., paths that have changed between
+        where you ran the model and where you are now.
 
         Parameters
         ----------
@@ -423,12 +429,33 @@ class Metamer(nn.Module):
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
                                                  po.simul.RetinalGanglionCells.from_state_dict_reduced)
 
+        You may want to update one or more of the arguments used to
+        initialize the model. The example I have in mind is where you
+        run the metamer synthesis on a cluster but then load it on your
+        local machine. The VentralModel classes have a ``cache_dir``
+        attribute which you will want to change so it finds the
+        appropriate location:
+
+        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.save('metamers.pt', save_model_reduced=True)
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
+                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+
         """
         tmp_dict = torch.load(file_path, map_location=map_location)
         model = tmp_dict.pop('model')
         if isinstance(model, dict):
+            for k, v in state_dict_kwargs.items():
+                warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
+                              (k, model.pop(k, None), v))
+                model[k] = v
             # then we've got a state_dict_reduced and we need the model_constructor
             model = model_constructor(model)
+            # want to make sure the dtypes match up as well
+            model.to(tmp_dict['target_image'].dtype)
         metamer = cls(tmp_dict.pop('target_image'), model)
         for k, v in tmp_dict.items():
             setattr(metamer, k, v)
