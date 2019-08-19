@@ -1109,7 +1109,8 @@ class PrimaryVisualCortex(VentralModel):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
-                                        'num_scales': num_scales})
+                                        'num_scales': num_scales,
+                                        'normalize_dict': normalize_dict})
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
