@@ -425,7 +425,7 @@ class VentralModel(nn.Module):
             The data to get in shape. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
+            (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
 
         Returns
@@ -532,7 +532,7 @@ class VentralModel(nn.Module):
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
+            (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
 
         Returns
@@ -758,7 +758,7 @@ class RetinalGanglionCells(VentralModel):
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
+            (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
 
         Returns
@@ -814,7 +814,7 @@ class RetinalGanglionCells(VentralModel):
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
+            (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
 
         Returns
@@ -843,7 +843,7 @@ class RetinalGanglionCells(VentralModel):
         By setting ``data``, you can use this to visualize any vector
         with the same length as the number of windows. For example, you
         can view metamer synthesis error by setting
-        ``data=metamer.representation_ratio()`` (then you'd probably
+        ``data=metamer.representation_error()`` (then you'd probably
         want to set ``vrange='auto0'`` in order to change the colormap
         to a diverging one cenetered at 0).
 
@@ -865,7 +865,7 @@ class RetinalGanglionCells(VentralModel):
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_ratio()`` or
+            (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
 
         Returns
@@ -1247,7 +1247,7 @@ class PrimaryVisualCortex(VentralModel):
             ``self.representation``. Else, should be a dictionary of 4d
             tensors like ``self.representation``, or a 3d tensor, like
             the value returned by ``self.forward()`` (e.g., as returned
-            by ``metamer.representation_ratio()``).
+            by ``metamer.representation_error()``).
 
         Returns
         -------
@@ -1300,7 +1300,7 @@ class PrimaryVisualCortex(VentralModel):
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or
             the structure returned by ``self.forward`` (e.g., as
-            returned by ``metamer.representation_ratio()`` or another
+            returned by ``metamer.representation_error()`` or another
             instance of this class).
 
         Returns
@@ -1385,7 +1385,7 @@ class PrimaryVisualCortex(VentralModel):
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or
             the structure returned by ``self.forward`` (e.g., as
-            returned by ``metamer.representation_ratio()`` or another
+            returned by ``metamer.representation_error()`` or another
             instance of this class).
 
         Returns
@@ -1435,7 +1435,7 @@ class PrimaryVisualCortex(VentralModel):
         dictionary of 3d tensors/arrays) or as the value returned by
         ``self.forward()`` (i.e., a large 3d tensor/array). For example,
         you can view metamer synthesis error by setting
-        ``data=metamer.representation_ratio()`` (then you'd probably
+        ``data=metamer.representation_error()`` (then you'd probably
         want to set ``vrange='auto0'`` in order to change the colormap
         to a diverging one cenetered at 0).
 
@@ -1464,7 +1464,7 @@ class PrimaryVisualCortex(VentralModel):
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or
             the structure returned by ``self.forward`` (e.g., as
-            returned by ``metamer.representation_ratio()`` or another
+            returned by ``metamer.representation_error()`` or another
             instance of this class).
 
         Returns

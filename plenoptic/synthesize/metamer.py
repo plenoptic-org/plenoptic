@@ -476,7 +476,7 @@ class Metamer(nn.Module):
             setattr(metamer, k, v)
         return metamer
 
-    def representation_ratio(self, iteration=None):
+    def representation_error(self, iteration=None):
         r"""Get the representation ratio
 
         This is (matched_representation - target_representation) /
@@ -499,13 +499,21 @@ class Metamer(nn.Module):
             matched_rep = self.saved_representation[iteration]
         else:
             matched_rep = self.matched_representation
-        return ((matched_rep - self.target_representation) / self.target_representation)
+        rep_ratio = (matched_rep - self.target_representation)
+        if not hasattr(self.model, 'normalize_dict') or not self.model.normalize_dict:
+            # then either the model doesn't have a normalize_dict or
+            # it's empty; in either case, the model is not normalized
+            return rep_ratio / self.target_representation
+        else:
+            # in this case, we've already normalized the representation
+            # and so don't want to to do this dividing thing
+            return rep_ratio
 
-    def plot_representation_ratio(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
+    def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):
         r"""Plot distance ratio showing how close we are to convergence
 
-        We plot ``self.representation_ratio(iteration)``
+        We plot ``self.representation_error(iteration)``
 
         The goal is to use the model's ``plot_representation``
         method. However, in order for this to work, it needs to not only
@@ -531,7 +539,7 @@ class Metamer(nn.Module):
         ylim : tuple or None, optional
             If not None, the y-limits to use for this plot. If None, we
             scale the y-limits so that it's symmetric about 0 with a
-            limit of ``np.abs(representation_ratio).max()``
+            limit of ``np.abs(representation_error).max()``
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
@@ -545,19 +553,19 @@ class Metamer(nn.Module):
             The figure containing the plot
 
         """
-        representation_ratio = self.representation_ratio(iteration)
-        return plot_representation(self.model, representation_ratio, ax, figsize, ylim,
+        representation_error = self.representation_error(iteration)
+        return plot_representation(self.model, representation_error, ax, figsize, ylim,
                                    batch_idx, title)
 
     def plot_metamer_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
-                            ylim=None, plot_representation_ratio=True, imshow_zoom=None,
+                            ylim=None, plot_representation_error=True, imshow_zoom=None,
                             vrange=(0, 1)):
         r"""Make a plot showing metamer, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
         contains the metamer, the second contains the loss, and the
         (optional) third contains the representation ratio, as plotted
-        by ``self.plot_representation_ratio``.
+        by ``self.plot_representation_error``.
 
         You can specify what iteration to view by using the
         ``iteration`` arg. The default, ``None``, shows the final one.
@@ -595,9 +603,9 @@ class Metamer(nn.Module):
             but you may need much larger if it's more complicated; e.g.,
             for PrimaryVisualCortex, try (39, 11).
         ylim : tuple or None, optional
-            The ylimit to use for the representation_ratio plot. We pass
-            this value directly to ``self.plot_representation_ratio``
-        plot_representation_ratio : bool, optional
+            The ylimit to use for the representation_error plot. We pass
+            this value directly to ``self.plot_representation_error``
+        plot_representation_error : bool, optional
             Whether to plot the representation ratio or not.
         imshow_zoom : None or float, optional
             How much to zoom in / enlarge the metamer image, the ratio
@@ -615,7 +623,7 @@ class Metamer(nn.Module):
             The figure containing this plot
 
         """
-        if plot_representation_ratio:
+        if plot_representation_error:
             n_subplots = 3
         else:
             n_subplots = 2
@@ -644,12 +652,12 @@ class Metamer(nn.Module):
         axes[1].semilogy(self.loss)
         axes[1].scatter(loss_idx, self.loss[loss_idx], c='r')
         axes[1].set_title('Loss')
-        if plot_representation_ratio:
-            fig = self.plot_representation_ratio(batch_idx, iteration, ax=axes[2], ylim=ylim)
+        if plot_representation_error:
+            fig = self.plot_representation_error(batch_idx, iteration, ax=axes[2], ylim=ylim)
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_ratio=True):
+                plot_representation_error=True):
         r"""Animate metamer synthesis progress!
 
         This is essentially the figure produced by
@@ -692,15 +700,15 @@ class Metamer(nn.Module):
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional
-            The y-limits of the representation_ratio plot (ignored if
-            ``plot_representation_ratio`` arg is False).
+            The y-limits of the representation_error plot (ignored if
+            ``plot_representation_error`` arg is False).
 
             * If a tuple, then this is the ylim of all plots
 
             * If None, then all plots have the same limits, all
               symmetric about 0 with a limit of
-              ``np.abs(representation_ratio).max()`` (for the initial
-              representation_ratio)
+              ``np.abs(representation_error).max()`` (for the initial
+              representation_error)
 
             * If a string, must be 'rescale' or of the form 'rescaleN',
               where N can be any integer. If 'rescaleN', we rescale the
@@ -708,7 +716,7 @@ class Metamer(nn.Module):
               'rescale', then we do this 10 times over the course of the
               animation
 
-        plot_representation_ratio : bool, optional
+        plot_representation_error : bool, optional
             Whether to plot the representation ratio or not.
 
         Returns
@@ -746,7 +754,7 @@ class Metamer(nn.Module):
             ylim_rescale_interval = len(images)+1
         # initialize the figure
         fig = self.plot_metamer_status(batch_idx, channel_idx, 0, figsize, ylim,
-                                       plot_representation_ratio)
+                                       plot_representation_error)
         # grab the artists for the first two plots (we don't need to do
         # this for the representation plot, because the model has an
         # _update_plot method that handles this for us)
@@ -757,13 +765,13 @@ class Metamer(nn.Module):
             artists = []
             image_artist.set_data(to_numpy(images[i]))
             artists.append(image_artist)
-            if plot_representation_ratio:
-                representation_ratio = self.representation_ratio(i)
+            if plot_representation_error:
+                representation_error = self.representation_error(i)
                 try:
                     # we know that the first two axes are the image and
                     # loss, so we pass everything after that to update
                     rep_artists = self.model._update_plot(fig.axes[2:], batch_idx,
-                                                          data=representation_ratio)
+                                                          data=representation_error)
                     try:
                         # if this is a list, we just want to include its
                         # members (not include a list of its members)...
@@ -774,11 +782,11 @@ class Metamer(nn.Module):
                         artists.append(rep_artists)
                 except AttributeError:
                     artists.append(fig.axes[2].lines[0])
-                    artists[-1].set_ydata(representation_ratio)
+                    artists[-1].set_ydata(representation_error)
                 # again, we know that fig.axes[2:] contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
-                    rescale_ylim(fig.axes[2:], representation_ratio)
+                    rescale_ylim(fig.axes[2:], representation_error)
             # loss always contains values from every iteration, but
             # everything else will be subsampled
             scat.set_offsets((i*saved_subsample, loss[i*saved_subsample]))

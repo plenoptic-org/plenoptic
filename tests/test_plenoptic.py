@@ -511,8 +511,8 @@ class TestMetamers(object):
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=6, store_progress=True)
-        metamer.plot_representation_ratio()
-        metamer.model.plot_representation_image(data=metamer.representation_ratio())
+        metamer.plot_representation_error()
+        metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_metamer_status()
         metamer.plot_metamer_status(iteration=1)
 
@@ -522,8 +522,8 @@ class TestMetamers(object):
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=6, store_progress=True)
-        metamer.plot_representation_ratio()
-        metamer.model.plot_representation_image(data=metamer.representation_ratio())
+        metamer.plot_representation_error()
+        metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_metamer_status()
         metamer.plot_metamer_status(iteration=1)
 
@@ -534,9 +534,9 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
         # this will test several related functions for us:
-        # plot_metamer_status, plot_representation_ratio,
-        # representation_ratio
-        metamer.animate(figsize=(17, 5), plot_representation_ratio=True, ylim='rescale100',
+        # plot_metamer_status, plot_representation_error,
+        # representation_error
+        metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
 
     def test_metamer_nans(self):
