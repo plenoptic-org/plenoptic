@@ -207,7 +207,9 @@ class Metamer(nn.Module):
         ``loss_thresh``, whichever comes first
 
         Note that you can run this several times in sequence by setting
-        ``initial_image`` to the ``matched_image`` we return. Everything
+        ``initial_image`` to ``metamer.matched_image`` (I would detach
+        and clone it just to make sure things don't get weird:
+        ``initial_image=metamer.matched_image.detach().clone()``). Everything
         that stores the progress of the optimization (``loss``,
         ``saved_representation``, ``saved_image``) will persist between
         calls and so potentially get very large.
@@ -279,6 +281,12 @@ class Metamer(nn.Module):
 
         while self.matched_image.ndimension() < 4:
             self.matched_image = self.matched_image.unsqueeze(0)
+        if isinstance(self.matched_representation, torch.nn.Parameter):
+            # for some reason, when saving and loading the metamer
+            # object after running it, self.matched_representation ends
+            # up as a parameter, which we don't want. This resets it.
+            delattr(self, 'matched_representation')
+            self.matched_representation = None
         # self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
         self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, momentum=0.8)
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
@@ -288,6 +296,13 @@ class Metamer(nn.Module):
         if store_progress:
             if store_progress is True:
                 store_progress = 1
+            # if this is not the first time synthesize is being run for
+            # this metamer object, saved_image/saved_representation will
+            # be tensors instead of lists. This converts them back to
+            # lists so we can use append. If it's the first time,
+            # they'll be empty lists and this does nothing
+            self.saved_image = list(self.saved_image)
+            self.saved_representation = list(self.saved_representation)
             self.saved_image.append(self.matched_image.clone())
             self.saved_representation.append(self.analyze(self.matched_image))
         else:
