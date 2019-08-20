@@ -461,7 +461,9 @@ class Metamer(nn.Module):
 
         """
         tmp_dict = torch.load(file_path, map_location=map_location)
+        device = torch.device(map_location)
         model = tmp_dict.pop('model')
+        target_image = tmp_dict.pop('target_image').to(device)
         if isinstance(model, dict):
             for k, v in state_dict_kwargs.items():
                 warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
@@ -470,8 +472,8 @@ class Metamer(nn.Module):
             # then we've got a state_dict_reduced and we need the model_constructor
             model = model_constructor(model)
             # want to make sure the dtypes match up as well
-            model.to(tmp_dict['target_image'].dtype)
-        metamer = cls(tmp_dict.pop('target_image'), model)
+            model = model.to(device, target_image.dtype)
+        metamer = cls(target_image, model)
         for k, v in tmp_dict.items():
             setattr(metamer, k, v)
         return metamer
