@@ -58,9 +58,7 @@ class Metamer(nn.Module):
         Whatever is returned by ``model.forward(matched_image)``; we're
         trying to make this identical to ``self.target_representation``
     optimizer : torch.optim.Optimizer
-        A pytorch optimization method. Currently, user cannot specify
-        the method they want, and we use SGD (stochastic gradient
-        descent).
+        A pytorch optimization method.
     scheduler : torch.optim.lr_scheduler._LRScheduler
         A pytorch scheduler, which tells us how to change the learning
         rate over iterations. Currently, user cannot set and we use
@@ -212,7 +210,7 @@ class Metamer(nn.Module):
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, optimizer='ADAM', fraction_removed=0, loss_thresh=1e-4,
                    store_progress=False, save_progress=False,
-                   save_path='metamer.pt'):
+                   save_path='metamer.pt', **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -251,7 +249,7 @@ class Metamer(nn.Module):
             it stays reasonable. The classic example is making sure the
             range lies between 0 and 1, see plenoptic.RangeClamper for
             an example.
-        optimizer: ['ADAM', 'SGD', 'LBFGS']
+        optimizer: {'ADAM', 'SGD', 'LBFGS'}
             The choice of optimization algorithm
         fraction_removed: float, optional
             The fraction of the representation that will be ignored
@@ -281,6 +279,10 @@ class Metamer(nn.Module):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
+        optimizer_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
 
         Returns
         -------
@@ -308,15 +310,25 @@ class Metamer(nn.Module):
         self.fraction_removed = fraction_removed
 
         if optimizer == 'SGD':
-            self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, nesterov=True, momentum=0.8)
+            for k, v in zip(['nesterov', 'momentum'], [True, .8]):
+                if k not in optimizer_kwargs:
+                    optimizer_kwargs[k] = v
+            self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, **optimizer_kwargs)
         elif optimizer == 'LBFGS':
-            self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, history_size=10, max_iter=4)
-            print('this second order optimization method is more intensive')
+            for k, v in zip(['history_size', 'max_iter'], [10, 4]):
+                if k not in optimizer_kwargs:
+                    optimizer_kwargs[k] = v
+            self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, **optimizer_kwargs)
+            warnings.warn('This second order optimization method is more intensive')
             if self.fraction_removed > 0:
-                warnings.warn('danger: for now the code is not designed to handle LBFGS and random'
+                warnings.warn('For now the code is not designed to handle LBFGS and random'
                               ' subsampling of coeffs')
         elif optimizer == 'ADAM':
-            self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
+            if 'amsgrad' not in optimizer_kwargs:
+                optimizer_kwargs['amsgrad'] = True
+            self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, **optimizer_kwargs)
+        else:
+            raise Exception("Don't know how to handle optimizer %s!" % optimizer)
 
         self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
 
