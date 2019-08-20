@@ -136,7 +136,7 @@ class Metamer(nn.Module):
         self.matched_representation = None
         self.optimizer = None
         self.scheduler = None
-        self.fraction_removed = None
+        self.fraction_removed = 0
 
         self.loss = []
         self.saved_representation = []
@@ -170,15 +170,11 @@ class Metamer(nn.Module):
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
 
-        if self.fraction_removed is not None:
-
-            representation_size = self.matched_representation.flatten().shape[0]
-            idx_shuffled = torch.randperm(representation_size)
-            idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-            loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
-                                           self.target_representation.flatten()[idx_sub])
-        else:
-            loss = self.objective_function(self.matched_representation, self.target_representation)
+        representation_size = self.matched_representation.flatten().shape[0]
+        idx_shuffled = torch.randperm(representation_size)
+        idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
+        loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
+                                       self.target_representation.flatten()[idx_sub])
 
         loss.backward(retain_graph=True)
 
@@ -214,7 +210,8 @@ class Metamer(nn.Module):
         return loss
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, optimizer='ADAM', fraction_removed=None, loss_thresh=1e-4, store_progress=False, save_progress=False,
+                   clamper=None, optimizer='ADAM', fraction_removed=0, loss_thresh=1e-4,
+                   store_progress=False, save_progress=False,
                    save_path='metamer.pt'):
         r"""synthesize a metamer
 
@@ -308,16 +305,16 @@ class Metamer(nn.Module):
                                              device=self.target_image.device)
             self.matched_image = torch.nn.Parameter(initial_image, requires_grad=True)
 
-        if fraction_removed is not None and fraction_removed > 0 and fraction_removed < 1:
-            self.fraction_removed = fraction_removed
+        self.fraction_removed = fraction_removed
 
         if optimizer == 'SGD':
             self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, nesterov=True, momentum=0.8)
         elif optimizer == 'LBFGS':
             self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, history_size=10, max_iter=4)
             print('this second order optimization method is more intensive')
-            if self.fraction_removed is not None:
-                print('danger: for now the code is not designed to handle LBFGS and random subsampling of coeffs')
+            if self.fraction_removed > 0:
+                warnings.warn('danger: for now the code is not designed to handle LBFGS and random'
+                              ' subsampling of coeffs')
         elif optimizer == 'ADAM':
             self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, amsgrad=True)
 
