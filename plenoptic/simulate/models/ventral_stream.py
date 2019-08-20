@@ -227,6 +227,68 @@ class VentralModel(nn.Module):
         nn.Module.to(self, *args, **kwargs)
         return self
 
+    def parallel(self, devices):
+        r"""Parallelize the model acros multiple GPUs
+
+        The PoolingWindows these models use can get very large -- so
+        large, that it's impossible to put them all on one GPU during a
+        forward call. In order to solve that issue, we can spread them
+        across multiple GPUs (CPU will still work, but then things get
+        very slow for synthesis). Unfortunately we can't use
+        ``torch.nn.DataParallel`` for this because that only spreads the
+        input/output across multiple devices, not components of a
+        module. Because each window acts independently, we can split the
+        different windows across devices.
+
+        For the user, they should notice no difference between the
+        parallelized and normal versions of these models *EXCEPT* if
+        they try to access ``self.PoolingWindows.windows`` directly. See
+        the docstring for PoolingWindows.parallel for more details on
+        this.
+
+        Parameters
+        ----------
+        devices : list
+            List of torch.devices or ints (corresponding to cuda
+            numbers) to spread windows across
+
+        Returns
+        -------
+        self
+
+        See also
+        --------
+        unparallel : undo this parallelization
+
+        """
+        self.PoolingWindows = self.PoolingWindows.parallel(devices)
+        return self
+
+    def unparallel(self, device=torch.device('cpu')):
+        r"""Unparallelize this model, bringing everything onto one device
+
+        If you no longer want this object parallelized and spread across
+        multiple devices, this method will collect all the windows back
+        onto ``device``
+
+        Parameters
+        ----------
+        device : torch.device or int
+            The torch device to put every window on (if an int, this is
+            the index of the gpu)
+
+        Returns
+        -------
+        self
+
+        See also
+        --------
+        parallel : parallelize PoolingWindows across multiple devices
+
+        """
+        self.PoolingWindows.unparallel(device)
+        return self
+
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
         r"""plot the pooling windows on an image.
 
@@ -879,12 +941,9 @@ class RetinalGanglionCells(VentralModel):
         """
         ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-        data = torch.Tensor(data).to(self.PoolingWindows.windows[0].device,
-                                     self.PoolingWindows.windows[0].dtype)
-        # for some reason, np.einsum fails on this but torch.einsum
-        # doesn't...
-        data = torch.einsum('w,wkl->wkl', [data, self.PoolingWindows.windows[0]])
-        pt.imshow(to_numpy(data).sum(0), vrange=vrange, ax=ax, title=title)
+        # project expects a 3d tensor
+        data = self.PoolingWindows.project(torch.Tensor(data).unsqueeze(0).unsqueeze(0))
+        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title)
         return ax.figure, [ax]
 
 
@@ -1480,14 +1539,15 @@ class PrimaryVisualCortex(VentralModel):
         titles = []
         axes = []
         imgs = []
+        # project expects a dictionary of 3d tensors
+        data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
+                                                for k, v in data.items()))
         for i in range(self.num_scales):
             titles.append(self._get_title(title_list, i, "scale %02d" % i))
-            windows = self.PoolingWindows.windows[i]
-            img = np.zeros(windows.shape[1:])
+            img = np.zeros(data[(i, 0)].shape).squeeze()
             for j in range(self.order+1):
-                d = torch.Tensor(data[(i, j)]).to(windows.device)
-                d = torch.einsum('w,wkl->wkl', [d, windows])
-                img += to_numpy(d).sum(0)
+                d = data[(i, j)].squeeze()
+                img += to_numpy(d)
             ax = fig.add_subplot(gs[i])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             imgs.append(img)
@@ -1496,12 +1556,9 @@ class PrimaryVisualCortex(VentralModel):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
-        d = torch.Tensor(data['mean_luminance']).to(self.PoolingWindows.windows[0].device,
-                                                    self.PoolingWindows.windows[0].dtype)
-        d = torch.einsum('w,wkl->wkl', [d, self.PoolingWindows.windows[0]])
-        imgs.append(to_numpy(d).sum(0))
+        imgs.append(to_numpy(data['mean_luminance'].squeeze()))
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr in zip(axes, imgs, titles, vrange):
-            zoom = round(self.PoolingWindows.windows[0].shape[1] / img.shape[0])
+            zoom = round(data[(0, 0)].shape[-1] / img.shape[-1])
             pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=zoom)
         return fig, axes

@@ -947,11 +947,13 @@ class PoolingWindows(nn.Module):
     transition_region_width : `float`, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
-    windows : list
+    windows : list or dict
         A list of 3d tensors containing the pooling windows in which the
         model parameters are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
-        (though they should all have the same number of windows)
+        (though they should all have the same number of windows). If you
+        have called ``parallel()``, this will be a dictionary instead
+        (see that method for details)
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -1030,6 +1032,10 @@ class PoolingWindows(nn.Module):
     cached_paths : list
         List of strings, one per scale, taht we either saved or loaded
         the cached windows tensors from
+    num_scales : int
+        Number of scales this object has windows for
+    num_devices : int
+        Number of devices this object is split across
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
@@ -1061,6 +1067,8 @@ class PoolingWindows(nn.Module):
         self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
+        self.num_scales = num_scales
+        self.num_devices = 1
         self.windows = []
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
@@ -1083,7 +1091,7 @@ class PoolingWindows(nn.Module):
         self.cache_paths = []
         self.calculated_min_eccentricity_degrees = []
         self.calculated_min_eccentricity_pixels = []
-        self._window_sizes(num_scales)
+        self._window_sizes()
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': self.min_eccentricity,
                                    'max_eccentricity': self.max_eccentricity,
@@ -1168,7 +1176,7 @@ class PoolingWindows(nn.Module):
                     torch.save(windows, self.cache_paths[-1])
             self.windows.append(windows)
 
-    def _window_sizes(self, num_scales=1):
+    def _window_sizes(self):
         r"""Calculate the various window size metrics
 
         helper function that gets called during construction, should not
@@ -1213,7 +1221,7 @@ class PoolingWindows(nn.Module):
         self.window_approx_area_pixels = []
         self.central_eccentricity_pixels = []
         self.deg_to_pix = []
-        for i in range(num_scales):
+        for i in range(self.num_scales):
             deg_to_pix = calc_deg_to_pix([j/2**(i+1) for j in self.img_res], self.max_eccentricity)
             self.deg_to_pix.append(deg_to_pix)
             self.window_width_pixels.append(dict((k, v*deg_to_pix) for k, v in
@@ -1307,6 +1315,95 @@ class PoolingWindows(nn.Module):
         slice_vals = (scaled_window_res - scaled_img_res) / 2
         return [int(np.floor(slice_vals)), -int(np.ceil(slice_vals))]
 
+    def parallel(self, devices):
+        r"""Parallelize the pooling windows across multiple GPUs
+
+        PoolingWindows objects can get very large -- so large, that it's
+        impossible to put them all on one GPU during a forward call. In
+        order to solve that issue, we can spread them across multiple
+        GPUs (CPU will still work, but then things get very slow for
+        synthesis). Unfortunately we can't use ``torch.nn.DataParallel``
+        for this because that only spreads the input/output across
+        multiple devices, not components of a module. Because each
+        window acts independently, we can split the different windows
+        across devices.
+
+        For the user, they should notice no difference between the
+        parallelized and normal versions of PoolingWindows *EXCEPT* if
+        they try to access ``PoolingWindows.windows`` directly: in the
+        normal version, this is a list with one entry per scale; in the
+        parallelized version, this is a dictionary with keys (i, j),
+        where i is the scale and j is the device index. Otherwise, all
+        functions should work as before except that the input's device
+        no longer needs to match PoolingWindows's device; we pass it to
+        the correct device.
+
+        We attempt to split the windows roughly evenly. So if you have 3
+        devices and 100 windows, we'll put 34 on the first, 34 on the
+        second, and the final 32 on the last. If you have multiple
+        scales, each scale will be split in the same manner (though,
+        since scales can have different numbers of windows, there's no
+        guarantee they'll all be the same).
+
+        Parameters
+        ----------
+        devices : list
+            List of torch.devices or ints (corresponding to cuda
+            numbers) to spread windows across
+
+        Returns
+        -------
+        self
+
+        See also
+        --------
+        unparallel : undo this parallelization
+
+        """
+        windows_gpu = {}
+        for i, w in enumerate(self.windows):
+            num = int(np.ceil(len(w) / len(devices)))
+            for j, d in enumerate(devices):
+                if j*num > len(w):
+                    break
+                windows_gpu[(i, j)] = w[j*num:(j+1)*num].to(d)
+        self.windows = windows_gpu
+        self.num_devices = len(devices)
+        return self
+
+    def unparallel(self, device=torch.device('cpu')):
+        r"""Unparallelize this object, bringing everything onto one device
+
+        If you no longer want this object parallelized and spread across
+        multiple devices, this method will collect all the windows back
+        onto ``device``
+
+        Parameters
+        ----------
+        device : torch.device or int
+            The torch device to put every window on (if an int, this is
+            the index of the gpu)
+
+        Returns
+        -------
+        self
+
+        See also
+        --------
+        parallel : parallelize PoolingWindows across multiple devices
+
+        """
+        windows = []
+        keys = list(self.windows.keys())
+        for i in range(self.num_scales):
+            tmp = []
+            for j in range(self.num_devices):
+                tmp.append(self.windows[(i, j)].to(device))
+            windows[-1] = torch.cat(tmp, 0)
+        self.windows = windows
+        self.num_devices = 1
+        return self
+
     def forward(self, x, idx=0):
         r"""Window and pool the input
 
@@ -1344,10 +1441,17 @@ class PoolingWindows(nn.Module):
         --------
         window : window the input
         pool : pool the windowed input (get the weighted average)
+        project : the opposite of this, going from pooled values to
+            image
 
         """
+        try:
+            output_device = x.device
+        except AttributeError:
+            # then this is probably a dict
+            output_device = list(x.values())[0].device
         windowed_x = self.window(x, idx)
-        return self.pool(windowed_x, idx)
+        return self.pool(windowed_x, idx, output_device)
 
     def window(self, x, idx=0):
         r"""Window the input
@@ -1365,6 +1469,23 @@ class PoolingWindows(nn.Module):
         appropriately-sized window (this is the case for, e.g., the
         steerable pyramid). If we want to use differently-structured
         dictionaries, we'll need to restructure this
+
+        If you've called ``parallel()`` and this object has been spread
+        across multiple devices, then the ``windowed_x`` value we return
+        will look a little different: 
+
+        - if ``x`` was a dictionary, ``windowed_x`` will still be a
+          dictionary but instead of having the same keys as ``x``, its
+          keys will be ``(k, i)``, where ``k`` is the keys from ``x``
+          and ``i`` is the indices of the devices
+
+        - if ``x`` was a tensor, ``windowed_x`` will be a list of length
+          ``self.num_devices``.
+
+        In both cases, the different entries are on different devices,
+        as specified by key[1] / the index and may be different
+        shapes. ``pool`` will correctly bring them back together,
+        concatenating them and bringing them onto the same device.
 
         Parameters
         ----------
@@ -1389,18 +1510,36 @@ class PoolingWindows(nn.Module):
             if list(x.values())[0].ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
                                 " Unsqueeze until this is true!")
-            # one way to make this more general: figure out the size of
-            # the tensors in x and in self.windows, and intelligently
-            # lookup which should be used.
-            return dict((k, torch.einsum('ijkl,wkl->ijwkl', [v, self.windows[k[0]]]))
-                        for k, v in x.items())
+            if isinstance(self.windows, list):
+                # one way to make this more general: figure out the size of
+                # the tensors in x and in self.windows, and intelligently
+                # lookup which should be used.
+                return dict((k, torch.einsum('ijkl,wkl->ijwkl', [v.to(self.windows[0].device),
+                                                                 self.windows[k[0]]]))
+                            for k, v in x.items())
+            else:
+                # then this is a dict and we're splitting it over multiple devices
+                tmp = {}
+                for k, v in x.items():
+                    for i in range(self.num_devices):
+                        w = self.windows[(k[0], i)]
+                        tmp[(k, i)] = torch.einsum('ijkl,wkl->ijwkl', [v.to(w.device), w])
+                return tmp
         else:
             if x.ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
                                 " Unsqueeze until this is true!")
-            return torch.einsum('ijkl,wkl->ijwkl', [x, self.windows[idx]])
+            if isinstance(self.windows, list):
+                return torch.einsum('ijkl,wkl->ijwkl', [x.to(self.windows[0].device),
+                                                        self.windows[idx]])
+            else:
+                tmp = []
+                for i in range(self.num_devices):
+                    w = self.windows[(idx, i)]
+                    tmp.append(torch.einsum('ijkl,wkl->ijwkl', [x.to(w.device), w]))
+                return tmp
 
-    def pool(self, windowed_x, idx=0):
+    def pool(self, windowed_x, idx=0, output_device=torch.device('cpu')):
         r"""Pool the windowed input
 
         We take the windowed input (as returned by ``self.window()``)
@@ -1425,7 +1564,13 @@ class PoolingWindows(nn.Module):
             Either a 5d tensor or a dictionary of 5d tensors
         idx : int, optional
             Which entry in the ``windows`` list to use. Only used if
-            ``x`` is a tensor
+            ``windowed_x`` is a tensor
+        output_device : torch.device, optional
+            If parallel was called before this, all the windows and
+            windowed_x will be spread across multiple devices, so we
+            need to know what device to place the output on. If parallel
+            has not been called (i.e., PoolingWindows is only on one
+            device, this is ignored)
 
         Returns
         -------
@@ -1439,13 +1584,132 @@ class PoolingWindows(nn.Module):
 
         """
         if isinstance(windowed_x, dict):
-            # one way to make this more general: figure out the size of
-            # the tensors in x and in self.windows, and intelligently
-            # lookup which should be used.
-            return dict((k, v.sum((-1, -2)) / self.windows[k[0]].sum((-1, -2)))
-                        for k, v in windowed_x.items())
+            if isinstance(self.windows, list):
+                # one way to make this more general: figure out the size of
+                # the tensors in x and in self.windows, and intelligently
+                # lookup which should be used.
+                return dict((k, v.sum((-1, -2)) / self.windows[k[0]].sum((-1, -2)))
+                            for k, v in windowed_x.items())
+            else:
+                tmp = {}
+                orig_keys = set([k[0] for k in windowed_x])
+                for k in orig_keys:
+                    t = []
+                    for i in range(self.num_devices):
+                        w = self.windows[(k[0], i)]
+                        v = windowed_x[(k, i)]
+                        t.append((v.sum((-1, -2)) / w.sum((-1, -2))).to(output_device))
+                    tmp[k] = torch.cat(t, -1)
+                return tmp
         else:
-            return windowed_x.sum((-1, -2)) / self.windows[idx].sum((-1, -2))
+            if isinstance(self.windows, list):
+                return windowed_x.sum((-1, -2)) / self.windows[idx].sum((-1, -2))
+            else:
+                tmp = []
+                for i, v in enumerate(windowed_x):
+                    w = self.windows[(idx, i)]
+                    tmp.append((v.sum((-1, -2)) / w.sum((-1, -2))).to(output_device))
+                return torch.cat(tmp, -1)
+
+    def project(self, pooled_x, idx=0, output_device=torch.device('cpu')):
+        r"""Project pooled values back onto an image
+
+        For visualization purposes, you may want to project the pooled
+        values (or values that have been pooled and then transformed in
+        other ways) back onto an image. This method will do that for
+        you.
+
+        It takes a 3d tensor or dictionary of 3d tensors (like the
+        output of ``forward()`` / ``pool()``; the final dimension must
+        have a value for each window) and returns a 4d tensor or
+        dictionary of 4d tensors (like the input of ``forward()`` /
+        ``window()``).
+
+        For example, if we have 100 windows, you must pass a i x j x 100
+        tensor. For each of the i batches and j channels, we'll then
+        multiply each of the 100 values by the corresponding window to
+        end up with an i x j x 100 x height x width tensor. We then sum
+        across windows to get i x j x heigth x width and return that.
+
+        Parameters
+        ----------
+        pooled_x : dict or torch.Tensor
+            3d Tensor or a dictionary of 3d tensors
+        idx : int, optional
+            Which entry in the ``windows`` list to use. Only used if
+            ``pooled_x`` is a tensor
+        output_device : torch.device, optional
+            If parallel was called before this, all the windows and
+            windowed_x will be spread across multiple devices, so we
+            need to know what device to place the output on. If parallel
+            has not been called (i.e., PoolingWindows is only on one
+            device, this is ignored)
+
+        Returns
+        -------
+        x : dict or torch.Tensor
+            4d tensor or dictionary of 4d tensors
+
+        See also
+        --------
+        forward : the opposite of this, going from image to pooled
+            values
+
+        """
+        if isinstance(pooled_x, dict):
+            if list(pooled_x.values())[0].ndimension() != 3:
+                raise Exception("PoolingWindows input must be 3d tensors or a dict of 31d tensors!"
+                                " Squeeze until this is true!")
+            if isinstance(self.windows, list):
+                tmp = {}
+                for k, v in pooled_x.items():
+                    if isinstance(k, tuple):
+                        # in this case our keys are (scale, orientation)
+                        # tuples, so we want the scale index
+                        window_key = k[0]
+                    else:
+                        # in this case, the key is a string, probably
+                        # "mean_luminance" and this corresponds to the
+                        # lowest/largest scale
+                        window_key = 0
+                    tmp[k] = torch.einsum('ijw,wkl->ijkl', [v.to(self.windows[0].device),
+                                                            self.windows[window_key]])
+                return tmp
+            else:
+                tmp = {}
+                for k, v in pooled_x.items():
+                    num = int(np.ceil(v.shape[-1] / self.num_devices))
+                    t = []
+                    if isinstance(k, tuple):
+                        # in this case our keys are (scale, orientation)
+                        # tuples, so we want the scale index
+                        window_key = k[0]
+                    else:
+                        # in this case, the key is a string, probably
+                        # "mean_luminance" and this corresponds to the
+                        # lowest/largest scale
+                        window_key = 0
+                    for i in range(self.num_devices):
+                        w = self.windows[(window_key, i)]
+                        d = v[..., i*num:(i+1)*num]
+                        t.append(torch.einsum('ijw,wkl->ijwkl', [d.to(w.device), w]).to(output_device))
+                    tmp[k] = torch.cat(t, 2).sum(2)
+                return tmp
+        else:
+            if pooled_x.ndimension() != 3:
+                raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
+                                " Squeeze until this is true!")
+            if isinstance(self.windows, list):
+                return torch.einsum('ijw,wkl->ijkl', [pooled_x.to(self.windows[0].device),
+                                                      self.windows[idx]])
+            else:
+                tmp = []
+                num = int(np.ceil(pooled_x.shape[-1] / self.num_devices))
+                for i in range(self.num_devices):
+                    w = self.windows[(idx, i)]
+                    d = pooled_x[..., i*num:(i+1)*num]
+                    tmp.append(torch.einsum('ijw,wkl->ijwkl', [d.to(w.device), w]).to(output_device))
+                return torch.cat(tmp, 2).sum(2)
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
         r"""plot the pooling windows on an image.
@@ -1482,8 +1746,13 @@ class PoolingWindows(nn.Module):
             The axis with the windows
 
         """
-        for w in self.windows[0]:
-            ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
+        if isinstance(self.windows, list):
+            for w in self.windows[0]:
+                ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
+        else:
+            for device in range(self.num_devices):
+                for w in self.windows[(0, device)]:
+                    ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
         return ax
 
     def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
