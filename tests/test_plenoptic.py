@@ -422,6 +422,23 @@ class TestMetamers(object):
                            save_path=save_path)
         po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
 
+    def test_metamer_fraction_removed(self):
+
+        X = np.load(op.join(op.join(op.dirname(op.realpath(__file__)), '..', 'examples'), 'metamer_PS_samples.npy'))
+        sigma = X.std(axis=1)
+        sigma[sigma < .00001] = 1
+        normalizationFactor = 1 / sigma
+        normalizationFactor = torch.diag(torch.tensor(normalizationFactor, dtype=torch.float32))
+
+        model = po.simul.Texture_Statistics([256, 256], normalizationFactor=normalizationFactor)
+        image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
+        im0 = torch.tensor(image, requires_grad=True, dtype=torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
+        c = po.RangeClamper([image.min(), image.max()])
+        M = po.synth.Metamer(im0, model)
+
+        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1, optimizer='SGD',
+                                                             fraction_removed=.1, clamper=c)
+
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
