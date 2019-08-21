@@ -1180,7 +1180,7 @@ class PrimaryVisualCortex(VentralModel):
         self.windowed_complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
-        self.to_normalize = ['complex_cell_responses']
+        self.to_normalize = ['complex_cell_responses', 'image']
         self.normalize_dict = normalize_dict
 
     def to(self, *args, **kwargs):
@@ -1253,10 +1253,10 @@ class PrimaryVisualCortex(VentralModel):
         self.image = image.clone().detach()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
-        if 'complex_cell_responses' in self.normalize_dict:
+        if self.normalize_dict:
             self = zscore_stats(self, self.normalize_dict)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(image)
+        self.mean_luminance = self.PoolingWindows(self.image)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
         return torch.cat(list(self.representation.values()), dim=2)
