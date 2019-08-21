@@ -697,6 +697,19 @@ class TestMetamers(object):
         matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1, optimizer='SGD',
                                                              fraction_removed=.1, clamper=c)
 
+    def test_metamer_loss_change(self):
+        # literally just testing that it runs
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
+                           loss_change_fraction=.5)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
+                           loss_change_fraction=.5, fraction_removed=.1)
+
+
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])

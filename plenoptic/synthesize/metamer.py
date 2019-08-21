@@ -168,8 +168,21 @@ class Metamer(nn.Module):
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
 
-        representation_size = self.matched_representation.flatten().shape[0]
-        idx_shuffled = torch.randperm(representation_size)
+        # here we get a boolean mask (bunch of ones and zeroes) for all
+        # the statistics we want to include. We only do this if the loss
+        # appears to be roughly unchanging for some number of iterations
+        if (len(self.loss) > self.loss_change_iter and
+            self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
+            error_idx = self.representation_error().flatten().abs().argsort(descending=True)
+            error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
+        # else, we use all of the statistics
+        else:
+            error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
+        # for some reason, pytorch doesn't have the equivalent of
+        # np.random.permutation, something that returns a shuffled copy
+        # of a tensor, so we use numpy's version
+        idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
+        # then we optionally randomly select some subset of those.
         idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
         loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
                                        self.target_representation.flatten()[idx_sub])
@@ -208,9 +221,10 @@ class Metamer(nn.Module):
         return loss
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, optimizer='ADAM', fraction_removed=0, loss_thresh=1e-4,
-                   store_progress=False, save_progress=False,
-                   save_path='metamer.pt', **optimizer_kwargs):
+                   clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
+                   store_progress=False, save_progress=False, save_path='metamer.pt',
+                   loss_change_thresh=1e-2, loss_change_iter=50, loss_change_fraction=1.,
+                   **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -232,6 +246,33 @@ class Metamer(nn.Module):
         ``saved_representation``, ``saved_image``) will persist between
         calls and so potentially get very large.
 
+        We provide three ways to try and add some more randomness to
+        this optimization, in order to either improve the diversity of
+        generated metamers or avoid getting stuck in local optima:
+
+        1. Use a different optimizer (and change its hyperparameters)
+           with ``optimizer`` and ``optimizer_kwargs``
+
+        2. Only calculate the gradient with respect to some random
+           subset of the model's representation. By setting
+           ``fraction_removed`` to some number between 0 and 1, the
+           gradient and loss are computed using a random subset of the
+           representation on each iteration (this random subset is drawn
+           independently on each trial). Therefore, if you wish to
+           disable this (to use all of the representation), this should
+           be set to 0.
+
+        3. Only calculate the gradient with respect to the parts of the
+           representation that have the highest error. If we think the
+           loss has stopped changing (by seeing that the loss
+           ``loss_change_iter`` iterations ago is within
+           ``loss_change_thresh`` of the most recent loss), then only
+           compute the loss and gradient using the top
+           ``loss_change_fraction`` of the representation. This can be
+           combined wth ``fraction_removed`` so as to randomly subsample
+           from this selection. To disable this (and use all the
+           representation), this should be set to 1.
+
         Parameters
         ----------
         seed : int, optional
@@ -251,7 +292,7 @@ class Metamer(nn.Module):
             it stays reasonable. The classic example is making sure the
             range lies between 0 and 1, see plenoptic.RangeClamper for
             an example.
-        optimizer: {'ADAM', 'SGD', 'LBFGS'}
+        optimizer: {'Adam', 'SGD', 'LBFGS'}
             The choice of optimization algorithm
         fraction_removed: float, optional
             The fraction of the representation that will be ignored
@@ -281,6 +322,23 @@ class Metamer(nn.Module):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -319,6 +377,9 @@ class Metamer(nn.Module):
             self.matched_representation = None
 
         self.fraction_removed = fraction_removed
+        self.loss_change_thresh = loss_change_thresh
+        self.loss_change_iter = loss_change_iter
+        self.loss_change_fraction = loss_change_fraction
 
         if optimizer == 'SGD':
             for k, v in zip(['nesterov', 'momentum'], [True, .8]):
@@ -334,7 +395,7 @@ class Metamer(nn.Module):
             if self.fraction_removed > 0:
                 warnings.warn('For now the code is not designed to handle LBFGS and random'
                               ' subsampling of coeffs')
-        elif optimizer == 'ADAM':
+        elif optimizer == 'Adam':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
             self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, **optimizer_kwargs)
