@@ -51,8 +51,9 @@ class Texture_Statistics(nn.Module):
         self.Na = Na
         self.n_scales = n_scales
         self.n_orientations = n_orientations
-        self.pyr = Steerable_Pyramid_Freq(self.image_shape,height=self.n_scales,
-            order=self.n_orientations-1,is_complex=True,store_unoriented_bands=True)
+        self.pyr = Steerable_Pyramid_Freq(self.image_shape, height=self.n_scales,
+            order=self.n_orientations-1, is_complex=True, store_unoriented_bands=True,
+                                          return_list=True)
 
         self.normalize = normalize
         self.normalizationFactor = normalizationFactor
@@ -85,8 +86,7 @@ class Texture_Statistics(nn.Module):
         
 
         # get pyramid coefficients
-        self.pyr.forward(image)
-        pyr0 = self.pyr.coeffout 
+        pyr0 = self.pyr.forward(image)
 
         # subtract mean of lowBand
         nbands = len(pyr0)
@@ -225,7 +225,8 @@ class Texture_Statistics(nn.Module):
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
             Cx0.flatten(), Cr0.flatten(), Crx0.flatten(), vHPR0.unsqueeze(0))) 
 
-        representation = self.normalizationFactor.flatten()*representation
+        if self.normalizationFactor is not None:
+            representation = self.normalizationFactor @ representation
         return representation
 
 
