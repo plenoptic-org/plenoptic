@@ -614,15 +614,16 @@ class Metamer(nn.Module):
             matched_rep = self.saved_representation[iteration]
         else:
             matched_rep = self.matched_representation
-        rep_ratio = (matched_rep - self.target_representation)
-        if not hasattr(self.model, 'normalize_dict') or not self.model.normalize_dict:
-            # then either the model doesn't have a normalize_dict or
-            # it's empty; in either case, the model is not normalized
-            return rep_ratio / self.target_representation
-        else:
-            # in this case, we've already normalized the representation
-            # and so don't want to to do this dividing thing
-            return rep_ratio
+        rep_ratio = matched_rep - self.target_representation
+        return rep_ratio
+        # if not hasattr(self.model, 'normalize_dict') or not self.model.normalize_dict:
+        #     # then either the model doesn't have a normalize_dict or
+        #     # it's empty; in either case, the model is not normalized
+        #     return rep_ratio / self.target_representation
+        # else:
+        #     # in this case, we've already normalized the representation
+        #     # and so don't want to to do this dividing thing
+        #     return rep_ratio
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):
