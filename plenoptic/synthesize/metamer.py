@@ -67,6 +67,11 @@ class Metamer(nn.Module):
         much)
     loss : list
         A list of our loss over iterations.
+    gradient : list
+        A list of the gradient over iterations.
+    learning_rate : list
+        A list of the learning_rate over iterations. We use a scheduler
+        that gradually reduces this over time, so it won't be constant.
     saved_representation : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save ``self.matched_representation``
@@ -137,6 +142,8 @@ class Metamer(nn.Module):
         self.fraction_removed = 0
 
         self.loss = []
+        self.gradient = []
+        self.learning_rate = []
         self.saved_representation = []
         self.saved_image = []
 
@@ -206,6 +213,10 @@ class Metamer(nn.Module):
         -------
         loss : torch.tensor
             1-element tensor containing the loss on this step
+        gradient : torch.tensor
+            1-element tensor containing the gradient on this step
+        learning_rate : torch.tensor
+            1-element tensor containing the learning rate on this step
 
         """
 
@@ -218,7 +229,7 @@ class Metamer(nn.Module):
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
                          learning_rate=self.optimizer.param_groups[0]['lr'])
-        return loss
+        return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
@@ -426,8 +437,10 @@ class Metamer(nn.Module):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss = self._optimizer_step(pbar)
+            loss, g, lr = self._optimizer_step(pbar)
             self.loss.append(loss.item())
+            self.gradient.append(g.item())
+            self.learning_rate.append(lr)
             if np.isnan(loss.item()):
                 warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
                               "representation to our last saved values (which means this will "
