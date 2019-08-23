@@ -289,7 +289,7 @@ class VentralModel(nn.Module):
         self.PoolingWindows.unparallel(device)
         return self
 
-    def plot_windows(self, ax, contour_levels=[.5], colors='r', **kwargs):
+    def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
         r"""plot the pooling windows on an image.
 
         This is just a simple little helper to plot the pooling windows
@@ -317,6 +317,10 @@ class VentralModel(nn.Module):
             single character, all will have the same color; if a
             sequence, will cycle through the colors in ascending order
             (repeating if necessary)
+        subset : bool, optional
+            If True, will only plot four of the angle window
+            slices. This is to save time and memory. If False, will plot
+            all of them
 
         Returns
         -------
@@ -324,7 +328,7 @@ class VentralModel(nn.Module):
             The axis with the windows
 
         """
-        return self.PoolingWindows.plot_windows(ax, contour_levels, colors, **kwargs)
+        return self.PoolingWindows.plot_windows(ax, contour_levels, colors, subset, **kwargs)
 
     def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
         r"""plot the widths of the windows, in degrees or pixels

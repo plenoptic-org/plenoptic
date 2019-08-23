@@ -161,28 +161,25 @@ def test_find_files(test_files_dir):
 class TestPooling(object):
 
     def test_creation(self):
-        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87)
-        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, flatten=False)
+        ang_windows, ecc_windows = po.simul.pooling.create_pooling_windows(.87, (256, 256))
 
     def test_creation_args(self):
-        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .7,
-                                                                      100, 100)
-        windows, theta, ecc = po.simul.pooling.create_pooling_windows(.87, .2, 30, 1.2, .5, 100,
-                                                                      100)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .7)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .5)
 
     def test_ecc_windows(self):
-        ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4)
-        ecc, windows = po.simul.pooling.log_eccentricity_windows(n_windows=4.5)
-        ecc, windows = po.simul.pooling.log_eccentricity_windows(window_width=.5)
-        ecc, windows = po.simul.pooling.log_eccentricity_windows(window_width=1)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4.5)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=.5)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=1)
 
     def test_angle_windows(self):
-        theta, windows = po.simul.pooling.polar_angle_windows(4)
-        theta, windows = po.simul.pooling.polar_angle_windows(4, 1000)
+        windows = po.simul.pooling.polar_angle_windows(4, (256, 256))
+        windows = po.simul.pooling.polar_angle_windows(4, (1000, 1000))
         with pytest.raises(Exception):
-            theta, windows = po.simul.pooling.polar_angle_windows(1.5)
+            windows = po.simul.pooling.polar_angle_windows(1.5, (256, 256))
         with pytest.raises(Exception):
-            theta, windows = po.simul.pooling.polar_angle_windows(1)
+            windows = po.simul.pooling.polar_angle_windows(1, (256, 256))
 
     def test_calculations(self):
         # these really shouldn't change, but just in case...
@@ -299,7 +296,14 @@ class TestPooling(object):
             pw = pw.parallel(devices)
             pooled = pw(im)
             pw.project(pooled)
-            
+
+    def test_PoolingWindows_sep(self):
+        # test the window and pool function separate of the forward function
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+        pw.pool(pw.window(im))
+
 # class TestSpectral(object):
 #
 
@@ -354,6 +358,7 @@ class TestVentralStream(object):
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3)
+        assert not torch.isnan(metamer.matched_image).any(), "There's a NaN here!"
 
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -366,13 +371,20 @@ class TestVentralStream(object):
         rgc_copy = po.simul.RetinalGanglionCells.load_reduced(op.join(tmp_path,
                                                                       'test_rgc_save_load.pt'))
         rgc_copy = rgc_copy.to(device)
-        if not len(rgc.PoolingWindows.windows) == len(rgc_copy.PoolingWindows.windows):
-            raise Exception("Something went wrong saving and loading, the lists of windows are"
-                            " not the same length!")
+        if not len(rgc.PoolingWindows.angle_windows) == len(rgc_copy.PoolingWindows.angle_windows):
+            raise Exception("Something went wrong saving and loading, the lists of angle windows"
+                            " are not the same length!")
+        if not len(rgc.PoolingWindows.ecc_windows) == len(rgc_copy.PoolingWindows.ecc_windows):
+            raise Exception("Something went wrong saving and loading, the lists of ecc windows"
+                            " are not the same length!")
         # we don't recreate everything, e.g., the representation, but windows is the most important
-        for i in range(len(rgc.PoolingWindows.windows)):
-            if not rgc.PoolingWindows.windows[i].allclose(rgc_copy.PoolingWindows.windows[i]):
-                raise Exception("Something went wrong saving and loading, the windows %d are"
+        for i in range(len(rgc.PoolingWindows.angle_windows)):
+            if not rgc.PoolingWindows.angle_windows[i].allclose(rgc_copy.PoolingWindows.angle_windows[i]):
+                raise Exception("Something went wrong saving and loading, the angle_windows %d are"
+                                " not identical!" % i)
+        for i in range(len(rgc.PoolingWindows.ecc_windows)):
+            if not rgc.PoolingWindows.ecc_windows[i].allclose(rgc_copy.PoolingWindows.ecc_windows[i]):
+                raise Exception("Something went wrong saving and loading, the ecc_windows %d are"
                                 " not identical!" % i)
         # ...second time we load them
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cache_dir=tmp_path)
@@ -496,13 +508,20 @@ class TestVentralStream(object):
         v1_copy = po.simul.PrimaryVisualCortex.load_reduced(op.join(tmp_path,
                                                                     'test_v1_save_load.pt'))
         v1_copy = v1_copy.to(device)
-        if not len(v1.PoolingWindows.windows) == len(v1_copy.PoolingWindows.windows):
-            raise Exception("Something went wrong saving and loading, the lists of windows are"
-                            " not the same length!")
+        if not len(v1.PoolingWindows.angle_windows) == len(v1_copy.PoolingWindows.angle_windows):
+            raise Exception("Something went wrong saving and loading, the lists of angle windows"
+                            " are not the same length!")
+        if not len(v1.PoolingWindows.ecc_windows) == len(v1_copy.PoolingWindows.ecc_windows):
+            raise Exception("Something went wrong saving and loading, the lists of ecc windows"
+                            " are not the same length!")
         # we don't recreate everything, e.g., the representation, but windows is the most important
-        for i in range(len(v1.PoolingWindows.windows)):
-            if not v1.PoolingWindows.windows[i].allclose(v1_copy.PoolingWindows.windows[i]):
-                raise Exception("Something went wrong saving and loading, the windows %d are"
+        for i in range(len(v1.PoolingWindows.angle_windows)):
+            if not v1.PoolingWindows.angle_windows[i].allclose(v1_copy.PoolingWindows.angle_windows[i]):
+                raise Exception("Something went wrong saving and loading, the angle_windows %d are"
+                                " not identical!" % i)
+        for i in range(len(v1.PoolingWindows.ecc_windows)):
+            if not v1.PoolingWindows.ecc_windows[i].allclose(v1_copy.PoolingWindows.ecc_windows[i]):
+                raise Exception("Something went wrong saving and loading, the ecc_windows %d are"
                                 " not identical!" % i)
         # ...second time we load them
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
