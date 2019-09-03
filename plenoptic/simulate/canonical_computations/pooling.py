@@ -1336,11 +1336,11 @@ class PoolingWindows(nn.Module):
             image
 
         """
-        window_size_mask = [w > 1 for w in self.window_sizes]
         try:
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
+        window_size_mask = [(w > 1).to(output_device) for w in self.window_sizes]
         if isinstance(x, dict):
             if isinstance(self.angle_windows, list):
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
@@ -1359,7 +1359,7 @@ class PoolingWindows(nn.Module):
                 for k, v in x.items():
                     e = self.ecc_windows[k[0]]
                     tmp = []
-                    sizes = self.window_sizes[k[0]][window_size_mask[k[0]]]
+                    sizes = self.window_sizes[k[0]][window_size_mask[k[0]]].to(output_device)
                     for i in range(self.num_devices):
                         a = self.angle_windows[(k[0], i)]
                         val = torch.einsum('bchw,ahw,ehw->bcea',
@@ -1379,13 +1379,13 @@ class PoolingWindows(nn.Module):
             else:
                 pooled_x = []
                 e = self.ecc_windows[idx]
-                sizes = self.window_sizes[idx][window_size_mask[idx]
+                sizes = self.window_sizes[idx][window_size_mask[idx]].to(output_device)
                 for i in range(self.num_devices):
                     a = self.angle_windows[(idx, i)]
                     val = torch.einsum('bchw,ahw,ehw->bcea',
                                        [x.to(a.device), a, e.to(a.device)]).flatten(2, 3)
                     pooled_x.append(val.to(output_device))
-                pooled_x = torch.cat(pooled_x, -1)[...., window_size_mask[idx]] / sizes
+                pooled_x = torch.cat(pooled_x, -1)[..., window_size_mask[idx]] / sizes
         return pooled_x
 
     def window(self, x, idx=0):
@@ -1632,7 +1632,7 @@ class PoolingWindows(nn.Module):
             else:
                 tmp = {}
                 for k, v in pooled_x.items():
-                    num = int(np.ceil(v.shape[-1] / self.num_devices))
+                    num = int(np.ceil(self.n_polar_windows / self.num_devices))
                     t = []
                     if isinstance(k, tuple):
                         # in this case our keys are (scale, orientation)
@@ -1643,11 +1643,18 @@ class PoolingWindows(nn.Module):
                         # "mean_luminance" and this corresponds to the
                         # lowest/largest scale
                         window_key = 0
+                    expanded_v = torch.zeros((*v.shape[:2], *window_size_mask[window_key].shape))
+                    expanded_v[..., window_size_mask[window_key]] = v
+                    expanded_v = expanded_v.reshape((*v.shape[:2],
+                                                     self.ecc_windows[window_key].shape[0],
+                                                     self.n_polar_windows))
+                    e = self.ecc_windows[window_key]
                     for i in range(self.num_devices):
-                        w = self.windows[(window_key, i)]
-                        d = v[..., i*num:(i+1)*num]
-                        t.append(torch.einsum('ijw,wkl->ijwkl', [d.to(w.device), w]).to(output_device))
-                    tmp[k] = torch.cat(t, 2).sum(2)
+                        a = self.angle_windows[(window_key, i)]
+                        d = expanded_v[..., i*num:(i+1)*num]
+                        t.append(torch.einsum('bcea,ahw,ehw->bchw',
+                                              [d.to(a.device), a, e.to(a.device)]).to(output_device))
+                    tmp[k] = torch.cat(t, 0)
                 return tmp
         else:
             if pooled_x.ndimension() != 3:
@@ -1664,12 +1671,19 @@ class PoolingWindows(nn.Module):
                                                            self.ecc_windows[idx]])
             else:
                 tmp = []
-                num = int(np.ceil(pooled_x.shape[-1] / self.num_devices))
+                num = int(np.ceil(self.n_polar_windows / self.num_devices))
+                expanded_x = torch.zeros((*pooled_x.shape[:2], *window_size_mask[idx].shape))
+                expanded_x[..., window_size_mask[idx]] = pooled_x
+                expanded_x = expanded_x.reshape((*pooled_x.shape[:2],
+                                                 self.ecc_windows[idx].shape[0],
+                                                 self.n_polar_windows))
+                e = self.ecc_windows[idx]
                 for i in range(self.num_devices):
-                    w = self.windows[(idx, i)]
-                    d = pooled_x[..., i*num:(i+1)*num]
-                    tmp.append(torch.einsum('ijw,wkl->ijwkl', [d.to(w.device), w]).to(output_device))
-                return torch.cat(tmp, 2).sum(2)
+                    a = self.angle_windows[(idx, i)]
+                    d = expanded_x[..., i*num:(i+1)*num]
+                    tmp.append(torch.einsum('bcea,ahw,ehw->bchw',
+                                            [d.to(a.device), a, e.to(a.device)]).to(output_device))
+                return torch.cat(tmp, 0)
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
         r"""plot the pooling windows on an image.
@@ -1729,9 +1743,23 @@ class PoolingWindows(nn.Module):
                         pass
                     ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
         else:
+            counter = 0
             for device in range(self.num_devices):
-                for w in self.windows[(0, device)]:
-                    ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
+                for a in self.angle_windows[(0, device)]:
+                    if subset and counter >= 4:
+                        break
+                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[0].to(a.device)])
+                    for w in windows:
+                        try:
+                            # if this isn't true, then this window will be
+                            # plotted weird
+                            if not (w > contour_levels[0]).any():
+                                continue
+                        except TypeError:
+                            # in this case, it's an int
+                            pass
+                        ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
+                    counter += 1
         return ax
 
     def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
