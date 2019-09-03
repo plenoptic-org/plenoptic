@@ -409,8 +409,9 @@ def zscore_stats(model, stats_dict):
                 mean_w = w.mean(0)
                 std_w = w.std(0)
                 if l in attr.keys():
-                    warnings.warn("stats_dict key %s not found in model.%s, skipping!" % (l, k))
                     attr[l] = (attr[l] - mean_w) / std_w
+                else:
+                    warnings.warn("stats_dict key %s not found in model.%s, skipping!" % (l, k))
             setattr(model, k, attr)
         else:
             mean_v = v.mean(0)
