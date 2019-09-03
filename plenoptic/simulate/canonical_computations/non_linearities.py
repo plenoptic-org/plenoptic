@@ -400,12 +400,17 @@ def zscore_stats(model, stats_dict):
 
     """
     for k, v in stats_dict.items():
+        if k not in model.to_normalize:
+            warnings.warn("stats_dict key %s not found in model.to_normalize, skipping!" % k)
+            continue
         if isinstance(v, dict):
             attr = getattr(model, k)
             for l, w in v.items():
                 mean_w = w.mean(0)
                 std_w = w.std(0)
-                attr[l] = (attr[l] - mean_w) / std_w
+                if l in attr.keys():
+                    warnings.warn("stats_dict key %s not found in model.%s, skipping!" % (l, k))
+                    attr[l] = (attr[l] - mean_w) / std_w
             setattr(model, k, attr)
         else:
             mean_v = v.mean(0)
