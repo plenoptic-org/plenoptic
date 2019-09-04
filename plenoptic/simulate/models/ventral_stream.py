@@ -800,7 +800,7 @@ class RetinalGanglionCells(VentralModel):
         """
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
-        self.image = image.clone().detach()
+        self.image = image.detach().clone()
         self.representation = self.PoolingWindows(image)
         return self.representation
 
@@ -1254,11 +1254,19 @@ class PrimaryVisualCortex(VentralModel):
         """
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
-        self.image = image.clone().detach()
+        # this is a little weird here: the image that we detach and
+        # clone here is just a copy that we keep around for later
+        # examination. At this point, it's not normalized, but it will
+        # be during the zscore_stats(self.normalize_dict, self) call
+        # below. We also zscore image there because we want the values
+        # that go into the mean pixel intensity to be normalized but not
+        # the values that go into the steerable pyramid.
+        self.image = image.detach().clone()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
         if self.normalize_dict:
-            self = zscore_stats(self, self.normalize_dict)
+            image = zscore_stats(self.normalize_dict, image=image)['image']
+            self = zscore_stats(self.normalize_dict, self)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
         self.mean_luminance = self.PoolingWindows(image)
         self.representation = self.mean_complex_cell_responses
