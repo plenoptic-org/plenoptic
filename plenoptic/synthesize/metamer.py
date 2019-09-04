@@ -75,12 +75,26 @@ class Metamer(nn.Module):
     saved_representation : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save ``self.matched_representation``
-        at each iteration, for later examination.
+        at each iteration (or each ``store_progress`` iteration, if it's an
+        int), for later examination.
     saved_image : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.matched_image`` at each
-        iteration, for later examination.  seed : int Number with which
+        iteration (or each ``store_progress`` iteration, if it's an
+        int), for later examination.
+    seed : int Number with which
         to seed pytorch and numy's random number generators
+    saved_image_gradient : torch.tensor
+        If the ``store_progress`` arg in ``synthesize`` is set to True
+        or an int>0, we will save ``self.matched_image.grad`` at each
+        iteration (or each ``store_progress`` iteration, if it's an
+        int), for later examination.
+    saved_representation_gradient : torch.tensor
+        If the ``store_progress`` arg in ``synthesize`` is set to
+        True or an int>0, we will save
+        ``self.matched_representation.grad`` at each iteration (or each
+        ``store_progress`` iteration, if it's an int), for later
+        examination.
 
     References
     -----
@@ -146,6 +160,8 @@ class Metamer(nn.Module):
         self.learning_rate = []
         self.saved_representation = []
         self.saved_image = []
+        self.saved_image_gradient = []
+        self.saved_representation_gradient = []
 
     def analyze(self, x):
         r"""Analyze the image, that is, obtain the model's representation of it
@@ -174,6 +190,8 @@ class Metamer(nn.Module):
         """
         self.optimizer.zero_grad()
         self.matched_representation = self.analyze(self.matched_image)
+        if self.store_progress:
+            self.matched_representation.retain_grad()
 
         # here we get a boolean mask (bunch of ones and zeroes) for all
         # the statistics we want to include. We only do this if the loss
@@ -433,6 +451,7 @@ class Metamer(nn.Module):
             if save_progress:
                 raise Exception("Can't save progress if we're not storing it! If save_progress is"
                                 " True, store_progress must be not False")
+        self.store_progress = store_progress
 
         pbar = tqdm(range(max_iter))
 
@@ -470,6 +489,8 @@ class Metamer(nn.Module):
                 if store_progress and ((i+1) % store_progress == 0):
                     self.saved_image.append(self.matched_image.clone())
                     self.saved_representation.append(self.analyze(self.matched_image))
+                    self.saved_image_gradient.append(self.matched_image.grad.clone())
+                    self.saved_representation_gradient.append(self.matched_representation.grad.clone())
                     if save_progress:
                         self.save(save_path, True)
 
@@ -481,6 +502,8 @@ class Metamer(nn.Module):
         if store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
             self.saved_image = torch.stack(self.saved_image)
+            self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
+            self.saved_image_gradient = torch.stack(self.saved_image_gradient)
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
     def save(self, file_path, save_model_reduced=False):
@@ -508,12 +531,18 @@ class Metamer(nn.Module):
         except AttributeError:
             warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
                           "the whole model object")
-        torch.save({'matched_image': self.matched_image, 'target_image': self.target_image,
-                    'model': model, 'seed': self.seed, 'loss': self.loss,
-                    'target_representation': self.target_representation,
-                    'matched_representation': self.matched_representation,
-                    'saved_representation': self.saved_representation,
-                    'saved_image': self.saved_image}, file_path)
+        save_dict = {}
+        for k in ['matched_image', 'target_image', 'seed', 'loss', 'target_representation',
+                  'matched_representation', 'saved_representation', 'gradient', 'saved_image',
+                  'learning_rate', 'saved_representation_gradient', 'saved_image_gradient']:
+            attr = getattr(self, k)
+            # detaching the tensors avoids some headaches like the
+            # tensors having extra hooks or the like
+            if isinstance(attr, torch.Tensor):
+                attr = attr.detach()
+            save_dict[k] = attr
+        save_dict['model'] = model
+        torch.save(save_dict, file_path)
 
     @classmethod
     def load(cls, file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
