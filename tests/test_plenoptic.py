@@ -407,6 +407,23 @@ class TestVentralStream(object):
         frontend = po.simul.Front_End()
         frontend(im)
 
+    def test_frontend_plot(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        frontend = po.simul.Front_End()
+        po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
+        metamer = po.synth.Metamer(im, frontend)
+        metamer.synthesize(max_iter=3)
+        metamer.plot_metamer_status(figsize=(35, 5))
+
+    def test_frontend_PoolingWindows(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        frontend = po.simul.Front_End()
+        pw = po.simul.PoolingWindows(.5, (256, 256))
+        pw(frontend(im))
+        po.tools.display.plot_representation(data=pw(frontend(im)))
+
     def test_frontend_eigendistortion(self):
         im = plt.imread(op.join(DATA_DIR, 'einstein.png'))[:,:,0]
         im = torch.tensor(im, dtype=dtype, device=device, requires_grad=True).unsqueeze(0).unsqueeze(0)
