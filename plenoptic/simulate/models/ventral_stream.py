@@ -1260,7 +1260,7 @@ class PrimaryVisualCortex(VentralModel):
         if self.normalize_dict:
             self = zscore_stats(self, self.normalize_dict)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(self.image)
+        self.mean_luminance = self.PoolingWindows(image)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
         return torch.cat(list(self.representation.values()), dim=2)
