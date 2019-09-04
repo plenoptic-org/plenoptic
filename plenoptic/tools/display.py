@@ -1,6 +1,7 @@
 """various helpful utilities for plotting or displaying information
 """
 import warnings
+import torch
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
@@ -356,6 +357,8 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         if data is None:
             data = model.representation
         if not isinstance(data, dict):
+            if title is None:
+                title = 'Representation'
             data_dict = {}
             for i, d in enumerate(data.unbind(1)):
                 # need to keep the shape the same because of how we
@@ -387,6 +390,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                                                   min(4, len(data)))
             for i, (k, v) in enumerate(data.items()):
                 ax = fig.add_subplot(gs[i // 4, i % 4])
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 # only plot the specified batch
                 pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax)
                 axes.append(ax)
@@ -396,5 +400,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         else:
             raise Exception("Don't know what to do with data of shape %s" % data.shape)
     if ylim is None:
+        if isinstance(data, dict):
+            data = torch.cat(list(data.values()), dim=2)
         rescale_ylim(axes, data)
     return fig
