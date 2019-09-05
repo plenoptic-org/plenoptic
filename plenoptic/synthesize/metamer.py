@@ -439,12 +439,15 @@ class Metamer(nn.Module):
             if store_progress is True:
                 store_progress = 1
             # if this is not the first time synthesize is being run for
-            # this metamer object, saved_image/saved_representation will
-            # be tensors instead of lists. This converts them back to
-            # lists so we can use append. If it's the first time,
-            # they'll be empty lists and this does nothing
+            # this metamer object,
+            # saved_image/saved_representation(_gradient) will be
+            # tensors instead of lists. This converts them back to lists
+            # so we can use append. If it's the first time, they'll be
+            # empty lists and this does nothing
             self.saved_image = list(self.saved_image)
             self.saved_representation = list(self.saved_representation)
+            self.saved_image_gradient = list(self.saved_image_gradient)
+            self.saved_representation_gradient = list(self.saved_representation_gradient)
             self.saved_image.append(self.matched_image.clone())
             self.saved_representation.append(self.analyze(self.matched_image))
         else:
