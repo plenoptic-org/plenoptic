@@ -664,6 +664,15 @@ class TestMetamers(object):
         metamer.plot_metamer_status()
         metamer.plot_metamer_status(iteration=1)
 
+    def test_metamer_continue(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=3, store_progress=True)
+        metamer.synthesize(max_iter=3, initial_image=metamer.matched_image.detach().clone())
+
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
