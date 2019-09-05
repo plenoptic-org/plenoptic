@@ -560,7 +560,7 @@ class VentralModel(nn.Module):
             title = default_title
         return title
 
-    def _update_plot(self, axes, batch_idx=0, data=None):
+    def update_plot(self, axes, batch_idx=0, data=None):
         r"""Update the information in our representation plot
 
         This is used for creating an animation of the representation

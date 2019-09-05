@@ -1,4 +1,5 @@
 import torch
+import re
 import warnings
 from tqdm import tqdm
 import torch.nn as nn
@@ -7,7 +8,7 @@ import numpy as np
 from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 import pyrtools as pt
-from ..tools.display import rescale_ylim, plot_representation
+from ..tools.display import rescale_ylim, plot_representation, update_plot
 from ..tools.data import to_numpy
 from matplotlib import animation
 
@@ -839,10 +840,6 @@ class Metamer(nn.Module):
         ffmpeg, imagemagick, etc). Either of these will probably take a
         reasonably long amount of time.
 
-        NOTE: This requires that the model has ``_update_plot``, and
-        ``plot_representation`` functions in order to work nicely. It
-        will work otherwise, but we'll just create a simple line plot
-
         Parameters
         ----------
         batch_idx : int, optional
@@ -897,7 +894,6 @@ class Metamer(nn.Module):
         # we have one extra frame of saved_image compared to loss, so we
         # just duplicate the loss value at the end
         loss = self.loss + [self.loss[-1]]
-        images = self.saved_image[:, batch_idx, channel_idx]
         try:
             if ylim.startswith('rescale'):
                 try:
@@ -912,42 +908,40 @@ class Metamer(nn.Module):
                 raise Exception("Don't know how to handle ylim %s!" % ylim)
         except AttributeError:
             # this way we'll never rescale
-            ylim_rescale_interval = len(images)+1
+            ylim_rescale_interval = len(self.saved_image)+1
+        if self.target_representation.ndimension() == 4:
+            ylim = False
         # initialize the figure
         fig = self.plot_metamer_status(batch_idx, channel_idx, 0, figsize, ylim,
                                        plot_representation_error)
-        # grab the artists for the first two plots (we don't need to do
-        # this for the representation plot, because the model has an
-        # _update_plot method that handles this for us)
-        image_artist = fig.axes[0].images[0]
+        # grab the artists for the second plot (we don't need to do this
+        # for the metamer or representation plot, because we use the
+        # update_plot function for that)
         scat = fig.axes[1].collections[0]
+
+        if self.target_representation.ndimension() == 4:
+            warnings.warn("Looks like representation is image-like, haven't fully thought out how"
+                          " to best handle rescaling color ranges yet!")
+            # replace the bit of the title that specifies the range,
+            # since we don't make any promises about that
+            for ax in fig.axes[2:]:
+                ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
 
         def movie_plot(i):
             artists = []
-            image_artist.set_data(to_numpy(images[i]))
-            artists.append(image_artist)
+            artists.extend(update_plot([fig.axes[0]], data=self.saved_image[i],
+                                       batch_idx=batch_idx))
             if plot_representation_error:
                 representation_error = self.representation_error(i)
-                try:
-                    # we know that the first two axes are the image and
-                    # loss, so we pass everything after that to update
-                    rep_artists = self.model._update_plot(fig.axes[2:], batch_idx,
-                                                          data=representation_error)
-                    try:
-                        # if this is a list, we just want to include its
-                        # members (not include a list of its members)...
-                        artists.extend(rep_artists)
-                    except TypeError:
-                        # but if it's not a list, we just want the one
-                        # artist
-                        artists.append(rep_artists)
-                except AttributeError:
-                    artists.append(fig.axes[2].lines[0])
-                    artists[-1].set_ydata(representation_error)
+                # we know that the first two axes are the image and
+                # loss, so we pass everything after that to update
+                artists.extend(update_plot(fig.axes[2:], batch_idx=batch_idx, model=self.model,
+                                           data=representation_error))
                 # again, we know that fig.axes[2:] contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
-                    rescale_ylim(fig.axes[2:], representation_error)
+                    if self.target_representation.ndimension() == 3:
+                        rescale_ylim(fig.axes[2:], representation_error)
             # loss always contains values from every iteration, but
             # everything else will be subsampled
             scat.set_offsets((i*saved_subsample, loss[i*saved_subsample]))
@@ -956,7 +950,7 @@ class Metamer(nn.Module):
             return artists
 
         # don't need an init_func, since we handle initialization ourselves
-        anim = animation.FuncAnimation(fig, movie_plot, frames=len(images),
+        anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_image),
                                        blit=True, interval=1000./framerate, repeat=False)
         plt.close(fig)
         return anim

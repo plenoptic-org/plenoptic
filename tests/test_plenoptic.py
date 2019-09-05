@@ -413,8 +413,9 @@ class TestVentralStream(object):
         frontend = po.simul.Front_End()
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
-        metamer.synthesize(max_iter=3)
+        metamer.synthesize(max_iter=3, store_progress=1)
         metamer.plot_metamer_status(figsize=(35, 5))
+        metamer.animate(figsize=(35, 5))
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))

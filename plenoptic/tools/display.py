@@ -233,34 +233,37 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     return ax
 
 
-def update_plot(axes, data):
-    r"""Update the information in a stem plot
+def update_plot(axes, data, model=None, batch_idx=0):
+    r"""Update the information in a stem plot or image
 
     This is used for creating an animation over time. In order to create
     the animation, we need to know how to update the matplotlib Artists,
-    and this provides a simple way of doing that. It relies on the fact
-    that we've created a stem plot with a known structure to create the
-    plots we want to update.
+    and this provides a simple way of doing that. It assumes the plot
+    has been created by something like ``plot_representation``, which
+    initializes all the artists.
 
-    We take the axes containing the information to update (note that
-    this is probably a subset of the total number of axes in the figure,
-    if we're showing other information, as done by ``Metamer.animate``),
-    as well as the data to show on these plots and, since these are both
-    lists, iterate through them, updating as we go.
+    We take a list of axes containing the information to update (note
+    that this is probably a subset of the total number of axes in the
+    figure, if we're showing other information, as done by
+    ``Metamer.animate``), as well as the data to show on these plots
+    and, since these are both lists, iterate through them, updating as
+    we go.
 
-    Note that we do not do anything to the data to get it into the
-    correct shape / type; you'll need to do that before calling this
-    function. The expected use case is that you'll be using this on the
-    plots showing representation information and will thus have some
-    function that wrangles the data into the proper shape for you (e.g.,
-    ``_representation_for_plotting``)
+    In order for this to be used by ``FuncAnimation``, we need to return
+    Artists, so we return a list of the relevant artists, either the
+    ``markerline`` and ``stemlines`` from the ``StemContainer`` or the
+    image artist, ``ax.images[0]``.
 
-    In order for this to be used by ``FuncAnimation``, we need to
-    return Artists, so we return a list of the relevant artists, the
-    ``markerline`` and ``stemlines`` from the ``StemContainer``.
+    If ``model`` is set, we try to call ``model.update_plot()`` (which
+    must also return artists). If model doesn't have an ``update_plot``
+    method, then we try to figure out how to update the axes ourselves,
+    based on the shape of the data.
 
-    NOTE: This currently only works for stem plots, will need to add
-    support for other types of plots as necessary
+    If ``data`` contains multiple channels or is a dictionary with
+    multiple keys, we assume that the different channels/keys each
+    belong on a separate axis (and thus, the number of channels/keys and
+    the number of entries in the ``axes`` list *must* be the same --
+    this will throw a very strange warning otherwise).
 
     Parameters
     ----------
@@ -268,20 +271,45 @@ def update_plot(axes, data):
         A list of axes to update. We assume that these are the axes
         created by ``plot_representation`` and so contain stem plots
         in the correct order.
+    data : torch.Tensor or dict
+        The new data to plot.
+    model : torch.nn.Module or None, optional
+        A differentiable model that tells us how to plot ``data``. See
+        above for behavior if ``None``.
 
     Returns
     -------
-    stem_artists : list
+    artists : list
         A list of the artists used to update the information on the
-        stem plots
+        plots
 
     """
-    stem_artists = []
-    axes = [ax for ax in axes if len(ax.containers) == 1]
-    for ax, d in zip(axes, data):
-        sc = update_stem(ax.containers[0], d)
-        stem_artists.extend([sc.markerline, sc.stemlines])
-    return stem_artists
+    artists = []
+    axes = [ax for ax in axes if len(ax.containers) == 1 or len(ax.images) == 1]
+    try:
+        artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
+    except AttributeError:
+        if not isinstance(data, dict):
+            data_dict = {}
+            for i, d in enumerate(data.unbind(1)):
+                # need to keep the shape the same because of how we
+                # check for shape below (unbinding removes a dimension,
+                # so we add it back)
+                data_dict['%02d' % i] = d.unsqueeze(1)
+            data = data_dict
+        for ax, d in zip(axes, data.values()):
+            d = to_numpy(d[batch_idx]).squeeze()
+            if d.ndim == 1:
+                sc = update_stem(ax.containers[0], d)
+                artists.extend([sc.markerline, sc.stemlines])
+            elif d.ndim == 2:
+                image_artist = ax.images[0]
+                image_artist.set_data(d)
+                artists.append(image_artist)
+    # make sure to always return a list
+    if not isinstance(artists, list):
+        artists = [artists]
+    return artists
 
 
 def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=False, batch_idx=0,
@@ -298,7 +326,9 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
     - If ``model`` is ``None``, we fall-back to a type of plot based on
       the shape of ``data``. If it looks image-like, we'll use
       ``pyrtools.imshow`` and if it looks vector-like, we'll use
-      ``plenoptic.clean_stem_plot``
+      ``plenoptic.clean_stem_plot``. If it's a dictionary, we'll assume
+      each key, value pair gives the title and data to plot on a
+      separate sub-plot.
 
     - If ``data`` is ``None``, we can only do something if
       ``model.plot_representation`` has some default behavior when
@@ -320,7 +350,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
     model : torch.nn.Module or None, optional
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
-    data : array_like or None, optional
+    data : array_like, dict, or None, optional
         The data to plot. See above for behavior if ``None``.
     ax : matplotlib.pyplot.axis or None, optional
         The axis to plot on. See above for behavior if ``None``.
