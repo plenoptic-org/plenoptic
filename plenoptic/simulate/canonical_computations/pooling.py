@@ -1336,6 +1336,7 @@ class PoolingWindows(nn.Module):
             image
 
         """
+        torch.cuda.empty_cache()
         try:
             output_device = x.device
         except AttributeError:
@@ -1383,8 +1384,8 @@ class PoolingWindows(nn.Module):
                 for i in range(self.num_devices):
                     a = self.angle_windows[(idx, i)]
                     val = torch.einsum('bchw,ahw,ehw->bcea',
-                                       [x.to(a.device), a, e.to(a.device)]).flatten(2, 3)
-                    pooled_x.append(val.to(output_device))
+                                       [x.to(a.device), a, e.to(a.device)]).to(output_device)
+                    pooled_x.append(val.flatten(2, 3))
                 pooled_x = torch.cat(pooled_x, -1)[..., window_size_mask[idx]] / sizes
         return pooled_x
 
@@ -1441,6 +1442,7 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        torch.cuda.empty_cache()
         if isinstance(x, dict):
             if list(x.values())[0].ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
@@ -1525,6 +1527,7 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        torch.cuda.empty_cache()
         window_size_mask = [w > 1 for w in self.window_sizes]
         if isinstance(windowed_x, dict):
             if isinstance(self.angle_windows, list):
@@ -1602,6 +1605,7 @@ class PoolingWindows(nn.Module):
             values
 
         """
+        torch.cuda.empty_cache()
         window_size_mask = [w > 1 for w in self.window_sizes]
         if isinstance(pooled_x, dict):
             if list(pooled_x.values())[0].ndimension() != 3:
