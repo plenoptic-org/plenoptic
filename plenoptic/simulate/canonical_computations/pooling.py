@@ -1289,7 +1289,7 @@ class PoolingWindows(nn.Module):
             tmp = []
             for j in range(self.num_devices):
                 tmp.append(self.angle_windows[(i, j)].to(device))
-            angle_windows[-1] = torch.cat(tmp, 0)
+            angle_windows.append(torch.cat(tmp, 0))
         self.angle_windows = angle_windows
         self.num_devices = 1
         return self
@@ -1654,7 +1654,7 @@ class PoolingWindows(nn.Module):
                         d = expanded_v[..., i*num:(i+1)*num]
                         t.append(torch.einsum('bcea,ahw,ehw->bchw',
                                               [d.to(a.device), a, e.to(a.device)]).to(output_device))
-                    tmp[k] = torch.cat(t, 0)
+                    tmp[k] = torch.cat(t, 0).sum(0)
                 return tmp
         else:
             if pooled_x.ndimension() != 3:
@@ -1673,6 +1673,7 @@ class PoolingWindows(nn.Module):
                 tmp = []
                 num = int(np.ceil(self.n_polar_windows / self.num_devices))
                 expanded_x = torch.zeros((*pooled_x.shape[:2], *window_size_mask[idx].shape))
+                expanded_x = expanded_x.to(pooled_x.device)
                 expanded_x[..., window_size_mask[idx]] = pooled_x
                 expanded_x = expanded_x.reshape((*pooled_x.shape[:2],
                                                  self.ecc_windows[idx].shape[0],
@@ -1683,7 +1684,7 @@ class PoolingWindows(nn.Module):
                     d = expanded_x[..., i*num:(i+1)*num]
                     tmp.append(torch.einsum('bcea,ahw,ehw->bchw',
                                             [d.to(a.device), a, e.to(a.device)]).to(output_device))
-                return torch.cat(tmp, 0)
+                return torch.cat(tmp, 0).sum(0)
 
     def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
         r"""plot the pooling windows on an image.
