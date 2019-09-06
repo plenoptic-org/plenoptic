@@ -187,7 +187,7 @@ class VentralModel(nn.Module):
                      'central_eccentricity_pixels', 'central_eccentricity_degrees']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
 
-    def to(self, *args, **kwargs):
+    def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
 
         This can be called as
@@ -223,7 +223,8 @@ class VentralModel(nn.Module):
         Returns:
             Module: self
         """
-        self.PoolingWindows.to(*args, **kwargs)
+        if do_windows:
+            self.PoolingWindows.to(*args, **kwargs)
         nn.Module.to(self, *args, **kwargs)
         return self
 
@@ -1187,7 +1188,7 @@ class PrimaryVisualCortex(VentralModel):
         self.to_normalize = ['complex_cell_responses', 'image']
         self.normalize_dict = normalize_dict
 
-    def to(self, *args, **kwargs):
+    def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
 
         This can be called as
@@ -1230,7 +1231,7 @@ class PrimaryVisualCortex(VentralModel):
                     self.normalize_dict[k][l] = w.to(*args, **kwargs)
             else:
                 self.normalize_dict[k] = v.to(*args, **kwargs)
-        super(self.__class__, self).to(*args, **kwargs)
+        super(self.__class__, self).to(do_windows=do_windows, *args, **kwargs)
         return self
 
     def forward(self, image):
