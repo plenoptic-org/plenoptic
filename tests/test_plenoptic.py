@@ -755,6 +755,21 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
                            loss_change_fraction=.5, fraction_removed=.1)
 
+    def test_metamer_coarse_to_fine(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
+        v1 = v1.to(device)
+        metamer = po.synth.Metamer(im, v1)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                           coarse_to_fine=True)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                           coarse_to_fine=True, fraction_removed=.1)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                           coarse_to_fine=True, loss_change_fraction=.5)
+        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                           coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
+
 
 class TestPerceptualMetrics(object):
 

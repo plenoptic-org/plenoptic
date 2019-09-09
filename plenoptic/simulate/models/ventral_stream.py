@@ -1164,6 +1164,9 @@ class PrimaryVisualCortex(VentralModel):
     to_normalize : list
         List of attributes that we want to normalize by whitening (for
         PrimaryVisualCortex, that's just "complex_cell_responses")
+    scales : list
+        List of the scales in the model, from fine to coarse. Used for
+        synthesizing in coarse-to-fine order
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
@@ -1186,6 +1189,7 @@ class PrimaryVisualCortex(VentralModel):
         self.representation = None
         self.to_normalize = ['complex_cell_responses', 'image']
         self.normalize_dict = normalize_dict
+        self.scales = list(range(num_scales)) + ['mean_luminance']
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1233,7 +1237,7 @@ class PrimaryVisualCortex(VentralModel):
         super(self.__class__, self).to(*args, **kwargs)
         return self
 
-    def forward(self, image):
+    def forward(self, image, scales=[]):
         r"""Generate the V1 representation of an image
 
         Parameters
@@ -1243,6 +1247,14 @@ class PrimaryVisualCortex(VentralModel):
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
             we will unsqueeze it until its 4d
+        scales : list, optional
+            Which scales to include in the returned representation. If
+            an empty list (the default), we include all
+            scales. Otherwise, can contain ints up to
+            ``self.num_scales-1`` or the string
+            ``'mean_luminance'``. Can contain a single value or multiple
+            values. If it's an int, we include all orientations from
+            that scale.
 
         Returns
         -------
@@ -1271,6 +1283,15 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = self.PoolingWindows(image)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
+        if scales:
+            rep = {}
+            for k in scales:
+                if isinstance(k, int):
+                    for j in range(4):
+                        rep[(k, j)] = self.representation[(k, j)]
+                else:
+                    rep[k] = self.representation[k]
+            self.representation = rep
         return torch.cat(list(self.representation.values()), dim=2)
 
     def _representation_for_plotting(self, batch_idx=0, data=None):

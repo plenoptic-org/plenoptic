@@ -96,6 +96,29 @@ class Metamer(nn.Module):
         ``self.matched_representation.grad`` at each iteration (or each
         ``store_progress`` iteration, if it's an int), for later
         examination.
+    scales_loss : list
+        If ``coarse_to_fine`` is True, this contains the scale-specific
+        loss at each iteration (that is, the loss computed on just the
+        scale we're optimizing on that iteration; which we use to
+        determine when to switch scales). If ``coarse_to_fine`` is
+        False, this will be empty
+    scales : list or None
+        If ``coarse_to_fine`` is True, this is a list of the scales in
+        reverse optimization order (i.e., from fine to coarse). The
+        first entry will be 'all' (since after we've optimized each
+        individual scale, we move on to optimizing all at once) This
+        will be modified by the synthesize() method and is used to track
+        which scale we're currently optimizing (the last one). When
+        we've gone through all the scales present, this will just
+        contain a single value: 'all'. If ``coarse_to_fine`` is False,
+        this will be None.
+    scales_timing : dict or None
+        If ``coarse_to_fine`` is True, this is a dictionary whose keys
+        are the values of scales. The values are lists, with 0 through 2
+        entries: the first entry is the iteration where we started
+        optimizing this scale, the second is when we stopped (thus if
+        it's an empty list, we haven't started optimzing it yet). If
+        ``coarse_to_fine`` is False, this will be None.
 
     References
     -----
@@ -163,12 +186,16 @@ class Metamer(nn.Module):
         self.saved_image = []
         self.saved_image_gradient = []
         self.saved_representation_gradient = []
+        self.scales_loss = []
+        self.scales = None
+        self.scales_timing = None
 
-    def analyze(self, x):
+    def analyze(self, x, **kwargs):
         r"""Analyze the image, that is, obtain the model's representation of it
 
+        Any kwargs are passed to the model's forward method
         """
-        y = self.model(x)
+        y = self.model(x, **kwargs)
         if isinstance(y, list):
             return torch.cat([s.squeeze().view(-1) for s in y]).unsqueeze(1)
         else:
@@ -181,6 +208,41 @@ class Metamer(nn.Module):
         """
         return torch.norm(x - y, p=2)
 
+    def _init_optimizer(self, optimizer, lr, **optimizer_kwargs):
+        """Initialize the optimzer and job scheduler
+
+        This gets called at the beginning of synthesize() and can also
+        be called at other moments to make sure we're using the original
+        learning rate (e.g., when moving to a different scale for
+        coarse-to-fine optimization).
+
+        """
+        if optimizer == 'SGD':
+            for k, v in zip(['nesterov', 'momentum'], [True, .8]):
+                if k not in optimizer_kwargs:
+                    optimizer_kwargs[k] = v
+            self.optimizer = optim.SGD([self.matched_image], lr=lr, **optimizer_kwargs)
+        elif optimizer == 'LBFGS':
+            for k, v in zip(['history_size', 'max_iter'], [10, 4]):
+                if k not in optimizer_kwargs:
+                    optimizer_kwargs[k] = v
+            self.optimizer = optim.LBFGS([self.matched_image], lr=lr, **optimizer_kwargs)
+            warnings.warn('This second order optimization method is more intensive')
+            if self.fraction_removed > 0:
+                warnings.warn('For now the code is not designed to handle LBFGS and random'
+                              ' subsampling of coeffs')
+        elif optimizer == 'Adam':
+            if 'amsgrad' not in optimizer_kwargs:
+                optimizer_kwargs['amsgrad'] = True
+            self.optimizer = optim.Adam([self.matched_image], lr=lr, **optimizer_kwargs)
+        elif optimizer == 'AdamW':
+            if 'amsgrad' not in optimizer_kwargs:
+                optimizer_kwargs['amsgrad'] = True
+            self.optimizer = optim.AdamW([self.matched_image], lr=lr, **optimizer_kwargs)
+        else:
+            raise Exception("Don't know how to handle optimizer %s!" % optimizer)
+        self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.5)
+
     def _closure(self):
         r"""An abstraction of the gradient calculation, before the optimization step. This enables optimization algorithms
         that perform several evaluations of the gradient before taking a step (ie. second order methods like LBFGS).
@@ -190,7 +252,14 @@ class Metamer(nn.Module):
             ii) beyond removing random fraction of the coefficients, one could schedule the optimization (eg. coarse to fine)
         """
         self.optimizer.zero_grad()
-        self.matched_representation = self.analyze(self.matched_image)
+        analyze_kwargs = {}
+        if self.coarse_to_fine:
+            # if we've reached 'all', we act the same as if
+            # coarse_to_fine was False
+            if self.scales[-1] != 'all':
+                analyze_kwargs['scales'] = [self.scales[-1]]
+        self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
+        target_rep = self.analyze(self.target_image, **analyze_kwargs)
         if self.store_progress:
             self.matched_representation.retain_grad()
 
@@ -199,7 +268,7 @@ class Metamer(nn.Module):
         # appears to be roughly unchanging for some number of iterations
         if (len(self.loss) > self.loss_change_iter and
             self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
-            error_idx = self.representation_error().flatten().abs().argsort(descending=True)
+            error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
             error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
         # else, we use all of the statistics
         else:
@@ -211,7 +280,7 @@ class Metamer(nn.Module):
         # then we optionally randomly select some subset of those.
         idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
         loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
-                                       self.target_representation.flatten()[idx_sub])
+                                       target_rep.flatten()[idx_sub])
 
         loss.backward(retain_graph=True)
 
@@ -238,23 +307,51 @@ class Metamer(nn.Module):
             1-element tensor containing the learning rate on this step
 
         """
-
-        self.optimizer.step(self._closure)
+        postfix_dict = {}
+        if self.coarse_to_fine:
+            # the last scale will be 'all', and we never remove
+            # it. Otherwise, check to see if it looks like loss has
+            # stopped declining and, if so, switch to the next scale
+            if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
+                abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh):
+                self.scales_timing[self.scales[-1]].append(len(self.loss)-1)
+                self.scales = self.scales[:-1]
+                self.scales_timing[self.scales[-1]].append(len(self.loss))
+                # reset scheduler and optimizer
+                self._init_optimizer(**self.optimizer_kwargs)
+            # we have some extra info to include in the progress bar if
+            # we're doing coarse-to-fine
+            postfix_dict['current_scale'] = self.scales[-1]
+        loss = self.optimizer.step(self._closure)
+        # we have this here because we want to do the above checking at
+        # the beginning of each step, before computing the loss
+        # (otherwise there's an error thrown because self.scales[-1] is
+        # not the same scale we computed matched_representation using)
+        if self.coarse_to_fine:
+            postfix_dict['current_scale_loss'] = loss.item()
+            # and we also want to keep track of this
+            self.scales_loss.append(loss.item())
         g = self.matched_image.grad.data
-
-        loss = self.objective_function(self.matched_representation, self.target_representation)
         self.scheduler.step(loss.item())
 
+        if self.coarse_to_fine and self.scales[-1] != 'all':
+            with torch.no_grad():
+                full_matched_rep = self.analyze(self.matched_image)
+                loss = self.objective_function(full_matched_rep, self.target_representation)
+        else:
+            loss = self.objective_function(self.matched_representation, self.target_representation)
+
+        postfix_dict.update(dict(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
+                                 learning_rate=self.optimizer.param_groups[0]['lr']))
         # add extra info here if you want it to show up in progress bar
-        pbar.set_postfix(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
-                         learning_rate=self.optimizer.param_groups[0]['lr'])
+        pbar.set_postfix(**postfix_dict)
         return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
                    store_progress=False, save_progress=False, save_path='metamer.pt',
                    loss_change_thresh=1e-2, loss_change_iter=50, loss_change_fraction=1.,
-                   **optimizer_kwargs):
+                   coarse_to_fine=False, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -302,6 +399,23 @@ class Metamer(nn.Module):
            combined wth ``fraction_removed`` so as to randomly subsample
            from this selection. To disable this (and use all the
            representation), this should be set to 1.
+
+        We also provide the ability of using a coarse-to-fine
+        optimization. Unlike the above methods, this will not work
+        out-of-the-box with every model, as the model object must have a
+        ``scales`` attributes (which gives the scales in fine-to-coarse
+        order, i.e., reverse order that we will be optimizing) and that
+        it's forward method can accept a ``scales`` keyword argument, a
+        list that specifies which scales to use to compute the
+        representation. If ``coarse_to_fine`` is True, then we optimize
+        each scale until we think it's reached convergence before moving
+        on. Once we've done each scale individually, we spend the rest
+        of the iterations doing them all together, as if
+        ``coarse_to_fine`` was False. This can be combined with the
+        above three methods. We determine if a scale has converged in
+        the same way as method 3 above: if the scale-specific loss
+        ``loss_change_iter`` iterations ago is within
+        ``loss_change_thresh`` of the most recent loss.
 
         Parameters
         ----------
@@ -369,6 +483,10 @@ class Metamer(nn.Module):
             ``loss_change_iter`` and ``loss_change_thresh``), the
             fraction of the representation with the highest loss that we
             use to calculate the gradients
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -410,29 +528,16 @@ class Metamer(nn.Module):
         self.loss_change_thresh = loss_change_thresh
         self.loss_change_iter = loss_change_iter
         self.loss_change_fraction = loss_change_fraction
+        self.coarse_to_fine = coarse_to_fine
+        if coarse_to_fine:
+            # this creates a new object, so we don't modify model.scales
+            self.scales = ['all'] + [i for i in self.model.scales]
+            self.scales_timing = dict((k, []) for k in self.scales)
+            self.scales_timing[self.scales[-1]].append(0)
 
-        if optimizer == 'SGD':
-            for k, v in zip(['nesterov', 'momentum'], [True, .8]):
-                if k not in optimizer_kwargs:
-                    optimizer_kwargs[k] = v
-            self.optimizer = optim.SGD([self.matched_image], lr=learning_rate, **optimizer_kwargs)
-        elif optimizer == 'LBFGS':
-            for k, v in zip(['history_size', 'max_iter'], [10, 4]):
-                if k not in optimizer_kwargs:
-                    optimizer_kwargs[k] = v
-            self.optimizer = optim.LBFGS([self.matched_image], lr=learning_rate, **optimizer_kwargs)
-            warnings.warn('This second order optimization method is more intensive')
-            if self.fraction_removed > 0:
-                warnings.warn('For now the code is not designed to handle LBFGS and random'
-                              ' subsampling of coeffs')
-        elif optimizer == 'Adam':
-            if 'amsgrad' not in optimizer_kwargs:
-                optimizer_kwargs['amsgrad'] = True
-            self.optimizer = optim.Adam([self.matched_image], lr=learning_rate, **optimizer_kwargs)
-        else:
-            raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-
-        self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.2)
+        optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
+        self.optimizer_kwargs = optimizer_kwargs
+        self._init_optimizer(**self.optimizer_kwargs)
 
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
         # and 0, and True for True and every int >= 1
@@ -506,8 +611,14 @@ class Metamer(nn.Module):
         if store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
             self.saved_image = torch.stack(self.saved_image)
-            self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
             self.saved_image_gradient = torch.stack(self.saved_image_gradient)
+            # we can't stack the gradients if we used coarse-to-fine
+            # optimization, because then they'll be different shapes, so
+            # we have to keep them as a list
+            try:
+                self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
+            except RuntimeError:
+                pass
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
     def save(self, file_path, save_model_reduced=False):
@@ -637,13 +748,16 @@ class Metamer(nn.Module):
             setattr(metamer, k, v)
         return metamer
 
-    def representation_error(self, iteration=None):
+    def representation_error(self, iteration=None, **kwargs):
         r"""Get the representation ratio
 
         This is (matched_representation - target_representation) /
         target_representation. If ``iteration`` is not None, we use
         ``self.saved_representation[iteration]`` for
         matched_representation
+
+        Any kwargs are passed through to self.analyze when computing the
+        matched/target representation.
 
         Parameters
         ----------
@@ -659,9 +773,17 @@ class Metamer(nn.Module):
         if iteration is not None:
             matched_rep = self.saved_representation[iteration]
         else:
-            matched_rep = self.matched_representation
-        rep_ratio = matched_rep - self.target_representation
-        return rep_ratio
+            matched_rep = self.analyze(self.matched_image, **kwargs)
+        try:
+            rep_error = matched_rep - self.target_representation
+        except RuntimeError:
+            # try to use the last scale (if the above failed, it's
+            # because they were different shapes), but only if the user
+            # didn't give us another scale to use
+            if 'scales' not in kwargs.keys():
+                kwargs['scales'] = [self.scales[-1]]
+            rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
+        return rep_error
         # if not hasattr(self.model, 'normalize_dict') or not self.model.normalize_dict:
         #     # then either the model doesn't have a normalize_dict or
         #     # it's empty; in either case, the model is not normalized
