@@ -460,6 +460,7 @@ class Metamer(nn.Module):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
+            torch.cuda.empty_cache()
             loss, g, lr = self._optimizer_step(pbar)
             self.loss.append(loss.item())
             self.gradient.append(g.item())

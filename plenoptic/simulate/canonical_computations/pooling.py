@@ -1260,6 +1260,7 @@ class PoolingWindows(nn.Module):
                 angle_windows_gpu[(i, j)] = w[j*num:(j+1)*num].to(d)
         self.angle_windows = angle_windows_gpu
         self.num_devices = len(devices)
+        self.window_sizes = [w.to(devices[0]) for w in self.window_sizes]
         return self
 
     def unparallel(self, device=torch.device('cpu')):
