@@ -820,7 +820,7 @@ class Metamer(nn.Module):
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_error=True):
+                plot_representation_error=True, imshow_zoom=None):
         r"""Animate metamer synthesis progress!
 
         This is essentially the figure produced by
@@ -877,6 +877,10 @@ class Metamer(nn.Module):
 
         plot_representation_error : bool, optional
             Whether to plot the representation ratio or not.
+        imshow_zoom : int, float, or None, optional
+            Either an int or an inverse power of 2, how much to zoom the
+            images by in the plots we'll create. If None (the default), we
+            attempt to find the best value ourselves.
 
         Returns
         -------
@@ -914,7 +918,7 @@ class Metamer(nn.Module):
             ylim = False
         # initialize the figure
         fig = self.plot_metamer_status(batch_idx, channel_idx, 0, figsize, ylim,
-                                       plot_representation_error)
+                                       plot_representation_error, imshow_zoom=imshow_zoom)
         # grab the artists for the second plot (we don't need to do this
         # for the metamer or representation plot, because we use the
         # update_plot function for that)

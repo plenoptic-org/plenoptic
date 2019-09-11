@@ -899,7 +899,7 @@ class RetinalGanglionCells(VentralModel):
         return ax.figure, [ax]
 
     def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
-                                  data=None, vrange='indep1'):
+                                  data=None, vrange='indep1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
         Our representation has a single value for each pooling window,
@@ -934,6 +934,11 @@ class RetinalGanglionCells(VentralModel):
             ``self.representation``, with the exact same structure
             (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
+        vrange : str or tuple, optional
+            The vrange value to pass to pyrtools.imshow
+        zoom : float or int, optional
+            If a float, must be castable to an int or an inverse power
+            of 2. The amount to zoom the images in/out by.
 
         Returns
         -------
@@ -948,7 +953,7 @@ class RetinalGanglionCells(VentralModel):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         # project expects a 3d tensor
         data = self.PoolingWindows.project(torch.Tensor(data).unsqueeze(0).unsqueeze(0))
-        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title)
+        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
         return ax.figure, [ax]
 
 
@@ -1487,7 +1492,7 @@ class PrimaryVisualCortex(VentralModel):
         return fig, axes
 
     def plot_representation_image(self, figsize=(27, 5), ax=None, title=None, batch_idx=0,
-                                  data=None, vrange='auto1'):
+                                  data=None, vrange='auto1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
         Our representation is composed of pooled energy at several
@@ -1538,6 +1543,11 @@ class PrimaryVisualCortex(VentralModel):
             the structure returned by ``self.forward`` (e.g., as
             returned by ``metamer.representation_error()`` or another
             instance of this class).
+        vrange : str or tuple, optional
+            The vrange value to pass to pyrtools.imshow
+        zoom : float or int, optional
+            If a float, must be castable to an int or an inverse power
+            of 2. The amount to zoom the images in/out by.
 
         Returns
         -------
@@ -1572,6 +1582,6 @@ class PrimaryVisualCortex(VentralModel):
         imgs.append(to_numpy(data['mean_luminance'].squeeze()))
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr in zip(axes, imgs, titles, vrange):
-            zoom = round(data[(0, 0)].shape[-1] / img.shape[-1])
-            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=zoom)
+            img_zoom = zoom * round(data[(0, 0)].shape[-1] / img.shape[-1])
+            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=img_zoom)
         return fig, axes
