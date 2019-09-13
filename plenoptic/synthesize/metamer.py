@@ -535,6 +535,9 @@ class Metamer(nn.Module):
             self.scales = ['all'] + [i for i in self.model.scales]
             self.scales_timing = dict((k, []) for k in self.scales)
             self.scales_timing[self.scales[-1]].append(0)
+        if loss_thresh >= loss_change_thresh:
+            raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
+                            " get weird!")
 
         optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
         self.optimizer_kwargs = optimizer_kwargs
