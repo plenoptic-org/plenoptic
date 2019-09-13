@@ -362,7 +362,8 @@ class Metamer(nn.Module):
         between 0 and 1. If that's not the case, you might want to pass
         something to act as the initial image.
 
-        We run this until either we reach ``max_iter`` or loss is below
+        We run this until either we reach ``max_iter`` or the change
+        over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
         Note that you can run this several times in sequence by setting
@@ -445,8 +446,8 @@ class Metamer(nn.Module):
             A new sample is drawn a every step. This gives a stochastic
             estimate of the gradient and might help optimization.
         loss_thresh : float, optional
-            The value of the loss function that we consider "good
-            enough", at which point we stop optimizing
+            If the loss over the past ``loss_change_iter`` is less than
+            ``loss_thresh``, we stop.
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -604,7 +605,8 @@ class Metamer(nn.Module):
                     if save_progress:
                         self.save(save_path, True)
 
-            if loss.item() < loss_thresh:
+            if (len(self.loss) > self.loss_change_iter and
+                self.loss[-self.loss_change_iter] - self.loss[-1] < loss_thresh):
                 break
 
         pbar.close()
