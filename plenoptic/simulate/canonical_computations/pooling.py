@@ -1683,7 +1683,8 @@ class PoolingWindows(nn.Module):
                                             [d.to(a.device), a, e.to(a.device)]).to(output_device))
                 return torch.cat(tmp, 0).sum(0)
 
-    def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
+    def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, windows_scale=0,
+                     **kwargs):
         r"""plot the pooling windows on an image.
 
         This is just a simple little helper to plot the pooling windows
@@ -1715,6 +1716,9 @@ class PoolingWindows(nn.Module):
             If True, will only plot four of the angle window
             slices. This is to save time and memory. If False, will plot
             all of them
+        windows_scale : int, optional
+            Which scale of the windows to use. windows is a list with
+            different scales, so this specifies which one to use
 
         Returns
         -------
@@ -1725,11 +1729,11 @@ class PoolingWindows(nn.Module):
         if isinstance(self.angle_windows, list):
             # attempt to not have all the windows in memory at once...
             if subset:
-                angle_windows = self.angle_windows[0][:4]
+                angle_windows = self.angle_windows[windows_scale][:4]
             else:
-                angle_windows = self.angle_windows[0]
+                angle_windows = self.angle_windows[windows_scale]
             for a in angle_windows:
-                windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[0]])
+                windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[windows_scale]])
                 for w in windows:
                     try:
                         # if this isn't true, then this window will be
@@ -1743,10 +1747,10 @@ class PoolingWindows(nn.Module):
         else:
             counter = 0
             for device in range(self.num_devices):
-                for a in self.angle_windows[(0, device)]:
+                for a in self.angle_windows[(windows_scale, device)]:
                     if subset and counter >= 4:
                         break
-                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[0].to(a.device)])
+                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[windows_scale].to(a.device)])
                     for w in windows:
                         try:
                             # if this isn't true, then this window will be
