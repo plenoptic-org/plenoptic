@@ -608,9 +608,13 @@ class Metamer(nn.Module):
                     if save_progress:
                         self.save(save_path, True)
 
-            if (len(self.loss) > self.loss_change_iter and
-                self.loss[-self.loss_change_iter] - self.loss[-1] < loss_thresh):
-                break
+            if len(self.loss) > self.loss_change_iter:
+                if self.loss[-self.loss_change_iter] - self.loss[-1] < loss_thresh:
+                    if self.coarse_to_fine:
+                        if self.scales[-1] == 'all':
+                            break
+                    else:
+                        break
 
         pbar.close()
 
