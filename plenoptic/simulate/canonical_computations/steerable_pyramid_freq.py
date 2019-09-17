@@ -130,8 +130,71 @@ class Steerable_Pyramid_Freq(nn.Module):
         lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
 
-        self.lo0mask = torch.tensor(lo0mask)[None,:,:,None]
-        self.hi0mask = torch.tensor(hi0mask)[None,:,:,None]
+        self.lo0mask = torch.tensor(lo0mask).unsqueeze(0).unsqueeze(-1)
+        self.hi0mask = torch.tensor(hi0mask).unsqueeze(0).unsqueeze(-1)
+
+        # pre-generate the angle, hi and lo masks, as well as the
+        # indices used for down-sampling
+        self._anglemasks = []
+        self._himasks = []
+        self._lomasks = []
+        self._loindices = []
+
+        # need a mock image to down-sample so that we correctly
+        # construct the differently-sized masks
+        mock_image = np.random.rand(*self.image_shape)
+        imdft = np.fft.fftshift(np.fft.fft2(mock_image))
+        lodft = imdft * lo0mask
+
+        # we create these copies because they will be modified in the
+        # following loops
+        Xrcos = self.Xrcos.copy()
+        angle = self.angle.copy()
+        log_rad = self.log_rad.copy()
+        for i in range(self.num_scales):
+            Xrcos -= np.log2(2)
+            const = ((2 ** (2*self.order)) * (factorial(self.order, exact=True)**2) /
+                     float(self.num_orientations * factorial(2*self.order, exact=True)))
+
+            if self.is_complex:
+                Ycosn = (2.0 * np.sqrt(const) * (np.cos(self.Xcosn) ** self.order) *
+                         (np.abs(self.alpha) < np.pi/2.0).astype(int))
+
+            else:
+                Ycosn = np.sqrt(const) * (np.cos(self.Xcosn))**self.order
+
+            himask = pointOp(log_rad, Yrcos, Xrcos)
+            self._himasks.append(torch.tensor(himask).unsqueeze(0).unsqueeze(-1))
+
+            anglemasks = []
+            for b in range(self.num_orientations):
+                anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
+                anglemasks.append(torch.tensor(anglemask).unsqueeze(0).unsqueeze(-1))
+            self._anglemasks.append(anglemasks)
+
+            # subsample lowpass
+            dims = np.array([lodft.shape[0], lodft.shape[1]])
+            ctr = np.ceil((dims+0.5)/2).astype(int)
+            lodims = np.ceil((dims-0.5)/2).astype(int)
+            loctr = np.ceil((lodims+0.5)/2).astype(int)
+            lostart = ctr - loctr
+            loend = lostart + lodims
+            self._loindices.append([lostart, loend])
+
+            # subsample indices
+            log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
+            angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
+
+            YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
+            lomask = pointOp(log_rad, YIrcos, Xrcos)
+            self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
+            # subsampling
+            lodft = lodft[lostart[0]:loend[0], lostart[1]:loend[1]]
+            # convolution in spatial domain
+            lodft = lodft * lomask
+
+        # reasonable default dtype
+        self = self.to(torch.float32)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -171,15 +234,17 @@ class Steerable_Pyramid_Freq(nn.Module):
         """
         self.lo0mask = self.lo0mask.to(*args, **kwargs)
         self.hi0mask = self.lo0mask.to(*args, **kwargs)
+        self._himasks = [m.to(*args, **kwargs) for m in self._himasks]
+        self._lomasks = [m.to(*args, **kwargs) for m in self._lomasks]
+        angles = []
+        for a in self._anglemasks:
+            angles.append([m.to(*args, **kwargs) for m in a])
+        self._anglemasks = angles
         return self
 
     def forward(self, x):
         pyr_coeffs = {}
 
-        # create local variables from class variables
-        Xrcos = self.Xrcos.copy()
-        Yrcos = self.Yrcos.copy()
-        YIrcos = self.YIrcos.copy()
         angle = self.angle.copy()
         log_rad = self.log_rad.copy()
         lo0mask = self.lo0mask.clone().to(x.dtype)
@@ -197,15 +262,10 @@ class Steerable_Pyramid_Freq(nn.Module):
         # self.coeffout = [hi0_real]
         pyr_coeffs['residual_highpass'] = hi0_real
 
-
         lodft = imdft * lo0mask
 
-        self._anglemasks = []
-        self._himasks = []
-        self._lomasks = []
         if self.store_unoriented_bands:
             self.unoriented_bands = []
-
 
         for i in range(self.num_scales):
 
@@ -215,26 +275,10 @@ class Steerable_Pyramid_Freq(nn.Module):
                 lo0_real = torch.unbind(lo0, -1)[0]
                 self.unoriented_bands.append(lo0_real)
 
-            Xrcos -= np.log2(2)
-            const = (2 ** (2*self.order)) * (factorial(self.order, exact=True)**2) / float(self.num_orientations * factorial(2*self.order, exact=True))
+            himask = self._himasks[i]
 
-            if self.is_complex:
-                Ycosn = (2.0 * np.sqrt(const) * (np.cos(self.Xcosn) ** self.order) *
-                     (np.abs(self.alpha) < np.pi/2.0).astype(int))
-
-            else:
-                Ycosn = np.sqrt(const) * (np.cos(self.Xcosn))**self.order
-
-            himask = pointOp(log_rad, Yrcos, Xrcos)
-            self._himasks.append(himask)
-            himask = torch.tensor(himask)[None, :, :, None].to(device=x.device, dtype=x.dtype)
-
-            anglemasks = []
             for b in range(self.num_orientations):
-                anglemask = pointOp(angle, Ycosn, self.Xcosn + np.pi*b/self.num_orientations)
-                anglemasks.append(anglemask)
-                anglemask = torch.tensor(anglemask)[None, :, :, None].to(device=x.device,
-                                                                         dtype=x.dtype)
+                anglemask = self._anglemasks[i][b]
 
                 # bandpass filtering
                 banddft = lodft * anglemask * himask
@@ -243,7 +287,11 @@ class Steerable_Pyramid_Freq(nn.Module):
                 complex_const = np.power(np.complex(0, -1), self.order)
                 banddft_real = complex_const.real * banddft[0] - complex_const.imag * banddft[1]
                 banddft_imag = complex_const.real * banddft[1] + complex_const.imag * banddft[0]
-                banddft = torch.stack((banddft_real, banddft_imag), -1)
+                # preallocation and then filling in is much more
+                # efficient than using stack
+                banddft = torch.empty((*banddft_real.shape, 2))
+                banddft[..., 0] = banddft_real
+                banddft[..., 1] = banddft_imag
 
                 band = batch_ifftshift2d(banddft)
                 band = torch.ifft(band, signal_ndim=2)
@@ -256,16 +304,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                     # self.coeffout.append(band)
                     pyr_coeffs[(i, b)] = band
 
-            self._anglemasks.append(anglemasks)
-
-            # subsample lowpass
-            dims = np.array([lodft.shape[2], lodft.shape[3]])
-            ctr = np.ceil((dims+0.5)/2).astype(int)
-            lodims = np.ceil((dims-0.5)/2).astype(int)
-            loctr = np.ceil((lodims+0.5)/2).astype(int)
-            lostart = ctr - loctr
-            loend = lostart + lodims
-
+            lostart, loend = self._loindices[i]
             # subsample indices
             log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
             angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
@@ -273,10 +312,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             # subsampling
             lodft = lodft[:, :, lostart[0]:loend[0], lostart[1]:loend[1], :]
             # filtering
-            YIrcos = np.abs(np.sqrt(1.0 - Yrcos**2))
-            lomask = pointOp(log_rad, YIrcos, Xrcos)
-            self._lomasks.append(lomask)
-            lomask = torch.tensor(lomask)[None, :, :, None].to(device=x.device, dtype=x.dtype)
+            lomask = self._lomasks[i]
             # convolution in spatial domain
             lodft = lodft * lomask
 
