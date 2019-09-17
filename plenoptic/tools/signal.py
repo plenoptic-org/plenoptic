@@ -31,7 +31,7 @@ def batch_fftshift2d(x):
         real = roll_n(real, axis=dim, n=n_shift)
         imag = roll_n(imag, axis=dim, n=n_shift)
     # preallocation is much faster than using stack
-    shifted = torch.empty((*real.shape, 2))
+    shifted = torch.empty((*real.shape, 2), device=real.device)
     shifted[..., 0] = real
     shifted[..., 1] = imag
     return shifted  # last dim=2 (real&imag)
@@ -43,7 +43,7 @@ def batch_ifftshift2d(x):
         real = roll_n(real, axis=dim, n=real.size(dim)//2)
         imag = roll_n(imag, axis=dim, n=imag.size(dim)//2)
     # preallocation is much faster than using stack
-    shifted = torch.empty((*real.shape, 2))
+    shifted = torch.empty((*real.shape, 2), device=real.device)
     shifted[..., 0] = real
     shifted[..., 1] = imag
     return shifted  # last dim=2 (real&imag)

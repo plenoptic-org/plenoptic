@@ -247,8 +247,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         angle = self.angle.copy()
         log_rad = self.log_rad.copy()
-        lo0mask = self.lo0mask.clone().to(x.dtype)
-        hi0mask = self.hi0mask.clone().to(x.dtype)
+        lo0mask = self.lo0mask.clone()
+        hi0mask = self.hi0mask.clone()
 
         # x is a torch tensor batch of images of size [N,C,W,H]
         imdft = torch.rfft(x, signal_ndim=2, onesided=False)
@@ -289,7 +289,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                 banddft_imag = complex_const.real * banddft[1] + complex_const.imag * banddft[0]
                 # preallocation and then filling in is much more
                 # efficient than using stack
-                banddft = torch.empty((*banddft_real.shape, 2))
+                banddft = torch.empty((*banddft_real.shape, 2), device=banddft_real.device)
                 banddft[..., 0] = banddft_real
                 banddft[..., 1] = banddft_imag
 
