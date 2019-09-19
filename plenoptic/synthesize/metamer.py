@@ -458,13 +458,20 @@ class Metamer(nn.Module):
             same as True). If True or int>0, ``self.saved_image``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
-        save_progress : bool, optional
+        save_progress : bool or int, optional
             Whether to save the metamer as we go (so that you can check
             it periodically and so you don't lose everything if you have
             to kill the job / it dies before it finishes running). If
             True, we save to ``save_path`` every time we update the
             saved_representation. We attempt to save with the
-            ``save_model_reduced`` flag set to True
+            ``save_model_reduced`` flag set to True. If an int, we save
+            every ``save_progress`` iterations. Note that this can end
+            up actually taking a fair amount of time, especially for
+            large numbers of iterations (and thus, presumably, larger
+            saved history tensors) -- it's therefore recommended that
+            you set this to a relatively large integer (say, one-tenth
+            ``max_iter``) for the purposes of speeding up your
+            synthesis.
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -602,13 +609,15 @@ class Metamer(nn.Module):
                 # store_progress=3, then if it's 0-indexed, we'll try to save this four times,
                 # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
                 if store_progress and ((i+1) % store_progress == 0):
-                    if save_progress:
                     # want these to always be on cpu, to reduce memory use for GPUs
                     self.saved_image.append(self.matched_image.clone().to('cpu'))
                     self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
                     self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
                     self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+                    if save_progress is True:
                         self.save(save_path, True)
+                if type(save_progress) == int and ((i+1) % save_progress == 0):
+                    self.save(save_path, True)
 
             if len(self.loss) > self.loss_change_iter:
                 if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < loss_thresh:
