@@ -761,6 +761,60 @@ class Metamer(nn.Module):
             setattr(metamer, k, v)
         return metamer
 
+    def to(self, *args, do_windows=True, **kwargs):
+        r"""Moves and/or casts the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See below for examples.
+
+        .. note::
+            This method modifies the module in-place.
+
+        Args:
+            device (:class:`torch.device`): the desired device of the parameters
+                and buffers in this module
+            dtype (:class:`torch.dtype`): the desired floating point type of
+                the floating point parameters and buffers in this module
+            tensor (torch.Tensor): Tensor whose dtype and device are the desired
+                dtype and device for all parameters and buffers in this module
+
+        Returns:
+            Module: self
+        """
+        try:
+            self.model = self.model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("model has no `to` method, so we leave it as is...")
+        for k in ['target_image', 'target_representation', 'matched_image',
+                  'matched_representation', 'saved_image', 'saved_representation',
+                  'saved_image_gradient', 'saved_representation_gradient']:
+            if hasattr(self, k):
+                attr = getattr(self, k)
+                if isinstance(attr, torch.Tensor):
+                    attr = attr.to(*args, **kwargs)
+                    if isinstance(getattr(self, k), torch.nn.Parameter):
+                        attr = torch.nn.Parameter(attr)
+                    setattr(self, k, attr)
+                elif isinstance(attr, list):
+                    setattr(self, k, [a.to(*args, **kwargs) for a in attr])
+        return self
+
     def representation_error(self, iteration=None, **kwargs):
         r"""Get the representation ratio
 
