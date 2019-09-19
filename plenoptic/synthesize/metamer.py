@@ -313,7 +313,8 @@ class Metamer(nn.Module):
             # it. Otherwise, check to see if it looks like loss has
             # stopped declining and, if so, switch to the next scale
             if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
-                abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh):
+                abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
+                len(self.loss) - self.scales_timing[self.scales[-1]][0] > self.loss_change_iter):
                 self.scales_timing[self.scales[-1]].append(len(self.loss)-1)
                 self.scales = self.scales[:-1]
                 self.scales_timing[self.scales[-1]].append(len(self.loss))
@@ -609,9 +610,10 @@ class Metamer(nn.Module):
                         self.save(save_path, True)
 
             if len(self.loss) > self.loss_change_iter:
-                if self.loss[-self.loss_change_iter] - self.loss[-1] < loss_thresh:
+                if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < loss_thresh:
                     if self.coarse_to_fine:
-                        if self.scales[-1] == 'all':
+                        # only break out if we've been doing for long enough
+                        if self.scales[-1] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
                             break
                     else:
                         break
