@@ -559,8 +559,8 @@ class Metamer(nn.Module):
             self.saved_representation = list(self.saved_representation)
             self.saved_image_gradient = list(self.saved_image_gradient)
             self.saved_representation_gradient = list(self.saved_representation_gradient)
-            self.saved_image.append(self.matched_image.clone())
-            self.saved_representation.append(self.analyze(self.matched_image))
+            self.saved_image.append(self.matched_image.clone().to('cpu'))
+            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
         else:
             if save_progress:
                 raise Exception("Can't save progress if we're not storing it! If save_progress is"
@@ -602,11 +602,12 @@ class Metamer(nn.Module):
                 # store_progress=3, then if it's 0-indexed, we'll try to save this four times,
                 # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
                 if store_progress and ((i+1) % store_progress == 0):
-                    self.saved_image.append(self.matched_image.clone())
-                    self.saved_representation.append(self.analyze(self.matched_image))
-                    self.saved_image_gradient.append(self.matched_image.grad.clone())
-                    self.saved_representation_gradient.append(self.matched_representation.grad.clone())
                     if save_progress:
+                    # want these to always be on cpu, to reduce memory use for GPUs
+                    self.saved_image.append(self.matched_image.clone().to('cpu'))
+                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+                    self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
+                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
                         self.save(save_path, True)
 
             if len(self.loss) > self.loss_change_iter:
@@ -783,7 +784,7 @@ class Metamer(nn.Module):
 
         """
         if iteration is not None:
-            matched_rep = self.saved_representation[iteration]
+            matched_rep = self.saved_representation[iteration].to(self.target_representation.device)
         else:
             matched_rep = self.analyze(self.matched_image, **kwargs)
         try:
