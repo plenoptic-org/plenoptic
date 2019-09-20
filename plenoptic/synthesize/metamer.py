@@ -825,10 +825,10 @@ class Metamer(nn.Module):
         return self
 
     def representation_error(self, iteration=None, **kwargs):
-        r"""Get the representation ratio
+        r"""Get the representation error
 
-        This is (matched_representation - target_representation) /
-        target_representation. If ``iteration`` is not None, we use
+        This is (matched_representation - target_representation). If
+        ``iteration`` is not None, we use
         ``self.saved_representation[iteration]`` for
         matched_representation
 
@@ -843,7 +843,7 @@ class Metamer(nn.Module):
 
         Returns
         -------
-        np.array
+        torch.Tensor
 
         """
         if iteration is not None:
@@ -860,14 +860,55 @@ class Metamer(nn.Module):
                 kwargs['scales'] = [self.scales[-1]]
             rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
         return rep_error
-        # if not hasattr(self.model, 'normalize_dict') or not self.model.normalize_dict:
-        #     # then either the model doesn't have a normalize_dict or
-        #     # it's empty; in either case, the model is not normalized
-        #     return rep_ratio / self.target_representation
-        # else:
-        #     # in this case, we've already normalized the representation
-        #     # and so don't want to to do this dividing thing
-        #     return rep_ratio
+
+    def normalized_mse(self, iteration=None, **kwargs):
+        r"""Get the normalized mean-squared representation error
+
+        Following the method used in [1]_ to check for convergence, here
+        we take the mean-squared error between the target_representation
+        and matched_representation, then divide by the variance of
+        target_representation.
+
+        If ``iteration`` is not None, we use
+        ``self.saved_representation[iteration]`` for
+        matched_representation.
+
+        Any kwargs are passed through to self.analyze when computing the
+        matched/target representation
+
+        Parameters
+        ----------
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+
+        Returns
+        -------
+        torch.Tensor
+
+        References
+        ----------
+        .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+           ventral stream. Nature Neuroscience, 14(9),
+           1195–1201. http://dx.doi.org/10.1038/nn.2889
+
+        """
+        if iteration is not None:
+            matched_rep = self.saved_representation[iteration].to(self.target_representation.device)
+        else:
+            matched_rep = self.analyze(self.matched_image, **kwargs)
+        try:
+            rep_error = matched_rep - self.target_representation
+            target_rep = self.target_representation
+        except RuntimeError:
+            # try to use the last scale (if the above failed, it's
+            # because they were different shapes), but only if the user
+            # didn't give us another scale to use
+            if 'scales' not in kwargs.keys():
+                kwargs['scales'] = [self.scales[-1]]
+            target_rep = self.analyze(self.target_image, **kwargs)
+            rep_error = matched_rep - target_rep
+        return torch.pow(rep_error, 2).mean() / torch.var(target_rep)
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):
