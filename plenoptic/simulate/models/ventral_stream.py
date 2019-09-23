@@ -1177,8 +1177,15 @@ class PrimaryVisualCortex(VentralModel):
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cache_dir=None):
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
+                 cache_dir=None, half_octave_pyramid=False):
+        if half_octave_pyramid:
+            scales = []
+            for i in range(num_scales):
+                scales.extend([i, i+.5])
+            self.scales = scales[:-1]
+        else:
+            self.scales = list(range(num_scales))
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, self.scales,
                          transition_region_width=transition_region_width, cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
@@ -1187,6 +1194,13 @@ class PrimaryVisualCortex(VentralModel):
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
                                                                 self.order, is_complex=True)
+        if half_octave_pyramid:
+            self.half_octave_img_res = [int(np.ceil(i / np.sqrt(2))) for i in img_res]
+            self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
+                                                              num_scales-1, order,
+                                                              is_complex=True)
+        else:
+            self.half_octave_pyramid = None
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
@@ -1195,7 +1209,7 @@ class PrimaryVisualCortex(VentralModel):
         self.representation = None
         self.to_normalize = ['complex_cell_responses', 'image']
         self.normalize_dict = normalize_dict
-        self.scales = list(range(num_scales)) + ['mean_luminance']
+        self.scales += ['mean_luminance']
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1234,6 +1248,8 @@ class PrimaryVisualCortex(VentralModel):
             Module: self
         """
         self.complex_steerable_pyramid.to(*args, **kwargs)
+        if self.half_octave_pyramid:
+            self.half_octave_pyramid.to(*args, **kwargs)
         for k, v in self.normalize_dict.items():
             if isinstance(v, dict):
                 for l, w in v.items():
@@ -1281,6 +1297,12 @@ class PrimaryVisualCortex(VentralModel):
         # the values that go into the steerable pyramid.
         self.image = image.detach().clone()
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
+        if self.half_octave_pyramid:
+            half_img = nn.functional.interpolate(image, self.half_octave_img_res, mode='bicubic')
+            half_octave_pyr_coeffs = self.half_octave_pyramid(half_img)
+            self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
+                                        for k, v in half_octave_pyr_coeffs.items()
+                                        if not isinstance(k, str)))
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
         if self.normalize_dict:
             image = zscore_stats(self.normalize_dict, image=image)['image']
