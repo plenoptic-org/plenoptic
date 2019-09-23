@@ -993,11 +993,15 @@ class PoolingWindows(nn.Module):
         self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
-        self.num_scales = num_scales
+        if not hasattr(num_scales, '__iter__'):
+            self.num_scales = num_scales
+            num_scales = range(num_scales)
+        else:
+            self.num_scales = len(num_scales)
         self.num_devices = 1
-        self.angle_windows = []
-        self.ecc_windows = []
-        self.window_sizes = []
+        self.angle_windows = {}
+        self.ecc_windows = {}
+        self.window_sizes = {}
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
             cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
@@ -1014,7 +1018,7 @@ class PoolingWindows(nn.Module):
                                    'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': transition_region_width,
                                    'cache_dir': self.cache_dir}
-        for i in range(num_scales):
+        for i in num_scales:
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
             self.calculated_min_eccentricity_degrees.append(min_ecc)
@@ -1060,10 +1064,10 @@ class PoolingWindows(nn.Module):
                 if cache_dir is not None:
                     warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
                     torch.save({'angle': angle_windows, 'ecc': ecc_windows}, self.cache_paths[-1])
-            self.angle_windows.append(angle_windows)
-            self.ecc_windows.append(ecc_windows)
-            self.window_sizes.append(torch.einsum('ahw,ehw->ea', [angle_windows,
-                                                                  ecc_windows]).flatten())
+            self.angle_windows[i] = angle_windows
+            self.ecc_windows[i] = ecc_windows
+            self.window_sizes[i] = torch.einsum('ahw,ehw->ea', [angle_windows,
+                                                                ecc_windows]).flatten()
 
     def _window_sizes(self):
         r"""Calculate the various window size metrics
@@ -1252,12 +1256,12 @@ class PoolingWindows(nn.Module):
 
         """
         angle_windows_gpu = {}
-        for i, w in enumerate(self.angle_windows):
-            num = int(np.ceil(len(w) / len(devices)))
+        for k, v in self.angle_windows.items():
+            num = int(np.ceil(len(v) / len(devices)))
             for j, d in enumerate(devices):
-                if j*num > len(w):
+                if j*num > len(v):
                     break
-                angle_windows_gpu[(i, j)] = w[j*num:(j+1)*num].to(d)
+                angle_windows_gpu[(k, j)] = v[j*num:(j+1)*num].to(d)
         self.angle_windows = angle_windows_gpu
         self.num_devices = len(devices)
         self.window_sizes = [w.to(devices[0]) for w in self.window_sizes]
@@ -1285,12 +1289,13 @@ class PoolingWindows(nn.Module):
         parallel : parallelize PoolingWindows across multiple devices
 
         """
-        angle_windows = []
-        for i in range(self.num_scales):
+        angle_windows = {}
+        keys = set([k[0] for k in self.angle_windows.keys()])
+        for i in keys:
             tmp = []
             for j in range(self.num_devices):
                 tmp.append(self.angle_windows[(i, j)].to(device))
-            angle_windows.append(torch.cat(tmp, 0))
+            angle_windows[i] = torch.cat(tmp, 0)
         self.angle_windows = angle_windows
         self.num_devices = 1
         return self
@@ -1342,9 +1347,9 @@ class PoolingWindows(nn.Module):
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
-        window_size_mask = [(w > 1).to(output_device) for w in self.window_sizes]
+        window_size_mask = dict((k, (w > 1).to(output_device)) for k, w in self.window_sizes.items())
         if isinstance(x, dict):
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
                                                  [v.to(self.angle_windows[0].device),
                                                   self.angle_windows[k[0]],
@@ -1369,7 +1374,7 @@ class PoolingWindows(nn.Module):
                         tmp.append(val.to(output_device))
                     pooled_x[k] = torch.cat(tmp, -1)[..., window_size_mask[k[0]]] / sizes
         else:
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 pooled_x = torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
                                                                self.angle_windows[idx],
                                                                self.ecc_windows[idx]]).flatten(2, 3)
@@ -1448,7 +1453,7 @@ class PoolingWindows(nn.Module):
             if list(x.values())[0].ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
                                 " Unsqueeze until this is true!")
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 # one way to make this more general: figure out the size of
                 # the tensors in x and in self.windows, and intelligently
                 # lookup which should be used.
@@ -1471,7 +1476,7 @@ class PoolingWindows(nn.Module):
             if x.ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
                                 " Unsqueeze until this is true!")
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 return torch.einsum('bchw,ahw,ehw->bceahw', [x.to(self.angle_windows[0].device),
                                                              self.angle_windows[idx],
                                                              self.ecc_windows[idx]]).flatten(2, 3)
@@ -1531,7 +1536,7 @@ class PoolingWindows(nn.Module):
         torch.cuda.empty_cache()
         window_size_mask = [w > 1 for w in self.window_sizes]
         if isinstance(windowed_x, dict):
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 # one way to make this more general: figure out the size
                 # of the tensors in x and in self.angle_windows, and
                 # intelligently lookup which should be used.
@@ -1549,7 +1554,7 @@ class PoolingWindows(nn.Module):
                     tmp[k] = torch.cat(t, -1)[..., window_size_mask[k[0]]] / sizes
                 return tmp
         else:
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 return (windowed_x.sum((-1, -2))[..., window_size_mask[idx]] /
                         self.window_sizes[idx][window_size_mask[idx]])
             else:
@@ -1610,7 +1615,7 @@ class PoolingWindows(nn.Module):
             if list(pooled_x.values())[0].ndimension() != 3:
                 raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
                                 " Squeeze until this is true!")
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 tmp = {}
                 for k, v in pooled_x.items():
                     if isinstance(k, tuple):
@@ -1668,7 +1673,7 @@ class PoolingWindows(nn.Module):
             expanded_x[..., window_size_mask[idx]] = pooled_x
             expanded_x = expanded_x.reshape((*pooled_x.shape[:2], self.ecc_windows[idx].shape[0],
                                              self.n_polar_windows))
-            if isinstance(self.angle_windows, list):
+            if self.num_devices == 1:
                 return torch.einsum('bcea,ahw,ehw->bchw', [expanded_x.to(self.angle_windows[0].device),
                                                            self.angle_windows[idx],
                                                            self.ecc_windows[idx]])
@@ -1726,7 +1731,7 @@ class PoolingWindows(nn.Module):
             The axis with the windows
 
         """
-        if isinstance(self.angle_windows, list):
+        if self.num_devices == 1:
             # attempt to not have all the windows in memory at once...
             if subset:
                 angle_windows = self.angle_windows[windows_scale][:4]
