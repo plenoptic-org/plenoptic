@@ -1029,6 +1029,15 @@ class PrimaryVisualCortex(VentralModel):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
+    half_octave_pyramid : bool, optional
+        Whether to include the half octaves in the model's
+        representation. If False (the default), we only use the
+        steerable pyramid constructed on the original image. If True, we
+        include a second pyramid, constructed on a version of the image
+        that's been down-sampled by a factor of sqrt(2) (using bicubic
+        interpolation), in order to include the frequencies centered at
+        half-octave steps and thus have a more complete representation
+        of frequency space
 
     Attributes
     ----------
@@ -1272,11 +1281,14 @@ class PrimaryVisualCortex(VentralModel):
         scales : list, optional
             Which scales to include in the returned representation. If
             an empty list (the default), we include all
-            scales. Otherwise, can contain ints up to
-            ``self.num_scales-1`` or the string
-            ``'mean_luminance'``. Can contain a single value or multiple
-            values. If it's an int, we include all orientations from
-            that scale.
+            scales. Otherwise, can contain subset of values present in
+            this model's ``scales`` attribute (ints up to
+            self.num_scales-1, the str 'mean_luminance', or, if
+            ``half_octave_pyramid`` was set to True during
+            initialization, the floats that lie between the integer
+            scales: e.g., .5, 1.5, 2.5). Can contain a single value or
+            multiple values. If it's an int or float, we include all
+            orientations from that scale.
 
         Returns
         -------
@@ -1314,8 +1326,8 @@ class PrimaryVisualCortex(VentralModel):
         if scales:
             rep = {}
             for k in scales:
-                if isinstance(k, int):
-                    for j in range(4):
+                if isinstance(k, float) or isinstance(k, int):
+                    for j in range(self.order):
                         rep[(k, j)] = self.representation[(k, j)]
                 else:
                     rep[k] = self.representation[k]
