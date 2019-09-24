@@ -1161,12 +1161,12 @@ class PoolingWindows(nn.Module):
         Returns:
             Module: self
         """
-        for i, w in enumerate(self.angle_windows):
-            self.angle_windows[i] = w.to(*args, **kwargs)
-        for i, w in enumerate(self.ecc_windows):
-            self.ecc_windows[i] = w.to(*args, **kwargs)
-        for i, w in enumerate(self.window_sizes):
-            self.window_sizes[i] = w.to(*args, **kwargs)
+        for k, v in self.angle_windows.items():
+            self.angle_windows[k] = v.to(*args, **kwargs)
+        for k, v in self.ecc_windows.items():
+            self.ecc_windows[k] = v.to(*args, **kwargs)
+        for k, v in self.window_sizes.items():
+            self.window_sizes[k] = v.to(*args, **kwargs)
         return self
 
     @staticmethod
