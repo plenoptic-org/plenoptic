@@ -1530,18 +1530,29 @@ class PrimaryVisualCortex(VentralModel):
         """
         # order is number of orientations - 1 and we want to have
         # columns equal to number of orientations + 1
-        fig, gs, data, title_list = self._plot_helper(2*self.num_scales, 2*(self.order+2), figsize,
+        if self.half_octave_pyramid is not None:
+            n_cols = 2 * self.num_scales
+            n_rows = self.order + 1
+            col_multiplier = 4
+            col_offset = .5
+        else:
+            n_cols = self.num_scales + 1
+            n_rows = self.order + 1
+            col_multiplier = 2
+            col_offset = 1
+        fig, gs, data, title_list = self._plot_helper(2*n_rows, 2*n_cols, figsize,
                                                       ax, title, batch_idx, data)
         axes = []
         for i, (k, v) in enumerate(data.items()):
             if isinstance(k, tuple):
-                t = self._get_title(title_list, i, "scale %02d, band%02d" % k)
-                ax = fig.add_subplot(gs[2*k[0]:2*(k[0]+1), 2*k[1]:2*(k[1]+1)])
+                t = self._get_title(title_list, i, "scale %s, band %s" % k)
+                ax = fig.add_subplot(gs[int(2*k[1]):int(2*(k[1]+1)), int(col_multiplier*k[0]):
+                                        int(col_multiplier*(k[0]+col_offset))])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
             else:
                 t = self._get_title(title_list, -1, "mean pixel intensity")
-                ax = fig.add_subplot(gs[self.num_scales-1:self.num_scales+1, 2*(self.order+1):])
+                ax = fig.add_subplot(gs[n_rows-1:n_rows+1, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
         return fig, axes
@@ -1612,31 +1623,44 @@ class PrimaryVisualCortex(VentralModel):
             A list of axes that contain the plots we've created
 
         """
-        fig, gs, data, title_list = self._plot_helper(1, self.num_scales+1, figsize, ax, title,
+        if self.half_octave_pyramid is not None:
+            n_cols = 2 * self.num_scales
+            ax_multiplier = 2
+        else:
+            n_cols = self.num_scales + 1
+            ax_multiplier = 1
+        fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax, title,
                                                       batch_idx, data)
         titles = []
         axes = []
         imgs = []
+        zooms = []
         # project expects a dictionary of 3d tensors
         data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
                                                 for k, v in data.items()))
-        for i in range(self.num_scales):
-            titles.append(self._get_title(title_list, i, "scale %02d" % i))
+        for i in self.scales:
+            if isinstance(i, str):
+                continue
+            titles.append(self._get_title(title_list, i, "scale %s" % i))
             img = np.zeros(data[(i, 0)].shape).squeeze()
             for j in range(self.order+1):
                 d = data[(i, j)].squeeze()
                 img += to_numpy(d)
-            ax = fig.add_subplot(gs[i])
+            ax = fig.add_subplot(gs[int(ax_multiplier * i)])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             imgs.append(img)
             axes.append(ax)
+            if isinstance(i, int):
+                zooms.append(zoom * round(data[(0, 0)].shape[-1] / img.shape[-1]))
+            elif isinstance(i, float):
+                zooms.append(zoom * round(data[(0.5, 0)].shape[-1] / img.shape[-1]))
         ax = fig.add_subplot(gs[-1])
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(data['mean_luminance'].squeeze()))
+        zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
-        for ax, img, t, vr in zip(axes, imgs, titles, vrange):
-            img_zoom = zoom * round(data[(0, 0)].shape[-1] / img.shape[-1])
-            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=img_zoom)
+        for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
+            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
         return fig, axes
