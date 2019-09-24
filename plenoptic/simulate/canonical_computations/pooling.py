@@ -1210,7 +1210,7 @@ class PoolingWindows(nn.Module):
         slice_vals = (scaled_window_res - scaled_img_res) / 2
         return [int(np.floor(slice_vals)), -int(np.ceil(slice_vals))]
 
-    def parallel(self, devices):
+    def parallel(self, devices, num_batches=1):
         r"""Parallelize the pooling windows across multiple GPUs
 
         PoolingWindows objects can get very large -- so large, that it's
@@ -1245,6 +1245,12 @@ class PoolingWindows(nn.Module):
         devices : list
             List of torch.devices or ints (corresponding to cuda
             numbers) to spread windows across
+        num_batches : int
+            The number of batches to further split the windows up
+            into. The larger this number, the less memory the forward
+            call will take but the slower it will be. So therefore, it's
+            recommended you first try this with num_batches=1 and only
+            gradually increase it as necessary
 
         Returns
         -------
@@ -1265,6 +1271,7 @@ class PoolingWindows(nn.Module):
         self.angle_windows = angle_windows_gpu
         self.num_devices = len(devices)
         self.window_sizes = [w.to(devices[0]) for w in self.window_sizes]
+        self.num_batches = num_batches
         return self
 
     def unparallel(self, device=torch.device('cpu')):
@@ -1298,6 +1305,7 @@ class PoolingWindows(nn.Module):
             angle_windows[i] = torch.cat(tmp, 0)
         self.angle_windows = angle_windows
         self.num_devices = 1
+        self.num_batches = 1
         return self
 
     def forward(self, x, idx=0):
@@ -1371,13 +1379,6 @@ class PoolingWindows(nn.Module):
                 pooled_x = torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
                                                                self.angle_windows[idx],
                                                                self.ecc_windows[idx]]).flatten(2, 3)
-                # pooled_x = torch.empty((*x.shape[:2], self.ecc_windows[idx].shape[0],
-                #                         self.angle_windows[idx].shape[0]),
-                #                        device=self.angle_windows[0].device)
-                # for i, a in enumerate(self.angle_window[idx]):
-                #     pooled_x[..., i] = torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
-                #                                                            a, self.ecc_windows[idx]])
-                # pooled_x = pooled_x.flatten(2, 3)
                 pooled_x = pooled_x / self.window_sizes[idx]
             else:
                 pooled_x = []
@@ -1389,7 +1390,7 @@ class PoolingWindows(nn.Module):
                     #                    [x.to(a.device), a, e.to(a.device)]).to(output_device)
                     # pooled_x.append(val.flatten(2, 3))
                     for a in torch.split(self.angle_windows[(idx, i)],
-                                         self.angle_windows[(idx, i)].shape[0] // 20):
+                                         self.angle_windows[(idx, i)].shape[0] // self.num_batches):
                         val = torch.einsum('bchw,ahw,ehw->bcea',
                                            [x.to(a.device), a, e.to(a.device)]).to(output_device)
                         pooled_x.append(val.flatten(2, 3))
