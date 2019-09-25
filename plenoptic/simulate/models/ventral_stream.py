@@ -228,7 +228,7 @@ class VentralModel(nn.Module):
         nn.Module.to(self, *args, **kwargs)
         return self
 
-    def parallel(self, devices):
+    def parallel(self, devices, num_batches=1):
         r"""Parallelize the model acros multiple GPUs
 
         The PoolingWindows these models use can get very large -- so
@@ -252,6 +252,12 @@ class VentralModel(nn.Module):
         devices : list
             List of torch.devices or ints (corresponding to cuda
             numbers) to spread windows across
+        num_batches : int
+            The number of batches to further split the windows up
+            into. The larger this number, the less memory the forward
+            call will take but the slower it will be. So therefore, it's
+            recommended you first try this with num_batches=1 and only
+            gradually increase it as necessary
 
         Returns
         -------
@@ -262,7 +268,7 @@ class VentralModel(nn.Module):
         unparallel : undo this parallelization
 
         """
-        self.PoolingWindows = self.PoolingWindows.parallel(devices)
+        self.PoolingWindows = self.PoolingWindows.parallel(devices, num_batches)
         return self
 
     def unparallel(self, device=torch.device('cpu')):
