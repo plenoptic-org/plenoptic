@@ -299,12 +299,12 @@ class Eigendistortion(nn.Module):
             if verbose:
                 print('implicit power method, computing the maximum distortion')
             lmbda_max, v_max = implicit_FIM_power_iteration(self.out_flattensor, self.image_flattensor, l=0, init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
-            self.distortions[str(0)] = (lmbda_max, v_max)
+            self.distortions[str(0)] = (lmbda_max.detach(), v_max.detach())
 
             if verbose:
                 print('implicit power method, computing the minimum distortion')
             lmbda_min, v_min = implicit_FIM_power_iteration(self.out_flattensor, self.image_flattensor, l=lmbda_max, init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
-            self.distortions[str(-1)] = (lmbda_min, v_min)
+            self.distortions[str(-1)] = (lmbda_min.detach(), v_min.detach())
 
             # TODO deflation
             # for ind in distinds:
