@@ -39,7 +39,6 @@ TODO see more of the spectrum
 
 def fisher_info_matrix_vector_produt(y, x, v):
     """Compute Fisher Information Matrix Vector Product: Fv
-
     Parameters
     ----------
     y: torch tensor with gradient function
@@ -48,12 +47,10 @@ def fisher_info_matrix_vector_produt(y, x, v):
         input
     v: torch tensor
         direction
-
     Returns
     -------
     Fv: torch tensor
         vector, fvp
-
     Notes
     -----
     under white Gaussian noise assumption, F is matrix multiplication of
@@ -61,7 +58,6 @@ def fisher_info_matrix_vector_produt(y, x, v):
     Hence:
     Fv = J.T (Jv)
        = ((jvp.T) J).T
-
     """
     Jv = jacobian_vector_product(y, x, v)
     Fv = vector_jacobian_product(y, x, Jv)
@@ -71,7 +67,6 @@ def fisher_info_matrix_vector_produt(y, x, v):
 def implicit_FIM_eigenvalue(y, x, v):
     """Implicitly compute the eigenvalue of the Fisher Information Matrix
     corresponding to eigenvector v
-
     lmbda = v.T F v
     """
     Fv = fisher_info_matrix_vector_produt(y, x, v)
@@ -83,7 +78,6 @@ def implicit_FIM_power_iteration(y, x, l=0, init='randn', seed=0, tol=1e-10, n_s
     """Apply the power method algorithm to approximate the extremal eigenvalue
     and eigenvector of the Fisher Information Matrix, without explicitely
     representing that matrix
-
     Parameters
     ----------
     y: torch tensor with gradient function
@@ -104,20 +98,16 @@ def implicit_FIM_power_iteration(y, x, l=0, init='randn', seed=0, tol=1e-10, n_s
         maximum number of steps
     verbose: boolean, optional
         flag to control amout of information printed out
-
     Returns
     -------
     lmbda: float
         eigenvalue
-
     v: torch tensor
         eigenvector
-
     Note
     ----
     - inverse power method (F - lmbda I)v
     - this function will most likely land on linear combinations of evecs
-
     TODO
     - check for division by zero
     - cleanup implementation of minor component
@@ -125,7 +115,6 @@ def implicit_FIM_power_iteration(y, x, l=0, init='randn', seed=0, tol=1e-10, n_s
     #         error = torch.sqrt(torch.sum(fvp(y, x, v_new) -
     #                                 (l + lmbda_new) * v_new)**2)
     #         error = torch.sqrt(torch.sum(v - v_new) ** 2)
-
     """
     n = x.shape[0]
     # m = y.shape[0]
@@ -208,43 +197,36 @@ def implicit_block_power_method(x, y, r, l=0, init='randn', seed=0, tol=1e-10, n
 
 class Eigendistortion(nn.Module):
     r"""Synthesize the eigendistortions induced by a model on an image.
-
     Parameters
     -----------
     image: torch.Tensor
         image, (B x C x H x W)
     model: torch class
         torch model with defined forward and backward operations
-
     Notes
     -----
     This is a method for comparing image representations in terms of their
     ability to explain perceptual sensitivity in humans. It uses the
     power method to estimate largest and smallest eigenvectors of the FIM.
-
     Model implements y = f (x), a deterministic (and differentiable) mapping
     from the input pixels (R^n) to a mean output response vector (R^m),
     where we assume additive white Gaussian noise in the response space:
         f: R^n -> R^m
             x  ->  y
-
     The Jacobian matrix at x is:
         J(x) = dydx        [m x n] (ie. output_dim x input_dim)
     is the matrix of all first-order partial derivatives
     of the vector-valued function f.
-
     The Fisher Information Matrix (FIM) at x, under white Gaussian noise in
     the response space, is:
         F = J(x).T.dot(J(x))
     It is a quadratic approximation of the discriminability of
     distortions relative to x.
-
     Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
     Eigen-distortions of hierarchical representations.
     In Advances in neural information processing systems (pp. 3530-3539).
     http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
     http://www.cns.nyu.edu/~lcv/eigendistortions/
-
     TODO
     ----
     control seed
@@ -289,21 +271,15 @@ class Eigendistortion(nn.Module):
 
     def synthesize(self, block=None, tol=1e-10, n_steps=100, jac=True, seed=0, verbose=True):
         '''Compute eigendistortion
-
         Parameters
         ----------
         tol: tolerance for error criterion in power iteration
-
         n_steps: total steps to run for power iteration in eigenvalue computation
-
         jac: boolean, optional (default True)
             Try to use the full jacobian method if the input and output sizes are small enough
-
         seed: control the random seed for reproducibility
-
         verbose: boolean, optional (default True)
             show progress during power iteration
-
         Returns
         -------
         distortions: dict of torch tensors
