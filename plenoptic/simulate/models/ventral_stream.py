@@ -718,8 +718,10 @@ class RetinalGanglionCells(VentralModel):
         (though they should all have the same number of windows)
     image : torch.tensor
         A 2d containing the image most recently analyzed.
-    windowed_image : torch.tensor
-        A 3d tensor containing windowed views of ``self.image``
+    cone_responses : torch.tensor
+        A 2d tensor containing the cone responses to the most recent
+        image analyzed. That is, ``po.non_linearities.cone(image,
+        self.cone_power)``
     representation : torch.tensor
         A tensor containing the averages of the pixel intensities within
         each pooling window for ``self.image``. This will be 3d: (batch,
@@ -815,7 +817,6 @@ class RetinalGanglionCells(VentralModel):
                          cache_dir=cache_dir)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
-        self.windowed_image = None
         self.representation = None
 
     def forward(self, image):
@@ -839,8 +840,9 @@ class RetinalGanglionCells(VentralModel):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         self.image = image.detach().clone()
-        image = cone(image, self.cone_power)
-        self.representation = self.PoolingWindows(image)
+        cone_responses = cone(image, self.cone_power)
+        self.cone_responses = cone_responses.detach().clone()
+        self.representation = self.PoolingWindows(cone_responses)
         return self.representation
 
     def _plot_helper(self, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
@@ -1113,7 +1115,11 @@ class PrimaryVisualCortex(VentralModel):
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
     image : torch.tensor
-        A 2d containing the most recent image analyzed.
+        A 2d tensor containing the most recent image analyzed.
+    cone_responses : torch.tensor
+        A 2d tensor containing the cone responses to the most recent
+        image analyzed. That is, ``po.non_linearities.cone(image,
+        self.cone_power)``
     pyr_coeffs : dict
         The dictionary containing the (complex-valued) coefficients of
         the steerable pyramid built on ``self.image``. Each of these is
@@ -1126,10 +1132,6 @@ class PrimaryVisualCortex(VentralModel):
         and summed (i.e., the squared complex modulus) of
         ``self.pyr_coeffs``. Does not include the residual high- and
         low-pass bands. Each of these is now 4d: ``(1, 1, *img_res)``.
-    windowed_complex_cell_responses : dict
-        Dictionary containing the windowed complex cell responses. Each
-        of these is 5d: ``(1, 1, W, *img_res)``, where ``W`` is the
-        number of windows (which depends on the ``scaling`` parameter).
     mean_luminance : torch.tensor
         A 1d tensor representing the mean luminance of the image, found
         by averaging the pixel values of the image using the windows at
@@ -1266,10 +1268,9 @@ class PrimaryVisualCortex(VentralModel):
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
-        self.windowed_complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
-        self.to_normalize = ['complex_cell_responses', 'image']
+        self.to_normalize = ['complex_cell_responses', 'cone_responses']
         self.normalize_dict = normalize_dict
         self.scales += ['mean_luminance']
 
@@ -1355,26 +1356,31 @@ class PrimaryVisualCortex(VentralModel):
             image = image.unsqueeze(0)
         # this is a little weird here: the image that we detach and
         # clone here is just a copy that we keep around for later
-        # examination. At this point, it's not normalized, but it will
-        # be during the zscore_stats(self.normalize_dict, self) call
-        # below. We also zscore image there because we want the values
-        # that go into the mean pixel intensity to be normalized but not
-        # the values that go into the steerable pyramid.
+        # examination.
         self.image = image.detach().clone()
-        image = cone(image, self.cone_power)
-        self.pyr_coeffs = self.complex_steerable_pyramid(image)
+        cone_responses = cone(image, self.cone_power)
+        # we save this here so that it can be normalized. At this point,
+        # it's not normalized, but it will be during the
+        # zscore_stats(self.normalize_dict, self) call below. We also
+        # zscore cone_responses there because we want the values that go
+        # into the mean pixel intensity to be normalized but not the
+        # values that go into the steerable pyramid.
+        self.cone_responses = cone_responses.detach().clone()
+        self.pyr_coeffs = self.complex_steerable_pyramid(cone_responses)
         if self.half_octave_pyramid:
-            half_img = nn.functional.interpolate(image, self.half_octave_img_res, mode='bicubic')
-            half_octave_pyr_coeffs = self.half_octave_pyramid(half_img)
+            half_cones = nn.functional.interpolate(cone_responses, self.half_octave_img_res,
+                                                   mode='bicubic')
+            half_octave_pyr_coeffs = self.half_octave_pyramid(half_cones)
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
         if self.normalize_dict:
-            image = zscore_stats(self.normalize_dict, image=image)['image']
+            cone_responses = zscore_stats(self.normalize_dict,
+                                          cone_responses=cone_responses)['cone_responses']
             self = zscore_stats(self.normalize_dict, self)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(image)
+        self.mean_luminance = self.PoolingWindows(cone_responses)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
         if scales:
