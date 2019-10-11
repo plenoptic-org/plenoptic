@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot
 from ..tools.data import to_numpy
+from ..tools.metamer_utils import RangeClamper
 from matplotlib import animation
 
 
@@ -337,7 +338,17 @@ class Metamer(nn.Module):
 
         if self.coarse_to_fine and self.scales[-1] != 'all':
             with torch.no_grad():
-                full_matched_rep = self.analyze(self.matched_image)
+                tmp_im = self.matched_image.detach().clone()
+                # if the model has a cone_power attribute, it's going to
+                # raise its input to some power and if that power is
+                # fractional, it won't handle negative values well. this
+                # should be generally handled by clamping, but clamping
+                # happens after this, which is just intended to give a
+                # sense of the overall loss, so we clamp with a min of 0
+                if hasattr(self.model, 'cone_power'):
+                    if self.model.cone_power != int(self.model.cone_power):
+                        tmp_im = torch.clamp(tmp_im, min=0)
+                full_matched_rep = self.analyze(tmp_im)
                 loss = self.objective_function(full_matched_rep, self.target_representation)
         else:
             loss = self.objective_function(self.matched_representation, self.target_representation)
@@ -349,10 +360,10 @@ class Metamer(nn.Module):
         return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
-                   store_progress=False, save_progress=False, save_path='metamer.pt',
-                   loss_change_thresh=1e-2, loss_change_iter=50, loss_change_fraction=1.,
-                   coarse_to_fine=False, **optimizer_kwargs):
+                   clamper=RangeClamper((0, 1)), optimizer='SGD', fraction_removed=0.,
+                   loss_thresh=1e-4, store_progress=False, save_progress=False,
+                   save_path='metamer.pt', loss_change_thresh=1e-2, loss_change_iter=50,
+                   loss_change_fraction=1., coarse_to_fine=False, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -435,9 +446,9 @@ class Metamer(nn.Module):
             None, we try to cast it as a tensor.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
-            it stays reasonable. The classic example is making sure the
-            range lies between 0 and 1, see plenoptic.RangeClamper for
-            an example.
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
         optimizer: {'Adam', 'SGD', 'LBFGS'}
             The choice of optimization algorithm
         fraction_removed: float, optional

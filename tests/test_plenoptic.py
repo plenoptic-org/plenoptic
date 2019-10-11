@@ -546,11 +546,33 @@ class TestVentralStream(object):
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3)
+
+    def test_cone_nonlinear(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        v1_lin = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1)
+        v1 = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1/3)
+        rgc_lin = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1)
+        rgc = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1/3)
+        for model in [v1, v1_lin, rgc, rgc_lin]:
+            model(im)
+        # v1 mean luminance and rgc representation, for same cone power
+        # and scaling, should be identical
+        (v1.representation['mean_luminance'] == rgc.representation).all()
+        # v1 mean luminance and rgc representation, for same cone power
+        # and scaling, should be identical
+        (v1_lin.representation['mean_luminance'] == rgc_lin.representation).all()
+        # similarly, the representations should be different if cone
+        # power is different
+        (v1_lin.representation['mean_luminance'] != v1.representation['mean_luminance']).all()
+        # similarly, the representations should be different if cone
+        # power is different
+        (rgc_lin.representation != rgc.representation).all()
 
     @pytest.mark.parametrize("frontend", [True, False])
     @pytest.mark.parametrize("steer", [True, False])
@@ -575,7 +597,7 @@ class TestMetamers(object):
     def test_metamer_save_load(self, tmp_path):
 
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -591,7 +613,7 @@ class TestMetamers(object):
 
     def test_metamer_save_load_reduced(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -610,7 +632,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -618,7 +640,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -626,7 +648,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -634,7 +656,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_4(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -643,7 +665,7 @@ class TestMetamers(object):
 
     def test_metamer_plotting_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -655,7 +677,7 @@ class TestMetamers(object):
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
@@ -676,7 +698,7 @@ class TestMetamers(object):
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
@@ -757,7 +779,7 @@ class TestMetamers(object):
 
     def test_metamer_coarse_to_fine(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)

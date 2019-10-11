@@ -8,7 +8,7 @@ import pyrtools as pt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from torch import nn
-from ..canonical_computations.non_linearities import rectangular_to_polar_dict, zscore_stats
+from ..canonical_computations.non_linearities import rectangular_to_polar_dict, zscore_stats, cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
@@ -50,6 +50,12 @@ class VentralModel(nn.Module):
     each scale separately, changing the img_res (and potentially
     min_eccentricity) values in that save path appropriately.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -70,10 +76,14 @@ class VentralModel(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
-    transition_region_width : `float`, optional
+    transition_region_width : float, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -172,10 +182,14 @@ class VentralModel(nn.Module):
     cached_paths : list
         List of strings, one per scale, taht we either saved or loaded
         the cached windows tensors from
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cache_dir=None):
+                 transition_region_width=.5, cone_power=1/3, cache_dir=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
                                              num_scales, transition_region_width, cache_dir)
@@ -186,6 +200,8 @@ class VentralModel(nn.Module):
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
                      'central_eccentricity_pixels', 'central_eccentricity_degrees']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
+        self.state_dict_reduced['cone_power'] = cone_power
+        self.cone_power = cone_power
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -648,6 +664,12 @@ class RetinalGanglionCells(VentralModel):
     ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
     em-{max_eccentricity}_t-{transition_region_width}.pt``.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -668,6 +690,10 @@ class RetinalGanglionCells(VentralModel):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -774,14 +800,19 @@ class RetinalGanglionCells(VentralModel):
         If str, this is the directory where we cached / looked for
         cached windows tensors
     cached_paths : list
-        List of strings, one per scale, taht we either saved or loaded
+        List of strings, one per scale, that we either saved or loaded
         the cached windows tensors from
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5, cache_dir=None):
+                 transition_region_width=.5, cone_power=1/3, cache_dir=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
-                         transition_region_width=transition_region_width, cache_dir=cache_dir)
+                         transition_region_width=transition_region_width, cone_power=cone_power,
+                         cache_dir=cache_dir)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.windowed_image = None
@@ -808,6 +839,7 @@ class RetinalGanglionCells(VentralModel):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         self.image = image.detach().clone()
+        image = cone(image, self.cone_power)
         self.representation = self.PoolingWindows(image)
         return self.representation
 
@@ -996,6 +1028,12 @@ class PrimaryVisualCortex(VentralModel):
     each scale separately, changing the img_res (and potentially
     min_eccentricity) values in that save path appropriately.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -1030,6 +1068,10 @@ class PrimaryVisualCortex(VentralModel):
         ``po.simul.non_linearities.generate_norm_stats``. If this is an
         empty dict, we don't normalize the model. If it's non-empty,
         we expect it to have only key: "complex_cell_responses"
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -1188,11 +1230,15 @@ class PrimaryVisualCortex(VentralModel):
     scales : list
         List of the scales in the model, from fine to coarse. Used for
         synthesizing in coarse-to-fine order
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cache_dir=None, half_octave_pyramid=False):
+                 cone_power=1/3, cache_dir=None, half_octave_pyramid=False):
         if half_octave_pyramid:
             scales = []
             for i in range(num_scales):
@@ -1201,7 +1247,8 @@ class PrimaryVisualCortex(VentralModel):
         else:
             self.scales = list(range(num_scales))
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, self.scales,
-                         transition_region_width=transition_region_width, cache_dir=cache_dir)
+                         transition_region_width=transition_region_width, cone_power=cone_power,
+                         cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
                                         'normalize_dict': normalize_dict})
@@ -1314,6 +1361,7 @@ class PrimaryVisualCortex(VentralModel):
         # that go into the mean pixel intensity to be normalized but not
         # the values that go into the steerable pyramid.
         self.image = image.detach().clone()
+        image = cone(image, self.cone_power)
         self.pyr_coeffs = self.complex_steerable_pyramid(image)
         if self.half_octave_pyramid:
             half_img = nn.functional.interpolate(image, self.half_octave_img_res, mode='bicubic')
