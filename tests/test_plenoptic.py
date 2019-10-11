@@ -792,6 +792,30 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
 
+    @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1))])
+    @pytest.mark.parametrize("clamp_each_iter", [True, False])
+    @pytest.mark.parametrize("cone_power", [1, 1/3])
+    def test_metamer_clamper(self, clamper, clamp_each_iter, cone_power):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=cone_power)
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        if cone_power == 1/3 and not clamp_each_iter:
+            # these will fail because we'll end up outside the 0, 1 range
+            with pytest.raises(IndexError):
+                metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
+        else:
+            metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
+
+    def test_metamer_no_clamper(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=1)
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=3, clamper=None)
+
 
 class TestPerceptualMetrics(object):
 

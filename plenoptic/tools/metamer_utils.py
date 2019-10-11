@@ -68,7 +68,7 @@ class FourMomentsClamper(Clamper):
         return im
 
 
-class RangeRemap(Clamper):
+class RangeRemapper(Clamper):
     """Remaps the range of a tensor to the specified value
 
     Instead of clamping, which sets every value below ``range[0]`` to
