@@ -360,10 +360,11 @@ class Metamer(nn.Module):
         return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=RangeClamper((0, 1)), optimizer='SGD', fraction_removed=0.,
-                   loss_thresh=1e-4, store_progress=False, save_progress=False,
-                   save_path='metamer.pt', loss_change_thresh=1e-2, loss_change_iter=50,
-                   loss_change_fraction=1., coarse_to_fine=False, **optimizer_kwargs):
+                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, optimizer='SGD',
+                   fraction_removed=0., loss_thresh=1e-4, store_progress=False,
+                   save_progress=False, save_path='metamer.pt', loss_change_thresh=1e-2,
+                   loss_change_iter=50, loss_change_fraction=1., coarse_to_fine=False,
+                   **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -449,6 +450,10 @@ class Metamer(nn.Module):
             it stays reasonable. The classic example (and default
             option) is making sure the range lies between 0 and 1, see
             plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         optimizer: {'Adam', 'SGD', 'LBFGS'}
             The choice of optimization algorithm
         fraction_removed: float, optional
@@ -611,7 +616,7 @@ class Metamer(nn.Module):
                 break
 
             with torch.no_grad():
-                if clamper is not None:
+                if clamper is not None and clamp_each_iter:
                     self.matched_image.data = clamper.clamp(self.matched_image.data)
 
                 # i is 0-indexed but in order for the math to work out we want to be checking a
@@ -639,6 +644,10 @@ class Metamer(nn.Module):
                         break
 
         pbar.close()
+
+        if clamper is not None:
+            self.matched_image.data = clamper.clamp(self.matched_image.data)
+            self.matched_representation = self.analyze(self.matched_image)
 
         if store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
