@@ -80,6 +80,10 @@ class RangeRemapper(Clamper):
     im = (im / im.max()) * range[1]
     ```
 
+    Note that we first check whether this is necessary: we don't do the
+    first line if im.min() > range[0], and we don't do the second if
+    im.max() < range[1]
+
     """
     def __init__(self, range):
         self.range = range
@@ -87,8 +91,11 @@ class RangeRemapper(Clamper):
     def clamp(self, im):
         """Remap the range of ``im`` to ``self.range``
         """
-        im = im - im.min() + self.range[0]
-        return (im / im.max()) * self.range[1]
+        if im.min() < self.range[0]:
+            im = im - im.min() + self.range[0]
+        if im.max() > self.range[1]:
+            im = (im / im.max()) * self.range[1]
+        return im
 
 
 def snr(s, n):
