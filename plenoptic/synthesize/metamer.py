@@ -645,7 +645,10 @@ class Metamer(nn.Module):
 
         pbar.close()
 
-        if clamper is not None:
+        # if clamp_each_iter is True, then we've done this above and so
+        # this gains us nothing, but would leave us open to weird edge
+        # cases
+        if clamper is not None and not clamp_each_iter:
             self.matched_image.data = clamper.clamp(self.matched_image.data)
             self.matched_representation = self.analyze(self.matched_image)
 
