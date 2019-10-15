@@ -198,7 +198,7 @@ class VentralModel(nn.Module):
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
-                     'central_eccentricity_pixels', 'central_eccentricity_degrees']:
+                     'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
         self.state_dict_reduced['cone_power'] = cone_power
         self.cone_power = cone_power
