@@ -1260,6 +1260,12 @@ class PrimaryVisualCortex(VentralModel):
                                                                 self.order, is_complex=True)
         if half_octave_pyramid:
             self.half_octave_img_res = [int(np.ceil(i / np.sqrt(2))) for i in img_res]
+            # want this to be even. for plotting purposes, the more
+            # dividible by 2 this number is, the easier our lives will
+            # be
+            for i, r in enumerate(self.half_octave_img_res):
+                if r % 2 == 1:
+                    self.half_octave_img_res[i] += 1
             self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
                                                               num_scales-1, order,
                                                               is_complex=True)
