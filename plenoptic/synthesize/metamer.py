@@ -649,8 +649,19 @@ class Metamer(nn.Module):
         # this gains us nothing, but would leave us open to weird edge
         # cases
         if clamper is not None and not clamp_each_iter:
-            self.matched_image.data = clamper.clamp(self.matched_image.data)
-            self.matched_representation = self.analyze(self.matched_image)
+            try:
+                self.matched_image.data = clamper.clamp(self.matched_image.data)
+                self.matched_representation = self.analyze(self.matched_image)
+            except RuntimeError:
+                # this means that we hit a NaN during optimization and
+                # so self.matched_image is on the cpu (since we're
+                # copying from self.saved_imgae, which is always on the
+                # cpu), whereas the model is on a different device. this
+                # should be the same as self.target_image.device
+                # (unfortunatley we can't trust that self.model has a
+                # device attribute), and so the following should hopefully work
+                self.matched_image.data = clamper.clamp(self.matched_image.data.to(self.target_image.device))
+                self.matched_representation.data = self.analyze(self.matched_image).data
 
         if store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
