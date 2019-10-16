@@ -284,6 +284,8 @@ class Metamer(nn.Module):
                                        target_rep.flatten()[idx_sub])
 
         loss.backward(retain_graph=True)
+        if self.clip_grad_norm:
+            torch.nn.utils.clip_grad_norm_([self.matched_image], self.clip_grad_norm)
 
         return loss
 
@@ -364,7 +366,7 @@ class Metamer(nn.Module):
                    fraction_removed=0., loss_thresh=1e-4, store_progress=False,
                    save_progress=False, save_path='metamer.pt', loss_change_thresh=1e-2,
                    loss_change_iter=50, loss_change_fraction=1., coarse_to_fine=False,
-                   **optimizer_kwargs):
+                   clip_grad_norm=False, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -512,6 +514,14 @@ class Metamer(nn.Module):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -554,6 +564,10 @@ class Metamer(nn.Module):
         self.loss_change_iter = loss_change_iter
         self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
+        if clip_grad_norm is True:
+            self.clip_grad_norm = 1
+        else:
+            self.clip_grad_norm = clip_grad_norm
         if coarse_to_fine:
             # this creates a new object, so we don't modify model.scales
             self.scales = ['all'] + [i for i in self.model.scales]
