@@ -1241,14 +1241,7 @@ class PrimaryVisualCortex(VentralModel):
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1/3, cache_dir=None, half_octave_pyramid=False):
-        if half_octave_pyramid:
-            scales = []
-            for i in range(num_scales):
-                scales.extend([i, i+.5])
-            self.scales = scales[:-1]
-        else:
-            self.scales = list(range(num_scales))
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, self.scales,
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
                          cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
@@ -1258,19 +1251,29 @@ class PrimaryVisualCortex(VentralModel):
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
                                                                 self.order, is_complex=True)
+        self.scales = ['mean_luminance']
         if half_octave_pyramid:
-            self.half_octave_img_res = [int(np.ceil(i / np.sqrt(2))) for i in img_res]
+            self.half_octave_img_res = [int(round(i / np.sqrt(2))) for i in img_res]
             # want this to be even. for plotting purposes, the more
             # dividible by 2 this number is, the easier our lives will
             # be
             for i, r in enumerate(self.half_octave_img_res):
                 if r % 2 == 1:
                     self.half_octave_img_res[i] += 1
+            second_PoolingWindows = PoolingWindows(scaling, self.half_octave_img_res,
+                                                   min_eccentricity, max_eccentricity,
+                                                   num_scales-1, transition_region_width,
+                                                   cache_dir)
+            self.PoolingWindows.merge(second_PoolingWindows)
             self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
                                                               num_scales-1, order,
                                                               is_complex=True)
+            for i in range(num_scales)[::-1]:
+                self.scales.extend([i, i-.5])
+            self.scales = self.scales[:-1]
         else:
             self.half_octave_pyramid = None
+            self.scales += list(range(num_scales))[::-1]
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
@@ -1278,7 +1281,6 @@ class PrimaryVisualCortex(VentralModel):
         self.representation = None
         self.to_normalize = ['complex_cell_responses', 'cone_responses']
         self.normalize_dict = normalize_dict
-        self.scales += ['mean_luminance']
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.

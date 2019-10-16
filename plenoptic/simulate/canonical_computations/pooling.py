@@ -993,11 +993,7 @@ class PoolingWindows(nn.Module):
         self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
-        if not hasattr(num_scales, '__iter__'):
-            self.num_scales = num_scales
-            num_scales = range(num_scales)
-        else:
-            self.num_scales = len(num_scales)
+        self.num_scales = num_scales
         self.num_devices = 1
         self.angle_windows = {}
         self.ecc_windows = {}
@@ -1018,7 +1014,7 @@ class PoolingWindows(nn.Module):
                                    'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': transition_region_width,
                                    'cache_dir': self.cache_dir}
-        for i in num_scales:
+        for i in range(self.num_scales):
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
             self.calculated_min_eccentricity_degrees.append(min_ecc)
@@ -1168,6 +1164,53 @@ class PoolingWindows(nn.Module):
         for k, v in self.window_sizes.items():
             self.window_sizes[k] = v.to(*args, **kwargs)
         return self
+
+    def merge(self, other_PoolingWindows, scale_offset=.5):
+        """Merge with a second PoolingWindows object
+
+        This combines the angle_windows, ecc_windows, and window_size
+        dictionaries of two PoolingWindows objects. Since they will both
+        have similarly-indexed keys (0, 1, 2,... based on
+        self.num_scales), we need some offset to keep them separate,
+        which scale_offset provides. We thus merge the dictionaries like
+        so:
+
+        ```
+        for k, v  in other_PoolingWindows.angle_windows.items():
+            self.angle_windows[k+scale_offset] = v
+        ```
+
+        and similarly for ecc_windows and window_size
+
+        The intended use case for this is to create one PoolingWindows
+        object for a steerable pyramid with some number of scales, and
+        then a second one for a corresponding "half-octave" steerable
+        pyramid, which is built on the original image down-sampled by a
+        factor of sqrt(2) in order to sample the frequencies half-way
+        between the scales of the original pyramid. You might want to
+        slightly adjust the shape of the down-sampled image (e.g., to
+        make its size even), so we don't provide support to
+        automatically create the windows for the half-scales; instead
+        you should create a new PoolingWindows object based on your
+        intended size and merge it into the original.
+
+        Note that we don't return anything, we modify in-place.
+
+        Parameters
+        ----------
+        other_PoolingWindows : plenoptic.simulate.PoolingWindows
+            A second instantiated PoolingWindows object
+        scale_offset : float, optional
+            The amount to offset all the keys of the second
+            PoolingWindows object by (see above for greater explanation)
+
+        """
+        for k, v in other_PoolingWindows.angle_windows.items():
+            self.angle_windows[k+scale_offset] = v
+        for k, v in other_PoolingWindows.ecc_windows.items():
+            self.ecc_windows[k+scale_offset] = v
+        for k, v in other_PoolingWindows.window_sizes.items():
+            self.window_sizes[k+scale_offset] = v
 
     @staticmethod
     def _get_slice_vals(scaled_window_res, scaled_img_res):

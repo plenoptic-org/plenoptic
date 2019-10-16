@@ -105,14 +105,14 @@ class Metamer(nn.Module):
         False, this will be empty
     scales : list or None
         If ``coarse_to_fine`` is True, this is a list of the scales in
-        reverse optimization order (i.e., from fine to coarse). The
-        first entry will be 'all' (since after we've optimized each
-        individual scale, we move on to optimizing all at once) This
-        will be modified by the synthesize() method and is used to track
-        which scale we're currently optimizing (the last one). When
-        we've gone through all the scales present, this will just
-        contain a single value: 'all'. If ``coarse_to_fine`` is False,
-        this will be None.
+        optimization order (i.e., from coarse to fine). The last entry
+        will be 'all' (since after we've optimized each individual
+        scale, we move on to optimizing all at once) This will be
+        modified by the synthesize() method and is used to track which
+        scale we're currently optimizing (the first one). When we've
+        gone through all the scales present, this will just contain a
+        single value: 'all'. If ``coarse_to_fine`` is False, this will
+        be None.
     scales_timing : dict or None
         If ``coarse_to_fine`` is True, this is a dictionary whose keys
         are the values of scales. The values are lists, with 0 through 2
@@ -257,8 +257,8 @@ class Metamer(nn.Module):
         if self.coarse_to_fine:
             # if we've reached 'all', we act the same as if
             # coarse_to_fine was False
-            if self.scales[-1] != 'all':
-                analyze_kwargs['scales'] = [self.scales[-1]]
+            if self.scales[0] != 'all':
+                analyze_kwargs['scales'] = [self.scales[0]]
         self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
         target_rep = self.analyze(self.target_image, **analyze_kwargs)
         if self.store_progress:
@@ -317,15 +317,15 @@ class Metamer(nn.Module):
             # stopped declining and, if so, switch to the next scale
             if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
                 abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
-                len(self.loss) - self.scales_timing[self.scales[-1]][0] > self.loss_change_iter):
-                self.scales_timing[self.scales[-1]].append(len(self.loss)-1)
-                self.scales = self.scales[:-1]
-                self.scales_timing[self.scales[-1]].append(len(self.loss))
+                len(self.loss) - self.scales_timing[self.scales[0]][0] > self.loss_change_iter):
+                self.scales_timing[self.scales[0]].append(len(self.loss)-1)
+                self.scales = self.scales[1:]
+                self.scales_timing[self.scales[0]].append(len(self.loss))
                 # reset scheduler and optimizer
                 self._init_optimizer(**self.optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
-            postfix_dict['current_scale'] = self.scales[-1]
+            postfix_dict['current_scale'] = self.scales[0]
         loss = self.optimizer.step(self._closure)
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
@@ -338,7 +338,7 @@ class Metamer(nn.Module):
         g = self.matched_image.grad.data
         self.scheduler.step(loss.item())
 
-        if self.coarse_to_fine and self.scales[-1] != 'all':
+        if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
                 tmp_im = self.matched_image.detach().clone()
                 # if the model has a cone_power attribute, it's going to
@@ -419,9 +419,9 @@ class Metamer(nn.Module):
         We also provide the ability of using a coarse-to-fine
         optimization. Unlike the above methods, this will not work
         out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in fine-to-coarse
-        order, i.e., reverse order that we will be optimizing) and that
-        it's forward method can accept a ``scales`` keyword argument, a
+        ``scales`` attributes (which gives the scales in coarse-to-fine
+        order, i.e., the order that we will be optimizing) and its
+        ``forward`` method can accept a ``scales`` keyword argument, a
         list that specifies which scales to use to compute the
         representation. If ``coarse_to_fine`` is True, then we optimize
         each scale until we think it's reached convergence before moving
@@ -570,9 +570,9 @@ class Metamer(nn.Module):
             self.clip_grad_norm = clip_grad_norm
         if coarse_to_fine:
             # this creates a new object, so we don't modify model.scales
-            self.scales = ['all'] + [i for i in self.model.scales]
+            self.scales = [i for i in self.model.scales] + ['all']
             self.scales_timing = dict((k, []) for k in self.scales)
-            self.scales_timing[self.scales[-1]].append(0)
+            self.scales_timing[self.scales[0]].append(0)
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
@@ -652,7 +652,7 @@ class Metamer(nn.Module):
                 if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < loss_thresh:
                     if self.coarse_to_fine:
                         # only break out if we've been doing for long enough
-                        if self.scales[-1] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
+                        if self.scales[0] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
                             break
                     else:
                         break
