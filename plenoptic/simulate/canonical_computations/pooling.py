@@ -1378,7 +1378,7 @@ class PoolingWindows(nn.Module):
                     tmp = []
                     sizes = self.window_sizes[k[0]]
                     if sizes.device != output_device:
-                        sizes = sizes.to(output_devie)
+                        sizes = sizes.to(output_device)
                     for i in range(self.num_devices):
                         angles = self.angle_windows[(k[0], i)]
                         e = self.ecc_windows[(k[0], i)]
@@ -1398,7 +1398,7 @@ class PoolingWindows(nn.Module):
                 pooled_x = []
                 sizes = self.window_sizes[idx]
                 if sizes.device != output_device:
-                    sizes = sizes.to(output_devie)
+                    sizes = sizes.to(output_device)
                 for i in range(self.num_devices):
                     angles = self.angle_windows[(idx, i)]
                     e = self.ecc_windows[(idx, i)]
@@ -1487,7 +1487,7 @@ class PoolingWindows(nn.Module):
                         tmp = []
                         for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
                             tmp.append(torch.einsum('bchw,ahw,ehw->bcea', [v, a, e]).flatten(2, 3))
-                        windowed_x[(k, i)] = torch.cat(tmp, -1).to(output_device)
+                        windowed_x[(k, i)] = torch.cat(tmp, -1)
                 return windowed_x
         else:
             if x.ndimension() != 4:
@@ -1567,7 +1567,7 @@ class PoolingWindows(nn.Module):
                     t = []
                     sizes = self.window_sizes[k[0]]
                     if sizes.device != output_device:
-                        sizes = sizes.to(output_devie)
+                        sizes = sizes.to(output_device)
                     for i in range(self.num_devices):
                         t.append(windowed_x[(k, i)].sum((-1, -2)).to(output_device))
                     tmp[k] = torch.cat(t, -1) / sizes
@@ -1579,7 +1579,7 @@ class PoolingWindows(nn.Module):
                 tmp = []
                 sizes = self.window_sizes[idx]
                 if sizes.device != output_device:
-                    sizes = sizes.to(output_devie)
+                    sizes = sizes.to(output_device)
                 for i, v in enumerate(windowed_x):
                     tmp.append(v.sum((-1, -2)).to(output_device))
                 return torch.cat(tmp, -1) / sizes
