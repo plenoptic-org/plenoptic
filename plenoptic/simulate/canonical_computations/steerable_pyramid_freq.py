@@ -30,8 +30,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
     Parameters
     ----------
-    image : `array_like`
-        2d image upon which to construct to the pyramid.
+    image_shape : `list or tuple`
+        shape of input image
     height : 'auto' or `int`.
         The height of the pyramid. If 'auto', will automatically determine based on the size of
         `image`.
@@ -48,10 +48,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
     Attributes
     ----------
-    image : `array_like`
-        The input image used to construct the pyramid.
-    image_size : `tuple`
-        The size of the input image.
+    image_shape : `list or tuple`
+        shape of input image
     pyr_type : `str` or `None`
         Human-readable string specifying the type of pyramid. For base class, is None.
     pyr_coeffs : `dict`
@@ -495,19 +493,35 @@ class Steerable_Pyramid_Freq(nn.Module):
         return recon_keys
 
     def recon_pyr(self, levels='all', bands='all', twidth=1):
+        """Reconstruct the image or batch of images, optionally using subset of pyramid coefficients.
 
+        Parameters
+        ----------
+        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`}
+            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
+            (inclusive) and `'residual_lowpass'`. If `'all'`, returned value will contain all
+            valid levels. Otherwise, must be one of the valid levels.
+        bands : `list`, `int`, or `'all'`.
+            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
+            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
+            of the valid orientations.
+        twidth : `int`
+            The width of the transition region of the radial lowpass function, in octaves
+
+        Returns
+        -------
+        recon : `torch.tensor`
+            The reconstructed image or batch of images.
+            Output is of size BxCxHxW
+
+        """
         if twidth <= 0:
             warnings.warn("twidth must be positive. Setting to 1.")
             twidth = 1
 
         recon_keys = self._recon_keys(self.pyr_coeffs, levels, bands)
-        dims = np.array(self.pyr_size['residual_highpass'])
         scale = 0
-        ctr = np.ceil((dims+0.5)/2.0).astype(int)
 
-        (xramp, yramp) = np.meshgrid((np.arange(1, dims[1]+1)-ctr[1]) / (dims[1]/2.),
-                                     (np.arange(1, dims[0]+1)-ctr[0]) / (dims[0]/2.))
-        angle = np.arctan2(yramp, xramp)
 
         # load masks from model
         lo0mask = self.lo0mask
@@ -517,7 +531,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         # fine scales going down to coarse and then the reconstruction
         # is built recursively from the coarse scale up
 
-        recondft = self._recon_levels(self.pyr_coeffs, recon_keys, scale, angle)
+        recondft = self._recon_levels(self.pyr_coeffs, recon_keys, scale)
 
         # generate highpass residual Reconstruction
         if 'residual_highpass' in recon_keys:
@@ -540,10 +554,27 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         return reconstruction
 
-    def _recon_levels(self, pyr_coeffs, recon_keys, scale, angle):
-        '''
-        Recursive function to build the reconstruction in each layer
-        '''
+    def _recon_levels(self, pyr_coeffs, recon_keys, scale):
+        """Recursive function used to build the reconstruction. Called by recon_pyr
+
+        Parameters
+        ----------
+        pyr_coeffs : `dict`
+            Dictionary containing the coefficients of the pyramid. Keys are `(level, band)` tuples and
+            values are 1d or 2d numpy arrays (same number of dimensions as the input image)
+        recon_keys : `list of tuples and/or strings`
+            list of the keys that index into the pyr_coeffs Dictionary
+        scale : `int`
+            current scale that is being used to build the reconstruction
+            scale is incremented by 1 on each call of the function
+
+        Returns
+        -------
+        recondft : `torch.tensor`
+            Current reconstruction based on the orientation band dft from the current scale
+            summed with the output of recursive call with the next scale incremented
+
+        """
         # base case, return the low-pass residual
         if scale == self.num_scales:
             if 'residual_lowpass' in recon_keys:
@@ -591,13 +622,12 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # get the bounding box indices for the low-pass component
         lostart, loend = self._loindices[scale]
-        nangle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
         # create lowpass mask
 
         lomask = self._lomasks[scale]
         # Recursively reconstruct by going to the next scale
-        reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1, nangle)
+        reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1)
         # create output for reconstruction result
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
         if not self.is_complex:
@@ -612,6 +642,6 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # place upsample and convolve lowpass component
         resdft[:, :, lostart[0]:loend[0], lostart[1]:loend[1]] = reslevdft*lomask
-
+        recondft = resdft + orientdft
         # add orientation interpolated and added images to the lowpass image
-        return resdft + orientdft
+        return recondft
