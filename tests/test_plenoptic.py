@@ -10,6 +10,7 @@ import pyrtools as pt
 import plenoptic as po
 import os.path as op
 import matplotlib.pyplot as plt
+from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,6 +42,26 @@ def test_files_dir():
         os.remove(path + ".tar.gz")
     return path
 
+def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
+    '''
+    function that checks if two sets of pyramid coefficients (one numpy  and one torch) are the same
+    We set an absolute and relative tolerance and the following function checks if
+    abs(coeff1-coeff2) <= atol + rtol*abs(coeff1)
+    Inputs:
+    coeff1: numpy pyramid coefficients
+    coeff2: torch pyramid coefficients
+    Both coeffs must obviously have the same number of scales, orientations etc.
+    '''
+
+    for k in coeff_np.keys():
+        coeff_np_k = coeff_np[k]
+        coeff_torch_k  = coeff_torch[k].squeeze()
+        if coeff_torch_k.shape[-1] == 2:
+            coeff_torch_k = torch_complex_to_numpy(coeff_torch_k)
+        else:
+            coeff_torch_k = to_numpy(coeff_torch_k)
+
+        np.testing.assert_allclose(coeff_np_k, coeff_torch_k, rtol=rtol, atol=atol)
 
 class TestLinear(object):
 
@@ -89,18 +110,51 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("order", [1, 2, 3])
     def test_real(self, height, order):
         x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=height, order=order, is_complex=False)
+        spc = po.simul.SteerablePyramidFreq(x.shape[-2:], height=height, order=order, is_complex=False)
         y = spc(x)
 
     @pytest.mark.parametrize("height", [3,4,5])
     @pytest.mark.parametrize("order", [1,2,3])
     def test_complex(self, height, order):
         x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=height, order=order, is_complex=True)
+        spc = po.simul.SteerablePyramidFreq(x.shape[-2:], height=height, order=order, is_complex=True)
         y = spc(x)
 
-    # TODO reconstruction
+    @pytest.mark.parametrize("height", [3,4,5])
+    @pytest.mark.parametrize("order", [1,2,3])
+    @pytest.mark.parametrize("is_complex", [False, True])
+    def test_torch_vs_numpy_pyr(self, height, order, is_complex):
+        x = plt.imread('./data/curie.pgm')
+        x_shape = x.shape
+        pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
+        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
+        torch_sp.to(device)
+        torch_spc = torch_sp.forward(x_t)
+        pyrtools_spc = pyrtools_sp.pyr_coeffs
+        check_pyr_coeffs(pyrtools_spc, torch_spc)
 
+        #Check with non-square image
+        x = pt.synthetic_images.ramp((256,128))
+        x_shape = x.shape
+        pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
+        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
+        torch_sp.to(device)
+        torch_spc = torch_sp.forward(x_t)
+        pyrtools_spc = pyrtools_sp.pyr_coeffs
+        check_pyr_coeffs(pyrtools_spc, torch_spc)
+
+        #check non-powers-of-2 images
+        x = pt.synthetic_images.ramp((200,200))
+        x_shape = x.shape
+        pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
+        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
+        torch_sp.to(device)
+        torch_spc = torch_sp.forward(x_t)
+        pyrtools_spc = pyrtools_sp.pyr_coeffs
+        check_pyr_coeffs(pyrtools_spc, torch_spc)
 
 class TestNonLinearities(object):
 
