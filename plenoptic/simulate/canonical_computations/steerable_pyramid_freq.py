@@ -559,10 +559,23 @@ class Steerable_Pyramid_Freq(nn.Module):
         # update himask
         himask = self._himasks[scale]
         orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
+        if not self.is_complex:
+            # if the pyramid is not complex, the values in pyr_coeffs
+            # will have shape (batch, channel, height, width), but
+            # orientdft is going to take the outputs of a Fourier
+            # transform, which is always complex-valued so it also needs
+            # an extra dimension at the end for real and imaginary. If
+            # the pyramid is complex, the values in pyr_coeffs will have
+            # already have this shape.
+            orientdft = torch.zeros((*orientdft.shape, 2), device=orientdft.device)
+
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
                 anglemask = self._anglemasks_recon[scale][b]
-                banddft = torch.fft(pyr_coeffs[(scale, b)], signal_ndim=2)
+                if self.is_complex:
+                    banddft = torch.fft(pyr_coeffs[(scale, b)], signal_ndim=2)
+                else:
+                    banddft = torch.rfft(pyr_coeffs[(scale, b)], signal_ndim=2, onesided=False)
                 banddft = batch_fftshift2d(banddft)
 
                 banddft = banddft * anglemask * himask
@@ -587,6 +600,15 @@ class Steerable_Pyramid_Freq(nn.Module):
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1, nangle)
         # create output for reconstruction result
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
+        if not self.is_complex:
+            # Similar to orientdft above, if the pyramid is not complex,
+            # the values in pyr_coeffs will have shape (batch, channel,
+            # height, width), but resdft is going to take the outputs
+            # of a Fourier transform, which is always complex-valued so
+            # it also needs an extra dimension at the end for real and
+            # imaginary. If the pyramid is complex, the values in
+            # pyr_coeffs will have already have this shape.
+            resdft = torch.zeros((*resdft.shape, 2), device=resdft.device)
 
         # place upsample and convolve lowpass component
         resdft[:, :, lostart[0]:loend[0], lostart[1]:loend[1]] = reslevdft*lomask
