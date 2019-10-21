@@ -1394,6 +1394,8 @@ class PrimaryVisualCortex(VentralModel):
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
         self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
+        if self.include_highpass:
+            self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
             cone_responses = zscore_stats(self.normalize_dict,
                                           cone_responses=cone_responses)['cone_responses']
@@ -1403,7 +1405,6 @@ class PrimaryVisualCortex(VentralModel):
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
         if self.include_highpass:
-            self.residual_highpass = self.pyr_coeffs['residual_highpass']
             self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
             self.representation['residual_highpass'] = self.mean_residual_highpass
         if scales:
