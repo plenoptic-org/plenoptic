@@ -347,7 +347,7 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
         if img_shape is None:
             img_shape == im.shape
         if im.max() > 1:
-            im /= 255
+            im = im / 255
         if im.shape == img_shape:
             images.append(im)
     images = torch.Tensor(images).unsqueeze(1)
