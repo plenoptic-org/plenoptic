@@ -1088,6 +1088,9 @@ class PrimaryVisualCortex(VentralModel):
         interpolation), in order to include the frequencies centered at
         half-octave steps and thus have a more complete representation
         of frequency space
+    include_highpass : bool, optional
+        Whether to include the high-pass residual in the model or
+        not.
 
     Attributes
     ----------
@@ -1236,17 +1239,21 @@ class PrimaryVisualCortex(VentralModel):
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
         represents the non-linear response of the cones to photons.
+    include_highpass : bool, optional
+        Whether the high-pass residual is included in the model or not.
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cone_power=1/3, cache_dir=None, half_octave_pyramid=False):
+                 cone_power=1/3, cache_dir=None, half_octave_pyramid=False,
+                 include_highpass=False):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
                          cache_dir=cache_dir)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
-                                        'normalize_dict': normalize_dict})
+                                        'normalize_dict': normalize_dict,
+                                        'include_highpass': include_highpass})
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
@@ -1279,7 +1286,11 @@ class PrimaryVisualCortex(VentralModel):
         self.complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
+        self.include_highpass = include_highpass
         self.to_normalize = ['complex_cell_responses', 'cone_responses']
+        if self.include_highpass:
+            self.scales += ['residual_highpass']
+            self.to_normalize += ['residual_highpass']
         self.normalize_dict = normalize_dict
 
     def to(self, *args, do_windows=True, **kwargs):
@@ -1391,6 +1402,10 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = self.PoolingWindows(cone_responses)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
+        if self.include_highpass:
+            self.residual_highpass = self.pyr_coeffs['residual_highpass']
+            self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
+            self.representation['residual_highpass'] = self.mean_residual_highpass
         if scales:
             rep = {}
             for k in scales:
@@ -1618,9 +1633,14 @@ class PrimaryVisualCortex(VentralModel):
                                         int(col_multiplier*(k[0]+col_offset))])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
-            else:
+            elif k == 'mean_luminance':
                 t = self._get_title(title_list, -1, "mean pixel intensity")
-                ax = fig.add_subplot(gs[n_rows-1:n_rows+1, 2*(n_cols-1):])
+                ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                ax = clean_stem_plot(v, ax, t, ylim)
+                axes.append(ax)
+            elif k == 'residual_highpass':
+                t = self._get_title(title_list, -1, "residual highpass")
+                ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
         return fig, axes
@@ -1697,6 +1717,8 @@ class PrimaryVisualCortex(VentralModel):
         else:
             n_cols = self.num_scales + 1
             ax_multiplier = 1
+        if self.include_highpass:
+            n_cols += 1
         fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax, title,
                                                       batch_idx, data)
         titles = []
@@ -1722,12 +1744,22 @@ class PrimaryVisualCortex(VentralModel):
                 zooms.append(zoom * round(data[(0, 0)].shape[-1] / img.shape[-1]))
             elif isinstance(i, float):
                 zooms.append(zoom * round(data[(0.5, 0)].shape[-1] / img.shape[-1]))
-        ax = fig.add_subplot(gs[-1])
+        if self.include_highpass:
+            ax = fig.add_subplot(gs[-2])
+        else:
+            ax = fig.add_subplot(gs[-1])
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(data['mean_luminance'].squeeze()))
         zooms.append(zoom)
+        if self.include_highpass:
+            ax = fig.add_subplot(gs[-1])
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            axes.append(ax)
+            titles.append(self._get_title(title_list, -1, "residual highpass"))
+            imgs.append(to_numpy(data['residual_highpass'].squeeze()))
+            zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
             pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
