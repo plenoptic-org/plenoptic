@@ -5,9 +5,12 @@ __pycache__/
 *.pyc
 *.iml
 *.xml
-
+*.pt
+.ftpconfig
 .idea/
 
+examples/data/cifar*
 data/plenoptic-test-files
-
+data/cat7*
+data/elep*
 docs/_build
