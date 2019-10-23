@@ -310,8 +310,6 @@ class Steerable_Pyramid_Freq(nn.Module):
                     self.pyr_coeffs[(i, b)] = band
                     self.pyr_size[(i, b)] = tuple(band.shape[-2:])
                 else:
-                    # TODO: decide what to do with imaginary/real axis
-                    # band = torch.einsum('bchwi->bcihw', band)
                     self.pyr_coeffs[(i, b)] = band
                     self.pyr_size[(i, b)] = tuple(band.shape[2:4])
 
@@ -340,35 +338,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         else:
             return self.pyr_coeffs
 
-    def _reorder_complex(self, pyr_coeffs):
-        """helper function for reconstruction from complex pyramid filters.
-
-        Torch ffts assume imaginary/real dimensions are the last dimension but in the
-        pyramid we output filters such that the real/imaginary are treated as channels (2nd dim)
-        This function reorders the channel back to the last dimension for processing of the ffts
-        in the Reconstruction
-
-        Arguments
-        ----------
-        pyr_coeffs: OrderedDict
-            input coeff dict where each filter (except residuals) are
-            tensors of shape (NCHW) (where C is of size 2 for the two
-            imaginary/real dimensions)
-
-        Returns
-        -------
-        coeff_out: output dict with the reordered filters
-
-        """
-
-        coeff_out = OrderedDict()
-        for k in pyr_coeffs.keys():
-            if pyr_coeffs[k].shape[2] == 2:
-                coeff_out[k] = torch.einsum('bcihw->bchwi', pyr_coeffs[k])
-            else:
-                coeff_out[k] = pyr_coeffs[k]
-
-        return coeff_out
 
     def _recon_levels_check(self, pyr_coeffs, levels):
         """Check whether levels arg is valid for reconstruction and return valid version

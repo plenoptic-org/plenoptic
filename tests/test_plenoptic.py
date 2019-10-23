@@ -124,7 +124,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("order", [1,2,3])
     @pytest.mark.parametrize("is_complex", [False, True])
     def test_torch_vs_numpy_pyr(self, height, order, is_complex):
-        x = plt.imread('./data/curie.pgm')
+        x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
         x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
