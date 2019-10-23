@@ -121,7 +121,7 @@ def roots(c):
     # strip trailing zeros, but remember them as roots at zero
     nnz = inz.numel()
     c = c[inz[0]:inz[-1]+1]
-    r = torch.zeros((n-inz[nnz-1]-1, 2))
+    r = torch.zeros((n-inz[nnz-1]-1, 2), device=c.device, dtype=c.dtype)
 
     # prevent relatively small leading coefficients from introducing Inf by removing them
     d = c[1:]/c[0]
@@ -132,23 +132,23 @@ def roots(c):
     # polynomial roots via a companion matrix
     n = c.numel()
     if n > 1:
-        a = torch.diag(torch.ones((n-2)), -1)
+        a = torch.diag(torch.ones((n-2), device=c.device), -1)
         a[0, :] = -d.flatten()
         r = torch.cat((r, torch.eig(a)[0]))
     return r
 
 
 def polyval(c, x):
-    s = 0
+    s = torch.tensor(0, device=c.device)
     for i, ci in enumerate(c):
-        s += ci*x.pow(c.numel()-i-1)
+        s = s + ci*x.pow(c.numel()-i-1)
     return s
 
 
 def modkurt(ch, k, p=1):
     me = ch.mean()
     ch = ch-me
-    m = torch.zeros(12)
+    m = torch.zeros(12, device=ch.device)
     for n in range(1, 12):
         m[n] = ch.pow(n+1).mean()
 
@@ -177,7 +177,7 @@ def modkurt(ch, k, p=1):
     F = D/4
     G = m[1]
 
-    d = torch.empty(5)
+    d = torch.empty(5, device=ch.device)
     d[0] = B*F
     d[1] = 2*C*F - 4*A*G
     d[2] = 4*F*D - 3*B*G - D*F
@@ -191,21 +191,21 @@ def modkurt(ch, k, p=1):
 
     lNeg = mMlambda[mMlambda < 0]
     if lNeg.numel() == 0:
-        lNeg = torch.tensor([-1/(2.2204e-16)])
+        lNeg = torch.tensor([-1/(2.2204e-16)], device=ch.device)
 
     lPos = mMlambda[mMlambda >= 0]
     if lPos.numel() == 0:
-        lPos = torch.tensor([1/(2.2204e-16)])
+        lPos = torch.tensor([1/(2.2204e-16)], device=ch.device)
 
     lmi = lNeg.max()
     lma = lPos.min()
-    lam = torch.Tensor([lmi, lma])
+    lam = torch.tensor([lmi, lma], device=ch.device)
 
     mMnewKt = (polyval(torch.tensor([A, B, C, D, E]), lam) /
                (polyval(torch.tensor([F, 0, G]), lam).pow(2)))
     # THESE ARE NEVER USED?
-    kmin = min(mMnewKt)
-    kmax = max(mMnewKt)
+    kmin = torch.min(mMnewKt)
+    kmax = torch.max(mMnewKt)
 
     # coefficients of the algebraic equation
     c0 = E-k*G**2
@@ -215,7 +215,7 @@ def modkurt(ch, k, p=1):
     c4 = A - k*F**2
 
     # solves the equation
-    r = roots(torch.tensor([c4, c3, c2, c1, c0]))
+    r = roots(torch.tensor([c4, c3, c2, c1, c0], device=ch.device))
 
     # choose the real solution with minimum absolute value with the right sign
 
@@ -224,9 +224,8 @@ def modkurt(ch, k, p=1):
     if lambd.numel() > 0:
         lam = lambd[lambd.abs() == min(lambd.abs())]
     else:
-        lam = torch.zeros(1)
+        lam = torch.zeros(1, device=ch.device)
 
-    # print(lam)
     # modify the channel
     chm = ch + lam*(ch**3 - a*ch-m[2])
     chm = chm*(m[1]/(ch**2).mean())**.5
@@ -261,7 +260,7 @@ def modskew(ch, sk, p=1):
     me = ch.mean()
     ch = ch-me
 
-    m = torch.zeros(6, 1)
+    m = torch.zeros(6, 1, device=ch.device)
     for n in range(2, 7):
         m[n-1] = ch.pow(n).mean()
 
@@ -276,7 +275,7 @@ def modskew(ch, sk, p=1):
     C = 3*(m[3] - sd**4*(1+s**2))
     D = s*sd**3
 
-    a = torch.zeros(7, 1)
+    a = torch.zeros(7, 1, device=ch.device)
     a[6] = A**2
     a[5] = 2*A*B
     a[4] = B**2 + 2*A*C
@@ -288,13 +287,13 @@ def modskew(ch, sk, p=1):
     A2 = sd**2
     B2 = m[3] - (1+s**2)*sd**4
 
-    b = torch.zeros(7, 1)
+    b = torch.zeros(7, 1, device=ch.device)
     b[6] = B2**3
     b[4] = 3*A2*B2**2
     b[2] = 3*A2**2*B2
     b[0] = A2**3
 
-    d = torch.zeros(8, 1)
+    d = torch.zeros(8, 1, device=ch.device)
     d[0] = B*b[6]
     d[1] = 2*C*b[6] - A*b[4]
     d[2] = 3*D*b[6]
@@ -311,17 +310,18 @@ def modskew(ch, sk, p=1):
 
     lNeg = mMlambda[mMlambda < 0]
     if lNeg.numel() == 0:
-        lNeg = torch.tensor([-1/(2.2204e-16)])
+        lNeg = torch.tensor([-1/(2.2204e-16)], device=ch.device)
 
     lPos = mMlambda[mMlambda >= 0]
     if lPos.numel() == 0:
-        lPos = torch.tensor([1/(2.2204e-16)])
+        lPos = torch.tensor([1/(2.2204e-16)], device=ch.device)
 
     lmi = lNeg.max()
     lma = lPos.min()
 
-    lam = torch.Tensor([lmi, lma])
-    mMnewSt = polyval(torch.tensor([A, B, C, D]), lam)/(polyval(b.flip(dims=[0]), lam).pow(.5))
+    lam = torch.tensor([lmi, lma], device=ch.device)
+    print(323, lam.dtype)
+    mMnewSt = polyval(torch.tensor([A, B, C, D], device=ch.device), lam)/(polyval(b.flip(dims=[0]), lam).pow(.5))
     # NEVER USED
     qskmin = min(mMnewSt)
     # NEVER USED
@@ -339,12 +339,15 @@ def modskew(ch, sk, p=1):
     for i, (fa, fb) in enumerate(zip(fi, fi2)):
         ti[i] = fa+fb
 
+    print(342, lam.dtype)
     if torch.any(ti == 2):
         lam = r[fi, 0]
     else:
-        lam = torch.Tensor([0])
+        lam = torch.tensor([0], device=ch.device, dtype=ch.dtype)
+    print(347, lam.dtype)
 
-    p = torch.Tensor([A, B, C, D])
+    p = torch.tensor([A, B, C, D], device=ch.device)
+    print(350, lam.dtype)
     if lam.numel() > 1:
         foo = polyval(p, lam).sign()
         if torch.any(foo == 0):
@@ -352,14 +355,19 @@ def modskew(ch, sk, p=1):
         else:
             # rejects the symmetric solution
             lam = lam[foo == sk.sign()]
-
+        print(358, lam.dtype)
         if lam.numel() > 0:
             lam = lam[lam.abs() == lam.abs().min()]
             lam = lam[0]
         else:
-            lam = torch.Tensor([0])
+            lam = torch.tensor([0], device=ch.device)
+    print(364, lam.dtype)
 
     # adjust the skewness
+    print(367, ch.dtype)
+    print(368, lam.dtype)
+    print(369, sd.dtype)
+    print(370, s.dtype)
     chm = ch+lam*(ch.pow(2)-sd.pow(2)-sd*s*ch)
     # adjust variance
     chm = chm + (m[1]/chm.pow(2).mean()).pow(.5)
