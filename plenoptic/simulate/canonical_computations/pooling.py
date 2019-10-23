@@ -512,6 +512,14 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
     return min_ecc_deg, min_ecc_deg * deg_to_pix
 
 
+def gaussian(x, std_dev=.5):
+    """Simple gaussian with mean 0, and adjustable std dev
+
+    Possible alternative mother window
+    """
+    return np.exp(-(x**2 / (2 * std_dev**2)))
+
+
 def mother_window(x, transition_region_width=.5):
     r"""Raised cosine 'mother' window function
 
@@ -607,16 +615,19 @@ def polar_angle_windows(n_windows, resolution, transition_region_width=.5):
     window_width = calc_angular_window_width(n_windows)
     windows = []
     for n in range(int(n_windows)):
-        if n == 0:
+        window_center = (window_width * n + (window_width * (1-transition_region_width)) / 2)
+        if (window_center - 3 * window_width < 0):
             # otherwise this region of theta is discontinuous (it jumps
             # from 2 pi to 0)
             tmp_theta = pt.synthetic_images.polar_angle(resolution)
+        elif (window_center + 3 * window_width > 2*np.pi):
+            # need to make sure this region now goes from 2 pi and up
+            tmp_theta = pt.synthetic_images.polar_angle(resolution) + 2*np.pi
         else:
             tmp_theta = theta
-        mother_window_arg = ((tmp_theta - (window_width * n +
-                                           (window_width * (1-transition_region_width)) / 2)) /
-                             window_width)
-        windows.append(mother_window(mother_window_arg, transition_region_width))
+        mother_window_arg = ((tmp_theta - window_center) / window_width)
+        windows.append(gaussian(mother_window_arg, transition_region_width))
+        # windows.append(mother_window(mother_window_arg, transition_region_width))
     windows = [i for i in windows if not (i == 0).all()]
     return np.array(windows)
 
@@ -687,7 +698,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
     windows = []
     for n in range(math.ceil(n_windows)):
         mother_window_arg = (np.log(ecc) - (np.log(min_ecc) + window_width * (n+1))) / window_width
-        windows.append(mother_window(mother_window_arg, transition_region_width))
+        # windows.append(mother_window(mother_window_arg, transition_region_width))
+        windows.append(gaussian(mother_window_arg, transition_region_width))
     windows = [i for i in windows if not (i == 0).all()]
     return np.array(windows)
 
