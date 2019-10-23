@@ -661,8 +661,10 @@ class Metamer(nn.Module):
 
         if clamper is not None:
             try:
+                # setting the data directly avoids the issue of setting
+                # a non-Parameter tensor where a tensor should be
                 self.matched_image.data = clamper.clamp(self.matched_image.data)
-                self.matched_representation = self.analyze(self.matched_image)
+                self.matched_representation.data = self.analyze(self.matched_image).data
             except RuntimeError:
                 # this means that we hit a NaN during optimization and
                 # so self.matched_image is on the cpu (since we're
