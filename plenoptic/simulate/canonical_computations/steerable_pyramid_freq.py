@@ -339,7 +339,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             return self.pyr_coeffs
 
 
-    def _recon_levels_check(self, pyr_coeffs, levels):
+    def _recon_levels_check(self, levels):
         """Check whether levels arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
@@ -378,9 +378,9 @@ class Steerable_Pyramid_Freq(nn.Module):
             levels = levs_tmp
         # not all pyramids have residual highpass / lowpass, but it's easier to construct the list
         # including them, then remove them if necessary.
-        if 'residual_lowpass' not in pyr_coeffs.keys() and 'residual_lowpass' in levels:
+        if 'residual_lowpass' not in self.pyr_coeffs.keys() and 'residual_lowpass' in levels:
             levels.pop(-1)
-        if 'residual_highpass' not in pyr_coeffs.keys() and 'residual_highpass' in levels:
+        if 'residual_highpass' not in self.pyr_coeffs.keys() and 'residual_highpass' in levels:
             levels.pop(0)
         return levels
 
@@ -412,7 +412,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             assert (bands < self.num_orientations).all(), "Error: band numbers must be in the range [0, %d]" % (self.num_orientations - 1)
         return bands
 
-    def _recon_keys(self, pyr_coeffs, levels, bands, max_orientations=None):
+    def _recon_keys(self, levels, bands, max_orientations=None):
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
@@ -442,7 +442,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             include in the reconstruction of the image.
 
         """
-        levels = self._recon_levels_check(pyr_coeffs, levels)
+        levels = self._recon_levels_check(self.pyr_coeffs, levels)
         bands = self._recon_bands_check(bands)
         if max_orientations is not None:
             for i in bands:
@@ -488,7 +488,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             warnings.warn("twidth must be positive. Setting to 1.")
             twidth = 1
 
-        recon_keys = self._recon_keys(self.pyr_coeffs, levels, bands)
+        recon_keys = self._recon_keys(levels, bands)
         scale = 0
 
 
