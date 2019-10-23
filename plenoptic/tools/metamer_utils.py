@@ -320,7 +320,6 @@ def modskew(ch, sk, p=1):
     lma = lPos.min()
 
     lam = torch.tensor([lmi, lma], device=ch.device)
-    print(323, lam.dtype)
     mMnewSt = polyval(torch.tensor([A, B, C, D], device=ch.device), lam)/(polyval(b.flip(dims=[0]), lam).pow(.5))
     # NEVER USED
     qskmin = min(mMnewSt)
@@ -339,15 +338,12 @@ def modskew(ch, sk, p=1):
     for i, (fa, fb) in enumerate(zip(fi, fi2)):
         ti[i] = fa+fb
 
-    print(342, lam.dtype)
     if torch.any(ti == 2):
         lam = r[fi, 0]
     else:
         lam = torch.tensor([0], device=ch.device, dtype=ch.dtype)
-    print(347, lam.dtype)
 
     p = torch.tensor([A, B, C, D], device=ch.device)
-    print(350, lam.dtype)
     if lam.numel() > 1:
         foo = polyval(p, lam).sign()
         if torch.any(foo == 0):
@@ -355,19 +351,13 @@ def modskew(ch, sk, p=1):
         else:
             # rejects the symmetric solution
             lam = lam[foo == sk.sign()]
-        print(358, lam.dtype)
         if lam.numel() > 0:
             lam = lam[lam.abs() == lam.abs().min()]
             lam = lam[0]
         else:
             lam = torch.tensor([0], device=ch.device)
-    print(364, lam.dtype)
 
     # adjust the skewness
-    print(367, ch.dtype)
-    print(368, lam.dtype)
-    print(369, sd.dtype)
-    print(370, s.dtype)
     chm = ch+lam*(ch.pow(2)-sd.pow(2)-sd*s*ch)
     # adjust variance
     chm = chm + (m[1]/chm.pow(2).mean()).pow(.5)
