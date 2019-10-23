@@ -442,7 +442,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             include in the reconstruction of the image.
 
         """
-        levels = self._recon_levels_check(self.pyr_coeffs, levels)
+        levels = self._recon_levels_check(levels)
         bands = self._recon_bands_check(bands)
         if max_orientations is not None:
             for i in bands:
