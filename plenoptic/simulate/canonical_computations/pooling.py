@@ -1032,7 +1032,7 @@ class PoolingWindows(nn.Module):
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
         self.scaling = scaling
-        self.transition_region_width = transition_region_width
+        self.transition_region_width = float(transition_region_width)
         self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
@@ -1056,7 +1056,7 @@ class PoolingWindows(nn.Module):
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': self.min_eccentricity,
                                    'max_eccentricity': self.max_eccentricity,
-                                   'transition_region_width': transition_region_width,
+                                   'transition_region_width': self.transition_region_width,
                                    'cache_dir': self.cache_dir, 'window_type': window_type}
         for i in range(self.num_scales):
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
@@ -1089,7 +1089,7 @@ class PoolingWindows(nn.Module):
                 format_kwargs = dict(scaling=scaling, min_eccentricity=float(min_ecc),
                                      max_eccentricity=self.max_eccentricity,
                                      img_res=','.join([str(int(i)) for i in scaled_img_res]),
-                                     transition_region_width=transition_region_width,
+                                     transition_region_width=self.transition_region_width,
                                      window_type=window_type)
                 self.cache_paths.append(cache_path_template.format(**format_kwargs))
                 if op.exists(self.cache_paths[-1]):
@@ -1100,7 +1100,7 @@ class PoolingWindows(nn.Module):
             if angle_windows is None or ecc_windows is None:
                 angle_windows, ecc_windows = create_pooling_windows(
                     scaling, scaled_img_res, min_ecc, max_eccentricity,
-                    transition_region_width=transition_region_width, window_type=window_type)
+                    transition_region_width=self.transition_region_width, window_type=window_type)
 
                 if cache_dir is not None:
                     warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
