@@ -630,8 +630,10 @@ class Metamer(nn.Module):
                 break
 
             with torch.no_grad():
+                print(self.matched_image.min(), self.matched_image.max())
                 if clamper is not None and clamp_each_iter:
                     self.matched_image.data = clamper.clamp(self.matched_image.data)
+                    print(self.matched_image.min(), self.matched_image.max())
 
                 # i is 0-indexed but in order for the math to work out we want to be checking a
                 # 1-indexed thing against the modulo (e.g., if max_iter=10 and
@@ -659,6 +661,7 @@ class Metamer(nn.Module):
 
         pbar.close()
 
+        print(self.matched_image.min(), self.matched_image.max())
         if clamper is not None:
             try:
                 # setting the data directly avoids the issue of setting
@@ -675,6 +678,7 @@ class Metamer(nn.Module):
                 # device attribute), and so the following should hopefully work
                 self.matched_image.data = clamper.clamp(self.matched_image.data.to(self.target_image.device))
                 self.matched_representation.data = self.analyze(self.matched_image).data
+        print(self.matched_image.min(), self.matched_image.max())
 
         if store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
