@@ -19,6 +19,15 @@ def to_numpy(x):
         pass
     return x
 
+def torch_complex_to_numpy(x):
+    r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
+    to a numpy complex array
+    x: assumes x is a torch tensor with last dimension of size 2 where first component is the real
+    component and the second is the imaginary component
+    """
+    x_np = to_numpy(x)
+    x_np = x_np[...,0] + 1j * x_np[...,1]
+    return x_np
 
 def make_basic_stimuli(size=256, requires_grad=True):
     impulse = np.zeros((size, size))
