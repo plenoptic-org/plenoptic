@@ -129,7 +129,7 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
         raise Exception("Exactly one of n_windows or scaling must be set!")
 
 
-def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15):
+def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15, std_dev=None):
     r"""calculate and return the number of eccentricity windows
 
     this is the :math:`N_e` term in equation 11 of the paper's online
@@ -147,6 +147,10 @@ def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15):
         The maximum eccentricity, the outer radius of the image (in
         degrees). Parameter :math:`e_r` in equation 11 of the online
         methods.
+    std_dev : float or None, optional
+        The standard deviation of the Gaussian window. Adds extra
+        windows to account for the fact that Gaussian windows are
+        larger. If using cosine windows, this should be None
 
     Returns
     -------
@@ -154,7 +158,10 @@ def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15):
         The number of log-eccentricity windows we create.
 
     """
-    return (np.log(max_ecc) - np.log(min_ecc)) / window_width
+    n_windows = (np.log(max_ecc) - np.log(min_ecc)) / window_width
+    if std_dev is not None:
+        n_windows += 2 * std_dev - 1
+    return n_windows
 
 
 def calc_scaling(n_windows, min_ecc=.5, max_ecc=15):
@@ -512,12 +519,33 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
     return min_ecc_deg, min_ecc_deg * deg_to_pix
 
 
-def gaussian(x, std_dev=.5):
+def gaussian(x, std_dev=1):
     """Simple gaussian with mean 0, and adjustable std dev
 
-    Possible alternative mother window
+    Possible alternative mother window, giving the weighting in each
+    direction for the spatial pooling performed during the construction
+    of visual metamers
+
+    Parameters
+    ----------
+    x : float or array_like
+        The distance in a direction
+    std_dev : float or None, optional
+        The standard deviation fo the Gaussian window. WARNING -- if
+        this is too small (say < 3/4), then the windows won't tile
+        correctly
+
+    Returns
+    -------
+    array
+        The value of the window at each value of `x`
+
     """
-    return np.exp(-(x**2 / (2 * std_dev**2)))
+    # if std_dev < 1:
+    #     raise Exception("std_dev must be greater than or equal to 1 for windows to tile"
+    #                     " correctly!")
+    # we do the division here to make sure that they sum to 1
+    return np.exp(-(x**2 / (2 * std_dev**2))) / (2.5 * std_dev)
 
 
 def mother_window(x, transition_region_width=.5):
@@ -571,8 +599,8 @@ def mother_window(x, transition_region_width=.5):
     return y
 
 
-def polar_angle_windows(n_windows, resolution, transition_region_width=.5,
-                        window_type='cosine'):
+def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_region_width=.5,
+                        std_dev=None):
     r"""Create polar angle windows in 2d
 
     We require an integer number of windows placed between 0 and 2 pi.
@@ -588,14 +616,18 @@ def polar_angle_windows(n_windows, resolution, transition_region_width=.5,
     resolution : tuple
         2-tuple of ints specifying the resolution of the 2d images to
         make.
-    transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
     window_type : {'cosine', 'gaussian'}
         Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If Gaussian,
-        ``transition_region_width`` is now the standard deviation of
-        that Gaussian
+        Gaussian that has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then
+        ``std_dev`` must be set
+    transition_region_width : `float` or None, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
+    std_dev : float or None, optional
+        The standard deviation fo the Gaussian window. WARNING -- if
+        this is too small (say < 3/4), then the windows won't tile
+        correctly
 
     Returns
     -------
@@ -620,20 +652,29 @@ def polar_angle_windows(n_windows, resolution, transition_region_width=.5,
     # this is `w_\theta` in the paper
     window_width = calc_angular_window_width(n_windows)
     windows = []
+    if window_type == 'gaussian':
+        window_width_extra = std_dev
+    else:
+        window_width_extra = 1
     for n in range(int(n_windows)):
-        window_center = (window_width * n + (window_width * (1-transition_region_width)) / 2)
-        if (window_center - 3 * window_width < 0):
+        if window_type == 'cosine':
+            window_center = (window_width * n + (window_width * (1-transition_region_width)) / 2)
+        else:
+            window_center = window_width * n
+        if (window_center - 3 * window_width_extra * window_width < 0):
             # otherwise this region of theta is discontinuous (it jumps
             # from 2 pi to 0)
             tmp_theta = pt.synthetic_images.polar_angle(resolution)
-        elif (window_center + 3 * window_width > 2*np.pi):
-            # need to make sure this region now goes from 2 pi and up
+        elif (window_center + 3 * window_width_extra * window_width > 2*np.pi):
+            # need to make sure the values go from pi to 3 pi, so that
+            # the value where this window lives is continuous around 2
+            # pi
             tmp_theta = pt.synthetic_images.polar_angle(resolution) + 2*np.pi
         else:
             tmp_theta = theta
         mother_window_arg = ((tmp_theta - window_center) / window_width)
         if window_type == 'gaussian':
-            windows.append(gaussian(mother_window_arg, transition_region_width))
+            windows.append(gaussian(mother_window_arg, std_dev))
         elif window_type == 'cosine':
             windows.append(mother_window(mother_window_arg, transition_region_width))
     windows = [i for i in windows if not (i == 0).all()]
@@ -641,7 +682,7 @@ def polar_angle_windows(n_windows, resolution, transition_region_width=.5,
 
 
 def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_ecc=.5, max_ecc=15,
-                             transition_region_width=.5, window_type='cosine'):
+                             window_type='cosine', transition_region_width=.5, std_dev=None):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -682,14 +723,18 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
         The maximum eccentricity, the outer radius of the image (in
         degrees). Parameter :math:`e_r` in equation 11 of the online
         methods.
-    transition_region_width : `float`
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
     window_type : {'cosine', 'gaussian'}
         Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If Gaussian,
-        ``transition_region_width`` is now the standard deviation of
-        that Gaussian
+        Gaussian that has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then
+        ``std_dev`` must be set
+    transition_region_width : `float` or None, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
+    std_dev : float or None, optional
+        The standard deviation fo the Gaussian window. WARNING -- if
+        this is too small (say < 3/4), then the windows won't tile
+        correctly
 
     Returns
     -------
@@ -707,12 +752,12 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
     ecc = pt.synthetic_images.polar_radius(resolution) * (max_ecc / (resolution[1]/2))
     if window_width is None:
         window_width = calc_eccentricity_window_width(min_ecc, max_ecc, n_windows)
-    n_windows = calc_eccentricity_n_windows(window_width, min_ecc, max_ecc*np.sqrt(2))
+    n_windows = calc_eccentricity_n_windows(window_width, min_ecc, max_ecc*np.sqrt(2), std_dev)
     windows = []
     for n in range(math.ceil(n_windows)):
         mother_window_arg = (np.log(ecc) - (np.log(min_ecc) + window_width * (n+1))) / window_width
         if window_type == 'gaussian':
-            windows.append(gaussian(mother_window_arg, transition_region_width))
+            windows.append(gaussian(mother_window_arg, std_dev))
         elif window_type == 'cosine':
             windows.append(mother_window(mother_window_arg, transition_region_width))
     windows = [i for i in windows if not (i == 0).all()]
@@ -720,8 +765,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
 
 
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
-                           radial_to_circumferential_ratio=2, transition_region_width=.5,
-                           window_type='cosine'):
+                           radial_to_circumferential_ratio=2, window_type='cosine',
+                           transition_region_width=.5, std_dev=None):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -760,15 +805,18 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         angle windows to the nearest integer, so the ratio in the
         generated windows approximate this. 2 (the default) is the value
         used in the paper [1]_.
-    transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods. 0.5 (the default) is the
-        value used in the paper [1]_.
     window_type : {'cosine', 'gaussian'}
         Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If Gaussian,
-        ``transition_region_width`` is now the standard deviation of
-        that Gaussian
+        Gaussian that has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then
+        ``std_dev`` must be set
+    transition_region_width : `float` or None, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods.
+    std_dev : float or None, optional
+        The standard deviation fo the Gaussian window. WARNING -- if
+        this is too small (say < 3/4), then the windows won't tile
+        correctly
 
     Returns
     -------
@@ -828,11 +876,13 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     n_polar_windows = calc_angular_n_windows(ecc_window_width / radial_to_circumferential_ratio)
     # we want to set the number of polar windows where the ratio of widths is approximately what
     # the user specified. the constraint that it's an integer is more important
-    angle_tensor = polar_angle_windows(round(n_polar_windows), resolution, transition_region_width,
-                                       window_type)
+    angle_tensor = polar_angle_windows(round(n_polar_windows), resolution, window_type,
+                                       transition_region_width=transition_region_width,
+                                       std_dev=std_dev)
     angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
     ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_width, min_eccentricity,
-                                          max_eccentricity, transition_region_width, window_type)
+                                          max_eccentricity, window_type, std_dev=std_dev,
+                                          transition_region_width=transition_region_width)
     ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
     return angle_tensor, ecc_tensor
 
@@ -892,10 +942,6 @@ class PoolingWindows(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
-    transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods. 0.5 (the default) is the
-        value used in the paper [1]_.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -906,6 +952,14 @@ class PoolingWindows(nn.Module):
         Gaussian that has approximately the same structure. If Gaussian,
         ``transition_region_width`` is now the standard deviation of
         that Gaussian
+    transition_region_width : float or None, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
+    std_dev : float or None, optional
+        The standard deviation fo the Gaussian window. WARNING -- if
+        this is too small (say < 3/4), then the windows won't tile
+        correctly
 
     Attributes
     ----------
@@ -917,9 +971,11 @@ class PoolingWindows(nn.Module):
         The eccentricity at which the pooling windows end.
     img_res : tuple
         The resolution of our image in pixels.
-    transition_region_width : `float`, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
+    transition_region_width : float or None
+        The width of the cosine windows' transition region, parameter
+        :math:`t` in equation 9 from the online methods.
+    std_dev : float or None
+        The standard deviation of the Gaussian windows.
     angle_windows : list or dict
         A list of 3d tensors containing the angular pooling windows in
         which the model parameters are averaged. Each entry in the list
@@ -1021,23 +1077,30 @@ class PoolingWindows(nn.Module):
         Number of devices this object is split across
     window_type : {'cosine', 'gaussian'}
         Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If Gaussian,
-        ``transition_region_width`` is now the standard deviation of
-        that Gaussian
+        Gaussian that has approximately the same structure.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cache_dir=None, window_type='cosine'):
+                 cache_dir=None, window_type='cosine', transition_region_width=.5, std_dev=None):
         super().__init__()
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
         self.scaling = scaling
-        self.transition_region_width = float(transition_region_width)
         self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
         self.num_scales = num_scales
         self.window_type = window_type
+        if window_type == 'cosine':
+            assert transition_region_width is not None, "cosine windows need transition region widths!"
+            self.transition_region_width = float(transition_region_width)
+            self.std_dev = None
+            window_width_for_saving = self.transition_region_width
+        elif window_type == 'gaussian':
+            assert std_dev is not None, "gaussian windows need standard deviations!"
+            self.std_dev = float(std_dev)
+            self.transition_region_width = None
+            window_width_for_saving = self.std_dev
         self.num_devices = 1
         self.angle_windows = {}
         self.ecc_windows = {}
@@ -1045,19 +1108,21 @@ class PoolingWindows(nn.Module):
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
             cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
-                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity:.01f}_t"
-                                          "-{transition_region_width}_{window_type}.pt")
+                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity:.01f}_w"
+                                          "-{window_width}_{window_type}.pt")
         else:
             self.cache_dir = cache_dir
         self.cache_paths = []
         self.calculated_min_eccentricity_degrees = []
         self.calculated_min_eccentricity_pixels = []
-        self._window_sizes()
+        # CHANGE THSI EVNETUALLY IT"S A HACK
+        self._window_sizes(window_width_for_saving)
         self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
                                    'min_eccentricity': self.min_eccentricity,
                                    'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': self.transition_region_width,
-                                   'cache_dir': self.cache_dir, 'window_type': window_type}
+                                   'cache_dir': self.cache_dir, 'window_type': window_type,
+                                   'std_dev': self.std_dev}
         for i in range(self.num_scales):
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
@@ -1089,7 +1154,7 @@ class PoolingWindows(nn.Module):
                 format_kwargs = dict(scaling=scaling, min_eccentricity=float(min_ecc),
                                      max_eccentricity=self.max_eccentricity,
                                      img_res=','.join([str(int(i)) for i in scaled_img_res]),
-                                     transition_region_width=self.transition_region_width,
+                                     window_width=window_width_for_saving,
                                      window_type=window_type)
                 self.cache_paths.append(cache_path_template.format(**format_kwargs))
                 if op.exists(self.cache_paths[-1]):
@@ -1099,7 +1164,7 @@ class PoolingWindows(nn.Module):
                     ecc_windows = windows['ecc']
             if angle_windows is None or ecc_windows is None:
                 angle_windows, ecc_windows = create_pooling_windows(
-                    scaling, scaled_img_res, min_ecc, max_eccentricity,
+                    scaling, scaled_img_res, min_ecc, max_eccentricity, std_dev=self.std_dev,
                     transition_region_width=self.transition_region_width, window_type=window_type)
 
                 if cache_dir is not None:
@@ -1110,7 +1175,7 @@ class PoolingWindows(nn.Module):
             window_sizes = torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows])
             self.window_sizes[i] = torch.clamp(window_sizes.flatten(), min=1)
 
-    def _window_sizes(self):
+    def _window_sizes(self, window_width_for_saving):
         r"""Calculate the various window size metrics
 
         helper function that gets called during construction, should not
@@ -1133,7 +1198,7 @@ class PoolingWindows(nn.Module):
         window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
                                                   self.min_eccentricity,
                                                   self.max_eccentricity*np.sqrt(2),
-                                                  self.transition_region_width)
+                                                  window_width_for_saving)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
         self.n_eccentricity_bands = len(self.window_width_degrees['radial_top'])

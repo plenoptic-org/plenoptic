@@ -189,18 +189,19 @@ class VentralModel(nn.Module):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine'):
+                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine',
+                 std_dev=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales, transition_region_width, cache_dir,
-                                             window_type)
+                                             num_scales, cache_dir, window_type,
+                                             transition_region_width, std_dev)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
                      'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res',
-                     'window_type']:
+                     'window_type', 'std_dev']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
         self.state_dict_reduced['cone_power'] = cone_power
         self.cone_power = cone_power
@@ -813,10 +814,11 @@ class RetinalGanglionCells(VentralModel):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine'):
+                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine',
+                 std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          transition_region_width=transition_region_width, cone_power=cone_power,
-                         cache_dir=cache_dir, window_type=window_type)
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.representation = None
@@ -1248,10 +1250,10 @@ class PrimaryVisualCortex(VentralModel):
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1/3, cache_dir=None, half_octave_pyramid=False,
-                 include_highpass=False, window_type='cosine'):
+                 include_highpass=False, window_type='cosine', std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
-                         cache_dir=cache_dir, window_type=window_type)
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
                                         'normalize_dict': normalize_dict,
