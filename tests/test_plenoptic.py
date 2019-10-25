@@ -325,7 +325,8 @@ class TestPooling(object):
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
                                              transition_region_width=transition_region_width,
-                                             window_type=window_type)
+                                             window_type=window_type,
+                                             std_dev=2*transition_region_width)
         pw = pw.to(device)
         pw(im)
         with pytest.raises(Exception):
