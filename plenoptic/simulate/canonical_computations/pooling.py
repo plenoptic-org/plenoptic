@@ -1,5 +1,24 @@
 """functions to perform spatial pooling, as seen in Freeman and Simoncelli, 2011
 
+In addition the raised-cosine windows used in that paper, we also
+provide support for an alternative window construction:
+Gaussians. They're laid out in the same fashion as the raised-cosine
+windows, but are wider and have values everywhere (whereas the
+raised-cosine windows are clipped so that they're zero for most of the
+image). Using the raised-cosine windows led to issues with aliasing in
+metamer synthesis, visible as ringing, with the PrimaryVisualCortex
+model, because of the interactions between the windows and the steerable
+pyramid filters.
+
+The Gaussian windows don't have these problems, but require more windows
+to evenly tile the image in the radial direction and don't completely
+evenly tile the image in the angular direction (specifically, the right
+meridian of the image will be slightly below 1; with std_dev=1, the
+value is about .9984); with std_dev between ~.75 and 2, they're pretty
+good, but if you go much larger than that you end up with a bigger
+decrement on the right meridian, smaller and itno longer evenly tiles at
+all (they would need to be packed tighter).
+
 """
 import math
 import itertools
@@ -13,11 +32,18 @@ from torch import nn
 from ...tools.data import to_numpy
 
 
-def calc_angular_window_width(n_windows):
-    r"""calculate and return the window width for the angular windows
+def calc_angular_window_spacing(n_windows):
+    r"""calculate and return the window spacing for the angular windows
 
     this is the :math:`w_{\theta }` term in equation 10 of the paper's
-    online methods
+    online methods, referred to as the angular window width.
+
+    For both cosine and gaussian windows, this is the distance between
+    the peaks of the windows. For cosine windows, this is also the same
+    as the windows' widths, but gausian windows' widths are
+    approximately ``window_spacing * std_dev * 3`` (since they're
+    Gaussian, 99.73% of their mass lie within 3 standard deviations, but
+    the Gaussians are technically infinite)
 
     Parameters
     ----------
@@ -28,14 +54,14 @@ def calc_angular_window_width(n_windows):
 
     Returns
     -------
-    window_width : `float`
-        The width of the polar angle windows.
+    window_spacing : `float`
+        The spacing of the polar angle windows.
 
     """
     return (2*np.pi) / n_windows
 
 
-def calc_angular_n_windows(window_width):
+def calc_angular_n_windows(window_spacing):
     r"""calculate and return the number of angular windows
 
     this is the :math:`N_{\theta }` term in equation 10 of the paper's
@@ -43,8 +69,8 @@ def calc_angular_n_windows(window_width):
 
     Parameters
     ----------
-    window_width : `float`
-        The width of the polar angle windows.
+    window_spacing : `float`
+        The spacing of the polar angle windows.
 
     Returns
     -------
@@ -52,21 +78,29 @@ def calc_angular_n_windows(window_width):
         The number of windows that fit into 2 pi.
 
     """
-    return (2*np.pi) / window_width
+    return (2*np.pi) / window_spacing
 
 
-def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scaling=None):
-    r"""calculate and return the window width for the eccentricity windows
+def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, scaling=None):
+    r"""calculate and return the window spacing for the eccentricity windows
 
     this is the :math:`w_e` term in equation 11 of the paper's online
-    methods, which we also refer to as the radial width. Note that we
-    take exactly one of ``n_windows`` or ``scaling`` in order to
-    determine this value.
+    methods (referred to as the window width), which we also refer to as
+    the radial spacing. Note that we take exactly one of ``n_windows``
+    or ``scaling`` in order to determine this value.
 
     If scaling is set, ``min_ecc`` and ``max_ecc`` are ignored (the
     window width only depends on scaling, not also on the range of
     eccentricities; they only matter when determining the width using
     ``n_windows``)
+
+    For both cosine and gaussian windows, this is the distance between
+    the peaks of the windows. For cosine windows, this is also the same
+    as the windows' widths, but gausian windows' widths are
+    approximately ``window_spacing * std_dev * 3`` (since they're
+    Gaussian, 99.73% of their mass lie within 3 standard deviations, but
+    the Gaussians are technically infinite); but remember that these
+    values are in log space not linear.
 
     Parameters
     ----------
@@ -88,12 +122,12 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
 
     Returns
     -------
-    window_width : `float`
-        The width of the log-eccentricity windows.
+    window_spacing : `float`
+        The spacing  of the log-eccentricity windows.
 
     Notes
     -----
-    No equation was given in the paper to calculate the window width,
+    No equation was given in the paper to calculate the window spacing,
     :math:`w_e` from the scaling, :math:`s`, so we derived it
     ourselves. We start with the final equation for the scaling, given
     in the Notes for the ``calc_scaling`` function.
@@ -117,7 +151,7 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
         e^{w_e} &= \frac{s^2+2\pm s\sqrt{s^2+4}}{2} \\
         w_e &= \log\left(\frac{s^2+2\pm s\sqrt{s^2+4}}{2}\right)
 
-    The window width is strictly positive, so we only return the
+    The window spacing is strictly positive, so we only return the
     positive quadratic root (the one with plus in the numerator).
 
     """
@@ -129,7 +163,7 @@ def calc_eccentricity_window_width(min_ecc=.5, max_ecc=15, n_windows=None, scali
         raise Exception("Exactly one of n_windows or scaling must be set!")
 
 
-def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15, std_dev=None):
+def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=None):
     r"""calculate and return the number of eccentricity windows
 
     this is the :math:`N_e` term in equation 11 of the paper's online
@@ -137,8 +171,8 @@ def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15, std_dev=No
 
     Parameters
     ----------
-    window_width : `float`
-        The width of the log-eccentricity windows.
+    window_spacing : `float`
+        The spacing of the log-eccentricity windows.
     min_ecc : `float`, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
@@ -158,7 +192,7 @@ def calc_eccentricity_n_windows(window_width, min_ecc=.5, max_ecc=15, std_dev=No
         The number of log-eccentricity windows we create.
 
     """
-    n_windows = (np.log(max_ecc) - np.log(min_ecc)) / window_width
+    n_windows = (np.log(max_ecc) - np.log(min_ecc)) / window_spacing
     if std_dev is not None:
         n_windows += 2 * std_dev - 1
     return n_windows
@@ -235,11 +269,11 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15):
     it away in the calculation above.
 
     """
-    window_width = (np.log(max_ecc) - np.log(min_ecc)) / n_windows
-    return np.exp(.5*window_width) - np.exp(-.5*window_width)
+    window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
+    return np.exp(.5*window_spacing) - np.exp(-.5*window_spacing)
 
 
-def calc_windows_eccentricity(ecc_type, n_windows, window_width, min_ecc=.5,
+def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
                               transition_region_width=.5):
     r"""calculate a relevant eccentricity for each radial window
 
@@ -257,8 +291,8 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_width, min_ecc=.5,
         be a non-integer, in which case we round it up (thus one of our
         central eccentricities might be above the maximum eccentricity
         for the windows actually created)
-    window_width : `float`
-        The width of the log-eccentricity windows.
+    window_spacing : `float`
+        The spacing of the log-eccentricity windows.
     min_ecc : `float`, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
@@ -301,13 +335,13 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_width, min_ecc=.5,
 
     """
     if ecc_type == 'central':
-        ecc = [min_ecc * np.exp(window_width * (i+1)) for i in np.arange(np.ceil(n_windows))]
+        ecc = [min_ecc * np.exp(window_spacing * (i+1)) for i in np.arange(np.ceil(n_windows))]
     elif ecc_type == 'min':
-        ecc = [(np.exp(-window_width*(1+transition_region_width)) * min_ecc *
-                np.exp(window_width * (i+1))) for i in np.arange(np.ceil(n_windows))]
+        ecc = [(np.exp(-window_spacing*(1+transition_region_width)) * min_ecc *
+                np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
     elif ecc_type == 'max':
-        ecc = [(np.exp(window_width*(1+transition_region_width)) * min_ecc *
-                np.exp(window_width * (i+1))) for i in np.arange(np.ceil(n_windows))]
+        ecc = [(np.exp(window_spacing*(1+transition_region_width)) * min_ecc *
+                np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
     else:
         raise Exception("Don't know how to handle ecc_type %s" % ecc_type)
     return np.array(ecc)
@@ -650,7 +684,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     if n_windows == 1:
         raise Exception("We cannot handle one window correctly!")
     # this is `w_\theta` in the paper
-    window_width = calc_angular_window_width(n_windows)
+    window_spacing = calc_angular_window_spacing(n_windows)
     windows = []
     if window_type == 'gaussian':
         window_width_extra = std_dev
@@ -658,21 +692,21 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         window_width_extra = 1
     for n in range(int(n_windows)):
         if window_type == 'cosine':
-            window_center = (window_width * n + (window_width * (1-transition_region_width)) / 2)
+            window_center = (window_spacing * n + (window_spacing * (1-transition_region_width)) / 2)
         else:
-            window_center = window_width * n
-        if (window_center - 3 * window_width_extra * window_width < 0):
+            window_center = window_spacing * n
+        if (window_center - 3 * window_width_extra * window_spacing < 0):
             # otherwise this region of theta is discontinuous (it jumps
             # from 2 pi to 0)
             tmp_theta = pt.synthetic_images.polar_angle(resolution)
-        elif (window_center + 3 * window_width_extra * window_width > 2*np.pi):
+        elif (window_center + 3 * window_width_extra * window_spacing > 2*np.pi):
             # need to make sure the values go from pi to 3 pi, so that
             # the value where this window lives is continuous around 2
             # pi
             tmp_theta = pt.synthetic_images.polar_angle(resolution) + 2*np.pi
         else:
             tmp_theta = theta
-        mother_window_arg = ((tmp_theta - window_center) / window_width)
+        mother_window_arg = ((tmp_theta - window_center) / window_spacing)
         if window_type == 'gaussian':
             windows.append(gaussian(mother_window_arg, std_dev))
         elif window_type == 'cosine':
@@ -681,8 +715,9 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     return np.array(windows)
 
 
-def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_ecc=.5, max_ecc=15,
-                             window_type='cosine', transition_region_width=.5, std_dev=None):
+def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
+                             max_ecc=15, window_type='cosine', transition_region_width=.5,
+                             std_dev=None):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -712,9 +747,9 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
     n_windows : `float` or `None`
         The number of log-eccentricity windows from ``min_ecc`` to
         ``max_ecc``. ``n_windows`` xor ``window_width`` must be set.
-    window_width : `float` or `None`
-        The width of the log-eccentricity windows. ``n_windows`` xor
-        ``window_width`` must be set.
+    window_spacing : `float` or `None`
+        The spacing of the log-eccentricity windows. ``n_windows`` xor
+        ``window_spacing`` must be set.
     min_ecc : `float`, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
@@ -750,12 +785,13 @@ def log_eccentricity_windows(resolution, n_windows=None, window_width=None, min_
 
     """
     ecc = pt.synthetic_images.polar_radius(resolution) * (max_ecc / (resolution[1]/2))
-    if window_width is None:
-        window_width = calc_eccentricity_window_width(min_ecc, max_ecc, n_windows)
-    n_windows = calc_eccentricity_n_windows(window_width, min_ecc, max_ecc*np.sqrt(2), std_dev)
+    if window_spacing is None:
+        window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
+    n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
     windows = []
     for n in range(math.ceil(n_windows)):
-        mother_window_arg = (np.log(ecc) - (np.log(min_ecc) + window_width * (n+1))) / window_width
+        mother_window_arg = ((np.log(ecc) - (np.log(min_ecc) + window_spacing * (n+1))) /
+                             window_spacing)
         if window_type == 'gaussian':
             windows.append(gaussian(mother_window_arg, std_dev))
         elif window_type == 'cosine':
@@ -871,16 +907,16 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
        plt.show()
 
     """
-    ecc_window_width = calc_eccentricity_window_width(min_eccentricity, max_eccentricity,
-                                                      scaling=scaling)
-    n_polar_windows = calc_angular_n_windows(ecc_window_width / radial_to_circumferential_ratio)
+    ecc_window_spacing = calc_eccentricity_window_spacing(min_eccentricity, max_eccentricity,
+                                                          scaling=scaling)
+    n_polar_windows = calc_angular_n_windows(ecc_window_spacing / radial_to_circumferential_ratio)
     # we want to set the number of polar windows where the ratio of widths is approximately what
     # the user specified. the constraint that it's an integer is more important
     angle_tensor = polar_angle_windows(round(n_polar_windows), resolution, window_type,
                                        transition_region_width=transition_region_width,
                                        std_dev=std_dev)
     angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
-    ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_width, min_eccentricity,
+    ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
                                           max_eccentricity, window_type, std_dev=std_dev,
                                           transition_region_width=transition_region_width)
     ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
@@ -918,9 +954,12 @@ class PoolingWindows(nn.Module):
     appropriate cached windows exist before creating them and load them
     if they do. The path we'll use is
     ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
-    em-{max_eccentricity}_t-{transition_region_width}.pt``. We'll cache
-    each scale separately, changing the img_res (and potentially
-    min_eccentricity) values in that save path appropriately.
+    em-{max_eccentricity}_w-{window_width}_{window_type}.pt``, where
+    {window_width} is ``transition_region_width`` if
+    ``window_type='cosine'``, and ``std_dev`` if it's
+    ``'gaussian'``. We'll cache each scale separately, changing the
+    img_res (and potentially min_eccentricity) values in that save path
+    appropriately.
 
     Parameters
     ----------
@@ -1190,9 +1229,9 @@ class PoolingWindows(nn.Module):
         max_eccentricity, scaling, and transition_region_width)
 
         """
-        ecc_window_width = calc_eccentricity_window_width(scaling=self.scaling)
+        ecc_window_width = calc_eccentricity_window_spacing(scaling=self.scaling)
         self.n_polar_windows = int(round(calc_angular_n_windows(ecc_window_width / 2)))
-        angular_window_width = calc_angular_window_width(self.n_polar_windows)
+        angular_window_width = calc_angular_window_spacing(self.n_polar_windows)
         # we multiply max_eccentricity by sqrt(2) here because we want
         # to go out to the corner of the image
         window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,

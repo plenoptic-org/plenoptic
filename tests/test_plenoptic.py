@@ -290,8 +290,8 @@ class TestPooling(object):
     def test_ecc_windows(self):
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=1)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=.5)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=1)
 
     def test_angle_windows(self):
         windows = po.simul.pooling.polar_angle_windows(4, (256, 256))
@@ -303,14 +303,14 @@ class TestPooling(object):
 
     def test_calculations(self):
         # these really shouldn't change, but just in case...
-        assert po.simul.pooling.calc_angular_window_width(2) == np.pi
+        assert po.simul.pooling.calc_angular_window_spacing(2) == np.pi
         assert po.simul.pooling.calc_angular_n_windows(2) == np.pi
         with pytest.raises(Exception):
-            po.simul.pooling.calc_eccentricity_window_width()
-        assert po.simul.pooling.calc_eccentricity_window_width(n_windows=4) == 0.8502993454155389
-        assert po.simul.pooling.calc_eccentricity_window_width(scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, n_windows=4) == 0.1732867951399864
+            po.simul.pooling.calc_eccentricity_window_spacing()
+        assert po.simul.pooling.calc_eccentricity_window_spacing(n_windows=4) == 0.8502993454155389
+        assert po.simul.pooling.calc_eccentricity_window_spacing(scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, n_windows=4) == 0.1732867951399864
         assert po.simul.pooling.calc_eccentricity_n_windows(0.8502993454155389) == 4
         assert po.simul.pooling.calc_eccentricity_n_windows(0.1732867951399864, 5, 10) == 4
         assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
