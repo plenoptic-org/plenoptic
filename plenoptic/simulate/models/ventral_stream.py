@@ -1273,8 +1273,8 @@ class PrimaryVisualCortex(VentralModel):
                     self.half_octave_img_res[i] += 1
             second_PoolingWindows = PoolingWindows(scaling, self.half_octave_img_res,
                                                    min_eccentricity, max_eccentricity,
-                                                   num_scales-1, transition_region_width,
-                                                   cache_dir)
+                                                   num_scales-1, cache_dir, window_type,
+                                                   transition_region_width, std_dev)
             self.PoolingWindows.merge(second_PoolingWindows)
             self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
                                                               num_scales-1, order,
