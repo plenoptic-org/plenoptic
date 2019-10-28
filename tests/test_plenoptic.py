@@ -319,18 +319,32 @@ class TestPooling(object):
 
     @pytest.mark.parametrize('num_scales', [1, 3])
     @pytest.mark.parametrize('transition_region_width', [.5, 1])
-    @pytest.mark.parametrize('window_type', ['cosine', 'gaussian'])
-    def test_PoolingWindows(self, num_scales, transition_region_width, window_type):
+    def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
                                              transition_region_width=transition_region_width,
-                                             window_type=window_type,
-                                             std_dev=2*transition_region_width)
+                                             window_type='cosine',)
         pw = pw.to(device)
         pw(im)
         with pytest.raises(Exception):
             po.simul.PoolingWindows(.2, (64, 64), .5)
+
+    @pytest.mark.parametrize('num_scales', [1, 3])
+    def test_PoolingWindows(self, num_scales):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                             window_type='gaussian', std_dev=1)
+        pw = pw.to(device)
+        pw(im)
+        # we only support std_dev=1
+        with pytest.raises(Exception):
+            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                            window_type='gaussian', std_dev=2)
+        with pytest.raises(Exception):
+            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                            window_type='gaussian', std_dev=.5)
 
     def test_PoolingWindows_project(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
