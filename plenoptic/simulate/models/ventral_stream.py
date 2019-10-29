@@ -315,7 +315,7 @@ class VentralModel(nn.Module):
         self.PoolingWindows.unparallel(device)
         return self
 
-    def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
+    def plot_windows(self, ax=None, contour_levels=None, colors='r', subset=True, **kwargs):
         r"""plot the pooling windows on an image.
 
         This is just a simple little helper to plot the pooling windows
@@ -327,17 +327,21 @@ class VentralModel(nn.Module):
 
         Parameters
         ----------
-        ax : matplotlib.pyplot.axis
-            The existing axis to plot the windows on
-        contour_levels : array-like or int, optional
+        ax : matplotlib.pyplot.axis or None, optional
+            The axis to plot the windows on. If None, will create a new
+            figure with 1 axis
+        contour_levels : None, array-like, or int, optional
             The ``levels`` argument to pass to ``ax.contour``. From that
             documentation: "Determines the number and positions of the
             contour lines / regions. If an int ``n``, use ``n`` data
             intervals; i.e. draw ``n+1`` contour lines. The level
             heights are automatically chosen. If array-like, draw
             contour lines at the specified levels. The values must be in
-            increasing order". ``[.5]`` (the default) is recommended for
-            these windows.
+            increasing order". If None, will plot the contour that gives
+            the first intersection (.5 for raised-cosine windows,
+            self.window_max_amplitude * np.exp(-.25/2) (half a standard
+            deviation away from max) for gaussian windows), as this is
+            the easiest to see.
         colors : color string or sequence of colors, optional
             The ``colors`` argument to pass to ``ax.contour``. If a
             single character, all will have the same color; if a
