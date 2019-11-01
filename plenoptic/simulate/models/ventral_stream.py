@@ -1401,7 +1401,11 @@ class PrimaryVisualCortex(VentralModel):
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
-        self.complex_cell_responses = dict((k, v**2) for k, v in rectangular_to_polar_dict(self.pyr_coeffs)[0].items())
+        # to get the energy, we just square and sum across the real and
+        # imaginary parts (because there are complex tensors yet, this
+        # is the final dimension)
+        self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
+                                           for k, v in self.pyr_coeffs.items())
         if self.include_highpass:
             self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
