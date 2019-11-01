@@ -1403,9 +1403,10 @@ class PrimaryVisualCortex(VentralModel):
                                         if not isinstance(k, str)))
         # to get the energy, we just square and sum across the real and
         # imaginary parts (because there are complex tensors yet, this
-        # is the final dimension)
+        # is the final dimension). the if statement avoids the residuals
         self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
-                                           for k, v in self.pyr_coeffs.items())
+                                           for k, v in self.pyr_coeffs.items()
+                                           if not isinstance(k, str))
         if self.include_highpass:
             self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
