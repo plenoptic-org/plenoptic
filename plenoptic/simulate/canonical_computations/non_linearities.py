@@ -2,6 +2,8 @@ import torch
 import imageio
 from glob import glob
 import os.path as op
+import numpy as np
+from skimage import color
 import warnings
 from ...tools.conv import blur_downsample, upsample_blur
 from ...tools.signal import rectangular_to_polar
@@ -320,8 +322,8 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
         images that match this shape. If None, we grab that shape from
         the first image we load in.
     as_gray : bool, optional
-        The ``as_gray`` argument to pass to ``imageio.imread``; whether
-        we want to load in the image as grayscale or not
+        If True, we convert any 3d images to grayscale using
+        skimage.color.rgb2gray. If False, we do nothing
     index : tuple or None, optional
         If a tuple, must be a 2-tuple of ints. Then, after globbing to
         find all the files in a folder, we only go from index[0] to
@@ -337,20 +339,30 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
     paths = glob(op.join(input_dir, '*'))
     if index is not None:
         paths = paths[index[0]:index[1]]
-    for im in paths:
+    for p in paths:
         try:
-            im = imageio.imread(im, as_gray=as_gray)
+            im = imageio.imread(p)
         except ValueError:
             warnings.warn("Unable to load in file %s, it's probably not an image, skipping..." %
-                          im)
+                          p)
             continue
         if img_shape is None:
             img_shape == im.shape
-        if im.max() > 1:
-            im = im / 255
+        im = im / np.iinfo(im.dtype).max
+        # we don't actually use the as_gray argument because that
+        # converts the dtype to float32 and we want to make sure to
+        # properly set its range between 0 and 1 first
+        if as_gray and im.ndim == 3:
+            # then it's a color image, and we need to make it grayscale
+            im = color.rgb2gray(im)
         if im.shape == img_shape:
             images.append(im)
-    images = torch.Tensor(images).unsqueeze(1)
+            if im.max() > 1 or im.min() < 0:
+                raise Exception("Somehow we ended up with an image with a max greater than 1 or a"
+                                " min less than 0 even after we tried to normalize it! Max: %s, "
+                                "min: %s, file: %s" %
+                                (im.max(), im.min(), p))
+    images = torch.tensor(images, dtype=torch.float32).unsqueeze(1)
     stats = {'representation': model(images)}
     if hasattr(model, 'to_normalize'):
         stats = {}
