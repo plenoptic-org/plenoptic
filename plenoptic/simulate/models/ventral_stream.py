@@ -83,7 +83,15 @@ class VentralModel(nn.Module):
     cone_power : float, optional
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
-        represents the non-linear response of the cones to photons.
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -189,7 +197,7 @@ class VentralModel(nn.Module):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine',
+                 transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
                  std_dev=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
@@ -700,7 +708,15 @@ class RetinalGanglionCells(VentralModel):
     cone_power : float, optional
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
-        represents the non-linear response of the cones to photons.
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -818,7 +834,7 @@ class RetinalGanglionCells(VentralModel):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5, cone_power=1/3, cache_dir=None, window_type='cosine',
+                 transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
                  std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          transition_region_width=transition_region_width, cone_power=cone_power,
@@ -1081,7 +1097,15 @@ class PrimaryVisualCortex(VentralModel):
     cone_power : float, optional
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
-        represents the non-linear response of the cones to photons.
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -1253,7 +1277,7 @@ class PrimaryVisualCortex(VentralModel):
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cone_power=1/3, cache_dir=None, half_octave_pyramid=False,
+                 cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
                  include_highpass=False, window_type='cosine', std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
