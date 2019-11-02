@@ -853,7 +853,8 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         if hasattr(resolution, '__iter__') and len(resolution) == 2:
             theta = pt.synthetic_images.polar_angle(resolution, window_center)
         else:
-            theta = np.linspace(0 - window_center, 2 * np.pi - window_center, resolution)
+            theta = np.linspace(0, 2 * np.pi, resolution)
+            theta = ((theta+(np.pi-window_center)) % (2*np.pi)) - np.pi
         if window_type == 'gaussian':
             windows.append(gaussian(theta / window_spacing, std_dev))
         elif window_type == 'cosine':
