@@ -11,20 +11,21 @@ model, because of the interactions between the windows and the steerable
 pyramid filters.
 
 The Gaussian windows don't have these problems, but require more windows
-to evenly tile the image in the radial direction. Note as well that,
-whereas the max amplitude of the raised-cosine windows is always 1 (for
-all transition region widths), the Gaussian windows will have their max
-amplitude scaled down as their standard deviation increases; as the
-standard deviation increases, the windows overlap more, so that the
-number of windows a given pixel lies in increases and thus the weighting
-in each of them needs to decrease in order to make sure the sum across
-all windows is still 1 for every pixel. For now, we only allow that
-standard deviation = 1, which gives us windows that intersect at half a
-standard deviation away. I am fairly certain that, if we want windows
-that evenly tile the space, have the aspect ratios we want, have scaling
-= FWHM * eccentricity, and intersect at a relative point (e.g., half a
-standard deviation rather than always at x=.5), then we have no more
-degrees of freedom to play with.
+to evenly tile the image in the radial direction (and thus
+PoolingWindows.forward will take more memory and more time). Note as
+well that, whereas the max amplitude of the raised-cosine windows is
+always 1 (for all transition region widths), the Gaussian windows will
+have their max amplitude scaled down as their standard deviation
+increases; as the standard deviation increases, the windows overlap
+more, so that the number of windows a given pixel lies in increases and
+thus the weighting in each of them needs to decrease in order to make
+sure the sum across all windows is still 1 for every pixel. For now, we
+only allow that standard deviation = 1, which gives us windows that
+intersect at half a standard deviation away. I am fairly certain that,
+if we want windows that evenly tile the space, have the aspect ratios we
+want, have scaling = FWHM * eccentricity, and intersect at a relative
+point (e.g., half a standard deviation rather than always at x=.5), then
+we have no more degrees of freedom to play with.
 
 """
 import math
