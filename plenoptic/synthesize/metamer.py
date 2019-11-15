@@ -372,22 +372,47 @@ class Metamer(nn.Module):
         This is the main method, trying to update the ``initial_image``
         until its representation matches that of ``target_image``. If
         ``initial_image`` is not set, we initialize with
-        uniformly-distributed random noise between 0 and 1. NOTE: This
-        means that the value of ``target_image`` should probably lie
-        between 0 and 1. If that's not the case, you might want to pass
-        something to act as the initial image.
+        uniformly-distributed random noise between 0 and 1 or, ``if
+        self.saved_image`` is not empty, we use the last value from
+        there (in order to make resuming synthesis easy).
+
+        NOTE: This means that the value of ``target_image`` should
+        probably lie between 0 and 1. If that's not the case, you might
+        want to pass something to act as the initial image.
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
-        Note that you can run this several times in sequence by setting
-        ``initial_image`` to ``metamer.matched_image`` (I would detach
-        and clone it just to make sure things don't get weird:
-        ``initial_image=metamer.matched_image.detach().clone()``). Everything
-        that stores the progress of the optimization (``loss``,
-        ``saved_representation``, ``saved_image``) will persist between
-        calls and so potentially get very large.
+        If ``store_progress!=False``, you can run this several times in
+        sequence by setting ``initial_image`` to None.  If
+        ``store_progres=False`` and you want to resume an earlier run,
+        you can do that by setting ``initial_image`` equal to the
+        ``matched_image`` this function returns (I would also detach and
+        clone it just to be safe). Everything that stores the progress
+        of the optimization (``loss``, ``saved_representation``,
+        ``saved_image``) will persist between calls and so potentially
+        get very large. To most directly resume where you left off, it's
+        recommended you set ``learning_rate=None``, in which case we use
+        the most recent learning rate (since we use a learning rate
+        scheduler, the learning rate decreases over time as the gradient
+        shrinks; note that we will still reset to the original value in
+        coarse-to-fine optimization). Coarse-to-fine optimization will
+        also resume where you left off.
+
+        We currently do not exactly preserve the state of the RNG
+        between calls (the seed will be reset), because it's difficult
+        to figure out which device we should grab the RNG state for. If
+        you're interested in doing this yourself, see
+        https://pytorch.org/docs/stable/random.html, specifically the
+        fork_rng function (I recommend looking at the source code for
+        that function to see how to get and set the RNG state). This
+        means that there will be a transient increase in loss right
+        after resuming synthesis. In every example I've seen, it goes
+        away and continues decreasing after a relatively small number of
+        iterations, but it means that running synthesis for 500
+        iterations is not the same as running it twice for 250
+        iterations each.
 
         We provide three ways to try and add some more randomness to
         this optimization, in order to either improve the diversity of
@@ -438,15 +463,18 @@ class Metamer(nn.Module):
         seed : int, optional
             Number with which to seed pytorch and numy's random number
             generators
-        learning_rate : float, optional
-            The learning rate for our optimizer
+        learning_rate : float or None, optional
+            The learning rate for our optimizer. None is only accepted
+            if we're resuming synthesis, in which case we use the last
+            learning rate from the previous instance.
         max_iter : int, optinal
             The maximum number of iterations to run before we end
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1. If this is not a tensor or
-            None, we try to cast it as a tensor.
+            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            not empty, use the final value there. If this is not a
+            tensor or None, we try to cast it as a tensor.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -541,9 +569,14 @@ class Metamer(nn.Module):
         np.random.seed(seed)
 
         if initial_image is None:
-            self.matched_image = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                 device=self.target_image.device)
-            self.matched_image.requires_grad = True
+            try:
+                # then we have a previous run to resume
+                self.matched_image = torch.nn.Parameter(self.saved_image[-1], requires_grad=True)
+            except IndexError:
+                # else we're starting over
+                self.matched_image = torch.rand_like(self.target_image, dtype=torch.float32,
+                                                     device=self.target_image.device)
+                self.matched_image.requires_grad = True
         else:
             if not isinstance(initial_image, torch.Tensor):
                 initial_image = torch.tensor(initial_image, dtype=torch.float32,
@@ -569,17 +602,32 @@ class Metamer(nn.Module):
         else:
             self.clip_grad_norm = clip_grad_norm
         if coarse_to_fine:
-            # this creates a new object, so we don't modify model.scales
-            self.scales = [i for i in self.model.scales] + ['all']
-            self.scales_timing = dict((k, []) for k in self.scales)
-            self.scales_timing[self.scales[0]].append(0)
+            if self.scales is None:
+                # this creates a new object, so we don't modify model.scales
+                self.scales = [i for i in self.model.scales] + ['all']
+                self.scales_timing = dict((k, []) for k in self.scales)
+                self.scales_timing[self.scales[0]].append(0)
+            # else, we're continuing a previous version and want to continue
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
 
+        # if learning_rate is None, we're resuming synthesis from
+        # earlier, and we want to start with the last learning
+        # rate. however, we also want to keep track of the initial
+        # learning rate, since we use this for resetting the optimizer
+        # during coarse-to-fine optimization. we thus also track the
+        # initial_learnig_rate...
+        if learning_rate is None:
+            learning_rate = self.learning_rate[-1]
+            initial_learning_rate = self.learning_rate[0]
+        else:
+            initial_learning_rate = learning_rate
         optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
         self.optimizer_kwargs = optimizer_kwargs
         self._init_optimizer(**self.optimizer_kwargs)
+        # ... and use it here
+        optimizer_kwargs['lr'] = initial_learning_rate
 
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
         # and 0, and True for True and every int >= 1
@@ -687,6 +735,7 @@ class Metamer(nn.Module):
                 self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
             except RuntimeError:
                 pass
+
         return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
 
     def save(self, file_path, save_model_reduced=False):
@@ -717,7 +766,8 @@ class Metamer(nn.Module):
         save_dict = {}
         for k in ['matched_image', 'target_image', 'seed', 'loss', 'target_representation',
                   'matched_representation', 'saved_representation', 'gradient', 'saved_image',
-                  'learning_rate', 'saved_representation_gradient', 'saved_image_gradient']:
+                  'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
+                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss']:
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
             # tensors having extra hooks or the like
