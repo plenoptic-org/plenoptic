@@ -83,10 +83,10 @@ class Texture_Statistics(nn.Module):
         
         # STATISTIC: statg0 or the pixel statistics
         statg0 = torch.stack((mean0, var0, skew0, kurt0, mn0, mx0)).view(6, 1)
-        
 
         # get pyramid coefficients
         pyr0 = self.pyr.forward(image)
+        
 
         # subtract mean of lowBand
         nbands = len(pyr0)
@@ -126,8 +126,8 @@ class Texture_Statistics(nn.Module):
         ch = pyr0[-1]
         mpyrM = Steerable_Pyramid_Freq(ch.shape[-2:], height=0, order=0, return_list=True)
         mpyr = mpyrM.forward(ch.squeeze().unsqueeze(0).unsqueeze(0))
-        im = mpyr[0].squeeze()
-
+        im = mpyr[1].squeeze()
+        
         # Find the auto-correlation of the low-pass residual
         Sch = torch.min(torch.tensor(ch.shape[-2:]))
         la = int(np.floor([(self.Na-1)/2]))
@@ -146,13 +146,22 @@ class Texture_Statistics(nn.Module):
                 le = int(np.min((Sch/2-1, la)))
                 # Find the auto-correlation of the magnitude band
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor], vari = self.compute_autocorr(ch)
-
             
-            ch = self.pyr.unoriented_bands[n_scales].squeeze()
+            im = Texture_Statistics.expand(im,2)/4
+            im = im[:,:,0].unsqueeze(0).unsqueeze(0)
+            
+            # reconstruct unoriented band
+            tmp_pyr = Steerable_Pyramid_Freq(im.shape[-2:],height=1, order=self.n_orientations-1, return_list=True, is_complex=False);
+            tmp_pyr_list = tmp_pyr.forward(im)
+            for ii in range(0,self.n_orientations):
+                tmp_pyr.pyr_coeffs[(0,ii)] = rpyr0[n_scales*self.n_orientations+1+ii].unsqueeze(0).unsqueeze(0)
+            ch = tmp_pyr.recon_pyr(levels=[0])
+            
+            im = im + ch
             
             # Find auto-correlation of the unoriented band
-            acr[la-le:la+le+1, la-le:la+le+1, n_scales], vari = self.compute_autocorr(ch)
-            skew0p[n_scales], kurt0p[n_scales] =  self.compute_skew_kurt(ch,vari,var0)
+            acr[la-le:la+le+1, la-le:la+le+1, n_scales], vari = self.compute_autocorr(im)
+            skew0p[n_scales], kurt0p[n_scales] =  self.compute_skew_kurt(im,vari,var0)
 
         # compute the cross-correlation matrices of the coefficient magnitudes pyramid at the different levels and orientations
         C0 = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales+1)
@@ -220,7 +229,7 @@ class Texture_Statistics(nn.Module):
         # STATISTC: vHPR0 or the variance of the high-pass residual
         channel = pyr0[0]
         vHPR0 = channel.pow(2).mean()
-
+        
         representation = torch.cat((statg0.flatten(),magMeans0.flatten(),ace.flatten(),
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
             Cx0.flatten(), Cr0.flatten(), Crx0.flatten(), vHPR0.unsqueeze(0))) 
