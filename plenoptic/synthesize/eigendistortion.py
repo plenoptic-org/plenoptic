@@ -6,6 +6,11 @@ from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 """
 TODO see more of the spectrum
 """
+
+# Rayleigh quotient iteration, it is just Newton’s method
+# mu = u A u / |u|
+# u <- (A - mu I)-1 u / |(A - mu I)-1 u|
+
 # get more of the spectrum by implementing
 # the power iteration method on deflated matrix F
 # see: http://papers.nips.cc/paper/3575-deflation-methods-for-sparse-pca.pdf
@@ -13,6 +18,10 @@ TODO see more of the spectrum
 # TODO compare with
 # implicit_block_power_method
 # Lanczos method
+# subspace iteration
+    # http://blog.mrtz.org/2013/12/04/power-method.html
+# randomized SVD
+# CG
 
 # def schur_complement_deflation(A, x):
 #     """Schur complement matrix deflation
@@ -267,7 +276,7 @@ class Eigendistortion(nn.Module):
         evals, evecs = torch.symeig(F, eigenvectors=True)
 
         for i in list(range(evals.size(0)-1, -1, -1)):
-            self.distortions[str(evals.size(0) - i)] = (evals[i], evecs[i])
+            self.distortions[str(evals.size(0) - i - 1)] = (evals[i], evecs[i])
 
     def synthesize(self, block=None, tol=1e-10, n_steps=100, jac=True, seed=0, verbose=True):
         '''Compute eigendistortion
@@ -289,7 +298,8 @@ class Eigendistortion(nn.Module):
             print('out size', self.out_flattensor.size(), 'in size', self.image_flattensor.size())
 
         if jac and self.out_flattensor.size(0) * self.image_flattensor.size(0) < 10e6:
-            solve_eigenproblem()
+            print('attempt to explicitely solve the eigenproblem')
+            self.solve_eigenproblem()
 
         elif block is not None:
             print('under construction')
@@ -304,7 +314,11 @@ class Eigendistortion(nn.Module):
             if verbose:
                 print('implicit power method, computing the minimum distortion')
             lmbda_min, v_min = implicit_FIM_power_iteration(self.out_flattensor, self.image_flattensor, l=lmbda_max, init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
+<<<<<<< HEAD
             self.distortions[str(-1)] = (lmbda_min.detach(), v_min.detach())
+=======
+            self.distortions[str(self.image_flattensor.size(0)-1)] = (lmbda_min, v_min)
+>>>>>>> f3a2c692b2ea9bea84203f393acfee39bf92fabf
 
             # TODO deflation
             # for ind in distinds:
@@ -317,16 +331,17 @@ class Eigendistortion(nn.Module):
 
     def display(self, alpha=5, beta=10, **kwargs):
 
-        try:
-            import pyrtools as pt
-            numpy = lambda x : x.detach().cpu().numpy().squeeze()
+        import pyrtools as pt
+        numpy = lambda x : x.detach().cpu().numpy().squeeze()
 
-            image = numpy(self.image)
-            maxdist = numpy(self.distortions['0'][1].reshape(self.image.shape))
-            mindist = numpy(self.distortions['-1'][1].reshape(self.image.shape))
+        image = numpy(self.image)
+        maxdist = numpy(self.distortions['0'][1].reshape(self.image.shape))
+        mindist = numpy(self.distortions[str(self.image_flattensor.size(0)-1)][1].reshape(self.image.shape))
 
-            pt.imshow([image, image + alpha * maxdist, beta * maxdist], title=['original', 'original + ' + str(alpha) + ' maxdist', str(beta) + ' * maximum eigendistortion'], **kwargs);
-            pt.imshow([image, image + alpha * mindist, beta * mindist], title=['original', 'original + ' + str(alpha) + ' mindist', str(beta) + ' * minimum eigendistortion'], **kwargs);
-
+<<<<<<< HEAD
         except:
             print("pyrtools unavailable")
+=======
+        pt.imshow([image, image + alpha * maxdist, beta * maxdist], title=['original', 'original + ' + str(alpha) + ' maxdist', str(beta) + ' * maximum eigendistortion'], **kwargs);
+        pt.imshow([image, image + alpha * mindist, beta * mindist], title=['original', 'original + ' + str(alpha) + ' mindist', str(beta) + ' * minimum eigendistortion'], **kwargs);
+>>>>>>> f3a2c692b2ea9bea84203f393acfee39bf92fabf
