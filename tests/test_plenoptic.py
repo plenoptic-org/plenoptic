@@ -12,6 +12,7 @@ import plenoptic as po
 import os.path as op
 import matplotlib.pyplot as plt
 from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
+import scipy.io as sio
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -925,3 +926,50 @@ class TestPerceptualMetrics(object):
     def test_model_metric(self, im1, im2):
         model = po.simul.Front_End(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad
+
+
+class TestPortillaSimoncelli(object):
+
+    ## still need to add tests for normalization factors
+    @pytest.mark.parametrize("n_scales", [0,1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [3,4])  # why can't we go below 3 orienations???
+    @pytest.mark.parametrize("Na", [3,5,7,9])
+    @pytest.mark.parametrize("im_shape", [(256,256)])
+    def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape):
+        x = po.make_basic_stimuli()
+        if im_shape is not None:
+            x = x[0,0, :im_shape[0], :im_shape[1]].unsqueeze(0).unsqueeze(0)
+        spc = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
+        
+        spc(x)
+        
+
+    @pytest.mark.parametrize("n_scales", [4])
+    @pytest.mark.parametrize("n_orientations", [4])
+    @pytest.mark.parametrize("Na", [9])
+    @pytest.mark.parametrize("im_shape", [(256,256)])
+    @pytest.mark.parametrize("testNum", [0,1,2,3,4])
+#    
+#    def test_torch_vs_matlab_p(self, n_scales, n_orientations, Na, im_shape,testNum ):
+#        
+#        matfile = sio.loadmat('../data/plenoptic-test-files/PortillaSimoncelliMatlab'+str(testNum))
+#        im0 = torch.Tensor(matfile['im0']).unsqueeze(0).unsqueeze(0)
+#        paramsMat = np.array(matfile['paramsVector']).flatten()
+#        model = po.simulate.Portilla_Simoncelli(im0.shape[-2:], n_scales=n_scales, n_orientations=n_orientations, Na=Na)
+#        paramsPython = model.forward(im0)
+#        
+#        check_vector(paramsMat,paramsPython)
+        
+
+def check_vector(vec_np, vec_torch, rtol=1e-3, atol=1e-3):
+    '''
+    function that checks if two vectors (one torch and one numpy) are the same
+    We set an absolute and relative tolerance and the following function checks if
+    abs(vec1-vec2) <= atol + rtol*abs(vec1)
+    Inputs:
+    vec_np: vector numpy
+    vec_torch: vector torch
+    
+    '''
+    vec_torch = to_numpy(vec_torch)
+    np.testing.assert_allclose(vec_np,vec_torch, atol=atol)

@@ -5,7 +5,7 @@ from ...tools.signal import batch_fftshift2d, skew, kurtosis
 import numpy as np
 
 
-class Texture_Statistics(nn.Module):
+class Portilla_Simoncelli(nn.Module):
     ''' Model for measuring statistics originally proposed in [1] for synthesis.
     
     Currently we do not: support batch measurement of images.
@@ -44,10 +44,10 @@ class Texture_Statistics(nn.Module):
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
     
     '''
-    def __init__(self, shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None):
-        super(Texture_Statistics, self).__init__()
+    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None):
+        super(Portilla_Simoncelli, self).__init__()
 
-        self.image_shape = shape
+        self.image_shape = im_shape
         self.Na = Na
         self.n_scales = n_scales
         self.n_orientations = n_orientations
@@ -116,7 +116,7 @@ class Texture_Statistics(nn.Module):
             apyr0[bb] = apyr0[bb] - magMeans0[bb]   # subtract mean of magnitude
 
         # STATISTIC: acr or the central auto-correlation
-        acr = torch.empty([self.Na, self.Na, self.n_scales+1])
+        acr = torch.zeros([self.Na, self.Na, self.n_scales+1])
         # STATISTIC: skew0p or the skew of the unoriented bands
         skew0p = torch.empty((self.n_scales+1,1))
         # STATISTIC: kurt0p or the kurtosis of the unoriented bands
@@ -137,7 +137,7 @@ class Texture_Statistics(nn.Module):
 
 
         # STATISTIC: ace or the auto-correlation of each magnitude band
-        ace = torch.empty([self.Na, self.Na, self.n_scales, self.n_orientations])
+        ace = torch.zeros([self.Na, self.Na, self.n_scales, self.n_orientations])
         for n_scales in range(self.n_scales-1, -1, -1):
             for nor in range(0, self.n_orientations):
                 nband = n_scales*self.n_orientations + nor + 1
@@ -147,7 +147,7 @@ class Texture_Statistics(nn.Module):
                 # Find the auto-correlation of the magnitude band
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor], vari = self.compute_autocorr(ch)
             
-            im = Texture_Statistics.expand(im,2)/4
+            im = Portilla_Simoncelli.expand(im,2)/4
             im = im[:,:,0].unsqueeze(0).unsqueeze(0)
             
             # reconstruct unoriented band
@@ -179,7 +179,7 @@ class Texture_Statistics(nn.Module):
                 rparents = torch.empty((cousinSz, self.n_orientations*2))
                 for nor in range(0, self.n_orientations):
                     nband = (n_scales+1)*self.n_orientations + nor + 1
-                    tmp = Texture_Statistics.expand(pyr0[nband],2)/4
+                    tmp = Portilla_Simoncelli.expand(pyr0[nband],2)/4
 
                     rtmp = tmp[:,:,0]
                     itmp = tmp[:,:,1]
@@ -195,7 +195,7 @@ class Texture_Statistics(nn.Module):
                     parents[:,nor] = (tmp2 - tmp2.mean()).t().flatten()
 
             else:
-                tmp = Texture_Statistics.expand(rpyr0[-1].squeeze(),2)/4
+                tmp = Portilla_Simoncelli.expand(rpyr0[-1].squeeze(),2)/4
                 tmp = tmp[:,:,0]
                 rparents= torch.stack((tmp.flatten(), tmp.roll((0,1),(0,1)).flatten(),
                     tmp.roll((0,-1),(0,1)).flatten(),tmp.roll((1,0),(0,1)).flatten(),
@@ -229,6 +229,7 @@ class Texture_Statistics(nn.Module):
         # STATISTC: vHPR0 or the variance of the high-pass residual
         channel = pyr0[0]
         vHPR0 = channel.pow(2).mean()
+        
         
         representation = torch.cat((statg0.flatten(),magMeans0.flatten(),ace.flatten(),
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
