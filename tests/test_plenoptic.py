@@ -278,6 +278,22 @@ def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
 
 
+@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, 'einstein.png'),
+                                   op.join(DATA_DIR, '256x256'),
+                                   [op.join(DATA_DIR, 'einstein.png'),
+                                    op.join(DATA_DIR, 'curie.pgm')]])
+@pytest.mark.parametrize('as_gray', [True, False])
+def test_load_images(paths, as_gray):
+    if paths == DATA_DIR:
+        # there's a 512 by 512 image here, which means we should raise
+        # an Exception
+        with pytest.raises(Exception):
+            images = po.tools.data.load_images(paths, as_gray)
+    else:
+        images = po.tools.data.load_images(paths, as_gray)
+        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
+
+
 class TestPooling(object):
 
     def test_creation(self):
