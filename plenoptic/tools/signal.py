@@ -22,7 +22,7 @@ def roll_n(X, axis, n):
     return torch.cat([back, front], axis)
 
 
-def batch_fftshift2d(x):
+def batch_fftshift(x):
     real, imag = torch.unbind(x, -1)
     for dim in range(1, len(real.size())):
         n_shift = real.size(dim)//2
@@ -37,7 +37,7 @@ def batch_fftshift2d(x):
     return shifted  # last dim=2 (real&imag)
 
 
-def batch_ifftshift2d(x):
+def batch_ifftshift(x):
     real, imag = torch.unbind(x, -1)
     for dim in range(len(real.size()) - 1, 0, -1):
         real = roll_n(real, axis=dim, n=real.size(dim)//2)
@@ -149,8 +149,9 @@ def polar_to_rectangular(amplitude, phase):
 def power_spectrum(x, log=True):
 
     sp = torch.rfft(x, signal_ndim=2, onesided=False)
-    sp = batch_fftshift2d(sp)
-    sp_power = (sp[..., 0]**2 + sp[..., 1]**2)
+    sp = batch_fftshift(sp)
+    amplitude, phase = rectangular_to_polar(sp[..., 0], sp[..., 1])
+    sp_power = amplitude ** 2
     if log:
         sp_power[sp_power < 1e-5] += 1e-5
         sp_power = torch.log(sp_power)
@@ -182,11 +183,3 @@ def make_disk(imgSize, outerRadius=None, innerRadius=None):
                 mask[i][j] = ( 1 + np.cos( np.pi * ( r - innerRadius ) / ( outerRadius - innerRadius ) ) ) / 2
 
     return mask
-
-
-def kurtosis(mtx):
-    # implementation is only for real components
-    return torch.mean(torch.abs(mtx-mtx.mean()).pow(4))/(mtx.var().pow(2))
-
-def skew(mtx):
-    return torch.mean((mtx-mtx.mean()).pow(3))/(mtx.var().pow(1.5))

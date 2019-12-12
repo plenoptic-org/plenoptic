@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from collections import OrderedDict
 from scipy.special import factorial
-from ...tools.signal import rcosFn, batch_fftshift2d, batch_ifftshift2d, pointOp
+from ...tools.signal import rcosFn, batch_fftshift, batch_ifftshift, pointOp
 import torch
 import torch.nn as nn
 
@@ -133,6 +133,10 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.lo0mask = torch.tensor(lo0mask).unsqueeze(0).unsqueeze(-1)
         self.hi0mask = torch.tensor(hi0mask).unsqueeze(0).unsqueeze(-1)
 
+        #### what's happening here? all that to get the masks?
+        ## seems excessive, how much of a speed up?
+        ## put in function?
+
         # pre-generate the angle, hi and lo masks, as well as the
         # indices used for down-sampling
         self._anglemasks = []
@@ -188,6 +192,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             loend = lostart + lodims
             self._loindices.append([lostart, loend])
 
+
             # subsample indices
             log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
             angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
@@ -198,6 +203,8 @@ class Steerable_Pyramid_Freq(nn.Module):
             lodft = lodft[lostart[0]:loend[0], lostart[1]:loend[1]]
             # convolution in spatial domain
             lodft = lodft * lomask
+
+
 
         # reasonable default dtype
         self = self.to(torch.float32)
@@ -250,7 +257,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self._anglemasks_recon = angles_recon
         return self
 
-    def forward(self, x):
+    def forward(self, x, downsample=True):
         self.pyr_coeffs = OrderedDict()
 
         angle = self.angle.copy()
@@ -262,11 +269,11 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # x = x.squeeze(1) #flatten channel dimension first
         imdft = torch.rfft(x, signal_ndim=2, onesided=False)
-        imdft = batch_fftshift2d(imdft)
+        imdft = batch_fftshift(imdft)
 
         # high-pass
         hi0dft = imdft * hi0mask
-        hi0 = batch_ifftshift2d(hi0dft)
+        hi0 = batch_ifftshift(hi0dft)
         hi0 = torch.ifft(hi0, signal_ndim=2)
         hi0_real = torch.unbind(hi0, -1)[0]
         self.pyr_coeffs['residual_highpass'] = hi0_real
@@ -280,7 +287,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         for i in range(self.num_scales):
 
             if self.store_unoriented_bands:
-                lo0 = batch_ifftshift2d(lodft)
+                lo0 = batch_ifftshift(lodft)
                 lo0 = torch.ifft(lo0, signal_ndim=2)
                 lo0_real = torch.unbind(lo0, -1)[0]
                 self.unoriented_bands.append(lo0_real)
@@ -303,7 +310,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                 banddft[..., 0] = banddft_real
                 banddft[..., 1] = banddft_imag
 
-                band = batch_ifftshift2d(banddft)
+                band = batch_ifftshift(banddft)
                 band = torch.ifft(band, signal_ndim=2)
                 if not self.is_complex:
                     band = torch.unbind(band, -1)[0]
@@ -314,19 +321,25 @@ class Steerable_Pyramid_Freq(nn.Module):
                     self.pyr_size[(i, b)] = tuple(band.shape[2:4])
 
             lostart, loend = self._loindices[i]
-            # subsample indices
-            log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
-            angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
-            # subsampling
-            lodft = lodft[:, :, lostart[0]:loend[0], lostart[1]:loend[1], :]
-            # filtering
-            lomask = self._lomasks[i]
-            # convolution in spatial domain
-            lodft = lodft * lomask
+            if not downsample:
+                # no subsampling of angle and rad
+                # jsut use lo0mask
+                lodft = lodft * lo0mask
+            else:
+                # subsample indices
+                log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
+                angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
+
+                # subsampling
+                lodft = lodft[:, :, lostart[0]:loend[0], lostart[1]:loend[1], :]
+                # filtering
+                lomask = self._lomasks[i]
+                # convolution in spatial domain
+                lodft = lodft * lomask
 
         # compute residual lowpass when height <=1
-        lo0 = batch_ifftshift2d(lodft)
+        lo0 = batch_ifftshift(lodft)
         lo0 = torch.ifft(lo0, signal_ndim=2)
         lo0_real = torch.unbind(lo0, -1)[0]
 
@@ -505,7 +518,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         # generate highpass residual Reconstruction
         if 'residual_highpass' in recon_keys:
             hidft = torch.rfft(self.pyr_coeffs['residual_highpass'], signal_ndim=2, onesided=False)
-            hidft = batch_fftshift2d(hidft)
+            hidft = batch_fftshift(hidft)
 
             # output dft is the sum of the recondft from the recursive
             # function times the lomask (low pass component) with the
@@ -515,7 +528,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             outdft = recondft * lo0mask
 
         # get output reconstruction by inverting the fft
-        reconstruction = batch_ifftshift2d(outdft)
+        reconstruction = batch_ifftshift(outdft)
         reconstruction = torch.ifft(reconstruction, signal_ndim=2)
 
         # get real part of reconstruction (if complex)
@@ -548,7 +561,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         if scale == self.num_scales:
             if 'residual_lowpass' in recon_keys:
                 lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided=False)
-                lodft = batch_fftshift2d(lodft)
+                lodft = batch_fftshift(lodft)
             else:
                 lodft = torch.rfft(torch.zeros_like(pyr_coeffs['residual_lowpass']), signal_ndim=2,
                                    onesided=False)
@@ -576,7 +589,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                     banddft = torch.fft(pyr_coeffs[(scale, b)], signal_ndim=2)
                 else:
                     banddft = torch.rfft(pyr_coeffs[(scale, b)], signal_ndim=2, onesided=False)
-                banddft = batch_fftshift2d(banddft)
+                banddft = batch_fftshift(banddft)
 
                 banddft = banddft * anglemask * himask
                 banddft = torch.unbind(banddft, -1)

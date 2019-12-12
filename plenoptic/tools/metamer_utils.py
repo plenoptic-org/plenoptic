@@ -1,6 +1,6 @@
 import torch
 import abc
-from .signal import skew, kurtosis
+from .stats import skew, kurtosis
 
 
 class Clamper(metaclass=abc.ABCMeta):
@@ -31,18 +31,18 @@ class RangeClamper(Clamper):
 		return im
 
 class TwoMomentsClamper(Clamper):
-    
+
     def __init__(self,targ):
         self.targ = targ
-    
+
     def clamp(self,im):
-        
+
         # mean and variance
         im = (im - im.mean())/im.std() * self.targ.std() + self.targ.mean()
-        
+
         # range
         im = im.clamp(self.targ.min(),self.targ.max())
-        
+
         return im
 
 class FourMomentsClamper(Clamper):
@@ -53,13 +53,13 @@ class FourMomentsClamper(Clamper):
     def clamp(self,im):
         # kurtosis
         im = modkurt(im,kurtosis(self.targ))
-        
+
         # skew
         im = modskew(im,skew(self.targ))
-        
+
         # mean and variance
         im = (im - im.mean())/im.std() * self.targ.std() + self.targ.mean()
-        
+
         # range
         im = im.clamp(self.targ.min(),self.targ.max())
 
@@ -81,7 +81,7 @@ def snr(s,n):
 def roots(c):
     n = c.numel()
     inz = c.flatten().nonzero()
-    
+
     # strip leading zeros and throw away
     # strip trailing zeros, but remember them as roots at zero
     nnz = inz.numel()
@@ -128,7 +128,7 @@ def modkurt(ch,k,p=1):
 
     a = m[3]/m[1]
 
-    # coefficients of the numerator 
+    # coefficients of the numerator
     A=m[11]-4*a*m[9]-4*m[2]*m[8]+6*a**2*m[7]+12*a*m[2]*m[6]+6*m[2]**2*m[5]-4*a**3*m[5]-12*a**2*m[2]*m[4]+a**4*m[3]-12*a*m[2]**2*m[3]+4*a**3*m[2]**2+6*a**2*m[2]**2*m[1]-3*m[2]**4
     B=4*(m[9]-3*a*m[7]-3*m[2]*m[6]+3*a**2*m[5]+6*a*m[2]*m[4]+3*m[2]**2*m[3]-a**3*m[3]-3*a**2*m[2]**2-3*m[3]*m[2]**2)
     C=6*(m[7]-2*a*m[5]-2*m[2]*m[4]+a**2*m[3]+2*a*m[2]**2+m[2]**2*m[1])
@@ -162,7 +162,7 @@ def modkurt(ch,k,p=1):
     lmi = lNeg.max()
     lma = lPos.min()
     lam = torch.Tensor([lmi,lma])
-    
+
     mMnewKt = polyval(torch.tensor([A,B,C,D,E]),lam)/(polyval(torch.tensor([F,0,G]),lam).pow(2))
     kmin=min(mMnewKt)
     kmax = max(mMnewKt)
@@ -209,7 +209,7 @@ def modskew(ch,sk,p=1):
     #
     #   [xm, snrk] = modskew(x,sk,p);
     #       sk: new skweness
-    #           p [OPTIONAL]:   mixing proportion between sk0 and sk 
+    #           p [OPTIONAL]:   mixing proportion between sk0 and sk
     #                           it imposes (1-p)*sk0 + p*sk,
     #                           being sk0 the current skewness.
     #                           DEFAULT: p = 1;
@@ -290,7 +290,7 @@ def modskew(ch,sk,p=1):
     tg = r[:,1]/r[:,0]
     fi = tg.abs()<1e-6
     fi2 = r[:,0].sign()==(sk-s).sign().flatten()
-    
+
     ti = torch.zeros_like(fi)
     for i,(fa,fb) in enumerate(zip(fi,fi2)):
         ti[i] = fa+fb
@@ -313,11 +313,9 @@ def modskew(ch,sk,p=1):
             lam = lam[0]
         else:
             lam=torch.Tensor([0])
-            
+
     chm = ch+lam*(ch.pow(2)-sd.pow(2)-sd*s*ch) # adjust the skewness
     chm = chm + (m[1]/chm.pow(2).mean()).pow(.5) # adjust variance
     chm = chm + me
-    
+
     return chm.data
-
-
