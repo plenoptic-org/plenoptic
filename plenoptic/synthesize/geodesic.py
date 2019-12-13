@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from ..tools.signal import make_disk
+from ..tools.signal import make_disk, rescale
 from ..tools.fit import pretty_print, stretch
 
 
@@ -57,6 +57,7 @@ class Geodesic(nn.Module):
         # self.xA = torch.tensor(imgA, dtype=torch.float32).unsqueeze(0)
 
         # rescale image to [-1,1]
+        # rescale(imgA)
         self.xA = (2*imgA/255 - 1).view(1, image_size, image_size)
         self.xB = (2*imgB/255 - 1).view(1, image_size, image_size)
 
@@ -108,8 +109,13 @@ class Geodesic(nn.Module):
         x = torch.cat((self.xA, x, self.xB), 0)
         x = self.squish(x)
         self.img = self.mask * x
+        y = self.model(self.img.unsqueeze(1))
 
-        return self.model(self.img.unsqueeze(1))
+        # TODO reshape n_steps, C, Y, X -> n_steps, -1
+        if isinstance(y, dict):
+            return torch.cat([s.squeeze().view(-1) for s in y.values()]).unsqueeze(1)
+        else:
+            return y
 
     def objective_function(self, x):
 
