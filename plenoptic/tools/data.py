@@ -76,7 +76,6 @@ def load_images(paths, as_gray=True):
         if as_gray:
             im = color.rgb2gray(im)
         images.append(im)
-    print(images)
     try:
         images = torch.tensor(images, dtype=torch.float32)
     except ValueError:
