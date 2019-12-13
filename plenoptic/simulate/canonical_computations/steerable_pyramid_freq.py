@@ -192,7 +192,6 @@ class Steerable_Pyramid_Freq(nn.Module):
             loend = lostart + lodims
             self._loindices.append([lostart, loend])
 
-
             # subsample indices
             log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
             angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
@@ -203,8 +202,6 @@ class Steerable_Pyramid_Freq(nn.Module):
             lodft = lodft[lostart[0]:loend[0], lostart[1]:loend[1]]
             # convolution in spatial domain
             lodft = lodft * lomask
-
-
 
         # reasonable default dtype
         self = self.to(torch.float32)
