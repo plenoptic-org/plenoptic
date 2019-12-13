@@ -79,7 +79,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
 
     stim = [impulse, step_edge, ramp, bar, curv_edge,
             sine_grating, square_grating, polar_angle, angular_sine, zone_plate,
-            checkerboard, sawtooth, reptil_skin, image]
+            fract, checkerboard, sawtooth, reptil_skin, image]
     stim = [rescale(s) for s in stim]
 
     stimuli = torch.cat(
