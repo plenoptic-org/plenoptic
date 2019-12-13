@@ -1,0 +1,53 @@
+import pytest
+import torch
+import requests
+import math
+import tqdm
+import tarfile
+import os
+import numpy as np
+import pyrtools as pt
+import plenoptic as po
+import os.path as op
+import matplotlib.pyplot as plt
+import matplotlib
+
+from plenoptic.simulate.models.frontend import Front_End
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dtype = torch.float32
+DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
+
+
+class TestEigendistortions(object):
+    # Could include
+
+    from plenoptic.synthesize.eigendistortion import Eigendistortion
+
+    mdl = Front_End().to(device)  # initialize simple model with which to compute eigendistortions
+    img_small = torch.randn(1, 1, 30, 30).to(device)
+
+    img = matplotlib.image.imread(op.join(DATA_DIR, 'einstein.png'))
+    img_np = img/np.max(img)
+    img_large = torch.Tensor(img_np).view([1, 1, 254, 266]).to(device)
+
+    e_small = Eigendistortion(img_rand, mdl, dtype=torch.float32).to(device)
+    e_large = Eigendistortion(img, mdl, dtype=torch.float32).to(device)
+
+    # Numerical eigenvector approximations
+    def test_jacobian(self):
+        # invert matrix explicitly
+        e_small.synthesis(method='jacobian')
+
+    def test_power_method(self):
+        e_small.synthesis(method='power', n_steps=5)
+        e_large.synthesis(method='power', n_steps=5)
+
+    def test_lanczos(self):
+        # return first and last two eigenvectors
+        # full re-orthogonalization
+        e_small.synthesis(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
+        e_large.synthesis(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
+
+
+
