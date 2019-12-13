@@ -13,74 +13,116 @@
 
 We only support python 3.6 and 3.7
 
-# Testing
+# Setup
 
-from the [pytest documentation](http://doc.pytest.org/en/latest/usage.html):
+These are instructions for how to install and run the development
+version of the `plenoptic` package (we are currently pre-release and
+not on `pip`, so this is the only way to use `plenoptic`).
 
-- Run tests by keyword expressions:
+The following instructions will work on Linux or Mac. If you're on
+Windows, I recommend looking into the [Windows Subsystem for
+Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
+
+## System
+
+If you have not setup python on your system before: install
+[miniconda](https://conda.io/miniconda.html) (this just contains
+python and `conda`, a very nifty package manager; choose python
+3.7). Conda is separate from python: it's a package manager, which
+makes it easy to install a variety of python libraries. If you've ever
+used `apt` on Ubuntu or [`brew` on Macs](https://brew.sh/), then
+you've used a package manager before. Python has its own package
+manager, `pip`, which generally works very well, but in my experience
+I've found conda tends to work with fewer issues. [See
+here](https://stackoverflow.com/questions/20994716/what-is-the-difference-between-pip-and-conda)
+for some more details, but the gist seems to be: conda can handle
+external (non-python) dependencies, whereas pip cannot, and conda can
+create virtual environments (see item 3 in this list), whereas pip
+cannot (the standard python way is to use `virtualenv`, which also
+works well). See
+[here](https://jakevdp.github.io/blog/2016/08/25/conda-myths-and-misconceptions/)
+for a blog post from Jake VanderPlas with more details on conda.
+
+You will probably need to restart your terminal for this to take
+effect. You should see `base` somewhere on your command line prompt.
+
+Once you've done that, open the command-line and navigate to wherever
+you want to download this repository (for example, `~/Documents`), and
+check that you have `git` installed on your system:
 
 ```
-pytest -k "MyClass and not method"
+cd ~/Documents
+which git
 ```
 
-This will run tests which contain names that match the given string expression, which can include Python operators
-that use filenames, class names and function names as variables. The example above will run `TestMyClass.test_something`
-but not `TestMyClass.test_method_simple`.
+assuming the second command returns something (e.g., `/usr/bin/git`),
+`git` is installed and you're good to go. If nothing gets printed out,
+then you need to [install
+git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). See
+[this cheatsheet](https://neuroplausible.com/github) for some more
+explanation of git, Github, and the associated terminology.
 
-- To run a specific test within a module:
+## plenoptic
 
-```
-pytest test_mod.py::test_func
-```
-Another example specifying a test method in the command line:
-
-```
-pytest test_mod.py::TestClass::test_method
-```
-
-# Build the documentation
-
-NOTE: We currently don't have a readthedocs page set up, because they
-don't support private repos for free. Once we make this repo public,
-we'll set one up.
-
-So for now, in order to view the documentation, it must be built
-locally. You would do this if you've made changes locally to the
-documentation (or the docstrings) that you would like to examine
-before pushing. The virtual environment required to do so is defined
-in `docs/environment.yml`, so to create that environment and build the
-docs, do the following from the project's root directory:
+Once git is installed, you can clone the repository:
 
 ```
-# install sphinx and required packages to build documentation
-conda env create -f docs/environment.yml
-# activate the environment
-conda activate plenoptic_docs
-# install plenoptic
+git clone https://github.com/LabForComputationalVision/plenoptic.git
+```
+
+Enter your username and password and, after a bit of a wait, you
+should have a brand new plenoptic folder, `plenoptic`. Let's navigate
+to that folder, create a new virtual environment, and install the
+package:
+
+```
+cd plenoptic
+conda create -n plenoptic python==3.7
+conda activate plenoptic
 pip install -e .
-# build documentation
-cd docs/
-sphinx-apidoc -f -o . ../plenoptic
-make html
 ```
 
-The index page of the documentation will then be located at
-`docs/_build/html/index.html`, open it in your browser to navigate
-around.
+We have now created a new virtual environment called `plenoptic`,
+which originally contains only the bare requirements (`python`, `pip`,
+etc.). We then activate it (which means that everything we do to
+interact with python will use this virtual environment, so only the
+python version and packages included there; you should see `plenoptic`
+somewhere on your command line prompt) and install `plenoptic`. This
+will install all the requirements necessary for plenoptic to run.
 
-The `plenoptic_docs` environment you're creating contains the package
-`sphinx` and several extensions for it that are required to build the
-documentation. You also need to install `plenoptic` from your local
-version so that `sphinx` can import the library and grab all of the
-docstrings (you're installing the local version so you can see all the
-changes you've made).
+## Jupyter
 
-And then whenever you want to recreate / update your local
-documentation, run:
+The one additional thing you will want is to install
+[JupyterLab](https://jupyterlab.readthedocs.io/en/stable/),
+which we use for tutorial and example notebooks:
 
 ```
-conda activate plenoptic_docs
-cd docs/
-sphinx-apidoc -f -o . ../plenoptic
-make html
+conda install -c conda-forge jupyterlab
 ```
+
+Note we want to do this within our `plenoptic` environment. If you're
+running this section straight through, you won't need to do anything
+extra, but if you closed your terminal session after the last section
+(for example), you'll need to make sure to activate the correct
+environment first: `conda activate plenoptic`.
+
+# Getting started
+
+Once you've set everything up appropriately, navigate to the example
+directory, start up JupyterLab (which will open in a new browser tab),
+and start exploring the notebooks!
+
+```
+cd examples/
+jupyter lab
+```
+
+The notebooks contain examples and tutorials, and have been numbered
+in a recommended order. They're all very much under development, and
+we would appreciate any feedback!
+
+# Contributing
+
+For info on how to contribute, see the [CONTRIBUTING](CONTRIBUTING.md)
+file, including info on how to test the package and build its
+documentation.
