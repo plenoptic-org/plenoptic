@@ -23,7 +23,7 @@ def jacobian(y, x):
     return J
 
 
-def vector_jacobian_product(y, x, u):
+def vector_jacobian_product(y, x, u, retain_graph=True, create_graph=True):
     """Compute vector Jacobian product:
     vjp = u^T(∂y/∂x)
 
@@ -47,7 +47,7 @@ def vector_jacobian_product(y, x, u):
     # m = y.shape[0]
     assert (u.shape == y.shape)  # u is output shaped
 
-    uJ = torch.autograd.grad([y], [x], u, retain_graph=True, create_graph=True, allow_unused=True)[0].t()
+    uJ = torch.autograd.grad([y], [x], u, retain_graph=retain_graph, create_graph=create_graph, allow_unused=False)[0].t()
     return uJ
 
 
@@ -76,10 +76,13 @@ def jacobian_vector_product(y, x, v):
     using a trick described in https://j-towns.github.io/2017/06/12/A-new-trick.html
 
     """
+    device = x.device
+
     m = y.shape[0]  # output dimension
     assert (v.shape == x.shape)  # v is input shaped
-    u = torch.ones(m, 1, requires_grad=True)  # dummy variable (should not matter)
-    # u = torch.randn_like(y, requires_grad=True)
-    g = vector_jacobian_product(y, x, u).t()
-    Jv = vector_jacobian_product(g, u, v).t()
-    return Jv
+    # check if requires_grad necessary
+    # remove grad after Jv
+    u = torch.ones(m, 1, requires_grad=True, device=device)  # dummy variable (should not matter)
+    g = vector_jacobian_product(y, x, u, retain_graph=True).t()
+    Jv = vector_jacobian_product(g, u, v, retain_graph=False, create_graph=False).t()
+    return Jv.detach()
