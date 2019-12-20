@@ -39,6 +39,7 @@ import os.path as op
 from torch import nn
 from ...tools.data import to_numpy
 
+# see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
 
 
