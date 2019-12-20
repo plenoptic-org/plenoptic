@@ -363,4 +363,4 @@ def modskew(ch, sk, p=1):
     chm = chm + (m[1]/chm.pow(2).mean()).pow(.5)
     chm = chm + me
 
-    return chm.data
+    return chm.detach()

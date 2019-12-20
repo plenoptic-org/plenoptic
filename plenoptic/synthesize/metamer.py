@@ -335,7 +335,7 @@ class Metamer(nn.Module):
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        g = self.matched_image.grad.data
+        g = self.matched_image.grad.detach()
         self.scheduler.step(loss.item())
 
         if self.coarse_to_fine and self.scales[0] != 'all':
@@ -736,7 +736,7 @@ class Metamer(nn.Module):
             except RuntimeError:
                 pass
 
-        return self.matched_image.data.squeeze(), self.matched_representation.data.squeeze()
+        return self.matched_image.detach(), self.matched_representation.detach()
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
