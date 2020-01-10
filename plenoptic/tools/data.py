@@ -9,6 +9,26 @@ from .signal import rescale
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
 
+def to_numpy(x):
+    r"""cast tensor to numpy in the most conservative way possible
+    """
+    try:
+        x = x.detach().cpu().numpy().astype(np.float32)
+    except AttributeError:
+        # in this case, it's already a numpy array
+        pass
+    return x
+
+def torch_complex_to_numpy(x):
+    r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
+    to a numpy complex array
+    x: assumes x is a torch tensor with last dimension of size 2 where first component is the real
+    component and the second is the imaginary component
+    """
+    x_np = to_numpy(x)
+    x_np = x_np[...,0] + 1j * x_np[...,1]
+    return x_np
+
 def make_basic_stimuli(size=256, requires_grad=True):
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1

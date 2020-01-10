@@ -18,7 +18,7 @@ def correlate_downsample(image, filt, edges="reflect1", step=2, start=(0, 0), st
     if len(image.shape) == 3:
 
         if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
-            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1)
+            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1).to(image.device)
 
         if edges == 'zero':
             return nn.functional.conv1d(image, filt, bias=None, stride=step,
@@ -33,7 +33,7 @@ def correlate_downsample(image, filt, edges="reflect1", step=2, start=(0, 0), st
     if len(image.shape) == 4:
 
         if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
-            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1, 1)
+            filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1, 1).to(image.device)
 
         if edges == 'zero':
             return nn.functional.conv2d(image, filt, bias=None, stride=step,
@@ -83,8 +83,8 @@ def upsample_convolve(image, filt, edges="reflect1", step=(2, 2), start=(0, 0), 
         return nn.functional.conv_transpose2d(pad(image), filt, bias=None, stride=step, padding=4, output_padding=1, groups=n_channels, dilation=1)
 
 
-def blur_downsample(x, step=(2, 2)):
-    f = pt.named_filter('binom5')
+def blur_downsample(x,filtname = 'binom5', step=(2, 2)):
+    f = pt.named_filter(filtname)
     return correlate_downsample(x, filt=np.outer(f, f), step=step)
 
 
