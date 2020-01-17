@@ -4,42 +4,83 @@ from .signal import skew, kurtosis
 
 
 class Clamper(metaclass=abc.ABCMeta):
-    """Declare the interface for objects in the composition.
+    """Abstract superclass for all clampers
 
-    Implement default behavior for the interface common to all classes,
-    as appropriate.  Declare an interface for accessing and managing its
-    child components.  Define an interface for accessing a component's
-    parent in the recursive structure, and implement it if that's
-    appropriate (optional).
+    All clampers operate on images to clamp some properties of the
+    image, ensuring that they are equal to some pre-set properties
+    (typically, those same properties computed on another image).
 
     """
 
     @abc.abstractmethod
     def clamp(self):
+        """Clamp the image
+        """
         pass
 
 
 class RangeClamper(Clamper):
+    """Clamps the range between two values
+
+    This Clamper ensures that the range of the image is fixed. This is
+    the most common Clamper, since we generally want to make sure that
+    our synthesized images always lie between 0 and 1.
+
+    Parameters
+    ----------
+    range : tuple
+        tuple of floats that specify the possible range
+
     """
-    """
-    def __init__(self, range):
+    def __init__(self, range=(0, 1)):
         self.range = range
 
     def clamp(self, im):
-        """
+        """Clamp ``im`` so its range lies within ``range``
+
+        We use ``torch.clamp``, so that all values below
+        ``self.range[0]`` are set to ``self.range[0]`` and all values
+        above ``self.range[1]`` are set to ``self.range[1]``.
+
+        Parameters
+        ----------
+        im : torch.Tensor
+            The image to clamp
+
         """
         im = im.clamp(self.range[0], self.range[1])
         return im
 
 
 class TwoMomentsClamper(Clamper):
-    """
+    """Clamps the range, mean, and var to match that of target
+
+    This Clamper ensures that the range and the first two moments (mean
+    and variance) of an image match that of a target, specified at
+    initialization.
+
+    Parameters
+    ----------
+    targ : torch.Tensor
+        The image to match
+
     """
     def __init__(self, targ):
         self.targ = targ
 
     def clamp(self, im):
-        """
+        """Clamp ``im`` so its range and first two moments match ``targ``
+
+        We first match the mean and variance, then clamp the range (so
+        that all values below ``self.target.min()`` are set to
+        ``self.targ.min()`` and all values above ``self.targ.max()`` are
+        set to ``self.targ.max()``.)
+
+        Parameters
+        ----------
+        im : torch.Tensor
+            The image to clamp
+
         """
         # mean and variance
         im = (im - im.mean())/im.std() * self.targ.std() + self.targ.mean()
@@ -49,13 +90,35 @@ class TwoMomentsClamper(Clamper):
 
 
 class FourMomentsClamper(Clamper):
-    """
+    """Clamps the range and first four moments to match that of target
+
+    This Clamper ensures that the range and the first four moments
+     (mean, variance, skew, and kurtosis) of an image match that of a
+     target, specified at initialization.
+
+    Parameters
+    ----------
+    targ : torch.Tensor
+        The image to match
+
     """
     def __init__(self, targ):
         self.targ = targ
 
     def clamp(self, im):
-        """
+        """Clamp ``im`` so its range and first four moments match ``targ``
+
+        We first match the kurtosis, then the skew, then mean and
+        variance (together), then clamp the range (so that all values
+        below ``self.target.min()`` are set to ``self.targ.min()`` and
+        all values above ``self.targ.max()`` are set to
+        ``self.targ.max()``.)
+
+        Parameters
+        ----------
+        im : torch.Tensor
+            The image to clamp
+
         """
         # kurtosis
         im = modkurt(im, kurtosis(self.targ))
@@ -73,16 +136,14 @@ class RangeRemapper(Clamper):
 
     Instead of clamping, which sets every value below ``range[0]`` to
     ``range[0]`` (and similarly for ``range[1]``), here we remap the
-    whole range:
+    whole range.
 
-    ```
-    im = im + im.min() + range[0]
-    im = (im / im.max()) * range[1]
-    ```
+    Generally, it appears that ``RangeClamper`` is better for synthesis.
 
-    Note that we first check whether this is necessary: we don't do the
-    first line if im.min() > range[0], and we don't do the second if
-    im.max() < range[1]
+    Parameters
+    ----------
+    range : tuple
+        tuple of floats that specify the possible range
 
     """
     def __init__(self, range):
@@ -90,6 +151,23 @@ class RangeRemapper(Clamper):
 
     def clamp(self, im):
         """Remap the range of ``im`` to ``self.range``
+
+        We remap as follows:
+
+        ```
+        im = im + im.min() + range[0]
+        im = (im / im.max()) * range[1]
+        ```
+
+        Note that we first check whether this is necessary: we don't do
+        the first line if im.min() > range[0], and we don't do the
+        second if im.max() < range[1]
+
+        Parameters
+        ----------
+        im : torch.Tensor
+            The image to clamp
+
         """
         if im.min() < self.range[0]:
             im = im - im.min() + self.range[0]
