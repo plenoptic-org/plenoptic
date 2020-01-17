@@ -454,12 +454,14 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
         ``transition_region_width`` must be set; if gaussian, then
         ``std_dev`` must be set
     transition_region_width : `float` or None, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
+        The width of the cosine windows' transition region, parameter
+        :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
-        this is too small (say < 3/4), then the windows won't tile
-        correctly
+        The standard deviation of the Gaussian window. WARNING -- For
+        now, we only support ``std_dev=1`` (in order to ensure that the
+        windows tile correctly, intersect at the proper point, follow
+        scaling, and have proper aspect ratio; not sure we can make that
+        happen for other values).
 
     Returns
     -------
@@ -814,12 +816,14 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         ``transition_region_width`` must be set; if gaussian, then
         ``std_dev`` must be set
     transition_region_width : `float` or None, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods.
+        The width of the cosine windows' transition region, parameter
+        :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
-        this is too small (say < 3/4), then the windows won't tile
-        correctly
+        The standard deviation of the Gaussian window. WARNING -- For
+        now, we only support ``std_dev=1`` (in order to ensure that the
+        windows tile correctly, intersect at the proper point, follow
+        scaling, and have proper aspect ratio; not sure we can make that
+        happen for other values).
 
     Returns
     -------
@@ -918,9 +922,11 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
-        this is too small (say < 3/4), then the windows won't tile
-        correctly
+        The standard deviation of the Gaussian window. WARNING -- For
+        now, we only support ``std_dev=1`` (in order to ensure that the
+        windows tile correctly, intersect at the proper point, follow
+        scaling, and have proper aspect ratio; not sure we can make that
+        happen for other values).
 
     Returns
     -------
@@ -1150,9 +1156,11 @@ class PoolingWindows(nn.Module):
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
-        this is too small (say < 3/4), then the windows won't tile
-        correctly
+        The standard deviation of the Gaussian window. WARNING -- For
+        now, we only support ``std_dev=1`` (in order to ensure that the
+        windows tile correctly, intersect at the proper point, follow
+        scaling, and have proper aspect ratio; not sure we can make that
+        happen for other values).
 
     Attributes
     ----------
