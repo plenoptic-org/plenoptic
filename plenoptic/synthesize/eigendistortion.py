@@ -195,7 +195,9 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
     Returns
     -------
     eig_vals: torch.tensor
-        (n_steps,) tensor of eigenvalues, sorted in descending order.
+        (n_steps,) if e_vecs is None. tensor of eigenvalues, sorted in descending order.
+        (len(e_vecs),) if e_vecs is not None. eigenvalues corresponding to the eigenvectors at that index.
+        Note: this is most accurate for extremal eigenvalues, e.g. top (bottom) 10,
     eig_vecs: toch.tensor
         (n, len(e_vecs)) tensor of n_steps eigenvectors. If return_evecs=False, then returned  eig_vecs is an empty tensor.
     eig_vecs_ind: array-like
@@ -220,6 +222,10 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
         n_steps = n
     elif n_steps < 100:
         Warning("Consider increasing n_steps. Convergence of extremal eigenpairs is only guaranteed when n_steps is large.")
+
+    if e_vecs is not None and n_steps < 2*len(e_vecs):
+        Warning("Consider increasing n_steps to at least 2*len(e_vecs), but preferably much much more."
+                " Convergence of extremal eigenpairs is only guaranteed when n_steps is large.")
 
     if orthogonalize not in ['full', None]:
         raise Exception("orthogonalize must be {'full', None}, instead got %s" % orthogonalize)
@@ -285,11 +291,12 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
         eig_vecs_ind = e_vecs
 
         eig_vecs = Q.mm(V).flip(dims=(1,))[:, vecs_to_return]
+        eig_vals = eig_vals[vecs_to_return]
     else:
-        print("Returning empty Tensor of eigenvectors. Set e_vecs if you want eigvectors returned.")
+        print("Returning all computed eigenvals and 0 eigenvectors. Set e_vecs if you want eigvectors returned.")
         eig_vals, _ = T.symeig(eigenvectors=False)  # expensive final step
         eig_vecs = torch.zeros(0)
-        eig_vecs_ind = torch.arange(0,len(eig_vals))
+        eig_vecs_ind = torch.zeros(0)
 
     return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
 
@@ -432,7 +439,13 @@ class Eigendistortion(nn.Module):
         elif method == 'lanczos' and n_steps is not None:
             eig_vals, eig_vecs, eig_vecs_ind = lanczos(self.out_flattensor, self.image_flattensor, n_steps=n_steps, orthogonalize=orthogonalize, e_vecs=e_vecs, verbose=verbose, debug_A=debug_A)
             self.distortions['eigenvalues'] = eig_vals.type(torch.float32).detach()
-            self.distortions['eigenvectors'] = self.vector_to_image(eig_vecs.type(torch.float32).detach())
+
+            # reshape into image if not empty tensor
+            if eig_vecs.ndim == 2 and eig_vecs.shape[0] == self.im_height*self.im_width:
+                self.distortions['eigenvectors'] = self.vector_to_image(eig_vecs.type(torch.float32).detach())
+            else:
+                self.distortions['eigenvectors'] = eig_vecs
+
             self.distortions['eigenvector_index'] = eig_vecs_ind
 
         return self.distortions
