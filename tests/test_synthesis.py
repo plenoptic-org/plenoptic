@@ -23,12 +23,12 @@ class TestEigendistortions(object):
     # Could include
 
     from plenoptic.synthesize.eigendistortion import Eigendistortion
-
-    img_small = torch.randn(1, 1, 30, 30).to(device)
+    img_small = torch.randn(1, 1, 20, 20).to(device)
+    torch.manual_seed(0)
 
     img = matplotlib.image.imread(op.join(DATA_DIR, 'einstein.png'))
-    img_np = img/np.max(img)
-    img_large = torch.Tensor(img_np).view([1, 1, 254, 266]).to(device)
+    img_np = img[..., 0] / np.max(img)
+    img_large = torch.Tensor(img_np).view([1, 1, 256, 256]).to(device)
 
     @staticmethod
     def get_synthesis_object():
@@ -43,16 +43,16 @@ class TestEigendistortions(object):
     def test_jacobian(self):
         # invert matrix explicitly
         e_small, _ = get_synthesis_object()
-        e_small.synthesize(method='jacobian')
+        e_small.synthesize(method='jacobian');
 
     def test_power_method(self):
         e_small, e_large = get_synthesis_object()
         e_small.synthesize(method='power', n_steps=5)
-        e_large.synthesize(method='power', n_steps=5)
+        e_large.synthesize(method='power', n_steps=5);
 
     def test_lanczos(self):
         # return first and last two eigenvectors
         # full re-orthogonalization
         e_small, e_large = get_synthesis_object()
         e_small.synthesize(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
-        e_large.synthesize(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
+        e_large.synthesize(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1]);
