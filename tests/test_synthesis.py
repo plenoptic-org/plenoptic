@@ -24,30 +24,35 @@ class TestEigendistortions(object):
 
     from plenoptic.synthesize.eigendistortion import Eigendistortion
 
-    mdl = Front_End().to(device)  # initialize simple model with which to compute eigendistortions
     img_small = torch.randn(1, 1, 30, 30).to(device)
 
     img = matplotlib.image.imread(op.join(DATA_DIR, 'einstein.png'))
     img_np = img/np.max(img)
     img_large = torch.Tensor(img_np).view([1, 1, 254, 266]).to(device)
 
-    e_small = Eigendistortion(img_rand, mdl, dtype=torch.float32).to(device)
-    e_large = Eigendistortion(img, mdl, dtype=torch.float32).to(device)
+    @staticmethod
+    def get_synthesis_object():
+
+        mdl = Front_End().to(device)  # initialize simple model with which to compute eigendistortions
+        e_small = Eigendistortion(img_small, mdl, dtype=torch.float32).to(device)
+        e_large = Eigendistortion(img_large, mdl, dtype=torch.float32).to(device)
+
+        return e_small, e_large
 
     # Numerical eigenvector approximations
     def test_jacobian(self):
         # invert matrix explicitly
-        e_small.synthesis(method='jacobian')
+        e_small, _ = get_synthesis_object()
+        e_small.synthesize(method='jacobian')
 
     def test_power_method(self):
-        e_small.synthesis(method='power', n_steps=5)
-        e_large.synthesis(method='power', n_steps=5)
+        e_small, e_large = get_synthesis_object()
+        e_small.synthesize(method='power', n_steps=5)
+        e_large.synthesize(method='power', n_steps=5)
 
     def test_lanczos(self):
         # return first and last two eigenvectors
         # full re-orthogonalization
-        e_small.synthesis(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
-        e_large.synthesis(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
-
-
-
+        e_small, e_large = get_synthesis_object()
+        e_small.synthesize(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
+        e_large.synthesize(method='lanczos', orthogonalize='full', n_steps=20, e_vecs=[0, 1, -2, -1])
