@@ -16,9 +16,44 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     simply inherited, some of them will need to be different for each
     sub-class and thus are marked as abstract methods here
 
+    An important feature of the Synthesis class (that is not transparent
+    to the user but helpful for developers) is the ``self.names``
+    attribute. For the most part, all synthesis methods will want to
+    update the ``matched_image`` to make it more similar to the
+    ``target_image`` (for some definition of similar which is defined by
+    a combination of ``model`` and ``objective_function``). By default,
+    we expect everything to be named in just that manner, but you can
+    shift around what attributes you use through the use of the ``(key,
+    value)`` pairs in the ``self.names`` dictionary. Throughout this
+    class, there will be extra info about the relevant attributes in the
+    docstrings and comments.
+
     """
     def __init__(self):
+        self.names = {'target_representation': 'target_representation',
+                      'target_image': 'target_image',
+                      'matched_representation': 'matched_representation',
+                      'matched_image': 'matched_image',
+                      'model': 'model'}
         torch.nn.Module.__init__(self)
+
+    def update_target(self, model):
+        """Update attributes to target for synthesis
+
+        This updates the values of name to the defaults:
+        - model: 'model'
+        - target_representation: 'target_representation'
+        - matched_representation: 'matched_representation'
+
+        Parameters
+        ----------
+        model : str
+            Str defining the model. Ignored here
+
+        """
+        self.names.update({'model': 'model',
+                           'target_representation': 'target_representation',
+                           'matched_representation': 'matched_representation'})
 
     @abc.abstractmethod
     def synthesize():
@@ -30,8 +65,25 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         r"""Analyze the image, that is, obtain the model's representation of it
 
         Any kwargs are passed to the model's forward method
+
+        We check ``self.names['model']`` to determine the attribute
+        where model is stored. By default, this is ``self.model``, but
+        you can have multiple models (e.g., MAD competition has two
+        models, ``self.model_1`` and ``self.model_2``, and
+        ``self.names['model']`` specifies which to use).
+
+        Parameters
+        ----------
+        x : torch.tensor
+            The image to analyze
+
+        Returns
+        -------
+        y : torch.tensor
+            The model's representation of x
         """
-        y = self.model(x, **kwargs)
+        model = getattr(self, self.names['model'])
+        y = model(x, **kwargs)
         if isinstance(y, list):
             return torch.cat([s.squeeze().view(-1) for s in y]).unsqueeze(1)
         else:
@@ -40,11 +92,26 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     def objective_function(self, x, y):
         r"""Calculate the loss between x and y
 
-        This is what we minimize. Currently it's the L2-norm
+        This is what we minimize. Currently it's the L2-norm of their
+        difference: ``torch.norm(x-y, p=2)``.
+
+        Parameters
+        ----------
+        x : torch.tensor
+            the first element
+        y : torch.tensor
+            the second element
+
+        Returns
+        -------
+        loss : torch.tensor
+            single-element tensor containing the L2-norm of the
+            difference between x and y
+
         """
         return torch.norm(x - y, p=2)
 
-    def _init_optimizer(self, optimizer, lr, **optimizer_kwargs):
+    def _init_optimizer(self, optimizer, lr, scheduler=True, **optimizer_kwargs):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -52,8 +119,42 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         learning rate (e.g., when moving to a different scale for
         coarse-to-fine optimization).
 
+        we also (optionally) initialize a learning rate scheduler which
+        will reduce the LR on plateau by a factor of .5. To turn this
+        behavior off, pass ``scheduler=False``
+
+        optimizer options. each has some default arguments which are
+        explained below. with the exception of ``'GD'``, each of these
+        can be overwritten by values passed as ``optimizer_kwargs``:
+        - 'GD': gradient descent, ``optim.SGD(nesterov=False,
+          momentum=0, weight_decay=0)`` (these cannot be modified)
+        - 'SGD': stochastic gradient descent, ``optim.SGD(nesterov=True,
+          momentum=.8)``
+        - 'LBFGS': limited-memory BFGS , ``optim.LBFGS(history_size=10,
+          max_iter=4)``
+        - 'Adam': Adam, ``optim.Adam(amsgrad=True)``
+        - 'AdamW': AdamW, ``optim.AdamW(amsgrad=True)``
+
+        Parameters
+        ----------
+        optimizer : {'GD', 'SGD', 'LBFGS', 'Adam', 'AdamW'}
+            the optimizer to initialize.
+        lr : float
+            the learning rate of the optimizer
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
+        optimizer_kwargs :
+            passed to the optimizer's initializer
+
         """
-        if optimizer == 'SGD':
+        if optimizer == 'GD':
+            # std gradient descent
+            self.optimizer = optim.SGD([self.matched_image], lr=lr, nesterov=False, momentum=0,
+                                       weight_decay=0, **optimizer_kwargs)
+        elif optimizer == 'SGD':
             for k, v in zip(['nesterov', 'momentum'], [True, .8]):
                 if k not in optimizer_kwargs:
                     optimizer_kwargs[k] = v
@@ -77,7 +178,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             self.optimizer = optim.AdamW([self.matched_image], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.5)
+        if scheduler:
+            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.5)
+        else:
+            self.scheduler = None
 
     def _closure(self):
         r"""An abstraction of the gradient calculation, before the optimization step.
@@ -93,6 +197,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             2) beyond removing random fraction of the coefficients, one
                could schedule the optimization (eg. coarse to fine)
 
+        Additionally, this is where:
+        - matched_representation (the attribute given by
+          ``self.names['matched_representaiton']``) is updated
+        - ``loss.backward()`` is called
+
         """
         self.optimizer.zero_grad()
         analyze_kwargs = {}
@@ -101,10 +210,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # coarse_to_fine was False
             if self.scales[-1] != 'all':
                 analyze_kwargs['scales'] = [self.scales[-1]]
-        self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
-        target_rep = self.analyze(self.target_image, **analyze_kwargs)
+        setattr(self, self.names['matched_representation'],
+                self.analyze(getattr(self, self.names['matched_image']), **analyze_kwargs))
+        target_rep = self.analyze(getattr(self, self.names['target_image']), **analyze_kwargs)
         if self.store_progress:
-            self.matched_representation.retain_grad()
+            getattr(self, self.names['matched_representation']).retain_grad()
 
         # here we get a boolean mask (bunch of ones and zeroes) for all
         # the statistics we want to include. We only do this if the loss
@@ -115,30 +225,32 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
         # else, we use all of the statistics
         else:
-            error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
+            error_idx = torch.nonzero(torch.ones_like(getattr(self, self.names['matched_representation']).flatten()))
         # for some reason, pytorch doesn't have the equivalent of
         # np.random.permutation, something that returns a shuffled copy
         # of a tensor, so we use numpy's version
         idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
         # then we optionally randomly select some subset of those.
         idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-        loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
+        loss = self.objective_function(getattr(self, self.names['matched_representation']).flatten()[idx_sub],
                                        target_rep.flatten()[idx_sub])
 
         loss.backward(retain_graph=True)
 
         return loss
 
-    def _optimizer_step(self, pbar):
+    def _optimizer_step(self, pbar=None, **kwargs):
         r"""Compute and propagate gradients, then step the optimizer to update matched_image
 
         Parameters
         ----------
-        pbar : tqdm.tqdm
+        pbar : tqdm.tqdm or None, optional
             A tqdm progress-bar, which we update with a postfix
             describing the current loss, gradient norm, and learning
             rate (it already tells us which iteration and the time
-            elapsed)
+            elapsed). If None, then we don't display any progress
+        kwargs :
+            will also display in the progress bar's postfix
 
         Returns
         -------
@@ -176,19 +288,24 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
         g = self.matched_image.grad.data
-        self.scheduler.step(loss.item())
+        # optionally step the scheduler
+        if self.scheduler is not None:
+            self.scheduler.step(loss.item())
 
         if self.coarse_to_fine and self.scales[-1] != 'all':
             with torch.no_grad():
-                full_matched_rep = self.analyze(self.matched_image)
-                loss = self.objective_function(full_matched_rep, self.target_representation)
+                full_matched_rep = self.analyze(getattr(self, self.names['matched_image']))
+                loss = self.objective_function(full_matched_rep,
+                                               getattr(self, self.names['target_representation']))
         else:
-            loss = self.objective_function(self.matched_representation, self.target_representation)
+            loss = self.objective_function(getattr(self, self.names['matched_representation']),
+                                           getattr(self, self.names['target_representation']))
 
         postfix_dict.update(dict(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
-                                 learning_rate=self.optimizer.param_groups[0]['lr']))
+                                 learning_rate=self.optimizer.param_groups[0]['lr'], **kwargs))
         # add extra info here if you want it to show up in progress bar
-        pbar.set_postfix(**postfix_dict)
+        if pbar is not None:
+            pbar.set_postfix(**postfix_dict)
         return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     @abc.abstractmethod
