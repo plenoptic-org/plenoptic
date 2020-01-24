@@ -9,6 +9,19 @@
 |   learn    	| {x, y} 	|   {θ}  	|
 | synthesize 	| {y, θ} 	|   {x}  	|
 
+# Project Vision
+
+`plenoptic` is a project by graduate students and postdocs in the Lab
+for Computational Vision to build a python library that enables
+researchers who build computational models that operate on and extract
+information from images (in neuroscience, computer vision, or other
+fields) to interrogate their models, better understand how they work,
+and improve their ability to run experiments for testing them. This is
+an open project because the included methods have been described in
+the literature but do not have easy-to-use, widely-available
+implementations and we believe that science functions best when it is
+transparent, accessible, and inclusive.
+
 # NOTE
 
 We only support python 3.6 and 3.7
