@@ -201,6 +201,13 @@ class MADCompetition(Synthesis):
         target_loss = self.objective_function(self.initial_representation_2,
                                               self.target_representation_2)
         for i in range(n_iter):
+            # in Appendix C of the paper, they just add nu*grad to get
+            # the proposed image. here we also multiply by a -lr because
+            # of how pytorch updates images. see torch/optim/sgd.py, at
+            # the very end of the step() function and you'll see that
+            # when updating parameters, they add -lr * grad. thus, this
+            # is what we need in order to predict what the updated image
+            # will be
             proposed_img = self.matched_image - lr * nu * grad
             proposed_loss = self.objective_function(self.analyze(proposed_img),
                                                     self.target_representation_2)
