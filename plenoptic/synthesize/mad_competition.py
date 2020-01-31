@@ -393,13 +393,13 @@ class MADCompetition(Synthesis):
         self.matched_representation_1 = self.analyze(self.matched_image)
         self.initial_representation_1 = self.analyze(self.initial_image)
         self.loss_norm = self.objective_function(self.target_representation_1,
-                                                 self.initial_representation_1, False)
+                                                 self.initial_representation_1)
         self.update_target('model_2')
         self.target_representation_2 = self.analyze(self.target_image)
         self.matched_representation_2 = self.analyze(self.matched_image)
         self.initial_representation_2 = self.analyze(self.initial_image)
         self.loss_maintain_norm = self.objective_function(self.target_representation_2,
-                                                          self.initial_representation_2, False)
+                                                          self.initial_representation_2)
 
         optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
         self.optimizer_kwargs = optimizer_kwargs
