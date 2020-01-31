@@ -216,20 +216,6 @@ class MADCompetition(Synthesis):
             nu_optim.step()
             nu_scheduler.step(actual_loss.item())
 
-        # this is a manual line search, which is less efficient than the above
-        # with torch.no_grad():
-        #     nu = 0
-        #     target_loss = self.objective_function(self.initial_representation_2),
-        #                                           self.target_representation_2)
-        #     for i in [1000, 100, 10, 1, .1]:
-        #         nus = np.linspace(nu-i, nu+i, 21)
-        #         losses = []
-        #         for nu in nus:
-        #             tmp_rep = self.analyze(self.matched_image - lr * nu * grad)
-        #             proposed_loss = self.objective_function(tmp_rep,
-        #                                                     self.target_representation_2)
-        #             losses.append(abs(proposed_loss - target_loss))
-        #         nu = nus[np.argmin(losses)]
         return nu
 
     def _closure(self):
