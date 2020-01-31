@@ -256,7 +256,7 @@ class MADCompetition(Synthesis):
             loss = super()._closure()
             grad = self.matched_image.grad.clone()
             # find the best nu
-            nu = self._find_nu(grad)
+            nu = self._find_nu(grad, self.fix_step_n_iter)
             self.nu[self.synthesis_target].append(nu)
             # update the gradient
             self.matched_image.grad = nu * grad
@@ -297,7 +297,7 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
                    optimizer='Adam', clamper=None, store_progress=False, save_progress=False,
-                   save_path='mad.pt', **optimizer_kwargs):
+                   save_path='mad.pt', fix_step_n_iter=10, **optimizer_kwargs):
         r"""Synthesize two pairs of maximally-differentiation images
 
         Currently, only ``synthesis_target=='model_1_min'`` is supported.
@@ -349,6 +349,16 @@ class MADCompetition(Synthesis):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
+        fix_step_n_iter : int, optional
+            Each iteration of synthesis has two steps: update the image
+            to increase/decrease one model's loss (main step), then
+            update it to ensure that the other model's loss is as
+            constant as possible (fix step). In order to do that, we use
+            a secondary optimization loop to determine how big a step we
+            should take (the value of ``nu``). ``fix_step_n_iter``
+            determines how many iterations we should use in that loop to
+            find nu. Obviously, the larger this, the longer synthesis
+            will take.
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -358,6 +368,7 @@ class MADCompetition(Synthesis):
         self.seed = seed
         torch.manual_seed(seed)
         np.random.seed(seed)
+        self.fix_step_n_iter = fix_step_n_iter
 
         self.synthesis_target = synthesis_target
         self.initial_image = (self.target_image + initial_noise *
