@@ -84,28 +84,21 @@ class MADCompetition(Synthesis):
         self.names['model'] = 'model_1'
         self.names['step'] = 'main'
 
-        self.saved_representation_1 = dict((k, []) for k in ['model_1_min', 'model_1_max',
-                                                             'model_2_min', 'model_2_max'])
-        self.saved_representation_2 = dict((k, []) for k in ['model_1_min', 'model_1_max',
-                                                             'model_2_min', 'model_2_max'])
-        self.saved_image = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                                  'model_2_max'])
-        self.saved_image_gradient = dict((k, []) for k in ['model_1_min', 'model_1_max',
-                                                           'model_2_min', 'model_2_max'])
-        self.saved_representation_1_gradient = dict((k, []) for k in ['model_1_min', 'model_1_max',
-                                                                      'model_2_min', 'model_2_max'])
-        self.saved_representation_2_gradient = dict((k, []) for k in ['model_1_min', 'model_1_max',
-                                                                      'model_2_min', 'model_2_max'])
-        self.loss = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                           'model_2_max'])
-        self.loss_maintain = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                                    'model_2_max'])
-        self.gradient = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                               'model_2_max'])
-        self.learning_rate = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                                    'model_2_max'])
-        self.nu = dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                         'model_2_max'])
+        def _init_dict():
+            return dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
+                                          'model_2_max'])
+
+        self.saved_representation_1 = _init_dict()
+        self.saved_representation_2 = _init_dict()
+        self.saved_image = _init_dict()
+        self.saved_image_gradient = _init_dict()
+        self.saved_representation_1_gradient = _init_dict()
+        self.saved_representation_2_gradient = _init_dict()
+        self.loss_1 = _init_dict()
+        self.loss_2 = _init_dict()
+        self.gradient = _init_dict()
+        self.learning_rate = _init_dict()
+        self.nu = _init_dict()
 
         self.coarse_to_fine = False
         self.scales = []
