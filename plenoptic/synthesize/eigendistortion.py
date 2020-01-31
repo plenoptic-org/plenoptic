@@ -28,13 +28,12 @@ def fisher_info_matrix_vector_product(y, x, v):
     Jacobian transpose and Jacobian: F = J.T J
     Hence:
     Fv = J.T (Jv)
-       = ((jvp.T) J).T
     """
-    Jv = jacobian_vector_product(y, x, v)
 
-    # detach the following product or else graph history accumulates and memory explodes
-    Fv = vector_jacobian_product(y, x, Jv, retain_graph=True, create_graph=False).detach()
-    return Fv.t()
+    Jv = jacobian_vector_product(y, x, v)
+    Fv = vector_jacobian_product(y, x, Jv)
+
+    return Fv
 
 
 def implicit_FIM_eigenvalue(y, x, v):
@@ -42,7 +41,7 @@ def implicit_FIM_eigenvalue(y, x, v):
     lmbda = v.T F v
     """
     Fv = fisher_info_matrix_vector_product(y, x, v)
-    lmbda = torch.mm(Fv.t(), v)  # conjugate transpose
+    lmbda = torch.mm(Fv.t(), v)  # transpose
     return lmbda
 
 
