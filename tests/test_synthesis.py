@@ -113,7 +113,7 @@ class TestAutodiffFunctions(object):
         """variables to be reused across tests in this class"""
         torch.manual_seed(0)
 
-        im_dim = 20  # 2x2 image
+        im_dim = 20  # 50x50 image
         k = 2  # num vectors with which to compute vjp, jvp, Fv
 
         ed, _ = get_synthesis_object(small_dim=im_dim, large_dim=None)  # eigendistortion object
@@ -153,4 +153,10 @@ class TestAutodiffFunctions(object):
         V = torch.randn(x_dim, k)
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
+
+        jac = autodiff.jacobian(y, x)
+
+        Fv2 = jac.T @ jac @ V  # manually compute product to compare accuracy
+
         assert Fv.shape == (x_dim, k)
+        assert Fv2.allclose(Fv, rtol=1E-2)

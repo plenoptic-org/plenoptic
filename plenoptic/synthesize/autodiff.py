@@ -27,6 +27,9 @@ def jacobian(y, x):
                                          retain_graph=True, create_graph=True)[0]
                      for i in range(y.size(0))], dim=-1).squeeze().t()
 
+    if y.shape[0] == 1:  # need to return a 2D tensor even if y dimensionality is 1
+        J = J.unsqueeze(0)
+
     return J.detach()
 
 
