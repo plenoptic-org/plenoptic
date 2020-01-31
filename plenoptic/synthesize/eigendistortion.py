@@ -31,7 +31,7 @@ def fisher_info_matrix_vector_product(y, x, v):
     """
 
     Jv = jacobian_vector_product(y, x, v)
-    Fv = vector_jacobian_product(y, x, Jv)
+    Fv = vector_jacobian_product(y, x, Jv, detach=True)
 
     return Fv
 

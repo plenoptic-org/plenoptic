@@ -67,11 +67,12 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
     """
 
     assert y.shape[-1] == 1
-    assert U.shape[0] ==y.shape[0]
+    assert U.shape[0] == y.shape[0]
 
     k = U.shape[-1]
     product = []
-
+    print("U shape:")
+    print(U.shape)
     for i in range(k):
         grad_x, = torch.autograd.grad(y, x, U[:, i].unsqueeze(-1),
                                       retain_graph=retain_graph, create_graph=create_graph,
@@ -123,5 +124,5 @@ def jacobian_vector_product(y, x, V):
     # do vjp twice; set detach = False first using dummy_vec
     g = vector_jacobian_product(y, x, dummy_vec, retain_graph=True, create_graph=True, detach=False)
     Jv = vector_jacobian_product(g, dummy_vec, V, retain_graph=True, create_graph=False, detach=True)
-
+    print(Jv.requires_grad)
     return Jv
