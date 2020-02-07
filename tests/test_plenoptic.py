@@ -290,8 +290,8 @@ class TestPooling(object):
     def test_ecc_windows(self):
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_width=1)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=.5)
+        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=1)
 
     def test_angle_windows(self):
         windows = po.simul.pooling.polar_angle_windows(4, (256, 256))
@@ -303,34 +303,48 @@ class TestPooling(object):
 
     def test_calculations(self):
         # these really shouldn't change, but just in case...
-        assert po.simul.pooling.calc_angular_window_width(2) == np.pi
+        assert po.simul.pooling.calc_angular_window_spacing(2) == np.pi
         assert po.simul.pooling.calc_angular_n_windows(2) == np.pi
         with pytest.raises(Exception):
-            po.simul.pooling.calc_eccentricity_window_width()
-        assert po.simul.pooling.calc_eccentricity_window_width(n_windows=4) == 0.8502993454155389
-        assert po.simul.pooling.calc_eccentricity_window_width(scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_width(5, 10, n_windows=4) == 0.1732867951399864
+            po.simul.pooling.calc_eccentricity_window_spacing()
+        assert po.simul.pooling.calc_eccentricity_window_spacing(n_windows=4) == 0.8502993454155389
+        assert po.simul.pooling.calc_eccentricity_window_spacing(scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, scaling=.87) == 0.8446653390527211
+        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, n_windows=4) == 0.1732867951399864
         assert po.simul.pooling.calc_eccentricity_n_windows(0.8502993454155389) == 4
         assert po.simul.pooling.calc_eccentricity_n_windows(0.1732867951399864, 5, 10) == 4
         assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
         assert po.simul.pooling.calc_scaling(4, 5, 10) == 0.17350368946058647
         assert np.isinf(po.simul.pooling.calc_scaling(4, 0))
 
-    def test_PoolingWindows(self):
+    @pytest.mark.parametrize('num_scales', [1, 3])
+    @pytest.mark.parametrize('transition_region_width', [.5, 1])
+    def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
-        pw = pw.to(device)
-        pw(im)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
-        pw = pw.to(device)
-        pw(im)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
+        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                             transition_region_width=transition_region_width,
+                                             window_type='cosine',)
         pw = pw.to(device)
         pw(im)
         with pytest.raises(Exception):
             po.simul.PoolingWindows(.2, (64, 64), .5)
+
+    @pytest.mark.parametrize('num_scales', [1, 3])
+    def test_PoolingWindows(self, num_scales):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                             window_type='gaussian', std_dev=1)
+        pw = pw.to(device)
+        pw(im)
+        # we only support std_dev=1
+        with pytest.raises(Exception):
+            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                            window_type='gaussian', std_dev=2)
+        with pytest.raises(Exception):
+            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                            window_type='gaussian', std_dev=.5)
 
     def test_PoolingWindows_project(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -659,11 +673,33 @@ class TestVentralStream(object):
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3)
+
+    def test_cone_nonlinear(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        v1_lin = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1)
+        v1 = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1/3)
+        rgc_lin = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1)
+        rgc = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1/3)
+        for model in [v1, v1_lin, rgc, rgc_lin]:
+            model(im)
+        # v1 mean luminance and rgc representation, for same cone power
+        # and scaling, should be identical
+        (v1.representation['mean_luminance'] == rgc.representation).all()
+        # v1 mean luminance and rgc representation, for same cone power
+        # and scaling, should be identical
+        (v1_lin.representation['mean_luminance'] == rgc_lin.representation).all()
+        # similarly, the representations should be different if cone
+        # power is different
+        (v1_lin.representation['mean_luminance'] != v1.representation['mean_luminance']).all()
+        # similarly, the representations should be different if cone
+        # power is different
+        (rgc_lin.representation != rgc.representation).all()
 
     @pytest.mark.parametrize("frontend", [True, False])
     @pytest.mark.parametrize("steer", [True, False])
@@ -688,7 +724,7 @@ class TestMetamers(object):
     def test_metamer_save_load(self, tmp_path):
 
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -704,7 +740,7 @@ class TestMetamers(object):
 
     def test_metamer_save_load_reduced(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -723,7 +759,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -731,7 +767,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -739,7 +775,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -747,7 +783,7 @@ class TestMetamers(object):
 
     def test_metamer_store_rep_4(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -756,7 +792,7 @@ class TestMetamers(object):
 
     def test_metamer_plotting_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -768,7 +804,7 @@ class TestMetamers(object):
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
@@ -789,7 +825,7 @@ class TestMetamers(object):
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
@@ -799,34 +835,6 @@ class TestMetamers(object):
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
-
-    def test_metamer_nans(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = im / 255
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
-        initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
-                                           dtype=torch.float32)
-
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
-        metamer = po.synth.Metamer(im, v1)
-        clamper = po.RangeClamper((0, 1))
-        # this gets raised because we try to use saved_image_ticker,
-        # which was never initialized, since we're not saving images
-        with pytest.raises(IndexError):
-            metamer.synthesize(clamper=clamper, learning_rate=10, max_iter=4, loss_thresh=1e-8,
-                               initial_image=initial_image)
-        # need to re-initialize this for the following run
-        initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
-                                           dtype=torch.float32)
-        matched_im, _ = metamer.synthesize(clamper=clamper, learning_rate=10, store_progress=True,
-                                           max_iter=4, loss_thresh=1e-8,
-                                           initial_image=initial_image)
-        # this should hit a nan as it runs, leading the second saved
-        # image to be all nans, but, because of our way of handling
-        # this, matched_image should have no nans
-        assert torch.isnan(metamer.saved_image[-1]).all(), "This should be all NaNs!"
-        assert not torch.isnan(metamer.matched_image).any(), "There should be no NaNs!"
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -870,7 +878,7 @@ class TestMetamers(object):
 
     def test_metamer_coarse_to_fine(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(device)
         metamer = po.synth.Metamer(im, v1)
@@ -882,6 +890,35 @@ class TestMetamers(object):
                            coarse_to_fine=True, loss_change_fraction=.5)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
+
+    @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1)),
+                                         'clamp2', 'clamp4'])
+    @pytest.mark.parametrize("clamp_each_iter", [True, False])
+    @pytest.mark.parametrize("cone_power", [1, 1/3])
+    def test_metamer_clamper(self, clamper, clamp_each_iter, cone_power):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        if type(clamper) == str and clamper == 'clamp2':
+            clamper = po.TwoMomentsClamper(im)
+        elif type(clamper) == str and clamper == 'clamp4':
+            clamper = po.FourMomentsClamper(im)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=cone_power)
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        if cone_power == 1/3 and not clamp_each_iter:
+            # these will fail because we'll end up outside the 0, 1 range
+            with pytest.raises(IndexError):
+                metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
+        else:
+            metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
+
+    def test_metamer_no_clamper(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=1)
+        rgc = rgc.to(device)
+        metamer = po.synth.Metamer(im, rgc)
+        metamer.synthesize(max_iter=3, clamper=None)
 
 
 class TestPerceptualMetrics(object):
