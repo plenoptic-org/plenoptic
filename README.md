@@ -22,6 +22,27 @@ the literature but do not have easy-to-use, widely-available
 implementations and we believe that science functions best when it is
 transparent, accessible, and inclusive.
 
+# Roadmap
+
+See the [github
+project](https://github.com/LabForComputationalVision/plenoptic/projects/1)
+for a more detailed roadmap, but at the high level:
+
+- Short term:
+  1. Finalize Portilla-Simoncelli texture statistics
+  2. Add MAD competition
+  3. Create `Synthesis` superclass
+- Medium term:
+  1. Finalize geodesics
+  2. Get eigendistortion and geodesics to use `Synthesis` superclass
+  3. Write more documentation and tutorials
+  4. Finalize model API, create superclass
+  5. Add more models
+- Long term:
+  1. Present poster at conference to advertise to users
+  2. Submit paper to Journal of Open Source Software to get something
+     for people to cite
+
 # NOTE
 
 We only support python 3.6 and 3.7
