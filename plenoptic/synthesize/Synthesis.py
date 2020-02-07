@@ -16,44 +16,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     simply inherited, some of them will need to be different for each
     sub-class and thus are marked as abstract methods here
 
-    An important feature of the Synthesis class (that is not transparent
-    to the user but helpful for developers) is the ``self.names``
-    attribute. For the most part, all synthesis methods will want to
-    update the ``matched_image`` to make it more similar to the
-    ``target_image`` (for some definition of similar which is defined by
-    a combination of ``model`` and ``objective_function``). By default,
-    we expect everything to be named in just that manner, but you can
-    shift around what attributes you use through the use of the ``(key,
-    value)`` pairs in the ``self.names`` dictionary. Throughout this
-    class, there will be extra info about the relevant attributes in the
-    docstrings and comments.
-
     """
     def __init__(self):
-        self.names = {'target_representation': 'target_representation',
-                      'target_image': 'target_image',
-                      'matched_representation': 'matched_representation',
-                      'matched_image': 'matched_image',
-                      'model': 'model'}
-        torch.nn.Module.__init__(self)
-
-    def update_target(self, model):
-        """Update attributes to target for synthesis
-
-        This updates the values of name to the defaults:
-        - model: 'model'
-        - target_representation: 'target_representation'
-        - matched_representation: 'matched_representation'
-
-        Parameters
-        ----------
-        model : str
-            Str defining the model. Ignored here
-
-        """
-        self.names.update({'model': 'model',
-                           'target_representation': 'target_representation',
-                           'matched_representation': 'matched_representation'})
+        super().__init__()
 
     @abc.abstractmethod
     def synthesize():
@@ -66,12 +31,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Any kwargs are passed to the model's forward method
 
-        We check ``self.names['model']`` to determine the attribute
-        where model is stored. By default, this is ``self.model``, but
-        you can have multiple models (e.g., MAD competition has two
-        models, ``self.model_1`` and ``self.model_2``, and
-        ``self.names['model']`` specifies which to use).
-
         Parameters
         ----------
         x : torch.tensor
@@ -82,8 +41,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         y : torch.tensor
             The model's representation of x
         """
-        model = getattr(self, self.names['model'])
-        y = model(x, **kwargs)
+        y = self.model(x, **kwargs)
         if isinstance(y, list):
             return torch.cat([s.squeeze().view(-1) for s in y]).unsqueeze(1)
         else:
@@ -110,6 +68,43 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         return torch.norm(x - y, p=2)
+
+    def representation_error(self, iteration=None, **kwargs):
+        r"""Get the representation error
+
+        This is (matched_representation - target_representation). If
+        ``iteration`` is not None, we use
+        ``self.saved_representation[iteration]`` for
+        matched_representation
+
+        Any kwargs are passed through to self.analyze when computing the
+        matched/target representation.
+
+        Parameters
+        ----------
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+
+        Returns
+        -------
+        torch.Tensor
+
+        """
+        if iteration is not None:
+            matched_rep = self.saved_representation[iteration].to(self.target_representation.device)
+        else:
+            matched_rep = self.analyze(self.matched_image, **kwargs)
+        try:
+            rep_error = matched_rep - self.target_representation
+        except RuntimeError:
+            # try to use the last scale (if the above failed, it's
+            # because they were different shapes), but only if the user
+            # didn't give us another scale to use
+            if 'scales' not in kwargs.keys():
+                kwargs['scales'] = [self.scales[-1]]
+            rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
+        return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, **optimizer_kwargs):
         """Initialize the optimzer and learning rate scheduler
@@ -198,8 +193,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                could schedule the optimization (eg. coarse to fine)
 
         Additionally, this is where:
-        - matched_representation (the attribute given by
-          ``self.names['matched_representaiton']``) is updated
+        - ``matched_representation`` is updated
         - ``loss.backward()`` is called
 
         """
@@ -210,11 +204,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # coarse_to_fine was False
             if self.scales[-1] != 'all':
                 analyze_kwargs['scales'] = [self.scales[-1]]
-        setattr(self, self.names['matched_representation'],
-                self.analyze(getattr(self, self.names['matched_image']), **analyze_kwargs))
-        target_rep = self.analyze(getattr(self, self.names['target_image']), **analyze_kwargs)
+        self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
+        target_rep = self.analyze(self.target_image, **analyze_kwargs)
         if self.store_progress:
-            getattr(self, self.names['matched_representation']).retain_grad()
+            self.matched_representation.retain_grad()
 
         # here we get a boolean mask (bunch of ones and zeroes) for all
         # the statistics we want to include. We only do this if the loss
@@ -225,14 +218,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
         # else, we use all of the statistics
         else:
-            error_idx = torch.nonzero(torch.ones_like(getattr(self, self.names['matched_representation']).flatten()))
+            error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
         # for some reason, pytorch doesn't have the equivalent of
         # np.random.permutation, something that returns a shuffled copy
         # of a tensor, so we use numpy's version
         idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
         # then we optionally randomly select some subset of those.
         idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-        loss = self.objective_function(getattr(self, self.names['matched_representation']).flatten()[idx_sub],
+        loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
                                        target_rep.flatten()[idx_sub])
 
         loss.backward(retain_graph=True)
@@ -294,14 +287,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         if self.coarse_to_fine and self.scales[-1] != 'all':
             with torch.no_grad():
-                full_matched_rep = self.analyze(getattr(self, self.names['matched_image']))
-                loss = self.objective_function(full_matched_rep,
-                                               getattr(self, self.names['target_representation']))
+                full_matched_rep = self.analyze(self.matched_image)
+                loss = self.objective_function(full_matched_rep, self.target_representation)
         else:
-            loss = self.objective_function(getattr(self, self.names['matched_representation']),
-                                           getattr(self, self.names['target_representation']))
+            loss = self.objective_function(self.matched_representation, self.target_representation)
 
-        postfix_dict.update(dict(loss="%.4e" % loss.item(), gradient_norm="%.4e" % g.norm().item(),
+        # for display purposes, always want loss to be positive
+        postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
+                                 gradient_norm="%.4e" % g.norm().item(),
                                  learning_rate=self.optimizer.param_groups[0]['lr'], **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:

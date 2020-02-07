@@ -551,43 +551,6 @@ class Metamer(Synthesis):
                  'saved_image_gradient', 'saved_representation_gradient']
         return super().to(*args, attrs=attrs, **kwargs)
 
-    def representation_error(self, iteration=None, **kwargs):
-        r"""Get the representation error
-
-        This is (matched_representation - target_representation). If
-        ``iteration`` is not None, we use
-        ``self.saved_representation[iteration]`` for
-        matched_representation
-
-        Any kwargs are passed through to self.analyze when computing the
-        matched/target representation.
-
-        Parameters
-        ----------
-        iteration: int or None, optional
-            Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
-
-        Returns
-        -------
-        torch.Tensor
-
-        """
-        if iteration is not None:
-            matched_rep = self.saved_representation[iteration].to(self.target_representation.device)
-        else:
-            matched_rep = self.analyze(self.matched_image, **kwargs)
-        try:
-            rep_error = matched_rep - self.target_representation
-        except RuntimeError:
-            # try to use the last scale (if the above failed, it's
-            # because they were different shapes), but only if the user
-            # didn't give us another scale to use
-            if 'scales' not in kwargs.keys():
-                kwargs['scales'] = [self.scales[-1]]
-            rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
-        return rep_error
-
     def normalized_mse(self, iteration=None, **kwargs):
         r"""Get the normalized mean-squared representation error
 
