@@ -932,12 +932,12 @@ class MADCompetition(Synthesis):
         """
         # if both are None, then we don't update the target at all
         last_state = None
+        if synthesis_target is None:
+            synthesis_target = self.synthesis_target
         if synthesis_target is not None or model is not None:
-            if synthesis_target is None:
-                synthesis_target = self.synthesis_target
             if model not in ['model_1', 'model_2', None]:
-                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2', or "
-                                "None")
+                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2',"
+                                " or None")
             if model is None:
                 step = 'main'
             elif model.split('_') == synthesis_target.split('_')[:-1]:
@@ -963,3 +963,91 @@ class MADCompetition(Synthesis):
         if last_state is not None:
             self.update_target(*last_state)
         return rep_error
+
+    def normalized_mse(self, synthesis_target=None, model=None, iteration=None, **kwargs):
+        r"""Get the normalized mean-squared representation error
+
+        Following the method used in [1]_ to check for convergence, here
+        we take the mean-squared error between the target_representation
+        and matched_representation, then divide by the variance of
+        target_representation.
+
+        If ``iteration`` is not None, we use
+        ``self.saved_representation[iteration]`` for
+        matched_representation..
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets and has two models with different
+        errors, you can specify the target and the model as well. If
+        both are None, we use the current target of the synthesis. If
+        synthesis_target is not None, but model is, we use the model
+        that's the main target (e.g., if
+        ``synthesis_target=='model_1_min'``, the we'd use `'model_1'`)
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Any kwargs are passed through to self.analyze when computing the
+        matched/target representation.
+
+        Parameters
+        ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        model : {None, 'model_1', 'model_2'}, optional
+            which model's representation to get the error for. If None
+            and ``synthesis_targe`` is not None, we use the model that's
+            the main target for synthesis_target (so if
+            synthesis_target=='model_1_min', then we'd use
+            'model_1'). If both are None, we use the current target
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+
+        Returns
+        -------
+        torch.Tensor
+
+        References
+        ----------
+        .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+           ventral stream. Nature Neuroscience, 14(9),
+           1195–1201. http://dx.doi.org/10.1038/nn.2889
+        """
+        # if both are None, then we don't update the target at all
+        last_state = None
+        if synthesis_target is None:
+            synthesis_target = self.synthesis_target
+        if synthesis_target is not None or model is not None:
+            if model not in ['model_1', 'model_2', None]:
+                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2',"
+                                " or None")
+            if model is None:
+                step = 'main'
+            elif model.split('_') == synthesis_target.split('_')[:-1]:
+                step = 'main'
+            else:
+                step = 'fix'
+            last_state = self._last_update_target_args
+            self.update_target(synthesis_target, step)
+        if iteration is not None:
+            matched_rep = self.saved_representation[synthesis_target][iteration].to(self.target_representation.device)
+        else:
+            matched_rep = self.analyze(self.matched_image, **kwargs)
+        try:
+            target_rep = self.target_representation
+            rep_error = matched_rep - target_rep
+        except RuntimeError:
+            # try to use the last scale (if the above failed, it's
+            # because they were different shapes), but only if the user
+            # didn't give us another scale to use
+            if 'scales' not in kwargs.keys():
+                kwargs['scales'] = [self.scales[-1]]
+            target_rep = self.analyze(self.target_image, **kwargs)
+            rep_error = matched_rep - target_rep
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return torch.pow(rep_error, 2).mean() / torch.var(target_rep)
