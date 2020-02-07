@@ -545,13 +545,6 @@ class TestVentralStream(object):
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
 
-    def test_frontend_eigendistortion(self):
-        im = plt.imread(op.join(DATA_DIR, 'einstein.png'))[:,:,0]
-        im = torch.tensor(im, dtype=dtype, device=device, requires_grad=True).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.Front_End()
-        edist = po.synth.Eigendistortion(im, frontend)
-        edist.synthesize(jac=False, n_steps=5)
-
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
