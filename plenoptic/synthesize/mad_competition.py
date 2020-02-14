@@ -3,6 +3,8 @@ import warnings
 from tqdm import tqdm
 import numpy as np
 from .Synthesis import Synthesis
+import matplotlib.pyplot as plt
+from ..tools.display import plot_representation
 
 
 class MADCompetition(Synthesis):
@@ -118,18 +120,25 @@ class MADCompetition(Synthesis):
     loss_1_all, loss_2_all : dict
         Dictionary containing ``loss_1`` and ``loss_2``, respectively
         for each ``synthesis_target``
-    gradient : dict
-        Dictionary containing the gradient over iterations for each
-        ``synthesis_target``
-    learning_rate : dict
-        Dictionary of the learning_rate over iterations for each
-        ``synthesis_target``. We use a scheduler that gradually reduces
-        this over time, so it won't be constant.
-    nu : dict
-        Dictionary of the nu parameter over iterations for each
-        ``synthesis_target``. Nu is the parameter used to correct the
-        image so that the other model's representation will not change;
-        see docstring of ``self._find_nu()`` for more details
+    gradient : list
+        list containing the gradient over iterations
+    gradient_all : dict
+        Dictionary containing ``gradient`` for each ``synthesis_target``
+    learning_rate : list
+        list containing the learning_rate over iterations. We use a
+        scheduler that gradually reduces this over time, so it won't be
+        constant.
+    learning_rate_all : dict
+        dictionary containing ``learning_rate`` for each
+        ``synthesis_target``.  scheduler that gradually reduces this
+        over time, so it won't be constant.
+    nu : list
+        list containing the nu parameter over iterations. Nu is the
+        parameter used to correct the image so that the other model's
+        representation will not change; see docstring of
+        ``self._find_nu()`` for more details
+    nu_all : dict
+        Dictionary of ``nu`` for each ``synthesis_target``.
     saved_representation_1, saved_representation_2 : dict
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.matched_representation`` at
@@ -206,8 +215,9 @@ class MADCompetition(Synthesis):
                        'loss_norm': 'loss_1_norm',
                        'loss': 'loss_1',
                        'saved_representation': 'saved_representation_1',
-                       'saved_representation_gradient': 'saved_representation_gradient_1'}
+                       'saved_representation_gradient': 'saved_representation_1_gradient'}
 
+        self.synthesis_target = 'model_1_min'
         self.loss_sign = 1
         self.model_1 = model_1
         self.model_2 = model_2
@@ -225,27 +235,37 @@ class MADCompetition(Synthesis):
         self.step = 'main'
         self.loss_1 = []
         self.loss_2 = []
+        self.saved_representation_1 = []
+        self.saved_representation_2 = []
+        self.saved_image = []
+        self.saved_image_gradient = []
+        self.saved_representation_1_gradient = []
+        self.saved_representation_2_gradient = []
+        self.gradient = []
+        self.learning_rate = []
+        self.nu = []
 
-        def _init_dict():
-            return dict((k, []) for k in ['model_1_min', 'model_1_max', 'model_2_min',
-                                          'model_2_max'])
-        self.saved_representation_1 = _init_dict()
-        self.saved_representation_2 = _init_dict()
-        self.saved_image = _init_dict()
-        self.saved_image_gradient = _init_dict()
-        self.saved_representation_1_gradient = _init_dict()
-        self.saved_representation_2_gradient = _init_dict()
-        self.loss_1_all = _init_dict()
-        self.loss_2_all = _init_dict()
-        self.gradient = _init_dict()
-        self.learning_rate = _init_dict()
-        self.nu = _init_dict()
-        self.initial_image_all = _init_dict()
-        self.matched_image_all = _init_dict()
-        self.initial_representation_1_all = _init_dict()
-        self.initial_representation_2_all = _init_dict()
-        self.matched_representation_1_all = _init_dict()
-        self.matched_representation_2_all = _init_dict()
+        # these are the attributes that have 'all' versions of them
+        self._attrs_all = ['saved_representation_1', 'saved_representation_2', 'saved_image',
+                           'saved_representation_1_gradient', 'saved_representation_2_gradient',
+                           'saved_image_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
+                           'nu', 'initial_image', 'matched_image', 'initial_representation_1',
+                           'initial_representation_2', 'matched_representation_1',
+                           'matched_representation_2']
+
+        def _init_dict(none_flag=False):
+            if none_flag:
+                val = None
+            else:
+                val = []
+            return dict((k, val) for k in ['model_1_min', 'model_1_max', 'model_2_min',
+                                           'model_2_max'])
+        for attr in self._attrs_all:
+            if attr == 'matched_image':
+                # matched_image is a parameter and so has to be initialized with None
+                setattr(self, attr+'_all', _init_dict(True))
+            else:
+                setattr(self, attr+'_all', _init_dict())
 
         self.coarse_to_fine = False
         self.scales = []
@@ -330,7 +350,37 @@ class MADCompetition(Synthesis):
                             'loss_norm': f'loss_{num}_norm',
                             'loss': f'loss_{num}',
                             'saved_representation': f'saved_representation_{num}',
-                            'saved_representation_gradient': f'saved_representation_gradient_{num}'})
+                            'saved_representation_gradient': f'saved_representation_{num}_gradient'})
+        if synthesis_target != self.synthesis_target:
+            self.synthesis_target = synthesis_target
+            for attr in self._attrs_all:
+                if attr == 'matched_image':
+                    # matched_image needs to be a parameter
+                    setattr(self, attr, torch.nn.Parameter(getattr(self, attr+'_all')[synthesis_target]))
+                else:
+                    setattr(self, attr, getattr(self, attr+'_all')[synthesis_target])
+
+    def _update_attrs_all(self):
+        """copy the data from attributes into their _all version
+
+        in a given call to synthesis, we only update the 'local' version
+        of an attribute (e.g., matched_image), which contains the data
+        relevant to the synthesis we're currently doing (e.g.,
+        minimizing model 1's loss). however, we want to store all these
+        attributes across each of the four types of runs, for which we
+        use the '_all' versions of the attributes (e.g.,
+        mtached_image_all). this copies the information from the local
+        into the global for the future (the inverse of this, copying
+        from the global into the local, happens in ``update_target``)
+
+        """
+        for attr in self._attrs_all:
+            attr_all = getattr(self, attr+'_all')
+            try:
+                attr_all[self.synthesis_target] = getattr(self, attr).clone().to('cpu')
+            except AttributeError:
+                # then this isn't a tensor, it's a list
+                attr_all[self.synthesis_target] = getattr(self, attr).copy()
 
     def _find_nu(self, grad, n_iter=10):
         """find the optimum nu to remain on model_2's level set
@@ -442,7 +492,7 @@ class MADCompetition(Synthesis):
             grad = self.matched_image.grad.clone()
             # find the best nu
             nu = self._find_nu(grad, self.fix_step_n_iter)
-            self.nu[self.synthesis_target].append(nu)
+            self.nu.append(nu.clone().to('cpu'))
             # update the gradient
             self.matched_image.grad = nu * grad
             self.update_target(self.synthesis_target, 'main')
@@ -573,8 +623,6 @@ class MADCompetition(Synthesis):
         np.random.seed(seed)
         self.update_target(synthesis_target, 'main')
         self.fix_step_n_iter = fix_step_n_iter
-        self.loss_1 = self.loss_1_all[synthesis_target]
-        self.loss_2 = self.loss_2_all[synthesis_target]
 
         self.synthesis_target = synthesis_target
         self.initial_image = (self.target_image + initial_noise *
@@ -630,17 +678,16 @@ class MADCompetition(Synthesis):
             # tensors instead of lists. This converts them back to lists
             # so we can use append. If it's the first time, they'll be
             # empty lists and this does nothing
-            self.saved_image[synthesis_target] = list(self.saved_image[synthesis_target])
-            self.saved_image_gradient[synthesis_target] = list(self.saved_image_gradient[synthesis_target])
-            self.saved_representation_1[synthesis_target] = list(self.saved_representation_1[synthesis_target])
-            self.saved_representation_1_gradient[synthesis_target] = list(self.saved_representation_1_gradient[synthesis_target])
-            self.saved_representation_2[synthesis_target] = list(self.saved_representation_2[synthesis_target])
-            self.saved_representation_2_gradient[synthesis_target] = list(self.saved_representation_2_gradient[synthesis_target])
-            self.saved_image[synthesis_target].append(self.matched_image.clone().to('cpu'))
-            self.update_target('model_1_min', 'main')
-            self.saved_representation_1[synthesis_target].append(self.analyze(self.matched_image).to('cpu'))
-            self.update_target('model_1_min', 'fix')
-            self.saved_representation_2[synthesis_target].append(self.analyze(self.matched_image).to('cpu'))
+            self.saved_image = list(self.saved_image)
+            self.saved_image_gradient = list(self.saved_image_gradient)
+            self.saved_representation_1 = list(self.saved_representation_1)
+            self.saved_representation_1_gradient = list(self.saved_representation_1_gradient)
+            self.saved_representation_2 = list(self.saved_representation_2)
+            self.saved_representation_2_gradient = list(self.saved_representation_2_gradient)
+            self.saved_image.append(self.matched_image.clone().to('cpu'))
+            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+            self.update_target(synthesis_target, 'fix')
+            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
         else:
             if save_progress:
                 raise Exception("Can't save progress if we're not storing it! If save_progress is"
@@ -649,9 +696,7 @@ class MADCompetition(Synthesis):
 
         pbar = tqdm(range(max_iter), position=0, leave=True)
 
-        self.update_target(self.synthesis_target, 'main')
         for i in pbar:
-            self.update_target(self.synthesis_target, 'fix')
             loss_2 = self.objective_function(self.matched_representation,
                                              self.target_representation).item()
             self.loss.append(loss_2)
@@ -662,8 +707,8 @@ class MADCompetition(Synthesis):
             self.update_target(self.synthesis_target, 'fix')
             self.step = 'fix'
             self._optimizer_step()
-            self.gradient[synthesis_target].append(g.item())
-            self.learning_rate[synthesis_target].append(lr)
+            self.gradient.append(g.item())
+            self.learning_rate.append(lr)
 
             if np.isnan(loss.item()):
                 warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
@@ -694,18 +739,18 @@ class MADCompetition(Synthesis):
                 # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
                 if store_progress and ((i+1) % store_progress == 0):
                     # want these to always be on cpu, to reduce memory use for GPUs
-                    self.saved_image[synthesis_target].append(self.matched_image.clone().to('cpu'))
-                    self.saved_image_gradient[synthesis_target].append(self.matched_image.grad.clone().to('cpu'))
+                    self.saved_image.append(self.matched_image.clone().to('cpu'))
+                    self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
                     # we use model_1_min here as the synthesis target
                     # because we know that, whatever the synthesis
                     # target is, this will get us model 1 and model 2,
                     # respectively
-                    self.update_target('model_1_min', 'main')
-                    self.saved_representation_1[synthesis_target].append(self.analyze(self.matched_image).to('cpu'))
-                    self.saved_representation_1_gradient[synthesis_target].append(self.matched_representation_1.grad.clone().to('cpu'))
-                    self.update_target('model_1_min', 'fix')
-                    self.saved_representation_2[synthesis_target].append(self.analyze(self.matched_image).to('cpu'))
-                    self.saved_representation_2_gradient[synthesis_target].append(self.matched_representation_2.grad.clone().to('cpu'))
+                    self.update_target(synthesis_target, 'main')
+                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+                    self.update_target(synthesis_target, 'fix')
+                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
                     if save_progress is True:
                         self.save(save_path, True)
                 if type(save_progress) == int and ((i+1) % save_progress == 0):
@@ -714,24 +759,19 @@ class MADCompetition(Synthesis):
         pbar.close()
 
         if store_progress:
-            self.saved_image[synthesis_target] = torch.stack(self.saved_image[synthesis_target])
-            self.saved_image_gradient[synthesis_target] = torch.stack(self.saved_image_gradient[synthesis_target])
-            self.saved_representation_1[synthesis_target] = torch.stack(self.saved_representation_1[synthesis_target])
-            self.saved_representation_2[synthesis_target] = torch.stack(self.saved_representation_2[synthesis_target])
+            self.saved_image = torch.stack(self.saved_image)
+            self.saved_image_gradient = torch.stack(self.saved_image_gradient)
+            self.saved_representation_1 = torch.stack(self.saved_representation_1)
+            self.saved_representation_2 = torch.stack(self.saved_representation_2)
             # we can't stack the gradients if we used coarse-to-fine
             # optimization, because then they'll be different shapes, so
             # we have to keep them as a list
             try:
-                self.saved_representation_1_gradient[synthesis_target] = torch.stack(self.saved_representation_1_gradient[synthesis_target])
-                self.saved_representation_2_gradient[synthesis_target] = torch.stack(self.saved_representation_2_gradient[synthesis_target])
+                self.saved_representation_1_gradient = torch.stack(self.saved_representation_1_gradient)
+                self.saved_representation_2_gradient = torch.stack(self.saved_representation_2_gradient)
             except RuntimeError:
                 pass
-        self.initial_image_all[synthesis_target] = self.initial_image.clone().to('cpu')
-        self.matched_image_all[synthesis_target] = self.matched_image.clone().to('cpu')
-        self.initial_representation_1_all[synthesis_target] = self.initial_representation_1.clone().to('cpu')
-        self.initial_representation_2_all[synthesis_target] = self.initial_representation_2.clone().to('cpu')
-        self.matched_representation_1_all[synthesis_target] = self.matched_representation_1.clone().to('cpu')
-        self.matched_representation_2_all[synthesis_target] = self.matched_representation_2.clone().to('cpu')
+        self._update_attrs_all()
         return self.matched_image.data, self.matched_representation_1.data, self.matched_representation_2.data
 
     def synthesize_all(self, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
@@ -887,6 +927,65 @@ class MADCompetition(Synthesis):
                  'saved_representation_2_gradient', 'model_1', 'model_2']
         return super().to(*args, attrs=attrs, **kwargs)
 
+    def _check_state(self, synthesis_target, model):
+        """check which synthesis target/model to investigate and update if necessary
+
+        since we have many possible states, the functions that we use to
+        investigate the synthesis history can get a bit messy. to help
+        with that, we use this helper. user specifies which synthesis
+        target and model they want the attributes to work for and we
+        call update_target appropriately.
+
+        Importantly, both of those can be None, in which case we update
+        nothing
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets and has two models with different
+        errors, you can specify the target and the model as well. If
+        both are None, we use the current target of the synthesis. If
+        synthesis_target is not None, but model is, we use the model
+        that's the main target (e.g., if
+        ``synthesis_target=='model_1_min'``, the we'd use `'model_1'`)
+
+        Parameters
+        ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        model : {None, 'model_1', 'model_2'}, optional
+            which model's representation to get the error for. If None
+            and ``synthesis_targe`` is not None, we use the model that's
+            the main target for synthesis_target (so if
+            synthesis_target=='model_1_min', then we'd use
+            'model_1'). If both are None, we use the current target
+
+        Returns
+        -------
+        last_state : list
+            The ``[synthesis_target, model]`` from before we updated (or
+            None if no update was performed). call
+            ``self.update_target(*last_state)`` to return to this state
+
+        """
+        # if both are None, then we don't update the target at all
+        last_state = None
+        if synthesis_target is not None or model is not None:
+            if synthesis_target is None:
+                synthesis_target = self.synthesis_target
+            if model not in ['model_1', 'model_2', None]:
+                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2',"
+                                " or None")
+            if model is None:
+                step = 'main'
+            elif model.split('_') == synthesis_target.split('_')[:-1]:
+                step = 'main'
+            else:
+                step = 'fix'
+            last_state = self._last_update_target_args
+            self.update_target(synthesis_target, step)
+        return last_state
+
     def representation_error(self, synthesis_target=None, model=None, iteration=None, **kwargs):
         r"""Get the representation error
 
@@ -930,35 +1029,8 @@ class MADCompetition(Synthesis):
         torch.Tensor
 
         """
-        # if both are None, then we don't update the target at all
-        last_state = None
-        if synthesis_target is None:
-            synthesis_target = self.synthesis_target
-        if synthesis_target is not None or model is not None:
-            if model not in ['model_1', 'model_2', None]:
-                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2',"
-                                " or None")
-            if model is None:
-                step = 'main'
-            elif model.split('_') == synthesis_target.split('_')[:-1]:
-                step = 'main'
-            else:
-                step = 'fix'
-            last_state = self._last_update_target_args
-            self.update_target(synthesis_target, step)
-        if iteration is not None:
-            matched_rep = self.saved_representation[synthesis_target][iteration].to(self.target_representation.device)
-        else:
-            matched_rep = self.analyze(self.matched_image, **kwargs)
-        try:
-            rep_error = matched_rep - self.target_representation
-        except RuntimeError:
-            # try to use the last scale (if the above failed, it's
-            # because they were different shapes), but only if the user
-            # didn't give us another scale to use
-            if 'scales' not in kwargs.keys():
-                kwargs['scales'] = [self.scales[-1]]
-            rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
+        last_state = self._check_state(synthesis_target, model)
+        rep_error = super().representation_error(iteration, **kwargs)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
@@ -967,7 +1039,7 @@ class MADCompetition(Synthesis):
     def normalized_mse(self, synthesis_target=None, model=None, iteration=None, **kwargs):
         r"""Get the normalized mean-squared representation error
 
-        Following the method used in [1]_ to check for convergence, here
+        Following the method used in [2]_ to check for convergence, here
         we take the mean-squared error between the target_representation
         and matched_representation, then divide by the variance of
         target_representation.
@@ -1012,42 +1084,98 @@ class MADCompetition(Synthesis):
 
         References
         ----------
-        .. [1] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
+        .. [2] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
            ventral stream. Nature Neuroscience, 14(9),
            1195–1201. http://dx.doi.org/10.1038/nn.2889
         """
-        # if both are None, then we don't update the target at all
-        last_state = None
-        if synthesis_target is None:
-            synthesis_target = self.synthesis_target
-        if synthesis_target is not None or model is not None:
-            if model not in ['model_1', 'model_2', None]:
-                raise Exception(f"Can't handle model {model}, must be one of 'model_1', 'model_2',"
-                                " or None")
-            if model is None:
-                step = 'main'
-            elif model.split('_') == synthesis_target.split('_')[:-1]:
-                step = 'main'
-            else:
-                step = 'fix'
-            last_state = self._last_update_target_args
-            self.update_target(synthesis_target, step)
-        if iteration is not None:
-            matched_rep = self.saved_representation[synthesis_target][iteration].to(self.target_representation.device)
-        else:
-            matched_rep = self.analyze(self.matched_image, **kwargs)
-        try:
-            target_rep = self.target_representation
-            rep_error = matched_rep - target_rep
-        except RuntimeError:
-            # try to use the last scale (if the above failed, it's
-            # because they were different shapes), but only if the user
-            # didn't give us another scale to use
-            if 'scales' not in kwargs.keys():
-                kwargs['scales'] = [self.scales[-1]]
-            target_rep = self.analyze(self.target_image, **kwargs)
-            rep_error = matched_rep - target_rep
+        last_state = self._check_state(synthesis_target, model)
+        error = super().normalized_mse(iteration, **kwargs)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
-        return torch.pow(rep_error, 2).mean() / torch.var(target_rep)
+        return error
+
+    def plot_representation_error(self, synthesis_target=None, batch_idx=0, iteration=None,
+                                  figsize=(12, 5), ylim=None, ax=None, title='', **kwargs):
+        r"""Plot distance ratio showing how close we are to convergence
+
+        We plot ``self.representation_error(iteration)``
+
+        The goal is to use the model's ``plot_representation``
+        method. However, in order for this to work, it needs to not only
+        have that method, but a way to make a 'mock copy', a separate
+        model that has the same initialization parameters, but whose
+        representation we can set. For the VentralStream models, we can
+        do this using their ``state_dict_reduced`` attribute. If we can't
+        do this, then we'll fall back onto using ``plt.plot``
+
+        In order for this to work, we also count on
+        ``plot_representation`` to return the figure and the axes it
+        modified (axes should be a list)
+
+        If ``iteration`` is not None, we use
+        ``self.saved_representation[iteration]`` for
+        matched_representation..
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets, you can specify the target as
+        well. If None, we use the current target of the synthesis.
+
+        MADCompetition also has two models, and we will plot the
+        representation error for both of them, on separate subplots
+        (titling them appropriately).
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Any kwargs are passed through to self.analyze when computing the
+        matched/target representation.
+
+        Parameters
+        ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
+        figsize : tuple, optional
+            The size of the figure to create
+        ylim : tuple or None, optional
+            If not None, the y-limits to use for this plot. If None, we
+            scale the y-limits so that it's symmetric about 0 with a
+            limit of ``np.abs(representation_error).max()``
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        title : str, optional
+            The title to put above this axis. If you want no title, pass
+            the empty string (``''``)
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure containing the plot
+
+        """
+        last_state = self._check_state(synthesis_target, None)
+        rep_error_1 = self.representation_error(synthesis_target, 'model_1', iteration)
+        rep_error_2 = self.representation_error(synthesis_target, 'model_2', iteration)
+        if ax is None:
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+        else:
+            warnings.warn("ax is not None, so we're ignoring figsize...")
+            fig = ax.figure
+            gs = ax.get_subplotspec().subgridspec(1, 2)
+            axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
+        plot_representation(self.model_1, rep_error_1, axes[0], figsize, ylim, batch_idx,
+                            self.model_1.__class__.__name__ + title)
+        plot_representation(self.model_2, rep_error_2, axes[1], figsize, ylim, batch_idx,
+                            self.model_2.__class__.__name__ + title)
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return fig
