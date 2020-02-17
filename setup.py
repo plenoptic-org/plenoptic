@@ -34,6 +34,7 @@ setup(
                       'tqdm>=4.29',
                       'requests>=2.21',
                       'imageio>=2.5',
-                      'pytest'],
+                      'pytest',
+                      'scikit-image>=0.15.0'],
     tests='tests',
      )
