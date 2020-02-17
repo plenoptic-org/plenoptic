@@ -1,7 +1,34 @@
 # plenoptic
 
+In recent years, [adversarial
+examples](https://openai.com/blog/adversarial-example-research/) have
+demonstrated how difficult it is to understand how models make sense
+of the images they view. The space of all possible images is
+impossibly vast and difficult to explore, so that even training a
+model on millions of images represent just a small fraction of all
+that could be shown. `plenoptic` is a python library that provides
+tools to help researchers better understand their models by using
+optimization to generate novel images. These images allow researchers
+to gain a sense for what features the model ignores and what it
+considers important, and they can be used in experiments for further
+model testing and validation.
 
-**{x, y, θ}**  : inputs, outputs, parameters
+To get a little more technical, all models have three components,
+inputs `x`, outputs `y`, and parameters `θ`. When working with models,
+we typically either simulate, by holding `x` and `θ` constant, and
+generating predictions for `y`, or fit, by holding `x` and `y`
+constant and using optimization to find the best-fitting `θ`. However,
+for optimization purposes, there's nothing special about `x`, so we
+can instead hold `y` and `θ` constant and use optimization to
+synthesize new `x`. Synthesis methods are those that to do this: they
+take a model with set parameters and generate new images in specific
+ways. They allow you to better understand the model by determining
+what it considers important and, crucially, what it ignores, as well
+as generating novel stimuli for testing the model.
+
+Here's a table summarizing this:
+
+**{x, y, θ}** : inputs, outputs, parameters
 
 |            	|   fixed  	| variable  |
 |:----------:	|:------:	|:------:	|
@@ -9,18 +36,37 @@
 |   learn    	| {x, y} 	|   {θ}  	|
 | synthesize 	| {y, θ} 	|   {x}  	|
 
-# Project Vision
+`plenoptic` contains the following four synthesis methods (with links
+to the papers describing them):
 
-`plenoptic` is a project by graduate students and postdocs in the Lab
-for Computational Vision to build a python library that enables
-researchers who build computational models that operate on and extract
-information from images (in neuroscience, computer vision, or other
-fields) to interrogate their models, better understand how they work,
-and improve their ability to run experiments for testing them. This is
-an open project because the included methods have been described in
-the literature but do not have easy-to-use, widely-available
-implementations and we believe that science functions best when it is
-transparent, accessible, and inclusive.
+- [metamers](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf):
+  given a model and an image, synthesize a new image that the model
+  thinks is identical.
+- [Maximal differentiation (MAD)
+  competition](https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf):
+  given two models and an image, synthesize two pairs of images: two
+  that the first model thinks are identical that the second thinks are
+  as different as possible, and two that the first model thinks are as
+  identical as possible.
+- [Geodesics](https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf):
+  given a model and two images, synthesize a set of images that the
+  model thinks are intermediate between the two. That is, how does the
+  model think you go from one image (for example, a picture of a human
+  on the left side of a chair) to another (a picture of a human on the
+  right side of the chair).
+- [Eigendistortions](https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf):
+  given a model and an image, synthesize the most and least noticeable
+  distortion on the image (with a constant mean-squared error in
+  pixels). That is, if you can change all pixel values by a total of
+  100, how does the model think you should do it to make it as obvious
+  as possible, and how does the model think you should do it to make
+  it unnoticeable.
+  
+(where for all of these, when I say "the model thinks", I'm referring
+to the L2-distance in a model's representation, so that "model thinks
+is identical" means that the model representations are identical, and
+"model thinks are as different as possible" means that the model
+representations are as far apart from each other as possible)
 
 # Roadmap
 
