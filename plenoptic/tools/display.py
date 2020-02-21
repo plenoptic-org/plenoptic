@@ -111,15 +111,22 @@ def rescale_ylim(axes, data):
     ----------
     axes : list
         A list of matplotlib axes to rescale
-    data : array_like
-        The data to use when rescaling
+    data : array_like or dict
+        The data to use when rescaling (or a dictiontary of those
+        values)
     """
+    def find_ymax(data):
+        try:
+            return np.abs(data).max()
+        except RuntimeError:
+            # then we need to call to_numpy on it because it needs to be
+            # detached and converted to an array
+            return np.abs(to_numpy(data)).max()
     try:
-        y_max = np.abs(data).max()
-    except RuntimeError:
-        # then we need to call to_numpy on it because it needs to be
-        # detached and converted to an array
-        y_max = np.abs(to_numpy(data)).max()
+        y_max = find_ymax(data)
+    except TypeError:
+        # then this is a dictionary
+        y_max = np.max([find_ymax(d) for d in data.values()])
     for ax in axes:
         ax.set_ylim((-y_max, y_max))
 

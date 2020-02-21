@@ -2,9 +2,10 @@ import torch
 import warnings
 from tqdm import tqdm
 import numpy as np
+import pyrtools as pt
 from .Synthesis import Synthesis
 import matplotlib.pyplot as plt
-from ..tools.display import plot_representation
+from ..tools.display import plot_representation, clean_up_axes
 
 
 class MADCompetition(Synthesis):
@@ -358,7 +359,11 @@ class MADCompetition(Synthesis):
                     # matched_image needs to be a parameter
                     setattr(self, attr, torch.nn.Parameter(getattr(self, attr+'_all')[synthesis_target]))
                 else:
-                    setattr(self, attr, getattr(self, attr+'_all')[synthesis_target])
+                    try:
+                        setattr(self, attr, getattr(self, attr+'_all')[synthesis_target].clone().to('cpu'))
+                    except AttributeError:
+                        # then this isn't a tensor, it's a list
+                        setattr(self, attr, getattr(self, attr+'_all')[synthesis_target].copy())
 
     def _update_attrs_all(self):
         """copy the data from attributes into their _all version
@@ -986,7 +991,7 @@ class MADCompetition(Synthesis):
             self.update_target(synthesis_target, step)
         return last_state
 
-    def representation_error(self, synthesis_target=None, model=None, iteration=None, **kwargs):
+    def representation_error(self, iteration=None, synthesis_target=None, model=None, **kwargs):
         r"""Get the representation error
 
         This is (matched_representation - target_representation). If
@@ -1000,7 +1005,9 @@ class MADCompetition(Synthesis):
         both are None, we use the current target of the synthesis. If
         synthesis_target is not None, but model is, we use the model
         that's the main target (e.g., if
-        ``synthesis_target=='model_1_min'``, the we'd use `'model_1'`)
+        ``synthesis_target=='model_1_min'``, the we'd use
+        `'model_1'`). If ``model=='both'``, we reutrn a dictionary
+        containing both errors
 
         Regardless, we always reset the target state to what it was
         before this was called
@@ -1010,28 +1017,41 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``matched_representation``
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
             ``self.synthesis_target``).
-        model : {None, 'model_1', 'model_2'}, optional
+        model : {None, 'model_1', 'model_2', 'both'}, optional
             which model's representation to get the error for. If None
             and ``synthesis_targe`` is not None, we use the model that's
             the main target for synthesis_target (so if
             synthesis_target=='model_1_min', then we'd use
-            'model_1'). If both are None, we use the current target
-        iteration: int or None, optional
-            Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
+            'model_1'). If both are None, we use the current target. If
+            'both', we return a dictionary of tensors (with keys
+            'model_1' and 'model_2'), which contain both representation
+            errors
+        kwargs :
+            passed through to self.analyze()
 
         Returns
         -------
         torch.Tensor
 
         """
-        last_state = self._check_state(synthesis_target, model)
-        rep_error = super().representation_error(iteration, **kwargs)
-        # reset to state before calling this function
+        if model == 'both':
+            last_state = self._check_state(synthesis_target, None)
+            rep_error = {}
+            rep_error['model_1'] = self.representation_error(iteration, synthesis_target,
+                                                             'model_1')
+            rep_error['model_2'] = self.representation_error(iteration, synthesis_target,
+                                                             'model_2')
+        else:
+            last_state = self._check_state(synthesis_target, model)
+            rep_error = super().representation_error(iteration, **kwargs)
+            # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
         return rep_error
@@ -1095,8 +1115,8 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return error
 
-    def plot_representation_error(self, synthesis_target=None, batch_idx=0, iteration=None,
-                                  figsize=(12, 5), ylim=None, ax=None, title='', **kwargs):
+    def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(12, 5), ylim=None,
+                                  ax=None, title='', synthesis_target=None):
         r"""Plot distance ratio showing how close we are to convergence
 
         We plot ``self.representation_error(iteration)``
@@ -1133,10 +1153,6 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         iteration: int or None, optional
@@ -1154,6 +1170,11 @@ class MADCompetition(Synthesis):
         title : str, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``)
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+
 
         Returns
         -------
@@ -1162,20 +1183,469 @@ class MADCompetition(Synthesis):
 
         """
         last_state = self._check_state(synthesis_target, None)
-        rep_error_1 = self.representation_error(synthesis_target, 'model_1', iteration)
-        rep_error_2 = self.representation_error(synthesis_target, 'model_2', iteration)
+        rep_error = self.representation_error(iteration, synthesis_target, 'both')
         if ax is None:
             fig, axes = plt.subplots(1, 2, figsize=figsize)
         else:
             warnings.warn("ax is not None, so we're ignoring figsize...")
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             fig = ax.figure
             gs = ax.get_subplotspec().subgridspec(1, 2)
             axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
-        plot_representation(self.model_1, rep_error_1, axes[0], figsize, ylim, batch_idx,
-                            self.model_1.__class__.__name__ + title)
-        plot_representation(self.model_2, rep_error_2, axes[1], figsize, ylim, batch_idx,
-                            self.model_2.__class__.__name__ + title)
+        for i, (model, error) in enumerate(rep_error.items()):
+            plot_representation(getattr(self, model), error, axes[i], figsize, ylim, batch_idx,
+                                f'Model {i+1}: ' + getattr(self, model).__class__.__name__ + title)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
         return fig
+
+    def plot_synthesized_image(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
+                               figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1),
+                               synthesis_target=None):
+        """show the synthesized image
+
+        You can specify what iteration to view by using the
+        ``iteration`` arg. The default, ``None``, shows the final one.
+
+        We use ``pyrtools.imshow`` to display the synthesized image and
+        attempt to automatically find the most reasonable zoom
+        value. You can override this value using the imshow_zoom arg,
+        but remember that ``pyrtools.imshow`` is opinionated about the
+        size of the resulting image and will throw an Exception if the
+        axis created is not big enough for the selected zoom. We
+        currently cannot shrink the image, so figsize must be big enough
+        to display the image
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets, you can specify the target as
+        well. If None, we use the current target of the synthesis.
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        title : str or None, optional
+            The title for this subplot. If None, will use the class's
+            name (e.g., Metamer, MADCompetition). If you want no title,
+            set this equal to the empty str (``''``)
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        imshow_zoom : None or float, optional
+            How much to zoom in / enlarge the synthesized image, the ratio
+            of display pixels to image pixels. If None (the default), we
+            attempt to find the best value ourselves. Else, if >1, must
+            be an integer.  If <1, must be 1/d where d is a a divisor of
+            the size of the largest image.
+        vrange : tuple or str, optional
+            The vrange option to pass to ``pyrtools.imshow``. See that
+            function for details
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        last_state = self._check_state(synthesis_target, None)
+        if title is None:
+            title = self.synthesis_target
+        fig = super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize,
+                                             ax, imshow_zoom, vrange)
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return fig
+
+    def plot_synthesized_image_all(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
+                                   figsize=(10, 10), ax=None, imshow_zoom=None, vrange=(0, 1)):
+        """show all synthesized images
+
+        You can specify what iteration to view by using the
+        ``iteration`` arg. The default, ``None``, shows the final one.
+
+        We use ``pyrtools.imshow`` to display the synthesized image and
+        attempt to automatically find the most reasonable zoom
+        value. You can override this value using the imshow_zoom arg,
+        but remember that ``pyrtools.imshow`` is opinionated about the
+        size of the resulting image and will throw an Exception if the
+        axis created is not big enough for the selected zoom. We
+        currently cannot shrink the image, so figsize must be big enough
+        to display the image
+
+        We show all synthesized images, as separate subplots.
+
+        We always reset the target state to what it was before this was
+        called
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        title : str or None, optional
+            The title for this subplot. If None, will use the class's
+            name (e.g., Metamer, MADCompetition). If you want no title,
+            set this equal to the empty str (``''``)
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        imshow_zoom : None or float, optional
+            How much to zoom in / enlarge the synthesized image, the ratio
+            of display pixels to image pixels. If None (the default), we
+            attempt to find the best value ourselves. Else, if >1, must
+            be an integer.  If <1, must be 1/d where d is a a divisor of
+            the size of the largest image.
+        vrange : tuple or str, optional
+            The vrange option to pass to ``pyrtools.imshow``. See that
+            function for details
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if ax is None:
+            if imshow_zoom is None:
+                imshow_zoom = 1
+            fig = pt.tools.display.make_figure(2, 2, [imshow_zoom * i for i in
+                                                      self.target_image.shape[2:]])
+            axes = fig.axes
+            axes = [clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                    for ax in axes]
+        else:
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            fig = ax.figure
+            gs = ax.get_subplotspec().subgridspec(12, 2)
+            axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]),
+                    fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
+        for ax, target in zip(axes, ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']):
+            if self.matched_image_all[target] is not None:
+                self.plot_synthesized_image(batch_idx, channel_idx, iteration, title, None, ax,
+                                            imshow_zoom, vrange, target)
+        return fig
+
+    def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, synthesis_target=None, **kwargs):
+        """Plot the synthesis loss
+
+        We plot ``self.loss`` over all iterations. We also plot a red
+        dot at ``iteration``, to highlight the loss there. If
+        ``iteration=None``, then the dot will be at the final iteration.
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets, you can specify the target as
+        well. If None, we use the current target of the synthesis.
+
+        MADCompetition also has two models, and we will plot the loss
+        for both of them, on the same subplot (labelling them
+        appropriately).
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Parameters
+        ----------
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        kwargs :
+            passed to plt.semilogy
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+        last_state = self._check_state(synthesis_target, 'model_1')
+        super().plot_loss(iteration, ax=ax, label='Model 1: ' + self.model_1.__class__.__name__,
+                          title=self.synthesis_target + ' loss', **kwargs)
+        self._check_state(synthesis_target, 'model_2')
+        super().plot_loss(iteration, ax=ax, label='Model 2: ' + self.model_2.__class__.__name__,
+                          title=self.synthesis_target + ' loss', **kwargs)
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        ax.legend()
+        return fig
+
+    def plot_loss_all(self, iteration=None, figsize=(10, 10), ax=None, **kwargs):
+        """Plot loss for all synthesis calls
+
+        We plot ``self.loss`` over all iterations. We also plot a red
+        dot at ``iteration``, to highlight the loss there. If
+        ``iteration=None``, then the dot will be at the final iteration.
+
+        We will plot the loss for each synthesis target, as a separate
+        subplot.
+
+        MADCompetition also has two models, and we will plot the loss
+        for both of them, on the same subplot (labelling them
+        appropriately).
+
+        We always reset the target state to what it was before this was
+        called
+
+        Parameters
+        ----------
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        kwargs :
+            passed to plt.semilogy
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if ax is None:
+            fig, axes = plt.subplots(2, 2, figsize=figsize)
+            axes = axes.flatten()
+        else:
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            fig = ax.figure
+            gs = ax.get_subplotspec().subgridspec(12, 2)
+            axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]),
+                    fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
+        for ax, target in zip(axes, ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']):
+            self.plot_loss(iteration, ax=ax, synthesis_target=target)
+        return fig
+
+    def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(23, 5),
+                              ylim=None, plot_representation_error=True, imshow_zoom=None,
+                              vrange=(0, 1), fig=None, synthesis_target=None):
+        r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
+
+        We create two or three subplots on a new figure. The first one
+        contains the synthesized image, the second contains the loss,
+        and the (optional) third contains the representation ratio, as
+        plotted by ``self.plot_representation_error``.
+
+        You can specify what iteration to view by using the
+        ``iteration`` arg. The default, ``None``, shows the final one.
+
+        The loss plot shows the loss as a function of iteration for all
+        iterations (even if we didn't save the representation or
+        synthesized image at each iteration), with a red dot showing the
+        location of the iteration.
+
+        We use ``pyrtools.imshow`` to display the synthesized image and
+        attempt to automatically find the most reasonable zoom
+        value. You can override this value using the imshow_zoom arg,
+        but remember that ``pyrtools.imshow`` is opinionated about the
+        size of the resulting image and will throw an Exception if the
+        axis created is not big enough for the selected zoom. We
+        currently cannot shrink the image, so figsize must be big enough
+        to display the image
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets, you can specify the target as
+        well. If None, we use the current target of the synthesis.
+
+        MADCompetition also has two models, and we will plot the loss
+        for both of them, on the same subplot (labelling them
+        appropriately).
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. It may take a little bit
+            of playing around to find a reasonable value.
+        ylim : tuple or None, optional
+            The ylimit to use for the representation_error plot. We pass
+            this value directly to ``self.plot_representation_error``
+        plot_representation_error : bool, optional
+            Whether to plot the representation ratio or not.
+        imshow_zoom : None or float, optional
+            How much to zoom in / enlarge the synthesized image, the ratio
+            of display pixels to image pixels. If None (the default), we
+            attempt to find the best value ourselves. Else, if >1, must
+            be an integer.  If <1, must be 1/d where d is a a divisor of
+            the size of the largest image.
+        vrange : tuple or str, optional
+            The vrange option to pass to ``pyrtools.imshow``. See that
+            function for details
+        fig : None or matplotlib.pyplot.Figure
+            if None, we create a new figure. otherwise we assume this is
+            an empty figure that has the appropriate size and number of
+            subplots
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        last_state = self._check_state(synthesis_target, None)
+        if fig is None:
+            if plot_representation_error:
+                n_subplots = 3
+                width_ratios = [.25, .25, .5]
+            else:
+                n_subplots = 2
+                width_ratios = [.5, .5]
+            fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
+                                     gridspec_kw={'width_ratios': width_ratios})
+        super().plot_synthesis_status(batch_idx, channel_idx, iteration, figsize, ylim,
+                                      plot_representation_error, imshow_zoom, vrange, fig)
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return fig
+
+    def animate(self, batch_idx=0, channel_idx=0, figsize=(23, 5), framerate=10, ylim=None,
+                plot_representation_error=True, imshow_zoom=None, synthesis_target=None):
+        r"""Animate synthesis progress!
+
+        This is essentially the figure produced by
+        ``self.plot_synthesis_status`` animated over time, for each stored
+        iteration.
+
+        It's difficult to determine a reasonable figsize, because we
+        don't know how much information is in the plot showing the
+        representation ratio. Therefore, it's recommended you play
+        around with ``plot_synthesis_status`` until you find a
+        good-looking value for figsize.
+
+        We return the matplotlib FuncAnimation object. In order to view
+        it in a Jupyter notebook, use the
+        ``plenoptic.convert_anim_to_html(anim)`` function. In order to
+        save, use ``anim.save(filename)`` (note for this that you'll
+        need the appropriate writer installed and on your path, e.g.,
+        ffmpeg, imagemagick, etc). Either of these will probably take a
+        reasonably long amount of time.
+
+        Since a single MADCompetition instance can be used for
+        synthesizing multiple targets, you can specify the target as
+        well. If None, we use the current target of the synthesis.
+
+        MADCompetition also has two models, and we will plot the loss
+        for both of them, on the same subplot (labelling them
+        appropriately).
+
+        Regardless, we always reset the target state to what it was
+        before this was called
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        figsize : tuple, optional
+            The size of the figure to create. It may take a little bit
+            of playing around to find a reasonable value. If you're not
+            showing the representation, (12, 5) probably makes sense. If
+            you are showing the representation, it depends on the level
+            of detail in that plot. If it only creates one set of axes,
+            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            but you may need much larger if it's more complicated; e.g.,
+            for PrimaryVisualCortex, try (39, 11).
+        framerate : int, optional
+            How many frames a second to display.
+        ylim : str, None, or tuple, optional
+            The y-limits of the representation_error plot (ignored if
+            ``plot_representation_error`` arg is False).
+
+            * If a tuple, then this is the ylim of all plots
+
+            * If None, then all plots have the same limits, all
+              symmetric about 0 with a limit of
+              ``np.abs(representation_error).max()`` (for the initial
+              representation_error)
+
+            * If a string, must be 'rescale' or of the form 'rescaleN',
+              where N can be any integer. If 'rescaleN', we rescale the
+              limits every N frames (we rescale as if ylim = None). If
+              'rescale', then we do this 10 times over the course of the
+              animation
+
+        plot_representation_error : bool, optional
+            Whether to plot the representation ratio or not.
+        imshow_zoom : int, float, or None, optional
+            Either an int or an inverse power of 2, how much to zoom the
+            images by in the plots we'll create. If None (the default), we
+            attempt to find the best value ourselves.
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+
+        Returns
+        -------
+        anim : matplotlib.animation.FuncAnimation
+            The animation object. In order to view, must convert to HTML
+            or save.
+
+        """
+        last_state = self._check_state(synthesis_target, None)
+        print(last_state)
+        if isinstance(ylim, str):
+            warnings.warn("Be careful with rescaling the ylims, this can mess up any image that's"
+                          " being shown (for example, the representation error of one of the "
+                          "models) and, because of the way we handle having two models, the "
+                          "animate() method is not as able to determine whether rescaling is "
+                          "appropriate.")
+        anim = super().animate(batch_idx, channel_idx, figsize, framerate, ylim,
+                               plot_representation_error, imshow_zoom, ['loss_1', 'loss_2'],
+                               {'model': 'both'})
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return anim

@@ -602,9 +602,128 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         return plot_representation(self.model, representation_error, ax, figsize, ylim,
                                    batch_idx, title)
 
+    def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, title='Loss', **kwargs):
+        """Plot the synthesis loss
+
+        We plot ``self.loss`` over all iterations. We also plot a red
+        dot at ``iteration``, to highlight the loss there. If
+        ``iteration=None``, then the dot will be at the final iteration.
+
+        Parameters
+        ----------
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        kwargs :
+            passed to plt.semilogy
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if iteration is None:
+            loss_idx = len(self.loss) - 1
+        else:
+            if iteration < 0:
+                # in order to get the x-value of the dot to line up,
+                # need to use this work-around
+                loss_idx = len(self.loss) + iteration
+            else:
+                loss_idx = iteration
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+        ax.semilogy(self.loss, **kwargs)
+        try:
+            ax.scatter(loss_idx, self.loss[loss_idx], c='r')
+        except IndexError:
+            # then there's no loss here
+            pass
+        ax.set_title(title)
+        return fig
+
+    def plot_synthesized_image(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
+                               figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
+        """show the synthesized image
+
+        You can specify what iteration to view by using the
+        ``iteration`` arg. The default, ``None``, shows the final one.
+
+        We use ``pyrtools.imshow`` to display the synthesized image and
+        attempt to automatically find the most reasonable zoom
+        value. You can override this value using the imshow_zoom arg,
+        but remember that ``pyrtools.imshow`` is opinionated about the
+        size of the resulting image and will throw an Exception if the
+        axis created is not big enough for the selected zoom. We
+        currently cannot shrink the image, so figsize must be big enough
+        to display the image
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        title : str or None, optional
+            The title for this subplot. If None, will use the class's
+            name (e.g., Metamer, MADCompetition). If you want no title,
+            set this equal to the empty str (``''``)
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        imshow_zoom : None or float, optional
+            How much to zoom in / enlarge the synthesized image, the ratio
+            of display pixels to image pixels. If None (the default), we
+            attempt to find the best value ourselves. Else, if >1, must
+            be an integer.  If <1, must be 1/d where d is a a divisor of
+            the size of the largest image.
+        vrange : tuple or str, optional
+            The vrange option to pass to ``pyrtools.imshow``. See that
+            function for details
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if iteration is None:
+            image = self.matched_image[batch_idx, channel_idx]
+        else:
+            image = self.saved_image[iteration, batch_idx, channel_idx]
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+        if imshow_zoom is None:
+            # image.shape[0] is the height of the image
+            imshow_zoom = ax.bbox.height // image.shape[0]
+            if imshow_zoom == 0:
+                raise Exception("imshow_zoom would be 0, cannot display synthesized image! Enlarge"
+                                " your figure")
+        if title is None:
+            title = self.__class__.__name__
+        fig = pt.imshow(to_numpy(image), ax=ax, title=title, zoom=imshow_zoom, vrange=vrange)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        return fig
+
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
                               ylim=None, plot_representation_error=True, imshow_zoom=None,
-                              vrange=(0, 1)):
+                              vrange=(0, 1), fig=None):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -661,6 +780,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         vrange : tuple or str, optional
             The vrange option to pass to ``pyrtools.imshow``. See that
             function for details
+        fig : None or matplotlib.pyplot.Figure
+            if None, we create a new figure. otherwise we assume this is
+            an empty figure that has the appropriate size and number of
+            subplots
 
         Returns
         -------
@@ -668,41 +791,24 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
-        if plot_representation_error:
-            n_subplots = 3
-        else:
-            n_subplots = 2
-        if iteration is None:
-            image = self.matched_image[batch_idx, channel_idx]
-            loss_idx = len(self.loss) - 1
-        else:
-            image = self.saved_image[iteration, batch_idx, channel_idx]
-            if iteration < 0:
-                # in order to get the x-value of the dot to line up,
-                # need to use this work-around
-                loss_idx = len(self.loss) + iteration
+        if fig is None:
+            if plot_representation_error:
+                n_subplots = 3
             else:
-                loss_idx = iteration
-        fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
-        if imshow_zoom is None:
-            # image.shape[0] is the height of the image
-            imshow_zoom = axes[0].bbox.height // image.shape[0]
-            if imshow_zoom == 0:
-                raise Exception("imshow_zoom would be 0, cannot display synthesized image! Enlarge"
-                                " your figure")
-        fig = pt.imshow(to_numpy(image), ax=axes[0], title=self.__class__.__name__,
-                        zoom=imshow_zoom, vrange=vrange)
-        axes[0].xaxis.set_visible(False)
-        axes[0].yaxis.set_visible(False)
-        axes[1].semilogy(self.loss)
-        axes[1].scatter(loss_idx, self.loss[loss_idx], c='r')
-        axes[1].set_title('Loss')
+                n_subplots = 2
+            fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
+        else:
+            axes = fig.axes
+        self.plot_synthesized_image(batch_idx, channel_idx, iteration, None, ax=axes[0],
+                                    imshow_zoom=imshow_zoom, vrange=vrange)
+        self.plot_loss(iteration, ax=axes[1])
         if plot_representation_error:
             fig = self.plot_representation_error(batch_idx, iteration, ax=axes[2], ylim=ylim)
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_error=True, imshow_zoom=None):
+                plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
+                rep_error_kwargs={}):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -763,6 +869,15 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             Either an int or an inverse power of 2, how much to zoom the
             images by in the plots we'll create. If None (the default), we
             attempt to find the best value ourselves.
+        plot_data_attr : list, optional
+            list of strs giving the names of the attributes with data
+            plotted on the second subplot. this allows us to update
+            whatever is in there if your plot_synthesis_status() plots
+            something other than loss or if you plotted more than one
+            attribute (e.g., MADCompetition plots two losses)
+        rep_error_kwargs : dict, optional
+            a dictionary of kwargs to pass through to the repeated calls
+            to representation_error() (in addition to the iteration)
 
         Returns
         -------
@@ -780,7 +895,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         saved_subsample = len(self.loss) // (self.saved_representation.shape[0] - 1)
         # we have one extra frame of saved_image compared to loss, so we
         # just duplicate the loss value at the end
-        loss = self.loss + [self.loss[-1]]
+        plot_data = [getattr(self, d) + [getattr(self, d)[-1]] for d in plot_data_attr]
+        if self.target_representation.ndimension() == 4:
+            # we have to do this here so that we set the
+            # ylim_rescale_interval such that we never rescale ylim
+            # (rescaling ylim messes up an image axis)
+            ylim = False
         try:
             if ylim.startswith('rescale'):
                 try:
@@ -796,21 +916,20 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         except AttributeError:
             # this way we'll never rescale
             ylim_rescale_interval = len(self.saved_image)+1
-        if self.target_representation.ndimension() == 4:
-            ylim = False
         # initialize the figure
         fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
                                          plot_representation_error, imshow_zoom=imshow_zoom)
         # grab the artists for the second plot (we don't need to do this
         # for the synthesized image or representation plot, because we
         # use the update_plot function for that)
-        scat = fig.axes[1].collections[0]
+        scat = fig.axes[1].collections
 
         if self.target_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
                           " to best handle rescaling color ranges yet!")
             # replace the bit of the title that specifies the range,
-            # since we don't make any promises about that
+            # since we don't make any promises about that. we have to do
+            # this here because we need the figure to have been created
             for ax in fig.axes[2:]:
                 ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
 
@@ -819,7 +938,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             artists.extend(update_plot([fig.axes[0]], data=self.saved_image[i],
                                        batch_idx=batch_idx))
             if plot_representation_error:
-                representation_error = self.representation_error(iteration=i)
+                representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
                 # we know that the first two axes are the image and
                 # loss, so we pass everything after that to update
                 artists.extend(update_plot(fig.axes[2:], batch_idx=batch_idx, model=self.model,
@@ -831,8 +950,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                         rescale_ylim(fig.axes[2:], representation_error)
             # loss always contains values from every iteration, but
             # everything else will be subsampled
-            scat.set_offsets((i*saved_subsample, loss[i*saved_subsample]))
-            artists.append(scat)
+            for s, d in zip(scat, plot_data):
+                s.set_offsets((i*saved_subsample, d[i*saved_subsample]))
+            artists.extend(scat)
             # as long as blitting is True, need to return a sequence of artists
             return artists
 
