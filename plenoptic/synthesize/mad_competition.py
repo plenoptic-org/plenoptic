@@ -1710,7 +1710,6 @@ class MADCompetition(Synthesis):
 
         """
         last_state = self._check_state(synthesis_target, None)
-        print(last_state)
         if isinstance(ylim, str):
             warnings.warn("Be careful with rescaling the ylims, this can mess up any image that's"
                           " being shown (for example, the representation error of one of the "
