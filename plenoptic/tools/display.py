@@ -429,7 +429,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                 ax = fig.add_subplot(gs[i // 4, i % 4])
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 # only plot the specified batch
-                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax)
+                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax, vrange='indep0')
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all
