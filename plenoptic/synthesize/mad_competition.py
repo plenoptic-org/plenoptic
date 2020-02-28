@@ -543,7 +543,7 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
                    optimizer='Adam', clamper=None, store_progress=False, save_progress=False,
-                   save_path='mad.pt', fix_step_n_iter=10, **optimizer_kwargs):
+                   save_path='mad.pt', fix_step_n_iter=10, norm_loss=True, **optimizer_kwargs):
         r"""Synthesize one maximally-differentiating image
 
         This synthesizes a single image, minimizing or maximizing either
@@ -608,6 +608,13 @@ class MADCompetition(Synthesis):
             determines how many iterations we should use in that loop to
             find nu. Obviously, the larger this, the longer synthesis
             will take.
+        norm_loss : bool, optional
+            Whether to normalize the loss of each model. You probably
+            want them to be normalized so that they are of the same
+            magnitude and thus their gradients are also of the same
+            magnitude. However, you can turn it off and see how that
+            affects performance. It's also useful for debugging
+            purposes.
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -652,8 +659,11 @@ class MADCompetition(Synthesis):
         self.target_representation = self.analyze(self.target_image)
         self.matched_representation = self.analyze(self.matched_image)
         self.initial_representation = self.analyze(self.initial_image)
-        self.loss_norm = self.objective_function(self.target_representation,
-                                                 self.initial_representation, False)
+        if norm_loss:
+            self.loss_norm = self.objective_function(self.target_representation,
+                                                     self.initial_representation, norm_loss=False)
+        else:
+            self.loss_norm = 1
 
         self.update_target(self.synthesis_target, 'main')
         self.target_representation = self.analyze(self.target_image)
@@ -665,8 +675,12 @@ class MADCompetition(Synthesis):
         # negative in both the regular calculation of the loss and the
         # norm, then we end up canceling it out. This will make sure
         # that loss_norm is always positive
-        self.loss_norm = abs(self.objective_function(self.target_representation,
-                                                     self.initial_representation, False))
+        if norm_loss:
+            self.loss_norm = abs(self.objective_function(self.target_representation,
+                                                         self.initial_representation,
+                                                         norm_loss=False))
+        else:
+            self.loss_norm = 1
 
         optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
         self.optimizer_kwargs = optimizer_kwargs
