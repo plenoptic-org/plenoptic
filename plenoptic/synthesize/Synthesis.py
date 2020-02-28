@@ -24,6 +24,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     """
     def __init__(self):
         super().__init__()
+        self.use_subset_for_gradient = False
 
     @abc.abstractmethod
     def synthesize():
@@ -214,7 +215,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                     optimizer_kwargs[k] = v
             self.optimizer = optim.LBFGS([self.matched_image], lr=lr, **optimizer_kwargs)
             warnings.warn('This second order optimization method is more intensive')
-            if self.fraction_removed > 0:
+            if hasattr(self, 'fraction_removed') and self.fraction_removed > 0:
                 warnings.warn('For now the code is not designed to handle LBFGS and random'
                               ' subsampling of coeffs')
         elif optimizer == 'Adam':
@@ -263,25 +264,29 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if self.store_progress:
             self.matched_representation.retain_grad()
 
-        # here we get a boolean mask (bunch of ones and zeroes) for all
-        # the statistics we want to include. We only do this if the loss
-        # appears to be roughly unchanging for some number of iterations
-        if (len(self.loss) > self.loss_change_iter and
-            self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
-            error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
-            error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
-        # else, we use all of the statistics
+        if self.use_subset_for_gradient:
+            # here we get a boolean mask (bunch of ones and zeroes) for all
+            # the statistics we want to include. We only do this if the loss
+            # appears to be roughly unchanging for some number of iterations
+            if (len(self.loss) > self.loss_change_iter and
+                self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
+                error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
+                error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
+            # else, we use all of the statistics
+            else:
+                error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
+            # for some reason, pytorch doesn't have the equivalent of
+            # np.random.permutation, something that returns a shuffled copy
+            # of a tensor, so we use numpy's version
+            idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
+            # then we optionally randomly select some subset of those.
+            idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
+            matched_rep = self.matched_representation.flatten()[idx_sub]
+            target_rep = target_rep.flatten()[idx_sub]
         else:
-            error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
-        # for some reason, pytorch doesn't have the equivalent of
-        # np.random.permutation, something that returns a shuffled copy
-        # of a tensor, so we use numpy's version
-        idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
-        # then we optionally randomly select some subset of those.
-        idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-        loss = self.objective_function(self.matched_representation.flatten()[idx_sub],
-                                       target_rep.flatten()[idx_sub])
+            matched_rep = self.matched_representation
 
+        loss = self.objective_function(matched_rep, target_rep)
         loss.backward(retain_graph=True)
 
         return loss

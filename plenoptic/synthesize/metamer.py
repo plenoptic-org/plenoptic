@@ -372,6 +372,8 @@ class Metamer(Synthesis):
             delattr(self, 'matched_representation')
             self.matched_representation = None
 
+        if fraction_removed > 1 or loss_change_fraction < 1:
+            self.use_subset_for_gradient = True
         self.fraction_removed = fraction_removed
         self.loss_change_thresh = loss_change_thresh
         self.loss_change_iter = loss_change_iter
