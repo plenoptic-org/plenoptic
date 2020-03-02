@@ -1057,14 +1057,12 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     n_polar_windows = calc_angular_n_windows(ecc_window_spacing / radial_to_circumferential_ratio)
     # we want to set the number of polar windows where the ratio of widths is approximately what
     # the user specified. the constraint that it's an integer is more important
-    angle_tensor = polar_angle_windows(round(n_polar_windows), resolution, window_type,
+    angle_tensor = polar_angle_windows(int(n_polar_windows), resolution, window_type,
                                        transition_region_width=transition_region_width,
                                        std_dev=std_dev)
-    angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
     ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
                                           max_eccentricity, window_type, std_dev=std_dev,
                                           transition_region_width=transition_region_width)
-    ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
     return angle_tensor, ecc_tensor
 
 
