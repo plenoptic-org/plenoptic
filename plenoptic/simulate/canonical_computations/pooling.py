@@ -37,7 +37,7 @@ import pyrtools as pt
 import matplotlib.pyplot as plt
 import os.path as op
 from torch import nn
-from ...tools.data import to_numpy
+from ...tools.data import to_numpy, polar_angle, polar_radius
 
 # see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
@@ -738,7 +738,7 @@ def gaussian(x, std_dev=1):
         warnings.warn("if std_dev much smaller than 1, the windows won't tile correctly!")
     if std_dev > 3:
         warnings.warn("if std_dev too large, the windows won't tile correctly!")
-    return np.exp(-(x**2 / (2 * std_dev**2))) / (std_dev * GAUSSIAN_SUM)
+    return torch.exp(-(x**2 / (2 * std_dev**2))) / (std_dev * GAUSSIAN_SUM)
 
 
 def mother_window(x, transition_region_width=.5):
@@ -774,19 +774,17 @@ def mother_window(x, transition_region_width=.5):
     """
     if transition_region_width > 1 or transition_region_width < 0:
         raise Exception("transition_region_width must lie between 0 and 1!")
-    if not isinstance(x, np.ndarray):
-        x = np.array(x)
     # doing it in this array-ized fashion is much faster
-    y = np.zeros_like(x)
+    y = torch.zeros_like(x)
     # this creates a bunch of masks
     masks = [(-(1 + transition_region_width) / 2 < x) & (x <= (transition_region_width - 1) / 2),
              ((transition_region_width - 1) / 2 < x) & (x <= (1 - transition_region_width) / 2),
              ((1 - transition_region_width) / 2 < x) & (x <= (1 + transition_region_width) / 2)]
     # and this creates the values where those masks are
-    vals = [np.cos(np.pi/2 * ((x - (transition_region_width-1)/2) / transition_region_width))**2,
-            np.ones_like(x),
-            (-np.cos(np.pi/2 * ((x - (1+transition_region_width)/2) /
-                                transition_region_width))**2 + 1)]
+    vals = [torch.cos(np.pi/2 * ((x - (transition_region_width-1)/2) / transition_region_width))**2,
+            torch.ones_like(x),
+            (-torch.cos(np.pi/2 * ((x - (1+transition_region_width)/2) /
+                                   transition_region_width))**2 + 1)]
     for m, v in zip(masks, vals):
         y[m] = v[m]
     return y
@@ -827,7 +825,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
 
     Returns
     -------
-    windows : np.array
+    windows : torch.tensor
         A 3d array containing the (2d) polar angle windows. Windows will
         be indexed along the first dimension.
 
@@ -844,29 +842,18 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         raise Exception("We cannot handle one window correctly!")
     # this is `w_\theta` in the paper
     window_spacing = calc_angular_window_spacing(n_windows)
-    windows = []
-    for n in range(int(n_windows)):
-        if window_type == 'cosine':
-            window_center = (window_spacing * n + (window_spacing * (1-transition_region_width)) / 2)
-        else:
-            window_center = window_spacing * n
-        # equivalent to building the windows from 0 to 2 pi with
-        # different centers, we can build all of our windows centered at
-        # 0, rotating the underlying theta. this helps us avoid
-        # discontinuities, at the cost of slowing it down.  otherwise,
-        # we would pass this as the argument: ((theta - window_center) /
-        # window_spacing)
-        if hasattr(resolution, '__iter__') and len(resolution) == 2:
-            theta = pt.synthetic_images.polar_angle(resolution, window_center)
-        else:
-            theta = np.linspace(0, 2 * np.pi, resolution)
-            theta = ((theta+(np.pi-window_center)) % (2*np.pi)) - np.pi
-        if window_type == 'gaussian':
-            windows.append(gaussian(theta / window_spacing, std_dev))
-        elif window_type == 'cosine':
-            windows.append(mother_window(theta / window_spacing, transition_region_width))
-    windows = [i for i in windows if not (i == 0).all()]
-    return np.array(windows)
+    if hasattr(resolution, '__iter__') and len(resolution) == 2:
+        theta = polar_angle(resolution).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, 2*np.pi - window_spacing, n_windows).unsqueeze(-1).unsqueeze(-1))
+    else:
+        theta = torch.linspace(0, 2 * np.pi, resolution).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, 2*np.pi - window_spacing, n_windows).unsqueeze(-1))
+    theta = ((theta % (2 * np.pi)) - np.pi) / window_spacing
+    if window_type == 'gaussian':
+        windows = gaussian(theta, std_dev)
+    elif window_type == 'cosine':
+        windows = mother_window(theta, transition_region_width)
+    return torch.stack([w for w in windows if (w != 0).any()])
 
 
 def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
@@ -941,23 +928,21 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
        1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
-    if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        ecc = pt.synthetic_images.polar_radius(resolution) * (max_ecc / (resolution[1]/2))
-    else:
-        ecc = np.linspace(0, max_ecc, resolution)
     if window_spacing is None:
         window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
     n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
-    windows = []
-    for n in range(math.ceil(n_windows)):
-        mother_window_arg = ((np.log(ecc) - (np.log(min_ecc) + window_spacing * (n+1))) /
-                             window_spacing)
-        if window_type == 'gaussian':
-            windows.append(gaussian(mother_window_arg, std_dev))
-        elif window_type == 'cosine':
-            windows.append(mother_window(mother_window_arg, transition_region_width))
-    windows = [i for i in windows if not (i == 0).all()]
-    return np.array(windows)
+    if hasattr(resolution, '__iter__') and len(resolution) == 2:
+        ecc = torch.log(polar_radius(resolution) * (max_ecc / (resolution[1]/2))).unsqueeze(0)
+        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows))).unsqueeze(-1).unsqueeze(-1)
+    else:
+        ecc = torch.log(torch.linspace(0, max_ecc, resolution)).unsqueeze(0)
+        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows))).unsqueeze(-1)
+    ecc = (ecc - shift_arg) / window_spacing
+    if window_type == 'gaussian':
+        windows = gaussian(ecc, std_dev)
+    elif window_type == 'cosine':
+        windows = mother_window(ecc, transition_region_width)
+    return torch.stack([w for w in windows if (w != 0).any()])
 
 
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,

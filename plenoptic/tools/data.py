@@ -83,5 +83,98 @@ def make_basic_stimuli(size=256, requires_grad=True):
     return stimuli
 
 
+def polar_radius(size, exponent=1, origin=None):
+    '''make distance-from-origin (r) matrix
+
+    Compute a matrix of given size containing samples of a radial ramp
+    function, raised to given exponent, centered at given origin.
+
+    Arguments
+    ---------
+    size : `int` or `tuple`
+        if an int, we assume the image should be of dimensions `(size,
+        size)`. if a tuple, must be a 2-tuple of ints specifying the
+        dimensions
+    exponent : `float`
+        the exponent of the radial ramp function.
+    origin : `int`, `tuple`, or None
+        the center of the image. if an int, we assume the origin is at
+        `(origin, origin)`. if a tuple, must be a 2-tuple of ints
+        specifying the origin (where `(0, 0)` is the upper left).  if
+        None, we assume the origin lies at the center of the matrix,
+        `(size+1)/2`.
+
+    Returns
+    -------
+    res : torch.tensor
+        the polar radius matrix
+
+    '''
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    xramp, yramp = torch.meshgrid(torch.arange(1, size[1]+1)-origin[1],
+                                  torch.arange(1, size[0]+1)-origin[0])
+
+    if exponent <= 0:
+        # zero to a negative exponent raises:
+        # ZeroDivisionError: 0.0 cannot be raised to a negative power
+        r = xramp ** 2 + yramp ** 2
+        res = np.power(r, exponent / 2.0, where=(r != 0))
+    else:
+        res = (xramp ** 2 + yramp ** 2) ** (exponent / 2.0)
+    return res
+
+
+def polar_angle(size, phase=0, origin=None):
+    '''make polar angle matrix (in radians)
+
+    Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
+    X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
+
+    Arguments
+    ---------
+    size : `int` or `tuple`
+        if an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
+        a 2-tuple of ints specifying the dimensions
+    phase : `float`
+        the phase of the polar angle function (in radians, clockwise from the X-axis)
+    origin : `int`, `tuple`, or None
+        the center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
+        tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
+        if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
+
+    Returns
+    -------
+    res : torch.tensor
+        the polar angle matrix
+
+    '''
+    if not hasattr(size, '__iter__'):
+        size = (size, size)
+
+    if origin is None:
+        origin = ((size[0]+1)/2., (size[1]+1)/2.)
+    elif not hasattr(origin, '__iter__'):
+        origin = (origin, origin)
+
+    # for some reason, torch.meshgrid returns them in the opposite order
+    # that np.meshgrid does. So, in order to get the same output, we
+    # grab them as (yramp, xramp) instead of (xramp, yramp)
+    yramp, xramp = torch.meshgrid(torch.arange(1, size[1]+1)-origin[1],
+                                  torch.arange(1, size[0]+1)-origin[0])
+
+    res = torch.atan2(yramp, xramp)
+
+    res = ((res+(np.pi-phase)) % (2*np.pi)) - np.pi
+
+    return res
+
+
 if __name__ == '__main__':
     make_basic_stimuli()
