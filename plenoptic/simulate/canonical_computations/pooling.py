@@ -792,7 +792,7 @@ def mother_window(x, transition_region_width=.5):
 
 
 def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_region_width=.5,
-                        std_dev=None, utilize_symmetry=False):
+                        std_dev=None, utilize_symmetry=False, device=None):
     r"""Create polar angle windows in 2d
 
     We require an integer number of windows placed between 0 and 2 pi.
@@ -831,6 +831,8 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
         of them in memory.
+    device : str or torch.device
+        the device to create this tensor on
 
     Returns
     -------
@@ -858,11 +860,11 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
             raise Exception("Can only make use of 4-fold symmetry if n_windows is divisible by 4!")
         n_windows = n_windows // 4
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        theta = polar_angle(resolution).unsqueeze(0)
-        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows).unsqueeze(-1).unsqueeze(-1))
+        theta = polar_angle(resolution, device=device).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows, device=device).unsqueeze(-1).unsqueeze(-1))
     else:
-        theta = torch.linspace(0, 2 * np.pi, resolution).unsqueeze(0)
-        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows).unsqueeze(-1))
+        theta = torch.linspace(0, 2 * np.pi, resolution, device=device).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows, device=device).unsqueeze(-1))
     theta = ((theta % (2 * np.pi)) - np.pi) / window_spacing
     if window_type == 'gaussian':
         windows = gaussian(theta, std_dev)
@@ -873,7 +875,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
 
 def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
                              max_ecc=15, window_type='cosine', transition_region_width=.5,
-                             std_dev=None):
+                             std_dev=None, device=None):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -929,6 +931,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
+    device : str or torch.device
+        the device to create this tensor on
 
     Returns
     -------
@@ -947,11 +951,11 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
     n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        ecc = torch.log(polar_radius(resolution) * (max_ecc / (resolution[1]/2))).unsqueeze(0)
-        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows))).unsqueeze(-1).unsqueeze(-1)
+        ecc = torch.log(polar_radius(resolution, device=device) * (max_ecc / (resolution[1]/2))).unsqueeze(0)
+        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows), device=device)).unsqueeze(-1).unsqueeze(-1)
     else:
-        ecc = torch.log(torch.linspace(0, max_ecc, resolution)).unsqueeze(0)
-        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows))).unsqueeze(-1)
+        ecc = torch.log(torch.linspace(0, max_ecc, resolution, device=device)).unsqueeze(0)
+        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows), device=device)).unsqueeze(-1)
     ecc = (ecc - shift_arg) / window_spacing
     if window_type == 'gaussian':
         windows = gaussian(ecc, std_dev)
@@ -962,7 +966,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, window_type='cosine',
-                           transition_region_width=.5, std_dev=None, utilize_symmetry=False):
+                           transition_region_width=.5, std_dev=None, utilize_symmetry=False,
+                           device=None):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -1034,6 +1039,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,
         ``min_ecc``, and ``max_ecc``.
+    device : str or torch.device
+        the device to create these tensors on
 
     Examples
     --------
@@ -1096,10 +1103,12 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         n_polar_windows = new_n_polar_windows
     angle_tensor = polar_angle_windows(n_polar_windows, resolution, window_type,
                                        transition_region_width=transition_region_width,
-                                       std_dev=std_dev, utilize_symmetry=utilize_symmetry)
+                                       std_dev=std_dev, utilize_symmetry=utilize_symmetry,
+                                       device=device)
     ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
                                           max_eccentricity, window_type, std_dev=std_dev,
-                                          transition_region_width=transition_region_width)
+                                          transition_region_width=transition_region_width,
+                                          device=device)
     return angle_tensor, ecc_tensor
 
 

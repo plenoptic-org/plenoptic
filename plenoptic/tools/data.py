@@ -83,7 +83,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
     return stimuli
 
 
-def polar_radius(size, exponent=1, origin=None):
+def polar_radius(size, exponent=1, origin=None, device=None):
     '''make distance-from-origin (r) matrix
 
     Compute a matrix of given size containing samples of a radial ramp
@@ -103,6 +103,8 @@ def polar_radius(size, exponent=1, origin=None):
         specifying the origin (where `(0, 0)` is the upper left).  if
         None, we assume the origin lies at the center of the matrix,
         `(size+1)/2`.
+    device : str or torch.device
+        the device to create this tensor on
 
     Returns
     -------
@@ -118,8 +120,8 @@ def polar_radius(size, exponent=1, origin=None):
     elif not hasattr(origin, '__iter__'):
         origin = (origin, origin)
 
-    xramp, yramp = torch.meshgrid(torch.arange(1, size[1]+1)-origin[1],
-                                  torch.arange(1, size[0]+1)-origin[0])
+    xramp, yramp = torch.meshgrid(torch.arange(1, size[1]+1, device=device)-origin[1],
+                                  torch.arange(1, size[0]+1, device=device)-origin[0])
 
     if exponent <= 0:
         # zero to a negative exponent raises:
@@ -131,7 +133,7 @@ def polar_radius(size, exponent=1, origin=None):
     return res
 
 
-def polar_angle(size, phase=0, origin=None):
+def polar_angle(size, phase=0, origin=None, device=None):
     '''make polar angle matrix (in radians)
 
     Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
@@ -148,6 +150,8 @@ def polar_angle(size, phase=0, origin=None):
         the center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
         tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
         if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
+    device : str or torch.device
+        the device to create this tensor on
 
     Returns
     -------
@@ -166,8 +170,8 @@ def polar_angle(size, phase=0, origin=None):
     # for some reason, torch.meshgrid returns them in the opposite order
     # that np.meshgrid does. So, in order to get the same output, we
     # grab them as (yramp, xramp) instead of (xramp, yramp)
-    yramp, xramp = torch.meshgrid(torch.arange(1, size[1]+1)-origin[1],
-                                  torch.arange(1, size[0]+1)-origin[0])
+    yramp, xramp = torch.meshgrid(torch.arange(1, size[1]+1, device=device)-origin[1],
+                                  torch.arange(1, size[0]+1, device=device)-origin[0])
 
     res = torch.atan2(yramp, xramp)
 
