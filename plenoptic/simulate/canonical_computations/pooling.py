@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import os.path as op
 from torch import nn
 from ...tools.data import to_numpy, polar_angle, polar_radius
+from ...tools.signal import rotate_image
 
 # see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
@@ -791,7 +792,7 @@ def mother_window(x, transition_region_width=.5):
 
 
 def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_region_width=.5,
-                        std_dev=None):
+                        std_dev=None, utilize_symmetry=False):
     r"""Create polar angle windows in 2d
 
     We require an integer number of windows placed between 0 and 2 pi.
@@ -822,6 +823,17 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory. note that rotating won't get you the exact
+        same set of windows that generating the full set would, but
+        they'll only be different around the fovea. since we are masking
+        that out anyways, this is unimportant
 
     Returns
     -------
@@ -842,12 +854,18 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         raise Exception("We cannot handle one window correctly!")
     # this is `w_\theta` in the paper
     window_spacing = calc_angular_window_spacing(n_windows)
+    max_angle = 2*np.pi - window_spacing
+    if utilize_symmetry:
+        max_angle = np.pi/2 - window_spacing
+        if n_windows % 4 != 0:
+            raise Exception("Can only make use of 4-fold symmetry if n_windows is divisible by 4!")
+        n_windows = n_windows // 4
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
         theta = polar_angle(resolution).unsqueeze(0)
-        theta = theta + (np.pi - torch.linspace(0, 2*np.pi - window_spacing, n_windows).unsqueeze(-1).unsqueeze(-1))
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows).unsqueeze(-1).unsqueeze(-1))
     else:
         theta = torch.linspace(0, 2 * np.pi, resolution).unsqueeze(0)
-        theta = theta + (np.pi - torch.linspace(0, 2*np.pi - window_spacing, n_windows).unsqueeze(-1))
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows).unsqueeze(-1))
     theta = ((theta % (2 * np.pi)) - np.pi) / window_spacing
     if window_type == 'gaussian':
         windows = gaussian(theta, std_dev)
