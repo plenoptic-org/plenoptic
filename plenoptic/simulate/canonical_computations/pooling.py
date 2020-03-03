@@ -1727,9 +1727,9 @@ class PoolingWindows(nn.Module):
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
                                                  [v.to(self.angle_windows[0].device),
                                                   self.angle_windows[k[0]],
-                                                  self.ecc_windows[k[0]]]).flatten(2, 3))
+                                                  self.ecc_windows[k[0]]]).flatten(2, 3) /
+                                 self.window_sizes[k[0]])
                                 for k, v in x.items())
-                pooled_x = dict((k, v / self.window_sizes[k[0]]) for k, v in pooled_x.items())
             else:
                 pooled_x = {}
                 for k, v in x.items():
@@ -1748,10 +1748,10 @@ class PoolingWindows(nn.Module):
                     pooled_x[k] = torch.cat(tmp, -1) / sizes
         else:
             if self.num_devices == 1:
-                pooled_x = torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
-                                                               self.angle_windows[idx],
-                                                               self.ecc_windows[idx]]).flatten(2, 3)
-                pooled_x = pooled_x / self.window_sizes[idx]
+                pooled_x = (torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
+                                                                self.angle_windows[idx],
+                                                                self.ecc_windows[idx]]).flatten(2, 3)
+                            / self.window_sizes[idx])
             else:
                 pooled_x = []
                 sizes = self.window_sizes[idx]
