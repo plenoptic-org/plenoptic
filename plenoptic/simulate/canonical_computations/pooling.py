@@ -830,10 +830,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         necessary (using the ``rotate_image`` function). this means we
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
-        of them in memory. note that rotating won't get you the exact
-        same set of windows that generating the full set would, but
-        they'll only be different around the fovea. since we are masking
-        that out anyways, this is unimportant
+        of them in memory.
 
     Returns
     -------
@@ -965,7 +962,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, window_type='cosine',
-                           transition_region_width=.5, std_dev=None):
+                           transition_region_width=.5, std_dev=None, utilize_symmetry=False):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -1016,6 +1013,14 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         The standard deviation fo the Gaussian window. WARNING -- if
         this is too small (say < 3/4), then the windows won't tile
         correctly
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory.
 
     Returns
     -------
@@ -1073,11 +1078,25 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     ecc_window_spacing = calc_eccentricity_window_spacing(min_eccentricity, max_eccentricity,
                                                           scaling=scaling, std_dev=std_dev)
     n_polar_windows = calc_angular_n_windows(ecc_window_spacing / radial_to_circumferential_ratio)
-    # we want to set the number of polar windows where the ratio of widths is approximately what
-    # the user specified. the constraint that it's an integer is more important
-    angle_tensor = polar_angle_windows(int(n_polar_windows), resolution, window_type,
+    # we want to set the number of polar windows where the ratio of
+    # widths is approximately what the user specified. the constraint
+    # that it's an integer is more important
+    n_polar_windows = int(round(n_polar_windows))
+    # again, the aspect ratio is less important, so we focus on making
+    # sure this is divisible by 4. we often have a lot of angular
+    # windows, so this doesn't change it by very much.
+    if utilize_symmetry:
+        if n_polar_windows % 4 < 3:
+            new_n_polar_windows = n_polar_windows - (n_polar_windows % 4)
+        else:
+            new_n_polar_windows = n_polar_windows - (n_polar_windows % 4) + 4
+        if n_polar_windows != new_n_polar_windows:
+            warnings.warn("Since you want to utilize symmetry, we're changing n_polar_windows from"
+                          f" {n_polar_windows} to {new_n_polar_windows}")
+        n_polar_windows = new_n_polar_windows
+    angle_tensor = polar_angle_windows(n_polar_windows, resolution, window_type,
                                        transition_region_width=transition_region_width,
-                                       std_dev=std_dev)
+                                       std_dev=std_dev, utilize_symmetry=utilize_symmetry)
     ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
                                           max_eccentricity, window_type, std_dev=std_dev,
                                           transition_region_width=transition_region_width)
@@ -1162,6 +1181,14 @@ class PoolingWindows(nn.Module):
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory.
 
     Attributes
     ----------
@@ -1294,7 +1321,8 @@ class PoolingWindows(nn.Module):
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 cache_dir=None, window_type='cosine', transition_region_width=.5, std_dev=None):
+                 cache_dir=None, window_type='cosine', transition_region_width=.5, std_dev=None,
+                 utilize_symmetry=False):
         super().__init__()
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
@@ -1321,6 +1349,11 @@ class PoolingWindows(nn.Module):
             # window is its square
             self.window_max_amplitude = (1 / (std_dev * GAUSSIAN_SUM)) ** 2
             self.window_intersecting_amplitude = self.window_max_amplitude * np.exp(-.25/2)
+        self.utilize_symmetry = utilize_symmetry
+        if utilize_symmetry:
+            # if we're making use of the symmetry, we want to cache the
+            # meshgrid for rotating
+            self.meshgrid = {}
         self.num_devices = 1
         self.angle_windows = {}
         self.ecc_windows = {}
@@ -1384,15 +1417,25 @@ class PoolingWindows(nn.Module):
             if angle_windows is None or ecc_windows is None:
                 angle_windows, ecc_windows = create_pooling_windows(
                     scaling, scaled_img_res, min_ecc, max_eccentricity, std_dev=self.std_dev,
-                    transition_region_width=self.transition_region_width, window_type=window_type)
+                    transition_region_width=self.transition_region_width, window_type=window_type,
+                    utilize_symmetry=utilize_symmetry)
 
                 if cache_dir is not None:
                     warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
                     torch.save({'angle': angle_windows, 'ecc': ecc_windows}, self.cache_paths[-1])
             self.angle_windows[i] = angle_windows
             self.ecc_windows[i] = ecc_windows
-            window_sizes = torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows])
-            self.window_sizes[i] = torch.clamp(window_sizes.flatten(), min=1)
+            window_sizes = torch.clamp(torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows]),
+                                       min=1)
+            if utilize_symmetry:
+                # if we're making use of the symmetry, we want to cache
+                # the meshgrid for rotating
+                self.meshgrid[i] = torch.meshgrid(torch.arange(angle_windows.shape[-2]),
+                                                  torch.arange(angle_windows.shape[-1]))
+                # don't flatten this, because of how we handle shapes
+                self.window_sizes[i] = window_sizes
+            else:
+                self.window_sizes[i] = window_sizes.flatten()
 
     def _window_sizes(self):
         r"""Calculate the various window size metrics
@@ -1637,6 +1680,9 @@ class PoolingWindows(nn.Module):
         unparallel : undo this parallelization
 
         """
+        if self.utilize_symmetry:
+            raise NotImplementedError("Parallelizing while utilizing symmetry is currently "
+                                      "unsupported!")
         angle_windows_gpu = {}
         for k, v in self.angle_windows.items():
             num = int(np.ceil(len(v) / len(devices)))
@@ -1742,12 +1788,21 @@ class PoolingWindows(nn.Module):
             output_device = list(x.values())[0].device
         if isinstance(x, dict):
             if self.num_devices == 1:
-                pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
-                                                 [v.to(self.angle_windows[0].device),
-                                                  self.angle_windows[k[0]],
-                                                  self.ecc_windows[k[0]]]).flatten(2, 3) /
-                                 self.window_sizes[k[0]])
-                                for k, v in x.items())
+                if not self.utilize_symmetry:
+                    pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
+                                                     [v.to(self.angle_windows[0].device),
+                                                      self.angle_windows[k[0]],
+                                                      self.ecc_windows[k[0]]]).flatten(2, 3) /
+                                     self.window_sizes[k[0]])
+                                    for k, v in x.items())
+                else:
+                    pooled_x = dict((k, torch.cat([torch.einsum(
+                        'bchw,ahw,ehw->bcea',
+                        [v.to(self.angle_windows[0].device),
+                         rotate_image(self.angle_windows[k[0]], a, *self.meshgrid[k[0]]),
+                         self.ecc_windows[k[0]]]) / self.window_sizes[k[0]]
+                                                   for a in [0, 90, 180, 270]], dim=-1).flatten(2, 3))
+                                     for k, v in x.items())
             else:
                 pooled_x = {}
                 for k, v in x.items():
@@ -1766,10 +1821,19 @@ class PoolingWindows(nn.Module):
                     pooled_x[k] = torch.cat(tmp, -1) / sizes
         else:
             if self.num_devices == 1:
-                pooled_x = (torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
-                                                                self.angle_windows[idx],
-                                                                self.ecc_windows[idx]]).flatten(2, 3)
-                            / self.window_sizes[idx])
+                if not self.utilize_symmetry:
+                    pooled_x = (torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
+                                                                    self.angle_windows[idx],
+                                                                    self.ecc_windows[idx]]).flatten(2, 3)
+                                / self.window_sizes[idx])
+                else:
+                    pooled_x = torch.cat([torch.einsum(
+                        'bchw,ahw,ehw->bcea',
+                        [x.to(self.angle_windows[0].device),
+                         rotate_image(self.angle_windows[idx], a, *self.meshgrid[idx]),
+                         self.ecc_windows[idx]]) / self.window_sizes[idx] for a in [0, 90, 180, 270]],
+                                         dim=-1).flatten(2, 3)
+
             else:
                 pooled_x = []
                 sizes = self.window_sizes[idx]
@@ -1839,6 +1903,9 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        if self.utilize_symmetry:
+            raise NotImplementedError("window() while utilizing symmetry is currently "
+                                      "unsupported!")
         if isinstance(x, dict):
             if list(x.values())[0].ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
@@ -1929,6 +1996,8 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        if self.utilize_symmetry:
+            raise NotImplementedError("pool() while utilizing symmetry is currently unsupported!")
         if isinstance(windowed_x, dict):
             if self.num_devices == 1:
                 # one way to make this more general: figure out the size
@@ -2021,12 +2090,17 @@ class PoolingWindows(nn.Module):
                         # "mean_luminance" and this corresponds to the
                         # lowest/largest scale
                         window_key = 0
+                    if self.utilize_symmetry:
+                        angle_windows = torch.cat([rotate_image(self.angle_windows[window_key], a,
+                                                                *self.meshgrid[window_key])
+                                                   for a in [0, 90, 180, 270]], dim=0)
+                    else:
+                        angle_windows = self.angle_windows[window_key]
                     v = v.reshape((*v.shape[:2], self.ecc_windows[window_key].shape[0],
-                                   self.angle_windows[window_key].shape[0]))
+                                   angle_windows.shape[0]))
                     tmp[k] = torch.einsum('bcea,ahw,ehw->bchw',
                                           [v.to(self.angle_windows[0].device),
-                                           self.angle_windows[window_key],
-                                           self.ecc_windows[window_key]])
+                                           angle_windows, self.ecc_windows[window_key]])
                 return tmp
             else:
                 tmp = {}
@@ -2058,9 +2132,14 @@ class PoolingWindows(nn.Module):
             if self.num_devices == 1:
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], self.ecc_windows[idx].shape[0],
                                              self.n_polar_windows))
+                if self.utilize_symmetry:
+                    angle_windows = torch.cat([rotate_image(self.angle_windows[idx], a,
+                                                            *self.meshgrid[idx])
+                                               for a in [0, 90, 180, 270]], dim=0)
+                else:
+                    angle_windows = self.angle_windows[idx]
                 return torch.einsum('bcea,ahw,ehw->bchw', [pooled_x.to(self.angle_windows[0].device),
-                                                           self.angle_windows[idx],
-                                                           self.ecc_windows[idx]])
+                                                           angle_windows, self.ecc_windows[idx]])
             else:
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], self.ecc_windows[(idx, 0)].shape[0],
                                              self.n_polar_windows))

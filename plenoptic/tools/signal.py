@@ -26,14 +26,19 @@ def rotate_image(img, angle, X=None, Y=None):
     """
     if X is None or Y is None:
         X, Y = torch.meshgrid(torch.arange(img.shape[-2]), torch.arange(img.shape[-1]))
+    # when we flip the axes (using -X or -Y), we need to subtract 1 in
+    # order for them to be aligned properly. if img is 256 by 256, then
+    # X will contain numbers from 0 to 255. we want to map 0 to 255, 1
+    # to 254, etc, which is equivalent to mapping 0 to -1, 1 to -2,
+    # etc. Thus we need -X-1 instead of -X
     if angle == 0:
         X_idx, Y_idx = X, Y
     elif angle == 90:
-        X_idx, Y_idx = -Y, X
+        X_idx, Y_idx = -Y-1, X
     elif angle == 180:
-        X_idx, Y_idx = -X, -Y
+        X_idx, Y_idx = -X-1, -Y-1
     elif angle == 270:
-        X_idx, Y_idx = Y, -X
+        X_idx, Y_idx = Y, -X-1
     else:
         raise Exception("Can only rotate by 0, 90, 180 or 270 degrees!")
     return img[..., X_idx, Y_idx]

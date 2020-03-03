@@ -97,6 +97,14 @@ class VentralModel(nn.Module):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory.
 
     Attributes
     ----------
@@ -198,18 +206,18 @@ class VentralModel(nn.Module):
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
                  transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
-                 std_dev=None):
+                 std_dev=None, utilize_symmetry=False):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
                                              num_scales, cache_dir, window_type,
-                                             transition_region_width, std_dev)
+                                             transition_region_width, std_dev, utilize_symmetry)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
                      'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res',
-                     'window_type', 'std_dev']:
+                     'window_type', 'std_dev', 'utilize_symmetry']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
         self.state_dict_reduced['cone_power'] = cone_power
         self.cone_power = cone_power
@@ -722,6 +730,14 @@ class RetinalGanglionCells(VentralModel):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory.
 
     Attributes
     ----------
@@ -835,10 +851,11 @@ class RetinalGanglionCells(VentralModel):
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
                  transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
-                 std_dev=None):
+                 std_dev=None, utilize_symmetry=False):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          transition_region_width=transition_region_width, cone_power=cone_power,
-                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev,
+                         utilize_symmetry=utilize_symmetry)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.representation = None
@@ -1123,6 +1140,14 @@ class PrimaryVisualCortex(VentralModel):
     include_highpass : bool, optional
         Whether to include the high-pass residual in the model or
         not.
+    utilize_symmetry : bool, optional
+        we can take advantage of the fact that there's a simple 4-fold
+        rotational symmetry in polar angle and only generate a quarter
+        of the windows and, at run time, just rotate the windows as
+        necessary (using the ``rotate_image`` function). this means we
+        don't have to hold them all in memory but, since we'll need a
+        for loop, it will be slightly slower than if we were holding all
+        of them in memory.
 
     Attributes
     ----------
@@ -1278,10 +1303,12 @@ class PrimaryVisualCortex(VentralModel):
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
-                 include_highpass=False, window_type='cosine', std_dev=None):
+                 include_highpass=False, window_type='cosine', std_dev=None,
+                 utilize_symmetry=False):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
-                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev,
+                         utilize_symmetry=utilize_symmetry)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
                                         'normalize_dict': normalize_dict,
