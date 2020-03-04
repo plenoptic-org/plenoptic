@@ -1463,7 +1463,18 @@ class PoolingWindows(nn.Module):
         """
         ecc_window_width = calc_eccentricity_window_spacing(scaling=self.scaling,
                                                             std_dev=self.std_dev)
-        self.n_polar_windows = int(round(calc_angular_n_windows(ecc_window_width / 2)))
+        n_polar_windows = int(round(calc_angular_n_windows(ecc_window_width / 2)))
+        # again, the aspect ratio is less important, so we focus on
+        # making sure this is divisible by 4. we often have a lot of
+        # angular windows, so this doesn't change it by very much. we
+        # don't raise a warning here because it happens during their
+        # construction.
+        if self.utilize_symmetry:
+            if n_polar_windows % 4 < 3:
+                n_polar_windows = n_polar_windows - (n_polar_windows % 4)
+            else:
+                n_polar_windows = n_polar_windows - (n_polar_windows % 4) + 4
+        self.n_polar_windows = n_polar_windows
         angular_window_width = calc_angular_window_spacing(self.n_polar_windows)
         # we multiply max_eccentricity by sqrt(2) here because we want
         # to go out to the corner of the image
