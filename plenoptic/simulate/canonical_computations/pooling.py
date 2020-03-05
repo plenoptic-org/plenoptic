@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 import os.path as op
 from torch import nn
 from ...tools.data import to_numpy, polar_angle, polar_radius
-from ...tools.signal import rotate_image
+from ...tools.signal import flip_image
 
 # see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
@@ -826,8 +826,8 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     utilize_symmetry : bool, optional
         we can take advantage of the fact that there's a simple 4-fold
         rotational symmetry in polar angle and only generate a quarter
-        of the windows and, at run time, just rotate the windows as
-        necessary (using the ``rotate_image`` function). this means we
+        of the windows and, at run time, just flip the windows as
+        necessary (using the ``flip_image`` function). this means we
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
         of them in memory.
@@ -855,10 +855,15 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     window_spacing = calc_angular_window_spacing(n_windows)
     max_angle = 2*np.pi - window_spacing
     if utilize_symmetry:
-        max_angle = np.pi/2 - window_spacing
+        max_angle = np.pi/2
         if n_windows % 4 != 0:
             raise Exception("Can only make use of 4-fold symmetry if n_windows is divisible by 4!")
-        n_windows = n_windows // 4
+        # in order to get the full symmetry by using flip, we need one
+        # more than a quarter of the windows. This is equivalent to the
+        # window along the right horizontal meridian to the one along
+        # the lower vertical meridian. at run time, we will need to drop
+        # one of these from each quarter
+        n_windows = (n_windows // 4) + 1
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
         theta = polar_angle(resolution, device=device).unsqueeze(0)
         theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows, device=device).unsqueeze(-1).unsqueeze(-1))
@@ -1021,8 +1026,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     utilize_symmetry : bool, optional
         we can take advantage of the fact that there's a simple 4-fold
         rotational symmetry in polar angle and only generate a quarter
-        of the windows and, at run time, just rotate the windows as
-        necessary (using the ``rotate_image`` function). this means we
+        of the windows and, at run time, just flip the windows as
+        necessary (using the ``flip_image`` function). this means we
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
         of them in memory.
@@ -1193,8 +1198,8 @@ class PoolingWindows(nn.Module):
     utilize_symmetry : bool, optional
         we can take advantage of the fact that there's a simple 4-fold
         rotational symmetry in polar angle and only generate a quarter
-        of the windows and, at run time, just rotate the windows as
-        necessary (using the ``rotate_image`` function). this means we
+        of the windows and, at run time, just flip the windows as
+        necessary (using the ``flip_image`` function). this means we
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
         of them in memory.
@@ -1363,6 +1368,13 @@ class PoolingWindows(nn.Module):
             # if we're making use of the symmetry, we want to cache the
             # meshgrid for rotating
             self.meshgrid = {}
+            # we need to be careful in order to make sure we get these
+            # in the proper order
+            self.flip_order = [(False, False), (True, False), (True, True), (False, True)]
+            # we will also need to drop one angle window per flip
+            # (either the first or last) because otherwise we'll
+            # over-represent the meridia
+            self.flip_idx = [(0, -1), (1, None), (0, -1), (1, None)]
         self.num_devices = 1
         self.angle_windows = {}
         self.ecc_windows = {}
@@ -1441,7 +1453,7 @@ class PoolingWindows(nn.Module):
                 # the meshgrid for rotating
                 self.meshgrid[i] = torch.meshgrid(torch.arange(angle_windows.shape[-2]),
                                                   torch.arange(angle_windows.shape[-1]))
-                # don't flatten this, because of how we handle shapes
+                # don't flatten this, because of how we handle shapes.
                 self.window_sizes[i] = window_sizes
             else:
                 self.window_sizes[i] = window_sizes.flatten()
@@ -1819,9 +1831,10 @@ class PoolingWindows(nn.Module):
                     pooled_x = dict((k, torch.cat([torch.einsum(
                         'bchw,ahw,ehw->bcea',
                         [v.to(self.angle_windows[0].device),
-                         rotate_image(self.angle_windows[k[0]], a, *self.meshgrid[k[0]]),
-                         self.ecc_windows[k[0]]]) / self.window_sizes[k[0]]
-                                                   for a in [0, 90, 180, 270]], dim=-1).flatten(2, 3))
+                         flip_image(self.angle_windows[k[0]], hori, vert, *self.meshgrid[k[0]])[a:b],
+                         self.ecc_windows[k[0]]]) / self.window_sizes[k[0]][:, a:b] for (hori, vert), (a, b)
+                                                   in zip(self.flip_order, self.flip_idx)],
+                                                  dim=-1).flatten(2, 3))
                                      for k, v in x.items())
             else:
                 pooled_x = {}
@@ -1850,8 +1863,9 @@ class PoolingWindows(nn.Module):
                     pooled_x = torch.cat([torch.einsum(
                         'bchw,ahw,ehw->bcea',
                         [x.to(self.angle_windows[0].device),
-                         rotate_image(self.angle_windows[idx], a, *self.meshgrid[idx]),
-                         self.ecc_windows[idx]]) / self.window_sizes[idx] for a in [0, 90, 180, 270]],
+                         flip_image(self.angle_windows[idx], hori, vert, *self.meshgrid[idx])[a:b],
+                         self.ecc_windows[idx]]) / self.window_sizes[idx][:, a:b] for (hori, vert), (a, b)
+                                          in zip(self.flip_order, self.flip_idx)],
                                          dim=-1).flatten(2, 3)
 
             else:
@@ -2111,9 +2125,10 @@ class PoolingWindows(nn.Module):
                         # lowest/largest scale
                         window_key = 0
                     if self.utilize_symmetry:
-                        angle_windows = torch.cat([rotate_image(self.angle_windows[window_key], a,
-                                                                *self.meshgrid[window_key])
-                                                   for a in [0, 90, 180, 270]], dim=0)
+                        angle_windows = torch.cat([flip_image(self.angle_windows[window_key], hori,
+                                                              vert, *self.meshgrid[window_key])[a:b]
+                                                   for (hori, vert), (a, b) in
+                                                   zip(self.flip_order, self.flip_idx)], dim=0)
                     else:
                         angle_windows = self.angle_windows[window_key]
                     v = v.reshape((*v.shape[:2], self.ecc_windows[window_key].shape[0],
@@ -2153,9 +2168,10 @@ class PoolingWindows(nn.Module):
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], self.ecc_windows[idx].shape[0],
                                              self.n_polar_windows))
                 if self.utilize_symmetry:
-                    angle_windows = torch.cat([rotate_image(self.angle_windows[idx], a,
-                                                            *self.meshgrid[idx])
-                                               for a in [0, 90, 180, 270]], dim=0)
+                    angle_windows = torch.cat([flip_image(self.angle_windows[idx], hori, vert,
+                                                          *self.meshgrid[idx])[a:b]
+                                               for (hori, vert), (a, b) in
+                                               zip(self.flip_order, self.flip_idx)], dim=0)
                 else:
                     angle_windows = self.angle_windows[idx]
                 return torch.einsum('bcea,ahw,ehw->bchw', [pooled_x.to(self.angle_windows[0].device),
