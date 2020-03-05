@@ -1383,7 +1383,7 @@ class PoolingWindows(nn.Module):
             self.cache_dir = op.expanduser(cache_dir)
             cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
                                           "e0-{min_eccentricity:.03f}_em-{max_eccentricity:.01f}_w"
-                                          "-{window_width}_{window_type}.pt")
+                                          "-{window_width}_{window_type}_sym-{sym}.pt")
         else:
             self.cache_dir = cache_dir
         self.cache_paths = []
@@ -1395,7 +1395,8 @@ class PoolingWindows(nn.Module):
                                    'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': self.transition_region_width,
                                    'cache_dir': self.cache_dir, 'window_type': window_type,
-                                   'std_dev': self.std_dev}
+                                   'std_dev': self.std_dev,
+                                   'utilize_symmetry': self.utilize_symmetry}
         for i in range(self.num_scales):
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
@@ -1428,7 +1429,7 @@ class PoolingWindows(nn.Module):
                                      max_eccentricity=self.max_eccentricity,
                                      img_res=','.join([str(int(i)) for i in scaled_img_res]),
                                      window_width=window_width_for_saving,
-                                     window_type=window_type)
+                                     window_type=window_type, sym=utilize_symmetry)
                 self.cache_paths.append(cache_path_template.format(**format_kwargs))
                 if op.exists(self.cache_paths[-1]):
                     warnings.warn("Loading windows from cache: %s" % self.cache_paths[-1])
@@ -1571,6 +1572,14 @@ class PoolingWindows(nn.Module):
             self.ecc_windows[k] = v.to(*args, **kwargs)
         for k, v in self.window_sizes.items():
             self.window_sizes[k] = v.to(*args, **kwargs)
+        if hasattr(self, 'meshgrid'):
+            # we don't want to change the dtype of meshgrid
+            args = [a for a in args if not isinstance(a, torch.dtype)]
+            kwargs.pop('dtype', None)
+            for k, v in self.meshgrid.items():
+                # meshgrid's values are (X, Y) tuples, each of which
+                # needs to be sent separately
+                self.meshgrid[k] = (v[0].to(*args, **kwargs), v[1].to(*args, **kwargs))
         return self
 
     def merge(self, other_PoolingWindows, scale_offset=.5):
@@ -1619,6 +1628,9 @@ class PoolingWindows(nn.Module):
             self.ecc_windows[k+scale_offset] = v
         for k, v in other_PoolingWindows.window_sizes.items():
             self.window_sizes[k+scale_offset] = v
+        if hasattr(self, 'meshgrid'):
+            for k, v in other_PoolingWindows.meshgrid.items():
+                self.meshgrid[k+scale_offset] = v
 
     @staticmethod
     def _get_slice_vals(scaled_window_res, scaled_img_res):
