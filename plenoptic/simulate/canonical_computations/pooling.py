@@ -19,13 +19,14 @@ have their max amplitude scaled down as their standard deviation
 increases; as the standard deviation increases, the windows overlap
 more, so that the number of windows a given pixel lies in increases and
 thus the weighting in each of them needs to decrease in order to make
-sure the sum across all windows is still 1 for every pixel. For now, we
-only allow that standard deviation = 1, which gives us windows that
-intersect at half a standard deviation away. I am fairly certain that,
-if we want windows that evenly tile the space, have the aspect ratios we
-want, have scaling = FWHM * eccentricity, and intersect at a relative
-point (e.g., half a standard deviation rather than always at x=.5), then
-we have no more degrees of freedom to play with.
+sure the sum across all windows is still 1 for every pixel. The Gaussian
+windows will always intersect at x=.5, but the interpretation of this
+depends on its standard deviation. For Gaussian windows, we recommend
+(and only expect) a standard deviation of 1, so that each window
+intersects at half a standard deviation. We support larger windows, but
+these are intended to be used as the surround in the
+difference-of-gaussian windows (centers should still have standard
+deviation fo 1)
 
 """
 import math
@@ -458,11 +459,7 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
         The width of the cosine windows' transition region, parameter
         :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation of the Gaussian window. WARNING -- For
-        now, we only support ``std_dev=1`` (in order to ensure that the
-        windows tile correctly, intersect at the proper point, follow
-        scaling, and have proper aspect ratio; not sure we can make that
-        happen for other values).
+        The standard deviation of the Gaussian window.
 
     Returns
     -------
@@ -682,6 +679,65 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
     return min_ecc_deg, min_ecc_deg * deg_to_pix
 
 
+def calc_dog_normalization_factor(center_surround_ratio=0.53):
+    """calculate factor to properly normalize difference-of-gaussian windows
+
+    Following [2]_, our difference of gaussian windows are: :math:`w_c
+    g_c - (1-w_c) g_s`, where :math:`g_c` is the center gaussian,
+    :math:`g_s` is the surround gaussian, and :math:`w_c` is the
+    ``center_surround_ratio`` parameter.
+
+    We still want our windows to be normalized such that they sum to 1
+    everywhere in the image across all windows. We've normalized the
+    center and surround gaussians individually to do this (see the
+    ``gaussian`` function), and so now we just need to quickly correct
+    their sum. To use, you can divide the windows by this factor either
+    before or after taking the difference between the center and
+    surround gaussians.
+
+    Parameters
+    ----------
+    center_surround_ratio : float, optional
+        ratio giving the relative weights of the center and surround
+        gaussians. default is the value from [2]_
+
+    Returns
+    -------
+    norm_factor : float
+        the amount to divide each component of the DoG windows by so
+        they properly sum to 1
+
+    Notes
+    -----
+
+    This is simply :math:`w_c - (1 - w_c)`. To see why, let's step
+    through the following. When we sum across all gaussians windows at a
+    given location, we're doing (where :math:`D(x)` is the difference of
+    Gaussians evaluated at :math:`x`, and all others are as above; see
+    Notes in the docstring of ``gaussian`` for a bit more explanation of
+    this logic):
+
+    ..math::
+
+        S &= D(0) + 2 \sum_{n=1}^\inf D(n)
+        S &= [w_c g_c - (1-w_c)g_s](0) + 2 \sum_{n=1}^\inf [w_c g_c - (1-w_c)g_s](n)
+        S &= w_c g_c(0) + 2 \sum_{n=1}^\inf w_c g_c(n) - [(1-w_c)g_s(0) + 2 \sum_{n=1}^\inf (1-w_c)g_s(n)]
+        S &= w_c [g_c(0) + 2 \sum_{n=1}^\inf g_c(n)] - (1-w_c)[g_s(0) + 2 \sum_{n=1}^\inf g_s(n)]
+        S &= w_c * 1 - (1-w_c) * 1
+    
+    because we normalized each of our gaussians, and thus we know that
+    each of those sums will be 1.
+
+    References
+    ----------
+    .. [2] Bradley, C., Abrams, J., & Geisler, W. S. (2014). Retina-v1
+       model of detectability across the visual field. Journal of
+       Vision, 14(12), 22–22. http://dx.doi.org/10.1167/14.12.22
+
+    """
+    return center_surround_ratio - (1 - center_surround_ratio)
+
+
 def gaussian(x, std_dev=1):
     r"""Simple gaussian with mean 0, and adjustable std dev
 
@@ -694,10 +750,7 @@ def gaussian(x, std_dev=1):
     x : float or array_like
         The distance in a direction
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- For
-        now we only support ``std_dev=1``, but this is left in here (and
-        several other places throughout these functions in case adding
-        support for other values becomes desired).
+        The standard deviation of the Gaussian window.
 
     Returns
     -------
@@ -707,17 +760,22 @@ def gaussian(x, std_dev=1):
     Notes
     -----
     We normalize in here in order to make sure that the windows sum to
-    1. In order to do that, we note that with std_dev=1 at x=0, the
-    first window is at ``x=0``, the two on either side of it are at
-    ``x=1=std_dev``, the two on either side of them are at
-    ``x=2=2*std_dev``, etc.
+    1. In order to do that, we note that each Gaussian is centered at
+    integer x values: 0, 1, 2, 3, etc. If we're summing at ``x=0``, we
+    then note that the first window will be centered there and so have
+    its max amplitude, its two nearest neighbors will be 1 away from
+    their center (these Gaussians are symmetric), their two nearest
+    neighbors will be 2 away from their center, etc. Therefore, we'll
+    have one Gaussian at max value (1), two at
+    :math:`\exp(\frac{-1^2}{2\sigma^2})`, two at
+    :math:`\exp(\frac{-2^2}{2\sigma^2})`, etc.
 
     Summing at this location will give us the value we need to normalize
-    by, :math:`S`. We see:
+    by, :math:`S`. We work through this with :math:`\sigma=1`:
 
     ..math::
 
-        S &= 1 + 2 * \exp(\frac{-(\sigma)^2}{2\sigma^2}) + 2 * \exp(\frac{-(2\sigma)^2}{2\sigma^2}) + ...
+        S &= 1 + 2 * \exp(\frac{-(1)^2}{2\sigma^2}) + 2 * \exp(\frac{-(2)^2}{2\sigma^2}) + ...
         S &= 1 + 2 * \sum_{n=1}^{\inf} \exp({-n^2}{2})
         S &= -1 + 2 * \sum_{n=0}^{\inf} \exp({-n^2}{2})
 
@@ -725,20 +783,13 @@ def gaussian(x, std_dev=1):
     infinite sum computed in the equation above was using Wolfram Alpha,
     https://www.wolframalpha.com/input/?i=sum+0+to+inf+e%5E%28-n%5E2%2F2%29+)
 
-    When ``std_dev>1``, the windows overlap more. I have not been able
-    to work through the proof, but it looks like you can just multiply
-    this GAUSSIAN_SUM by ``std_dev`` and everything will work out. For
-    now, we only support ``std_dev=1``, so this is not a problem.
+    When ``std_dev>1``, the windows overlap more. As with the
+    probability density function of a normal distribution, we divide by
+    ``std_dev`` to keep the integral constant for different values of
+    ``std_dev`` (though the integral is not 1). This means that summing
+    across multiple windows will still give us a value of 1.
 
     """
-    if std_dev != 1:
-        raise Exception("For now, only std_dev=1 is supported. I do not think we can make sure "
-                        "the windows tile correctly, intersect at the proper point, follow "
-                        "scaling, and have proper aspect ratio with other std_dev values")
-    if std_dev < 1:
-        warnings.warn("if std_dev much smaller than 1, the windows won't tile correctly!")
-    if std_dev > 3:
-        warnings.warn("if std_dev too large, the windows won't tile correctly!")
     return torch.exp(-(x**2 / (2 * std_dev**2))) / (std_dev * GAUSSIAN_SUM)
 
 
@@ -793,7 +844,7 @@ def mother_window(x, transition_region_width=.5):
 
 def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_region_width=.5,
                         std_dev=None, utilize_symmetry=False, device=None):
-    r"""Create polar angle windows in 2d
+    r"""Create polar angle windows
 
     We require an integer number of windows placed between 0 and 2 pi.
 
@@ -818,11 +869,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         The width of the cosine windows' transition region, parameter
         :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation of the Gaussian window. WARNING -- For
-        now, we only support ``std_dev=1`` (in order to ensure that the
-        windows tile correctly, intersect at the proper point, follow
-        scaling, and have proper aspect ratio; not sure we can make that
-        happen for other values).
+        The standard deviation of the Gaussian window.
     utilize_symmetry : bool, optional
         we can take advantage of the fact that there's a simple 4-fold
         rotational symmetry in polar angle and only generate a quarter
@@ -838,7 +885,9 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     -------
     windows : torch.tensor
         A 3d array containing the (2d) polar angle windows. Windows will
-        be indexed along the first dimension.
+        be indexed along the first dimension. If resolution was an int,
+        then this will be a 2d arra containing the 1d polar angle
+        windows
 
     References
     ----------
@@ -854,6 +903,9 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     # this is `w_\theta` in the paper
     window_spacing = calc_angular_window_spacing(n_windows)
     max_angle = 2*np.pi - window_spacing
+    if window_type == 'gaussian' and (std_dev * 8) > n_windows:
+        raise Exception(f"In order for windows to tile the circle correctly, n_windows ({n_windows}"
+                        f") must be greater than 8*std_dev ({8*std_dev})!")
     if utilize_symmetry:
         max_angle = np.pi/2
         if n_windows % 4 != 0:
@@ -896,7 +948,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
     the full set of windows, we want to consider those that would show
     up in the corners as well, so it's probable that this function
     returns one more window there; we determine if this is necessary by
-    calling ``calc_eccentricity_n_windows`` with ``np.sqrt(2)*max_ecc``
+    calling ``calc_eccentricity_n_windows`` with
+    ``np.sqrt(2)*max_ecc``.
 
     Notes
     -----
@@ -972,7 +1025,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, window_type='cosine',
                            transition_region_width=.5, std_dev=None, utilize_symmetry=False,
-                           device=None):
+                           device=None, center_surround_ratio=.53, surround_std_dev=10.1):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -984,6 +1037,14 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     [1]_, you'll need to call ``torch.einsum`` (see Examples section)
     or, better yet, use the ``PoolingWindows`` class, which is provided
     for this purpose.
+
+    Because difference of gaussian (DoG) windows are non-polar
+    separable, we return those windows as two dictionaries (with keys
+    'center' and 'surround') instead of two tensors. because taking the
+    difference between the windows and multiplying them by the image are
+    both linear operations, you can separately apply the two gaussians
+    and then take their difference (this is what the ``PoolingWindows``
+    class does).
 
     Parameters
     ----------
@@ -1011,16 +1072,19 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         angle windows to the nearest integer, so the ratio in the
         generated windows approximate this. 2 (the default) is the value
         used in the paper [1]_.
-    window_type : {'cosine', 'gaussian'}
-        Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If cosine,
+    window_type : {'cosine', 'gaussian', 'dog'}
+        Whether to use the raised cosine function from [1]_, a Gaussian
+        that has approximately the same structure, or a difference of
+        two such gaussians (``'dog'``, as in [2]_). If cosine,
         ``transition_region_width`` must be set; if gaussian, then
-        ``std_dev`` must be set
+        ``std_dev`` must be set; if dog, then ``std_dev``,
+        ``center_surround_ratio``, and ``surround_std_dev`` must all be
+        set.
     transition_region_width : `float` or None, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
+        The standard deviation of the Gaussian window. WARNING -- if
         this is too small (say < 3/4), then the windows won't tile
         correctly
     utilize_symmetry : bool, optional
@@ -1031,21 +1095,42 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         don't have to hold them all in memory but, since we'll need a
         for loop, it will be slightly slower than if we were holding all
         of them in memory.
+    device : str or torch.device
+        the device to create these tensors on
+    center_surround_ratio : float, optional
+        ratio giving the relative weights of the center and surround
+        gaussians. default is the value from [2]_ (this is parameter
+        :math:`w_c` from that paper)
+    surround_std_dev : float, optional
+        the standard deviation of the surround Gaussian window. default
+        is the value from [2]_ (assuming ``std_dev=1``, this is
+        parameter :math:`k_s` from that paper).
 
     Returns
     -------
-    angle_windows : `torch.tensor`
+    angle_windows : torch.tensor or dict
         The 3d tensor of 2d polar angle windows. Its shape will be
         ``(n_angle_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``
-        and ``radial_to_circumferential_width``.
-    ecc_windows : `torch.tensor`
+        and ``radial_to_circumferential_width``. If
+        ``window_type='dog'``, then we return a dictionary with two keys
+        ('center' and 'surround') containing those windows instead.
+    ecc_windows : torch.tensor or dict
         The 3d tensor of 2d log-eccentricity windows. Its shape will be
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,
-        ``min_ecc``, and ``max_ecc``.
-    device : str or torch.device
-        the device to create these tensors on
+        ``min_ecc``, and ``max_ecc``. If ``window_type='dog'``, then we
+        return a dictionary with two keys ('center' and 'surround')
+        containing those windows instead; unlike angle_windows, center
+        and surround will not be the same shape, because the broader a
+        window is, the more windows we need to generate in order to
+        ensure they uniformly tile the periphery. The ``PoolingWindows``
+        class will handle this automatically, but you can also
+        concatenate zeros onto the center tensor in order to make them
+        the same shape (``torch.cat([ecc_windows['center'],
+        torch.zeros((ecc_windows['surround'].shape[0] -
+        ecc_windows['center'].shape[0],
+        *ecc_windows['center'].shape[1:]))])``)
 
     Examples
     --------
@@ -1087,6 +1172,12 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
        plt.show()
 
     """
+    if window_type == 'dog':
+        dog =True
+        window_type = 'gaussian'
+        norm_factor = calc_dog_normalization_factor(center_surround_ratio)
+    else:
+        dog = False
     ecc_window_spacing = calc_eccentricity_window_spacing(min_eccentricity, max_eccentricity,
                                                           scaling=scaling, std_dev=std_dev)
     n_polar_windows = calc_angular_n_windows(ecc_window_spacing / radial_to_circumferential_ratio)
@@ -1108,12 +1199,25 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         n_polar_windows = new_n_polar_windows
     angle_tensor = polar_angle_windows(n_polar_windows, resolution, window_type,
                                        transition_region_width=transition_region_width,
-                                       std_dev=std_dev, utilize_symmetry=utilize_symmetry,
-                                       device=device)
+    if dog:
+        angle_tensor = {'center': angle_tensor / norm_factor}
+        surround =polar_angle_windows(round(n_polar_windows), resolution, window_type,
+                                      transition_region_width=transition_region_width,
+                                      std_dev=surround_std_dev, utilize_symmetry=utilize_symmetry,
+                                      device=device)
+        angle_tensor['surround'] = surround / norm_factor
     ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
                                           max_eccentricity, window_type, std_dev=std_dev,
                                           transition_region_width=transition_region_width,
                                           device=device)
+    if dog:
+        ecc_tensor = {'center': ecc_tensor / norm_factor}
+        surround = log_eccentricity_windows(resolution, ecc_tensor['center'].shape[0],
+                                            ecc_window_spacing, min_eccentricity, max_eccentricity,
+                                            window_type, std_dev=surround_std_dev,
+                                            transition_region_width=transition_region_width,
+                                            device=device)
+        ecc_tensor['surround'] = surround / norm_factor
     return angle_tensor, ecc_tensor
 
 
