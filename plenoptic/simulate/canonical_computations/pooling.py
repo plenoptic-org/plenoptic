@@ -1199,6 +1199,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         n_polar_windows = new_n_polar_windows
     angle_tensor = polar_angle_windows(n_polar_windows, resolution, window_type,
                                        transition_region_width=transition_region_width,
+                                       std_dev=std_dev, utilize_symmetry=utilize_symmmetry,
+                                       device=device)
     if dog:
         angle_tensor = {'center': angle_tensor / norm_factor}
         surround =polar_angle_windows(round(n_polar_windows), resolution, window_type,
