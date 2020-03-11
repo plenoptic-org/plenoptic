@@ -1624,7 +1624,7 @@ class PoolingWindows(nn.Module):
         self.central_eccentricity_pixels = []
         self.deg_to_pix = []
         for i in range(self.num_scales):
-            deg_to_pix = calc_deg_to_pix([j**(i+1) for j in self.img_res], self.max_eccentricity)
+            deg_to_pix = calc_deg_to_pix([j/2**i for j in self.img_res], self.max_eccentricity)
             self.deg_to_pix.append(deg_to_pix)
             self.window_width_pixels.append(dict((k, v*deg_to_pix) for k, v in
                                                  self.window_width_degrees.copy().items()))
