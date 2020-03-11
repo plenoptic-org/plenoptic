@@ -1009,7 +1009,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
     n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        ecc = torch.log(polar_radius(resolution, device=device) * (max_ecc / (resolution[1]/2))).unsqueeze(0)
+        ecc = torch.log(polar_radius(resolution, device=device) / calc_deg_to_pix(resolution, max_ecc)).unsqueeze(0)
         shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1).unsqueeze(-1)
     else:
         ecc = torch.log(torch.linspace(0, max_ecc, resolution, device=device)).unsqueeze(0)
@@ -1199,7 +1199,7 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         n_polar_windows = new_n_polar_windows
     angle_tensor = polar_angle_windows(n_polar_windows, resolution, window_type,
                                        transition_region_width=transition_region_width,
-                                       std_dev=std_dev, utilize_symmetry=utilize_symmmetry,
+                                       std_dev=std_dev, utilize_symmetry=utilize_symmetry,
                                        device=device)
     if dog:
         angle_tensor = {'center': angle_tensor / norm_factor}
