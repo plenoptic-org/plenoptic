@@ -161,31 +161,9 @@ class Metamer(Synthesis):
     """
 
     def __init__(self, target_image, model):
-        super().__init__()
+        super().__init__(target_image, model)
 
-        if not isinstance(target_image, torch.Tensor):
-            target_image = torch.tensor(target_image, torch.float32)
-        self.target_image = target_image
-        self.model = model
-        self.seed = None
-
-        self.target_representation = self.analyze(self.target_image)
-        self.matched_image = None
-        self.matched_representation = None
-        self.optimizer = None
-        self.scheduler = None
         self.fraction_removed = 0
-
-        self.loss = []
-        self.gradient = []
-        self.learning_rate = []
-        self.saved_representation = []
-        self.saved_image = []
-        self.saved_image_gradient = []
-        self.saved_representation_gradient = []
-        self.scales_loss = []
-        self.scales = None
-        self.scales_timing = None
 
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,

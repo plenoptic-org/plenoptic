@@ -22,9 +22,36 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     sub-class and thus are marked as abstract methods here
 
     """
-    def __init__(self):
+    def __init__(self, target_image, model):
         super().__init__()
+        # this initializes all the attributes that are shared, though
+        # they can be overwritten in the individual __init__() if
+        # necessary
         self.use_subset_for_gradient = False
+
+        if not isinstance(target_image, torch.Tensor):
+            target_image = torch.tensor(target_image, dtype=torch.float32)
+        self.target_image = target_image
+        self.model = model
+        self.seed = None
+
+        self.target_representation = self.analyze(self.target_image)
+        self.matched_image = None
+        self.matched_representation = None
+        self.optimizer = None
+        self.scheduler = None
+
+        self.loss = []
+        self.gradient = []
+        self.learning_rate = []
+        self.saved_representation = []
+        self.saved_image = []
+        self.saved_image_gradient = []
+        self.saved_representation_gradient = []
+        self.scales_loss = []
+        self.scales = None
+        self.scales_timing = None
+        self.coarse_to_fine = False
 
     @abc.abstractmethod
     def synthesize():

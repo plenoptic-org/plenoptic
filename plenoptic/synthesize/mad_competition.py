@@ -222,7 +222,7 @@ class MADCompetition(Synthesis):
 
     """
 
-    def __init__(self, model_1, model_2, target_image, model_1_kwargs={}, model_2_kwargs={}):
+    def __init__(self, target_image, model_1, model_2, model_1_kwargs={}, model_2_kwargs={}):
         self._names = {'target_image': 'target_image',
                        'matched_image': 'matched_image',
                        'model': 'model_1',
@@ -235,11 +235,17 @@ class MADCompetition(Synthesis):
                        'saved_representation_gradient': 'saved_representation_1_gradient',
                        'loss_function': 'loss_function_1'}
 
-        super().__init__()
-
         self.synthesis_target = 'model_1_min'
+        super().__init__(target_image, model_1)
+
+        # initialize the MAD-specific attributes
         self.loss_sign = 1
         self.rep_warning = False
+        self.step = 'main'
+        self.nu = []
+        self.initial_image = None
+
+        # we handle models a little differently, so this is here
         if isinstance(model_1, torch.nn.Module):
             self.model_1 = model_1
             self.loss_function_1 = lambda x, y: torch.norm(x - y, p=2)
@@ -254,31 +260,21 @@ class MADCompetition(Synthesis):
             self.model_2 = Identity(model_2.__name__)
             self.loss_function_2 = lambda x, y:  model_2(x, y, **model_2_kwargs)
             self.rep_warning = True
-        if not isinstance(target_image, torch.Tensor):
-            target_image = torch.tensor(target_image, torch.float32)
-        self.target_image = target_image
-        self.target_representation_1 = self.analyze(self.target_image)
+
+        # we initialize all the model 1 versions of these in the
+        # super().__init__() call above, so we just need to do the model
+        # 2 ones
         self.update_target('model_1_min', 'fix')
         self.target_representation_2 = self.analyze(self.target_image)
-        self.matched_image = None
-        self.initial_image = None
-        self.matched_representation_1 = None
         self.matched_representation_2 = None
-        self.update_target('model_1_min', 'main')
-        self.step = 'main'
-        self.loss_1 = []
         self.loss_2 = []
-        self.saved_representation_1 = []
         self.saved_representation_2 = []
-        self.saved_image = []
-        self.saved_image_gradient = []
-        self.saved_representation_1_gradient = []
         self.saved_representation_2_gradient = []
-        self.gradient = []
-        self.learning_rate = []
-        self.nu = []
+        self.update_target('model_1_min', 'main')
 
-        # these are the attributes that have 'all' versions of them
+        # these are the attributes that have 'all' versions of them, and
+        # they'll all need to be initialized with a dictionary for each
+        # possible target
         self._attrs_all = ['saved_representation_1', 'saved_representation_2', 'saved_image',
                            'saved_representation_1_gradient', 'saved_representation_2_gradient',
                            'saved_image_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
@@ -299,10 +295,6 @@ class MADCompetition(Synthesis):
                 setattr(self, attr+'_all', _init_dict(True))
             else:
                 setattr(self, attr+'_all', _init_dict())
-
-        self.coarse_to_fine = False
-        self.scales = []
-        self.scales_loss = []
 
     def __getattr__(self, name):
         """get an attribute
