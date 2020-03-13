@@ -57,7 +57,8 @@ class MADCompetition(Synthesis):
        methods, rather than numpy or scipy, unless you manually define
        the gradients in the backward() method). The distance we use is
        the L2-norm of the difference between the model's representation
-       of two images.
+       of two images (by default, to change, set ``loss_function`` to
+       some other callable).
 
     2. Function: in this case, you're passing a visual *metric*, a
        function which takes two images (as 4d tensors) and returns a
@@ -76,12 +77,20 @@ class MADCompetition(Synthesis):
 
     Parameters
     ----------
-    model_1, model_2 : torch.nn.Module or function
-        The two models to compare. See above for the two allowed types
-        (Modules and functions)
     target_image : torch.tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
+    model_1, model_2 : torch.nn.Module or function
+        The two models to compare. See above for the two allowed types
+        (Modules and functions)
+    loss_function : callable or None, optional
+        the loss function to use to compare the representations of the
+        models in order to determine their loss. Only used for the
+        Module models, ignored otherwise. If None, we use the defualt:
+        the element-wise 2-norm. If a callable, must take two tensors
+        (x, y) and return the loss between them. Should probably be
+        symmetric so that loss(x, y) == loss(y, x) but that might not be
+        strictly necessary
     model_1_kwargs, model_2_kwargs : dict
         if model_1 or model_2 are functions (that is, you're using a
         metric instead of a model), then there might be additional
@@ -222,7 +231,8 @@ class MADCompetition(Synthesis):
 
     """
 
-    def __init__(self, target_image, model_1, model_2, model_1_kwargs={}, model_2_kwargs={}):
+    def __init__(self, target_image, model_1, model_2, loss_function=None, model_1_kwargs={},
+                 model_2_kwargs={}):
         self._names = {'target_image': 'target_image',
                        'matched_image': 'matched_image',
                        'model': 'model_1',
@@ -236,34 +246,34 @@ class MADCompetition(Synthesis):
                        'loss_function': 'loss_function_1'}
 
         self.synthesis_target = 'model_1_min'
-        super().__init__(target_image, model_1)
+        super().__init__(target_image, model_1, loss_function, **model_1_kwargs)
 
         # initialize the MAD-specific attributes
         self.loss_sign = 1
-        self.rep_warning = False
         self.step = 'main'
         self.nu = []
         self.initial_image = None
 
-        # we handle models a little differently, so this is here
-        if isinstance(model_1, torch.nn.Module):
-            self.model_1 = model_1
-            self.loss_function_1 = lambda x, y: torch.norm(x - y, p=2)
+        # we initialize all the model 1 versions of these in the
+        # super().__init__() call above, so we just need to do the model
+        # 2 ones
+        def l2_norm(x, y):
+            return torch.norm(x - y, p=2)
+
+        if loss_function is None:
+            loss_function = l2_norm
         else:
-            self.model_1 = Identity(model_1.__name__)
-            self.loss_function_1 = lambda x, y:  model_1(x, y, **model_1_kwargs)
-            self.rep_warning = True
+            if not isinstance(model_2, torch.nn.Module):
+                warnings.warn("Ignoring custom loss_function for model_2 since it's a metric")
+
         if isinstance(model_2, torch.nn.Module):
             self.model_2 = model_2
-            self.loss_function_2 = lambda x, y: torch.norm(x - y, p=2)
+            self.loss_function_2 = loss_function
         else:
             self.model_2 = Identity(model_2.__name__)
             self.loss_function_2 = lambda x, y:  model_2(x, y, **model_2_kwargs)
             self.rep_warning = True
 
-        # we initialize all the model 1 versions of these in the
-        # super().__init__() call above, so we just need to do the model
-        # 2 ones
         self.update_target('model_1_min', 'fix')
         self.target_representation_2 = self.analyze(self.target_image)
         self.matched_representation_2 = None
@@ -582,7 +592,7 @@ class MADCompetition(Synthesis):
             difference between x and y
 
         """
-        loss = self.loss_function(x, y)
+        loss = super().objective_function(x, y)
         if norm_loss:
             loss = loss / self.loss_norm
         return self.loss_sign * loss
@@ -1101,11 +1111,6 @@ class MADCompetition(Synthesis):
         torch.Tensor
 
         """
-        if self.rep_warning:
-            warnings.warn("Since at least one of your models is a metric, its representation_error"
-                          " will be meaningless -- it will just show the pixel-by-pixel difference"
-                          ". (Your loss is still meaningful, however, since it's the actual "
-                          "metric)")
         if model == 'both':
             last_state = self._check_state(synthesis_target, None)
             rep_error = {}
