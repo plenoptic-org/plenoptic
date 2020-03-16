@@ -39,7 +39,6 @@ import matplotlib.pyplot as plt
 import os.path as op
 from torch import nn
 from ...tools.data import to_numpy, polar_angle, polar_radius
-from ...tools.signal import flip_image
 
 # see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
@@ -680,7 +679,7 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
 
 
 def calc_dog_normalization_factor(center_surround_ratio=0.53):
-    """calculate factor to properly normalize difference-of-gaussian windows
+    r"""calculate factor to properly normalize difference-of-gaussian windows
 
     Following [2]_, our difference of gaussian windows are: :math:`w_c
     g_c - (1-w_c) g_s`, where :math:`g_c` is the center gaussian,
@@ -724,7 +723,7 @@ def calc_dog_normalization_factor(center_surround_ratio=0.53):
         S &= w_c g_c(0) + 2 \sum_{n=1}^\inf w_c g_c(n) - [(1-w_c)g_s(0) + 2 \sum_{n=1}^\inf (1-w_c)g_s(n)]
         S &= w_c [g_c(0) + 2 \sum_{n=1}^\inf g_c(n)] - (1-w_c)[g_s(0) + 2 \sum_{n=1}^\inf g_s(n)]
         S &= w_c * 1 - (1-w_c) * 1
-    
+
     because we normalized each of our gaussians, and thus we know that
     each of those sums will be 1.
 
@@ -1147,7 +1146,7 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
 
     """
     if window_type == 'dog':
-        dog =True
+        dog = True
         window_type = 'gaussian'
         warnings.warn("This will not tile correctly at the fovea, due to differences in the rate "
                       "at which the sums across the center and surround windows rise to 1. "
@@ -1952,7 +1951,7 @@ class PoolingWindows(nn.Module):
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
-        if self.window_type=='dog':
+        if self.window_type == 'dog':
             if angle_windows is None:
                 # need this normalization factor to make sure windows
                 # sum to one
@@ -2192,7 +2191,7 @@ class PoolingWindows(nn.Module):
                 return torch.cat(tmp, -1) / sizes
 
     def project(self, pooled_x, idx=0, output_device=torch.device('cpu'), angle_windows=None,
-                ecc_windows=None, window_sizes=None):
+                ecc_windows=None):
         r"""Project pooled values back onto an image
 
         For visualization purposes, you may want to project the pooled
@@ -2225,7 +2224,7 @@ class PoolingWindows(nn.Module):
             need to know what device to place the output on. If parallel
             has not been called (i.e., PoolingWindows is only on one
             device, this is ignored)
-        angle_windows, ecc_windows, window_sizes : dict or None, optional
+        angle_windows, ecc_windows : dict or None, optional
             either the dicts of tensors to use for these (with keys
             corresponding to different scales) or None, in which case we
             use the attributes with the same name. this is used by the
@@ -2248,7 +2247,6 @@ class PoolingWindows(nn.Module):
                                           "Must call project_dog()")
             angle_windows = self.angle_windows
             ecc_windows = self.ecc_windows
-            window_sizes = self.window_sizes
         if isinstance(pooled_x, dict):
             if list(pooled_x.values())[0].ndimension() != 3:
                 raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
@@ -2361,11 +2359,11 @@ class PoolingWindows(nn.Module):
         ctr = self.forward(x, idx, self.angle_windows['center'],
                            self.ecc_windows['center'], self.window_sizes['center'])
         ctr = self.project(ctr, idx, output_device, self.angle_windows['center'],
-                           self.ecc_windows['center'], self.window_sizes['center'])
+                           self.ecc_windows['center'])
         sur = self.forward(x, idx, self.angle_windows['surround'],
                            self.ecc_windows['surround'], self.window_sizes['surround'])
         sur = self.project(sur, idx, output_device, self.angle_windows['surround'],
-                           self.ecc_windows['surround'], self.window_sizes['surround'])
+                           self.ecc_windows['surround'])
         return (self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur) / norm_factor
 
     def plot_windows(self, ax=None, contour_levels=None, colors='r',
