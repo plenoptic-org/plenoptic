@@ -44,6 +44,54 @@ from ...tools.data import to_numpy, polar_angle, polar_radius
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
 
 
+def piecewise_log(x, transition_x=.5):
+    r"""piecewise log-like function for handling the fovea better
+
+    this function is used to give us another way of handling the
+    fovea. it is a piecewise function that is linear at the fovea and
+    log-like beyond that, with the transition specified by the arg
+    ``transition_x``
+
+    Specifically, let :math:`x_0` be ``transition_x``, then this
+    function returns:
+
+    .. math::
+
+       \[ \begin{cases}
+             x & x \leq x_0 \\
+             \log(x+1-x_0)+x_0 & x > x_0
+          \end{cases}
+       \]
+
+    The log portion of this function is slightly complicated by the fact
+    that we want the value and the first derivative of the two segments
+    to be equal at :math:`x=x_0`, and you can see that both have the
+    value :math:`x_0` and a derivative of 1 at :math:`x=x_0`
+
+    Parameters
+    ----------
+    x : torch.tensor
+        the tensor to transform
+    transition_x : float, optional
+        the value to transition from linear to log at, :math:`x_0` in
+        equation above
+
+    Returns
+    -------
+    x : torch.tensor
+        the transformed tensor
+
+    """
+    if (x < 0).any():
+        raise Exception("For now, x must be positive!")
+    # because we're doing this on tensors, we can't do it in a clean way
+    # (if we were doing it on arrays, we could use np.piecewise but
+    # alas). note that we're only replacing the bit larger than
+    # transition_x, everything else gets left alone
+    x[x>transition_x] = torch.log(x[x>transition_x] + 1 - transition_x) + transition_x
+    return x
+
+
 def calc_angular_window_spacing(n_windows):
     r"""calculate and return the window spacing for the angular windows
 
@@ -94,7 +142,7 @@ def calc_angular_n_windows(window_spacing):
 
 
 def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, scaling=None,
-                                     std_dev=None):
+                                     std_dev=None, transition_x=None):
     r"""calculate and return the window spacing for the eccentricity windows
 
     this is the :math:`w_e` term in equation 11 of the paper's online
@@ -102,10 +150,10 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
     the radial spacing. Note that we take exactly one of ``n_windows``
     or ``scaling`` in order to determine this value.
 
-    If scaling is set, ``min_ecc`` and ``max_ecc`` are ignored (the
-    window width only depends on scaling, not also on the range of
-    eccentricities; they only matter when determining the width using
-    ``n_windows``)
+    If scaling is set, ``min_ecc`` / ``transition_x`` and ``max_ecc``
+    are ignored (the window width only depends on scaling, not also on
+    the range of eccentricities; they only matter when determining the
+    width using ``n_windows``)
 
     For both cosine and gaussian windows, this is the distance between
     the peaks of the windows. For cosine windows, this is also the same
@@ -115,12 +163,17 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
     the Gaussians are technically infinite); but remember that these
     values are in log space not linear.
 
+    One of ``min_ecc`` or ``transition_x`` must be set. They determine
+    how we handle the fovea (see the docstring of
+    ``log_eccentricity_windows()`` for more details).
+
     Parameters
     ----------
-    min_ecc : `float`, optional
+    min_ecc : float or None, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
-        equation 11 of the online methods.
+        equation 11 of the online methods. If set, ``transition_x`` must
+        be None. If None, ``transition_x`` must be set
     max_ecc : `float`, optional
         The maximum eccentricity, the outer radius of the image (in
         degrees). Parameter :math:`e_r` in equation 11 of the online
@@ -133,9 +186,14 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
         half-maximum to eccentricity (see the ``calc_scaling``
         function). ``n_windows`` xor ``scaling`` must be set.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. If this is set,
+        The standard deviation of the Gaussian window. If this is set,
         we compute the scaling value for the Gaussian windows instead of
         for the cosine ones.
+    transition_x : float or None, optional
+        If set, the point at which the eccentricity transitions from
+        linear to log, see ``log_eccentricity_windows()`` for more
+        details. If set, ``min_ecc`` must be None. If None, ``min_ecc``
+        must be set
 
     Returns
     -------
@@ -182,25 +240,45 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
             x_half_max = std_dev * np.sqrt(2 * np.log(2))
         spacing = np.log((scaling + np.sqrt(scaling**2+4))/2) / x_half_max
     elif n_windows is not None:
+        if transition_x is not None:
+            if min_ecc is not None:
+                raise Exception("Exactly one of transition_x or min_ecc must be set!")
+            # regardless of window type or std_dev/transition_region_width
+            # value, the windows always intersect at +/-.5 away from their
+            # center (in x-values, the input to gaussian /
+            # mother_window). therefore, we can determine how many windows
+            # will lie within the linear region of our piecewise log
+            # space. we'll have the first window centered at 0, and then
+            # another window every .5, giving us the folowing.
+            n_linear_windows = (transition_x / .5) + 1
+            # we can then calculate window_spacing as normal, by
+            # computing the spacing necessary to get the correct numbers
+            # of windows in log-space from the linear-log transition to
+            # the end
+            min_ecc = transition_x
+            n_windows = n_windows - n_linear_windows
         spacing = (np.log(max_ecc) - np.log(min_ecc)) / n_windows
     else:
         raise Exception("Exactly one of n_windows or scaling must be set!")
-    if std_dev is not None:
-        spacing *= std_dev
     return spacing
 
 
-def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=None):
+def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=None,
+                                transition_x=None):
     r"""calculate and return the number of eccentricity windows
 
     this is the :math:`N_e` term in equation 11 of the paper's online
     method, which we've rearranged in order to get this.
 
+    One of ``min_ecc`` or ``transition_x`` must be set. They determine
+    how we handle the fovea (see the docstring of
+    ``log_eccentricity_windows()`` for more details).
+
     Parameters
     ----------
     window_spacing : `float`
         The spacing of the log-eccentricity windows.
-    min_ecc : `float`, optional
+    min_ecc : float or None, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
         equation 11 of the online methods.
@@ -212,6 +290,11 @@ def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=
         The standard deviation of the Gaussian window. Adds extra
         windows to account for the fact that Gaussian windows are
         larger. If using cosine windows, this should be None
+    transition_x : float or None, optional
+        If set, the point at which the eccentricity transitions from
+        linear to log, see ``log_eccentricity_windows()`` for more
+        details. If set, ``min_ecc`` must be None. If None, ``min_ecc``
+        must be set
 
     Returns
     -------
@@ -219,14 +302,34 @@ def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=
         The number of log-eccentricity windows we create.
 
     """
+    if transition_x is not None:
+        if min_ecc is not None:
+            raise Exception("Exactly one of transition_x or min_ecc must be set!")
+        # regardless of window type or std_dev/transition_region_width
+        # value, the windows always intersect at +/-.5 away from their
+        # center (in x-values, the input to gaussian /
+        # mother_window). therefore, we can determine how many windows
+        # will lie within the linear region of our piecewise log
+        # space. we'll have the first window centered at 0, and then
+        # another window every .5, giving us the folowing.
+        n_linear_windows = (transition_x / .5) + 1
+        # we can then calculate window_spacing as normal, by
+        # computing the spacing necessary to get the correct numbers
+        # of windows in log-space from the linear-log transition to
+        # the end
+        min_ecc = transition_x
+    else:
+        n_linear_windows = 0
     n_windows = (np.log(max_ecc) - np.log(min_ecc)) / window_spacing
+    n_windows += n_linear_windows
     # the Gaussians need extra windows in order to make sure that we're
     # summing to 1 across the whole image (because they're wider and
     # shorter). to make sure of this, we want to get all the windows
-    # past it up til the one who is 3 standard deviations away from the
-    # outermost window calculated above.
+    # past it up til the one who is 5 standard deviations away from the
+    # outermost window calculated above (this matters more for larger
+    # values of std_dev / larger windows).
     if std_dev is not None:
-        n_windows += 3 * std_dev
+        n_windows += 5 * std_dev
     return n_windows
 
 
@@ -875,9 +978,9 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
     Returns
     -------
     windows : torch.tensor
-        A 3d array containing the (2d) polar angle windows. Windows will
-        be indexed along the first dimension. If resolution was an int,
-        then this will be a 2d arra containing the 1d polar angle
+        A 3d tensor containing the (2d) polar angle windows. Windows
+        will be indexed along the first dimension. If resolution was an
+        int, then this will be a 2d arra containing the 1d polar angle
         windows
 
     References
@@ -913,7 +1016,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
 
 def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
                              max_ecc=15, window_type='cosine', transition_region_width=.5,
-                             std_dev=None, device=None):
+                             std_dev=None, transition_x=None, device=None):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -921,8 +1024,8 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 
     In order to convert the polar radius array we create from pixels to
     degrees, we assume that ``max_ecc`` is the maximum eccentricity in
-    the horizontal direction (i.e., to convert from pixels to degrees,
-    we multiply by ``max_ecc / (resolution[1]/2)``)
+    the whichever is the larger dimension (i.e., to convert from pixels
+    to degrees, we multiply by ``max_ecc / (max(resolution)/2)``)
 
     NOTE: if ``n_windows`` (rater than ``window_width``) is set, this is
     not necessarily the number of arrays we'll return. In order to get
@@ -931,6 +1034,19 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
     returns one more window there; we determine if this is necessary by
     calling ``calc_eccentricity_n_windows`` with
     ``np.sqrt(2)*max_ecc``.
+
+    Exactly one of ``transition_x`` or ``min_ecc`` must be set, which
+    determines how we handle the fovea. If ``min_ecc`` is set, we handle
+    it like in [1]_: we log-transform all eccentricities values, with
+    ``min_ecc`` determining where positive transformed values, such that
+    the windows will sum to 1 everywhere except for a region with radius
+    of approximately ``min_ecc`` (see equation 11). If ``transition_x``
+    is set, we use our ``piecewise_log`` function to transform the
+    eccentrity, which gives us a linear region at the fovea and a log
+    region beyond that (with ``transition_x`` giving the value at which
+    they transition); the windows therefore sum to 1 everywhere in the
+    image and a mask must be applied later to mask out the fovea (this
+    is handled by the ``PoolingWindows`` class automatically).
 
     Notes
     -----
@@ -970,14 +1086,20 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
+    transition_x : float or None, optional
+        If set, the point at which the eccentricity transitions from
+        linear to log. If set, ``min_ecc`` must be None. If None,
+        ``min_ecc`` must be set
     device : str or torch.device
         the device to create this tensor on
 
     Returns
     -------
-    windows : `np.array`
-        A 3d array containing the (2d) log-eccentricity windows. Windows
-        will be indexed along the first dimension.
+    windows : torch.tensor
+        A 3d tensor containing the (2d) log-eccentricity
+        windows. Windows will be indexed along the first dimension. If
+        resolution was an int, then this will be a 2d arra containing
+        the 1d polar angle windows
 
     References
     ----------
@@ -986,16 +1108,50 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
        1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
-    if window_spacing is None:
-        window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
-    n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
-    if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        ecc = torch.log(polar_radius(resolution, device=device) / calc_deg_to_pix(resolution, max_ecc)).unsqueeze(0)
-        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1).unsqueeze(-1)
+    if transition_x is not None:
+        log_func = piecewise_log
+        if min_ecc is not None:
+            raise Exception("Either transition_x or min_ecc must be None!")
+        if window_spacing is None:
+            window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
+                                                              std_dev=std_dev,
+                                                              transition_x=transition_x)
+        n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev,
+                                                transition_x)
+        shift_arg = (window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
+        # we want our windows to uniformly tile the image. we'll have
+        # some that are cut off at the literal fovea (that is, at
+        # eccentricity 0), so we find those windows that are within 4
+        # standard deviations of 0 and duplicate them.
+        foveal_windows = shift_arg[(shift_arg / window_spacing) <= 4*std_dev].unsqueeze(-1)
+        # We use multiplier to make sure that these duplicates see a
+        # *negative* eccentricity, so they'll represent the completion
+        # of the windows.
+        multiplier = torch.cat([torch.ones_like(shift_arg), -torch.ones_like(foveal_windows)])
+        # sort this so we get all the windows close to the fovea at the
+        # beginning
+        shift_arg, idx = torch.sort(torch.cat([shift_arg, foveal_windows]), 0)
+        # reindex this so it's the same as the sorted shift_arg
+        multiplier = multiplier[idx.flatten()]
+        # finally, add the window centered at 0. we do this here because
+        # we don't want it duplicated in the above bit.
+        shift_arg = torch.cat([torch.tensor([0], dtype=torch.float32).unsqueeze(-1), shift_arg])
+        multiplier = torch.cat([torch.tensor([1], dtype=torch.float32).unsqueeze(-1), multiplier])
     else:
-        ecc = torch.log(torch.linspace(0, max_ecc, resolution, device=device)).unsqueeze(0)
-        shift_arg = (torch.log(torch.tensor(min_ecc)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
-    ecc = (ecc - shift_arg) / window_spacing
+        log_func = torch.log
+        if window_spacing is None:
+            window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
+                                                              std_dev=std_dev)
+        n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
+        shift_arg = (torch.log(torch.tensor(min_ecc, dtype=torch.float32)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
+        multiplier = torch.ones_like(shift_arg)
+    if hasattr(resolution, '__iter__') and len(resolution) == 2:
+        ecc = log_func(polar_radius(resolution, device=device) / calc_deg_to_pix(resolution, max_ecc)).unsqueeze(0)
+        shift_arg = shift_arg.unsqueeze(-1)
+        multiplier = multiplier.unsqueeze(-1)
+    else:
+        ecc = log_func(torch.linspace(0, max_ecc, resolution, device=device)).unsqueeze(0)
+    ecc = (multiplier*ecc - shift_arg) / window_spacing
     if window_type == 'gaussian':
         windows = gaussian(ecc, std_dev)
     elif window_type == 'cosine':
