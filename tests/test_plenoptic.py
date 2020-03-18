@@ -284,8 +284,12 @@ class TestPooling(object):
         ang_windows, ecc_windows = po.simul.pooling.create_pooling_windows(.87, (256, 256))
 
     def test_creation_args(self):
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .7)
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .5)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           transition_region_width=.7)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           transition_region_width=.5)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           'gaussian', std_dev=1)
 
     def test_ecc_windows(self):
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
