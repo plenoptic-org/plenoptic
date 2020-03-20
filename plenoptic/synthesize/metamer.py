@@ -206,11 +206,40 @@ class Metamer(Synthesis):
         super().__init__(target_image, model, loss_function, **model_kwargs)
         self.fraction_removed = 0
 
+    def _init_matched_image(self, initial_image, clamper=None):
+        """initialize the matched image
+
+        set the ``self.matched_image`` attribute to be a parameter with
+        the user-supplied data, making sure it's the right shape and
+        calling clamper on it, if set
+
+        also initialize the ``self.matched_representation`` attribute
+
+        Parameters
+        ----------
+        initial_image : torch.tensor, array_like, or None, optional
+            The 2d tensor we use to initialize the metamer. If None (the
+            default), we initialize with uniformly-distributed random
+            noise lying between 0 and 1. If this is not a tensor or
+            None, we try to cast it as a tensor.
+        clamper : Clamper or None, optional
+            will set ``self.clamper`` attribute to this, and if not
+            None, will call ``clamper.clamp`` on matched_image
+
+        """
+        if initial_image is None:
+            matched_image_data = torch.rand_like(self.target_image, dtype=torch.float32,
+                                                 device=self.target_image.device)
+        else:
+            matched_image_data = torch.tensor(initial_image, dtype=torch.float32,
+                                              device=self.target_image.device)
+        super()._init_matched_image(matched_image_data, clamper)
+
     def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
                    clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
                    store_progress=False, save_progress=False, save_path='metamer.pt',
                    loss_change_thresh=1e-2, loss_change_iter=50, loss_change_fraction=1.,
-                   coarse_to_fine=False, **optimizer_kwargs):
+                   coarse_to_fine=False, scheduler=True, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -354,6 +383,11 @@ class Metamer(Synthesis):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -367,29 +401,11 @@ class Metamer(Synthesis):
             The model's representation of the metamer
 
         """
-        self.seed = seed
-        # random initialization
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        # set seed
+        self._set_seed(seed)
 
-        if initial_image is None:
-            self.matched_image = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                 device=self.target_image.device)
-            self.matched_image.requires_grad = True
-        else:
-            if not isinstance(initial_image, torch.Tensor):
-                initial_image = torch.tensor(initial_image, dtype=torch.float32,
-                                             device=self.target_image.device)
-            self.matched_image = torch.nn.Parameter(initial_image, requires_grad=True)
-
-        while self.matched_image.ndimension() < 4:
-            self.matched_image = self.matched_image.unsqueeze(0)
-        if isinstance(self.matched_representation, torch.nn.Parameter):
-            # for some reason, when saving and loading the metamer
-            # object after running it, self.matched_representation ends
-            # up as a parameter, which we don't want. This resets it.
-            delattr(self, 'matched_representation')
-            self.matched_representation = None
+        # initialize matched_image
+        self._init_matched_image(initial_image, clamper)
 
         if fraction_removed > 1 or loss_change_fraction < 1:
             self.use_subset_for_gradient = True
@@ -407,32 +423,11 @@ class Metamer(Synthesis):
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
 
-        optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
-        self.optimizer_kwargs = optimizer_kwargs
-        self._init_optimizer(**self.optimizer_kwargs)
+        # initialize the optimizer
+        self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
 
-        # python's implicit boolean-ness means we can do this! it will evaluate to False for False
-        # and 0, and True for True and every int >= 1
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
-            # if this is not the first time synthesize is being run for
-            # this metamer object,
-            # saved_image/saved_representation(_gradient) will be
-            # tensors instead of lists. This converts them back to lists
-            # so we can use append. If it's the first time, they'll be
-            # empty lists and this does nothing
-            self.saved_image = list(self.saved_image)
-            self.saved_representation = list(self.saved_representation)
-            self.saved_image_gradient = list(self.saved_image_gradient)
-            self.saved_representation_gradient = list(self.saved_representation_gradient)
-            self.saved_image.append(self.matched_image.clone().to('cpu'))
-            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-        else:
-            if save_progress:
-                raise Exception("Can't save progress if we're not storing it! If save_progress is"
-                                " True, store_progress must be not False")
-        self.store_progress = store_progress
+        # get ready to store progress
+        self._init_store_progress(store_progress, save_progress, save_path)
 
         pbar = tqdm(range(max_iter))
 
@@ -441,42 +436,12 @@ class Metamer(Synthesis):
             self.loss.append(loss.item())
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
-            if np.isnan(loss.item()):
-                warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
-                              "representation to our last saved values (which means this will "
-                              "throw an IndexError if you're not saving anything)!")
-                # need to use the -2 index because the last one will be
-                # the one full of NaNs. this happens because the loss is
-                # computed before calculating the gradient and updating
-                # matched_image; therefore the iteration where loss is
-                # NaN is the one *after* the iteration where
-                # matched_image (and thus matched_representation)
-                # started to have NaN values. this will fail if it hits
-                # a nan before store_progress iterations (because then
-                # saved_image/saved_representation only has a length of
-                # 1) but in that case, you have more severe problems
-                self.matched_image = nn.Parameter(self.saved_image[-2])
-                self.matched_representation = nn.Parameter(self.saved_representation[-2])
+
+            if self._check_nan_loss(loss):
                 break
 
-            with torch.no_grad():
-                if clamper is not None:
-                    self.matched_image.data = clamper.clamp(self.matched_image.data)
-
-                # i is 0-indexed but in order for the math to work out we want to be checking a
-                # 1-indexed thing against the modulo (e.g., if max_iter=10 and
-                # store_progress=3, then if it's 0-indexed, we'll try to save this four times,
-                # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
-                if store_progress and ((i+1) % store_progress == 0):
-                    # want these to always be on cpu, to reduce memory use for GPUs
-                    self.saved_image.append(self.matched_image.clone().to('cpu'))
-                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-                    self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
-                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
-                    if save_progress is True:
-                        self.save(save_path, True)
-                if type(save_progress) == int and ((i+1) % save_progress == 0):
-                    self.save(save_path, True)
+            # clamp and update saved_* attrs
+            self._clamp_and_store(i)
 
             if len(self.loss) > self.loss_change_iter:
                 if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < loss_thresh:
@@ -489,17 +454,10 @@ class Metamer(Synthesis):
 
         pbar.close()
 
-        if store_progress:
-            self.saved_representation = torch.stack(self.saved_representation)
-            self.saved_image = torch.stack(self.saved_image)
-            self.saved_image_gradient = torch.stack(self.saved_image_gradient)
-            # we can't stack the gradients if we used coarse-to-fine
-            # optimization, because then they'll be different shapes, so
-            # we have to keep them as a list
-            try:
-                self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
-            except RuntimeError:
-                pass
+        # finally, stack the saved_* attributes
+        self._finalize_store_progress()
+
+        # return data
         return self.matched_image.data, self.matched_representation.data
 
     def save(self, file_path, save_model_reduced=False):

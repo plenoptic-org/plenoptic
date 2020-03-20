@@ -597,9 +597,160 @@ class MADCompetition(Synthesis):
             loss = loss / self.loss_norm
         return self.loss_sign * loss
 
+    def _init_matched_image(self, initial_noise, clamper=None, norm_loss=True):
+        """initialize the matched image
+
+        set the ``self.matched_image`` attribute to be a parameter with
+        the user-supplied data, making sure it's the right shape and
+        calling clamper on it, if set
+
+        also initialize the ``self.matched_representation`` attribute
+
+        Parameters
+        ----------
+        initial_noise : `float`, optional
+            standard deviation of the Gaussian noise used to create the
+            initial image from the target image
+        clamper : Clamper or None, optional
+            will set ``self.clamper`` attribute to this, and if not
+            None, will call ``clamper.clamp`` on matched_image
+        norm_loss : bool, optional
+            Whether to normalize the loss of each model. You probably
+            want them to be normalized so that they are of the same
+            magnitude and thus their gradients are also of the same
+            magnitude. However, you can turn it off and see how that
+            affects performance. It's also useful for debugging
+            purposes.
+
+        """
+        self.initial_image = (self.target_image + initial_noise *
+                              torch.randn_like(self.target_image))
+        self.update_target(self.synthesis_target, 'main')
+        super()._init_matched_image(self.initial_image.clone(), clamper)
+        if clamper is not None:
+            # that initial noise can take us outside the clamper
+            self.initial_image.data = clamper.clamp(self.initial_image.data)
+        self.initial_representation = self.analyze(self.initial_image)
+        # if synthesis target is model_1/2_max, then loss_sign is
+        # negative (for main step; because minimizing the negative of
+        # the loss is the same as maximizing it). But if we include the
+        # negative in both the regular calculation of the loss and the
+        # norm, then we end up canceling it out. This will make sure
+        # that loss_norm is always positive
+        if norm_loss:
+            self.loss_norm = abs(self.objective_function(self.target_representation,
+                                                         self.initial_representation,
+                                                         norm_loss=False))
+        else:
+            self.loss_norm = 1
+        self.update_target(self.synthesis_target, 'fix')
+        self.matched_representation = self.analyze(self.matched_image)
+        self.initial_representation = self.analyze(self.initial_image)
+        if norm_loss:
+            self.loss_norm = self.objective_function(self.target_representation,
+                                                     self.initial_representation, norm_loss=False)
+        else:
+            self.loss_norm = 1
+
+    def _init_store_progress(self, store_progress, save_progress, save_path):
+        """initialize store_progress-related attributes
+
+        sets the ``self.save_progress``, ``self.store_progress``, and
+        ``self.save_path`` attributes, as well as changing
+        ``saved_image, saved_representation, saved_image_gradient,
+        saved_representation_gradient`` attibutes all to lists so we can
+        append to them. finally, adds first value to ``saved_image`` and
+        ``saved_representation``
+
+        Parameters
+        ----------
+        store_progress : bool or int, optional
+            Whether we should store the representation of the metamer
+            and the metamer image in progress on every iteration. If
+            False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress``
+            iterations (note then that 0 is the same as False and 1 the
+            same as True). If True or int>0, ``self.saved_image``
+            contains the stored images, and ``self.saved_representation
+            contains the stored representations.
+        save_progress : bool or int, optional
+            Whether to save the metamer as we go (so that you can check
+            it periodically and so you don't lose everything if you have
+            to kill the job / it dies before it finishes running). If
+            True, we save to ``save_path`` every time we update the
+            saved_representation. We attempt to save with the
+            ``save_model_reduced`` flag set to True. If an int, we save
+            every ``save_progress`` iterations. Note that this can end
+            up actually taking a fair amount of time, especially for
+            large numbers of iterations (and thus, presumably, larger
+            saved history tensors) -- it's therefore recommended that
+            you set this to a relatively large integer (say, one-tenth
+            ``max_iter``) for the purposes of speeding up your
+            synthesis.
+        save_path : str, optional
+            The path to save the synthesis-in-progress to (ignored if
+            ``save_progress`` is False)
+
+        """
+        self.update_target(self.synthesis_target, 'main')
+        super()._init_store_progress(store_progress, save_progress, save_path)
+        self.update_target(self.synthesis_target, 'fix')
+        self.saved_representation = list(self.saved_representation_2)
+        self.saved_representation_gradient = list(self.saved_representation_2_gradient)
+        self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+
+    def _clamp_and_store(self, i):
+        """clamp matched_image and store/save, if appropriate
+
+        these all happen together because they all happen ``with
+        torch.no_grad()``
+
+        if it's the right iteration, we update: ``saved_image,
+        saved_representation, saved_image_gradient,
+        saved_representation_gradient``
+
+        Parameters
+        ----------
+        i : int
+            the current iteration (0-indexed)
+
+        """
+        self.update_target(self.synthesis_target, 'main')
+        super()._clamp_and_store(i)
+        self.update_target(self.synthesis_target, 'fix')
+        # these are the only ones that differ between main and fix
+        with torch.no_grad():
+            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+            self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+
+    def _finalize_stored_progress(self):
+        """stack the saved_* attributes
+
+        if we were storing progress, stack the ``saved_representation,
+        saved_image, saved_image_gradient,
+        saved_representation_gradient`` attributes so they're a single
+        tensor
+
+        we can't stack the gradients if we used coarse-to-fine
+        optimization, because then they'll be different shapes, so we
+        have to keep them as a list
+
+        """
+        self.update_target(self.synthesis_target, 'main')
+        super()._finalize_stored_progress()
+        self.update_target(self.synthesis_target, 'fix')
+        # these are the only ones that differ between main and fix
+        if self.store_progress:
+            self.saved_representation = torch.stack(self.saved_representation)
+            try:
+                self.saved_representation_gradient = torch.stack(self.saved_representation_gradient)
+            except RuntimeError:
+                pass
+
     def synthesize(self, synthesis_target, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
                    optimizer='Adam', clamper=None, store_progress=False, save_progress=False,
-                   save_path='mad.pt', fix_step_n_iter=10, norm_loss=True, **optimizer_kwargs):
+                   save_path='mad.pt', fix_step_n_iter=10, norm_loss=True, scheduler=True,
+                   **optimizer_kwargs):
         r"""Synthesize one maximally-differentiating image
 
         This synthesizes a single image, minimizing or maximizing either
@@ -671,6 +822,11 @@ class MADCompetition(Synthesis):
             magnitude. However, you can turn it off and see how that
             affects performance. It's also useful for debugging
             purposes.
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -686,166 +842,52 @@ class MADCompetition(Synthesis):
             The model_2's representation of this image
 
         """
-        self.seed = seed
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        self.update_target(synthesis_target, 'main')
+        self._set_seed(seed)
         self.fix_step_n_iter = fix_step_n_iter
-
         self.synthesis_target = synthesis_target
-        self.initial_image = (self.target_image + initial_noise *
-                              torch.randn_like(self.target_image))
-        self.matched_image = torch.nn.Parameter(self.initial_image.clone())
-        # that initial noise can take us outside the clamper
-        self.clamper = clamper
-        if clamper is not None:
-            self.matched_image.data = clamper.clamp(self.matched_image.data)
-            self.initial_image.data = clamper.clamp(self.initial_image.data)
-        if isinstance(self.matched_representation_1, torch.nn.Parameter):
-            # for some reason, when saving and loading the metamer
-            # object after running it, self.matched_representation ends
-            # up as a parameter, which we don't want. This resets it.
-            delattr(self, 'matched_representation_1')
-        if isinstance(self.matched_representation_2, torch.nn.Parameter):
-            # for some reason, when saving and loading the metamer
-            # object after running it, self.matched_representation ends
-            # up as a parameter, which we don't want. This resets it.
-            delattr(self, 'matched_representation_2')
+
+        self._init_matched_image(initial_noise, clamper, norm_loss)
+
+        # initialize the optimizer
+        self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
+
+        self._init_store_progress(store_progress, save_progress, save_path)
+
+        pbar = tqdm(range(max_iter))
+
         self.update_target(self.synthesis_target, 'fix')
-        self.target_representation = self.analyze(self.target_image)
-        self.matched_representation = self.analyze(self.matched_image)
-        self.initial_representation = self.analyze(self.initial_image)
-        if norm_loss:
-            self.loss_norm = self.objective_function(self.target_representation,
-                                                     self.initial_representation, norm_loss=False)
-        else:
-            self.loss_norm = 1
-
-        self.update_target(self.synthesis_target, 'main')
-        self.target_representation = self.analyze(self.target_image)
-        self.matched_representation = self.analyze(self.matched_image)
-        self.initial_representation = self.analyze(self.initial_image)
-        # if synthesis target is model_1/2_max, then loss_sign is
-        # negative (for main step; because minimizing the negative of
-        # the loss is the same as maximizing it). But if we include the
-        # negative in both the regular calculation of the loss and the
-        # norm, then we end up canceling it out. This will make sure
-        # that loss_norm is always positive
-        if norm_loss:
-            self.loss_norm = abs(self.objective_function(self.target_representation,
-                                                         self.initial_representation,
-                                                         norm_loss=False))
-        else:
-            self.loss_norm = 1
-
-        optimizer_kwargs.update({'optimizer': optimizer, 'lr': learning_rate})
-        self.optimizer_kwargs = optimizer_kwargs
-        self._init_optimizer(**self.optimizer_kwargs)
-
-        # python's implicit boolean-ness means we can do this! it will evaluate to False for False
-        # and 0, and True for True and every int >= 1
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
-            # if this is not the first time synthesize is being run for
-            # this metamer object,
-            # saved_image/saved_representation(_gradient) will be
-            # tensors instead of lists. This converts them back to lists
-            # so we can use append. If it's the first time, they'll be
-            # empty lists and this does nothing
-            self.saved_image = list(self.saved_image)
-            self.saved_image_gradient = list(self.saved_image_gradient)
-            self.saved_representation_1 = list(self.saved_representation_1)
-            self.saved_representation_1_gradient = list(self.saved_representation_1_gradient)
-            self.saved_representation_2 = list(self.saved_representation_2)
-            self.saved_representation_2_gradient = list(self.saved_representation_2_gradient)
-            self.saved_image.append(self.matched_image.clone().to('cpu'))
-            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-            self.update_target(synthesis_target, 'fix')
-            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-        else:
-            if save_progress:
-                raise Exception("Can't save progress if we're not storing it! If save_progress is"
-                                " True, store_progress must be not False")
-        self.store_progress = store_progress
-
-        pbar = tqdm(range(max_iter), position=0, leave=True)
-
         for i in pbar:
+            # first, figure out what the stable model's loss is
             loss_2 = self.objective_function(self.matched_representation,
                                              self.target_representation).item()
             self.loss.append(loss_2)
+            # then update matched_image to try and min or max (depending
+            # on synthesis_target) the targeted model
             self.update_target(self.synthesis_target, 'main')
             self.step = 'main'
             loss, g, lr = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
             self.loss.append(abs(loss.item()))
+            self.gradient.append(g.item())
+            self.learning_rate.append(lr)
+            # finally, update matched_image to try and keep the stable
+            # model's loss constant
             self.update_target(self.synthesis_target, 'fix')
             self.step = 'fix'
             self._optimizer_step()
-            self.gradient.append(g.item())
-            self.learning_rate.append(lr)
 
-            if np.isnan(loss.item()):
-                warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
-                              "representation to our last saved values (which means this will "
-                              "throw an IndexError if you're not saving anything)!")
-                # need to use the -2 index because the last one will be
-                # the one full of NaNs. this happens because the loss is
-                # computed before calculating the gradient and updating
-                # matched_image; therefore the iteration where loss is
-                # NaN is the one *after* the iteration where
-                # matched_image (and thus matched_representation)
-                # started to have NaN values. this will fail if it hits
-                # a nan before store_progress iterations (because then
-                # saved_image/saved_representation only has a length of
-                # 1) but in that case, you have more severe problems
-                self.matched_image = torch.nn.Parameter(self.saved_image[-2])
-                self.matched_representation_1 = torch.nn.Parameter(self.saved_representation_1[-2])
-                self.matched_representation_2 = torch.nn.Parameter(self.saved_representation_2[-2])
+            if self._check_nan_loss(loss):
+                # self.matched_representation_2 and self.matched_image
+                # will be handled above (because we've got target 'fix')
+                self.matched_representation_1 = self.saved_representation_1[-2]
                 break
 
-            with torch.no_grad():
-                if clamper is not None:
-                    self.matched_image.data = clamper.clamp(self.matched_image.data)
-
-                # i is 0-indexed but in order for the math to work out we want to be checking a
-                # 1-indexed thing against the modulo (e.g., if max_iter=10 and
-                # store_progress=3, then if it's 0-indexed, we'll try to save this four times,
-                # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
-                if store_progress and ((i+1) % store_progress == 0):
-                    # want these to always be on cpu, to reduce memory use for GPUs
-                    self.saved_image.append(self.matched_image.clone().to('cpu'))
-                    self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
-                    # we use model_1_min here as the synthesis target
-                    # because we know that, whatever the synthesis
-                    # target is, this will get us model 1 and model 2,
-                    # respectively
-                    self.update_target(synthesis_target, 'main')
-                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
-                    self.update_target(synthesis_target, 'fix')
-                    self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-                    self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
-                    if save_progress is True:
-                        self.save(save_path, True)
-                if type(save_progress) == int and ((i+1) % save_progress == 0):
-                    self.save(save_path, True)
+            # clamp and update saved_* attrs
+            self._clamp_and_store(i)
 
         pbar.close()
 
-        if store_progress:
-            self.saved_image = torch.stack(self.saved_image)
-            self.saved_image_gradient = torch.stack(self.saved_image_gradient)
-            self.saved_representation_1 = torch.stack(self.saved_representation_1)
-            self.saved_representation_2 = torch.stack(self.saved_representation_2)
-            # we can't stack the gradients if we used coarse-to-fine
-            # optimization, because then they'll be different shapes, so
-            # we have to keep them as a list
-            try:
-                self.saved_representation_1_gradient = torch.stack(self.saved_representation_1_gradient)
-                self.saved_representation_2_gradient = torch.stack(self.saved_representation_2_gradient)
-            except RuntimeError:
-                pass
+        self._finalize_stored_progress()
+
         self._update_attrs_all()
         return self.matched_image.data, self.matched_representation_1.data, self.matched_representation_2.data
 
