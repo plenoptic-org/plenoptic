@@ -455,7 +455,7 @@ class Metamer(Synthesis):
         pbar.close()
 
         # finally, stack the saved_* attributes
-        self._finalize_store_progress()
+        self._finalize_stored_progress()
 
         # return data
         return self.matched_image.data, self.matched_representation.data
