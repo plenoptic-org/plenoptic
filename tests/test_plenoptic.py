@@ -724,6 +724,7 @@ class TestMetamers(object):
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
+        assert not isinstance(met_copy.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
 
     def test_metamer_save_load_reduced(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -823,7 +824,7 @@ class TestMetamers(object):
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
 
-    def test_metamer_nans(self):
+    def test_metamer_nans(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = im / 255
         im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
@@ -840,16 +841,20 @@ class TestMetamers(object):
             metamer.synthesize(clamper=clamper, learning_rate=10, max_iter=4, loss_thresh=1e-8,
                                initial_image=initial_image)
         # need to re-initialize this for the following run
+        save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         initial_image = .5*torch.ones_like(im, requires_grad=True, device=device,
                                            dtype=torch.float32)
         matched_im, _ = metamer.synthesize(clamper=clamper, learning_rate=10, store_progress=True,
-                                           max_iter=4, loss_thresh=1e-8,
-                                           initial_image=initial_image)
+                                           max_iter=4, loss_thresh=1e-8, save_progress=True,
+                                           initial_image=initial_image, save_path=save_path)
+        assert not isinstance(metamer.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
         # this should hit a nan as it runs, leading the second saved
         # image to be all nans, but, because of our way of handling
         # this, matched_image should have no nans
         assert torch.isnan(metamer.saved_image[-1]).all(), "This should be all NaNs!"
         assert not torch.isnan(metamer.matched_image).any(), "There should be no NaNs!"
+        met = po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
+        assert not isinstance(met.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
