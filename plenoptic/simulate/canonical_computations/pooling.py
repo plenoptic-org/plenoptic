@@ -44,7 +44,7 @@ from ...tools.data import to_numpy, polar_angle, polar_radius
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
 
 
-def piecewise_log(x, transition_x=.5):
+def piecewise_log(x, transition_x=1):
     r"""piecewise log-like function for handling the fovea better
 
     this function is used to give us another way of handling the
@@ -95,13 +95,13 @@ def piecewise_log(x, transition_x=.5):
     # transition_x, everything else gets left alone
     x = x.clone()
     # do the positive side
-    x[x>transition_x] = torch.log(x[x>transition_x] + 1 - transition_x) + transition_x
+    x[x > transition_x] = torch.log(x[x > transition_x] + 1 - transition_x) + transition_x
     # and the negative side
-    x[x<-transition_x] = -torch.log(-x[x<-transition_x] + 1 - transition_x) - transition_x
+    x[x < -transition_x] = -torch.log(-x[x < -transition_x] + 1 - transition_x) - transition_x
     return x
 
 
-def piecewise_log_inverse(y, transition_x=.5):
+def piecewise_log_inverse(y, transition_x=1):
     r"""the inverse of our ``piecewise_log`` function
 
     this is just the inverse of ``piecewise_log``, so that
@@ -160,7 +160,7 @@ def piecewise_log_inverse(y, transition_x=.5):
        \frac{1}{\exp(y+x_0)} &= -x+1-x_0
        \exp(-y-x_0) &= -x+1-x_0
        \exp(-y-x_0)-x_0+1 &= x
-    
+
     """
     if not isinstance(y, torch.Tensor):
         y = torch.tensor(y, dtype=torch.float32)
@@ -172,9 +172,9 @@ def piecewise_log_inverse(y, transition_x=.5):
     # transition_x, everything else gets left alone
     y = y.clone()
     # do the positive side
-    y[y>transition_x] = torch.exp(y[y>transition_x] - transition_x) + transition_x - 1
+    y[y > transition_x] = torch.exp(y[y > transition_x] - transition_x) + transition_x - 1
     # do the negative side
-    y[y<-transition_x] = -torch.exp(-y[y<-transition_x] - transition_x) - transition_x + 1
+    y[y < -transition_x] = -torch.exp(-y[y < -transition_x] - transition_x) - transition_x + 1
     return y
 
 
@@ -341,6 +341,12 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
        w_e(\frac{N_e-1}{N_e}) &= \frac{plog(e_m,x_0)-plog(x_0,x_0)+x_0}{N_e}
        w_e &= \frac{plog(e_m,x_0)-plog(x_0,x_0)+x_0}{N_e-1}
 
+    If ``transition_x`` is set and scaling is set, then we compute
+    :math:`w_e` from scaling as above. See Notes section of
+    ``calc_scaling`` docstring for why, but scaling is identical as long
+    as ``transition_x=1`` (and so we raise an Exception if this is not
+    the case)
+
     """
     if scaling is not None:
         if std_dev is None:
@@ -348,6 +354,10 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
         else:
             x_half_max = std_dev * np.sqrt(2 * np.log(2))
         spacing = np.log((scaling + np.sqrt(scaling**2+4))/2) / x_half_max
+        if transition_x is not None and transition_x != 1:
+            raise Exception(f"transition_x must be 1, but got value {transition_x}! If transition_"
+                            "_x is not 1, scaling will not be constant across the image. See "
+                            "calc_scaling docstring Notes section for more details")
     elif n_windows is not None:
         if transition_x is not None:
             if min_ecc is not None:
@@ -474,7 +484,8 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None, transition_x=N
     ``log_eccentricity_windows()`` for more details). They also
     determine which function we use to invert our log-transform:
     ``np.exp`` (if ``min_ecc`` is set) or ``piecewise_log_inverse`` (if
-    ``transition_x`` is set)
+    ``transition_x`` is set). The only supported value for
+    ``transition_x`` is 1, see the Notes section for more details
 
     Parameters
     ----------
@@ -492,13 +503,14 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None, transition_x=N
         The standard deviation fo the Gaussian window. If this is set,
         we compute the scaling value for the Gaussian windows instead of
         for the cosine ones.
-    transition_x : float or None, optional
+    transition_x : {1, None}, optional
         If set, the point at which the eccentricity transitions from
         linear to log, see ``log_eccentricity_windows()`` for more
         details. If set, ``min_ecc`` must be None. If None, ``min_ecc``
         must be set. If set, we assume ``n_windows`` is the *total*
         number of windows (including both the foveal/linear windows and
-        the log windows)
+        the log windows). We only support 1, since that's the only value
+        for which scaling is constnat across all (log) windows
 
     Returns
     -------
@@ -554,6 +566,83 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None, transition_x=N
     ``calc_windows_central_eccentricity`` for :math:`e_c`; we simplify
     it away in the calculation above.
 
+    If ``transition_x`` is set, things are different. Following similar
+    logic above, we need to find the full-width half max, :math:`W`, and
+    the central eccentricity, :math:`e_c`, then take their ratio. Let
+    :math:`x_0` be ``transition_x`` and :math:`plog` be our
+    piecewise-log function (and :math:`plog^{-1}` be its inverse), then
+    to find :math:`W`:
+
+    .. math::
+
+        \pm x_h = \frac{plog(e_h)-w_e n}{w_e} \\
+        plog(e_h)= w_e (n\pm x_h) \\
+        e_h = plog^{-1}(w_e(n\pm x_h) \\
+        W = plog^{-1}(w_e(n+x_h)) - plog^{-1}(w_e(n-x_h))
+
+    and for :math:`e_c`:
+
+    .. math::
+
+        0=\frac{plog(e_c)-w_e n}{w_e} \\
+        e_c = plog^{-1}(w_e n)
+
+    And finally, scaling :math:`s`:
+
+    .. math::
+
+        s = \frac{plog^{-1}(w_e(n+x_h)) - plog^{-1}(w_e(n-x_h))}{plog^{-1}(w_e n)} \\
+
+    in order to go any further, need to replace :math:`plog^{-1}(x)`
+    with its full expression. Note that In order for this to work, we
+    need the exponential section of the piecewise function, not the
+    linaer, so we require all of:
+
+    .. math::
+
+        w_e(n+x_h) >  x_0  \\
+        w_e n > x_0 \\
+        w_e(n-x_h) > x_0
+
+    With a bit of rearranging, we see that if we're in the region
+    :math:`n>\frac{x_0}{w_e}+x_h`, then we're good. This is equivalent
+    to being one of the log windows (not the linear foveal windows), and
+    this makes sense because scaling cannot be constant in the region
+    with linear windows, because the windows aren't changing in size,
+    and thus the ratio between their size and their eccentricity cannot
+    be constant. So we're only considering the region above, and thus
+    :math:`plog^{-1}(y,x_0)=\exp(y-x_0)+x_0-1`.
+
+    Substituting this in, we get:
+
+    .. math::
+
+        s = \frac{\exp(w_e n+w_e x_h-x_0) +x_0 - 1- \exp(w_e n-w_e x_h-x_0)-x_0+1}{\exp(w_e n - x_0)+x_0 -1} \\
+        s(\exp(w_e n - x_0)+x_0 -1) = \exp(w_e n+w_e x_h-x_0)- \exp(w_e n-w_e x_h-x_0) \\
+        s(1 +\frac{x_0 -1}{\exp(w_e n - x_0)}) = \frac{\exp(w_e n+w_e x_h-x_0)}{\exp(w_e n - x_0)}- \frac{\exp(w_e n-w_e x_h-x_0)}{\exp(w_e n - x_0)} \\
+        s(1 +\frac{x_0 -1}{\exp(w_e n - x_0)}) = \exp(w_e n+w_e x_h-x_0 - w_e n + x_0) - \exp(w_e n-w_e x_h-x_0-w_e n + x_0) \\
+        s(1 +\frac{x_0 -1}{\exp(w_e n - x_0)}) = \exp(w_e x_h) - \exp(-w_e x_h)
+
+    And we see we have a problem: scaling is dependent upon
+    :math:`n`. It will eventually converge to some value (as
+    :math:`n\rightarrow \infty`, the left side will converge to
+    :math:`s`), but this depends on :math:`w_e` and will take longer and
+    longer as :math:`w_e` shrinks.
+
+    However, we can see the solution: the term that we want to go to 0
+    has a numerator of :math:`x_0-1`. Therefore, if :math:`x_0=1`, then
+    this second part will be 0 and scaling :math:`s` will be constant
+    for all eccentricities (*beyond* the linear ones). So that's what
+    we'll do!
+
+    And so scaling is:
+
+    .. math::
+
+        s=\exp(w_e x_h) - \exp(-w_e x_h)
+
+    which is the same as for our regular windows! So that's nice.
+
     """
     if std_dev is not None:
         x_half_max = std_dev * np.sqrt(2 * np.log(2))
@@ -561,13 +650,10 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None, transition_x=N
         x_half_max = .5
     window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
                                                       transition_x=transition_x)
-    if transition_x is not None:
-        raise Exception("Calculating scaling from n_windows is not supported with transition_x "
-                        "right now! It requires going through the calculations in the Notes "
-                        "section of this docstring again -- every log should be replaced with our"
-                        " `piecewise_log` function, the inverse of whic is `piecewise_log_inverse`"
-                        ", not `exp`, and simplifying isn't as simple (e.g., `exp(a)exp(b)="
-                        "exp(a+b)` but this is not true for our `piecewise_log_inverse`)")
+    if transition_x is not None and transition_x != 1:
+        raise Exception(f"transition_x must be 1, but got value {transition_x}! If transitoin_x "
+                        "not 1, scaling will not be constant across the image. See docstring "
+                        "Notes section for more details")
     return np.exp(x_half_max*window_spacing) - np.exp(-x_half_max*window_spacing)
 
 
@@ -679,7 +765,7 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
        e_c &= plog^{-1}(w_e n)
 
     where :math:`plog^{-1}` is the inverse of the ``piecewise_log``
-    function, which we've implemented as the ``pieceiwe_log_inverse``
+    function, which we've implemented as the ``piecewise_log_inverse``
     function
 
     max:
@@ -774,7 +860,7 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
     transition_x : float or None, optional
         If set, the point at which the eccentricity transitions from
         linear to log. If set, ``min_ecc`` must be None. If None,
-        ``min_ecc`` must be set.
+        ``min_ecc`` must be set. Only supported for gaussian windows
 
     Returns
     -------
@@ -844,11 +930,27 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
     \log e_0 + w_e(n+1))` and rearranging to the forms used in this
     function.
 
+    If ``transition_x`` is set, things are different. See the docstring
+    of ``log_eccentricity_windows`` for an explanation, but the input to
+    the eccentricity window function has now changed to
+
+    .. math::
+
+       \frac{plog(e) - w_e n}{w_e}
+
+    where :math:`plog` is our ``piecewise_log`` function and everything
+    else is as above. This only affects the eccentricity windows and
+    from the above its easy to compute what their values at +/- 3 std
+    devs would be and then take the difference (making use of the
+    ``piecewise_log_inverse`` function we've implemented, see docstring
+    of ``calc_windows_eccentricity`` for more details)
+
     """
     n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc, max_ecc,
                                                            std_dev, transition_x))
     window_central_eccentricities = calc_windows_eccentricity('central', n_radial_windows,
-                                                              radial_window_spacing, min_ecc)
+                                                              radial_window_spacing, min_ecc,
+                                                              transition_x=transition_x)
     if window_type == 'cosine':
         radial_top = [min_ecc*(np.exp((radial_window_spacing*(3+2*n-transition_region_width))/2) -
                                np.exp((radial_window_spacing*(1+2*n+transition_region_width))/2))
@@ -864,9 +966,16 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
         # gaussian windows have no flat top region, so this is always 0
         radial_top = [0 for i in np.arange(n_radial_windows)]
         angular_top = [0 for i in np.arange(n_radial_windows)]
-        radial_full = [min_ecc*(np.exp(radial_window_spacing*(3*std_dev+n+1)) -
-                                np.exp(radial_window_spacing*(-3*std_dev+n+1)))
-                       for n in np.arange(n_radial_windows)]
+        if min_ecc is not None:
+            if transition_x is not None:
+                raise Exception("either min_ecc or transition_x should be set, not both")
+            radial_full = [min_ecc*(np.exp(radial_window_spacing*(3*std_dev+n+1)) -
+                                    np.exp(radial_window_spacing*(-3*std_dev+n+1)))
+                           for n in np.arange(n_radial_windows)]
+        if transition_x is not None:
+            radial_full = [(piecewise_log_inverse(radial_window_spacing*(3*std_dev+n)) -
+                            piecewise_log_inverse(radial_window_spacing*(-3*std_dev+n)))
+                           for n in np.arange(n_radial_windows)]
         angular_full = [6 * std_dev * angular_window_spacing * e_c for e_c in
                         window_central_eccentricities]
     return (np.array(radial_top), np.array(radial_full), np.array(angular_top),
@@ -935,10 +1044,15 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
 
     Note that, since we're using the scaling to figure this out, we're
     computing the area at approximately the windows' full-max
-    half-width, and this is what we're for both gaussian and
+    half-width, and this is what we're doing for both gaussian and
     raised-cosine windows (though gaussian windows technically extend
     further beyond the FWHM than raised-cosine windows, the difference
     is not large for small windows).
+
+    This computation works for the piecewise-log way of handling the
+    fovea as well (since scaling is the same, assuming
+    ``transition_x=1`` and you're in the region of log windows), though
+    how you use the returned value will change.
 
     Parameters
     ----------
