@@ -297,14 +297,15 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
 
     .. math::
 
-        s &= \exp(w_e x_h) -  \exp(w_e x_h) \\
+        s &= \exp(w_e x_h) - \exp(-w_e x_h) \\
+        s &= \exp(w_e x_h) - \frac{1}{\exp(w_e x_h)} \\
 
     We then substitute :math:`t=\exp(w_e x_h)`
 
     .. math::
 
-        s &= t + \frac{1}{t}
-        0 &= t^2 - st + 1
+        s &= t - \frac{1}{t}
+        0 &= t^2 - st - 1
 
     Then using the quadratic formula:
 
