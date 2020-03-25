@@ -803,7 +803,9 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
                 ecc = [(np.exp(3*std_dev*window_spacing) * min_ecc *
                         np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
     else:
-        if std_dev is None:
+        if ecc_type != 'central' and std_dev is None:
+            # std_dev doesn't matter for ecc_type = central, so it might
+            # not be set
             raise Exception("Only gaussian windows are supported with transition_x!")
         if ecc_type == 'central':
             ecc = [piecewise_log_inverse(window_spacing * i) for i in
@@ -1141,10 +1143,7 @@ def calc_dog_normalization_factor(center_surround_ratio=0.53):
 
     This is simply :math:`w_c - (1 - w_c)`. To see why, let's step
     through the following. When we sum across all gaussians windows at a
-    given location, we're doing (where :math:`D(x)` is the difference of
-    Gaussians evaluated at :math:`x`, and all others are as above; see
-    Notes in the docstring of ``gaussian`` for a bit more explanation of
-    this logic):
+    given location, we're doing:
 
     ..math::
 
@@ -1153,6 +1152,10 @@ def calc_dog_normalization_factor(center_surround_ratio=0.53):
         S &= w_c g_c(0) + 2 \sum_{n=1}^\inf w_c g_c(n) - [(1-w_c)g_s(0) + 2 \sum_{n=1}^\inf (1-w_c)g_s(n)]
         S &= w_c [g_c(0) + 2 \sum_{n=1}^\inf g_c(n)] - (1-w_c)[g_s(0) + 2 \sum_{n=1}^\inf g_s(n)]
         S &= w_c * 1 - (1-w_c) * 1
+
+    where :math:`D(x)` is the difference of Gaussians evaluated at
+    :math:`x`, and all others are as above; see Notes in the docstring
+    of ``gaussian`` for a bit more explanation of this logic
 
     because we normalized each of our gaussians, and thus we know that
     each of those sums will be 1.
@@ -1992,6 +1995,8 @@ class PoolingWindows(nn.Module):
         self.num_scales = num_scales
         self.window_type = window_type
         self.transition_x = transition_x
+        if transition_x is not None and transition_x != 1:
+            raise Exception("Only transition_x=1 results in constant scaling across the image")
         self.angle_windows = {}
         self.ecc_windows = {}
         self.window_sizes = {}
@@ -2041,13 +2046,13 @@ class PoolingWindows(nn.Module):
             self.surround_std_dev = float(surround_std_dev)
             self.center_surround_ratio = float(center_surround_ratio)
             self.transition_region_width = None
-            norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
+            self.norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
             window_width_for_saving = f'{std_dev}_s-{surround_std_dev}_r-{center_surround_ratio}'
             # 1 / (std_dev * GAUSSIAN_SUM) is the max in a single
             # direction (radial or angular), so the max for a single
             # window is its square
-            self.center_max_amplitude = ((1 / (std_dev * GAUSSIAN_SUM)) / norm_factor) ** 2
-            self.surround_max_amplitude = ((1 / (surround_std_dev * GAUSSIAN_SUM)) / norm_factor) ** 2
+            self.center_max_amplitude = ((1 / (std_dev * GAUSSIAN_SUM)) / self.norm_factor) ** 2
+            self.surround_max_amplitude = ((1 / (surround_std_dev * GAUSSIAN_SUM)) / self.norm_factor) ** 2
             self.window_max_amplitude = ((center_surround_ratio * self.center_max_amplitude) -
                                          (1 - center_surround_ratio) * self.surround_max_amplitude)
             self.window_intersecting_amplitude = ((center_surround_ratio * self.center_max_amplitude) * np.exp(-.25/(2*std_dev**2)) -
@@ -2074,7 +2079,7 @@ class PoolingWindows(nn.Module):
                                    'max_eccentricity': self.max_eccentricity,
                                    'transition_region_width': self.transition_region_width,
                                    'cache_dir': self.cache_dir, 'window_type': window_type,
-                                   'std_dev': self.std_dev, 'transition_x': transition_x,
+                                   'std_dev': self.std_dev, 'transition_x': self.transition_x,
                                    'surround_std_dev': self.surround_std_dev,
                                    'center_surround_ratio': self.center_surround_ratio}
         for i in range(self.num_scales):
@@ -2137,9 +2142,17 @@ class PoolingWindows(nn.Module):
                 for k in ['center', 'surround']:
                     self.angle_windows[k][i] = angle_windows[k]
                     self.ecc_windows[k][i] = ecc_windows[k] * self.min_ecc_mask[i]
+                    # need to go lower (otherwise the windowed values at
+                    # the fovea are treated as basically 0 and things
+                    # get messed up when combining across the two., but
+                    # still want to clamp to avoid having any windows of
+                    # size 0, which will lead to divide by 0 errors; the
+                    # minimum float32 value is about 10^-38, so this is
+                    # close)
                     window_sizes[k] = torch.clamp(torch.einsum('ahw,ehw->ea',
-                                                               [angle_windows[k], ecc_windows[k]]),
-                                                  min=1)
+                                                               [angle_windows[k],
+                                                                self.ecc_windows[k][i]]),
+                                                  min=1e-35)
             else:
                 self.angle_windows[i] = angle_windows
                 self.ecc_windows[i] = ecc_windows
@@ -2178,14 +2191,15 @@ class PoolingWindows(nn.Module):
                                                   self.min_eccentricity,
                                                   self.max_eccentricity*np.sqrt(2),
                                                   window_type, self.transition_region_width,
-                                                  self.std_dev)
+                                                  self.std_dev, self.transition_x)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
         self.n_eccentricity_bands = len(self.window_width_degrees['radial_top'])
         # transition width and std dev don't matter for central
-        # eccentricity, just min and max
+        # eccentricity, just min and max (but transition_x does)
         self.central_eccentricity_degrees = calc_windows_eccentricity(
-            'central', self.n_eccentricity_bands, ecc_window_width, self.min_eccentricity)
+            'central', self.n_eccentricity_bands, ecc_window_width, self.min_eccentricity,
+            transition_x=self.transition_x)
         self.window_width_degrees['radial_half'] = self.scaling * self.central_eccentricity_degrees
         # the 2 we divide by here is the
         # radial_to_circumferential_ratio; if we ever allow that to be
@@ -2473,7 +2487,7 @@ class PoolingWindows(nn.Module):
         self.num_batches = 1
         return self
 
-    def forward(self, x, idx=0, angle_windows=None, ecc_windows=None, window_sizes=None):
+    def forward(self, x, idx=0, windows_key=None):
         r"""Window and pool the input
 
         We take an input, either a 4d tensor or a dictionary of 4d
@@ -2501,11 +2515,15 @@ class PoolingWindows(nn.Module):
         idx : int, optional
             Which entry in the ``windows`` list to use. Only used if
             ``x`` is a tensor
-        angle_windows, ecc_windows, window_sizes : dict or None, optional
-            either the dicts of tensors to use for these (with keys
-            corresponding to different scales) or None, in which case we
-            use the attributes with the same name. this is used by the
-            DoG filter version and should not be set directly
+        windows_key : str or None, optional
+            If None, we assume the angle_windows, ecc_windows attributes
+            are dicts of tensors that we should use as the windows (with
+            keys corresponding to different scales). If str, we assume
+            they're dicts of dicts, and windows_key tells us the key so
+            that we use ``self.angle_windows[windows_key]`` and
+            similarly for ecc_windows as dicts of tensors (with keys
+            corresponding to different scales). This is used by the DoG
+            filter version
 
         Returns
         -------
@@ -2524,25 +2542,26 @@ class PoolingWindows(nn.Module):
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
-        if self.window_type == 'dog':
-            if angle_windows is None:
-                # need this normalization factor to make sure windows
-                # sum to one
-                norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
-                ctr = self.forward(x, idx, self.angle_windows['center'],
-                                   self.ecc_windows['center'], self.window_sizes['center'])
-                sur = self.forward(x, idx, self.angle_windows['surround'],
-                                   self.ecc_windows['surround'], self.window_sizes['surround'])
-                # this cat call appends a bunch of zeros so
-                # the two are the same shape (this corresponds to all
-                # the eccentricity rings where the center is off the
-                # image, but the surround is still having an effect)
+        if windows_key is None:
+            if self.window_type == 'dog':
+                ctr = self.forward(x, idx, 'center')
+                sur = self.forward(x, idx, 'surround')
+                # this cat call appends a bunch of zeros so the two are
+                # the same shape (this corresponds to all the
+                # eccentricity rings where the center is off the image,
+                # but the surround is still having an effect). the
+                # division by center_surround_ratio makes it so that the
+                # output of this is bounded between -1 and 1
                 return (self.center_surround_ratio * torch.cat([ctr, torch.zeros(*ctr.shape[:-1], sur.shape[-1] - ctr.shape[-1])], -1)
-                        - (1 - self.center_surround_ratio) * sur) / norm_factor
+                        - (1 - self.center_surround_ratio) * sur) / self.center_surround_ratio
+            else:
+                angle_windows = self.angle_windows
+                ecc_windows = self.ecc_windows
+                window_sizes = self.window_sizes
         else:
-            angle_windows = self.angle_windows
-            ecc_windows = self.ecc_windows
-            window_sizes = self.window_sizes
+            angle_windows = self.angle_windows[windows_key]
+            ecc_windows = self.ecc_windows[windows_key]
+            window_sizes = self.window_sizes[windows_key]
         if isinstance(x, dict):
             if self.num_devices == 1:
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
@@ -2763,8 +2782,7 @@ class PoolingWindows(nn.Module):
                     tmp.append(v.sum((-1, -2)).to(output_device))
                 return torch.cat(tmp, -1) / sizes
 
-    def project(self, pooled_x, idx=0, output_device=torch.device('cpu'), angle_windows=None,
-                ecc_windows=None):
+    def project(self, pooled_x, idx=0, output_device=torch.device('cpu'), windows_key=None):
         r"""Project pooled values back onto an image
 
         For visualization purposes, you may want to project the pooled
@@ -2797,11 +2815,15 @@ class PoolingWindows(nn.Module):
             need to know what device to place the output on. If parallel
             has not been called (i.e., PoolingWindows is only on one
             device, this is ignored)
-        angle_windows, ecc_windows : dict or None, optional
-            either the dicts of tensors to use for these (with keys
-            corresponding to different scales) or None, in which case we
-            use the attributes with the same name. this is used by the
-            DoG filter version and should not be set directly
+        windows_key : str or None, optional
+            If None, we assume the angle_windows, ecc_windows attributes
+            are dicts of tensors that we should use as the windows (with
+            keys corresponding to different scales). If str, we assume
+            they're dicts of dicts, and windows_key tells us the key so
+            that we use ``self.angle_windows[windows_key]`` and
+            similarly for ecc_windows as dicts of tensors (with keys
+            corresponding to different scales). This is used by the DoG
+            filter version
 
         Returns
         -------
@@ -2814,12 +2836,15 @@ class PoolingWindows(nn.Module):
             values
 
         """
-        if angle_windows is None:
+        if windows_key is None:
             if self.window_type == 'dog':
                 raise NotImplementedError("Can't call project directly when using DoG windows! "
                                           "Must call project_dog()")
             angle_windows = self.angle_windows
             ecc_windows = self.ecc_windows
+        else:
+            angle_windows = self.angle_windows[windows_key]
+            ecc_windows = self.ecc_windows[windows_key]
         if isinstance(pooled_x, dict):
             if list(pooled_x.values())[0].ndimension() != 3:
                 raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
@@ -2889,7 +2914,7 @@ class PoolingWindows(nn.Module):
     def project_dog(self, x, idx=0):
         r"""Project pooled values for DoG windows
 
-        This function returns the same thign as ``project`` but works
+        This function returns the same thing as ``project`` but works
         slightly differently, because we want to project the center and
         surround components separately, and then sum them together (this
         will be more efficient because we don't want to hold all the
@@ -2928,16 +2953,11 @@ class PoolingWindows(nn.Module):
             output_device = list(x.values())[0].device
         # need this normalization factor to make sure windows
         # sum to one
-        norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
-        ctr = self.forward(x, idx, self.angle_windows['center'],
-                           self.ecc_windows['center'], self.window_sizes['center'])
-        ctr = self.project(ctr, idx, output_device, self.angle_windows['center'],
-                           self.ecc_windows['center'])
-        sur = self.forward(x, idx, self.angle_windows['surround'],
-                           self.ecc_windows['surround'], self.window_sizes['surround'])
-        sur = self.project(sur, idx, output_device, self.angle_windows['surround'],
-                           self.ecc_windows['surround'])
-        return (self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur) / norm_factor
+        ctr = self.forward(x, idx, 'center')
+        ctr = self.project(ctr, idx, output_device, 'center')
+        sur = self.forward(x, idx, 'surround')
+        sur = self.project(sur, idx, output_device, 'surround')
+        return (self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur) / self.norm_factor
 
     def plot_windows(self, ax=None, contour_levels=None, colors='r',
                      subset=True, windows_scale=0, **kwargs):
