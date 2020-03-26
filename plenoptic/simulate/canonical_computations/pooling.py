@@ -2558,7 +2558,9 @@ class PoolingWindows(nn.Module):
                 # but the surround is still having an effect). the
                 # division by center_surround_ratio makes it so that the
                 # output of this is bounded between -1 and 1
-                return (self.center_surround_ratio * torch.cat([ctr, torch.zeros(*ctr.shape[:-1], sur.shape[-1] - ctr.shape[-1])], -1)
+                zeros = torch.zeros(*ctr.shape[:-1], sur.shape[-1] - ctr.shape[-1],
+                                    device=output_device)
+                return (self.center_surround_ratio * torch.cat([ctr, zeros], -1)
                         - (1 - self.center_surround_ratio) * sur) / self.center_surround_ratio
             else:
                 angle_windows = self.angle_windows
