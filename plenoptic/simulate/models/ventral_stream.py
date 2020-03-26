@@ -934,7 +934,7 @@ class RetinalGanglionCells(VentralModel):
 
         """
         if not isinstance(title, list):
-            title = title
+            title = [title] * n_cols
         if ax is None:
             fig, ax = plt.subplots(1, n_cols, figsize=figsize)
         else:

@@ -2047,12 +2047,14 @@ class PoolingWindows(nn.Module):
             self.center_surround_ratio = float(center_surround_ratio)
             self.transition_region_width = None
             self.norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
-            window_width_for_saving = f'{std_dev}_s-{surround_std_dev}_r-{center_surround_ratio}'
+            window_width_for_saving = f'{self.std_dev}_s-{self.surround_std_dev}_r-{self.center_surround_ratio}'
             # 1 / (std_dev * GAUSSIAN_SUM) is the max in a single
             # direction (radial or angular), so the max for a single
             # window is its square
-            self.center_max_amplitude = ((1 / (std_dev * GAUSSIAN_SUM)) / self.norm_factor) ** 2
-            self.surround_max_amplitude = ((1 / (surround_std_dev * GAUSSIAN_SUM)) / self.norm_factor) ** 2
+            self.center_max_amplitude = ((1 / (std_dev * GAUSSIAN_SUM))) ** 2
+            self.center_intersecting_amplitude = self.center_max_amplitude * np.exp(-.25/2)
+            self.surround_max_amplitude = ((1 / (surround_std_dev * GAUSSIAN_SUM))) ** 2
+            self.surround_intersecting_amplitude = self.surround_max_amplitude * np.exp(-.25/2)
             self.window_max_amplitude = ((center_surround_ratio * self.center_max_amplitude) -
                                          (1 - center_surround_ratio) * self.surround_max_amplitude)
             self.window_intersecting_amplitude = ((center_surround_ratio * self.center_max_amplitude) * np.exp(-.25/(2*std_dev**2)) -
@@ -2430,6 +2432,8 @@ class PoolingWindows(nn.Module):
         unparallel : undo this parallelization
 
         """
+        if self.window_type == 'dog':
+            raise NotImplementedError("DoG windows do not support parallel!")
         angle_windows_gpu = {}
         for k, v in self.angle_windows.items():
             num = int(np.ceil(len(v) / len(devices)))
@@ -2469,6 +2473,8 @@ class PoolingWindows(nn.Module):
         parallel : parallelize PoolingWindows across multiple devices
 
         """
+        if self.window_type == 'dog':
+            raise NotImplementedError("DoG windows do not support unparallel!")
         angle_windows = {}
         keys = set([k[0] for k in self.angle_windows.keys()])
         for i in keys:
@@ -2661,6 +2667,8 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        if self.window_type == 'dog':
+            raise NotImplementedError("DoG windows do not support window()!")
         if isinstance(x, dict):
             if list(x.values())[0].ndimension() != 4:
                 raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
@@ -2751,6 +2759,8 @@ class PoolingWindows(nn.Module):
         forward : perform the windowing and pooling simultaneously
 
         """
+        if self.window_type == 'dog':
+            raise NotImplementedError("DoG windows do not support pool())!")
         if isinstance(windowed_x, dict):
             if self.num_devices == 1:
                 # one way to make this more general: figure out the size
@@ -3010,15 +3020,23 @@ class PoolingWindows(nn.Module):
             fig = pt.imshow(dummy_data, cmap='gray_r', title=None)
             ax = fig.axes[0]
         if contour_levels is None:
-            contour_levels = [self.window_intersecting_amplitude]
+            if self.window_type == 'dog':
+                contour_levels = [self.center_intersecting_amplitude]
+            else:
+                contour_levels = [self.window_intersecting_amplitude]
         if self.num_devices == 1:
             # attempt to not have all the windows in memory at once...
-            if subset:
-                angle_windows = self.angle_windows[windows_scale][:4]
-            else:
+            try:
                 angle_windows = self.angle_windows[windows_scale]
+                ecc_windows = self.ecc_windows[windows_scale]
+            except KeyError:
+                # then this is the DoG windows and so we grab the center
+                angle_windows = self.angle_windows['center'][windows_scale]
+                ecc_windows = self.ecc_windows['center'][windows_scale]
+            if subset:
+                angle_windows = angle_windows[:4]
             for a in angle_windows:
-                windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[windows_scale]])
+                windows = torch.einsum('hw,ehw->ehw', [a, ecc_windows])
                 for w in windows:
                     try:
                         # if this isn't true, then this window will be
