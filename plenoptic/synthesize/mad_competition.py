@@ -375,6 +375,13 @@ class MADCompetition(Synthesis):
         we're updating the attributes based on minimizing or maximizing
         model_1's loss or model_2's loss
 
+        Note that if you're switching synthesis_target, you should NOT
+        set self.synthesis_target yourself, you should call this
+        function with the new synthesis_target and it will do it for you
+        (we rely on checking whether self.synthesis_target matches
+        synthesis_target arg to correctly update the attrs that have a
+        _all version)
+
         Parameters
         ----------
         synthesis_target : {'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
@@ -695,8 +702,8 @@ class MADCompetition(Synthesis):
         self.update_target(self.synthesis_target, 'main')
         super()._init_store_progress(store_progress, save_progress, save_path)
         self.update_target(self.synthesis_target, 'fix')
-        self.saved_representation = list(self.saved_representation_2)
-        self.saved_representation_gradient = list(self.saved_representation_2_gradient)
+        self.saved_representation = list(self.saved_representation)
+        self.saved_representation_gradient = list(self.saved_representation_gradient)
         self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
 
     def _clamp_and_store(self, i):
@@ -844,7 +851,9 @@ class MADCompetition(Synthesis):
         """
         self._set_seed(seed)
         self.fix_step_n_iter = fix_step_n_iter
-        self.synthesis_target = synthesis_target
+        # self.synthesis_target gets updated in this call, DO NOT do it
+        # manually
+        self.update_target(synthesis_target, 'main')
 
         self._init_matched_image(initial_noise, clamper, norm_loss)
 
