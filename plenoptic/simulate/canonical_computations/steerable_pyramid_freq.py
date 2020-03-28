@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from collections import OrderedDict
 from scipy.special import factorial
-from ...tools.signal import rcosFn, batch_fftshift, batch_ifftshift, pointOp
+from ...tools.signal import rcosFn, batch_fftshift, batch_ifftshift, pointOp, steer
 import torch
 import torch.nn as nn
 
@@ -32,7 +32,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     ----------
     image_shape : `list or tuple`
         shape of input image
-    height : 'auto' or `int`.
+    height : 'auto' or `int`
         The height of the pyramid. If 'auto', will automatically determine based on the size of
         `image`.
     order : `int`.
@@ -73,7 +73,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     """
 
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False,
-                 store_unoriented_bands=False, return_list=False):
+                 store_unoriented_bands=False, return_list=False, downsample=True):
 
         super().__init__()
 
@@ -82,6 +82,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.is_complex = is_complex
         self.store_unoriented_bands = store_unoriented_bands
         self.return_list = return_list
+        self.downsample = downsample
 
         # cache constants
         self.lutsize = 1024
@@ -183,25 +184,30 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             self._anglemasks.append(anglemasks)
             self._anglemasks_recon.append(anglemasks_recon)
-            # subsample lowpass
-            dims = np.array([lodft.shape[0], lodft.shape[1]])
-            ctr = np.ceil((dims+0.5)/2).astype(int)
-            lodims = np.ceil((dims-0.5)/2).astype(int)
-            loctr = np.ceil((lodims+0.5)/2).astype(int)
-            lostart = ctr - loctr
-            loend = lostart + lodims
-            self._loindices.append([lostart, loend])
+            if not self.downsample:
+                lomask = pointOp(log_rad, self.YIrcos, Xrcos)
+                self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
+                lodft = lodft * lomask
+            else:
+                # subsample lowpass
+                dims = np.array([lodft.shape[0], lodft.shape[1]])
+                ctr = np.ceil((dims+0.5)/2).astype(int)
+                lodims = np.ceil((dims-0.5)/2).astype(int)
+                loctr = np.ceil((lodims+0.5)/2).astype(int)
+                lostart = ctr - loctr
+                loend = lostart + lodims
+                self._loindices.append([lostart, loend])
 
-            # subsample indices
-            log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
-            angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
+                # subsample indices
+                log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
+                angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
-            lomask = pointOp(log_rad, self.YIrcos, Xrcos)
-            self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
-            # subsampling
-            lodft = lodft[lostart[0]:loend[0], lostart[1]:loend[1]]
-            # convolution in spatial domain
-            lodft = lodft * lomask
+                lomask = pointOp(log_rad, self.YIrcos, Xrcos)
+                self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
+                # subsampling
+                lodft = lodft[lostart[0]:loend[0], lostart[1]:loend[1]]
+                # convolution in spatial domain
+                lodft = lodft * lomask
 
         # reasonable default dtype
         self = self.to(torch.float32)
@@ -254,7 +260,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self._anglemasks_recon = angles_recon
         return self
 
-    def forward(self, x, downsample=True):
+    def forward(self, x):
         self.pyr_coeffs = OrderedDict()
 
         angle = self.angle.copy()
@@ -317,14 +323,16 @@ class Steerable_Pyramid_Freq(nn.Module):
                     self.pyr_coeffs[(i, b)] = band
                     self.pyr_size[(i, b)] = tuple(band.shape[2:4])
 
-            lostart, loend = self._loindices[i]
 
-            if not downsample:
+            if not self.downsample:
                 # no subsampling of angle and rad
                 # jsut use lo0mask
-                lodft = lodft * lo0mask
+                lomask = self._lomasks[i]
+                lodft = lodft * lomask
             else:
                 # subsample indices
+                lostart, loend = self._loindices[i]
+
                 log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
                 angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
@@ -624,3 +632,54 @@ class Steerable_Pyramid_Freq(nn.Module):
         recondft = resdft + orientdft
         # add orientation interpolated and added images to the lowpass image
         return recondft
+
+
+
+    def steer_coeffs(self, angles, return_weights = False, update_model_coeffs = False, even_phase=True):
+        """Steer pyramid coefficients to the specified angles
+
+        This allows you to have filters that have the Gaussian derivative order specified in
+        construction, but arbitrary angles or number of orientations.
+
+        Parameters
+        ----------
+        angles : `list`
+            list of angles (in radians) to steer the pyramid coefficients to
+        even_phase : `bool`
+            specifies whether the harmonics are cosine or sine phase aligned about those positions.
+
+        Returns
+        -------
+        resteered_coeffs : `dict`
+            dictionary of re-steered pyramid coefficients. will have the same number of scales as
+            the original pyramid (though it will not contain the residual highpass or lowpass).
+            like `self.pyr_coeffs`, keys are 2-tuples of ints indexing the scale and orientation,
+            but now we're indexing `angles` instead of `self.num_orientations`.
+        resteering_weights : `dict`
+            dictionary of weights used to re-steer the pyramid coefficients. will have the same
+            keys as `resteered_coeffs`.
+
+        """
+
+        resteered_coeffs = {}
+        resteering_weights = {}
+        for i in range(self.num_scales):
+            basis = torch.cat([self.pyr_coeffs[(i, j)].squeeze().unsqueeze(-1) for j in
+                               range(self.num_orientations)], dim=-1)
+
+            for j, a in enumerate(angles):
+                if return_weights:
+                    res, steervect = steer(basis, a, return_weights=return_weights, even_phase=even_phase)
+                    resteering_weights[(i, j)] = steervect
+                else:
+                    res = steer(basis, a, return_weights=return_weights,even_phase=even_phase)
+                resteered_coeffs[(i, self.num_orientations + j)] = res.reshape(self.pyr_coeffs[(i, 0)].shape)
+
+                if update_model_coeffs:
+                    self.pyr_coeffs[(i,self.num_orientations + j)] = resteered_coeffs[(i,self.num_orientations+j)]
+
+        if not update_model_coeffs:
+            if return_weights:
+                return resteered_coeffs, resteering_weights
+            else:
+                return resteered_coeffs
