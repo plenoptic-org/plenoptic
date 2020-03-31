@@ -1429,8 +1429,14 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
     windows : torch.tensor
         A 3d tensor containing the (2d) log-eccentricity
         windows. Windows will be indexed along the first dimension. If
-        resolution was an int, then this will be a 2d arra containing
+        resolution was an int, then this will be a 2d array containing
         the 1d polar angle windows
+    multiplier : torch.tensor
+        same number of dimensions as windows, with either a 1 or -1 for
+        each window (indexed along first dimension). This was used to
+        determine whether that window saw positive or negative
+        eccentricity and is used for constructing DoG windows. Should be
+        ignored by user
 
     Notes
     -----
@@ -1498,19 +1504,21 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         # eccentricity 0), so we find those windows that are within 4
         # standard deviations of 0 and duplicate them.
         foveal_windows = shift_arg[(shift_arg / window_spacing) <= 4*std_dev].unsqueeze(-1)
-        # We use multiplier to make sure that these duplicates see a
-        # *negative* eccentricity, so they'll represent the completion
-        # of the windows.
-        multiplier = torch.cat([torch.ones_like(shift_arg), -torch.ones_like(foveal_windows)])
         # sort this so we get all the windows close to the fovea at the
         # beginning
         shift_arg, idx = torch.sort(torch.cat([shift_arg, foveal_windows]), 0)
-        # reindex this so it's the same as the sorted shift_arg
-        multiplier = multiplier[idx.flatten()]
+        # We use multiplier to make sure that these duplicates see a
+        # *negative* eccentricity, so they'll represent the completion
+        # of the windows.
+        multiplier = torch.ones_like(shift_arg)
+        # we find everywhere there's a repeat in shift_arg, which
+        # corresponds to a duplicated foveal window, and replace the 1
+        # with the -1 (this will put the negative first in every pair)
+        multiplier[np.where(~np.diff(shift_arg, axis=0).astype(bool))] = -1
         # finally, add the window centered at 0. we do this here because
         # we don't want it duplicated in the above bit.
-        shift_arg = torch.cat([torch.tensor([0], dtype=torch.float32).unsqueeze(-1), shift_arg])
-        multiplier = torch.cat([torch.tensor([1], dtype=torch.float32).unsqueeze(-1), multiplier])
+        shift_arg = torch.cat([torch.tensor([0], dtype=torch.float32, device=shift_arg.device).unsqueeze(-1), shift_arg])
+        multiplier = torch.cat([torch.tensor([1], dtype=torch.float32, device=multiplier.device).unsqueeze(-1), multiplier])
     else:
         log_func = torch.log
         if window_spacing is None:
@@ -1530,7 +1538,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         windows = gaussian(ecc, std_dev)
     elif window_type == 'cosine':
         windows = mother_window(ecc, transition_region_width)
-    return torch.stack([w for w in windows if (w != 0).any()])
+    return torch.stack([w for w in windows if (w != 0).any()]), multiplier
 
 
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
@@ -1706,18 +1714,35 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
                                        transition_region_width=transition_region_width,
                                        std_dev=surround_std_dev, device=device)
         angle_tensor['surround'] = surround
-    ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
-                                          max_eccentricity, window_type, std_dev=std_dev,
-                                          transition_region_width=transition_region_width,
-                                          device=device, transition_x=transition_x)
+    ecc_tensor, ctr_mult = log_eccentricity_windows(resolution, None, ecc_window_spacing,
+                                                    min_eccentricity, max_eccentricity,
+                                                    window_type, std_dev=std_dev,
+                                                    transition_region_width=transition_region_width,
+                                                    device=device, transition_x=transition_x)
     if dog:
         ecc_tensor = {'center': ecc_tensor}
-        surround = log_eccentricity_windows(resolution, ecc_tensor['center'].shape[0],
-                                            ecc_window_spacing, min_eccentricity, max_eccentricity,
-                                            window_type, std_dev=surround_std_dev,
-                                            transition_region_width=transition_region_width,
-                                            device=device, transition_x=transition_x)
+        surround, surr_mult = log_eccentricity_windows(resolution, ecc_tensor['center'].shape[0],
+                                                       ecc_window_spacing, min_eccentricity,
+                                                       max_eccentricity, window_type,
+                                                       std_dev=surround_std_dev,
+                                                       transition_region_width=transition_region_width,
+                                                       device=device, transition_x=transition_x)
         ecc_tensor['surround'] = surround
+        # now we need to make sure that center and surround are the same
+        # size. we make use of the mult tensors for that
+        idx = np.zeros(len(surr_mult)).astype(bool)
+        idx[:len(ctr_mult)] = True
+        # this will go through and find all the places where surr_mult
+        # has a -1 that ctr_mult does not and shift the 1s forward by
+        # one, leaving a 0 there. this corresponds to the reflected
+        # windows that the surround has that center does not
+        for i in set(np.where(surr_mult==-1)[0]).difference(set(np.where(ctr_mult==-1)[0])):
+            idx[i:] = np.concatenate([[0], idx[i:-1]])
+        new_ctr = torch.zeros_like(ecc_tensor['surround'])
+        # now we go ahead and paste the center windows in the
+        # appropriate place, leaving the zeros
+        new_ctr[idx, ...] = ecc_tensor['center']
+        ecc_tensor['center'] = new_ctr
     return angle_tensor, ecc_tensor
 
 
@@ -2552,15 +2577,9 @@ class PoolingWindows(nn.Module):
             if self.window_type == 'dog':
                 ctr = self.forward(x, idx, 'center')
                 sur = self.forward(x, idx, 'surround')
-                # this cat call appends a bunch of zeros so the two are
-                # the same shape (this corresponds to all the
-                # eccentricity rings where the center is off the image,
-                # but the surround is still having an effect). the
-                # division by center_surround_ratio makes it so that the
-                # output of this is bounded between -1 and 1
-                zeros = torch.zeros(*ctr.shape[:-1], sur.shape[-1] - ctr.shape[-1],
-                                    device=output_device)
-                return (self.center_surround_ratio * torch.cat([ctr, zeros], -1)
+                # the division by center_surround_ratio makes it so that
+                # the output of this is bounded between -1 and 1
+                return (self.center_surround_ratio * ctr
                         - (1 - self.center_surround_ratio) * sur) / self.center_surround_ratio
             else:
                 angle_windows = self.angle_windows
