@@ -178,6 +178,78 @@ def piecewise_log_inverse(y, transition_x=1):
     return y
 
 
+def _calc_reflected_idx(multiplier):
+    r"""calculate indices for summing windows output
+
+    this helper function calculates the indices used by the
+    sum_windows_output() function, so they can be calculated once and then
+    cached
+
+    we make strong assumptions about how the reflected windows are laid
+    out and will raise an Exception if they look like they're broken
+
+    Parameters
+    ----------
+    multiplier : torch.tensor
+        the multiplier returned by log_eccentricity_windows(), a tensor
+        containing 1 or -1 for each window (along the first dimension),
+        which shows which windows are the reflected ones
+
+    Returns
+    -------
+    reflected_idx : torch.tensor
+        a 1d boolean tensor specifying which windows are the reflected ones
+    normal_idx : torch.tensor
+        a 1d boolean tensor specifying which windows are the normal
+        (un-reflected) ones
+
+    """
+    reflected_idx = torch.where(multiplier==-1)[0]
+    normal_idx = torch.where(multiplier==1)[0]
+    if reflected_idx[0] != 1 or not (np.diff(reflected_idx)==2).all():
+        raise Exception("Something went wrong in the construction of your multiplier! It should"
+                        " have its first -1 at index 1 and then every other index")
+    return normal_idx, reflected_idx
+
+
+def sum_windows_output(windows_output, multiplier, dim=0):
+    r"""sum output of reflected and corresponding normal windows together
+
+    this function is used when we have reflected windows and so need to
+    combine their output with the output of the corresponding non-reflected
+    window (otherwise we overweight the output of the reflected window)
+
+    the indices (as computed by ``_calc_reflected_idx()``) can be passed
+    directly to this function (for speed). if not, we'll calculate them
+    ourselves
+
+    we make strong assumptions about how the reflected windows are laid
+    out and will raise an Exception if they look like they're broken
+
+    Parameters
+    ----------
+    windows_output : torch.tensor
+        the tensor containing the windows outputs to sum.
+    multiplier : torch.tensor
+        the multiplier returned by log_eccentricity_windows(), a tensor
+        containing 1 or -1 for each window (along the first dimension),
+        which shows which windows are the reflected ones.
+    dim : {0, -1}, optional
+        whether to sum along the first or last dimension. For now, no other
+        dimensions are supported
+
+    """
+    normal_idx, reflected_idx = _calc_reflected_idx(multiplier)
+    summed = windows_output[normal_idx].clone()
+    if dim == 0:
+        summed[reflected_idx[0]:len(reflected_idx)+1] += windows_output[reflected_idx]
+    elif dim == -1 or dim == windows_output.ndim - 1:
+        summed[..., reflected_idx[0]:len(reflected_idx)+1] += windows_output[..., reflected_idx]
+    else:
+        raise Exception("Currently only implemented for dim=0 or dim=-1!")
+    return summed
+
+
 def calc_angular_window_spacing(n_windows):
     r"""calculate and return the window spacing for the angular windows
 
@@ -1743,6 +1815,7 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         # appropriate place, leaving the zeros
         new_ctr[idx, ...] = ecc_tensor['center']
         ecc_tensor['center'] = new_ctr
+        ecc_tensor = dict((k, sum_windows_output(v, surr_mult)) for k, v in ecc_tensor.items())
     return angle_tensor, ecc_tensor
 
 
