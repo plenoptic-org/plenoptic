@@ -2577,10 +2577,13 @@ class PoolingWindows(nn.Module):
             if self.window_type == 'dog':
                 ctr = self.forward(x, idx, 'center')
                 sur = self.forward(x, idx, 'surround')
+                num  = self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
                 # the division by center_surround_ratio makes it so that
-                # the output of this is bounded between -1 and 1
-                return (self.center_surround_ratio * ctr
-                        - (1 - self.center_surround_ratio) * sur) / self.center_surround_ratio
+                # the output of this is bounded between -1 and 1. the
+                # window_sizes['surround] is to normalize the size
+                # across eccentricities
+                denom = self.center_surround_ratio * self.window_sizes['surround'][idx]
+                return num / denom
             else:
                 angle_windows = self.angle_windows
                 ecc_windows = self.ecc_windows
@@ -2588,7 +2591,12 @@ class PoolingWindows(nn.Module):
         else:
             angle_windows = self.angle_windows[windows_key]
             ecc_windows = self.ecc_windows[windows_key]
-            window_sizes = self.window_sizes[windows_key]
+            # we don't actually want to normalize by size in the
+            # separate center and surround calls (the surround windows
+            # are so much larger that this removes much of their
+            # effect. so we create a dummy sizes dict instead
+            window_sizes = dict((k, torch.ones_like(v)) for k, v
+                                in self.window_sizes[windows_key].items())
         if isinstance(x, dict):
             if self.num_devices == 1:
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
@@ -2982,13 +2990,17 @@ class PoolingWindows(nn.Module):
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
-        # need this normalization factor to make sure windows
-        # sum to one
-        ctr = self.forward(x, idx, 'center')
+        # the division by window_sizes['surround] is to normalize the
+        # size across eccentricities
+        ctr = self.forward(x, idx, 'center') / self.window_sizes['center'][idx]
         ctr = self.project(ctr, idx, output_device, 'center')
-        sur = self.forward(x, idx, 'surround')
+        sur = self.forward(x, idx, 'surround') / self.window_sizes['surround'][idx]
         sur = self.project(sur, idx, output_device, 'surround')
-        return (self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur) / self.norm_factor
+        num  = self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
+        # need this normalization factor to make sure windows sum to
+        # one.
+        denom = self.norm_factor
+        return num / denom
 
     def plot_windows(self, ax=None, contour_levels=None, colors='r',
                      subset=True, windows_scale=0, **kwargs):
