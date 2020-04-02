@@ -888,8 +888,10 @@ class RetinalGanglionCells(VentralModel):
         if self.window_type == 'dog':
             self.center_representation = self.PoolingWindows.forward(cone_responses,
                                                                      windows_key='center')
+            self.center_representation /= self.PoolingWindows.window_sizes['surround'][0]
             self.surround_representation = self.PoolingWindows.forward(cone_responses,
                                                                        windows_key='surround')
+            self.surround_representation /= self.PoolingWindows.window_sizes['surround'][0]
         return self.representation
 
     def _plot_helper(self, n_cols=1, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
@@ -1788,7 +1790,10 @@ class PrimaryVisualCortex(VentralModel):
                 axes.append(ax)
             elif k == 'mean_luminance':
                 t = self._get_title(title_list, -1, "mean pixel intensity")
-                ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                if n_rows != 1:
+                    ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                else:
+                    ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
             elif k == 'residual_highpass':
