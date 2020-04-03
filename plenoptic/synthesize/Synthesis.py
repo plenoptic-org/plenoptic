@@ -1045,7 +1045,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path)
 
     @classmethod
-    def load(cls, file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
+    def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
+             **state_dict_kwargs):
         r"""load all relevant stuff from a .pt file
 
         We will iterate through any additional key word arguments
@@ -1058,7 +1059,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         ----------
         file_path : str
             The path to load the synthesis object from
-        model_constructor : callable or None, optional
+        model_attr_name : str or list, optional
+            The attribute that gives the model(s) names. Can be a str or
+            a list of strs. If a list and the reduced version of the
+            model was saved, ``model_constructor`` should be a list of
+            the same length.
+        model_constructor : callable, list, or None, optional
             When saving the synthesis object, we have the option to only
             save the ``state_dict_reduced`` (in order to save space). If
             we do that, then we need some way to construct that model
@@ -1066,13 +1072,19 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
-            VentralModel class for an example of this.
+            VentralModel class for an example of this. If a list, should
+            be a list of the above and the same length as
+            ``model_attr_name``
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        state_dict_kwargs :
+            any additional kwargs will be added to the model's
+            state_dict before construction (this only applies if the
+            model is a dict, see above for more description of that)
 
         Returns
         -------
@@ -1117,18 +1129,25 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         """
         tmp_dict = torch.load(file_path, map_location=map_location)
         device = torch.device(map_location)
-        model = tmp_dict.pop('model')
+        if not isinstance(model_attr_name, list):
+            model_attr_name = [model_attr_name]
+        if not isinstance(model_constructor, list):
+            model_constructor = [model_constructor]
         target_image = tmp_dict.pop('target_image').to(device)
-        if isinstance(model, dict):
-            for k, v in state_dict_kwargs.items():
-                warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
-                              (k, model.pop(k, None), v))
-                model[k] = v
-            # then we've got a state_dict_reduced and we need the model_constructor
-            model = model_constructor(model)
-            # want to make sure the dtypes match up as well
-            model = model.to(device, target_image.dtype)
-        synth = cls(target_image, model)
+        models = {}
+        for attr, constructor in zip(model_attr_name, model_constructor):
+            model = tmp_dict.pop(attr)
+            if isinstance(model, dict):
+                for k, v in state_dict_kwargs.items():
+                    warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
+                                  (k, model.pop(k, None), v))
+                    model[k] = v
+                # then we've got a state_dict_reduced and we need the model_constructor
+                model = constructor(model)
+                # want to make sure the dtypes match up as well
+                model = model.to(device, target_image.dtype)
+            models[attr] = model
+        synth = cls(target_image, **models)
         for k, v in tmp_dict.items():
             setattr(synth, k, v)
         return synth

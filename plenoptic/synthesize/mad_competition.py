@@ -1209,6 +1209,92 @@ class MADCompetition(Synthesis):
                  'saved_representation_2_gradient', 'saved_image_gradient']
         super().save(file_path, save_model_reduced,  attrs)
 
+    @classmethod
+    def load(cls, file_path, model_attr_name=['model_1', 'model_2'], model_constructor=[None, None],
+             map_location='cpu', **state_dict_kwargs):
+        r"""load all relevant stuff from a .pt file
+
+        We will iterate through any additional key word arguments
+        provided and, if the model in the saved representation is a
+        dictionary, add them to the state_dict of the model. In this
+        way, you can replace, e.g., paths that have changed between
+        where you ran the model and where you are now.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to load the synthesis object from
+        model_attr_name : str or list, optional
+            The attribute that gives the model(s) names. Can be a str or
+            a list of strs. If a list and the reduced version of the
+            model was saved, ``model_constructor`` should be a list of
+            the same length.
+        model_constructor : callable, list, or None, optional
+            When saving the synthesis object, we have the option to only
+            save the ``state_dict_reduced`` (in order to save space). If
+            we do that, then we need some way to construct that model
+            again and, not knowing its class or anything, this object
+            doesn't know how. Therefore, a user must pass a constructor
+            for the model that takes in the ``state_dict_reduced``
+            dictionary and returns the initialized model. See the
+            VentralModel class for an example of this. If a list, should
+            be a list of the above and the same length as
+            ``model_attr_name``
+        map_location : str, optional
+            map_location argument to pass to ``torch.load``. If you save
+            stuff that was being run on a GPU and are loading onto a
+            CPU, you'll need this to make sure everything lines up
+            properly. This should be structured like the str you would
+            pass to ``torch.device``
+        state_dict_kwargs :
+            any additional kwargs will be added to the model's
+            state_dict before construction (this only applies if the
+            model is a dict, see above for more description of that)
+
+        Returns
+        -------
+        synthesis : plenoptic.synth.Synthesis
+            The loaded synthesis object
+
+
+        Examples
+        --------
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.save('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+
+        Things are slightly more complicated if you saved a reduced
+        representation of the model by setting the
+        ``save_model_reduced`` flag to ``True``. In that case, you also
+        need to pass a model constructor argument, like so:
+
+        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.save('metamers.pt', save_model_reduced=True)
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
+                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced)
+
+        You may want to update one or more of the arguments used to
+        initialize the model. The example I have in mind is where you
+        run the metamer synthesis on a cluster but then load it on your
+        local machine. The VentralModel classes have a ``cache_dir``
+        attribute which you will want to change so it finds the
+        appropriate location:
+
+        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.save('metamers.pt', save_model_reduced=True)
+        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
+                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+
+        """
+        super().load(file_path, model_attr_name, model_constructor, map_location,
+                     **state_dict_kwargs)
+
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
 
