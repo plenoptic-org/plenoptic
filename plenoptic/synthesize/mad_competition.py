@@ -1292,8 +1292,8 @@ class MADCompetition(Synthesis):
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
-        super().load(file_path, model_attr_name, model_constructor, map_location,
-                     **state_dict_kwargs)
+        return super().load(file_path, model_attr_name, model_constructor, map_location,
+                            **state_dict_kwargs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
