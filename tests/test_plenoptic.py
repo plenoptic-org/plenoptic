@@ -19,7 +19,7 @@ DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 print("On device %s" % DEVICE)
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def test_files_dir():
     path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', 'plenoptic-test-files')
     if not op.exists(path):
