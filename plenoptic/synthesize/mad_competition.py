@@ -270,7 +270,7 @@ class MADCompetition(Synthesis):
             self.model_2 = model_2
             self.loss_function_2 = loss_function
         else:
-            self.model_2 = Identity(model_2.__name__)
+            self.model_2 = Identity(model_2.__name__).to(target_image.device)
             self.loss_function_2 = lambda x, y:  model_2(x, y, **model_2_kwargs)
             self.rep_warning = True
 

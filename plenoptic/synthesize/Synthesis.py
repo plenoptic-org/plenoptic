@@ -101,7 +101,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             self.model = model
             self.loss_function = loss_function
         else:
-            self.model = Identity(model.__name__)
+            self.model = Identity(model.__name__).to(target_image.device)
             self.loss_function = lambda x, y:  model(x, y, **model_kwargs)
             self.rep_warning = True
 
