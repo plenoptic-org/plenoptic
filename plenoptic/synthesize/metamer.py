@@ -1,8 +1,5 @@
 import torch
-import warnings
 from tqdm import tqdm
-import torch.nn as nn
-import numpy as np
 from .Synthesis import Synthesis
 
 
@@ -204,7 +201,6 @@ class Metamer(Synthesis):
 
     def __init__(self, target_image, model, loss_function=None, **model_kwargs):
         super().__init__(target_image, model, loss_function, **model_kwargs)
-        self.fraction_removed = 0
 
     def _init_matched_image(self, initial_image, clamper=None):
         """initialize the matched image
@@ -235,11 +231,11 @@ class Metamer(Synthesis):
                                               device=self.target_image.device)
         super()._init_matched_image(matched_image_data, clamper)
 
-    def synthesize(self, seed=0, learning_rate=.01, max_iter=100, initial_image=None,
-                   clamper=None, optimizer='SGD', fraction_removed=0., loss_thresh=1e-4,
-                   store_progress=False, save_progress=False, save_path='metamer.pt',
-                   loss_change_thresh=1e-2, loss_change_iter=50, loss_change_fraction=1.,
-                   coarse_to_fine=False, scheduler=True, **optimizer_kwargs):
+    def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
+                   scheduler=True, optimizer='SGD', clamper=None, store_progress=False,
+                   save_progress=False, save_path='metamer.pt', loss_thresh=1e-4,
+                   loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
+                   loss_change_fraction=1., coarse_to_fine=False, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
@@ -308,34 +304,30 @@ class Metamer(Synthesis):
 
         Parameters
         ----------
-        seed : int, optional
-            Number with which to seed pytorch and numy's random number
-            generators
-        learning_rate : float, optional
-            The learning rate for our optimizer
-        max_iter : int, optinal
-            The maximum number of iterations to run before we end
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
             noise lying between 0 and 1. If this is not a tensor or
             None, we try to cast it as a tensor.
+        seed : int, optional
+            Number with which to seed pytorch and numy's random number
+            generators
+        max_iter : int, optinal
+            The maximum number of iterations to run before we end
+        learning_rate : float, optional
+            The learning rate for our optimizer
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
+        optimizer: {'Adam', 'SGD', 'LBFGS'}
+            The choice of optimization algorithm
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example is making sure the
             range lies between 0 and 1, see plenoptic.RangeClamper for
             an example.
-        optimizer: {'Adam', 'SGD', 'LBFGS'}
-            The choice of optimization algorithm
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
-        loss_thresh : float, optional
-            If the loss over the past ``loss_change_iter`` is less than
-            ``loss_thresh``, we stop.
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -362,12 +354,21 @@ class Metamer(Synthesis):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` has changed
+            less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
             loss has stopped decreasing in order to determine whether we
             should only calculate the gradient with respect to the
             ``loss_change_fraction`` fraction of statistics with
             the highest error.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
         loss_change_thresh : float, optional
             The threshold below which we consider the loss as unchanging
             in order to determine whether we should only calculate the
@@ -383,11 +384,6 @@ class Metamer(Synthesis):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
-        scheduler : bool, optional
-            whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -407,21 +403,9 @@ class Metamer(Synthesis):
         # initialize matched_image
         self._init_matched_image(initial_image, clamper)
 
-        if fraction_removed > 1 or loss_change_fraction < 1:
-            self.use_subset_for_gradient = True
-        self.fraction_removed = fraction_removed
-        self.loss_change_thresh = loss_change_thresh
-        self.loss_change_iter = loss_change_iter
-        self.loss_change_fraction = loss_change_fraction
-        self.coarse_to_fine = coarse_to_fine
-        if coarse_to_fine:
-            # this creates a new object, so we don't modify model.scales
-            self.scales = ['all'] + [i for i in self.model.scales]
-            self.scales_timing = dict((k, []) for k in self.scales)
-            self.scales_timing[self.scales[-1]].append(0)
-        if loss_thresh >= loss_change_thresh:
-            raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
-                            " get weird!")
+        # initialize stuff related to coarse-to-fine and randomization
+        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
+                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
@@ -443,14 +427,8 @@ class Metamer(Synthesis):
             # clamp and update saved_* attrs
             self._clamp_and_store(i)
 
-            if len(self.loss) > self.loss_change_iter:
-                if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < loss_thresh:
-                    if self.coarse_to_fine:
-                        # only break out if we've been doing for long enough
-                        if self.scales[-1] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
-                            break
-                    else:
-                        break
+            if self._check_for_stabilization(i):
+                break
 
         pbar.close()
 

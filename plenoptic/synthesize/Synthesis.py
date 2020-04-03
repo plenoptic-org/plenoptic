@@ -12,6 +12,7 @@ import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot
 from matplotlib import animation
 from ..simulate.models.naive import Identity
+from tqdm import tqdm
 
 
 class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
@@ -165,6 +166,66 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             self.matched_image.data = self.clamper.clamp(self.matched_image.data)
         self.matched_representation = self.analyze(self.matched_image)
 
+    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
+                                 loss_change_fraction=1, loss_change_thresh=1e-2,
+                                 loss_change_iter=50):
+        """initialize stuff related to randomization and coarse-to-fine
+
+        Parameters
+        ----------
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` is less than
+            ``loss_thresh``, we stop.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+
+        """
+        if fraction_removed > 0 or loss_change_fraction < 1:
+            self.use_subset_for_gradient = True
+            if isinstance(self.model, Identity):
+                raise Exception("Can't use fraction_removed or loss_change_fraction with metrics!"
+                                " Since most of the metrics rely on the image being correctly "
+                                "structured (and thus not randomized) when passed to them")
+        self.fraction_removed = fraction_removed
+        self.loss_thresh = loss_thresh
+        self.loss_change_thresh = loss_change_thresh
+        self.loss_change_iter = loss_change_iter
+        self.loss_change_fraction = loss_change_fraction
+        self.coarse_to_fine = coarse_to_fine
+        if coarse_to_fine:
+            # this creates a new object, so we don't modify model.scales
+            self.scales = ['all'] + [i for i in self.model.scales]
+            self.scales_timing = dict((k, []) for k in self.scales)
+            self.scales_timing[self.scales[-1]].append(0)
+        if loss_thresh >= loss_change_thresh:
+            raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
+                            " get weird!")
+
     def _init_store_progress(self, store_progress, save_progress, save_path):
         """initialize store_progress-related attributes
 
@@ -282,7 +343,17 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         i : int
             the current iteration (0-indexed)
 
+        Returns
+        -------
+        stored : bool
+            True if we stored this iteration, False if not. Note that
+            storing and saving can be separated (if both
+            ``store_progress`` and ``save_progress`` are different
+            integers, for example). This only deals with *storing*, not
+            saving
+
         """
+        stored = False
         with torch.no_grad():
             if self.clamper is not None:
                 self.matched_image.data = self.clamper.clamp(self.matched_image.data)
@@ -299,8 +370,58 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
                 if self.save_progress is True:
                     self.save(self.save_path, True)
+                stored = True
             if type(self.save_progress) == int and ((i+1) % self.save_progress == 0):
                 self.save(self.save_path, True)
+        return stored
+
+    def _check_for_stabilization(self, i):
+        r"""Check whether the loss has stabilized and, if so, return True
+
+        We check whether the loss has stopped decreasing and return True
+        if so.
+
+        We rely on a handful of attributes to do this, and take the
+        following steps:
+
+        1. Check if we've been synthesizing for at least
+           ``self.loss_change_iter`` iterations.
+
+        2a. If so, check whether the absolute difference between the most
+           recent loss and the loss ``self.loss_change_iter`` iterations
+           ago is less than ``self.loss_thresh``.
+
+        2b. If not, return False
+
+        3a. If so, check whether coarse to fine is True.
+
+        3b. If not, return False
+
+        4a. If so, check whether we're synthesizing with respect to all
+           scales and have been doing so for at least
+           ``self.loss_change_iter`` iterations.
+
+        4b. If not, return True
+
+        5a. If so, return True
+
+        5b. If not, return False
+
+        Parameters
+        ----------
+        i : int
+            the current iteration (0-indexed)
+
+        """
+        if len(self.loss) > self.loss_change_iter:
+            if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
+                if self.coarse_to_fine:
+                    # only break out if we've been doing for long enough
+                    if self.scales[-1] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
+                        return True
+                else:
+                    return True
+        return False
 
     def _finalize_stored_progress(self):
         """stack the saved_* attributes
@@ -328,14 +449,160 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 pass
 
     @abc.abstractmethod
-    def synthesize(self):
+    def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
+                   clamper=None, store_progress=False, save_progress=False, save_path='mad.pt',
+                   loss_thresh=1e-4, loss_change_iter=50, fraction_removed=0.,
+                   loss_change_thresh=1e-2, loss_change_fraction=1., coarse_to_fine=False,
+                   **optimizer_kwargs):
         r"""synthesize an image
 
         this is a skeleton of how synthesize() works, just to serve as a
         guide -- YOU SHOULD NOT CALL THIS FUNCTION.
 
         You should, however, copy the call signature and then add any
-        extra arguments at the end
+        extra arguments specific to the given synthesis method at the
+        beginning
+
+        FOLLOWING DOCUMENTATION APPLIES AS LONG AS YOU USE ALL THE ABOVE
+        ARGUMENTS AND FOLLOW THE GENERAL STRUCTURE OUTLINED IN THIS
+        FUNCTION
+
+        We run this until either we reach ``max_iter`` or the change
+        over the past ``loss_change_iter`` iterations is less than
+        ``loss_thresh``, whichever comes first
+
+        We provide three ways to try and add some more randomness to
+        this optimization, in order to either improve the diversity of
+        generated metamers or avoid getting stuck in local optima:
+
+        1. Use a different optimizer (and change its hyperparameters)
+           with ``optimizer`` and ``optimizer_kwargs``
+
+        2. Only calculate the gradient with respect to some random
+           subset of the model's representation. By setting
+           ``fraction_removed`` to some number between 0 and 1, the
+           gradient and loss are computed using a random subset of the
+           representation on each iteration (this random subset is drawn
+           independently on each trial). Therefore, if you wish to
+           disable this (to use all of the representation), this should
+           be set to 0.
+
+        3. Only calculate the gradient with respect to the parts of the
+           representation that have the highest error. If we think the
+           loss has stopped changing (by seeing that the loss
+           ``loss_change_iter`` iterations ago is within
+           ``loss_change_thresh`` of the most recent loss), then only
+           compute the loss and gradient using the top
+           ``loss_change_fraction`` of the representation. This can be
+           combined wth ``fraction_removed`` so as to randomly subsample
+           from this selection. To disable this (and use all the
+           representation), this should be set to 1.
+
+        We also provide the ability of using a coarse-to-fine
+        optimization. Unlike the above methods, this will not work
+        out-of-the-box with every model, as the model object must have a
+        ``scales`` attributes (which gives the scales in fine-to-coarse
+        order, i.e., reverse order that we will be optimizing) and that
+        it's forward method can accept a ``scales`` keyword argument, a
+        list that specifies which scales to use to compute the
+        representation. If ``coarse_to_fine`` is True, then we optimize
+        each scale until we think it's reached convergence before moving
+        on. Once we've done each scale individually, we spend the rest
+        of the iterations doing them all together, as if
+        ``coarse_to_fine`` was False. This can be combined with the
+        above three methods. We determine if a scale has converged in
+        the same way as method 3 above: if the scale-specific loss
+        ``loss_change_iter`` iterations ago is within
+        ``loss_change_thresh`` of the most recent loss.
+
+        Parameters
+        ----------
+        seed : `int`, optional
+            seed to initialize the random number generator with
+        max_iter : int, optional
+            The maximum number of iterations to run before we end
+        learning_rate : float, optional
+            The learning rate for our optimizer
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
+        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS'}
+            The choice of optimization algorithm. 'GD' is regular
+            gradient descent, as decribed in [1]_
+        clamper : plenoptic.Clamper or None, optional
+            Clamper makes a change to the image in order to ensure that
+            it stays reasonable. The classic example is making sure the
+            range lies between 0 and 1, see plenoptic.RangeClamper for
+            an example.
+        store_progress : bool or int, optional
+            Whether we should store the representation of the metamer
+            and the metamer image in progress on every iteration. If
+            False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress``
+            iterations (note then that 0 is the same as False and 1 the
+            same as True). If True or int>0, ``self.saved_image``
+            contains the stored images, and ``self.saved_representation
+            contains the stored representations.
+        save_progress : bool or int, optional
+            Whether to save the metamer as we go (so that you can check
+            it periodically and so you don't lose everything if you have
+            to kill the job / it dies before it finishes running). If
+            True, we save to ``save_path`` every time we update the
+            saved_representation. We attempt to save with the
+            ``save_model_reduced`` flag set to True. If an int, we save
+            every ``save_progress`` iterations. Note that this can end
+            up actually taking a fair amount of time, especially for
+            large numbers of iterations (and thus, presumably, larger
+            saved history tensors) -- it's therefore recommended that
+            you set this to a relatively large integer (say, one-tenth
+            ``max_iter``) for the purposes of speeding up your
+            synthesis.
+        save_path : str, optional
+            The path to save the synthesis-in-progress to (ignored if
+            ``save_progress`` is False)
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` has changed
+            less than ``loss_thresh``, we stop.
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
+        optimizer_kwargs :
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
+
+        Returns
+        -------
+        matched_image : torch.tensor
+            The synthesized image we've created
+        matched_representation : torch.tensor
+            model's representation of this image
 
         """
         raise NotImplementedError("Synthesis.synthesize() should not be called!")
@@ -344,6 +611,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # initialize matched_image -- how exactly you do this will
         # depend on the synthesis method
         self._init_matched_image(matched_image_data, clamper)
+        # initialize stuff related to coarse-to-fine and randomization
+        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
+                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
         # get ready to store progress
@@ -367,6 +637,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
             # clamp and update saved_* attrs
             self._clamp_and_store(i)
+
+            if self._check_for_stabilization(i):
+                break
 
         pbar.close()
 

@@ -1,7 +1,6 @@
 import torch
 import warnings
 from tqdm import tqdm
-import numpy as np
 import pyrtools as pt
 from .Synthesis import Synthesis
 import matplotlib.pyplot as plt
@@ -243,7 +242,8 @@ class MADCompetition(Synthesis):
                        'loss': 'loss_1',
                        'saved_representation': 'saved_representation_1',
                        'saved_representation_gradient': 'saved_representation_1_gradient',
-                       'loss_function': 'loss_function_1'}
+                       'loss_function': 'loss_function_1',
+                       'coarse_to_fine': 'coarse_to_fine_1'}
 
         self.synthesis_target = 'model_1_min'
         super().__init__(target_image, model_1, loss_function, **model_1_kwargs)
@@ -280,6 +280,7 @@ class MADCompetition(Synthesis):
         self.loss_2 = []
         self.saved_representation_2 = []
         self.saved_representation_2_gradient = []
+        self.coarse_to_fine_2 = False
         self.update_target('model_1_min', 'main')
 
         # these are the attributes that have 'all' versions of them, and
@@ -318,10 +319,12 @@ class MADCompetition(Synthesis):
         'loss_function'
 
         """
-        if name in ['target_representation', 'target_image', 'matched_representation', 'loss',
-                    'matched_image', 'model', 'loss_norm', 'initial_representation',
-                    'saved_representation', 'saved_representation_gradient', 'loss_function']:
-            name = self._names[name]
+        # we don't do this for '_names' because if we did we'd run into
+        # some infinite recursion nonsense
+        if name != '_names':
+            # this returns self._names[name] if name is in that dictionary
+            # and doesn't change it if not
+            name = self._names.get(name, name)
         try:
             return self.__dict__[name]
         except KeyError:
@@ -339,10 +342,12 @@ class MADCompetition(Synthesis):
         'loss_function'
 
         """
-        if name in ['target_representation', 'target_image', 'matched_representation', 'loss',
-                    'matched_image', 'model', 'loss_norm', 'initial_representation',
-                    'saved_representation', 'saved_representation_gradient', 'loss_function']:
-            name = self._names[name]
+        # we don't do this for '_names' because if we did we'd run into
+        # some infinite recursion nonsense
+        if name != '_names':
+            # this returns self._names[name] if name is in that dictionary
+            # and doesn't change it if not
+            name = self._names.get(name, name)
         super().__setattr__(name, value)
 
     def _get_model_name(self, model):
@@ -414,7 +419,8 @@ class MADCompetition(Synthesis):
                             'loss': f'loss_{num}',
                             'saved_representation': f'saved_representation_{num}',
                             'saved_representation_gradient': f'saved_representation_{num}_gradient',
-                            'loss_function': f'loss_function_{num}'})
+                            'loss_function': f'loss_function_{num}',
+                            'coarse_to_fine': f'coarse_to_fine_{num}'})
         if synthesis_target != self.synthesis_target:
             self.synthesis_target = synthesis_target
             for attr in self._attrs_all:
@@ -659,6 +665,55 @@ class MADCompetition(Synthesis):
         else:
             self.loss_norm = 1
 
+    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
+                                 loss_change_fraction=1, loss_change_thresh=1e-2,
+                                 loss_change_iter=50):
+        """initialize stuff related to randomization and coarse-to-fine
+
+        we always make the stable model's coarse to fine False
+
+        Parameters
+        ----------
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` is less than
+            ``loss_thresh``, we stop.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+
+        """
+        self.update_target(self.synthesis_target, 'main')
+        super()._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
+                                         loss_change_fraction, loss_change_thresh,
+                                         loss_change_iter)
+        # always want the stable model's coarse to fine to be False
+        self.update_target(self.synthesis_target, 'fix')
+        self.coarse_to_fine = False
+
     def _init_store_progress(self, store_progress, save_progress, save_path):
         """initialize store_progress-related attributes
 
@@ -723,12 +778,12 @@ class MADCompetition(Synthesis):
 
         """
         self.update_target(self.synthesis_target, 'main')
-        super()._clamp_and_store(i)
-        self.update_target(self.synthesis_target, 'fix')
-        # these are the only ones that differ between main and fix
-        with torch.no_grad():
-            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-            self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+        if super()._clamp_and_store(i):
+            self.update_target(self.synthesis_target, 'fix')
+            # these are the only ones that differ between main and fix
+            with torch.no_grad():
+                self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+                self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
 
     def _finalize_stored_progress(self):
         """stack the saved_* attributes
@@ -754,9 +809,11 @@ class MADCompetition(Synthesis):
             except RuntimeError:
                 pass
 
-    def synthesize(self, synthesis_target, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
-                   optimizer='Adam', clamper=None, store_progress=False, save_progress=False,
-                   save_path='mad.pt', fix_step_n_iter=10, norm_loss=True, scheduler=True,
+    def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=10, norm_loss=True,
+                   seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
+                   clamper=None, store_progress=False, save_progress=False, save_path='mad.pt',
+                   loss_thresh=1e-4, loss_change_iter=50, fraction_removed=0.,
+                   loss_change_thresh=1e-2, loss_change_fraction=1., coarse_to_fine=False,
                    **optimizer_kwargs):
         r"""Synthesize one maximally-differentiating image
 
@@ -765,19 +822,89 @@ class MADCompetition(Synthesis):
         ``synthesis_target``, you can determine which of these you wish
         to synthesize.
 
+        We run this until either we reach ``max_iter`` or the change
+        over the past ``loss_change_iter`` iterations is less than
+        ``loss_thresh``, whichever comes first
+
+        We provide three ways to try and add some more randomness to
+        this optimization, in order to either improve the diversity of
+        generated metamers or avoid getting stuck in local optima:
+
+        1. Use a different optimizer (and change its hyperparameters)
+           with ``optimizer`` and ``optimizer_kwargs``
+
+        2. Only calculate the gradient with respect to some random
+           subset of the model's representation. By setting
+           ``fraction_removed`` to some number between 0 and 1, the
+           gradient and loss are computed using a random subset of the
+           representation on each iteration (this random subset is drawn
+           independently on each trial). Therefore, if you wish to
+           disable this (to use all of the representation), this should
+           be set to 0.
+
+        3. Only calculate the gradient with respect to the parts of the
+           representation that have the highest error. If we think the
+           loss has stopped changing (by seeing that the loss
+           ``loss_change_iter`` iterations ago is within
+           ``loss_change_thresh`` of the most recent loss), then only
+           compute the loss and gradient using the top
+           ``loss_change_fraction`` of the representation. This can be
+           combined wth ``fraction_removed`` so as to randomly subsample
+           from this selection. To disable this (and use all the
+           representation), this should be set to 1.
+
+        We also provide the ability of using a coarse-to-fine
+        optimization. Unlike the above methods, this will not work
+        out-of-the-box with every model, as the model object must have a
+        ``scales`` attributes (which gives the scales in fine-to-coarse
+        order, i.e., reverse order that we will be optimizing) and that
+        it's forward method can accept a ``scales`` keyword argument, a
+        list that specifies which scales to use to compute the
+        representation. If ``coarse_to_fine`` is True, then we optimize
+        each scale until we think it's reached convergence before moving
+        on. Once we've done each scale individually, we spend the rest
+        of the iterations doing them all together, as if
+        ``coarse_to_fine`` was False. This can be combined with the
+        above three methods. We determine if a scale has converged in
+        the same way as method 3 above: if the scale-specific loss
+        ``loss_change_iter`` iterations ago is within
+        ``loss_change_thresh`` of the most recent loss.
+
         Parameters
         ----------
         synthesis_target : {'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which image to synthesize
-        seed : `int`, optional
-            seed to initialize the random number generator with
         initial_noise : `float`, optional
             standard deviation of the Gaussian noise used to create the
             initial image from the target image
+        fix_step_n_iter : int, optional
+            Each iteration of synthesis has two steps: update the image
+            to increase/decrease one model's loss (main step), then
+            update it to ensure that the other model's loss is as
+            constant as possible (fix step). In order to do that, we use
+            a secondary optimization loop to determine how big a step we
+            should take (the value of ``nu``). ``fix_step_n_iter``
+            determines how many iterations we should use in that loop to
+            find nu. Obviously, the larger this, the longer synthesis
+            will take.
+        norm_loss : bool, optional
+            Whether to normalize the loss of each model. You probably
+            want them to be normalized so that they are of the same
+            magnitude and thus their gradients are also of the same
+            magnitude. However, you can turn it off and see how that
+            affects performance. It's also useful for debugging
+            purposes.
+        seed : `int`, optional
+            seed to initialize the random number generator with
         max_iter : int, optional
             The maximum number of iterations to run before we end
         learning_rate : float, optional
             The learning rate for our optimizer
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent, as decribed in [1]_
@@ -812,28 +939,36 @@ class MADCompetition(Synthesis):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
-        fix_step_n_iter : int, optional
-            Each iteration of synthesis has two steps: update the image
-            to increase/decrease one model's loss (main step), then
-            update it to ensure that the other model's loss is as
-            constant as possible (fix step). In order to do that, we use
-            a secondary optimization loop to determine how big a step we
-            should take (the value of ``nu``). ``fix_step_n_iter``
-            determines how many iterations we should use in that loop to
-            find nu. Obviously, the larger this, the longer synthesis
-            will take.
-        norm_loss : bool, optional
-            Whether to normalize the loss of each model. You probably
-            want them to be normalized so that they are of the same
-            magnitude and thus their gradients are also of the same
-            magnitude. However, you can turn it off and see how that
-            affects performance. It's also useful for debugging
-            purposes.
-        scheduler : bool, optional
-            whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` has changed
+            less than ``loss_thresh``, we stop.
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -857,6 +992,11 @@ class MADCompetition(Synthesis):
 
         self._init_matched_image(initial_noise, clamper, norm_loss)
 
+        self.update_target(synthesis_target, 'main')
+        # initialize stuff related to coarse-to-fine and randomization
+        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
+                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
 
@@ -864,8 +1004,8 @@ class MADCompetition(Synthesis):
 
         pbar = tqdm(range(max_iter))
 
-        self.update_target(self.synthesis_target, 'fix')
         for i in pbar:
+            self.update_target(self.synthesis_target, 'fix')
             # first, figure out what the stable model's loss is
             loss_2 = self.objective_function(self.matched_representation,
                                              self.target_representation).item()
@@ -885,9 +1025,14 @@ class MADCompetition(Synthesis):
             self._optimizer_step()
 
             if self._check_nan_loss(loss):
-                # self.matched_representation_2 and self.matched_image
-                # will be handled above (because we've got target 'fix')
-                self.matched_representation_1 = self.saved_representation_1[-2]
+                # matched_image and the other matched represntation will
+                # be handled in the _check_nan_loss call (because we've
+                # got target 'fix')
+                self.update_target(self.synthesis_target, 'main')
+                self.matched_representation = self.saved_representation[-2]
+                break
+
+            if self._check_for_stabilization(i):
                 break
 
             # clamp and update saved_* attrs
