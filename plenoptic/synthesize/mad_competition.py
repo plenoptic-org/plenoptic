@@ -1045,9 +1045,12 @@ class MADCompetition(Synthesis):
         self._update_attrs_all()
         return self.matched_image.data, self.matched_representation_1.data, self.matched_representation_2.data
 
-    def synthesize_all(self, seed=0, initial_noise=.1, max_iter=100, learning_rate=1,
-                       optimizer='Adam', clamper=None, store_progress=False, save_progress=False,
-                       save_path='mad.pt', fix_step_n_iter=10, **optimizer_kwargs):
+    def synthesize_all(self, initial_noise=.1, fix_step_n_iter=10, norm_loss=True, seed=0,
+                       max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
+                       clamper=None, store_progress=False, save_progress=False,
+                       save_path='mad_{}.pt', loss_thresh=1e-4, loss_change_iter=50,
+                       fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
+                       coarse_to_fine=False, **optimizer_kwargs):
         """Synthesize two pairs of maximally-differentiating images
 
         MAD Competitoin consists of two pairs of
@@ -1059,21 +1062,43 @@ class MADCompetition(Synthesis):
 
         All parameters are passed directly through to ``synthesis()`` so
         if you want to synthesize the four images with different
-        arguments, you should call ``synthesis()`` directly
+        arguments, you should call ``synthesis()`` directly. The
+        exception is ``save_path`` -- if it contains ``'{}'``, we format
+        it to include the target name.
 
         Parameters
         ----------
-        synthesis_target : {'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which image to synthesize
-        seed : `int`, optional
-            seed to initialize the random number generator with
         initial_noise : `float`, optional
             standard deviation of the Gaussian noise used to create the
             initial image from the target image
+        fix_step_n_iter : int, optional
+            Each iteration of synthesis has two steps: update the image
+            to increase/decrease one model's loss (main step), then
+            update it to ensure that the other model's loss is as
+            constant as possible (fix step). In order to do that, we use
+            a secondary optimization loop to determine how big a step we
+            should take (the value of ``nu``). ``fix_step_n_iter``
+            determines how many iterations we should use in that loop to
+            find nu. Obviously, the larger this, the longer synthesis
+            will take.
+        norm_loss : bool, optional
+            Whether to normalize the loss of each model. You probably
+            want them to be normalized so that they are of the same
+            magnitude and thus their gradients are also of the same
+            magnitude. However, you can turn it off and see how that
+            affects performance. It's also useful for debugging
+            purposes.
+        seed : `int`, optional
+            seed to initialize the random number generator with
         max_iter : int, optional
             The maximum number of iterations to run before we end
         learning_rate : float, optional
             The learning rate for our optimizer
+        scheduler : bool, optional
+            whether to initialize the scheduler or not. If False, the
+            learning rate will never decrease. Setting this to True
+            seems to improve performance, but it might be useful to turn
+            it off in order to better work through what's happening
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent, as decribed in [1]_
@@ -1108,16 +1133,36 @@ class MADCompetition(Synthesis):
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
-        fix_step_n_iter : int, optional
-            Each iteration of synthesis has two steps: update the image
-            to increase/decrease one model's loss (main step), then
-            update it to ensure that the other model's loss is as
-            constant as possible (fix step). In order to do that, we use
-            a secondary optimization loop to determine how big a step we
-            should take (the value of ``nu``). ``fix_step_n_iter``
-            determines how many iterations we should use in that loop to
-            find nu. Obviously, the larger this, the longer synthesis
-            will take.
+        loss_thresh : float, optional
+            If the loss over the past ``loss_change_iter`` has changed
+            less than ``loss_thresh``, we stop.
+        loss_change_iter : int, optional
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing in order to determine whether we
+            should only calculate the gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        fraction_removed: float, optional
+            The fraction of the representation that will be ignored
+            when computing the loss. At every step the loss is computed
+            using the remaining fraction of the representation only.
+            A new sample is drawn a every step. This gives a stochastic
+            estimate of the gradient and might help optimization.
+        loss_change_thresh : float, optional
+            The threshold below which we consider the loss as unchanging
+            in order to determine whether we should only calculate the
+            gradient with respect to the
+            ``loss_change_fraction`` fraction of statistics with
+            the highest error.
+        loss_change_fraction : float, optional
+            If we think the loss has stopped decreasing (based on
+            ``loss_change_iter`` and ``loss_change_thresh``), the
+            fraction of the representation with the highest loss that we
+            use to calculate the gradients
+        coarse_to_fine : bool, optional
+            If True, we attempt to use the coarse-to-fine optimization
+            (see above for more details on what's required of the model
+            for this to work).
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -1125,10 +1170,19 @@ class MADCompetition(Synthesis):
 
         """
         for target in ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']:
-            print(f"Synthesizing {target}")
-            self.synthesize(target, seed, initial_noise, max_iter, learning_rate, optimizer,
-                            clamper, store_progress, save_progress, save_path, fix_step_n_iter,
-                            **optimizer_kwargs)
+            s = f"Synthesizing {target}"
+            if save_path is not None and save_progress is not False:
+                if '}' in save_path:
+                    save_path_tmp = save_path.format(target)
+                else:
+                    save_path_tmp = save_path
+                s += f", saving at {save_path_tmp}"
+            print(s)
+            self.synthesize(target, initial_noise, fix_step_n_iter, norm_loss, seed, max_iter,
+                            learning_rate, scheduler, optimizer, clamper, store_progress,
+                            save_progress, save_path, loss_thresh, loss_change_iter,
+                            fraction_removed, loss_change_thresh, loss_change_fraction,
+                            coarse_to_fine, **optimizer_kwargs)
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
