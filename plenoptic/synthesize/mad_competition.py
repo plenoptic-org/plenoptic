@@ -828,8 +828,8 @@ class MADCompetition(Synthesis):
             except RuntimeError:
                 pass
 
-    def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=10, norm_loss=True,
-                   seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
+    def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=5, norm_loss=True,
+                   seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='SGD',
                    clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
                    fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
