@@ -21,7 +21,8 @@ class TestMAD(object):
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    def test_basic(self, target, model1, model2, store_progress, tmp_path):
+    @pytest.mark.parametrize('resume', [False, True])
+    def test_basic(self, target, model1, model2, store_progress, resume, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
@@ -34,6 +35,11 @@ class TestMAD(object):
         mad = po.synth.MADCompetition(img, model1, model2)
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
+        if resume:
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                           save_progress=store_progress,
+                           save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
+                           initial_noise=None)
         mad.plot_synthesis_status()
         if store_progress:
             mad.animate()
@@ -41,7 +47,8 @@ class TestMAD(object):
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    def test_all(self, model1, model2, store_progress, tmp_path):
+    @pytest.mark.parametrize('resume', [False, True])
+    def test_all(self, model1, model2, store_progress, resume, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
@@ -55,6 +62,10 @@ class TestMAD(object):
         mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad_{}.pt'))
+        if resume:
+            mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                               save_progress=store_progress, learning_rate=None,
+                               initial_noise=None, save_path=op.join(tmp_path, 'test_mad_{}.pt'))
         mad.plot_synthesized_image_all()
         mad.plot_loss_all()
         if store_progress:
@@ -133,3 +144,40 @@ class TestMAD(object):
                            fraction_removed=fraction_removed, loss_change_thresh=10,
                            loss_change_fraction=loss_change_fraction)
             mad.plot_synthesis_status()
+
+    @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
+                                        'model_2_max'])
+    @pytest.mark.parametrize('model1', ['class', 'function'])
+    @pytest.mark.parametrize('model2', ['class', 'function'])
+    def test_resume_exceptions(target, model1, model2):
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        if model1 == 'class':
+            model1 = po.simul.models.naive.Identity().to(DEVICE)
+        elif model1 == 'function':
+            model1 = po.metric.naive.mse
+        if model2 == 'class':
+            model2 = NLP().to(DEVICE)
+        elif model2 == 'function':
+            model2 = po.metric.nlpd
+        mad = po.synth.MADCompetition(img, model1, model2)
+        # can't call synthesize() with initial_noise=None or
+        # learning_rate=None unless synthesize() has been called before
+        # with store_progress!=False
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None,
+                           initial_noise=None)
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None)
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, initial_noise=None)
+        mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=False)
+        # can't call synthesize() with initial_noise=None or
+        # learning_rate=None unless synthesize() has been called before
+        # with store_progress!=False
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None,
+                           initial_noise=None)
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None)
+        with pytest.raises(IndexError):
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, initial_noise=None)

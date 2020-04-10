@@ -219,8 +219,9 @@ class Metamer(Synthesis):
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1. If this is not a tensor or
-            None, we try to cast it as a tensor.
+            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            not empty, use the final value there. If this is not a
+            tensor or None, we try to cast it as a tensor.
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
             None, will call ``clamper.clamp`` on matched_image
@@ -240,7 +241,7 @@ class Metamer(Synthesis):
         else:
             matched_image_data = torch.tensor(initial_image, dtype=torch.float32,
                                               device=self.target_image.device)
-        super()._init_matched_image(matched_image_data, clamper, clamp_each_iter)
+        super()._init_matched_image(matched_image_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
                    scheduler=True, optimizer='SGD', clamper=RangeClamper((0, 1)),
@@ -259,27 +260,30 @@ class Metamer(Synthesis):
 
         NOTE: This means that the value of ``target_image`` should
         probably lie between 0 and 1. If that's not the case, you might
-        want to pass something to act as the initial image.
+        want to pass something to act as the initial image (because
+        otherwise the range of the initial image will be very different
+        from that of the ``target_image``).
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
         If ``store_progress!=False``, you can run this several times in
-        sequence by setting ``initial_image`` to None.  If
-        ``store_progres=False`` and you want to resume an earlier run,
-        you can do that by setting ``initial_image`` equal to the
-        ``matched_image`` this function returns (I would also detach and
-        clone it just to be safe). Everything that stores the progress
-        of the optimization (``loss``, ``saved_representation``,
-        ``saved_image``) will persist between calls and so potentially
-        get very large. To most directly resume where you left off, it's
-        recommended you set ``learning_rate=None``, in which case we use
-        the most recent learning rate (since we use a learning rate
-        scheduler, the learning rate decreases over time as the gradient
-        shrinks; note that we will still reset to the original value in
-        coarse-to-fine optimization). Coarse-to-fine optimization will
-        also resume where you left off.
+        sequence by setting ``initial_image`` to None.  (It's not
+        recommended, but if ``store_progress==False`` and you want to
+        resume an earlier run, you can do that by setting
+        ``initial_image`` equal to the ``matched_image`` this function
+        returns (I would also detach and clone it just to be
+        safe)). Everything that stores the progress of the optimization
+        (``loss``, ``saved_representation``, ``saved_image``) will
+        persist between calls and so potentially get very large. To most
+        directly resume where you left off, it's recommended you set
+        ``learning_rate=None``, in which case we use the most recent
+        learning rate (since we use a learning rate scheduler, the
+        learning rate decreases over time as the gradient shrinks; note
+        that we will still reset to the original value in coarse-to-fine
+        optimization). Coarse-to-fine optimization will also resume
+        where you left off.
 
         We currently do not exactly preserve the state of the RNG
         between calls (the seed will be reset), because it's difficult

@@ -475,9 +475,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   clamper=None, store_progress=False, save_progress=False, save_path='mad.pt',
-                   loss_thresh=1e-4, loss_change_iter=50, fraction_removed=0.,
-                   loss_change_thresh=1e-2, loss_change_fraction=1., coarse_to_fine=False,
+                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                   save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
+                   loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
+                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False,
                    **optimizer_kwargs):
         r"""synthesize an image
 
@@ -546,8 +547,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             seed to initialize the random number generator with
         max_iter : int, optional
             The maximum number of iterations to run before we end
-        learning_rate : float, optional
-            The learning rate for our optimizer
+        learning_rate : float or None, optional
+            The learning rate for our optimizer. None is only accepted
+            if we're resuming synthesis, in which case we use the last
+            learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
             learning rate will never decrease. Setting this to True
@@ -558,9 +561,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
-            it stays reasonable. The classic example is making sure the
-            range lies between 0 and 1, see plenoptic.RangeClamper for
-            an example.
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -617,6 +624,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -635,12 +650,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self._set_seed(seed)
         # initialize matched_image -- how exactly you do this will
         # depend on the synthesis method
-        self._init_matched_image(matched_image_data, clamper)
+        self._init_matched_image(matched_image_data, clamper, clamp_each_iter)
         # initialize stuff related to coarse-to-fine and randomization
         self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
         # initialize the optimizer
-        self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
+        self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
+                             **optimizer_kwargs)
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress)
 

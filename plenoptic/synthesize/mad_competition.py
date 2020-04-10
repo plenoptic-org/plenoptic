@@ -6,6 +6,7 @@ from .Synthesis import Synthesis
 import matplotlib.pyplot as plt
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
+from ..tools.metamer_utils import RangeClamper
 
 
 class MADCompetition(Synthesis):
@@ -610,7 +611,8 @@ class MADCompetition(Synthesis):
             loss = loss / self.loss_norm
         return self.loss_sign * loss
 
-    def _init_matched_image(self, initial_noise, clamper=None, norm_loss=True):
+    def _init_matched_image(self, initial_noise=None, clamper=RangeClamper((0, 1)),
+                            clamp_each_iter=True, norm_loss=True):
         """initialize the matched image
 
         set the ``self.matched_image`` attribute to be a parameter with
@@ -621,12 +623,21 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        initial_noise : `float`, optional
+        initial_noise : `float` or None, optional
             standard deviation of the Gaussian noise used to create the
-            initial image from the target image
-        clamper : Clamper or None, optional
-            will set ``self.clamper`` attribute to this, and if not
-            None, will call ``clamper.clamp`` on matched_image
+            initial image from the target image. If None (the default),
+            we try to grab the final value from ``self.saved_image``
+            (thus, if ``self.saved_image`` is empty, this will raise an
+            Exception)
+        clamper : plenoptic.Clamper or None, optional
+            Clamper makes a change to the image in order to ensure that
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         norm_loss : bool, optional
             Whether to normalize the loss of each model. You probably
             want them to be normalized so that they are of the same
@@ -636,10 +647,18 @@ class MADCompetition(Synthesis):
             purposes.
 
         """
-        self.initial_image = (self.target_image + initial_noise *
-                              torch.randn_like(self.target_image))
+        if initial_noise is not None:
+            self.initial_image = (self.target_image + initial_noise *
+                                  torch.randn_like(self.target_image))
+            init_image = self.initial_image
+        # we want to keep the initial_image attribute unchanged if
+        # initial_noise is None (we still want it to be the initial
+        # representation), but we want to make matched_image the last
+        # saved_image
+        else:
+            init_image = self.saved_image[-1]
         self.update_target(self.synthesis_target, 'main')
-        super()._init_matched_image(self.initial_image.clone(), clamper)
+        super()._init_matched_image(init_image.clone(), clamper, clamp_each_iter)
         if clamper is not None:
             # that initial noise can take us outside the clamper
             self.initial_image.data = clamper.clamp(self.initial_image.data)
@@ -811,10 +830,10 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=10, norm_loss=True,
                    seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   clamper=None, store_progress=False, save_progress=False, save_path='mad.pt',
-                   loss_thresh=1e-4, loss_change_iter=50, fraction_removed=0.,
-                   loss_change_thresh=1e-2, loss_change_fraction=1., coarse_to_fine=False,
-                   **optimizer_kwargs):
+                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                   save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
+                   fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
+                   coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
         r"""Synthesize one maximally-differentiating image
 
         This synthesizes a single image, minimizing or maximizing either
@@ -825,6 +844,39 @@ class MADCompetition(Synthesis):
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
+
+        The synthesis is initialized with the ``target_image`` plus
+        Gaussian noise with mean 0 and standard deviation
+        ``initial_noise``.
+
+        If ``store_progress!=False``, you can run this several times in
+        sequence by setting ``initial_noise`` to ``None``. In that case,
+        the initial image of subsequent calls will be equal to the last
+        value of ``self.saved_image``. Everything that stores the
+        progress of the optimization (``loss``,
+        ``saved_representation``, ``saved_image``) will persist between
+        calls and so potentially get very large. To most directly resume
+        where you left off, it's recommended you set
+        ``learning_rate=None``, in which case we use the most recent
+        learning rate (since we use a learning rate scheduler, the
+        learning rate decreases over time as the gradient shrinks; note
+        that we will still reset to the original value in coarse-to-fine
+        optimization). Coarse-to-fine optimization will also resume
+        where you left off.
+
+        We currently do not exactly preserve the state of the RNG
+        between calls (the seed will be reset), because it's difficult
+        to figure out which device we should grab the RNG state for. If
+        you're interested in doing this yourself, see
+        https://pytorch.org/docs/stable/random.html, specifically the
+        fork_rng function (I recommend looking at the source code for
+        that function to see how to get and set the RNG state). This
+        means that there will be a transient increase in loss right
+        after resuming synthesis. In every example I've seen, it goes
+        away and continues decreasing after a relatively small number of
+        iterations, but it means that running synthesis for 500
+        iterations is not the same as running it twice for 250
+        iterations each.
 
         We provide three ways to try and add some more randomness to
         this optimization, in order to either improve the diversity of
@@ -874,9 +926,13 @@ class MADCompetition(Synthesis):
         ----------
         synthesis_target : {'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which image to synthesize
-        initial_noise : `float`, optional
+        initial_noise : `float` or None, optional
             standard deviation of the Gaussian noise used to create the
-            initial image from the target image
+            initial image from the target image. Can only be None if
+            ``self.saved_image`` is not empty (i.e., this has been
+            called at least once before with
+            ``store_progress!=False``). In that case, the initial image
+            is the last value of ``self.saved_image``
         fix_step_n_iter : int, optional
             Each iteration of synthesis has two steps: update the image
             to increase/decrease one model's loss (main step), then
@@ -898,8 +954,10 @@ class MADCompetition(Synthesis):
             seed to initialize the random number generator with
         max_iter : int, optional
             The maximum number of iterations to run before we end
-        learning_rate : float, optional
-            The learning rate for our optimizer
+        learning_rate : float or None, optional
+            The learning rate for our optimizer. None is only accepted
+            if we're resuming synthesis, in which case we use the last
+            learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
             learning rate will never decrease. Setting this to True
@@ -910,9 +968,13 @@ class MADCompetition(Synthesis):
             gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
-            it stays reasonable. The classic example is making sure the
-            range lies between 0 and 1, see plenoptic.RangeClamper for
-            an example.
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -969,6 +1031,14 @@ class MADCompetition(Synthesis):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -990,7 +1060,7 @@ class MADCompetition(Synthesis):
         # manually
         self.update_target(synthesis_target, 'main')
 
-        self._init_matched_image(initial_noise, clamper, norm_loss)
+        self._init_matched_image(initial_noise, clamper, clamp_each_iter, norm_loss)
 
         self.update_target(synthesis_target, 'main')
         # initialize stuff related to coarse-to-fine and randomization
@@ -998,7 +1068,8 @@ class MADCompetition(Synthesis):
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
-        self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
+        self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
+                             **optimizer_kwargs)
 
         self._init_store_progress(store_progress, save_progress, save_path)
 
