@@ -1,6 +1,8 @@
 import torch
 from tqdm import tqdm
 from .Synthesis import Synthesis
+from ..tools.metamer_utils import RangeClamper
+from matplotlib import animation
 
 
 class Metamer(Synthesis):
@@ -136,14 +138,14 @@ class Metamer(Synthesis):
         False, this will be empty
     scales : list or None
         If ``coarse_to_fine`` is True, this is a list of the scales in
-        reverse optimization order (i.e., from fine to coarse). The
-        first entry will be 'all' (since after we've optimized each
-        individual scale, we move on to optimizing all at once) This
-        will be modified by the synthesize() method and is used to track
-        which scale we're currently optimizing (the last one). When
-        we've gone through all the scales present, this will just
-        contain a single value: 'all'. If ``coarse_to_fine`` is False,
-        this will be None.
+        optimization order (i.e., from coarse to fine). The last entry
+        will be 'all' (since after we've optimized each individual
+        scale, we move on to optimizing all at once) This will be
+        modified by the synthesize() method and is used to track which
+        scale we're currently optimizing (the first one). When we've
+        gone through all the scales present, this will just contain a
+        single value: 'all'. If ``coarse_to_fine`` is False, this will
+        be None.
     scales_timing : dict or None
         If ``coarse_to_fine`` is True, this is a dictionary whose keys
         are the values of scales. The values are lists, with 0 through 2
@@ -202,7 +204,8 @@ class Metamer(Synthesis):
     def __init__(self, target_image, model, loss_function=None, **model_kwargs):
         super().__init__(target_image, model, loss_function, **model_kwargs)
 
-    def _init_matched_image(self, initial_image, clamper=None):
+    def _init_matched_image(self, initial_image, clamper=RangeClamper((0, 1)),
+                            clamp_each_iter=True):
         """initialize the matched image
 
         set the ``self.matched_image`` attribute to be a parameter with
@@ -221,42 +224,76 @@ class Metamer(Synthesis):
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
             None, will call ``clamper.clamp`` on matched_image
-
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         """
         if initial_image is None:
-            matched_image_data = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                 device=self.target_image.device)
+            try:
+                # then we have a previous run to resume
+                matched_image_data = self.saved_image[-1]
+            except IndexError:
+                # else we're starting over
+                matched_image_data = torch.rand_like(self.target_image, dtype=torch.float32,
+                                                     device=self.target_image.device)
         else:
             matched_image_data = torch.tensor(initial_image, dtype=torch.float32,
                                               device=self.target_image.device)
-        super()._init_matched_image(matched_image_data, clamper)
+        super()._init_matched_image(matched_image_data, clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
-                   scheduler=True, optimizer='SGD', clamper=None, store_progress=False,
-                   save_progress=False, save_path='metamer.pt', loss_thresh=1e-4,
-                   loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                   loss_change_fraction=1., coarse_to_fine=False, **optimizer_kwargs):
+                   scheduler=True, optimizer='SGD', clamper=RangeClamper((0, 1)),
+                   clamp_each_iter=True, store_progress=False, save_progress=False,
+                   save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
+                   fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
+                   coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
         until its representation matches that of ``target_image``. If
         ``initial_image`` is not set, we initialize with
-        uniformly-distributed random noise between 0 and 1. NOTE: This
-        means that the value of ``target_image`` should probably lie
-        between 0 and 1. If that's not the case, you might want to pass
-        something to act as the initial image.
+        uniformly-distributed random noise between 0 and 1 or, ``if
+        self.saved_image`` is not empty, we use the last value from
+        there (in order to make resuming synthesis easy).
+
+        NOTE: This means that the value of ``target_image`` should
+        probably lie between 0 and 1. If that's not the case, you might
+        want to pass something to act as the initial image.
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
-        Note that you can run this several times in sequence by setting
-        ``initial_image`` to ``metamer.matched_image`` (I would detach
-        and clone it just to make sure things don't get weird:
-        ``initial_image=metamer.matched_image.detach().clone()``). Everything
-        that stores the progress of the optimization (``loss``,
-        ``saved_representation``, ``saved_image``) will persist between
-        calls and so potentially get very large.
+        If ``store_progress!=False``, you can run this several times in
+        sequence by setting ``initial_image`` to None.  If
+        ``store_progres=False`` and you want to resume an earlier run,
+        you can do that by setting ``initial_image`` equal to the
+        ``matched_image`` this function returns (I would also detach and
+        clone it just to be safe). Everything that stores the progress
+        of the optimization (``loss``, ``saved_representation``,
+        ``saved_image``) will persist between calls and so potentially
+        get very large. To most directly resume where you left off, it's
+        recommended you set ``learning_rate=None``, in which case we use
+        the most recent learning rate (since we use a learning rate
+        scheduler, the learning rate decreases over time as the gradient
+        shrinks; note that we will still reset to the original value in
+        coarse-to-fine optimization). Coarse-to-fine optimization will
+        also resume where you left off.
+
+        We currently do not exactly preserve the state of the RNG
+        between calls (the seed will be reset), because it's difficult
+        to figure out which device we should grab the RNG state for. If
+        you're interested in doing this yourself, see
+        https://pytorch.org/docs/stable/random.html, specifically the
+        fork_rng function (I recommend looking at the source code for
+        that function to see how to get and set the RNG state). This
+        means that there will be a transient increase in loss right
+        after resuming synthesis. In every example I've seen, it goes
+        away and continues decreasing after a relatively small number of
+        iterations, but it means that running synthesis for 500
+        iterations is not the same as running it twice for 250
+        iterations each.
 
         We provide three ways to try and add some more randomness to
         this optimization, in order to either improve the diversity of
@@ -288,9 +325,9 @@ class Metamer(Synthesis):
         We also provide the ability of using a coarse-to-fine
         optimization. Unlike the above methods, this will not work
         out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in fine-to-coarse
-        order, i.e., reverse order that we will be optimizing) and that
-        it's forward method can accept a ``scales`` keyword argument, a
+        ``scales`` attributes (which gives the scales in coarse-to-fine
+        order, i.e., the order that we will be optimizing) and its
+        ``forward`` method can accept a ``scales`` keyword argument, a
         list that specifies which scales to use to compute the
         representation. If ``coarse_to_fine`` is True, then we optimize
         each scale until we think it's reached convergence before moving
@@ -307,15 +344,18 @@ class Metamer(Synthesis):
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1. If this is not a tensor or
-            None, we try to cast it as a tensor.
+            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            not empty, use the final value there. If this is not a
+            tensor or None, we try to cast it as a tensor.
         seed : int, optional
             Number with which to seed pytorch and numy's random number
             generators
         max_iter : int, optinal
             The maximum number of iterations to run before we end
-        learning_rate : float, optional
-            The learning rate for our optimizer
+        learning_rate : float or None, optional
+            The learning rate for our optimizer. None is only accepted
+            if we're resuming synthesis, in which case we use the last
+            learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
             learning rate will never decrease. Setting this to True
@@ -325,9 +365,13 @@ class Metamer(Synthesis):
             The choice of optimization algorithm
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
-            it stays reasonable. The classic example is making sure the
-            range lies between 0 and 1, see plenoptic.RangeClamper for
-            an example.
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -384,6 +428,14 @@ class Metamer(Synthesis):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -401,14 +453,15 @@ class Metamer(Synthesis):
         self._set_seed(seed)
 
         # initialize matched_image
-        self._init_matched_image(initial_image, clamper)
+        self._init_matched_image(initial_image, clamper, clamp_each_iter)
 
         # initialize stuff related to coarse-to-fine and randomization
         self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
-        self._init_optimizer(optimizer, learning_rate, scheduler, **optimizer_kwargs)
+        self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
+                             **optimizer_kwargs)
 
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress, save_path)
@@ -458,7 +511,8 @@ class Metamer(Synthesis):
         """
         attrs = ['model', 'matched_image', 'target_image', 'seed', 'loss', 'target_representation',
                  'matched_representation', 'saved_representation', 'gradient', 'saved_image',
-                 'learning_rate', 'saved_representation_gradient', 'saved_image_gradient']
+                 'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
+                 'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss']
         super().save(file_path, save_model_reduced,  attrs)
 
     def to(self, *args, **kwargs):

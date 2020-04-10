@@ -8,7 +8,7 @@ import pyrtools as pt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from torch import nn
-from ..canonical_computations.non_linearities import rectangular_to_polar_dict, zscore_stats
+from ..canonical_computations.non_linearities import zscore_stats, cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
@@ -50,6 +50,12 @@ class VentralModel(nn.Module):
     each scale separately, changing the img_res (and potentially
     min_eccentricity) values in that save path appropriately.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -70,10 +76,22 @@ class VentralModel(nn.Module):
         The number of scales to generate masks for. For the RGC model,
         this should be 1, otherwise should match the number of scales in
         the steerable pyramid.
-    transition_region_width : `float`, optional
+    transition_region_width : float, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -172,20 +190,29 @@ class VentralModel(nn.Module):
     cached_paths : list
         List of strings, one per scale, taht we either saved or loaded
         the cached windows tensors from
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cache_dir=None):
+                 transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
+                 std_dev=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
-                                             num_scales, transition_region_width, cache_dir)
+                                             num_scales, cache_dir, window_type,
+                                             transition_region_width, std_dev)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
-                     'central_eccentricity_pixels', 'central_eccentricity_degrees']:
+                     'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res',
+                     'window_type', 'std_dev']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
+        self.state_dict_reduced['cone_power'] = cone_power
+        self.cone_power = cone_power
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -296,7 +323,7 @@ class VentralModel(nn.Module):
         self.PoolingWindows.unparallel(device)
         return self
 
-    def plot_windows(self, ax, contour_levels=[.5], colors='r', subset=True, **kwargs):
+    def plot_windows(self, ax=None, contour_levels=None, colors='r', subset=True, **kwargs):
         r"""plot the pooling windows on an image.
 
         This is just a simple little helper to plot the pooling windows
@@ -308,17 +335,21 @@ class VentralModel(nn.Module):
 
         Parameters
         ----------
-        ax : matplotlib.pyplot.axis
-            The existing axis to plot the windows on
-        contour_levels : array-like or int, optional
+        ax : matplotlib.pyplot.axis or None, optional
+            The axis to plot the windows on. If None, will create a new
+            figure with 1 axis
+        contour_levels : None, array-like, or int, optional
             The ``levels`` argument to pass to ``ax.contour``. From that
             documentation: "Determines the number and positions of the
             contour lines / regions. If an int ``n``, use ``n`` data
             intervals; i.e. draw ``n+1`` contour lines. The level
             heights are automatically chosen. If array-like, draw
             contour lines at the specified levels. The values must be in
-            increasing order". ``[.5]`` (the default) is recommended for
-            these windows.
+            increasing order". If None, will plot the contour that gives
+            the first intersection (.5 for raised-cosine windows,
+            self.window_max_amplitude * np.exp(-.25/2) (half a standard
+            deviation away from max) for gaussian windows), as this is
+            the easiest to see.
         colors : color string or sequence of colors, optional
             The ``colors`` argument to pass to ``ax.contour``. If a
             single character, all will have the same color; if a
@@ -648,6 +679,12 @@ class RetinalGanglionCells(VentralModel):
     ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
     em-{max_eccentricity}_t-{transition_region_width}.pt``.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -668,6 +705,18 @@ class RetinalGanglionCells(VentralModel):
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods. 0.5 (the default) is the
         value used in the paper [1]_.
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -692,8 +741,10 @@ class RetinalGanglionCells(VentralModel):
         (though they should all have the same number of windows)
     image : torch.tensor
         A 2d containing the image most recently analyzed.
-    windowed_image : torch.tensor
-        A 3d tensor containing windowed views of ``self.image``
+    cone_responses : torch.tensor
+        A 2d tensor containing the cone responses to the most recent
+        image analyzed. That is, ``po.non_linearities.cone(image,
+        self.cone_power)``
     representation : torch.tensor
         A tensor containing the averages of the pixel intensities within
         each pooling window for ``self.image``. This will be 3d: (batch,
@@ -774,17 +825,22 @@ class RetinalGanglionCells(VentralModel):
         If str, this is the directory where we cached / looked for
         cached windows tensors
     cached_paths : list
-        List of strings, one per scale, taht we either saved or loaded
+        List of strings, one per scale, that we either saved or loaded
         the cached windows tensors from
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5, cache_dir=None):
+                 transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
+                 std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
-                         transition_region_width=transition_region_width, cache_dir=cache_dir)
+                         transition_region_width=transition_region_width, cone_power=cone_power,
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
-        self.windowed_image = None
         self.representation = None
 
     def forward(self, image):
@@ -808,7 +864,9 @@ class RetinalGanglionCells(VentralModel):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         self.image = image.detach().clone()
-        self.representation = self.PoolingWindows(image)
+        cone_responses = cone(image, self.cone_power)
+        self.cone_responses = cone_responses.detach().clone()
+        self.representation = self.PoolingWindows(cone_responses)
         return self.representation
 
     def _plot_helper(self, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
@@ -996,6 +1054,12 @@ class PrimaryVisualCortex(VentralModel):
     each scale separately, changing the img_res (and potentially
     min_eccentricity) values in that save path appropriately.
 
+    NOTE: that we're assuming the input to this model contains values
+    proportional to photon counts; thus, it should be a raw image or
+    other linearized / "de-gamma-ed" image (all images meant to be
+    displayed on a standard display will have been gamma-corrected,
+    which involves raising their values to a power, typically 1/2.2).
+
     Parameters
     ----------
     scaling : float
@@ -1030,6 +1094,18 @@ class PrimaryVisualCortex(VentralModel):
         ``po.simul.non_linearities.generate_norm_stats``. If this is an
         empty dict, we don't normalize the model. If it's non-empty,
         we expect it to have only key: "complex_cell_responses"
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
     cache_dir : str or None, optional
         The directory to cache the windows tensor in. If set, we'll look
         there for cached versions of the windows we create, load them if
@@ -1044,6 +1120,9 @@ class PrimaryVisualCortex(VentralModel):
         interpolation), in order to include the frequencies centered at
         half-octave steps and thus have a more complete representation
         of frequency space
+    include_highpass : bool, optional
+        Whether to include the high-pass residual in the model or
+        not.
 
     Attributes
     ----------
@@ -1071,7 +1150,11 @@ class PrimaryVisualCortex(VentralModel):
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
     image : torch.tensor
-        A 2d containing the most recent image analyzed.
+        A 2d tensor containing the most recent image analyzed.
+    cone_responses : torch.tensor
+        A 2d tensor containing the cone responses to the most recent
+        image analyzed. That is, ``po.non_linearities.cone(image,
+        self.cone_power)``
     pyr_coeffs : dict
         The dictionary containing the (complex-valued) coefficients of
         the steerable pyramid built on ``self.image``. Each of these is
@@ -1084,10 +1167,6 @@ class PrimaryVisualCortex(VentralModel):
         and summed (i.e., the squared complex modulus) of
         ``self.pyr_coeffs``. Does not include the residual high- and
         low-pass bands. Each of these is now 4d: ``(1, 1, *img_res)``.
-    windowed_complex_cell_responses : dict
-        Dictionary containing the windowed complex cell responses. Each
-        of these is 5d: ``(1, 1, W, *img_res)``, where ``W`` is the
-        number of windows (which depends on the ``scaling`` parameter).
     mean_luminance : torch.tensor
         A 1d tensor representing the mean luminance of the image, found
         by averaging the pixel values of the image using the windows at
@@ -1188,43 +1267,63 @@ class PrimaryVisualCortex(VentralModel):
     scales : list
         List of the scales in the model, from fine to coarse. Used for
         synthesizing in coarse-to-fine order
+    cone_power : float
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons.
+    include_highpass : bool, optional
+        Whether the high-pass residual is included in the model or not.
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cache_dir=None, half_octave_pyramid=False):
-        if half_octave_pyramid:
-            scales = []
-            for i in range(num_scales):
-                scales.extend([i, i+.5])
-            self.scales = scales[:-1]
-        else:
-            self.scales = list(range(num_scales))
-        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, self.scales,
-                         transition_region_width=transition_region_width, cache_dir=cache_dir)
+                 cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
+                 include_highpass=False, window_type='cosine', std_dev=None):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
+                         transition_region_width=transition_region_width, cone_power=cone_power,
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
-                                        'normalize_dict': normalize_dict})
+                                        'normalize_dict': normalize_dict,
+                                        'include_highpass': include_highpass})
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
                                                                 self.order, is_complex=True)
+        self.scales = ['mean_luminance']
         if half_octave_pyramid:
-            self.half_octave_img_res = [int(np.ceil(i / np.sqrt(2))) for i in img_res]
+            self.half_octave_img_res = [int(round(i / np.sqrt(2))) for i in img_res]
+            # want this to be even. for plotting purposes, the more
+            # dividible by 2 this number is, the easier our lives will
+            # be
+            for i, r in enumerate(self.half_octave_img_res):
+                if r % 2 == 1:
+                    self.half_octave_img_res[i] += 1
+            second_PoolingWindows = PoolingWindows(scaling, self.half_octave_img_res,
+                                                   min_eccentricity, max_eccentricity,
+                                                   num_scales-1, cache_dir, window_type,
+                                                   transition_region_width, std_dev)
+            self.PoolingWindows.merge(second_PoolingWindows)
             self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
                                                               num_scales-1, order,
                                                               is_complex=True)
+            for i in range(num_scales)[::-1]:
+                self.scales.extend([i, i-.5])
+            self.scales = self.scales[:-1]
         else:
             self.half_octave_pyramid = None
+            self.scales += list(range(num_scales))[::-1]
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
-        self.windowed_complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
-        self.to_normalize = ['complex_cell_responses', 'image']
+        self.include_highpass = include_highpass
+        self.to_normalize = ['complex_cell_responses', 'cone_responses']
+        if self.include_highpass:
+            self.scales += ['residual_highpass']
+            self.to_normalize += ['residual_highpass']
         self.normalize_dict = normalize_dict
-        self.scales += ['mean_luminance']
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1308,27 +1407,43 @@ class PrimaryVisualCortex(VentralModel):
             image = image.unsqueeze(0)
         # this is a little weird here: the image that we detach and
         # clone here is just a copy that we keep around for later
-        # examination. At this point, it's not normalized, but it will
-        # be during the zscore_stats(self.normalize_dict, self) call
-        # below. We also zscore image there because we want the values
-        # that go into the mean pixel intensity to be normalized but not
-        # the values that go into the steerable pyramid.
+        # examination.
         self.image = image.detach().clone()
-        self.pyr_coeffs = self.complex_steerable_pyramid(image)
+        cone_responses = cone(image, self.cone_power)
+        # we save this here so that it can be normalized. At this point,
+        # it's not normalized, but it will be during the
+        # zscore_stats(self.normalize_dict, self) call below. We also
+        # zscore cone_responses there because we want the values that go
+        # into the mean pixel intensity to be normalized but not the
+        # values that go into the steerable pyramid.
+        self.cone_responses = cone_responses.detach().clone()
+        self.pyr_coeffs = self.complex_steerable_pyramid(cone_responses)
         if self.half_octave_pyramid:
-            half_img = nn.functional.interpolate(image, self.half_octave_img_res, mode='bicubic')
-            half_octave_pyr_coeffs = self.half_octave_pyramid(half_img)
+            half_cones = nn.functional.interpolate(cone_responses, self.half_octave_img_res,
+                                                   mode='bicubic')
+            half_octave_pyr_coeffs = self.half_octave_pyramid(half_cones)
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
-        self.complex_cell_responses = rectangular_to_polar_dict(self.pyr_coeffs)[0]
+        # to get the energy, we just square and sum across the real and
+        # imaginary parts (because there are complex tensors yet, this
+        # is the final dimension). the if statement avoids the residuals
+        self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
+                                           for k, v in self.pyr_coeffs.items()
+                                           if not isinstance(k, str))
+        if self.include_highpass:
+            self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
-            image = zscore_stats(self.normalize_dict, image=image)['image']
+            cone_responses = zscore_stats(self.normalize_dict,
+                                          cone_responses=cone_responses)['cone_responses']
             self = zscore_stats(self.normalize_dict, self)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(image)
+        self.mean_luminance = self.PoolingWindows(cone_responses)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
+        if self.include_highpass:
+            self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
+            self.representation['residual_highpass'] = self.mean_residual_highpass
         if scales:
             rep = {}
             for k in scales:
@@ -1556,9 +1671,14 @@ class PrimaryVisualCortex(VentralModel):
                                         int(col_multiplier*(k[0]+col_offset))])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
-            else:
+            elif k == 'mean_luminance':
                 t = self._get_title(title_list, -1, "mean pixel intensity")
-                ax = fig.add_subplot(gs[n_rows-1:n_rows+1, 2*(n_cols-1):])
+                ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                ax = clean_stem_plot(v, ax, t, ylim)
+                axes.append(ax)
+            elif k == 'residual_highpass':
+                t = self._get_title(title_list, -1, "residual highpass")
+                ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
         return fig, axes
@@ -1635,6 +1755,8 @@ class PrimaryVisualCortex(VentralModel):
         else:
             n_cols = self.num_scales + 1
             ax_multiplier = 1
+        if self.include_highpass:
+            n_cols += 1
         fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax, title,
                                                       batch_idx, data)
         titles = []
@@ -1660,12 +1782,22 @@ class PrimaryVisualCortex(VentralModel):
                 zooms.append(zoom * round(data[(0, 0)].shape[-1] / img.shape[-1]))
             elif isinstance(i, float):
                 zooms.append(zoom * round(data[(0.5, 0)].shape[-1] / img.shape[-1]))
-        ax = fig.add_subplot(gs[-1])
+        if self.include_highpass:
+            ax = fig.add_subplot(gs[-2])
+        else:
+            ax = fig.add_subplot(gs[-1])
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(data['mean_luminance'].squeeze()))
         zooms.append(zoom)
+        if self.include_highpass:
+            ax = fig.add_subplot(gs[-1])
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            axes.append(ax)
+            titles.append(self._get_title(title_list, -1, "residual highpass"))
+            imgs.append(to_numpy(data['residual_highpass'].squeeze()))
+            zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
             pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)

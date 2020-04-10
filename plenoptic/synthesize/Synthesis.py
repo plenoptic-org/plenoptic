@@ -13,6 +13,7 @@ from ..tools.display import rescale_ylim, plot_representation, update_plot
 from matplotlib import animation
 from ..simulate.models.naive import Identity
 from tqdm import tqdm
+from ..tools.metamer_utils import RangeClamper
 
 
 class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
@@ -140,7 +141,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-    def _init_matched_image(self, matched_image_data, clamper=None):
+    def _init_matched_image(self, matched_image_data, clamper=RangeClamper((0, 1)),
+                            clamp_each_iter=True):
         """initialize the matched image
 
         set the ``self.matched_image`` attribute to be a parameter with
@@ -156,7 +158,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
             None, will call ``clamper.clamp`` on matched_image
-
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         """
         self.matched_image = torch.nn.Parameter(matched_image_data, requires_grad=True)
         while self.matched_image.ndimension() < 4:
@@ -165,6 +170,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if self.clamper is not None:
             self.matched_image.data = self.clamper.clamp(self.matched_image.data)
         self.matched_representation = self.analyze(self.matched_image)
+        self.clamp_each_iter = clamp_each_iter
 
     def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
                                  loss_change_fraction=1, loss_change_thresh=1e-2,
@@ -218,10 +224,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
         if coarse_to_fine:
-            # this creates a new object, so we don't modify model.scales
-            self.scales = ['all'] + [i for i in self.model.scales]
-            self.scales_timing = dict((k, []) for k in self.scales)
-            self.scales_timing[self.scales[-1]].append(0)
+            if self.scales is None:
+                # this creates a new object, so we don't modify model.scales
+                self.scales = [i for i in self.model.scales] + ['all']
+                self.scales_timing = dict((k, []) for k in self.scales)
+                self.scales_timing[self.scales[0]].append(0)
+            # else, we're continuing a previous version and want to continue
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
@@ -355,7 +363,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         """
         stored = False
         with torch.no_grad():
-            if self.clamper is not None:
+            if self.clamper is not None and self.clamp_each_iter:
                 self.matched_image.data = self.clamper.clamp(self.matched_image.data)
 
             # i is 0-indexed but in order for the math to work out we want to be checking a
@@ -417,7 +425,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
                 if self.coarse_to_fine:
                     # only break out if we've been doing for long enough
-                    if self.scales[-1] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
+                    if self.scales[0] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
                         return True
                 else:
                     return True
@@ -436,6 +444,23 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         have to keep them as a list
 
         """
+        if self.clamper is not None:
+            try:
+                # setting the data directly avoids the issue of setting
+                # a non-Parameter tensor where a tensor should be
+                self.matched_image.data = self.clamper.clamp(self.matched_image.data)
+                self.matched_representation.data = self.analyze(self.matched_image).data
+            except RuntimeError:
+                # this means that we hit a NaN during optimization and
+                # so self.matched_image is on the cpu (since we're
+                # copying from self.saved_imgae, which is always on the
+                # cpu), whereas the model is on a different device. this
+                # should be the same as self.target_image.device
+                # (unfortunatley we can't trust that self.model has a
+                # device attribute), and so the following should hopefully work
+                self.matched_image.data = self.clamper.clamp(self.matched_image.data.to(self.target_image.device))
+                self.matched_representation.data = self.analyze(self.matched_image).data
+
         if self.store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
             self.saved_image = torch.stack(self.saved_image)
@@ -789,7 +814,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             rep_error = matched_rep - target_rep
         return torch.pow(rep_error, 2).mean() / torch.var(target_rep)
 
-    def _init_optimizer(self, optimizer, lr, scheduler=True, **optimizer_kwargs):
+    def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
+                        **optimizer_kwargs):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -817,17 +843,37 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         ----------
         optimizer : {'GD', 'SGD', 'LBFGS', 'Adam', 'AdamW'}
             the optimizer to initialize.
-        lr : float
-            the learning rate of the optimizer
+        lr : float or None
+            The learning rate for our optimizer. None is only accepted
+            if we're resuming synthesis, in which case we use the last
+            learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
             learning rate will never decrease. Setting this to True
             seems to improve performance, but it might be useful to turn
             it off in order to better work through what's happening
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs :
             passed to the optimizer's initializer
 
         """
+        # if lr is None, we're resuming synthesis from earlier, and we
+        # want to start with the last learning rate. however, we also
+        # want to keep track of the initial learning rate, since we use
+        # this for resetting the optimizer during coarse-to-fine
+        # optimization. we thus also track the initial_learnig_rate...
+        if lr is None:
+            lr = self.learning_rate[-1]
+            initial_lr = self.learning_rate[0]
+        else:
+            initial_lr = lr
         if optimizer == 'GD':
             # std gradient descent
             self.optimizer = optim.SGD([self.matched_image], lr=lr, nesterov=False, momentum=0,
@@ -865,9 +911,15 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # called, and ensures that we can always re-initilize the
             # optimizer to the same state (mainly used to make sure that
             # the learning rate gets reset when we change target during
-            # coarse-to-fine optimization)
-            optimizer_kwargs.update({'optimizer': optimizer, 'lr': lr, 'scheduler': scheduler})
+            # coarse-to-fine optimization). note that we use the
+            # initial_lr here
+            optimizer_kwargs.update({'optimizer': optimizer, 'lr': initial_lr,
+                                     'scheduler': scheduler})
             self.optimizer_kwargs = optimizer_kwargs
+        if clip_grad_norm is True:
+            self.clip_grad_norm = 1
+        else:
+            self.clip_grad_norm = clip_grad_norm
 
     def _closure(self):
         r"""An abstraction of the gradient calculation, before the optimization step.
@@ -893,8 +945,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if self.coarse_to_fine:
             # if we've reached 'all', we act the same as if
             # coarse_to_fine was False
-            if self.scales[-1] != 'all':
-                analyze_kwargs['scales'] = [self.scales[-1]]
+            if self.scales[0] != 'all':
+                analyze_kwargs['scales'] = [self.scales[0]]
         self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
         target_rep = self.analyze(self.target_image, **analyze_kwargs)
         if self.store_progress:
@@ -924,6 +976,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         loss = self.objective_function(matched_rep, target_rep)
         loss.backward(retain_graph=True)
+
+        if self.clip_grad_norm:
+            torch.nn.utils.clip_grad_norm_([self.matched_image], self.clip_grad_norm)
 
         return loss
 
@@ -957,15 +1012,15 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # stopped declining and, if so, switch to the next scale
             if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
                 abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
-                len(self.loss) - self.scales_timing[self.scales[-1]][0] > self.loss_change_iter):
-                self.scales_timing[self.scales[-1]].append(len(self.loss)-1)
-                self.scales = self.scales[:-1]
-                self.scales_timing[self.scales[-1]].append(len(self.loss))
+                len(self.loss) - self.scales_timing[self.scales[0]][0] > self.loss_change_iter):
+                self.scales_timing[self.scales[0]].append(len(self.loss)-1)
+                self.scales = self.scales[1:]
+                self.scales_timing[self.scales[0]].append(len(self.loss))
                 # reset scheduler and optimizer
                 self._init_optimizer(**self.optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
-            postfix_dict['current_scale'] = self.scales[-1]
+            postfix_dict['current_scale'] = self.scales[0]
         loss = self.optimizer.step(self._closure)
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
@@ -975,14 +1030,24 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        g = self.matched_image.grad.data
+        g = self.matched_image.grad.detach()
         # optionally step the scheduler
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        if self.coarse_to_fine and self.scales[-1] != 'all':
+        if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
-                full_matched_rep = self.analyze(self.matched_image)
+                tmp_im = self.matched_image.detach().clone()
+                # if the model has a cone_power attribute, it's going to
+                # raise its input to some power and if that power is
+                # fractional, it won't handle negative values well. this
+                # should be generally handled by clamping, but clamping
+                # happens after this, which is just intended to give a
+                # sense of the overall loss, so we clamp with a min of 0
+                if hasattr(self.model, 'cone_power'):
+                    if self.model.cone_power != int(self.model.cone_power):
+                        tmp_im = torch.clamp(tmp_im, min=0)
+                full_matched_rep = self.analyze(tmp_im)
                 loss = self.objective_function(full_matched_rep, self.target_representation)
         else:
             loss = self.objective_function(self.matched_representation, self.target_representation)
@@ -1109,7 +1174,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
@@ -1123,7 +1188,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
