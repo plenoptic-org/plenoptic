@@ -1118,10 +1118,11 @@ class MADCompetition(Synthesis):
 
     def synthesize_all(self, initial_noise=.1, fix_step_n_iter=10, norm_loss=True, seed=0,
                        max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                       clamper=None, store_progress=False, save_progress=False,
-                       save_path='mad_{}.pt', loss_thresh=1e-4, loss_change_iter=50,
-                       fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                       coarse_to_fine=False, **optimizer_kwargs):
+                       clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                       save_progress=False, save_path='mad_{}.pt', loss_thresh=1e-4,
+                       loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
+                       loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False,
+                       **optimizer_kwargs):
         """Synthesize two pairs of maximally-differentiating images
 
         MAD Competitoin consists of two pairs of
@@ -1175,9 +1176,13 @@ class MADCompetition(Synthesis):
             gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
-            it stays reasonable. The classic example is making sure the
-            range lies between 0 and 1, see plenoptic.RangeClamper for
-            an example.
+            it stays reasonable. The classic example (and default
+            option) is making sure the range lies between 0 and 1, see
+            plenoptic.RangeClamper for an example.
+        clamp_each_iter : bool, optional
+            If True (and ``clamper`` is not ``None``), we clamp every
+            iteration. If False, we only clamp at the very end, after
+            the last iteration
         store_progress : bool or int, optional
             Whether we should store the representation of the metamer
             and the metamer image in progress on every iteration. If
@@ -1234,6 +1239,14 @@ class MADCompetition(Synthesis):
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
             for this to work).
+        clip_grad_norm : bool or float, optional
+            If the gradient norm gets too large, the optimization can
+            run into problems with numerical overflow. In order to avoid
+            that, you can clip the gradient norm to a certain maximum by
+            setting this to True or a float (if you set this to False,
+            we don't clip the gradient norm). If True, then we use 1,
+            which seems reasonable. Otherwise, we use the value set
+            here.
         optimizer_kwargs :
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -1250,10 +1263,11 @@ class MADCompetition(Synthesis):
                 s += f", saving at {save_path_tmp}"
             print(s)
             self.synthesize(target, initial_noise, fix_step_n_iter, norm_loss, seed, max_iter,
-                            learning_rate, scheduler, optimizer, clamper, store_progress,
-                            save_progress, save_path, loss_thresh, loss_change_iter,
-                            fraction_removed, loss_change_thresh, loss_change_fraction,
-                            coarse_to_fine, **optimizer_kwargs)
+                            learning_rate, scheduler, optimizer, clamper, clamp_each_iter,
+                            store_progress, save_progress, save_path, loss_thresh,
+                            loss_change_iter, fraction_removed, loss_change_thresh,
+                            loss_change_fraction, coarse_to_fine, clip_grad_norm,
+                            **optimizer_kwargs)
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
