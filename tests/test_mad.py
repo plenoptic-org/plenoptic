@@ -149,7 +149,9 @@ class TestMAD(object):
                                         'model_2_max'])
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
-    def test_resume_exceptions(target, model1, model2):
+    @pytest.mark.parametrize('none_arg', ['lr', 'initial_noise', 'both'])
+    @pytest.mark.parametrize('none_place', ['before', 'after'])
+    def test_resume_exceptions(self, target, model1, model2, none_arg, none_place):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
@@ -160,24 +162,27 @@ class TestMAD(object):
         elif model2 == 'function':
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
+        learning_rate = 1
+        initial_noise = .1
+        if none_arg == 'lr' or none_arg == 'both':
+            learning_rate = None
+        if none_arg == 'initial_noise' or none_arg == 'both':
+            initial_noise = None
         # can't call synthesize() with initial_noise=None or
         # learning_rate=None unless synthesize() has been called before
         # with store_progress!=False
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None,
-                           initial_noise=None)
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None)
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, initial_noise=None)
-        mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=False)
-        # can't call synthesize() with initial_noise=None or
-        # learning_rate=None unless synthesize() has been called before
-        # with store_progress!=False
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None,
-                           initial_noise=None)
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, learning_rate=None)
-        with pytest.raises(IndexError):
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, initial_noise=None)
+        if none_place == 'before':
+            with pytest.raises(IndexError):
+                mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                               learning_rate=learning_rate, initial_noise=initial_noise)
+        else:
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=False)
+            if none_arg != 'lr':
+                with pytest.raises(IndexError):
+                    mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                                   learning_rate=learning_rate, initial_noise=initial_noise)
+            else:
+                # this actually will not raise an exception, because the
+                # learning_rate has been initialized
+                mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                               learning_rate=learning_rate, initial_noise=initial_noise)
