@@ -35,7 +35,7 @@ class TestMAD(object):
         mad = po.synth.MADCompetition(img, model1, model2)
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
-        if resume:
+        if resume and store_progress:
             mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
@@ -62,7 +62,7 @@ class TestMAD(object):
         mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad_{}.pt'))
-        if resume:
+        if resume and store_progress:
             mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                                save_progress=store_progress, learning_rate=None,
                                initial_noise=None, save_path=op.join(tmp_path, 'test_mad_{}.pt'))
