@@ -5,15 +5,6 @@ import os.path as op
 from test_plenoptic import DEVICE, DATA_DIR
 
 
-class NLP(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, image):
-        activations = po.metric.perceptual_distance.normalized_laplacian_pyramid(image)
-        return torch.cat([i.flatten() for i in activations]).unsqueeze(0).unsqueeze(0)
-
-
 class TestMAD(object):
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
@@ -29,7 +20,7 @@ class TestMAD(object):
         elif model1 == 'function':
             model1 = po.metric.naive.mse
         if model2 == 'class':
-            model2 = NLP().to(DEVICE)
+            model2 = po.metric.NLP().to(DEVICE)
         elif model2 == 'function':
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
@@ -55,7 +46,7 @@ class TestMAD(object):
         else:
             model1 = po.metric.naive.mse
         if model1 == 'class':
-            model2 = NLP().to(DEVICE)
+            model2 = po.metric.NLP().to(DEVICE)
         else:
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
@@ -83,7 +74,7 @@ class TestMAD(object):
         if model_name == 'V1':
             model1 = po.simul.PrimaryVisualCortex(1, img.shape[-2:]).to(DEVICE)
         elif model_name == 'NLP':
-            model1 = NLP().to(DEVICE)
+            model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':
             model1 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
@@ -108,7 +99,7 @@ class TestMAD(object):
 
     def test_save_load(self, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
-        model1 = NLP().to(DEVICE)
+        model1 = po.metric.NLP().to(DEVICE)
         model2 = po.simul.models.naive.Identity().to(DEVICE)
         mad = po.synth.MADCompetition(img, model1, model2)
         mad.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True)
@@ -130,7 +121,7 @@ class TestMAD(object):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'class':
-            model1 = NLP().to(DEVICE)
+            model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':
             model1 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
@@ -158,7 +149,7 @@ class TestMAD(object):
         elif model1 == 'function':
             model1 = po.metric.naive.mse
         if model2 == 'class':
-            model2 = NLP().to(DEVICE)
+            model2 = po.metric.NLP().to(DEVICE)
         elif model2 == 'function':
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
