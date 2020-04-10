@@ -738,7 +738,7 @@ class TestMetamers(object):
             met_copy = po.synth.Metamer.load(op.join(tmp_path,
                                                      "test_metamer_save_load_reduced.pt"))
         met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'),
-                                         po.simul.PrimaryVisualCortex.from_state_dict_reduced,
+                                         model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced,
                                          map_location=DEVICE)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
@@ -853,7 +853,8 @@ class TestMetamers(object):
         # this, matched_image should have no nans
         assert torch.isnan(metamer.saved_image[-1]).all(), "This should be all NaNs!"
         assert not torch.isnan(metamer.matched_image).any(), "There should be no NaNs!"
-        met = po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
+        met = po.synth.Metamer.load(save_path,
+                                    model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced)
         assert not isinstance(met.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
 
     def test_metamer_save_progress(self, tmp_path):
@@ -865,7 +866,8 @@ class TestMetamers(object):
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
                            save_path=save_path)
-        po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
+        po.synth.Metamer.load(save_path,
+                              model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced)
 
     def test_metamer_fraction_removed(self):
 
