@@ -1116,14 +1116,14 @@ class MADCompetition(Synthesis):
         self._update_attrs_all()
         return self.matched_image.data, self.matched_representation_1.data, self.matched_representation_2.data
 
-    def synthesize_all(self, initial_noise=.1, fix_step_n_iter=10, norm_loss=True, seed=0,
-                       max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                       clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
-                       save_progress=False, save_path='mad_{}.pt', loss_thresh=1e-4,
-                       loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                       loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False,
-                       **optimizer_kwargs):
-        """Synthesize two pairs of maximally-differentiating images
+    def synthesize_all(self, if_existing='skip', initial_noise=.1, fix_step_n_iter=10,
+                       norm_loss=True, seed=0, max_iter=100, learning_rate=1, scheduler=True,
+                       optimizer='Adam', clamper=RangeClamper((0, 1)), clamp_each_iter=True,
+                       store_progress=False, save_progress=False, save_path='mad_{}.pt',
+                       loss_thresh=1e-4, loss_change_iter=50, fraction_removed=0.,
+                       loss_change_thresh=1e-2, loss_change_fraction=1., coarse_to_fine=False,
+                       clip_grad_norm=False, **optimizer_kwargs):
+        r"""Synthesize two pairs of maximally-differentiating images
 
         MAD Competitoin consists of two pairs of
         maximally-differentiating images: one pair minimizes and
@@ -1140,6 +1140,15 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        if_existing : {'skip', 're-run', 'continue'}, optional
+            what to do if synthesis for one of the targets has been run
+            before.
+            - ``'skip'``: skip it, doing nothing
+            - ``'re-run'``: re-run from scratch, starting over -- note
+              that this will not remove existing history however, so
+              plots of ``self.loss`` or examinations of
+              ``self.saved_image`` may look weird
+            - ``'continue'``: continue from where it left off
         initial_noise : `float`, optional
             standard deviation of the Gaussian noise used to create the
             initial image from the target image
@@ -1253,8 +1262,26 @@ class MADCompetition(Synthesis):
             the specific optimizer you're using
 
         """
+        initial_noise_orig = initial_noise
+        learning_rate_orig = learning_rate
         for target in ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']:
+            initial_noise = initial_noise_orig
+            learning_rate = learning_rate_orig
+            run = True
             s = f"Synthesizing {target}"
+            if self.matched_image_all[target] is not None:
+                s = f"Synthesis with target {target} has been run before, "
+                if if_existing == 'skip':
+                    run = False
+                    s += "skipping"
+                elif if_existing == 're-run':
+                    s += 're-running from scratch'
+                elif if_existing == 'continue':
+                    s += 'continuing from where it left off'
+                    initial_noise = None
+                    learning_rate = None
+                else:
+                    raise Exception(f"Don't know how to handle if_existing option {if_existing}!")
             if save_path is not None and save_progress is not False:
                 if '}' in save_path:
                     save_path_tmp = save_path.format(target)
@@ -1262,12 +1289,13 @@ class MADCompetition(Synthesis):
                     save_path_tmp = save_path
                 s += f", saving at {save_path_tmp}"
             print(s)
-            self.synthesize(target, initial_noise, fix_step_n_iter, norm_loss, seed, max_iter,
-                            learning_rate, scheduler, optimizer, clamper, clamp_each_iter,
-                            store_progress, save_progress, save_path, loss_thresh,
-                            loss_change_iter, fraction_removed, loss_change_thresh,
-                            loss_change_fraction, coarse_to_fine, clip_grad_norm,
-                            **optimizer_kwargs)
+            if run:
+                self.synthesize(target, initial_noise, fix_step_n_iter, norm_loss, seed, max_iter,
+                                learning_rate, scheduler, optimizer, clamper, clamp_each_iter,
+                                store_progress, save_progress, save_path, loss_thresh,
+                                loss_change_iter, fraction_removed, loss_change_thresh,
+                                loss_change_fraction, coarse_to_fine, clip_grad_norm,
+                                **optimizer_kwargs)
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file

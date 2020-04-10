@@ -38,7 +38,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    @pytest.mark.parametrize('resume', [False, True])
+    @pytest.mark.parametrize('resume', [False, 'skip', 're-run', 'continue'])
     def test_all(self, model1, model2, store_progress, resume, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         if model1 == 'class':
@@ -54,7 +54,8 @@ class TestMAD(object):
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad_{}.pt'))
         if resume and store_progress:
-            mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
+            mad.synthesize_all(resume, max_iter=10, loss_change_iter=5,
+                               store_progress=store_progress,
                                save_progress=store_progress, learning_rate=None,
                                initial_noise=None, save_path=op.join(tmp_path, 'test_mad_{}.pt'))
         mad.plot_synthesized_image_all()
