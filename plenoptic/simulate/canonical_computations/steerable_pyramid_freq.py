@@ -134,10 +134,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.lo0mask = torch.tensor(lo0mask).unsqueeze(0).unsqueeze(-1)
         self.hi0mask = torch.tensor(hi0mask).unsqueeze(0).unsqueeze(-1)
 
-        #### what's happening here? all that to get the masks?
-        ## seems excessive, how much of a speed up?
-        ## put in function?
-
         # pre-generate the angle, hi and lo masks, as well as the
         # indices used for down-sampling
         self._anglemasks = []

@@ -12,7 +12,22 @@ except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
 
-def convert_pyrshow(pyr_coeffs, image_index, channel):
+def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
+    r"""Wrapper that makes outputs of the steerable pyramids compatible
+    with the display functions of pyrtools.
+    Selects pyramid coefficients corresponding to 'image_index' out of
+    the images in the batch, and to 'channel' out of the channel indexes
+    (eg. RGB channels that undergo steerable pyramid independently)
+
+    Example
+    -------
+        >>> size = 32
+        >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
+        >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
+        >>> pyr = SPF(signal)
+        >>> pt.pyrshow(po.convert_pyrshow(pyr, 1, 2), is_complex=True, plot_complex='polar', zoom=3);
+    """
+
     pyr_coeffvis = pyr_coeffs.copy()
     for k in pyr_coeffvis.keys():
         im = pyr_coeffvis[k][image_index, channel, ...]

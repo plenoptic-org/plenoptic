@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-import pyrtools as pt
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
+
 
 def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, even_phase=True):
     '''Steer BASIS to the specfied ANGLE.
@@ -85,9 +85,9 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
     else:
         return res
 
+
 def rescale(x, a=0, b=1):
-    """
-    Linearly rescale the dynamic of a vector to the range [a,b]
+    r"""Linearly rescale the dynamic range of the input x to [a,b]
     """
     v = x.max() - x.min()
     g = (x - x.min()) #.clone()
@@ -105,6 +105,9 @@ def roll_n(X, axis, n):
 
 
 def batch_fftshift(x):
+    r"""Shift the zero-frequency component to the center of the spectrum.
+    The input x is expected to have real and imaginary parts along the last dimension.
+    """
     real, imag = torch.unbind(x, -1)
     for dim in range(1, len(real.size())):
         n_shift = real.size(dim)//2
@@ -120,6 +123,9 @@ def batch_fftshift(x):
 
 
 def batch_ifftshift(x):
+    r"""The inverse of 'batch_fftshift.
+    The input x is expected to have real and imaginary parts along the last dimension.
+    """
     real, imag = torch.unbind(x, -1)
     for dim in range(len(real.size()) - 1, 0, -1):
         real = roll_n(real, axis=dim, n=real.size(dim)//2)
@@ -171,7 +177,7 @@ def rcosFn(width=1, position=0, values=(0, 1)):
 
 
 def pointOp(im, Y, X):
-    out = np.interp(im.flatten(), X, Y )
+    out = np.interp(im.flatten(), X, Y)
 
     return np.reshape(out, im.shape)
 
@@ -241,27 +247,27 @@ def power_spectrum(x, log=True):
     return sp_power
 
 
-def make_disk(imgSize, outerRadius=None, innerRadius=None):
+def make_disk(img_size, outer_radius=None, inner_radius=None):
 
-    if outerRadius is None:
-        outerRadius = (imgSize-1) / 2
+    if outer_radius is None:
+        outer_radius = (img_size-1) / 2
 
-    if innerRadius is None:
-        innerRadius = outerRadius / 2
+    if inner_radius is None:
+        inner_radius = outer_radius / 2
 
-    mask = torch.Tensor( imgSize, imgSize )
-    imgCenter = ( imgSize - 1 ) / 2
+    mask = torch.Tensor(img_size, img_size)
+    img_center = (img_size - 1) / 2
 
-    for i in range( imgSize ):
-        for j in range( imgSize ):
+    for i in range(img_size):
+        for j in range(img_size):
 
-            r = np.sqrt( (i-imgCenter)**2 + (j-imgCenter)**2 )
+            r = np.sqrt((i-img_center)**2 + (j-img_center)**2)
 
-            if r > outerRadius:
+            if r > outer_radius:
                 mask[i][j] = 0
-            elif r < innerRadius:
+            elif r < inner_radius:
                 mask[i][j] = 1
             else:
-                mask[i][j] = ( 1 + np.cos( np.pi * ( r - innerRadius ) / ( outerRadius - innerRadius ) ) ) / 2
+                mask[i][j] = (1 + np.cos(np.pi * (r - inner_radius) / (outer_radius - inner_radius))) / 2
 
     return mask
