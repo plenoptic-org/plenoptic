@@ -3,12 +3,12 @@
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
 demonstrated how difficult it is to understand how models make sense
-of the images they view. The space of all possible images is
+of the images they process. The space of all possible images is
 impossibly vast and difficult to explore, so that even training a
 model on millions of images represent just a small fraction of all
 that could be shown. `plenoptic` is a python library that provides
 tools to help researchers better understand their models by using
-optimization to generate novel images. These images allow researchers
+optimization to synthesize novel images. These images allow researchers
 to gain a sense for what features the model ignores and what it
 considers important, and they can be used in experiments for further
 model testing and validation.
@@ -20,11 +20,11 @@ generating predictions for `y`, or fit, by holding `x` and `y`
 constant and using optimization to find the best-fitting `θ`. However,
 for optimization purposes, there's nothing special about `x`, so we
 can instead hold `y` and `θ` constant and use optimization to
-synthesize new `x`. Synthesis methods are those that to do this: they
-take a model with set parameters and generate new images in specific
-ways. They allow you to better understand the model by determining
-what it considers important and, crucially, what it ignores, as well
-as generating novel stimuli for testing the model.
+synthesize new `x`. Synthesis methods do exactely that: they
+take a model with set parameters, set outputs and generate new images.
+They allow you to better understand the model by determining
+what it is sensitive to and, crucially, what it is not sensitive to,
+as well as generating novel stimuli for testing the model.
 
 Here's a table summarizing this:
 
