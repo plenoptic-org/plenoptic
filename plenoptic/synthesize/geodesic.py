@@ -95,11 +95,19 @@ class Geodesic(nn.Module):
 
         # multi-scale tools
         self.n_scales = int(np.log2(self.n_steps))
-        self.diff = nn.Conv3d(1, 1, (2, 1, 1), bias=False)
-        self.blur = nn.Conv3d(1, 1, (2, 1, 1), bias=False, stride=(2, 1, 1))
+        # self.diff = nn.Conv3d(1, 1, (2, 1, 1), bias=False)
+        # self.blur = nn.Conv3d(1, 1, (2, 1, 1), bias=False, stride=(2, 1, 1))
+        # self.diff.weight.requires_grad = False
+        # self.blur.weight.requires_grad = False
+        # self.diff.weight = nn.Parameter(torch.tensor([[[[[-1.]], [[1.]]]]]))
+        # self.blur.weight = nn.Parameter(torch.ones_like(self.diff.weight))
+        # self.diff.weight.requires_grad = False
+        # self.blur.weight.requires_grad = False
+        self.diff = nn.Conv1d(1, 1, (2), bias=False)
+        self.blur = nn.Conv1d(1, 1, (2), bias=False, stride=(2))
         self.diff.weight.requires_grad = False
         self.blur.weight.requires_grad = False
-        self.diff.weight = nn.Parameter(torch.tensor([[[[[-1.]], [[1.]]]]]))
+        self.diff.weight = nn.Parameter(torch.tensor([[[-1., 1.]]]))
         self.blur.weight = nn.Parameter(torch.ones_like(self.diff.weight))
         self.diff.weight.requires_grad = False
         self.blur.weight.requires_grad = False
@@ -113,13 +121,13 @@ class Geodesic(nn.Module):
 
         # TODO reshape n_steps, C, Y, X -> n_steps, -1
         if isinstance(y, dict):
-            return torch.cat([s.squeeze().view(-1) for s in y.values()]).unsqueeze(1)
+            return torch.cat([s.view(self.n_steps, -1) for s in y.values()], dim=1)
         else:
-            return y
+            return y.view(self.n_steps, -1)
 
     def objective_function(self, x):
 
-        z = x.permute(1, 0, 2, 3).unsqueeze(1)
+        z = x.permute(1, 0).unsqueeze(1)
         loss = 0
         for s in range(self.n_scales):
             loss = loss + torch.sum(self.diff(z) ** 2)
@@ -141,15 +149,19 @@ class Geodesic(nn.Module):
         self.t0 = self.t1
         self.t1 = time.time()
         pretty_print(i, max_iter, (self.t1 - self.t0), loss.item(), g.norm().item())
+        if self.store_grad:
+            self.grad.append(g.numpy())
 
         return loss
 
-    def synthesize(self, max_iter=20, learning_rate=.01, objective='multiscale', seed=0):
+    def synthesize(self, max_iter=20, learning_rate=.01, objective='multiscale', seed=0, store_grad=False):
 
         torch.manual_seed(seed)
         self.optimizer = optim.Adam([self.x], lr=learning_rate, amsgrad=True)
-
+        self.store_grad = store_grad
         self.loss = []
+        if self.store_grad:
+            self.grad = []
         self.t1 = time.time()
 
         for i in range(max_iter):
