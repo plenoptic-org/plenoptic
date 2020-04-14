@@ -1,3 +1,5 @@
+# TODO - reorganize this module as we finalize texture statistics
+
 import torch
 import abc
 from .stats import skew, kurtosis

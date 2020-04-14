@@ -40,7 +40,7 @@ class Texture_Statistics(nn.Module):
     http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
     http://www.cns.nyu.edu/~lcv/texture/
 
-    TODO
+    TODO: finalize texture statistics
     ----
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
 

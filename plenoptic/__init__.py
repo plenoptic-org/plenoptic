@@ -9,7 +9,6 @@ from .tools.signal import *
 from .tools.stats import *
 from .tools.display import *
 
-# TODO - absorb into more meaningful categories
 from .tools.metamer_utils import *
 
 from .version import version as __version__

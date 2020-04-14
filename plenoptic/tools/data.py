@@ -32,7 +32,7 @@ def torch_complex_to_numpy(x):
 
 def make_basic_stimuli(size=256, requires_grad=True):
 
-    # TODO assert size is a power of 2
+    assert size in [32, 64, 128, 256, 512], 'size not supported'
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
@@ -61,7 +61,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
     checkerboard = plt.imread(op.join(DATA_PATH, 'checkerboard.pgm')).astype(float)
     # adjusting form 256 to desired size
     l = int(np.log2(256 // size))
-    # TODO for larger size use upConv
+    # for larger size use upConv
     checkerboard = blurDn(checkerboard, l, 'qmf9')
 
     sawtooth = plt.imread(op.join(DATA_PATH, 'sawtooth.pgm')).astype(float)
