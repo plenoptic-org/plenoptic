@@ -6,10 +6,10 @@ from ..canonical_computations.non_linearities import rectangular_to_polar_dict, 
 
 class Steerable_GainControl(nn.Module):
     """steerable pyramid followed by local gain control"""
-    def __init__(self, shape, cmplx=False):
+    def __init__(self, shape, is_complex=False):
         super().__init__()
 
-        if cmplx:
+        if is_complex:
             self.SPF = Steerable_Pyramid_Freq(shape, order=2, height=2, is_complex=True)
             self.nl = rectangular_to_polar_dict
         else:
