@@ -117,8 +117,8 @@ class Metamer(Synthesis):
         or an int>0, we will save ``self.matched_image`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination.
-    seed : int Number with which
-        to seed pytorch and numy's random number generators
+    seed : int
+        Number which we seeded pytorch and numpy's random number generators
     saved_image_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.matched_image.grad`` at each
@@ -282,8 +282,11 @@ class Metamer(Synthesis):
         learning rate (since we use a learning rate scheduler, the
         learning rate decreases over time as the gradient shrinks; note
         that we will still reset to the original value in coarse-to-fine
-        optimization). Coarse-to-fine optimization will also resume
-        where you left off.
+        optimization). ``store_progress`` has to have the same value
+        between calls and we'll throw an Exception if that's not the
+        case; you can set ``store_progress=None`` to re-use your
+        ``store_progress`` argument. Coarse-to-fine optimization will
+        also resume where you left off.
 
         We currently do not exactly preserve the state of the RNG
         between calls (the seed will be reset), because it's difficult
@@ -351,9 +354,11 @@ class Metamer(Synthesis):
             noise lying between 0 and 1 or, if ``self.saved_image`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
-        seed : int, optional
+        seed : int or None, optional
             Number with which to seed pytorch and numy's random number
-            generators
+            generators. If None, won't set the seed; general use case
+            for this is to avoid resetting the seed when resuming
+            synthesis
         max_iter : int, optinal
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
@@ -365,8 +370,9 @@ class Metamer(Synthesis):
             learning rate will never decrease. Setting this to True
             seems to improve performance, but it might be useful to turn
             it off in order to better work through what's happening
-        optimizer: {'Adam', 'SGD', 'LBFGS'}
-            The choice of optimization algorithm
+        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
+            The choice of optimization algorithm. 'GD' is regular
+            gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default

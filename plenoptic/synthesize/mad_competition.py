@@ -950,8 +950,11 @@ class MADCompetition(Synthesis):
             magnitude. However, you can turn it off and see how that
             affects performance. It's also useful for debugging
             purposes.
-        seed : `int`, optional
-            seed to initialize the random number generator with
+        seed : int or None, optional
+            Number with which to seed pytorch and numy's random number
+            generators. If None, won't set the seed; general use case
+            for this is to avoid resetting the seed when resuming
+            synthesis
         max_iter : int, optional
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
@@ -963,7 +966,7 @@ class MADCompetition(Synthesis):
             learning rate will never decrease. Setting this to True
             seems to improve performance, but it might be useful to turn
             it off in order to better work through what's happening
-        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS'}
+        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
@@ -1169,8 +1172,11 @@ class MADCompetition(Synthesis):
             magnitude. However, you can turn it off and see how that
             affects performance. It's also useful for debugging
             purposes.
-        seed : `int`, optional
-            seed to initialize the random number generator with
+        seed : int or None, optional
+            Number with which to seed pytorch and numy's random number
+            generators. If None, won't set the seed; general use case
+            for this is to avoid resetting the seed when resuming
+            synthesis
         max_iter : int, optional
             The maximum number of iterations to run before we end
         learning_rate : float, optional

@@ -99,6 +99,36 @@ def load_images(paths, as_gray=True):
     return images
 
 
+def convert_float_to_int(im, dtype=np.uint8):
+    r"""Convert image from float to 8 or 16 bit image
+
+    We work with float images that lie between 0 and 1, but for saving
+    them (either as png or in a numpy array), we want to convert them to
+    8 or 16 bit integers. This function does that by multiplying it by
+    the max value for the target dtype (255 for 8 bit 65535 for 16 bit)
+    and then converting it to the proper type.
+
+    We'll raise an exception if the max is higher than 1, in which case
+    we have no idea what to do.
+
+    Parameters
+    ----------
+    im : numpy array
+        The image to convert
+    dtype : {np.uint8, np.uint16}
+        The target data type
+
+    Returns
+    -------
+    im : numpy array
+        The converted image, now with dtype=dtype
+
+    """
+    if im.max() > 1:
+        raise Exception("all values of im must lie between 0 and 1, but max is %s" % im.max())
+    return (im * np.iinfo(dtype).max).astype(dtype)
+
+
 def torch_complex_to_numpy(x):
     r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
     to a numpy complex array

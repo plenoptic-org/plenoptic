@@ -123,6 +123,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.scales = None
         self.scales_timing = None
         self.coarse_to_fine = False
+        self.store_progress = None
 
     def _set_seed(self, seed):
         """set the seed
@@ -137,9 +138,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             the seed to set
         """
         self.seed = seed
-        # random initialization
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        if seed is not None:
+            # random initialization
+            torch.manual_seed(seed)
+            np.random.seed(seed)
 
     def _init_matched_image(self, matched_image_data, clamper=RangeClamper((0, 1)),
                             clamp_each_iter=True):
@@ -276,6 +278,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         """
         # python's implicit boolean-ness means we can do this! it will evaluate to False for False
         # and 0, and True for True and every int >= 1
+        if store_progress is None and self.store_progress is not None:
+            store_progress = self.store_progress
         if store_progress:
             if store_progress is True:
                 store_progress = 1
@@ -295,6 +299,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if save_progress:
                 raise Exception("Can't save progress if we're not storing it! If save_progress is"
                                 " True, store_progress must be not False")
+        if self.store_progress is not None and store_progress != self.store_progress:
+            # we require store_progress to be the same because otherwise
+            # the subsampling relationship between attrs that are stored
+            # every iteration (loss, gradient, etc) and those that are
+            # stored every store_progress iteration (e.g., saved_image,
+            # saved_representation) changes partway through and that's
+            # annoying
+            raise Exception("If you've already run synthesize() before, must re-run it with same"
+                            f" store_progress arg ({self.store_progress}; True is equivalent to "
+                            "1)")
         self.store_progress = store_progress
         self.save_progress = save_progress
         self.save_path = save_path
@@ -543,8 +557,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        seed : `int`, optional
-            seed to initialize the random number generator with
+        seed : int or None, optional
+            Number with which to seed pytorch and numy's random number
+            generators. If None, won't set the seed; general use case
+            for this is to avoid resetting the seed when resuming
+            synthesis
         max_iter : int, optional
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
@@ -556,7 +573,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             learning rate will never decrease. Setting this to True
             seems to improve performance, but it might be useful to turn
             it off in order to better work through what's happening
-        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS'}
+        optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent, as decribed in [1]_
         clamper : plenoptic.Clamper or None, optional
@@ -1630,13 +1647,19 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if len(self.saved_image) != len(self.saved_representation):
             raise Exception("saved_image and saved_representation need to be the same length in "
                             "order for this to work!")
-        # this recovers the store_progress arg used with the call to
-        # synthesize(), which we need for updating the progress of the
-        # loss
-        saved_subsample = len(self.loss) // (self.saved_representation.shape[0] - 1)
-        # we have one extra frame of saved_image compared to loss, so we
-        # just duplicate the loss value at the end
-        plot_data = [getattr(self, d) + [getattr(self, d)[-1]] for d in plot_data_attr]
+        # every time we call synthesize(), store_progress gets one extra
+        # element compared to loss. this uses that fact to figure out
+        # how many times we've called sythesize())
+        times_called = ((self.saved_image.shape[0] * self.store_progress - len(self.loss)) //
+                        self.store_progress)
+        # which we use in order to pad out the end of plot_data so that
+        # the lengths work out correctly (technically, should be
+        # inserting this at the moments synthesize() was called, but I
+        # don't know how to figure that out and the difference shouldn't
+        # be noticeable except in extreme circumstances, e.g., you
+        # called synthesize(max_iter=5) 100 times).
+        plot_data = [getattr(self, d) + self.store_progress*times_called*[getattr(self, d)[-1]]
+                     for d in plot_data_attr]
         if self.target_representation.ndimension() == 4:
             # we have to do this here so that we set the
             # ylim_rescale_interval such that we never rescale ylim
@@ -1692,7 +1715,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # loss always contains values from every iteration, but
             # everything else will be subsampled
             for s, d in zip(scat, plot_data):
-                s.set_offsets((i*saved_subsample, d[i*saved_subsample]))
+                s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
             artists.extend(scat)
             # as long as blitting is True, need to return a sequence of artists
             return artists
