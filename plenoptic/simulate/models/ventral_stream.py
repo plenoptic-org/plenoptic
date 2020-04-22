@@ -888,10 +888,8 @@ class RetinalGanglionCells(VentralModel):
         if self.window_type == 'dog':
             self.center_representation = self.PoolingWindows.forward(cone_responses,
                                                                      windows_key='center')
-            self.center_representation /= self.PoolingWindows.window_sizes['surround'][0]
             self.surround_representation = self.PoolingWindows.forward(cone_responses,
                                                                        windows_key='surround')
-            self.surround_representation /= self.PoolingWindows.window_sizes['surround'][0]
         return self.representation
 
     def _plot_helper(self, n_cols=1, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):

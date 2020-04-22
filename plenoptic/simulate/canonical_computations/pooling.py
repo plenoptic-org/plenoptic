@@ -893,7 +893,7 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
 
 def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min_ecc=.5,
                               max_ecc=15, window_type='cosine', transition_region_width=.5,
-                              std_dev=None, transition_x=None):
+                              std_dev=None, transition_x=None, surround_std_dev=None):
     r"""calculate and return the actual widths of the windows, in angular and radial directions
 
     whereas ``calc_angular_window_spacing`` returns a term used in the
@@ -1020,8 +1020,18 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
     of ``calc_windows_eccentricity`` for more details)
 
     """
-    n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc, max_ecc,
-                                                           std_dev, transition_x))
+    if surround_std_dev is None:
+        n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc,
+                                                               max_ecc, std_dev, transition_x))
+    else:
+        # surround_std_dev increases the number of windows, but that's it
+        n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc,
+                                                               max_ecc, surround_std_dev,
+                                                               transition_x))
+    if transition_x is not None:
+        # because there's a window centered at zero that doesn't get
+        # counted in the function above
+        n_radial_windows += 1
     window_central_eccentricities = calc_windows_eccentricity('central', n_radial_windows,
                                                               radial_window_spacing, min_ecc,
                                                               transition_x=transition_x)
@@ -1597,7 +1607,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
             window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
                                                               std_dev=std_dev)
         n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
-        shift_arg = (torch.log(torch.tensor(min_ecc, dtype=torch.float32)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
+        shift_arg = (log_func(torch.tensor(min_ecc, dtype=torch.float32)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
         multiplier = torch.ones_like(shift_arg)
     if hasattr(resolution, '__iter__') and len(resolution) == 2:
         ecc = log_func(polar_radius(resolution, device=device) / calc_deg_to_pix(resolution, max_ecc)).unsqueeze(0)
@@ -1817,6 +1827,83 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         ecc_tensor['center'] = new_ctr
         ecc_tensor = dict((k, sum_windows_output(v, surr_mult)) for k, v in ecc_tensor.items())
     return angle_tensor, ecc_tensor
+
+
+def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
+                      center_surround_ratio=None, linear=False):
+    r"""normalize windows to have L1-norm of 1
+
+    we calculate the L1-norm of single windows (that is, product of
+    eccentricity and angular windows) for all angles, one middling
+    eccentricity (third of the way thorugh), then average across angles
+    (because of alignment with pixel grid, L1-norm will vary somewhat
+    across angles).
+
+    I think L1-norm scales linearly with area, which is proportional to
+    window_width^2, so we use that to scale it for the different
+    windows. only eccentricity windows is normalized (don't need to
+    divide both).
+
+    this works with either DoG-style windows or regular ones.
+
+    Parameters
+    ----------
+    angle_windows : dict
+        dictionary containing the angular windows
+    ecc_windows : dict
+        dictionary containing the eccentricity windows
+    window_width_pixels : array_like
+        array containing radial full widths (in pixels) of each
+        window. therefore, must have an element for each eccentricity
+        window
+    scale : int, optional
+        which scale to calculate norm for and modify
+    center_surround_ratio : float or None, optional
+        if windows are DoGs, then need this ratio to properly construct
+        the window (weights the difference between center and surround)
+    linaer : bool, optional
+        if False, scale windows as described above. if True, scale all
+        windows by same amount
+
+    Returns
+    -------
+    ecc_windows : dict
+        the normalized ecc_windows. only ``scale`` is modified
+
+    """
+    try:
+        # pick some window with a middling eccentricity
+        n = ecc_windows[scale].shape[0] // 3
+        # get the l1 norm of a single window
+        w = torch.einsum('ahw,hw->ahw', angle_windows[scale], ecc_windows[scale][n])
+        l1 = torch.norm(w, 1, (-1, -2))
+        l1 = l1.mean(0)
+    except KeyError:
+        # then these are dog windows with separate centers and
+        # surrounds. pick some window with a middling eccentricity
+        n = ecc_windows['center'][scale].shape[0] // 3
+        ctr = torch.einsum('ahw,hw->ahw', angle_windows['center'][scale],
+                           ecc_windows['center'][scale][n])
+        sur = torch.einsum('ahw,hw->ahw', angle_windows['surround'][scale],
+                           ecc_windows['surround'][scale][n])
+        w = center_surround_ratio * ctr - (1 - center_surround_ratio) * sur
+        # get the l1 norm of a single window
+        l1 = torch.norm(w, 1, (-1, -2))
+        l1 = l1.mean(0)
+    # the l1 norm grows with eccentricity squared (because it's
+    # proportional to the area of the windows)
+    if not linear:
+        scale_factor = (l1*(window_width_pixels / window_width_pixels[n])**2).to(torch.float32)
+    else:
+        scale_factor = (l1*torch.ones(len(window_width_pixels)))
+    while scale_factor.ndim < 3:
+        scale_factor = scale_factor.unsqueeze(-1)
+    try:
+        ecc_windows[scale] = ecc_windows[scale] / scale_factor
+    except KeyError:
+        ecc_windows['center'][scale] = ecc_windows['center'][scale] / scale_factor
+        ecc_windows['surround'][scale] = ecc_windows['surround'][scale] / scale_factor
+    return ecc_windows
 
 
 class PoolingWindows(nn.Module):
@@ -2185,6 +2272,9 @@ class PoolingWindows(nn.Module):
         for i in range(self.num_scales):
             scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
+            # TEMPORARY
+            min_ecc = self.min_eccentricity
+            min_ecc_pix = min_ecc * self.deg_to_pix[i]
             self.calculated_min_eccentricity_degrees.append(min_ecc)
             self.calculated_min_eccentricity_pixels.append(min_ecc_pix)
             if self.min_eccentricity is not None and min_ecc > self.min_eccentricity:
@@ -2258,6 +2348,9 @@ class PoolingWindows(nn.Module):
                 self.ecc_windows[i] = ecc_windows
                 window_sizes = torch.clamp(torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows]),
                                            min=1)
+            self.ecc_windows = normalize_windows(self.angle_windows, self.ecc_windows,
+                                                 self.window_width_pixels[i]['radial_full'], i,
+                                                 self.center_surround_ratio)
             if window_type == 'dog':
                 self.window_sizes['center'][i] = window_sizes['center'].flatten()
                 self.window_sizes['surround'][i] = window_sizes['surround'].flatten()
@@ -2291,7 +2384,8 @@ class PoolingWindows(nn.Module):
                                                   self.min_eccentricity,
                                                   self.max_eccentricity*np.sqrt(2),
                                                   window_type, self.transition_region_width,
-                                                  self.std_dev, self.transition_x)
+                                                  self.std_dev, self.transition_x,
+                                                  self.surround_std_dev)
         self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
                                               'angular_full'], window_widths))
         self.n_eccentricity_bands = len(self.window_width_degrees['radial_top'])
@@ -2650,13 +2744,7 @@ class PoolingWindows(nn.Module):
             if self.window_type == 'dog':
                 ctr = self.forward(x, idx, 'center')
                 sur = self.forward(x, idx, 'surround')
-                num  = self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
-                # the division by center_surround_ratio makes it so that
-                # the output of this is bounded between -1 and 1. the
-                # window_sizes['surround] is to normalize the size
-                # across eccentricities
-                denom = self.center_surround_ratio * self.window_sizes['surround'][idx]
-                return num / denom
+                return self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
             else:
                 angle_windows = self.angle_windows
                 ecc_windows = self.ecc_windows
@@ -2675,16 +2763,12 @@ class PoolingWindows(nn.Module):
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
                                                  [v.to(angle_windows[0].device),
                                                   angle_windows[k[0]],
-                                                  ecc_windows[k[0]]]).flatten(2, 3) /
-                                 window_sizes[k[0]])
+                                                  ecc_windows[k[0]]]).flatten(2, 3))
                                 for k, v in x.items())
             else:
                 pooled_x = {}
                 for k, v in x.items():
                     tmp = []
-                    sizes = window_sizes[k[0]]
-                    if sizes.device != output_device:
-                        sizes = sizes.to(output_device)
                     for i in range(self.num_devices):
                         angles = angle_windows[(k[0], i)]
                         e = ecc_windows[(k[0], i)]
@@ -2693,18 +2777,14 @@ class PoolingWindows(nn.Module):
                         for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
                             t.append(torch.einsum('bchw,ahw,ehw->bcea', [v, a, e]).flatten(2, 3))
                         tmp.append(torch.cat(t, -1).to(output_device))
-                    pooled_x[k] = torch.cat(tmp, -1) / sizes
+                    pooled_x[k] = torch.cat(tmp, -1)
         else:
             if self.num_devices == 1:
                 pooled_x = (torch.einsum('bchw,ahw,ehw->bcea', [x.to(angle_windows[0].device),
                                                                 angle_windows[idx],
-                                                                ecc_windows[idx]]).flatten(2, 3)
-                            / window_sizes[idx])
+                                                                ecc_windows[idx]]).flatten(2, 3))
             else:
                 pooled_x = []
-                sizes = window_sizes[idx]
-                if sizes.device != output_device:
-                    sizes = sizes.to(output_device)
                 for i in range(self.num_devices):
                     angles = angle_windows[(idx, i)]
                     e = ecc_windows[(idx, i)]
@@ -2713,7 +2793,7 @@ class PoolingWindows(nn.Module):
                     for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
                         tmp.append(torch.einsum('bchw,ahw,ehw->bcea', [x, a, e]).flatten(2, 3))
                     pooled_x.append(torch.cat(tmp, -1).to(output_device))
-                pooled_x = torch.cat(pooled_x, -1) / sizes
+                pooled_x = torch.cat(pooled_x, -1)
         return pooled_x
 
     def window(self, x, idx=0):
@@ -2868,23 +2948,19 @@ class PoolingWindows(nn.Module):
                 # one way to make this more general: figure out the size
                 # of the tensors in x and in self.angle_windows, and
                 # intelligently lookup which should be used.
-                return dict((k, v.sum((-1, -2)) / self.window_sizes[k[0]])
-                            for k, v in windowed_x.items())
+                return dict((k, v.sum((-1, -2)) ) for k, v in windowed_x.items())
             else:
                 tmp = {}
                 orig_keys = set([k[0] for k in windowed_x])
                 for k in orig_keys:
                     t = []
-                    sizes = self.window_sizes[k[0]]
-                    if sizes.device != output_device:
-                        sizes = sizes.to(output_device)
                     for i in range(self.num_devices):
                         t.append(windowed_x[(k, i)].sum((-1, -2)).to(output_device))
-                    tmp[k] = torch.cat(t, -1) / sizes
+                    tmp[k] = torch.cat(t, -1)
                 return tmp
         else:
             if self.num_devices == 1:
-                return windowed_x.sum((-1, -2)) / self.window_sizes[idx]
+                return windowed_x.sum((-1, -2))
             else:
                 tmp = []
                 sizes = self.window_sizes[idx]
@@ -2892,7 +2968,7 @@ class PoolingWindows(nn.Module):
                     sizes = sizes.to(output_device)
                 for i, v in enumerate(windowed_x):
                     tmp.append(v.sum((-1, -2)).to(output_device))
-                return torch.cat(tmp, -1) / sizes
+                return torch.cat(tmp, -1)
 
     def project(self, pooled_x, idx=0, output_device=torch.device('cpu'), windows_key=None):
         r"""Project pooled values back onto an image
@@ -3065,15 +3141,11 @@ class PoolingWindows(nn.Module):
             output_device = list(x.values())[0].device
         # the division by window_sizes['surround] is to normalize the
         # size across eccentricities
-        ctr = self.forward(x, idx, 'center') / self.window_sizes['center'][idx]
+        ctr = self.forward(x, idx, 'center')
         ctr = self.project(ctr, idx, output_device, 'center')
-        sur = self.forward(x, idx, 'surround') / self.window_sizes['surround'][idx]
+        sur = self.forward(x, idx, 'surround')
         sur = self.project(sur, idx, output_device, 'surround')
-        num  = self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
-        # need this normalization factor to make sure windows sum to
-        # one.
-        denom = self.norm_factor
-        return num / denom
+        return self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
 
     def plot_windows(self, ax=None, contour_levels=None, colors='r',
                      subset=True, windows_scale=0, **kwargs):
