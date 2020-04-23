@@ -1819,22 +1819,33 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
                                                        transition_region_width=transition_region_width,
                                                        device=device, transition_x=transition_x)
         ecc_tensor['surround'] = surround
-        # now we need to make sure that center and surround are the same
-        # size. we make use of the mult tensors for that
-        idx = np.zeros(len(surr_mult)).astype(bool)
-        idx[:len(ctr_mult)] = True
-        # this will go through and find all the places where surr_mult
-        # has a -1 that ctr_mult does not and shift the 1s forward by
-        # one, leaving a 0 there. this corresponds to the reflected
-        # windows that the surround has that center does not
-        for i in set(np.where(surr_mult==-1)[0]).difference(set(np.where(ctr_mult==-1)[0])):
-            idx[i:] = np.concatenate([[0], idx[i:-1]])
-        new_ctr = torch.zeros_like(ecc_tensor['surround'])
-        # now we go ahead and paste the center windows in the
-        # appropriate place, leaving the zeros
-        new_ctr[idx, ...] = ecc_tensor['center']
-        ecc_tensor['center'] = new_ctr
-        ecc_tensor = dict((k, sum_windows_output(v, surr_mult)) for k, v in ecc_tensor.items())
+        if transition_x is not None:
+            # now we need to make sure that center and surround are the same
+            # size. we make use of the mult tensors for that
+            idx = np.zeros(len(surr_mult)).astype(bool)
+            idx[:len(ctr_mult)] = True
+            # this will go through and find all the places where surr_mult
+            # has a -1 that ctr_mult does not and shift the 1s forward by
+            # one, leaving a 0 there. this corresponds to the reflected
+            # windows that the surround has that center does not
+            for i in set(np.where(surr_mult==-1)[0]).difference(set(np.where(ctr_mult==-1)[0])):
+                idx[i:] = np.concatenate([[0], idx[i:-1]])
+            new_ctr = torch.zeros_like(ecc_tensor['surround'])
+            # now we go ahead and paste the center windows in the
+            # appropriate place, leaving the zeros
+            new_ctr[idx, ...] = ecc_tensor['center']
+            ecc_tensor['center'] = new_ctr
+            ecc_tensor = dict((k, sum_windows_output(v, surr_mult)) for k, v in ecc_tensor.items())
+        else:
+            # now we need to make sure that center and surround are the same
+            # size. we make use of the mult tensors for that
+            idx = np.zeros(len(surr_mult)).astype(bool)
+            idx[:len(ctr_mult)] = True
+            new_ctr = torch.zeros_like(ecc_tensor['surround'])
+            # now we go ahead and paste the center windows in the
+            # appropriate place, leaving the zeros
+            new_ctr[idx, ...] = ecc_tensor['center']
+            ecc_tensor['center'] = new_ctr
     return angle_tensor, ecc_tensor
 
 
@@ -1882,7 +1893,7 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
     """
     try:
         # pick some window with a middling eccentricity
-        n = ecc_windows[scale].shape[0] // 3
+        n = ecc_windows[scale].shape[0] // 5
         # get the l1 norm of a single window
         w = torch.einsum('ahw,hw->ahw', angle_windows[scale], ecc_windows[scale][n])
         l1 = torch.norm(w, 1, (-1, -2))
@@ -1890,7 +1901,7 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
     except KeyError:
         # then these are dog windows with separate centers and
         # surrounds. pick some window with a middling eccentricity
-        n = ecc_windows['center'][scale].shape[0] // 3
+        n = ecc_windows['center'][scale].shape[0] // 5
         ctr = torch.einsum('ahw,hw->ahw', angle_windows['center'][scale],
                            ecc_windows['center'][scale][n])
         sur = torch.einsum('ahw,hw->ahw', angle_windows['surround'][scale],
@@ -2232,8 +2243,8 @@ class PoolingWindows(nn.Module):
             assert std_dev is not None, "DoG windows need standard deviations!"
             assert surround_std_dev is not None, "DoG windows need surround standard deviations!"
             assert center_surround_ratio is not None, "DoG windows need center surround ratios!"
-            assert transition_x is not None, "DoG windows need transition_x!"
-            assert min_eccentricity is None, "DoG windows need to have min_eccentricity=None (use transition_x instead)"
+            # assert transition_x is not None, "DoG windows need transition_x!"
+            # assert min_eccentricity is None, "DoG windows need to have min_eccentricity=None (use transition_x instead)"
             if std_dev != 1:
                 raise Exception("DoG windows' center gaussian must have std_dev=1!")
             self.std_dev = float(std_dev)
@@ -2283,7 +2294,6 @@ class PoolingWindows(nn.Module):
             min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
             # TEMPORARY
             min_ecc = self.min_eccentricity
-            min_ecc_pix = min_ecc * self.deg_to_pix[i]
             self.calculated_min_eccentricity_degrees.append(min_ecc)
             self.calculated_min_eccentricity_pixels.append(min_ecc_pix)
             if self.min_eccentricity is not None and min_ecc > self.min_eccentricity:
@@ -2340,7 +2350,7 @@ class PoolingWindows(nn.Module):
                 window_sizes = {}
                 for k in ['center', 'surround']:
                     self.angle_windows[k][i] = angle_windows[k]
-                    self.ecc_windows[k][i] = ecc_windows[k] * self.min_ecc_mask[i]
+                    self.ecc_windows[k][i] = ecc_windows[k] # * self.min_ecc_mask[i]
                     # need to go lower (otherwise the windowed values at
                     # the fovea are treated as basically 0 and things
                     # get messed up when combining across the two., but
