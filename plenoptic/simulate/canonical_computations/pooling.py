@@ -2350,7 +2350,7 @@ class PoolingWindows(nn.Module):
                 window_sizes = {}
                 for k in ['center', 'surround']:
                     self.angle_windows[k][i] = angle_windows[k]
-                    self.ecc_windows[k][i] = ecc_windows[k] # * self.min_ecc_mask[i]
+                    self.ecc_windows[k][i] = ecc_windows[k] * self.min_ecc_mask[i]
                     # need to go lower (otherwise the windowed values at
                     # the fovea are treated as basically 0 and things
                     # get messed up when combining across the two., but
@@ -3073,7 +3073,8 @@ class PoolingWindows(nn.Module):
                                    angle_windows[window_key].shape[0]))
                     tmp[k] = torch.einsum('bcea,ahw,ehw->bchw',
                                           [v.to(angle_windows[0].device),
-                                           angle_windows[window_key], ecc_windows[window_key]])
+                                           angle_windows[window_key],
+                                           ecc_windows[window_key] * self.norm_factor[window_key]])
                 return tmp
             else:
                 tmp = {}
@@ -3093,7 +3094,7 @@ class PoolingWindows(nn.Module):
                                    self.n_polar_windows))
                     for i in range(self.num_devices):
                         e = ecc_windows[(window_key, i)]
-                        a = angle_windows[(window_key, i)]
+                        a = angle_windows[(window_key, i)] * self.norm_factor[window_key]
                         d = v[..., i*num:(i+1)*num].to(a.device)
                         t.append(torch.einsum('bcea,ahw,ehw->bchw', [d, a, e]).to(output_device))
                     tmp[k] = torch.cat(t, 0).sum(0)
@@ -3106,7 +3107,8 @@ class PoolingWindows(nn.Module):
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], ecc_windows[idx].shape[0],
                                              self.n_polar_windows))
                 return torch.einsum('bcea,ahw,ehw->bchw', [pooled_x.to(angle_windows[0].device),
-                                                           angle_windows[idx], ecc_windows[idx] * self.norm_factor[idx]])
+                                                           angle_windows[idx], ecc_windows[idx] *
+                                                           self.norm_factor[idx]])
             else:
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], ecc_windows[(idx, 0)].shape[0],
                                              self.n_polar_windows))
@@ -3114,12 +3116,12 @@ class PoolingWindows(nn.Module):
                 num = int(np.ceil(self.n_polar_windows / self.num_devices))
                 for i in range(self.num_devices):
                     a = angle_windows[(idx, i)]
-                    e = ecc_windows[(idx, i)]
+                    e = ecc_windows[(idx, i)] * self.norm_factor[idx]
                     d = pooled_x[..., i*num:(i+1)*num].to(a.device)
                     tmp.append(torch.einsum('bcea,ahw,ehw->bchw', [d, a, e]).to(output_device))
                 return torch.cat(tmp, 0).sum(0)
 
-    def project_dog(self, x, idx=0):
+    def project_dog(self, x, idx=0, ones_flag=False):
         r"""Project pooled values for DoG windows
 
         This function returns the same thing as ``project`` but works
@@ -3141,6 +3143,14 @@ class PoolingWindows(nn.Module):
         idx : int, optional
             Which entry in the ``windows`` list to use. Only used if
             ``x`` is a tensor
+        ones_flag : bool, optional
+            if True, we don't project x, but project a representation of
+            all ones that has the same shape. This is used for figuring
+            out which portion of the image the windows cover (you may
+            want to then convert it to boolean, because it will be flat
+            everywhere but not necessarily 1; the exact value will
+            depend on the center_surround_ratio and note that it will be
+            approximatley 0 if the ratio is .5)
 
         Returns
         -------
@@ -3152,6 +3162,7 @@ class PoolingWindows(nn.Module):
         forward : the opposite of this, going from image to pooled
             values
         project : the version for non-DoG windows
+
         """
         if self.window_type != 'dog':
             raise NotImplementedError("This is only for DoG windows!")
@@ -3162,8 +3173,11 @@ class PoolingWindows(nn.Module):
         # the division by window_sizes['surround] is to normalize the
         # size across eccentricities
         ctr = self.forward(x, idx, 'center')
-        ctr = self.project(ctr, idx, output_device, 'center')
         sur = self.forward(x, idx, 'surround')
+        if ones_flag:
+            ctr = torch.ones_like(ctr)
+            sur = torch.ones_like(sur)
+        ctr = self.project(ctr, idx, output_device, 'center')
         sur = self.project(sur, idx, output_device, 'surround')
         return self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
 
