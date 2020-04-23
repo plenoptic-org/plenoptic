@@ -3202,11 +3202,11 @@ class PoolingWindows(nn.Module):
             # attempt to not have all the windows in memory at once...
             try:
                 angle_windows = self.angle_windows[windows_scale]
-                ecc_windows = self.ecc_windows[windows_scale]
+                ecc_windows = self.ecc_windows[windows_scale] * self.norm_factor[windows_scale]
             except KeyError:
                 # then this is the DoG windows and so we grab the center
                 angle_windows = self.angle_windows['center'][windows_scale]
-                ecc_windows = self.ecc_windows['center'][windows_scale]
+                ecc_windows = self.ecc_windows['center'][windows_scale] * self.norm_factor[windows_scale]
             if subset:
                 angle_windows = angle_windows[:4]
             for a in angle_windows:
@@ -3230,7 +3230,7 @@ class PoolingWindows(nn.Module):
                     # we have a version of the eccentricity windows on
                     # each device that the angle windows are on, in
                     # order to avoid a .to() call (which is slow)
-                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[(windows_scale, device)]])
+                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[(windows_scale, device)] * self.norm_factor[windows_scale]])
                     for w in windows:
                         try:
                             # if this isn't true, then this window will be
