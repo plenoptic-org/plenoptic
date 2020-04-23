@@ -1912,7 +1912,7 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
     except KeyError:
         ecc_windows['center'][scale] = ecc_windows['center'][scale] / scale_factor
         ecc_windows['surround'][scale] = ecc_windows['surround'][scale] / scale_factor
-    return ecc_windows
+    return ecc_windows, scale_factor
 
 
 class PoolingWindows(nn.Module):
@@ -2240,7 +2240,6 @@ class PoolingWindows(nn.Module):
             self.surround_std_dev = float(surround_std_dev)
             self.center_surround_ratio = float(center_surround_ratio)
             self.transition_region_width = None
-            self.norm_factor = calc_dog_normalization_factor(self.center_surround_ratio)
             window_width_for_saving = f'{self.std_dev}_s-{self.surround_std_dev}_r-{self.center_surround_ratio}'
             # 1 / (std_dev * GAUSSIAN_SUM) is the max in a single
             # direction (radial or angular), so the max for a single
@@ -2258,6 +2257,7 @@ class PoolingWindows(nn.Module):
             self.angle_windows = {'center': {}, 'surround': {}}
             self.ecc_windows = {'center': {}, 'surround': {}}
             self.window_sizes = {'center': {}, 'surround': {}}
+        self.norm_factor = {}
         self.num_devices = 1
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
@@ -2357,9 +2357,10 @@ class PoolingWindows(nn.Module):
                 self.ecc_windows[i] = ecc_windows
                 window_sizes = torch.clamp(torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows]),
                                            min=1)
-            self.ecc_windows = normalize_windows(self.angle_windows, self.ecc_windows,
-                                                 self.window_width_pixels[i]['radial_full'], i,
-                                                 self.center_surround_ratio)
+            self.ecc_windows, norm_factor = normalize_windows(self.angle_windows, self.ecc_windows,
+                                                              self.window_width_pixels[i]['radial_full'], i,
+                                                              self.center_surround_ratio)
+            self.norm_factor[i] = norm_factor
             if window_type == 'dog':
                 self.window_sizes['center'][i] = window_sizes['center'].flatten()
                 self.window_sizes['surround'][i] = window_sizes['surround'].flatten()
@@ -3095,7 +3096,7 @@ class PoolingWindows(nn.Module):
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], ecc_windows[idx].shape[0],
                                              self.n_polar_windows))
                 return torch.einsum('bcea,ahw,ehw->bchw', [pooled_x.to(angle_windows[0].device),
-                                                           angle_windows[idx], ecc_windows[idx]])
+                                                           angle_windows[idx], ecc_windows[idx] * self.norm_factor[idx]])
             else:
                 pooled_x = pooled_x.reshape((*pooled_x.shape[:2], ecc_windows[(idx, 0)].shape[0],
                                              self.n_polar_windows))
