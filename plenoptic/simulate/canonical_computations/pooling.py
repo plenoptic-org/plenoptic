@@ -1505,6 +1505,12 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         ``min_ecc`` must be set
     device : str or torch.device
         the device to create this tensor on
+    linear : bool, optional
+        if True, create linear windows instead of log-spaced (only if
+        ``transition_x=None``). NOTE This is only for playing around
+        with, it really is not supported or a good idea because the
+        angular windows still grow in size as a function of eccentricity
+        and none of the calculations will work.
 
     Returns
     -------
