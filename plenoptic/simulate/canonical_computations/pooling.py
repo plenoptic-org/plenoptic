@@ -1428,7 +1428,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
 
 def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
                              max_ecc=15, window_type='cosine', transition_region_width=.5,
-                             std_dev=None, transition_x=None, device=None):
+                             std_dev=None, transition_x=None, device=None, linear=False):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -1602,7 +1602,10 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         shift_arg = torch.cat([torch.tensor([0], dtype=torch.float32, device=shift_arg.device).unsqueeze(-1), shift_arg])
         multiplier = torch.cat([torch.tensor([1], dtype=torch.float32, device=multiplier.device).unsqueeze(-1), multiplier])
     else:
-        log_func = torch.log
+        if not linear:
+            log_func = torch.log
+        else:
+            log_func = lambda x: x
         if window_spacing is None:
             window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
                                                               std_dev=std_dev)
