@@ -2082,11 +2082,6 @@ class PoolingWindows(nn.Module):
         different size. If you have called ``parallel()``, this will be
         structured in a slightly different way (see that method for
         details)
-    window_sizes : dict
-        A dict of 1d tensors giving the size of the combined pooling
-        windows, that is, the output of ``torch.einsum('ahw,ehw->ea',
-        [a, e]).flatten())``, where a and e are the angle and
-        eccentricity windows at the corresponding scale.
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -2204,7 +2199,6 @@ class PoolingWindows(nn.Module):
             raise Exception("Only transition_x=1 results in constant scaling across the image")
         self.angle_windows = {}
         self.ecc_windows = {}
-        self.window_sizes = {}
         if window_type == 'cosine':
             assert transition_region_width is not None, "cosine windows need transition region widths!"
             self.transition_region_width = float(transition_region_width)
@@ -2267,7 +2261,6 @@ class PoolingWindows(nn.Module):
             # we have separate center and surround dictionaries:
             self.angle_windows = {'center': {}, 'surround': {}}
             self.ecc_windows = {'center': {}, 'surround': {}}
-            self.window_sizes = {'center': {}, 'surround': {}}
         self.norm_factor = {}
         self.num_devices = 1
         if cache_dir is not None:
@@ -2347,35 +2340,16 @@ class PoolingWindows(nn.Module):
                     warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
                     torch.save({'angle': angle_windows, 'ecc': ecc_windows}, self.cache_paths[-1])
             if window_type == 'dog':
-                window_sizes = {}
                 for k in ['center', 'surround']:
                     self.angle_windows[k][i] = angle_windows[k]
                     self.ecc_windows[k][i] = ecc_windows[k] * self.min_ecc_mask[i]
-                    # need to go lower (otherwise the windowed values at
-                    # the fovea are treated as basically 0 and things
-                    # get messed up when combining across the two., but
-                    # still want to clamp to avoid having any windows of
-                    # size 0, which will lead to divide by 0 errors; the
-                    # minimum float32 value is about 10^-38, so this is
-                    # close)
-                    window_sizes[k] = torch.clamp(torch.einsum('ahw,ehw->ea',
-                                                               [angle_windows[k],
-                                                                self.ecc_windows[k][i]]),
-                                                  min=1e-35)
             else:
                 self.angle_windows[i] = angle_windows
                 self.ecc_windows[i] = ecc_windows
-                window_sizes = torch.clamp(torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows]),
-                                           min=1)
             self.ecc_windows, norm_factor = normalize_windows(self.angle_windows, self.ecc_windows,
                                                               self.window_width_pixels[i]['radial_full'], i,
                                                               self.center_surround_ratio)
             self.norm_factor[i] = norm_factor
-            if window_type == 'dog':
-                self.window_sizes['center'][i] = window_sizes['center'].flatten()
-                self.window_sizes['surround'][i] = window_sizes['surround'].flatten()
-            else:
-                self.window_sizes[i] = window_sizes.flatten()
 
     def _window_sizes(self):
         r"""Calculate the various window size metrics
@@ -2482,16 +2456,16 @@ class PoolingWindows(nn.Module):
                 self.angle_windows[k] = v.to(*args, **kwargs)
             for k, v in self.ecc_windows.items():
                 self.ecc_windows[k] = v.to(*args, **kwargs)
-            for k, v in self.window_sizes.items():
-                self.window_sizes[k] = v.to(*args, **kwargs)
+            for k, v in self.norm_factor.items():
+                self.norm_factor[k] = v.to(*args, **kwargs)
         else:
             for s in ['center', 'surround']:
                 for k, v in self.angle_windows[s].items():
                     self.angle_windows[s][k] = v.to(*args, **kwargs)
                 for k, v in self.ecc_windows[s].items():
                     self.ecc_windows[s][k] = v.to(*args, **kwargs)
-                for k, v in self.window_sizes[s].items():
-                    self.window_sizes[s][k] = v.to(*args, **kwargs)
+                for k, v in self.norm_factor[s].items():
+                    self.norm_factor[s][k] = v.to(*args, **kwargs)
         if hasattr(self, 'meshgrid'):
             # we don't want to change the dtype of meshgrid
             args = [a for a in args if not isinstance(a, torch.dtype)]
@@ -2546,8 +2520,8 @@ class PoolingWindows(nn.Module):
             self.angle_windows[k+scale_offset] = v
         for k, v in other_PoolingWindows.ecc_windows.items():
             self.ecc_windows[k+scale_offset] = v
-        for k, v in other_PoolingWindows.window_sizes.items():
-            self.window_sizes[k+scale_offset] = v
+        for k, v in other_PoolingWindows.norm_factor.items():
+            self.norm_factor[k+scale_offset] = v
         if hasattr(self, 'meshgrid'):
             for k, v in other_PoolingWindows.meshgrid.items():
                 self.meshgrid[k+scale_offset] = v
@@ -2768,16 +2742,9 @@ class PoolingWindows(nn.Module):
             else:
                 angle_windows = self.angle_windows
                 ecc_windows = self.ecc_windows
-                window_sizes = self.window_sizes
         else:
             angle_windows = self.angle_windows[windows_key]
             ecc_windows = self.ecc_windows[windows_key]
-            # we don't actually want to normalize by size in the
-            # separate center and surround calls (the surround windows
-            # are so much larger that this removes much of their
-            # effect. so we create a dummy sizes dict instead
-            window_sizes = dict((k, torch.ones_like(v)) for k, v
-                                in self.window_sizes[windows_key].items())
         if isinstance(x, dict):
             if self.num_devices == 1:
                 pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
@@ -2983,9 +2950,6 @@ class PoolingWindows(nn.Module):
                 return windowed_x.sum((-1, -2))
             else:
                 tmp = []
-                sizes = self.window_sizes[idx]
-                if sizes.device != output_device:
-                    sizes = sizes.to(output_device)
                 for i, v in enumerate(windowed_x):
                     tmp.append(v.sum((-1, -2)).to(output_device))
                 return torch.cat(tmp, -1)
@@ -3170,8 +3134,6 @@ class PoolingWindows(nn.Module):
             output_device = x.device
         except AttributeError:
             output_device = list(x.values())[0].device
-        # the division by window_sizes['surround] is to normalize the
-        # size across eccentricities
         ctr = self.forward(x, idx, 'center')
         sur = self.forward(x, idx, 'surround')
         if ones_flag:
