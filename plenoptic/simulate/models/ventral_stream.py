@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from torch import nn
 from ..canonical_computations.non_linearities import zscore_stats, cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
-from ..canonical_computations.pooling import PoolingWindows
+from ..canonical_computations.pooling_windows import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 from ...tools.data import to_numpy
 
