@@ -18,7 +18,18 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
     Selects pyramid coefficients corresponding to 'image_index' out of
     the images in the batch, and to 'channel' out of the channel indexes
     (eg. RGB channels that undergo steerable pyramid independently)
-
+    
+    Parameters
+    ----------
+    pyr_coeffs : dict
+                pyramid coefficients in the standard dictionary format as
+                specified in Steerable_Pyramid_Freq
+    image_index : int in [0, batch_size] (default=0)
+                  index of the image you would like to select from the batch
+                  of coefficients
+    channel: int (default = 0)
+             index of channel to select for image display
+             for grayscale images this will be 0. 
     Example
     -------
         >>> size = 32

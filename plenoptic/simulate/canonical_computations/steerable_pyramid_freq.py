@@ -184,6 +184,9 @@ class Steerable_Pyramid_Freq(nn.Module):
                 lomask = pointOp(log_rad, self.YIrcos, Xrcos)
                 self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
                 lodft = lodft * lomask
+                lostart = np.array([0,0])
+                loend = dims
+                self._loindices.append([lostart, loend])
             else:
                 # subsample lowpass
                 dims = np.array([lodft.shape[0], lodft.shape[1]])
@@ -322,7 +325,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
             if not self.downsample:
                 # no subsampling of angle and rad
-                # jsut use lo0mask
+                # just use lo0mask
                 lomask = self._lomasks[i]
                 lodft = lodft * lomask
             else:
@@ -631,7 +634,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
 
 
-    def steer_coeffs(self, angles, return_weights = False, update_model_coeffs = False, even_phase=True):
+    def steer_coeffs(self, angles, even_phase=True):
         """Steer pyramid coefficients to the specified angles
 
         This allows you to have filters that have the Gaussian derivative order specified in
@@ -653,7 +656,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             but now we're indexing `angles` instead of `self.num_orientations`.
         resteering_weights : `dict`
             dictionary of weights used to re-steer the pyramid coefficients. will have the same
-            keys as `resteered_coeffs`.
+            keys as `resteered_coeffs`. 
 
         """
 
@@ -664,18 +667,10 @@ class Steerable_Pyramid_Freq(nn.Module):
                                range(self.num_orientations)], dim=-1)
 
             for j, a in enumerate(angles):
-                if return_weights:
-                    res, steervect = steer(basis, a, return_weights=return_weights, even_phase=even_phase)
-                    resteering_weights[(i, j)] = steervect
-                else:
-                    res = steer(basis, a, return_weights=return_weights,even_phase=even_phase)
+                res, steervect = steer(basis, a, return_weights=return_weights, even_phase=even_phase)
+                resteering_weights[(i, j)] = steervect
                 resteered_coeffs[(i, self.num_orientations + j)] = res.reshape(self.pyr_coeffs[(i, 0)].shape)
 
-                if update_model_coeffs:
-                    self.pyr_coeffs[(i,self.num_orientations + j)] = resteered_coeffs[(i,self.num_orientations+j)]
 
-        if not update_model_coeffs:
-            if return_weights:
-                return resteered_coeffs, resteering_weights
-            else:
-                return resteered_coeffs
+        return resteered_coeffs, resteering_weights
+
