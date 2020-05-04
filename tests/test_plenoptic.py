@@ -326,9 +326,9 @@ class TestPooling(object):
     def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                             transition_region_width=transition_region_width,
-                                             window_type='cosine',)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                     transition_region_width=transition_region_width,
+                                     window_type='cosine',)
         pw = pw.to(device)
         pw(im)
         with pytest.raises(Exception):
@@ -338,26 +338,26 @@ class TestPooling(object):
     def test_PoolingWindows(self, num_scales):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                             window_type='gaussian', std_dev=1)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                     window_type='gaussian', std_dev=1)
         pw = pw.to(device)
         pw(im)
         # we only support std_dev=1
         with pytest.raises(Exception):
-            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                            window_type='gaussian', std_dev=2)
+            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                    window_type='gaussian', std_dev=2)
         with pytest.raises(Exception):
-            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                            window_type='gaussian', std_dev=.5)
+            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                    window_type='gaussian', std_dev=.5)
 
     def test_PoolingWindows_project(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+        pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw = pw.to(device)
         pooled = pw(im)
         pw.project(pooled)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
         pw = pw.to(device)
         pooled = pw(im)
         pw.project(pooled)
@@ -400,13 +400,13 @@ class TestPooling(object):
             devices = list(range(torch.cuda.device_count()))
             im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
             im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+            pw = po.simul.PoolingWindows(.5, im.shape[2:])
             pw = pw.parallel(devices)
             pw(im)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+            pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
             pw = pw.parallel(devices)
             pw(im)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
+            pw = po.simul.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
             pw = pw.parallel(devices)
             pw(im)
             for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
@@ -426,11 +426,11 @@ class TestPooling(object):
                 pw.plot_window_widths('pixels', i)
             fig = pt.imshow(po.to_numpy(im).squeeze())
             pw.plot_windows(fig.axes[0])
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+            pw = po.simul.PoolingWindows(.5, im.shape[2:])
             pw = pw.parallel(devices)
             pooled = pw(im)
             pw.project(pooled)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+            pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
             pw = pw.parallel(devices)
             pooled = pw(im)
             pw.project(pooled)
@@ -439,7 +439,7 @@ class TestPooling(object):
         # test the window and pool function separate of the forward function
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+        pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw.pool(pw.window(im))
 
 # class TestSpectral(object):
