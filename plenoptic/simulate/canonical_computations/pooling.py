@@ -1666,8 +1666,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
                            radial_to_circumferential_ratio=2, window_type='cosine',
                            transition_region_width=.5, std_dev=None, device=None,
-                           center_surround_ratio=.53, surround_std_dev=10.1,
-                           transition_x=None):
+                           surround_std_dev=10.1, transition_x=None):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -1719,9 +1718,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         that has approximately the same structure, or a difference of
         two such gaussians (``'dog'``, as in [2]_). If cosine,
         ``transition_region_width`` must be set; if gaussian, then
-        ``std_dev`` must be set; if dog, then ``std_dev``,
-        ``center_surround_ratio``, and ``surround_std_dev`` must all be
-        set.
+        ``std_dev`` must be set; if dog, then ``std_dev`` and
+        ``surround_std_dev`` must all be set.
     transition_region_width : `float` or None, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
@@ -1731,10 +1729,6 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         correctly
     device : str or torch.device
         the device to create these tensors on
-    center_surround_ratio : float, optional
-        ratio giving the relative weights of the center and surround
-        gaussians. default is the value from [2]_ (this is parameter
-        :math:`w_c` from that paper)
     surround_std_dev : float, optional
         the standard deviation of the surround Gaussian window. default
         is the value from [2]_ (assuming ``std_dev=1``, this is
@@ -1880,8 +1874,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     return angle_tensor, ecc_tensor
 
 
-def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
-                      center_surround_ratio=None, linear=False):
+def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
+                      center_surround_ratio=None):
     r"""normalize windows to have L1-norm of 1
 
     we calculate the L1-norm of single windows (that is, product of
@@ -1903,18 +1897,20 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
         dictionary containing the angular windows
     ecc_windows : dict
         dictionary containing the eccentricity windows
-    window_width_pixels : array_like
-        array containing radial full widths (in pixels) of each
-        window. therefore, must have an element for each eccentricity
-        window
+    window_eccentricity : array_like
+        array containing the eccentricity for each window that defines
+        their location relative to each other (and so can be in either
+        pixels or degrees). this is used to determine how to scale the
+        L1-norm. It should probably be the central eccentricity, but it
+        should not contain any zeros; thus the central eccentricity
+        won't work if we're using ``transition_x`` instead of
+        ``min_eccentricity`` to build the windows, and so use something
+        like one std dev away from central eccentricity instead.
     scale : int, optional
         which scale to calculate norm for and modify
     center_surround_ratio : float or None, optional
         if windows are DoGs, then need this ratio to properly construct
         the window (weights the difference between center and surround)
-    linaer : bool, optional
-        if False, scale windows as described above. if True, scale all
-        windows by same amount
 
     Returns
     -------
@@ -1929,6 +1925,18 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
         w = torch.einsum('ahw,hw->ahw', angle_windows[scale], ecc_windows[scale][n])
         l1 = torch.norm(w, 1, (-1, -2))
         l1 = l1.mean(0)
+        # the l1 norm grows with the area of the windows; the radial
+        # direction width grows with the reciprocal of the derivative of
+        # log(ecc), which is ecc, and the angular direction width grows
+        # with the eccentricity as well. so l1 norm grows with the
+        # eccentricity squared
+        deriv = window_eccentricity**2
+        deriv_scaled = deriv / deriv[n]
+        scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
+        while scale_factor.ndim < 3:
+            scale_factor = scale_factor.unsqueeze(-1)
+        ecc_windows[scale] = ecc_windows[scale] * scale_factor
+        new_ratio = None
     except KeyError:
         # then these are dog windows with separate centers and
         # surrounds. pick some window with a middling eccentricity
@@ -1941,18 +1949,25 @@ def normalize_windows(angle_windows, ecc_windows, window_width_pixels, scale=0,
         # get the l1 norm of a single window
         l1 = torch.norm(w, 1, (-1, -2))
         l1 = l1.mean(0)
-    # the l1 norm grows with eccentricity squared (because it's
-    # proportional to the area of the windows)
-    if not linear:
-        # scale_factor = (l1*(window_width_pixels / window_width_pixels[n])**2).to(torch.float32)
-        scale_factor = (l1*(window_width_pixels / window_width_pixels[n])).to(torch.float32)
-    else:
-        scale_factor = (l1*torch.ones(len(window_width_pixels)))
-    while scale_factor.ndim < 3:
-        scale_factor = scale_factor.unsqueeze(-1)
-    try:
-        ecc_windows[scale] = ecc_windows[scale] / scale_factor
-    except KeyError:
-        ecc_windows['center'][scale] = ecc_windows['center'][scale] / scale_factor
-        ecc_windows['surround'][scale] = ecc_windows['surround'][scale] / scale_factor
-    return ecc_windows, scale_factor
+        # the l1 norm grows with the area of the windows; the radial
+        # direction width grows with the reciprocal of the derivative of
+        # our piecewise function, and the angular direction width grows
+        # with the eccentricity. so l1 norm grows with their product
+        deriv = 1 / piecewise_log_derivative(window_eccentricity)
+        deriv *= window_eccentricity
+        deriv_scaled = deriv / deriv[n]
+        scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
+        while scale_factor.ndim < 3:
+            scale_factor = scale_factor.unsqueeze(-1)
+        ecc_windows['center'][scale] = ecc_windows['center'][scale] * scale_factor
+        ecc_windows['surround'][scale] = ecc_windows['surround'][scale] * scale_factor
+        # now need to normalize the center_surround_ratio, which will
+        # also be off because of the log-polar stretching we do and the
+        # failure of the Taylor approximation to capture it
+        ctr = torch.einsum('ahw,ehw->ea', angle_windows['center'][scale],
+                           ecc_windows['center'][scale])
+        sur = torch.einsum('ahw,ehw->ea', angle_windows['surround'][scale],
+                           ecc_windows['surround'][scale])
+        target_val = 2*center_surround_ratio - 1
+        new_ratio = (target_val + sur) / (ctr + sur)
+    return ecc_windows, scale_factor, new_ratio
