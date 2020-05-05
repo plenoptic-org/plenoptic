@@ -152,6 +152,12 @@ class PoolingWindows(nn.Module):
         ratio giving the relative weights of the center and surround
         gaussians. default is the value from [2]_ (this is parameter
         :math:`w_c` from that paper)
+    corrected_center_surround_ratio : dict
+        dict of 2d tensors (eccentricity by angular windows) that gives
+        the actual center/surround ratio that gets used for DoG windows
+        (the different amount of stretching requires some
+        correction). If ``window_type!='dog'``, this is empty. Each key
+        is a different scale.
     surround_std_dev : float or None
         the standard deviation of the surround Gaussian window. default
         is the value from [2]_ (assuming ``std_dev=1``, this is
@@ -169,11 +175,15 @@ class PoolingWindows(nn.Module):
         different way (see that method for details)
     ecc_windows : dict
         A dict of 3d tensors containing the log-eccentricity pooling
-        windows in which the model parameters are averaged. Each entry
-        in the list corresponds to a different scale and thus is a
+        windows in which the model parameters are averaged. Each key
+        in the dict corresponds to a different scale and thus is a
         different size. If you have called ``parallel()``, this will be
         structured in a slightly different way (see that method for
         details)
+    norm_factor : dict
+        a dict of 3d tensors containing the values used to normalize
+        ecc_windows. Each key corresponds to a different scale. This is
+        stored to undo that normalization for plotting and projection.
     state_dict_reduced : dict
         A dictionary containing those attributes necessary to initialize
         the model, plus a 'model_name' field which the ``load_reduced``
@@ -292,6 +302,7 @@ class PoolingWindows(nn.Module):
         self.angle_windows = {}
         self.ecc_windows = {}
         self.norm_factor = {}
+        self.corrected_center_surround_ratio = {}
         if window_type == 'cosine':
             assert transition_region_width is not None, "cosine windows need transition region widths!"
             self.transition_region_width = float(transition_region_width)
@@ -354,7 +365,6 @@ class PoolingWindows(nn.Module):
             # we have separate center and surround dictionaries:
             self.angle_windows = {'center': {}, 'surround': {}}
             self.ecc_windows = {'center': {}, 'surround': {}}
-            self.corrected_center_surround_ratio = {}
         self.num_devices = 1
         if cache_dir is not None:
             self.cache_dir = op.expanduser(cache_dir)
@@ -440,8 +450,7 @@ class PoolingWindows(nn.Module):
                 self.angle_windows[i] = angle_windows
                 self.ecc_windows[i] = ecc_windows
             self.ecc_windows, norm_factor, new_ratio = pooling.normalize_windows(
-                self.angle_windows, self.ecc_windows,
-                self.central_eccentricity_degrees,
+                self.angle_windows, self.ecc_windows, self.one_std_dev_eccentricity_degrees,
                 i, self.center_surround_ratio)
             self.norm_factor[i] = norm_factor
             if window_type == 'dog':
@@ -484,6 +493,10 @@ class PoolingWindows(nn.Module):
         self.central_eccentricity_degrees = pooling.calc_windows_eccentricity(
             'central', self.n_eccentricity_bands, ecc_window_width, self.min_eccentricity,
             transition_x=self.transition_x)
+        if window_type == 'gaussian':
+            self.one_std_dev_eccentricity_degrees = pooling.calc_windows_eccentricity(
+                '1std', self.n_eccentricity_bands, ecc_window_width, self.min_eccentricity,
+                transition_x=self.transition_x, std_dev=self.std_dev)
         self.window_width_degrees['radial_half'] = self.scaling * self.central_eccentricity_degrees
         # the 2 we divide by here is the
         # radial_to_circumferential_ratio; if we ever allow that to be
@@ -623,9 +636,8 @@ class PoolingWindows(nn.Module):
         if hasattr(self, 'meshgrid'):
             for k, v in other_PoolingWindows.meshgrid.items():
                 self.meshgrid[k+scale_offset] = v
-        if hasattr(self, 'corrected_center_surround_ratio'):
-            for k, v in other_PoolingWindows.corrected_center_surround_ratio.items():
-                self.corrected_center_surround_ratio[k+scale_offset] = v
+        for k, v in other_PoolingWindows.corrected_center_surround_ratio.items():
+            self.corrected_center_surround_ratio[k+scale_offset] = v
 
     @staticmethod
     def _get_slice_vals(scaled_window_res, scaled_img_res):
@@ -1245,6 +1257,8 @@ class PoolingWindows(nn.Module):
             sur = torch.ones_like(sur)
         ctr = self.project(ctr, idx, output_device, 'center')
         sur = self.project(sur, idx, output_device, 'surround')
+        # I think this should be with the target center_surround_ratio
+        # rather than the corrected one.
         return self.center_surround_ratio * ctr - (1 - self.center_surround_ratio) * sur
 
     def plot_windows(self, ax=None, contour_levels=None, colors='r',

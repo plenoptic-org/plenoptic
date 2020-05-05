@@ -32,6 +32,7 @@ pooling_windows.py contains the PoolingWindows class, which uses most of these f
 
 """
 import math
+import re
 import torch
 import warnings
 import numpy as np
@@ -666,7 +667,7 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None, transition_x=N
         s &= \exp(x_h\cdot w_e) -  \exp(-x_h\cdot w_e)
 
     Note that we don't actually use the value returned by
-    ``calc_windows_central_eccentricity`` for :math:`e_c`; we simplify
+    ``calc_windows_eccentricity`` for :math:`e_c`; we simplify
     it away in the calculation above.
 
     If ``transition_x`` is set, things are different. Following similar
@@ -769,10 +770,13 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
 
     Parameters
     ----------
-    ecc_type : {'min', 'central', 'max'}
+    ecc_type : {'min', 'central', 'max', '{n}std'}
         Which eccentricity you want to calculate: the minimum one where
         x=-(1+t)/2, the central one where x=0, or the maximum one where
-        x=(1+t)/2
+        x=(1+t)/2. if std_dev is set, minimum and maximum are +/- 3
+        std_dev. if '{n}std' (where n is a positive or negative
+        integer), then we return the eccentricity at that many std_dev
+        away from center (only std_dev is set).
     n_windows : `float`
         The number of log-eccentricity windows we create. n_windows can
         be a non-integer, in which case we round it up (thus one of our
@@ -886,7 +890,7 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
        e_{max} &= \plog^{-1}{-3\sigma w_e + w_e n}
 
     """
-    if ecc_type not in ['min', 'max', 'central']:
+    if ecc_type not in ['min', 'max', 'central'] and not ecc_type.endswith('std'):
         raise Exception(f"Don't know how to handle ecc_type {ecc_type}")
     if transition_x is None:
         if ecc_type == 'central':
@@ -905,6 +909,13 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
             else:
                 ecc = [(np.exp(3*std_dev*window_spacing) * min_ecc *
                         np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
+        elif ecc_type.endswith('std'):
+            if std_dev is None:
+                raise Exception(f"std_dev must be set if ecc_type == {ecc_type}")
+            else:
+                n = int(re.findall('([-0-9]+)std', ecc_type)[0])
+                ecc = [(np.exp(n*std_dev*window_spacing) * min_ecc *
+                        np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
     else:
         if ecc_type != 'central' and std_dev is None:
             # std_dev doesn't matter for ecc_type = central, so it might
@@ -918,6 +929,10 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
                    np.arange(np.ceil(n_windows))]
         elif ecc_type == 'max':
             ecc = [piecewise_log_inverse(window_spacing * (i + 3 * std_dev)) for i in
+                   np.arange(np.ceil(n_windows))]
+        elif ecc_type.endswith('std'):
+            n = int(re.findall('([-0-9]+)std', ecc_type)[0])
+            ecc = [piecewise_log_inverse(window_spacing * (i + n * std_dev)) for i in
                    np.arange(np.ceil(n_windows))]
     return np.array(ecc)
 
@@ -1884,10 +1899,14 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
     (because of alignment with pixel grid, L1-norm will vary somewhat
     across angles).
 
-    I think L1-norm scales linearly with area, which is proportional to
-    window_width^2, so we use that to scale it for the different
-    windows. only eccentricity windows is normalized (don't need to
-    divide both).
+    L1-norm scales linearly with area, which is proportional to the
+    width in the angular direction times the width in the radial
+    direction. The angular width grows linearly with eccentricity, while
+    the radial width grows with the reciprocal of the derivative of our
+    scaling function (that's log(ecc) for gaussian windows or our
+    piecewise_log function for DoG windows). so we use that product to
+    scale it for the different windows. only eccentricity windows is
+    normalized (don't need to divide both).
 
     this works with either DoG-style windows or regular ones.
 
@@ -1916,6 +1935,25 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
     -------
     ecc_windows : dict
         the normalized ecc_windows. only ``scale`` is modified
+    scale_factor : torch.tensor
+        the scale_factor used to normalize eccentricity windows at this
+        scale (as a 3d tensor, number of eccentricity windows by 1 by
+        1). stored by ``PoolingWindows`` object so we can undo it for
+        ``project()`` or plotting purposes
+    new_ratio : torch.tensor
+        2d tensor (number of eccentricity windows by number of angular
+        windows) containing the empirical correction for difference of
+        gaussians. because the center and surround are different sizes,
+        they're stretched slightly differently by our eccentricity
+        warping function. this tensor is used to correct the
+        center/surround weighting so that we end up with the target
+        output value, and contains a separate one for each angle by
+        eccentricity (because the amount you need to correct will depend
+        on angle *and* eccentricity at both fovea, where the alignment
+        with pixel grid matters a lot, and the periphery, where
+        different angles result in different eccentricities falling off
+        the edge of the image). this is all handled automatically by the
+        ``PoolingWindows`` object
 
     """
     try:
