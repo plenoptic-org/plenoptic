@@ -1968,7 +1968,7 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
         # log(ecc), which is ecc, and the angular direction width grows
         # with the eccentricity as well. so l1 norm grows with the
         # eccentricity squared
-        deriv = window_eccentricity**2
+        deriv = torch.tensor(window_eccentricity**2, dtype=torch.float32)
         deriv_scaled = deriv / deriv[n]
         scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
         while scale_factor.ndim < 3:
