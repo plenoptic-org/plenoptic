@@ -1514,3 +1514,72 @@ class PoolingWindows(nn.Module):
         ax.set_xlabel('Window central eccentricity (%s)' % units)
         ax.legend(loc='upper left')
         return fig
+
+    def plot_dog_checks(self, angle_n=0, scale=0, plot_transition_x=True):
+        r"""Make some plots to check whether DoG windows have been normalized properly
+
+        Getting the DoG windows to be properly normalized (so that the
+        center and surround have the proper balance) has been difficult,
+        so this plot function can be used to double-check that
+        everything worked out correctly
+
+        It will create a figure with two sets of plots: the first row
+        shows the L1-norm of the windows, the second shows the sum. Each
+        row contains three plots, showing the plot for the center
+        windows, the surround windows, and their difference.
+
+        The center and surround plots, in both rows, should be 0 up
+        until about `transition_x` (if `plot_transition_x=True`, this
+        will be plotted as a dotted line), at which poitn they should
+        rapidly rise and then saturate at a constant value, where
+        they'll remain until the periphery, at whcih point they'll ramp
+        back down to 0.
+
+        The different plot will look like this for the L1-norm plot, but
+        it should have a value of 1 when it saturates. For the sum plot,
+        it will be at some much smaller value, equal to
+        2*`center_surround_ratio`-1.
+
+        Parameters
+        ------
+        angle_n : int, optional
+            we plot theis for one angle slice at a time. this specifies
+            the slice.
+        scale : int, optional
+            we plot this for one scale at a time. this specifies the
+            scale.
+        plot_transition_x : bool, optional
+            whether to plot a dotted lin showing the x-value of
+            transition_x
+
+        Returns
+        -------
+        fig : plt.Figure
+            the figure containing the plot
+
+        """
+        r = self.corrected_center_surround_ratio[scale][:, angle_n].unsqueeze(-1).unsqueeze(-1)
+        angle_all = self.corrected_center_surround_ratio[scale].shape[1]
+        ctr = torch.einsum('hw,ehw->ehw', self.angle_windows['center'][scale][angle_n],
+                           self.ecc_windows['center'][scale])
+        sur = torch.einsum('hw,ehw->ehw', self.angle_windows['surround'][scale][angle_n],
+                           self.ecc_windows['surround'][scale])
+        windows = r * ctr - (1 - r) * sur
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10), gridspec_kw={'hspace': .4})
+        for ax, d, t in zip(axes[0], [ctr, sur, windows], ['Center', 'Surround', 'Difference']):
+            ax.semilogx(self.central_eccentricity_degrees, torch.norm(d, 1, (-1, -2)))
+            ax.scatter(self.central_eccentricity_degrees, torch.norm(d, 1, (-1, -2)))
+            ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel='L1-norm')
+            if plot_transition_x:
+                ax.vlines(self.transition_x, 0, torch.norm(d, 1, (-1, -2)).max(), linestyles='--')
+        fig.text(.5, .91, f'L1-norm of windows in angle slice {angle_n} out of {angle_all}',
+                 ha='center', fontsize=1.5*plt.rcParams['font.size'])
+        for ax, d, t in zip(axes[1], [ctr, sur, windows], ['Center', 'Surround', 'Difference']):
+            ax.semilogx(self.central_eccentricity_degrees, torch.sum(d, (-1, -2)))
+            ax.scatter(self.central_eccentricity_degrees, torch.sum(d, (-1, -2)))
+            ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel='Sum')
+            if plot_transition_x:
+                ax.vlines(self.transition_x, 0, torch.sum(d, (-1, -2)).max(), linestyles='--')
+        fig.text(.5, .47, f'Sum of windows in angle slice {angle_n} out of {angle_all}',
+                 ha='center', fontsize=1.5*plt.rcParams['font.size'])
+        return fig
