@@ -449,9 +449,14 @@ class PoolingWindows(nn.Module):
             else:
                 self.angle_windows[i] = angle_windows
                 self.ecc_windows[i] = ecc_windows
+            # if we have the eccentricity one std dev away from center, use that.
+            try:
+                ecc = self.one_std_dev_eccentricity_degrees
+            # otherwise, use the central one.
+            except AttributeError:
+                ecc = self.central_eccentricity_degrees
             self.ecc_windows, norm_factor, new_ratio = pooling.normalize_windows(
-                self.angle_windows, self.ecc_windows, self.one_std_dev_eccentricity_degrees,
-                i, self.center_surround_ratio)
+                self.angle_windows, self.ecc_windows, ecc, i, self.center_surround_ratio)
             self.norm_factor[i] = norm_factor
             if window_type == 'dog':
                 self.corrected_center_surround_ratio[i] = new_ratio
