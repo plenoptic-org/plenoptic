@@ -573,15 +573,15 @@ class PoolingWindows(nn.Module):
             for k, v in self.norm_factor.items():
                 self.norm_factor[k] = v.to(*args, **kwargs)
         else:
+            for k, v in self.norm_factor.items():
+                self.norm_factor[k] = v.to(*args, **kwargs)
+            for k, v in self.corrected_center_surround_ratio.items():
+                self.corrected_center_surround_ratio[k] = v.to(*args, **kwargs)
             for s in ['center', 'surround']:
                 for k, v in self.angle_windows[s].items():
                     self.angle_windows[s][k] = v.to(*args, **kwargs)
                 for k, v in self.ecc_windows[s].items():
                     self.ecc_windows[s][k] = v.to(*args, **kwargs)
-                for k, v in self.norm_factor[s].items():
-                    self.norm_factor[s][k] = v.to(*args, **kwargs)
-                for k, v in self.corrected_center_surround_ratio[s].items():
-                    self.corrected_center_surround_ratio[s][k] = v.to(*args, **kwargs)
         if hasattr(self, 'meshgrid'):
             # we don't want to change the dtype of meshgrid
             args = [a for a in args if not isinstance(a, torch.dtype)]
