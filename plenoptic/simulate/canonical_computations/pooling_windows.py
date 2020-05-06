@@ -338,6 +338,12 @@ class PoolingWindows(nn.Module):
                                           "If you want more scales, need to think about how to "
                                           "handle transition_x for higher scales -- should it "
                                           "change the same way min_eccentricity does?")
+            warnings.warn("DoG windows will only work well with windows that are pixel-wise "
+                          "relatively large (to avoid aliasing near the fovea) and degree-wise "
+                          "relatively small (so that the Taylor approximation of our warping "
+                          "function is pretty good). Thus, it will not work well for small (in "
+                          "pixels) images and only for some scaling values. Use the method"
+                          "`plot_dog_checks()` for help checking")
             assert std_dev is not None, "DoG windows need standard deviations!"
             assert surround_std_dev is not None, "DoG windows need surround standard deviations!"
             assert center_surround_ratio is not None, "DoG windows need center surround ratios!"

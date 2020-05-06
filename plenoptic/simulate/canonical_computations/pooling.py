@@ -1822,10 +1822,6 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     if window_type == 'dog':
         dog = True
         window_type = 'gaussian'
-        warnings.warn("This will not tile correctly at the fovea, due to differences in the rate "
-                      "at which the sums across the center and surround windows rise to 1. "
-                      "The PoolingWindows object has a work-around for this, use that for any "
-                      "application of these windows.")
     else:
         dog = False
     ecc_window_spacing = calc_eccentricity_window_spacing(min_eccentricity, max_eccentricity,
