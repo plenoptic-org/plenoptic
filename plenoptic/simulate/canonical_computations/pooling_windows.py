@@ -343,7 +343,7 @@ class PoolingWindows(nn.Module):
                           "relatively small (so that the Taylor approximation of our warping "
                           "function is pretty good). Thus, it will not work well for small (in "
                           "pixels) images and only for some scaling values. Use the method"
-                          "`plot_dog_checks()` for help checking")
+                          "`plot_window_checks()` for help checking")
             assert std_dev is not None, "DoG windows need standard deviations!"
             assert surround_std_dev is not None, "DoG windows need surround standard deviations!"
             assert center_surround_ratio is not None, "DoG windows need center surround ratios!"
@@ -1515,7 +1515,7 @@ class PoolingWindows(nn.Module):
         ax.legend(loc='upper left')
         return fig
 
-    def plot_dog_checks(self, angle_n=0, scale=0, plot_transition_x=True):
+    def plot_window_checks(self, angle_n=0, scale=0, plot_transition_x=True):
         r"""Make some plots to check whether DoG windows have been normalized properly
 
         Getting the DoG windows to be properly normalized (so that the
@@ -1524,9 +1524,11 @@ class PoolingWindows(nn.Module):
         everything worked out correctly
 
         It will create a figure with two sets of plots: the first row
-        shows the L1-norm of the windows, the second shows the sum. Each
-        row contains three plots, showing the plot for the center
-        windows, the surround windows, and their difference.
+        shows the L1-norm of the windows, the second shows the sum.
+
+        For DoG windows, each row contains three plots, showing the plot
+        for the center windows, the surround windows, and their
+        difference.
 
         The center and surround plots, in both rows, should be 0 up
         until about `transition_x` (if `plot_transition_x=True`, this
@@ -1540,11 +1542,18 @@ class PoolingWindows(nn.Module):
         it will be at some much smaller value, equal to
         2*`center_surround_ratio`-1.
 
+        For non-DoG windows, each row will have one plot and they should
+        each look like a sigmoid function that runs from 1 for small
+        eccentricities to 0 for high eccentricities
+
+        You can plot multiple angle slices, and each should look more or
+        less the same
+
         Parameters
         ------
-        angle_n : int, optional
-            we plot theis for one angle slice at a time. this specifies
-            the slice.
+        angle_n : int or list, optional
+            Which angle slice(s) to show. Can be a single int or a list
+            of ints, in which case we plot each as a separate color
         scale : int, optional
             we plot this for one scale at a time. this specifies the
             scale.
@@ -1558,28 +1567,46 @@ class PoolingWindows(nn.Module):
             the figure containing the plot
 
         """
-        r = self.corrected_center_surround_ratio[scale][:, angle_n].unsqueeze(-1).unsqueeze(-1)
-        angle_all = self.corrected_center_surround_ratio[scale].shape[1]
-        ctr = torch.einsum('hw,ehw->ehw', self.angle_windows['center'][scale][angle_n],
-                           self.ecc_windows['center'][scale])
-        sur = torch.einsum('hw,ehw->ehw', self.angle_windows['surround'][scale][angle_n],
-                           self.ecc_windows['surround'][scale])
-        windows = r * ctr - (1 - r) * sur
-        fig, axes = plt.subplots(2, 3, figsize=(15, 10), gridspec_kw={'hspace': .4})
-        for ax, d, t in zip(axes[0], [ctr, sur, windows], ['Center', 'Surround', 'Difference']):
-            ax.semilogx(self.central_eccentricity_degrees, torch.norm(d, 1, (-1, -2)))
-            ax.scatter(self.central_eccentricity_degrees, torch.norm(d, 1, (-1, -2)))
-            ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel='L1-norm')
-            if plot_transition_x:
-                ax.vlines(self.transition_x, 0, torch.norm(d, 1, (-1, -2)).max(), linestyles='--')
-        fig.text(.5, .91, f'L1-norm of windows in angle slice {angle_n} out of {angle_all}',
-                 ha='center', fontsize=1.5*plt.rcParams['font.size'])
-        for ax, d, t in zip(axes[1], [ctr, sur, windows], ['Center', 'Surround', 'Difference']):
-            ax.semilogx(self.central_eccentricity_degrees, torch.sum(d, (-1, -2)))
-            ax.scatter(self.central_eccentricity_degrees, torch.sum(d, (-1, -2)))
-            ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel='Sum')
-            if plot_transition_x:
-                ax.vlines(self.transition_x, 0, torch.sum(d, (-1, -2)).max(), linestyles='--')
-        fig.text(.5, .47, f'Sum of windows in angle slice {angle_n} out of {angle_all}',
-                 ha='center', fontsize=1.5*plt.rcParams['font.size'])
+        if not hasattr(angle_n, '__iter__'):
+            angle_n = [angle_n]
+        einsum_str = 'ahw,ehw->eahw'
+        legend = True
+        funcs = [lambda x: torch.norm(x, 1, (-1, -2)), lambda x: torch.sum(x, (-1, -2))]
+        if self.window_type == 'dog':
+            angle_all = self.angle_windows['center'][scale].shape[0]
+            r = self.corrected_center_surround_ratio[scale][:, angle_n].unsqueeze(-1).unsqueeze(-1)
+            ctr = torch.einsum(einsum_str, self.angle_windows['center'][scale][angle_n],
+                               self.ecc_windows['center'][scale])
+            sur = torch.einsum(einsum_str, self.angle_windows['surround'][scale][angle_n],
+                               self.ecc_windows['surround'][scale])
+            windows = r * ctr - (1 - r) * sur
+            data = [ctr, sur, windows]
+            titles = ['Center', 'Surround', 'Difference']
+        else:
+            angle_all = self.angle_windows[scale].shape[0]
+            windows = torch.einsum(einsum_str, self.angle_windows[scale][angle_n],
+                                   self.ecc_windows[scale])
+            data = [windows]
+            titles = ['Windows']
+        fig, axes = plt.subplots(2, len(data), figsize=(5*len(data), 10),
+                                 gridspec_kw={'hspace': .4})
+        if len(data) == 1:
+            axes = [[axes[0]], [axes[1]]]
+        for i, (f, name) in enumerate(zip(funcs, ['L1-norm', 'Sum'])):
+            for j, (ax, d, t) in enumerate(zip(axes[i], data, titles)):
+                d = f(d)
+                ax.semilogx(self.central_eccentricity_degrees, d)
+                for k, dk in enumerate(d.transpose(0, 1)):
+                    if i == 0 and j == 0:
+                        label = angle_n[k]
+                    else:
+                        label = None
+                    ax.scatter(self.central_eccentricity_degrees, dk, label=label)
+                ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel=name)
+                if plot_transition_x:
+                    ax.vlines(self.transition_x, 0, d.max(), linestyles='--')
+            fig.text(.5, [.91, .47][i], ha='center', fontsize=1.5*plt.rcParams['font.size'],
+                     s=f'{name} of windows in some angle slices out of {angle_all}')
+        if legend:
+            fig.legend(loc='center right', title='Angle slices')
         return fig
