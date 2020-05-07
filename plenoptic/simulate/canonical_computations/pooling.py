@@ -2004,4 +2004,9 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
                            ecc_windows['surround'][scale])
         target_val = 2*center_surround_ratio - 1
         new_ratio = (target_val + sur) / (ctr + sur)
+        # if both ctr and sur sum to 0 in the above, then new_ratio
+        # would be inf there, which is obviously wrong. if they're both
+        # 0, then it doesn't matter what the ratio is, the output will
+        # still be 0, so we just set it to 1
+        new_ratio[torch.isinf(new_ratio)] = 1
     return ecc_windows, scale_factor, new_ratio
