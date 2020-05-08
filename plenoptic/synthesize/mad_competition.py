@@ -1033,7 +1033,9 @@ class MADCompetition(Synthesis):
         coarse_to_fine : bool, optional
             If True, we attempt to use the coarse-to-fine optimization
             (see above for more details on what's required of the model
-            for this to work).
+            for this to work). Note this only affects the target model's
+            optimization, the stable model is always optimized as if
+            coarse_to_fine=False
         clip_grad_norm : bool or float, optional
             If the gradient norm gets too large, the optimization can
             run into problems with numerical overflow. In order to avoid

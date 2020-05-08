@@ -2,7 +2,6 @@ import torch
 from tqdm import tqdm
 from .Synthesis import Synthesis
 from ..tools.metamer_utils import RangeClamper
-from matplotlib import animation
 
 
 class Metamer(Synthesis):
