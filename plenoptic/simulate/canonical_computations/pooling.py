@@ -2009,4 +2009,7 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
         # 0, then it doesn't matter what the ratio is, the output will
         # still be 0, so we just set it to 1
         new_ratio[torch.isinf(new_ratio)] = 1
+        # we can also get nan, when target_val is also 0 (in addition to
+        # ctr and sur) -- we handle this the same way, so set to 1
+        new_ratio[torch.isnan(new_ratio)] = 1
     return ecc_windows, scale_factor, new_ratio
