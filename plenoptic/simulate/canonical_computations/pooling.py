@@ -1969,6 +1969,12 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
         scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
         while scale_factor.ndim < 3:
             scale_factor = scale_factor.unsqueeze(-1)
+        # there's a chance we'll have more windows accounted for in
+        # scale factor then we actually made (because we calculate
+        # details for windows that go out farther, just in case). if
+        # that's so, drop the extra scale factor
+        if len(scale_factor) > len(ecc_windows[scale]):
+            scale_factor = scale_factor[:len(ecc_windows[scale])]
         ecc_windows[scale] = ecc_windows[scale] * scale_factor
         new_ratio = None
     except KeyError:
@@ -1993,6 +1999,12 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0,
         scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
         while scale_factor.ndim < 3:
             scale_factor = scale_factor.unsqueeze(-1)
+        # there's a chance we'll have more windows accounted for in
+        # scale factor then we actually made (because we calculate
+        # details for windows that go out farther, just in case). if
+        # that's so, drop the extra scale factor
+        if len(scale_factor) > len(ecc_windows['center'][scale]):
+            scale_factor = scale_factor[:len(ecc_windows['center'][scale])]
         ecc_windows['center'][scale] = ecc_windows['center'][scale] * scale_factor
         ecc_windows['surround'][scale] = ecc_windows['surround'][scale] * scale_factor
         # now need to normalize the center_surround_ratio, which will
