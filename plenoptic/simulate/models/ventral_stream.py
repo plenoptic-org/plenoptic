@@ -546,7 +546,13 @@ class VentralModel(nn.Module):
             data = self.representation
 
         if isinstance(data, dict):
-            rep_copy = dict((k, to_numpy(v[batch_idx]).flatten()) for k, v in data.items())
+            rep_copy = {}
+            for k, v in data.items():
+                # if that batch_idx is included. otherwise, assume it's
+                # been flattened already
+                if len(v.shape) > 1:
+                    v = v[batch_idx]
+                rep_copy[k] = to_numpy(v).flatten()
         else:
             rep_copy = to_numpy(data[batch_idx]).flatten()
         return rep_copy
