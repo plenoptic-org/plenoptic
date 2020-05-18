@@ -26,7 +26,7 @@ setup(
     packages=['plenoptic', 'plenoptic.simulate', 'plenoptic.synthesize',
               'plenoptic.tools'],
     install_requires=['numpy>=1.1',
-                      'torch>=1.1',
+                      'torch>=1.4',
                       'pyrtools>=0.9.1',
                       'scipy>=1.0',
                       'matplotlib>=3.1',

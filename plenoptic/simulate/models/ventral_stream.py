@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from torch import nn
 from ..canonical_computations.non_linearities import zscore_stats, cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
-from ..canonical_computations.pooling import PoolingWindows
+from ..canonical_computations.pooling_windows import PoolingWindows
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 from ...tools.data import to_numpy
 
@@ -198,18 +198,20 @@ class VentralModel(nn.Module):
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
                  transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
-                 std_dev=None):
+                 std_dev=None, center_surround_ratio=.53, surround_std_dev=3, transition_x=None):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
                                              num_scales, cache_dir, window_type,
-                                             transition_region_width, std_dev)
+                                             transition_region_width, std_dev,
+                                             center_surround_ratio, surround_std_dev, transition_x)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
                      'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res',
-                     'window_type', 'std_dev']:
+                     'window_type', 'std_dev', 'surround_std_dev', 'center_surround_ratio',
+                     'transition_x']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
         self.state_dict_reduced['cone_power'] = cone_power
         self.cone_power = cone_power
@@ -544,7 +546,13 @@ class VentralModel(nn.Module):
             data = self.representation
 
         if isinstance(data, dict):
-            rep_copy = dict((k, to_numpy(v[batch_idx]).flatten()) for k, v in data.items())
+            rep_copy = {}
+            for k, v in data.items():
+                # if that batch_idx is included. otherwise, assume it's
+                # been flattened already
+                if len(v.shape) > 1:
+                    v = v[batch_idx]
+                rep_copy[k] = to_numpy(v).flatten()
         else:
             rep_copy = to_numpy(data[batch_idx]).flatten()
         return rep_copy
@@ -831,17 +839,33 @@ class RetinalGanglionCells(VentralModel):
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
         represents the non-linear response of the cones to photons.
+    center_representation : torch.tensor or None
+        the representation of the RGC centers. None if window_type is
+        'gaussian' or 'cosine', tensor if window_type is 'dog'. this is
+        not necessary for synthesis or computing the actual
+        representation (that's all handled within PoolingWindows), so
+        may remove this if it ends up taking too much memory
+    surround_representation : torch.tensor or None
+        the representation of the RGC surrounds. None if window_type is
+        'gaussian' or 'cosine', tensor if window_type is 'dog'. this is
+        not necessary for synthesis or computing the actual
+        representation (that's all handled within PoolingWindows), so
+        may remove this if it ends up taking too much memory
 
     """
     def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
                  transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
-                 std_dev=None):
+                 std_dev=None, center_surround_ratio=.53, surround_std_dev=3, transition_x=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          transition_region_width=transition_region_width, cone_power=cone_power,
-                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev,
+                         center_surround_ratio=center_surround_ratio, transition_x=transition_x,
+                         surround_std_dev=surround_std_dev)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.representation = None
+        self.center_representation = None
+        self.surround_representation = None
 
     def forward(self, image):
         r"""Generate the RGC representation of an image
@@ -867,13 +891,26 @@ class RetinalGanglionCells(VentralModel):
         cone_responses = cone(image, self.cone_power)
         self.cone_responses = cone_responses.detach().clone()
         self.representation = self.PoolingWindows(cone_responses)
+        if self.window_type == 'dog':
+            self.center_representation = self.PoolingWindows.forward(cone_responses,
+                                                                     windows_key='center')
+            self.surround_representation = self.PoolingWindows.forward(cone_responses,
+                                                                       windows_key='surround')
         return self.representation
 
-    def _plot_helper(self, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
+    def _plot_helper(self, n_cols=1, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
         r"""helper function for plotting that takes care of a lot of the standard stuff
+
+        If n_cols is 1, we assume this RGC model has ``window_type``
+        'gaussian' or 'cosine'. Only other use case we expect is
+        n_cols=3, for ``window_type='dog'``. Should still work if these
+        expectations are violated, but things might not be quite correct
 
         Parameters
         ----------
+        n_cols : int
+            The number oc columns in the (sub-)figure we're creating (we
+            always have a single row)
         figsize : tuple, optional
             The size of the figure to create
         ax : matplotlib.pyplot.axis or None, optional
@@ -900,37 +937,65 @@ class RetinalGanglionCells(VentralModel):
             The output of self._representation_for_plotting(batch_idx, data)
         title : str
             The title to use
+
         """
+        if not isinstance(title, list):
+            title = [title] * n_cols
         if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            fig, ax = plt.subplots(1, n_cols, figsize=figsize)
         else:
             warnings.warn("ax is not None, so we're ignoring figsize...")
+            if n_cols > 1:
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                gs = ax.get_subplotspec().subgridspec(1, n_cols)
+                fig = ax.figure
+                ax = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
+        if n_cols > 1:
+            title = [self._get_title(title, i, t) for i, t in enumerate(['difference', 'center',
+                                                                         'surround'])]
+        else:
+            title = self._get_title(title, 0, 'mean pixel intensity')
         data = self._representation_for_plotting(batch_idx, data)
-        title = self._get_title([title], 0, 'mean pixel intensity')
-        # fig won't always be defined, but this will return the figure belonging to our axis
         return ax, data, title
 
     def plot_representation(self, figsize=(10, 5), ylim=None, ax=None, title=None, batch_idx=0,
                             data=None):
         r"""plot the representation of the RGC model
 
-        Because our model just takes the average pixel intensities in
-        each window, our representation plot is just a simple stem plot
-        showing each of these average intensities (different positions
-        on the x axis correspond to different windows). We have a small
-        break in the data to show where we've moved out to the next
-        eccentricity ring.
+        There are two types of RGC models: average pixel intensity per
+        window (with ``window_type`` 'gaussian' or 'cosine'), and
+        center-surround receptive fields (with ``window_type='dog'``).
 
-        Note that this looks better when it's wider than it is tall
-        (like the default figsize suggests)
+        1. Because our model just takes the average pixel intensities in
+           each window, our representation plot is just a simple stem
+           plot showing each of these average intensities (different
+           positions on the x axis correspond to different windows). We
+           have a small break in the data to show where we've moved out
+           to the next eccentricity ring.
+
+        2. Two possibilities here. If ``data`` is set, then we default
+           to the above plot, because we can't back out the center and
+           surround components. If ``data=None``, then we use the stored
+           attributes ``representation, center_representation,
+           surround_representation`` to plot the center, surround, and
+           their weighted difference as separate stem plots. Note that
+           the weighted difference is the only actual representation
+           (others are just provided so you can better understand the
+           difference). In this case, you should probably set
+           ``ylim=False`` and make the figure wider, something like
+           ``figsize=(15, 5)``.
+
+        In either case, this looks better when it's wider than it is
+        tall (like the default figsize suggests)
 
         Parameters
         ----------
         figsize : tuple, optional
             The size of the figure to create
-        ylim : tuple or None, optional
-            If not None, the y-limits to use for this plot. If None, we
-            use the default, slightly adjusted so that the minimum is 0
+        ylim : tuple, False, or None
+            If a tuple, the y-limits to use for this plot. If None, we use
+            the default, slightly adjusted so that the minimum is 0. If
+            False, we do nothing.
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
@@ -943,40 +1008,70 @@ class RetinalGanglionCells(VentralModel):
             Which index to take from the batch dimension (the first one)
         data : torch.Tensor, np.array, dict or None, optional
             The data to plot. If None, we use
-            ``self.representation``. Else, should look like
-            ``self.representation``, with the exact same structure
-            (e.g., as returned by ``metamer.representation_error()`` or
-            another instance of this class).
+            ``self.representation`` (if ``self.window_type=='dog'``,
+            things are slightly different, see above for more
+            details). Else, should look like ``self.representation``,
+            with the exact same structure (e.g., as returned by
+            ``metamer.representation_error()`` or another instance of
+            this class).
 
         Returns
         -------
         fig : matplotlib.figure.Figure
             The figure containing the plot
         axes : list
-            A list of axes (with one element) that contain the plots
-            we've created
+            A list of axes that contain the plots we've created
 
         """
-        ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
-        clean_stem_plot(data, ax, title, ylim)
+        if self.window_type != 'dog' or data is not None:
+            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+            clean_stem_plot(data, ax, title, ylim)
+            axes = [ax]
+            fig = ax.figure
+        else:
+            data = {'difference': self.representation, 'center': self.center_representation,
+                    'surround': self.surround_representation}
+            axes, data, title = self._plot_helper(3, figsize, ax, title, batch_idx, data)
+            for ax, d, t in zip(axes, data.values(), title):
+                clean_stem_plot(d, ax, t, ylim)
+            fig = axes[0].figure
         # fig won't always be defined, but this will return the figure belonging to our axis
-        return ax.figure, [ax]
+        return fig, axes
 
     def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
                                   data=None, vrange='indep1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
-        Our representation has a single value for each pooling window,
-        so we take that value and multiply it by the pooling window, and
-        then sum across all windows. Thus the value at a single pixel
-        shows a weighted sum of the representation.
+        There are two types of RGC models: average pixel intensity per
+        window (with ``window_type`` 'gaussian' or 'cosine'), and
+        center-surround receptive fields (with ``window_type='dog'``).
 
-        By setting ``data``, you can use this to visualize any vector
-        with the same length as the number of windows. For example, you
-        can view metamer synthesis error by setting
-        ``data=metamer.representation_error()`` (then you'd probably
-        want to set ``vrange='auto0'`` in order to change the colormap
-        to a diverging one cenetered at 0).
+        1. Our representation has a single value for each pooling
+           window, so we take that value and multiply it by the pooling
+           window, and then sum across all windows. Thus the value at a
+           single pixel shows a weighted sum of the representation.
+
+           By setting ``data``, you can use this to visualize any vector
+           with the same length as the number of windows. For example,
+           you can view metamer synthesis error by setting
+           ``data=metamer.representation_error()`` (then you'd probably
+           want to set ``vrange='auto0'`` in order to change the
+           colormap to a diverging one cenetered at 0).
+
+        2. We cannot invert the representation directly (we can't unmix
+           the center and surround), and so the input must be image-like
+           (4d), instead of representation-like (3d). If ``data=None``,
+           then we use the stored ``self.image``. Otherwise, we follow
+           the same logic as above. See the docstring of
+           ``PoolingWindows.project_dog()`` for more details.
+
+           In this case, we create three axes (similar to
+           ``plot_representation``), one each for the center, surround,
+           and their weighted difference. Note that the weighted
+           difference is the only actual representation (others are just
+           provided so you can better understand the difference). Also,
+           you should probably make the figsize wider, something like
+           ``figsize=(16, 5)``.
 
         Parameters
         ----------
@@ -1009,16 +1104,37 @@ class RetinalGanglionCells(VentralModel):
         fig : matplotlib.figure.Figure
             The figure containing the plot
         axes : list
-            A list of axes (with one element) that contain the plots
-            we've created
+            A list of axes that contain the plots we've created
 
         """
-        ax, data, title = self._plot_helper(figsize, ax, title, batch_idx, data)
-        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-        # project expects a 3d tensor
-        data = self.PoolingWindows.project(torch.Tensor(data).unsqueeze(0).unsqueeze(0))
-        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
-        return ax.figure, [ax]
+        if self.window_type != 'dog':
+            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            # project expects a 3d tensor
+            data = self.PoolingWindows.project(torch.tensor(data).unsqueeze(0).unsqueeze(0))
+            pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
+            fig = ax.figure
+            axes = [ax]
+        else:
+            if data is not None:
+                if data.ndim != 4:
+                    raise Exception("For RGC with DoG windows, data must be image-like (not the"
+                                    " representation)! We can't invert the representation and so"
+                                    " must do it from scratch (see PoolingWindows.project_dog() "
+                                    "docstring for more details)")
+            else:
+                data = self.image
+            axes, _, title = self._plot_helper(3, figsize, ax, title, batch_idx, None)
+            data = {'difference': self.PoolingWindows.project_dog(data),
+                    'center': self.PoolingWindows.project(self.center_representation,
+                                                          windows_key='center'),
+                    'surround': self.PoolingWindows.project(self.surround_representation,
+                                                            windows_key='surround')}
+            for ax, d, t in zip(axes, data.values(), title):
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                pt.imshow(to_numpy(d.squeeze()), vrange=vrange, ax=ax, title=t, zoom=zoom)
+            fig = axes[0].figure
+        return fig, axes
 
 
 class PrimaryVisualCortex(VentralModel):
@@ -1279,6 +1395,8 @@ class PrimaryVisualCortex(VentralModel):
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
                  include_highpass=False, window_type='cosine', std_dev=None):
+        if window_type == 'dog':
+            raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width, cone_power=cone_power,
                          cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
@@ -1286,6 +1404,11 @@ class PrimaryVisualCortex(VentralModel):
                                         'num_scales': num_scales,
                                         'normalize_dict': normalize_dict,
                                         'include_highpass': include_highpass})
+        # these are DoG-associated keys and so aren't supported
+        # here. they end up in this dict because they come from the
+        # PoolingWindows' dict
+        for k in ['transition_x', 'center_surround_ratio', 'surround_std_dev']:
+            self.state_dict_reduced.pop(k)
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
@@ -1572,9 +1695,6 @@ class PrimaryVisualCortex(VentralModel):
 
         """
         if ax is None:
-            # we add 2 to order because we're adding one to get the
-            # number of orientations and then another one to add an
-            # extra column for the mean luminance plot
             fig = plt.figure(figsize=figsize)
             gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
         else:
@@ -1615,9 +1735,10 @@ class PrimaryVisualCortex(VentralModel):
         figsize : tuple, optional
             The size of the figure to create (ignored if ``ax`` is not
             None)
-        ylim : tuple or None, optional
-            If not None, the y-limits to use for this plot. If None, we
-            use the default, slightly adjusted so that the minimum is 0
+        ylim : tuple, False, or None
+            If a tuple, the y-limits to use for this plot. If None, we use
+            the default, slightly adjusted so that the minimum is 0. If
+            False, we do nothing.
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on (in
             which case we ignore ``figsize``). If None, we create our
@@ -1673,7 +1794,10 @@ class PrimaryVisualCortex(VentralModel):
                 axes.append(ax)
             elif k == 'mean_luminance':
                 t = self._get_title(title_list, -1, "mean pixel intensity")
-                ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                if n_rows != 1:
+                    ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+                else:
+                    ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
             elif k == 'residual_highpass':
