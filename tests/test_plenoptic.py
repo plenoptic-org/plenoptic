@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float32
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
-print("On device %s" % device)
+print("On device %s" % DEVICE)
 
-@pytest.fixture
+@pytest.fixture()
 def test_files_dir():
     path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', 'plenoptic-test-files')
     if not op.exists(path):
@@ -74,7 +74,7 @@ class TestLinear(object):
     def test_linear_metamer(self):
         model = po.simul.Linear()
         image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image, requires_grad=True, dtype=dtype).squeeze().unsqueeze(0).unsqueeze(0)
+        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
         matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
 
@@ -127,9 +127,9 @@ class TestSteerablePyramid(object):
         x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype = DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -138,9 +138,9 @@ class TestSteerablePyramid(object):
         x = pt.synthetic_images.ramp((256,128))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype = DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -149,9 +149,9 @@ class TestSteerablePyramid(object):
         x = pt.synthetic_images.ramp((200,200))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype = DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -167,7 +167,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex)
         pyr(im)
         recon = pyr.recon_pyr()
@@ -183,7 +183,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex)
         po_pyr(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
@@ -213,7 +213,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex)
         po_pyr(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
@@ -278,6 +278,22 @@ def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
 
 
+@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, 'einstein.png'),
+                                   op.join(DATA_DIR, '256x256'),
+                                   [op.join(DATA_DIR, 'einstein.png'),
+                                    op.join(DATA_DIR, 'curie.pgm')]])
+@pytest.mark.parametrize('as_gray', [True, False])
+def test_load_images(paths, as_gray):
+    if paths == DATA_DIR:
+        # there's a 512 by 512 image here, which means we should raise
+        # an Exception
+        with pytest.raises(Exception):
+            images = po.tools.data.load_images(paths, as_gray)
+    else:
+        images = po.tools.data.load_images(paths, as_gray)
+        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
+
+
 class TestPooling(object):
 
     def test_creation(self):
@@ -325,11 +341,11 @@ class TestPooling(object):
     @pytest.mark.parametrize('transition_region_width', [.5, 1])
     def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
                                      transition_region_width=transition_region_width,
                                      window_type='cosine',)
-        pw = pw.to(device)
+        pw = pw.to(DEVICE)
         pw(im)
         with pytest.raises(Exception):
             po.simul.PoolingWindows(.2, (64, 64), .5)
@@ -337,10 +353,10 @@ class TestPooling(object):
     @pytest.mark.parametrize('num_scales', [1, 3])
     def test_PoolingWindows(self, num_scales):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                     window_type='gaussian', std_dev=1)
-        pw = pw.to(device)
+                                             window_type='gaussian', std_dev=1)
+        pw = pw.to(DEVICE)
         pw(im)
         # we only support std_dev=1
         with pytest.raises(Exception):
@@ -352,34 +368,34 @@ class TestPooling(object):
 
     def test_PoolingWindows_project(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.PoolingWindows(.5, im.shape[2:])
-        pw = pw.to(device)
+        pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
-        pw = pw.to(device)
+        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+        pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
 
     def test_PoolingWindows_nonsquare(self):
         # test PoolingWindows with weirdly-shaped iamges
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
         for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
             tmp = im[:sh[0], :sh[1]].unsqueeze(0).unsqueeze(0)
             rgc = po.simul.RetinalGanglionCells(.9, tmp.shape[2:])
-            rgc = rgc.to(device)
+            rgc = rgc.to(DEVICE)
             rgc(tmp)
             v1 = po.simul.RetinalGanglionCells(.9, tmp.shape[2:])
-            v1 = v1.to(device)
+            v1 = v1.to(DEVICE)
             v1(tmp)
 
     def test_PoolingWindows_plotting(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2)
-        pw = pw.to(device)
+        pw = pw.to(DEVICE)
         pw.plot_window_areas()
         pw.plot_window_widths()
         for i in range(2):
@@ -390,7 +406,7 @@ class TestPooling(object):
 
     def test_PoolingWindows_caching(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
         # first time we save, second we load
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
@@ -399,7 +415,7 @@ class TestPooling(object):
         if torch.cuda.device_count() > 1:
             devices = list(range(torch.cuda.device_count()))
             im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
             pw = po.simul.PoolingWindows(.5, im.shape[2:])
             pw = pw.parallel(devices)
             pw(im)
@@ -438,7 +454,7 @@ class TestPooling(object):
     def test_PoolingWindows_sep(self):
         # test the window and pool function separate of the forward function
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw.pool(pw.window(im))
 
@@ -450,9 +466,9 @@ class TestVentralStream(object):
 
     def test_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         rgc(im)
         _ = rgc.plot_window_widths('degrees')
         _ = rgc.plot_window_widths('degrees', jitter=0)
@@ -470,9 +486,9 @@ class TestVentralStream(object):
 
     def test_rgc_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], transition_region_width=1)
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         rgc(im)
         _ = rgc.plot_window_widths('degrees')
         _ = rgc.plot_window_widths('degrees', jitter=0)
@@ -491,24 +507,24 @@ class TestVentralStream(object):
     def test_rgc_metamer(self):
         # literally just testing that it runs
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3)
         assert not torch.isnan(metamer.matched_image).any(), "There's a NaN here!"
 
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         # first time we cache the windows...
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cache_dir=tmp_path)
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         rgc(im)
         rgc.save_reduced(op.join(tmp_path, 'test_rgc_save_load.pt'))
         rgc_copy = po.simul.RetinalGanglionCells.load_reduced(op.join(tmp_path,
                                                                       'test_rgc_save_load.pt'))
-        rgc_copy = rgc_copy.to(device)
+        rgc_copy = rgc_copy.to(DEVICE)
         if not len(rgc.PoolingWindows.angle_windows) == len(rgc_copy.PoolingWindows.angle_windows):
             raise Exception("Something went wrong saving and loading, the lists of angle windows"
                             " are not the same length!")
@@ -531,7 +547,7 @@ class TestVentralStream(object):
         if torch.cuda.device_count() > 1:
             devices = list(range(torch.cuda.device_count()))
             im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
             rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
             rgc = rgc.parallel(devices)
             metamer = po.synth.Metamer(im, rgc)
@@ -547,17 +563,17 @@ class TestVentralStream(object):
 
     def test_frontend_plot(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         frontend = po.simul.Front_End()
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
-        metamer.plot_metamer_status(figsize=(35, 5))
+        metamer.plot_synthesis_status(figsize=(35, 5))
         metamer.animate(figsize=(35, 5))
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         frontend = po.simul.Front_End()
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
@@ -565,9 +581,9 @@ class TestVentralStream(object):
 
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         v1(im)
         _ = v1.plot_window_widths('pixels')
         _ = v1.plot_window_areas('pixels')
@@ -582,11 +598,11 @@ class TestVentralStream(object):
 
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         stats = po.simul.non_linearities.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize_dict=stats)
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         v1(im)
         _ = v1.plot_window_widths('pixels')
         _ = v1.plot_window_areas('pixels')
@@ -603,8 +619,8 @@ class TestVentralStream(object):
         if torch.cuda.device_count() > 1:
             devices = list(range(torch.cuda.device_count()))
             im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-            v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:]).to(device)
+            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+            v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:]).to(DEVICE)
             v1 = v1.parallel(devices)
             metamer = po.synth.Metamer(im, v1)
             metamer.synthesize(max_iter=3)
@@ -614,9 +630,9 @@ class TestVentralStream(object):
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], transition_region_width=1)
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         v1(im)
         _ = v1.plot_window_widths('pixels')
         _ = v1.plot_window_areas('pixels')
@@ -632,12 +648,12 @@ class TestVentralStream(object):
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:
             im = plt.imread(op.join(DATA_DIR, fname+'.pgm'))
-            im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+            im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
             v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-            v1 = v1.to(device)
+            v1 = v1.to(DEVICE)
             v1_rep = v1(im)
             rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-            rgc = rgc.to(device)
+            rgc = rgc.to(DEVICE)
             rgc_rep = rgc(im)
             if not torch.allclose(rgc.representation, v1.mean_luminance):
                 raise Exception("Somehow RGC and V1 mean luminance representations are not the "
@@ -648,15 +664,15 @@ class TestVentralStream(object):
 
     def test_v1_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         # first time we cache the windows...
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         v1(im)
         v1.save_reduced(op.join(tmp_path, 'test_v1_save_load.pt'))
         v1_copy = po.simul.PrimaryVisualCortex.load_reduced(op.join(tmp_path,
                                                                     'test_v1_save_load.pt'))
-        v1_copy = v1_copy.to(device)
+        v1_copy = v1_copy.to(DEVICE)
         if not len(v1.PoolingWindows.angle_windows) == len(v1_copy.PoolingWindows.angle_windows):
             raise Exception("Something went wrong saving and loading, the lists of angle windows"
                             " are not the same length!")
@@ -677,15 +693,15 @@ class TestVentralStream(object):
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3)
 
     def test_cone_nonlinear(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1_lin = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1)
         v1 = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1/3)
         rgc_lin = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1)
@@ -716,9 +732,9 @@ class TestVentralStream(object):
     @pytest.mark.parametrize("steer", [True, False])
     def test_v2_metamer(self, frontend, steer):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device, requires_grad=True).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE, requires_grad=True).unsqueeze(0).unsqueeze(0)
         v2 = po.simul.V2(frontend=frontend, steer=steer)
-        v2 = v2.to(device)
+        v2 = v2.to(DEVICE)
         metamer = po.synth.Metamer(im, v2)
         metamer.synthesize(max_iter=3)
 
@@ -728,25 +744,26 @@ class TestMetamers(object):
     def test_metamer_save_load(self, tmp_path):
 
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
         met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"),
-                                         map_location=device)
+                                         map_location=DEVICE)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
+        assert not isinstance(met_copy.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
 
     def test_metamer_save_load_reduced(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.save(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'), True)
@@ -754,8 +771,8 @@ class TestMetamers(object):
             met_copy = po.synth.Metamer.load(op.join(tmp_path,
                                                      "test_metamer_save_load_reduced.pt"))
         met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'),
-                                         po.simul.PrimaryVisualCortex.from_state_dict_reduced,
-                                         map_location=device)
+                                         model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced,
+                                         map_location=DEVICE)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
@@ -763,93 +780,94 @@ class TestMetamers(object):
 
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3, store_progress=2)
 
     def test_metamer_store_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_store_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=6, store_progress=3)
 
     def test_metamer_store_rep_4(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         with pytest.raises(Exception):
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
 
     def test_metamer_plotting_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_error()
         metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_metamer_status()
-        metamer.plot_metamer_status(iteration=1)
+        metamer.plot_synthesis_status()
+        metamer.plot_synthesis_status(iteration=1)
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_error()
         metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_metamer_status()
-        metamer.plot_metamer_status(iteration=1)
+        metamer.plot_synthesis_status()
+        metamer.plot_synthesis_status(iteration=1)
 
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
-        metamer.synthesize(max_iter=3, initial_image=metamer.matched_image.detach().clone())
+        metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
         # this will test several related functions for us:
-        # plot_metamer_status, plot_representation_error,
+        # plot_synthesis_status, plot_representation_error,
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
                            save_path=save_path)
-        po.synth.Metamer.load(save_path, po.simul.PrimaryVisualCortex.from_state_dict_reduced)
+        po.synth.Metamer.load(save_path,
+                              model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced)
 
     def test_metamer_fraction_removed(self):
 
@@ -871,9 +889,9 @@ class TestMetamers(object):
     def test_metamer_loss_change(self):
         # literally just testing that it runs
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
                            loss_change_fraction=.5)
@@ -882,9 +900,9 @@ class TestMetamers(object):
 
     def test_metamer_coarse_to_fine(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(device)
+        v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=True)
@@ -901,13 +919,13 @@ class TestMetamers(object):
     @pytest.mark.parametrize("cone_power", [1, 1/3])
     def test_metamer_clamper(self, clamper, clamp_each_iter, cone_power):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         if type(clamper) == str and clamper == 'clamp2':
             clamper = po.TwoMomentsClamper(im)
         elif type(clamper) == str and clamper == 'clamp4':
             clamper = po.FourMomentsClamper(im)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=cone_power)
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         if cone_power == 1/3 and not clamp_each_iter:
             # these will fail because we'll end up outside the 0, 1 range
@@ -918,9 +936,9 @@ class TestMetamers(object):
 
     def test_metamer_no_clamper(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=1)
-        rgc = rgc.to(device)
+        rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, clamper=None)
 
@@ -928,8 +946,8 @@ class TestMetamers(object):
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
-    im1 = torch.tensor(im1, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-    im2 = torch.rand_like(im1, requires_grad=True, device=device)
+    im1 = torch.tensor(im1, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+    im2 = torch.rand_like(im1, requires_grad=True, device=DEVICE)
 
     @pytest.mark.parametrize("im1, im2", [(im1, im2)])
     def test_ssim(self, im1, im2):
