@@ -412,7 +412,7 @@ def zscore_stats(stats_dict, model=None, **to_normalize):
 
     Parameters
     ----------
-    stats : dict
+    stats_dict : dict
         A dictionary containing the statistics to use for normalization
         (as returned/saved by the ``generate_norm_stats`` function).
     model : torch.nn.Module or None, optional
@@ -422,9 +422,11 @@ def zscore_stats(stats_dict, model=None, **to_normalize):
     Returns
     -------
     model : torch.nn.Module
-        The normalized model.
+        The normalized model, if the ``model`` arg was set
     normalized : dict
-        Dictionary with the keywords passed to this function.
+        Dictionary with the keywords passed to this function, if the
+        ``model`` arg was not set, and values were passed as
+        ``to_normalize`` instead
 
     """
     if to_normalize:
