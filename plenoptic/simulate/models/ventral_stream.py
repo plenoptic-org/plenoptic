@@ -1413,7 +1413,7 @@ class PrimaryVisualCortex(VentralModel):
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
                                                                 self.order, is_complex=True)
-        self.scales = ['mean_luminance']
+        self.scales = []
         if half_octave_pyramid:
             self.half_octave_img_res = [int(round(i / np.sqrt(2))) for i in img_res]
             # want this to be even. for plotting purposes, the more
@@ -1446,6 +1446,7 @@ class PrimaryVisualCortex(VentralModel):
         if self.include_highpass:
             self.scales += ['residual_highpass']
             self.to_normalize += ['residual_highpass']
+        self.scales += ['mean_luminance']
         self.normalize_dict = normalize_dict
 
     def to(self, *args, do_windows=True, **kwargs):
