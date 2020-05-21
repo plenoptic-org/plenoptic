@@ -557,6 +557,57 @@ class VentralModel(nn.Module):
             rep_copy = to_numpy(data[batch_idx]).flatten()
         return rep_copy
 
+    def representation_to_output(self, data=None):
+        r"""convert representation to output
+
+        For this model, the two are the same, so this doesn't do
+        anything
+
+        Plenoptic models have two 'modes' for their representation: the
+        one returned by the ``forward()`` call ("output"), which must be
+        a 3d or 4d tensor, and the one stored as ``self.representation``
+        ("representation"), which can be structured however you want,
+        and probably represents the structure of the data. For example,
+        a dictionary of tensors, where keys naming the different types
+        of statistics. We want functions to convert between the two of
+        them. This converts representation to output.
+
+        Parameters
+        ----------
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to convert. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+
+        """
+        if data is None:
+            data = self.representation
+        return data
+
+    def output_to_representation(self, data):
+        r"""convert output to representation
+
+        For this model, the two are the same, so this doesn't do
+        anything
+
+        Plenoptic models have two 'modes' for their representation: the
+        one returned by the ``forward()`` call ("output"), which must be
+        a 3d or 4d tensor, and the one stored as ``self.representation``
+        ("representation"), which can be structured however you want,
+        and probably represents the structure of the data. For example,
+        a dictionary of tensors, where keys naming the different types
+        of statistics. We want functions to convert between the two of
+        them. This converts output to representation.
+
+        Parameters
+        ----------
+        data : torch.Tensor, np.array, dict, optional
+            The data to convert. Should look like the value returned by
+            this model's forward call (i.e., a 3d tensor).
+
+        """
+        return data
+
     @classmethod
     def _get_title(cls, title_list, idx, default_title):
         r"""helper function for dealing with the default way we handle title
@@ -1558,11 +1609,9 @@ class PrimaryVisualCortex(VentralModel):
         if self.include_highpass:
             self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
-            cone_responses = zscore_stats(self.normalize_dict,
-                                          cone_responses=cone_responses)['cone_responses']
             self = zscore_stats(self.normalize_dict, self)
         self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(cone_responses)
+        self.mean_luminance = self.PoolingWindows(self.cone_responses)
         self.representation = self.mean_complex_cell_responses
         self.representation['mean_luminance'] = self.mean_luminance
         if self.include_highpass:
@@ -1571,13 +1620,13 @@ class PrimaryVisualCortex(VentralModel):
         if scales:
             rep = {}
             for k in scales:
-                if isinstance(k, float) or isinstance(k, int):
+                if isinstance(k, (float, int)):
                     for j in range(self.order):
                         rep[(k, j)] = self.representation[(k, j)]
                 else:
                     rep[k] = self.representation[k]
             self.representation = rep
-        return torch.cat(list(self.representation.values()), dim=2)
+        return self.representation_to_output()
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
         r"""Get data into the form required for plotting
@@ -1640,13 +1689,73 @@ class PrimaryVisualCortex(VentralModel):
 
         """
         if data is not None and not isinstance(data, dict):
-            data_dict = {}
-            idx = 0
-            for k, v in self.representation.items():
-                data_dict[k] = data[:, :, idx:idx+v.shape[-1]].reshape(v.shape)
-                idx += v.shape[-1]
-            data = data_dict
+            data = self.output_to_representation(data)
         return super()._representation_for_plotting(batch_idx, data)
+
+    def representation_to_output(self, data=None):
+        r"""convert representation to output
+
+        This takes data that looks like ``self.representation`` (i.e., a
+        dictionary whose keys are ``"mean_luminance"`` and ``(scale,
+        orientation)`` tuples) and flattens it to an output that looks
+        like what we get from the ``forward()`` call.
+
+        Plenoptic models have two 'modes' for their representation: the
+        one returned by the ``forward()`` call ("output"), which must be
+        a 3d or 4d tensor, and the one stored as ``self.representation``
+        ("representation"), which can be structured however you want,
+        and probably represents the structure of the data. For example,
+        a dictionary of tensors, where keys naming the different types
+        of statistics. We want functions to convert between the two of
+        them. This converts representation to output.
+
+        Parameters
+        ----------
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to convert. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+
+        """
+        if data is None:
+            data = self.representation
+        return torch.cat(list(data.values()), dim=2)
+
+    def output_to_representation(self, data):
+        r"""convert output to representation
+
+        This takes data that looks like the output from the
+        ``forward()`` call (a big 3d tensor) and returns something that
+        looks like ``self.representation`` (i.e., a dictionary whose
+        keys are ``"mean_luminance"`` and ``(scale, orientation)``
+        tuples).
+
+        NOTE: for this to work, ``forward()`` must have been called
+        before
+
+        Plenoptic models have two 'modes' for their representation: the
+        one returned by the ``forward()`` call ("output"), which must be
+        a 3d or 4d tensor, and the one stored as ``self.representation``
+        ("representation"), which can be structured however you want,
+        and probably represents the structure of the data. For example,
+        a dictionary of tensors, where keys naming the different types
+        of statistics. We want functions to convert between the two of
+        them. This converts output to representation.
+
+        Parameters
+        ----------
+        data : torch.Tensor, np.array, dict, optional
+            The data to convert. Should look like the value returned by
+            this model's forward call (i.e., a 3d tensor).
+
+        """
+        data_dict = {}
+        idx = 0
+        for k, v in self.representation.items():
+            data_dict[k] = data[:, :, idx:idx+v.shape[-1]].reshape(v.shape)
+            idx += v.shape[-1]
+        data = data_dict
+        return data
 
     def _plot_helper(self, n_rows, n_cols, figsize=(25, 15), ax=None, title=None, batch_idx=0,
                      data=None):
