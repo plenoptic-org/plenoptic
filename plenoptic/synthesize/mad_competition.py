@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
 from ..tools.metamer_utils import RangeClamper
+from ..tools.optim import l2_norm
 
 
 class MADCompetition(Synthesis):
@@ -258,9 +259,6 @@ class MADCompetition(Synthesis):
         # we initialize all the model 1 versions of these in the
         # super().__init__() call above, so we just need to do the model
         # 2 ones
-        def l2_norm(x, y):
-            return torch.norm(x - y, p=2)
-
         if loss_function is None:
             loss_function = l2_norm
         else:

@@ -7,6 +7,7 @@ from torch import optim
 import numpy as np
 import warnings
 from ..tools.data import to_numpy
+from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
 import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot
@@ -87,9 +88,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.target_image = target_image
         self.seed = None
         self.rep_warning = False
-
-        def l2_norm(x, y):
-            return torch.norm(x - y, p=2)
 
         if loss_function is None:
             loss_function = l2_norm
