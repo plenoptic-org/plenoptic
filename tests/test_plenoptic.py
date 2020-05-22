@@ -963,8 +963,7 @@ class TestMetamers(object):
         if resume and store_progress:
             met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
-                           save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
-                           initial_noise=None)
+                           save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None)
         met.plot_synthesis_status()
         if store_progress:
             met.animate()
