@@ -62,10 +62,10 @@ class Metamer(Synthesis):
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take two tensors
-        (x, y) and return the loss between them. Should probably be
-        symmetric so that loss(x, y) == loss(y, x) but that might not be
-        strictly necessary
+        the element-wise 2-norm. If a callable, must take four keyword
+        arguments (synth_rep, target_rep, synth_img, target_img) and
+        return some loss between them. Should probably be symmetric but
+        that might not be strictly necessary
     model_kwargs :
         if model is a function (that is, you're using a metric instead
         of a model), then there might be additional arguments you want
@@ -200,8 +200,8 @@ class Metamer(Synthesis):
 
     """
 
-    def __init__(self, target_image, model, loss_function=None, **model_kwargs):
-        super().__init__(target_image, model, loss_function, **model_kwargs)
+    def __init__(self, target_image, model, loss_function=None, model_kwargs={}, loss_kwargs={}):
+        super().__init__(target_image, model, loss_function, model_kwargs, loss_kwargs)
 
     def _init_matched_image(self, initial_image, clamper=RangeClamper((0, 1)),
                             clamp_each_iter=True):

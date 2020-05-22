@@ -7,6 +7,7 @@ from torch import optim
 import numpy as np
 import warnings
 from ..tools.data import to_numpy
+from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
 import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot
@@ -64,18 +65,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take two tensors
-        (x, y) and return the loss between them. Should probably be
-        symmetric so that loss(x, y) == loss(y, x) but that might not be
-        strictly necessary
-    model_kwargs :
+        the element-wise 2-norm. If a callable, must take four keyword
+        arguments (synth_rep, target_rep, synth_img, target_img) and
+        return some loss between them. Should probably be symmetric but
+        that might not be strictly necessary
+    model_kwargs : dict
         if model is a function (that is, you're using a metric instead
         of a model), then there might be additional arguments you want
         to pass it at run-time. Note that this means they will be passed
         on every call.
 
     """
-    def __init__(self, target_image, model, loss_function, **model_kwargs):
+    def __init__(self, target_image, model, loss_function, model_kwargs={}, loss_kwargs={}):
         super().__init__()
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
@@ -88,9 +89,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.seed = None
         self.rep_warning = False
 
-        def l2_norm(x, y):
-            return torch.norm(x - y, p=2)
-
         if loss_function is None:
             loss_function = l2_norm
         else:
@@ -100,10 +98,17 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # we handle models a little differently, so this is here
         if isinstance(model, torch.nn.Module):
             self.model = model
-            self.loss_function = loss_function
+
+            def wrapped_loss_func(synth_rep, ref_rep, synth_img, ref_img):
+                return loss_function(ref_rep=ref_rep, synth_rep=synth_rep, ref_img=ref_img,
+                                     synth_img=synth_img, **loss_kwargs)
+            self.loss_function = wrapped_loss_func
         else:
             self.model = Identity(model.__name__).to(target_image.device)
-            self.loss_function = lambda x, y:  model(x, y, **model_kwargs)
+
+            def wrapped_model(synth_rep, ref_rep, synth_img, ref_img):
+                return model(synth_rep, ref_rep, **model_kwargs)
+            self.loss_function = wrapped_model
             self.rep_warning = True
 
         self.target_representation = self.analyze(self.target_image)
@@ -728,12 +733,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         else:
             return y
 
-    def objective_function(self, x, y):
-        r"""Calculate the loss between x and y
+    def objective_function(self, synth_rep, ref_rep, synth_img, ref_img):
+        r"""Calculate the loss
 
-        This is what we minimize. We call ``self.loss_function(x, y)``
-        -- by default, this is the L2-norm of the difference between the
-        two: ``torch.norm(x-y, p=2)``.
+        This is what we minimize. We call
+        ``self.loss_function(ref_rep=ref_rep, synth_rep=synth_rep,
+        ref_img=ref_img, synth_img=synth_img)`` -- by default, this is
+        the L2-norm of the difference between the two representations:
+        ``torch.norm(ref_rep - synth_rep, p=2)``.
 
         We have this as a separate method, instead of just using the
         attribute, in order to allow sub-classes to overwrite. For
@@ -742,10 +749,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        x : torch.tensor
-            the first element
-        y : torch.tensor
-            the second element
+        synth_rep : torch.tensor
+            model representation of the synthesized image
+        ref_rep : torch.tensor
+            model representation of the reference image
+        synth_img : torch.tensor
+            the synthesized image.
+        ref_img : torch.tensor
+            the reference image
 
         Returns
         -------
@@ -754,7 +765,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             difference between x and y
 
         """
-        return self.loss_function(x, y)
+        return self.loss_function(ref_rep=ref_rep, synth_rep=synth_rep, ref_img=ref_img,
+                                  synth_img=synth_img)
 
     def representation_error(self, iteration=None, **kwargs):
         r"""Get the representation error
@@ -958,7 +970,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         else:
             matched_rep = self.matched_representation
 
-        loss = self.objective_function(matched_rep, target_rep)
+        loss = self.objective_function(matched_rep, target_rep, self.matched_image,
+                                       self.target_image)
         loss.backward(retain_graph=True)
 
         if self.clip_grad_norm:
@@ -1032,9 +1045,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                     if self.model.cone_power != int(self.model.cone_power):
                         tmp_im = torch.clamp(tmp_im, min=0)
                 full_matched_rep = self.analyze(tmp_im)
-                loss = self.objective_function(full_matched_rep, self.target_representation)
+                loss = self.objective_function(full_matched_rep, self.target_representation,
+                                               self.matched_image, self.target_image)
         else:
-            loss = self.objective_function(self.matched_representation, self.target_representation)
+            loss = self.objective_function(self.matched_representation, self.target_representation,
+                                           self.matched_image, self.target_image)
 
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),

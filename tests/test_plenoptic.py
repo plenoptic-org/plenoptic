@@ -942,6 +942,36 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, clamper=None)
 
+    @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
+                                           'range_penalty_w_beta'])
+    @pytest.mark.parametrize('store_progress', [False, True, 2])
+    @pytest.mark.parametrize('resume', [False, True])
+    def test_loss_func(self, loss_func, store_progress, resume, tmp_path):
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        model = po.metric.NLP().to(DEVICE)
+        loss_kwargs = {}
+        if loss_func is None:
+            loss = None
+        elif loss_func == 'l2':
+            loss = po.optim.l2_norm
+        elif loss_func == 'mse':
+            loss = po.optim.mse
+        elif loss_func == 'range_penalty':
+            loss = po.optim.l2_and_penalize_range
+        elif loss_func == 'range_penalty_w_beta':
+            loss = po.optim.l2_and_penalize_range
+            loss_kwargs['beta'] = .9
+        met = po.synth.Metamer(img, model, loss_function=loss, loss_kwargs=loss_kwargs)
+        met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                       save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
+        if resume and store_progress:
+            met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                           save_progress=store_progress,
+                           save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None)
+        met.plot_synthesis_status()
+        if store_progress:
+            met.animate()
+
 
 class TestPerceptualMetrics(object):
 

@@ -35,6 +35,41 @@ class TestMAD(object):
         if store_progress:
             mad.animate()
 
+    @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
+                                           'range_penalty_w_beta'])
+    @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
+                                        'model_2_max'])
+    @pytest.mark.parametrize('store_progress', [False, True, 2])
+    @pytest.mark.parametrize('resume', [False, True])
+    def test_loss_func(self, loss_func, target, store_progress, resume, tmp_path):
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        model1 = po.simul.models.naive.Identity().to(DEVICE)
+        model2 = po.metric.NLP().to(DEVICE)
+        loss_kwargs = {}
+        if loss_func is None:
+            loss = None
+        elif loss_func == 'l2':
+            loss = po.optim.l2_norm
+        elif loss_func == 'mse':
+            loss = po.optim.mse
+        elif loss_func == 'range_penalty':
+            loss = po.optim.l2_and_penalize_range
+        elif loss_func == 'range_penalty_w_beta':
+            loss = po.optim.l2_and_penalize_range
+            loss_kwargs['beta'] = .9
+        mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
+                                      loss_kwargs=loss_kwargs)
+        mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                       save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
+        if resume and store_progress:
+            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+                           save_progress=store_progress,
+                           save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
+                           initial_noise=None)
+        mad.plot_synthesis_status()
+        if store_progress:
+            mad.animate()
+
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])

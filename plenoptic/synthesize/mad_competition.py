@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
 from ..tools.metamer_utils import RangeClamper
+from ..tools.optim import l2_norm
 
 
 class MADCompetition(Synthesis):
@@ -87,10 +88,10 @@ class MADCompetition(Synthesis):
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take two tensors
-        (x, y) and return the loss between them. Should probably be
-        symmetric so that loss(x, y) == loss(y, x) but that might not be
-        strictly necessary
+        the element-wise 2-norm. If a callable, must take four keyword
+        arguments (synth_rep, target_rep, synth_img, target_img) and
+        return some loss between them. Should probably be symmetric but
+        that might not be strictly necessary
     model_1_kwargs, model_2_kwargs : dict
         if model_1 or model_2 are functions (that is, you're using a
         metric instead of a model), then there might be additional
@@ -232,7 +233,7 @@ class MADCompetition(Synthesis):
     """
 
     def __init__(self, target_image, model_1, model_2, loss_function=None, model_1_kwargs={},
-                 model_2_kwargs={}):
+                 model_2_kwargs={}, loss_kwargs={}):
         self._names = {'target_image': 'target_image',
                        'matched_image': 'matched_image',
                        'model': 'model_1',
@@ -247,7 +248,7 @@ class MADCompetition(Synthesis):
                        'coarse_to_fine': 'coarse_to_fine_1'}
 
         self.synthesis_target = 'model_1_min'
-        super().__init__(target_image, model_1, loss_function, **model_1_kwargs)
+        super().__init__(target_image, model_1, loss_function, model_1_kwargs, loss_kwargs)
 
         # initialize the MAD-specific attributes
         self.loss_sign = 1
@@ -258,9 +259,6 @@ class MADCompetition(Synthesis):
         # we initialize all the model 1 versions of these in the
         # super().__init__() call above, so we just need to do the model
         # 2 ones
-        def l2_norm(x, y):
-            return torch.norm(x - y, p=2)
-
         if loss_function is None:
             loss_function = l2_norm
         else:
@@ -269,10 +267,17 @@ class MADCompetition(Synthesis):
 
         if isinstance(model_2, torch.nn.Module):
             self.model_2 = model_2
-            self.loss_function_2 = loss_function
+
+            def wrapped_loss_func(synth_rep, ref_rep, synth_img, ref_img):
+                return loss_function(ref_rep=ref_rep, synth_rep=synth_rep, ref_img=ref_img,
+                                     synth_img=synth_img, **loss_kwargs)
+            self.loss_function_2 = wrapped_loss_func
         else:
             self.model_2 = Identity(model_2.__name__).to(target_image.device)
-            self.loss_function_2 = lambda x, y:  model_2(x, y, **model_2_kwargs)
+
+            def wrapped_model_2(synth_rep, ref_rep, synth_img, ref_img):
+                return model_2(synth_rep, ref_rep, **model_2_kwargs)
+            self.loss_function_2 = wrapped_model_2
             self.rep_warning = True
 
         self.update_target('model_1_min', 'fix')
@@ -503,7 +508,8 @@ class MADCompetition(Synthesis):
         nu_optim = torch.optim.Adam([nu], lr=1, amsgrad=True)
         nu_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(nu_optim, 'min', factor=.5)
         target_loss = self.objective_function(self.initial_representation,
-                                              self.target_representation)
+                                              self.target_representation, self.initial_image,
+                                              self.target_image)
         for i in range(n_iter):
             # in Appendix C of the paper, they just add nu*grad to get
             # the proposed image. here we also multiply by a -lr because
@@ -514,7 +520,8 @@ class MADCompetition(Synthesis):
             # will be
             proposed_img = self.matched_image - lr * nu * grad
             proposed_loss = self.objective_function(self.analyze(proposed_img),
-                                                    self.target_representation)
+                                                    self.target_representation,
+                                                    proposed_img, self.target_image)
             actual_loss = torch.abs(target_loss - proposed_loss)
             actual_loss.backward()
             nu_optim.step()
@@ -573,11 +580,11 @@ class MADCompetition(Synthesis):
             self.update_target(self.synthesis_target, 'main')
             return loss
 
-    def objective_function(self, x, y, norm_loss=True):
-        r"""Calculate the loss between x and y
+    def objective_function(self, synth_rep, ref_rep, synth_img, ref_img, norm_loss=True):
+        r"""Calculate the loss
 
-        This is what we minimize. Currently it's the L2-norm of their
-        difference: ``torch.norm(x-y, p=2)``.
+        This is what we minimize. By default it's the L2-norm of the
+        difference between synth_rep and ref_rep
 
         We can also normalize the loss, if ``norm_loss=True`` and we
         have a ``loss_nom`` attribute. We use this to get the losses of
@@ -592,12 +599,14 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        x : torch.tensor
-            the first element
-        y : torch.tensor
-            the second element
-        norm_loss : bool, optional
-            whether to normalize the loss by ``self.loss_norm`` or not.
+        synth_rep : torch.tensor
+            model representation of the synthesized image
+        ref_rep : torch.tensor
+            model representation of the reference image
+        synth_img : torch.tensor
+            the synthesized image.
+        ref_img : torch.tensor
+            the reference image
 
         Returns
         -------
@@ -606,7 +615,7 @@ class MADCompetition(Synthesis):
             difference between x and y
 
         """
-        loss = super().objective_function(x, y)
+        loss = super().objective_function(synth_rep, ref_rep, synth_img, ref_img)
         if norm_loss:
             loss = loss / self.loss_norm
         return self.loss_sign * loss
@@ -670,8 +679,9 @@ class MADCompetition(Synthesis):
         # norm, then we end up canceling it out. This will make sure
         # that loss_norm is always positive
         if norm_loss:
-            self.loss_norm = abs(self.objective_function(self.target_representation,
-                                                         self.initial_representation,
+            self.loss_norm = abs(self.objective_function(self.initial_representation,
+                                                         self.target_representation,
+                                                         self.initial_image, self.target_image,
                                                          norm_loss=False))
         else:
             self.loss_norm = 1
@@ -679,8 +689,10 @@ class MADCompetition(Synthesis):
         self.matched_representation = self.analyze(self.matched_image)
         self.initial_representation = self.analyze(self.initial_image)
         if norm_loss:
-            self.loss_norm = self.objective_function(self.target_representation,
-                                                     self.initial_representation, norm_loss=False)
+            self.loss_norm = self.objective_function(self.initial_representation,
+                                                     self.target_representation,
+                                                     self.initial_image, self.target_image,
+                                                     norm_loss=False)
         else:
             self.loss_norm = 1
 
@@ -1084,7 +1096,8 @@ class MADCompetition(Synthesis):
             self.update_target(self.synthesis_target, 'fix')
             # first, figure out what the stable model's loss is
             loss_2 = self.objective_function(self.matched_representation,
-                                             self.target_representation).item()
+                                             self.target_representation, self.matched_image,
+                                             self.target_image).item()
             self.loss.append(loss_2)
             # then update matched_image to try and min or max (depending
             # on synthesis_target) the targeted model
