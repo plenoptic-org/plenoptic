@@ -14,6 +14,7 @@ from ..tools.display import rescale_ylim, plot_representation, update_plot
 from matplotlib import animation
 from ..simulate.models.naive import Identity
 from tqdm import tqdm
+import dill
 from ..tools.metamer_utils import RangeClamper
 
 
@@ -76,7 +77,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         on every call.
 
     """
-    def __init__(self, target_image, model, loss_function, model_kwargs={}, loss_kwargs={}):
+    def __init__(self, target_image, model, loss_function, model_kwargs={}, loss_function_kwargs={}):
         super().__init__()
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
@@ -101,7 +102,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
             def wrapped_loss_func(synth_rep, ref_rep, synth_img, ref_img):
                 return loss_function(ref_rep=ref_rep, synth_rep=synth_rep, ref_img=ref_img,
-                                     synth_img=synth_img, **loss_kwargs)
+                                     synth_img=synth_img, **loss_function_kwargs)
             self.loss_function = wrapped_loss_func
         else:
             self.model = Identity(model.__name__).to(target_image.device)
@@ -1061,7 +1062,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         return loss, g.norm(), self.optimizer.param_groups[0]['lr']
 
     @abc.abstractmethod
-    def save(self, file_path, save_model_reduced=False, attrs=['model']):
+    def save(self, file_path, save_model_reduced=False, attrs=['model'],
+             model_attr_names=['model']):
         r"""save all relevant variables in .pt file
 
         This is an abstractmethod only because you need to specify which
@@ -1086,19 +1088,24 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         attrs : list
             List of strs containing the names of the attributes of this
             object to save.
+        model_attr_names : list, optional
+            The attribute that gives the model(s) names. Must be a list
+            of strs. These are the attributes we try to save in reduced
+            form if ``save_model_reduced`` is True.
 
         """
         save_dict = {}
-        if 'model' in attrs:
-            model = self.model
-            try:
-                if save_model_reduced:
-                    model = self.model.state_dict_reduced
-            except AttributeError:
-                warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
-                              "the whole model object")
-            save_dict['model'] = model
-            attrs.remove('model')
+        for name in model_attr_names:
+            if name in attrs:
+                model = getattr(self, name)
+                try:
+                    if save_model_reduced:
+                        model = model.state_dict_reduced
+                except AttributeError:
+                    warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
+                                  "the whole model object")
+                save_dict[name] = model
+                attrs.remove(name)
         for k in attrs:
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
@@ -1106,7 +1113,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if isinstance(attr, torch.Tensor):
                 attr = attr.detach()
             save_dict[k] = attr
-        torch.save(save_dict, file_path)
+        torch.save(save_dict, file_path, pickle_module=dill)
 
     @classmethod
     def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
@@ -1191,7 +1198,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
-        tmp_dict = torch.load(file_path, map_location=map_location)
+        tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
         device = torch.device(map_location)
         if not isinstance(model_attr_name, list):
             model_attr_name = [model_attr_name]
@@ -1211,7 +1218,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 # want to make sure the dtypes match up as well
                 model = model.to(device, target_image.dtype)
             models[attr] = model
-        synth = cls(target_image, **models)
+        loss_function = tmp_dict.pop('loss_function', None)
+        loss_function_kwargs = tmp_dict.pop('loss_function_kwargs', {})
+        synth = cls(target_image, loss_function=loss_function,
+                    loss_function_kwargs=loss_function_kwargs, **models)
         for k, v in tmp_dict.items():
             setattr(synth, k, v)
         return synth

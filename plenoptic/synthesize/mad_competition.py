@@ -233,7 +233,7 @@ class MADCompetition(Synthesis):
     """
 
     def __init__(self, target_image, model_1, model_2, loss_function=None, model_1_kwargs={},
-                 model_2_kwargs={}, loss_kwargs={}):
+                 model_2_kwargs={}, loss_function_kwargs={}):
         self._names = {'target_image': 'target_image',
                        'matched_image': 'matched_image',
                        'model': 'model_1',
@@ -248,7 +248,7 @@ class MADCompetition(Synthesis):
                        'coarse_to_fine': 'coarse_to_fine_1'}
 
         self.synthesis_target = 'model_1_min'
-        super().__init__(target_image, model_1, loss_function, model_1_kwargs, loss_kwargs)
+        super().__init__(target_image, model_1, loss_function, model_1_kwargs, loss_function_kwargs)
 
         # initialize the MAD-specific attributes
         self.loss_sign = 1
@@ -270,7 +270,7 @@ class MADCompetition(Synthesis):
 
             def wrapped_loss_func(synth_rep, ref_rep, synth_img, ref_img):
                 return loss_function(ref_rep=ref_rep, synth_rep=synth_rep, ref_img=ref_img,
-                                     synth_img=synth_img, **loss_kwargs)
+                                     synth_img=synth_img, **loss_function_kwargs)
             self.loss_function_2 = wrapped_loss_func
         else:
             self.model_2 = Identity(model_2.__name__).to(target_image.device)
@@ -1340,12 +1340,13 @@ class MADCompetition(Synthesis):
                  'target_representation_1', 'target_representation_2', 'matched_representation_1',
                  'matched_representation_2', 'saved_representation_1', 'saved_representation_2',
                  'gradient', 'saved_image', 'learning_rate', 'saved_representation_1_gradient',
-                 'saved_representation_2_gradient', 'saved_image_gradient']
-        super().save(file_path, save_model_reduced,  attrs)
+                 'saved_representation_2_gradient', 'saved_image_gradient', 'loss_function_1',
+                 'initial_image', 'initial_representation', 'loss_function_2']
+        super().save(file_path, save_model_reduced,  attrs, ['model_1', 'model_2'])
 
     @classmethod
-    def load(cls, file_path, model_attr_name=['model_1', 'model_2'], model_constructor=[None, None],
-             map_location='cpu', **state_dict_kwargs):
+    def load(cls, file_path, model_constructor=[None, None], map_location='cpu',
+             **state_dict_kwargs):
         r"""load all relevant stuff from a .pt file
 
         We will iterate through any additional key word arguments
@@ -1358,12 +1359,7 @@ class MADCompetition(Synthesis):
         ----------
         file_path : str
             The path to load the synthesis object from
-        model_attr_name : str or list, optional
-            The attribute that gives the model(s) names. Can be a str or
-            a list of strs. If a list and the reduced version of the
-            model was saved, ``model_constructor`` should be a list of
-            the same length.
-        model_constructor : callable, list, or None, optional
+        model_constructor : list, optional
             When saving the synthesis object, we have the option to only
             save the ``state_dict_reduced`` (in order to save space). If
             we do that, then we need some way to construct that model
@@ -1371,9 +1367,10 @@ class MADCompetition(Synthesis):
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
-            VentralModel class for an example of this. If a list, should
-            be a list of the above and the same length as
-            ``model_attr_name``
+            VentralModel class for an example of this. Since
+            MADCompetition has two models, this must be a list with two
+            elements, the first corresponding to model_1, the second to
+            model_2
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
@@ -1387,28 +1384,30 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        synthesis : plenoptic.synth.Synthesis
-            The loaded synthesis object
+        mad : plenoptic.synth.MADCompetition
+            The loaded MADCompetition object
 
 
         Examples
         --------
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+        >>> mad = po.synth.MADCompetition(img, model1, model2)
+        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> mad.save('mad.pt')
+        >>> mad_copy = po.synth.MADCompetition.load('mad.pt')
 
         Things are slightly more complicated if you saved a reduced
         representation of the model by setting the
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced)
+        >>> model1 = po.simul.RetinalGanglionCells(1)
+        >>> model2 = po.metric.nlpd
+        >>> mad = po.synth.MADCompetition(img, model1, model2)
+        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> mad.save('mad.pt', save_model_reduced=True)
+        >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
+                                                    [po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                     None])
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
@@ -1417,16 +1416,18 @@ class MADCompetition(Synthesis):
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced,
-                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+        >>> model1 = po.simul.RetinalGanglionCells(1)
+        >>> model2 = po.metric.nlpd
+        >>> mad = po.synth.MADCompetition(img, model1, model2)
+        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> mad.save('mad.pt', save_model_reduced=True)
+        >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
+                                                    [po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                     None],
+                                                    cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
-        return super().load(file_path, model_attr_name, model_constructor, map_location,
+        return super().load(file_path, ['model_1', 'model_2'], model_constructor, map_location,
                             **state_dict_kwargs)
 
     def to(self, *args, **kwargs):
