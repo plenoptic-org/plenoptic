@@ -58,7 +58,7 @@ class TestMAD(object):
             loss = po.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
-                                      loss_kwargs=loss_kwargs)
+                                      loss_function_kwargs=loss_kwargs)
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
@@ -80,7 +80,7 @@ class TestMAD(object):
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         else:
             model1 = po.metric.naive.mse
-        if model1 == 'class':
+        if model2 == 'class':
             model2 = po.metric.NLP().to(DEVICE)
         else:
             model2 = po.metric.nlpd
@@ -133,15 +133,34 @@ class TestMAD(object):
                                coarse_to_fine=True, fraction_removed=fraction_removed,
                                loss_change_fraction=loss_change_fraction)
 
-    def test_save_load(self, tmp_path):
+    @pytest.mark.parametrize('model1', ['class', 'function'])
+    @pytest.mark.parametrize('model2', ['class', 'function'])
+    @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
+    def test_save_load(self, model1, model2, loss_func, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
-        model1 = po.metric.NLP().to(DEVICE)
-        model2 = po.simul.models.naive.Identity().to(DEVICE)
-        mad = po.synth.MADCompetition(img, model1, model2)
+        if model1 == 'class':
+            model1 = po.simul.models.naive.Identity().to(DEVICE)
+        else:
+            model1 = po.metric.naive.mse
+        if model2 == 'class':
+            model2 = po.metric.NLP().to(DEVICE)
+        else:
+            model2 = po.metric.nlpd
+        loss_kwargs = {}
+        if loss_func is None:
+            loss = None
+        elif loss_func == 'l2':
+            loss = po.optim.l2_norm
+        elif loss_func == 'range_penalty_w_beta':
+            loss = po.optim.l2_and_penalize_range
+            loss_kwargs['beta'] = .9
+        mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
+                                      loss_function_kwargs=loss_kwargs)
         mad.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_save_load.pt"),
                                                 map_location=DEVICE)
+        # check these attributes all saved correctly
         for k in ['target_image', 'saved_representation_1', 'saved_image',
                   'matched_representation_1', 'matched_image', 'target_representation_1',
                   'saved_representation_2', 'matched_representation_2', 'target_representation_2']:
@@ -149,6 +168,26 @@ class TestMAD(object):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
         assert not isinstance(mad_copy.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
+        # check loss functions correctly saved
+        mad_loss = mad.loss_function_1(mad.matched_representation_1, mad.target_representation_1,
+                                       mad.matched_image, mad.target_image)
+        mad_copy_loss = mad_copy.loss_function_1(mad_copy.matched_representation_1,
+                                                 mad_copy.target_representation_1,
+                                                 mad_copy.matched_image, mad_copy.target_image)
+        if mad_loss != mad_copy_loss:
+            raise Exception(f"Loss function 1 not properly saved! Before saving was {mad_loss}, "
+                            f"after loading was {mad_copy_loss}")
+        mad_loss = mad.loss_function_2(mad.matched_representation_2, mad.target_representation_2,
+                                       mad.matched_image, mad.target_image)
+        mad_copy_loss = mad_copy.loss_function_2(mad_copy.matched_representation_2,
+                                                 mad_copy.target_representation_2,
+                                                 mad_copy.matched_image, mad_copy.target_image)
+        if mad_loss != mad_copy_loss:
+            raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
+                            f"after loading was {mad_copy_loss}")
+        # check that can resume
+        mad_copy.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True,
+                            learning_rate=None, initial_noise=None)
 
     @pytest.mark.parametrize('model_name', ['class', 'function'])
     @pytest.mark.parametrize('fraction_removed', [0, .1])

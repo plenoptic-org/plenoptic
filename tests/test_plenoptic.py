@@ -737,42 +737,55 @@ class TestVentralStream(object):
 
 class TestMetamers(object):
 
-    def test_metamer_save_load(self, tmp_path):
+    @pytest.mark.parametrize('model', ['class', 'class_reduced', 'function'])
+    @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
+    def test_metamer_save_load(self, model, loss_func, tmp_path):
 
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=3, store_progress=True)
-        metamer.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
+        save_reduced = False
+        model_constructor = None
+        if model == 'class':
+            model = po.simul.PrimaryVisualCortex(.5, im.shape[2:]).to(DEVICE)
+        elif model == 'class_reduced':
+            model = po.simul.PrimaryVisualCortex(.5, im.shape[2:]).to(DEVICE)
+            save_reduced = True
+            model_constructor = po.simul.PrimaryVisualCortex.from_state_dict_reduced
+        else:
+            model = po.metric.nlpd
+        loss_kwargs = {}
+        if loss_func is None:
+            loss = None
+        elif loss_func == 'l2':
+            loss = po.optim.l2_norm
+        elif loss_func == 'range_penalty_w_beta':
+            loss = po.optim.l2_and_penalize_range
+            loss_kwargs['beta'] = .9
+        met = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+        met.synthesize(max_iter=10, store_progress=True)
+        met.save(op.join(tmp_path, 'test_metamer_save_load.pt'), save_reduced)
         met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"),
-                                         map_location=DEVICE)
+                                         map_location=DEVICE,
+                                         model_constructor=model_constructor)
         for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
                   'matched_image', 'target_representation']:
-            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
+            if not getattr(met, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
         assert not isinstance(met_copy.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
+        # check loss functions correctly saved
+        met_loss = met.loss_function(met.matched_representation, met.target_representation,
+                                     met.matched_image, met.target_image)
+        met_copy_loss = met_copy.loss_function(met_copy.matched_representation,
+                                               met_copy.target_representation,
+                                               met_copy.matched_image, met_copy.target_image)
+        if met_loss != met_copy_loss:
+            raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
+                            f"after loading was {met_copy_loss}")
+        # check that can resume
+        met_copy.synthesize(max_iter=10, loss_change_iter=5, store_progress=True,
+                            learning_rate=None)
 
-    def test_metamer_save_load_reduced(self, tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=3, store_progress=True)
-        metamer.save(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'), True)
-        with pytest.raises(Exception):
-            met_copy = po.synth.Metamer.load(op.join(tmp_path,
-                                                     "test_metamer_save_load_reduced.pt"))
-        met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'),
-                                         model_constructor=po.simul.PrimaryVisualCortex.from_state_dict_reduced,
-                                         map_location=DEVICE)
-        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
-                  'matched_image', 'target_representation']:
-            if not getattr(metamer, k).allclose(getattr(met_copy, k)):
-                raise Exception("Something went wrong with saving and loading! %s not the same" % k)
 
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -957,7 +970,7 @@ class TestMetamers(object):
         elif loss_func == 'range_penalty_w_beta':
             loss = po.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
-        met = po.synth.Metamer(img, model, loss_function=loss, loss_kwargs=loss_kwargs)
+        met = po.synth.Metamer(img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
