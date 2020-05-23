@@ -8,6 +8,8 @@ Welcome to plenoptic's documentation!
 
 Currently there's nothing here! However, we'll expand it as we go
 
+If anything is unclear, please `open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
