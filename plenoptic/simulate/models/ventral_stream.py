@@ -1591,7 +1591,7 @@ class PrimaryVisualCortex(VentralModel):
         # zscore cone_responses there because we want the values that go
         # into the mean pixel intensity to be normalized but not the
         # values that go into the steerable pyramid.
-        self.cone_responses = cone_responses.detach().clone()
+        self.cone_responses = cone_responses
         self.pyr_coeffs = self.complex_steerable_pyramid(cone_responses)
         if self.half_octave_pyramid:
             half_cones = nn.functional.interpolate(cone_responses, self.half_octave_img_res,
