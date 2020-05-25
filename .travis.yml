@@ -6,4 +6,4 @@ python:
 install:
   - pip install -e .
 script:
-  - pytest -v --timeout=300
+  - pytest -v --timeout=180 --timeout_method=thread
