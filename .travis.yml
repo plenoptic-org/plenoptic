@@ -6,4 +6,4 @@ python:
 install:
   - pip install -e .
 script:
-  - pytest -v
+  - pytest -v --timeout=300
