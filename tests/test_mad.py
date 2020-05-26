@@ -73,9 +73,7 @@ class TestMAD(object):
         # store_progress=False, resume=True). and trying to use
         # pytest-timeout doesn't work. it's not all that crucial, so
         # we'll get rid of it?
-        print('plotting')
         mad.plot_synthesis_status()
-        print('done plotting')
         if store_progress:
             mad.animate()
         plt.close('all')
