@@ -72,8 +72,8 @@ class TestMAD(object):
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
-        print('plotting')
-        mad.plot_synthesis_status()
+        # print('plotting')
+        # mad.plot_synthesis_status()
         if store_progress:
             print('animating')
             mad.animate()
