@@ -36,7 +36,6 @@ setup(
                       'imageio>=2.5',
                       'pytest',
                       'scikit-image>=0.15.0',
-                      'dill',
-                      'pytest-timeout'],
+                      'dill'],
     tests='tests',
      )
