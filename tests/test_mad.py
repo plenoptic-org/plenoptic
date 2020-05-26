@@ -67,13 +67,17 @@ class TestMAD(object):
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
+            print('resuming')
             mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
+        print('plotting')
         mad.plot_synthesis_status()
         if store_progress:
+            print('animating')
             mad.animate()
+        print('done')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
