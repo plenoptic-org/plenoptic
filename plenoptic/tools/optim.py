@@ -124,7 +124,7 @@ def log_barrier(synth_img, allowed_range=(0, 1), epsilon=1., **kwargs):
     """
     img = synth_img.flatten()
     penalty = torch.log((img - allowed_range[0]) * (allowed_range[1] - img))
-    return epsilon * torch.mean(penalty)
+    return epsilon * -torch.mean(penalty)
 
 
 def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), beta=.5, **kwargs):
