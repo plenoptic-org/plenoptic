@@ -1,4 +1,5 @@
 import pytest
+import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
 import os.path as op
@@ -34,6 +35,7 @@ class TestMAD(object):
         mad.plot_synthesis_status()
         if store_progress:
             mad.animate()
+        plt.close('all')
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
                                            'range_penalty_w_beta'])
@@ -71,9 +73,12 @@ class TestMAD(object):
         # store_progress=False, resume=True). and trying to use
         # pytest-timeout doesn't work. it's not all that crucial, so
         # we'll get rid of it?
-        #mad.plot_synthesis_status()
+        print('plotting')
+        mad.plot_synthesis_status()
+        print('done plotting')
         if store_progress:
             mad.animate()
+        plt.close('all')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
@@ -103,6 +108,7 @@ class TestMAD(object):
         if store_progress:
             for t in ['model_1_min', 'model_2_min', 'model_1_max', 'model_2_max']:
                 mad.animate(synthesis_target=t)
+        plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
@@ -137,6 +143,7 @@ class TestMAD(object):
                 mad.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                                coarse_to_fine=True, fraction_removed=fraction_removed,
                                loss_change_fraction=loss_change_fraction)
+        plt.close('all')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
@@ -215,6 +222,7 @@ class TestMAD(object):
                            fraction_removed=fraction_removed, loss_change_thresh=10,
                            loss_change_fraction=loss_change_fraction)
             mad.plot_synthesis_status()
+        plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])

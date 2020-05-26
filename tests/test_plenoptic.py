@@ -399,6 +399,7 @@ class TestPooling(object):
             pw.plot_window_widths('pixels', i)
         fig = pt.imshow(po.to_numpy(im))
         pw.plot_windows(fig.axes[0])
+        plt.close('all')
 
     def test_PoolingWindows_caching(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -446,6 +447,7 @@ class TestPooling(object):
             pw = pw.parallel(devices)
             pooled = pw(im)
             pw.project(pooled)
+            plt.close('all')
 
     def test_PoolingWindows_sep(self):
         # test the window and pool function separate of the forward function
@@ -479,6 +481,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -499,6 +502,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -551,6 +555,7 @@ class TestVentralStream(object):
             rgc.plot_representation()
             rgc.plot_representation_image()
             metamer.plot_representation_error()
+            plt.close('all')
 
     def test_frontend(self):
         im = po.make_basic_stimuli()
@@ -566,6 +571,7 @@ class TestVentralStream(object):
         metamer.synthesize(max_iter=3, store_progress=1)
         metamer.plot_synthesis_status(figsize=(35, 5))
         metamer.animate(figsize=(35, 5))
+        plt.close('all')
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -574,6 +580,7 @@ class TestVentralStream(object):
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
+        plt.close('all')
 
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -591,6 +598,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -610,6 +618,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_parallel(self):
         if torch.cuda.device_count() > 1:
@@ -623,6 +632,7 @@ class TestVentralStream(object):
             v1.plot_representation()
             v1.plot_representation_image()
             metamer.plot_representation_error()
+            plt.close('all')
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -640,6 +650,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:
@@ -831,6 +842,7 @@ class TestMetamers(object):
         metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_synthesis_status()
         metamer.plot_synthesis_status(iteration=1)
+        plt.close('all')
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -843,6 +855,7 @@ class TestMetamers(object):
         metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_synthesis_status()
         metamer.plot_synthesis_status(iteration=1)
+        plt.close('all')
 
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -865,6 +878,7 @@ class TestMetamers(object):
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
+        plt.close('all')
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -980,6 +994,7 @@ class TestMetamers(object):
         met.plot_synthesis_status()
         if store_progress:
             met.animate()
+        plt.close('all')
 
 
 class TestPerceptualMetrics(object):
