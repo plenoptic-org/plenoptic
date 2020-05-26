@@ -42,9 +42,12 @@ class TestMAD(object):
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     @pytest.mark.parametrize('resume', [False, True])
     def test_loss_func(self, loss_func, target, store_progress, resume, tmp_path):
+        print(f'starting test {loss_func} {target} {store_progress} {resume}')
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        print('loaded image')
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.NLP().to(DEVICE)
+        print('initialized models')
         loss_kwargs = {}
         if loss_func is None:
             loss = None
@@ -57,8 +60,10 @@ class TestMAD(object):
         elif loss_func == 'range_penalty_w_beta':
             loss = po.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
+        print('initialized loss')
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
+        print('initialized MAD')
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
