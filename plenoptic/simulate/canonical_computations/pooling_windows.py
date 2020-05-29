@@ -1595,7 +1595,16 @@ class PoolingWindows(nn.Module):
         for i, (f, name) in enumerate(zip(funcs, ['L1-norm', 'Sum'])):
             for j, (ax, d, t) in enumerate(zip(axes[i], data, titles)):
                 d = f(d)
-                ax.semilogx(self.central_eccentricity_degrees, d)
+                try:
+                    ax.semilogx(self.central_eccentricity_degrees, d)
+                except ValueError:
+                    # this happens because central_eccentricity_degrees
+                    # contains all windows that we constructed, but the
+                    # ecc_windows dictionary throws away any windows
+                    # that have all zero (or close to zero) values. this
+                    # will be those at the end, because they're off the
+                    # image
+                    ax.semilogx(self.central_eccentricity_degrees[:d.shape[0]], d)
                 for k, dk in enumerate(d.transpose(0, 1)):
                     if i == 0 and j == 0:
                         label = angle_n[k]
