@@ -1595,22 +1595,21 @@ class PoolingWindows(nn.Module):
         for i, (f, name) in enumerate(zip(funcs, ['L1-norm', 'Sum'])):
             for j, (ax, d, t) in enumerate(zip(axes[i], data, titles)):
                 d = f(d)
-                try:
-                    ax.semilogx(self.central_eccentricity_degrees, d)
-                except ValueError:
-                    # this happens because central_eccentricity_degrees
-                    # contains all windows that we constructed, but the
-                    # ecc_windows dictionary throws away any windows
-                    # that have all zero (or close to zero) values. this
-                    # will be those at the end, because they're off the
-                    # image
-                    ax.semilogx(self.central_eccentricity_degrees[:d.shape[0]], d)
+                # most of the time, self.central_eccentricity_degrees
+                # and d will be same size, but sometimes they will not
+                # not. this happens because central_eccentricity_degrees
+                # contains all windows that we constructed, but the
+                # ecc_windows dictionary throws away any windows that
+                # have all zero (or close to zero) values. this will be
+                # those at the end, because they're off the image
+                ecc = self.central_eccentricity_degrees[:d.shape[0]]
+                ax.semilogx(ecc, d)
                 for k, dk in enumerate(d.transpose(0, 1)):
                     if i == 0 and j == 0:
                         label = angle_n[k]
                     else:
                         label = None
-                    ax.scatter(self.central_eccentricity_degrees, dk, label=label)
+                    ax.scatter(ecc, dk, label=label)
                 ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel=name)
                 if plot_transition_x:
                     ax.vlines(self.transition_x, 0, d.max(), linestyles='--')
