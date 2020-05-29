@@ -201,6 +201,37 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # reasonable default dtype
         self = self.to(torch.float32)
+        
+        # initialize empty coefficient dictionary
+        self.pyr_coeffs = OrderedDict()
+        
+        
+    @classmethod
+    def vector_to_pyramid(cls, vector, imShape, Nsc, Nor):
+        sh = imShape[-2:]
+        pind = [[np.int64(np.floor(sh[0]/(2**i))),np.int64(np.floor(sh[1]/(2**i)))] for i in range(Nsc) for j in range(Nor)]
+        pind = [[sh[0],sh[1]]]+pind+[[np.int64(sh[0]/(2**Nsc)),np.int64(sh[1]/(2**Nsc))]]
+        
+        keys = ['residual_highpass'] + [(i,j) for i in range(Nsc) for j in range(Nor)] + ['residual_lowpass']
+
+        pyr = Steerable_Pyramid_Freq((imShape[2:]),height=Nsc,order = Nor-1,is_complex=True)
+        
+        cnt = 0
+        for i in range(0,len(pind)):
+            num = pind[i][0]*pind[i][1]
+            shape = (pind[i][0],pind[i][1])
+
+            real = torch.Tensor(np.asarray([vector[cnt+j][0] for j in range(0,num)]).reshape(shape)).T.unsqueeze(0).unsqueeze(0)
+            imag = torch.Tensor(np.asarray([vector[cnt+j][1] for j in range(0,num)]).reshape(shape)).T.unsqueeze(0).unsqueeze(0)
+            if i==0 or i==len(pind)-1:
+                D = real
+            else:
+                D = torch.stack((real,imag),-1)
+
+            pyr.pyr_coeffs[keys[i]] = D
+            cnt+=num
+        
+        return pyr
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.

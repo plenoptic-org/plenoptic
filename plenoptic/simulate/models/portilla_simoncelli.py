@@ -44,7 +44,7 @@ class Portilla_Simoncelli(nn.Module):
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
     
     '''
-    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None):
+    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None,inputImageIsPyramid=False):
         super(Portilla_Simoncelli, self).__init__()
 
         self.image_shape = im_shape
@@ -57,6 +57,8 @@ class Portilla_Simoncelli(nn.Module):
 
         self.normalize = normalize
         self.normalizationFactor = normalizationFactor
+        self.inputImageIsPyramid = inputImageIsPyramid
+
 
     def forward(self, image):
         """Generate Texture Statistics representation of an image (see reference [1])
@@ -73,6 +75,14 @@ class Portilla_Simoncelli(nn.Module):
             
         """
         
+        # get pyramid coefficients
+        print(self.inputImageIsPyramid)
+        if self.inputImageIsPyramid:
+            pyr0 = [k for k in image[0].pyr_coeffs.values()]
+            image = image[1]
+        else:
+            pyr0 = self.pyr.forward(image) 
+        
         # pixel statistics
         mn0 = torch.min(image)
         mx0 = torch.max(image)
@@ -83,10 +93,6 @@ class Portilla_Simoncelli(nn.Module):
         
         # STATISTIC: statg0 or the pixel statistics
         statg0 = torch.stack((mean0, var0, skew0, kurt0, mn0, mx0)).view(6, 1)
-
-        # get pyramid coefficients
-        pyr0 = self.pyr.forward(image)
-        
 
         # subtract mean of lowBand
         nbands = len(pyr0)
@@ -227,37 +233,12 @@ class Portilla_Simoncelli(nn.Module):
                 Crx0[0:nrc,0:nrp,n_scales] = torch.mm(cousins.t(),rparents)/cousinSz
                 
                 if n_scales==self.n_scales-1:
-                    self.rparents = rparents.detach().numpy()
-                    self.cousins = cousins.detach().numpy()
-                    self.cousinSz = cousinSz
+                    
                     Cr0[0:nrp,0:nrp,n_scales+1]=torch.mm(rparents.t(),rparents)/(cousinSz/4)
 
         # STATISTC: vHPR0 or the variance of the high-pass residual
         channel = pyr0[0]
         vHPR0 = channel.pow(2).mean()
-        
-        self.statg0 = statg0.detach().numpy()
-        self.magMeans0 = magMeans0.detach().numpy()
-        self.ace = ace.detach().numpy()
-        self.skew0p = skew0p.detach().numpy()
-        self.kurt0p = kurt0p.detach().numpy()
-        self.acr = acr.detach().numpy()
-        self.C0 = C0.detach().numpy()
-        self.Cx0 = Cx0.detach().numpy()
-        self.Cr0 = Cr0.detach().numpy()
-        self.Crx0 = Crx0.detach().numpy()
-        self.vHPR0 = vHPR0.detach().numpy()
-        print('statg0: ',statg0.shape, statg0.numel())
-        print('magMeans0: ',magMeans0.shape, magMeans0.numel())
-        print('ace: ', ace.shape, ace.numel())
-        print('skew0p: ', skew0p.shape, skew0p.numel())
-        print('kurt0p: ', kurt0p.shape, kurt0p.numel())
-        print('acr: ', acr.shape, acr.numel())
-        print('C0: ', C0.shape, C0.numel())
-        print('Cx0: ', Cx0.shape, Cx0.numel())
-        print('Cr0: ', Cr0.shape, Cr0.numel())
-        print('Crx0: ', Crx0.shape, Crx0.numel())
-        print('vHPR0: ', vHPR0, vHPR0.numel())
         
         representation = torch.cat((statg0.flatten(),magMeans0.flatten(),ace.flatten(),
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
