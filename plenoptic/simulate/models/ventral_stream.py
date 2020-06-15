@@ -1579,6 +1579,8 @@ class PrimaryVisualCortex(VentralModel):
         """
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
+        if not scales:
+            scales = self.scales
         # this is a little weird here: the image that we detach and
         # clone here is just a copy that we keep around for later
         # examination.
@@ -1591,11 +1593,15 @@ class PrimaryVisualCortex(VentralModel):
         # into the mean pixel intensity to be normalized but not the
         # values that go into the steerable pyramid.
         self.cone_responses = cone_responses
-        self.pyr_coeffs = self.complex_steerable_pyramid(cone_responses)
-        if self.half_octave_pyramid:
+        self.pyr_coeffs = {}
+        if any([i in self.complex_steerable_pyramid.scales for i in scales]):
+            self.pyr_coeffs.update(self.complex_steerable_pyramid(cone_responses, scales))
+        half_octave_scales = [i-.5 for i in scales if not isinstance(i, str)]
+        if (self.half_octave_pyramid and
+            any([i in self.half_octave_pyramid.scales for i in half_octave_scales])):
             half_cones = nn.functional.interpolate(cone_responses, self.half_octave_img_res,
                                                    mode='bicubic')
-            half_octave_pyr_coeffs = self.half_octave_pyramid(half_cones)
+            half_octave_pyr_coeffs = self.half_octave_pyramid(half_cones, half_octave_scales)
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
@@ -1605,26 +1611,21 @@ class PrimaryVisualCortex(VentralModel):
         self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
                                            for k, v in self.pyr_coeffs.items()
                                            if not isinstance(k, str))
-        if self.include_highpass:
+        if self.include_highpass and 'residual_highpass' in scales:
             self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
-        self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        self.mean_luminance = self.PoolingWindows(self.cone_responses)
+        if self.complex_cell_responses:
+            self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
+        else:
+            self.mean_complex_cell_responses = {}
         self.representation = self.mean_complex_cell_responses
-        self.representation['mean_luminance'] = self.mean_luminance
-        if self.include_highpass:
+        if 'mean_luminance' in scales:
+            self.mean_luminance = self.PoolingWindows(self.cone_responses)
+            self.representation['mean_luminance'] = self.mean_luminance
+        if self.include_highpass and 'residual_highpass' in scales:
             self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
             self.representation['residual_highpass'] = self.mean_residual_highpass
-        if scales:
-            rep = {}
-            for k in scales:
-                if isinstance(k, (float, int)):
-                    for j in range(self.order):
-                        rep[(k, j)] = self.representation[(k, j)]
-                else:
-                    rep[k] = self.representation[k]
-            self.representation = rep
         return self.representation_to_output()
 
     def _representation_for_plotting(self, batch_idx=0, data=None):

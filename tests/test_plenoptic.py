@@ -732,6 +732,28 @@ class TestVentralStream(object):
         # ...second time we load them
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
 
+    @pytest.mark.parametrize('window', ['cosine', 'gaussian'])
+    @pytest.mark.parametrize('half_oct', [False, True])
+    def test_v1_scales(self, window, half_oct):
+        im = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        v1 = po.simul.PrimaryVisualCortex(1, im.shape[-2:], std_dev=1, window_type=window,
+                                          half_octave_pyramid=half_oct)
+        lum_rep = v1(im, ['mean_luminance'])
+        more_rep = v1(im, ['mean_luminance', 0])
+        if lum_rep.numel() >= more_rep.numel():
+            raise Exception("V1 not properly restricting output!")
+        if any([(i, 0) in v1.representation.keys() for i in [1, 2, 3]]):
+            raise Exception("Extra keys are showing up in v1.representation!")
+        if lum_rep.numel() != v1(im, ['mean_luminance']).numel():
+            raise Exception("V1 is not dropping unnecessary output!")
+        if half_oct:
+            if more_rep.numel() >= v1(im, ['mean_luminance', 1, .5]).numel():
+                raise Exception("V1 not properly restricting output!")
+            if any([(i, 0) in v1.representation.keys() for i in [0, 2, 3]]):
+                raise Exception("Extra keys are showing up in v1.representation!")
+            if lum_rep.numel() != v1(im, ['mean_luminance']).numel():
+                raise Exception("V1 is not dropping unnecessary output!")
+
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)

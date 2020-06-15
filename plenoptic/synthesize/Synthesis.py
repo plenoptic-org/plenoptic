@@ -406,6 +406,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
                 self.saved_image.append(self.matched_image.clone().to('cpu'))
+                # we do this instead of using
+                # self.matched_representation because its size might
+                # change over time (if we're doing coarse-to-fine), and
+                # we want to be able to stack this
                 self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
                 self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
                 self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
