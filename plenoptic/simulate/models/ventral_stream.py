@@ -2036,3 +2036,89 @@ class PrimaryVisualCortex(VentralModel):
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
             pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
         return fig, axes
+
+
+class MomentsModel(VentralModel):
+    r"""pool the image moments (mean, variance, etc)
+
+    this is a null model, used to show that the identity of the moments
+    matter, not just their number
+
+    NOTE: this implementation is not finished
+
+    Parameters
+    ----------
+    scaling : float
+        Scaling parameter that governs the size of the pooling
+        windows. Other pooling windows parameters
+        (``radial_to_circumferential_ratio``,
+        ``transition_region_width``) cannot be set here. If that ends up
+        being of interest, will change that.
+    img_res : tuple
+        The resolution of our image (should therefore contains
+        integers). Will use this to generate appropriately sized pooling
+        windows.
+    min_eccentricity : float, optional
+        The eccentricity at which the pooling windows start.
+    max_eccentricity : float, optional
+        The eccentricity at which the pooling windows end.
+    transition_region_width : `float`, optional
+        The width of the transition region, parameter :math:`t` in
+        equation 9 from the online methods. 0.5 (the default) is the
+        value used in the paper [1]_.
+    cone_power : float, optional
+        The first step of the model, before calculating any of the
+        statistics to pool, is to raise the image to this value, which
+        represents the non-linear response of the cones to photons. The
+        physiological value is approximately 1/3. The default is 1.0
+        (linear) because that works fine for gamma-corrected images (the
+        gamma correction is typically 1/2.2, which is not too different
+        from 1/3) and works much better for optimization. For synthesis
+        methods, it's recommended that you pre-process your input images
+        in order to get the effect of cone_power (a concave cone_power
+        like 1/3 leads to difficulties converging); if you only want the
+        output of this model, then 1/3 will work fine.
+    cache_dir : str or None, optional
+        The directory to cache the windows tensor in. If set, we'll look
+        there for cached versions of the windows we create, load them if
+        they exist and create and cache them if they don't. If None, we
+        don't check for or cache the windows.
+
+
+    """
+    def __init__(self, scaling, img_res, n_moments, min_eccentricity=.5, max_eccentricity=15,
+                 transition_region_width=.5, cone_power=1.0, cache_dir=None, window_type='cosine',
+                 std_dev=None):
+        super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
+                         transition_region_width=transition_region_width, cone_power=cone_power,
+                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
+        self.state_dict_reduced.update({'model_name': 'Moments'})
+        self.image = None
+        self.representation = None
+        self.n_moments = n_moments
+        self.powers = torch.arange(1, self.n_moments+1).reshape((1, self.n_moments, 1, 1))
+
+    def forward(self, image):
+        r"""Generate the Moments representation of an image
+
+        Parameters
+        ----------
+        image : torch.tensor
+            A tensor containing the image to analyze. We want to operate
+            on this in the pytorch-y way, so we want it to be 4d (batch,
+            channel, height, width). If it has fewer than 4 dimensions,
+            we will unsqueeze it until its 4d
+
+        Returns
+        -------
+        representation : torch.tensor
+            A 3d tensor containing the averages of the pixel intensities
+            within each pooling window for ``image``
+
+        """
+        self.image = image.detach().clone()
+        cone_responses = cone(image, self.cone_power)
+        self.cone_responses = cone_responses.detach().clone()
+        self.moments = torch.pow(cone_responses, self.powers)
+        self.representation = self.PoolingWindows(self.moments)
+        return self.representation
