@@ -197,27 +197,39 @@ class MADCompetition(Synthesis):
         examination (separately for each model and
         ``synthesis_target``).
     scales_loss : list
-        If ``coarse_to_fine`` is True, this contains the scale-specific
-        loss at each iteration (that is, the loss computed on just the
-        scale we're optimizing on that iteration; which we use to
-        determine when to switch scales). If ``coarse_to_fine`` is
-        False, this will be empty
+        If ``coarse_to_fine`` is not False, this contains the
+        scale-specific loss at each iteration (that is, the loss
+        computed on just the scale(s) we're optimizing on that
+        iteration; which we use to determine when to switch scales). If
+        ``coarse_to_fine=='together'``, then this will not include the
+        coarsest scale, since that scale is equivalent to 'all'.If
+        ``coarse_to_fine`` is False, this will be empty
     scales : list or None
-        If ``coarse_to_fine`` is True, this is a list of the scales in
-        reverse optimization order (i.e., from fine to coarse). The
-        first entry will be 'all' (since after we've optimized each
-        individual scale, we move on to optimizing all at once) This
-        will be modified by the synthesize() method and is used to track
-        which scale we're currently optimizing (the last one). When
-        we've gone through all the scales present, this will just
-        contain a single value: 'all'. If ``coarse_to_fine`` is False,
-        this will be None.
+        If ``coarse_to_fine`` is not False, this is a list of the scales
+        in optimization order (i.e., from coarse to fine). The last
+        entry will be 'all' (since after we've optimized each individual
+        scale, we move on to optimizing all at once) This will be
+        modified by the synthesize() method and is used to track which
+        scale we're currently optimizing (the first one). When we've
+        gone through all the scales present, this will just contain a
+        single value: 'all'. If ``coarse_to_fine=='together'``, then
+        this will never include the coarsest scale, since that scale is
+        equivalent to 'all'. If ``coarse_to_fine`` is False, this will
+        be None.
     scales_timing : dict or None
-        If ``coarse_to_fine`` is True, this is a dictionary whose keys
-        are the values of scales. The values are lists, with 0 through 2
-        entries: the first entry is the iteration where we started
-        optimizing this scale, the second is when we stopped (thus if
-        it's an empty list, we haven't started optimzing it yet). If
+        If ``coarse_to_fine`` is not False, this is a dictionary whose
+        keys are the values of scales. The values are lists, with 0
+        through 2 entries: the first entry is the iteration where we
+        started optimizing this scale, the second is when we stopped
+        (thus if it's an empty list, we haven't started optimzing it
+        yet). If ``coarse_to_fine=='together'``, then this will not
+        include the coarsest scale, since that scale is equivalent to
+        'all'. If ``coarse_to_fine`` is False, this will be None.
+    scales_finished : list or None
+        If ``coarse_to_fine`` is not False, this is a list of the scales
+        that we've finished optimizing (in the order we've finished).
+        If ``coarse_to_fine=='together'``, then this will never include
+        the coarsest scale, since that scale is equivalent to 'all'. If
         ``coarse_to_fine`` is False, this will be None.
 
     Notes
@@ -714,8 +726,16 @@ class MADCompetition(Synthesis):
             using the remaining fraction of the representation only.
             A new sample is drawn a every step. This gives a stochastic
             estimate of the gradient and might help optimization.
-        coarse_to_fine : bool, optional
-            If True, we attempt to use the coarse-to-fine optimization
+        coarse_to_fine : { 'together', 'separate', False}, optional
+            If False, don't do coarse-to-fine optimization. Else, there
+            are two options for how to do it:
+            - 'together': start with the coarsest scale, then gradually
+              add each finer scale. this is like blurring the objective
+              function and then gradually adding details and is probably
+              what you want.
+            - 'separate': compute the gradient with respect to each
+              scale separately (ignoring the others), then with respect
+              to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
         loss_change_fraction : float, optional
@@ -920,14 +940,17 @@ class MADCompetition(Synthesis):
         We also provide the ability of using a coarse-to-fine
         optimization. Unlike the above methods, this will not work
         out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in fine-to-coarse
-        order, i.e., reverse order that we will be optimizing) and that
-        it's forward method can accept a ``scales`` keyword argument, a
+        ``scales`` attributes (which gives the scales in coarse-to-fine
+        order, i.e., the order that we will be optimizing) and its
+        ``forward`` method can accept a ``scales`` keyword argument, a
         list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is True, then we optimize
-        each scale until we think it's reached convergence before moving
-        on. Once we've done each scale individually, we spend the rest
-        of the iterations doing them all together, as if
+        representation. If ``coarse_to_fine`` is not False, then we
+        optimize each scale until we think it's reached convergence
+        before moving on (either computing the gradient for each scale
+        individually, if ``coarse_to_fine=='separate'`` or for a given
+        scale and all coarser scales, if
+        ``coarse_to_fine=='together'``). Once we've done each scale, we
+        spend the rest of the iterations doing them all together, as if
         ``coarse_to_fine`` was False. This can be combined with the
         above three methods. We determine if a scale has converged in
         the same way as method 3 above: if the scale-specific loss
@@ -1042,12 +1065,18 @@ class MADCompetition(Synthesis):
             ``loss_change_iter`` and ``loss_change_thresh``), the
             fraction of the representation with the highest loss that we
             use to calculate the gradients
-        coarse_to_fine : bool, optional
-            If True, we attempt to use the coarse-to-fine optimization
+        coarse_to_fine : { 'together', 'separate', False}, optional
+            If False, don't do coarse-to-fine optimization. Else, there
+            are two options for how to do it:
+            - 'together': start with the coarsest scale, then gradually
+              add each finer scale. this is like blurring the objective
+              function and then gradually adding details and is probably
+              what you want.
+            - 'separate': compute the gradient with respect to each
+              scale separately (ignoring the others), then with respect
+              to all of them at the end.
             (see above for more details on what's required of the model
-            for this to work). Note this only affects the target model's
-            optimization, the stable model is always optimized as if
-            coarse_to_fine=False
+            for this to work).
         clip_grad_norm : bool or float, optional
             If the gradient norm gets too large, the optimization can
             run into problems with numerical overflow. In order to avoid
@@ -1265,8 +1294,16 @@ class MADCompetition(Synthesis):
             ``loss_change_iter`` and ``loss_change_thresh``), the
             fraction of the representation with the highest loss that we
             use to calculate the gradients
-        coarse_to_fine : bool, optional
-            If True, we attempt to use the coarse-to-fine optimization
+        coarse_to_fine : { 'together', 'separate', False}, optional
+            If False, don't do coarse-to-fine optimization. Else, there
+            are two options for how to do it:
+            - 'together': start with the coarsest scale, then gradually
+              add each finer scale. this is like blurring the objective
+              function and then gradually adding details and is probably
+              what you want.
+            - 'separate': compute the gradient with respect to each
+              scale separately (ignoring the others), then with respect
+              to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
         clip_grad_norm : bool or float, optional
@@ -1341,7 +1378,8 @@ class MADCompetition(Synthesis):
                  'matched_representation_2', 'saved_representation_1', 'saved_representation_2',
                  'gradient', 'saved_image', 'learning_rate', 'saved_representation_1_gradient',
                  'saved_representation_2_gradient', 'saved_image_gradient', 'loss_function_1',
-                 'initial_image', 'initial_representation', 'loss_function_2']
+                 'initial_image', 'initial_representation', 'loss_function_2', 'scales',
+                 'scales_timing', 'scales_loss', 'scales_finished', 'coarse_to_fine']
         super().save(file_path, save_model_reduced,  attrs, ['model_1', 'model_2'])
 
     @classmethod

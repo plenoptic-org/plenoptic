@@ -921,20 +921,32 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
                            loss_change_fraction=.5, fraction_removed=.1)
 
-    def test_metamer_coarse_to_fine(self):
+    @pytest.mark.parametrize('fraction_removed', [0, .1])
+    @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
+    @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
+    def test_metamer_coarse_to_fine(self, fraction_removed, loss_change_fraction, coarse_to_fine,
+                                    tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, fraction_removed=.1)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, loss_change_fraction=.5)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
+                           coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
+                           loss_change_fraction=loss_change_fraction)
+        metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
+        metamer_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_ctf.pt"),
+                                             map_location=DEVICE)
+        # check the ctf-related attributes all saved correctly
+        for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
+                  'scales_finished']:
+            if not getattr(metamer, k) == (getattr(metamer_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+        # check we can resume
+        metamer_copy.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
+                                loss_change_fraction=loss_change_fraction)
 
     @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1)),
                                          'clamp2', 'clamp4'])

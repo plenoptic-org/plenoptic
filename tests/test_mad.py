@@ -113,7 +113,9 @@ class TestMAD(object):
     @pytest.mark.parametrize('model_name', ['V1', 'NLP', 'function'])
     @pytest.mark.parametrize('fraction_removed', [0, .1])
     @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
-    def test_coarse_to_fine(self, target, model_name, fraction_removed, loss_change_fraction):
+    @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
+    def test_coarse_to_fine(self, target, model_name, fraction_removed, loss_change_fraction,
+                            coarse_to_fine, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'V1':
@@ -125,9 +127,21 @@ class TestMAD(object):
         mad = po.synth.MADCompetition(img, model1, model2)
         if model_name == 'V1' and 'model_1' in target:
             mad.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, fraction_removed=fraction_removed,
+                           coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                            loss_change_fraction=loss_change_fraction)
             mad.plot_synthesis_status()
+            mad.save(op.join(tmp_path, 'test_mad_ctf.pt'))
+            mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_ctf.pt"),
+                                                    map_location=DEVICE)
+            # check the ctf-related attributes all saved correctly
+            for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
+                      'scales_finished']:
+                if not getattr(mad, k) == (getattr(mad_copy, k)):
+                    raise Exception("Something went wrong with saving and loading! %s not the same"
+                                    % k)
+            mad_copy.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
+                                loss_change_fraction=loss_change_fraction)
         else:
             # in this case, they'll first raise the exception that
             # metrics don't work with either of these
@@ -139,7 +153,7 @@ class TestMAD(object):
                 exc = AttributeError
             with pytest.raises(exc):
                 mad.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                               coarse_to_fine=True, fraction_removed=fraction_removed,
+                               coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                                loss_change_fraction=loss_change_fraction)
         plt.close('all')
 
