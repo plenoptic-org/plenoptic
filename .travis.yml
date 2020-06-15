@@ -1,5 +1,7 @@
 language: python
 dist: xenial
+services:
+  - xvfb
 python:
   - "3.6"
   - "3.7"
