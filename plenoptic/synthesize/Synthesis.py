@@ -129,6 +129,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.scales_loss = []
         self.scales = None
         self.scales_timing = None
+        self.scales_finished = None
         self.coarse_to_fine = False
         self.store_progress = None
 
@@ -197,8 +198,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             using the remaining fraction of the representation only.
             A new sample is drawn a every step. This gives a stochastic
             estimate of the gradient and might help optimization.
-        coarse_to_fine : bool, optional
-            If True, we attempt to use the coarse-to-fine optimization
+        coarse_to_fine : { 'together', 'separate', False}, optional
+            If False, don't do coarse-to-fine optimization. Else, there
+            are two options for how to do it:
+            - 'together': start with the coarsest scale, then gradually
+              add each finer scale. this is like blurring the objective
+              function and then gradually adding details and is probably
+              what you want.
+            - 'separate': compute the gradient with respect to each
+              scale separately (ignoring the others), then with respect
+              to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
         loss_change_fraction : float, optional
@@ -235,9 +244,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if coarse_to_fine:
             if self.scales is None:
                 # this creates a new object, so we don't modify model.scales
-                self.scales = [i for i in self.model.scales] + ['all']
+                self.scales = [i for i in self.model.scales[:-1]]
+                if coarse_to_fine == 'separate':
+                    self.scales += [self.model.scales[-1]]
+                self.scales += ['all']
                 self.scales_timing = dict((k, []) for k in self.scales)
                 self.scales_timing[self.scales[0]].append(0)
+                self.scales_finished = []
             # else, we're continuing a previous version and want to continue
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
@@ -394,6 +407,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
                 self.saved_image.append(self.matched_image.clone().to('cpu'))
+                # we do this instead of using
+                # self.matched_representation because its size might
+                # change over time (if we're doing coarse-to-fine), and
+                # we want to be able to stack this
                 self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
                 self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
                 self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
@@ -422,7 +439,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         2b. If not, return False
 
-        3a. If so, check whether coarse to fine is True.
+        3a. If so, check whether coarse_to_fine is not False.
 
         3b. If not, return False
 
@@ -548,14 +565,17 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         We also provide the ability of using a coarse-to-fine
         optimization. Unlike the above methods, this will not work
         out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in fine-to-coarse
-        order, i.e., reverse order that we will be optimizing) and that
-        it's forward method can accept a ``scales`` keyword argument, a
+        ``scales`` attributes (which gives the scales in coarse-to-fine
+        order, i.e., the order that we will be optimizing) and its
+        ``forward`` method can accept a ``scales`` keyword argument, a
         list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is True, then we optimize
-        each scale until we think it's reached convergence before moving
-        on. Once we've done each scale individually, we spend the rest
-        of the iterations doing them all together, as if
+        representation. If ``coarse_to_fine`` is not False, then we
+        optimize each scale until we think it's reached convergence
+        before moving on (either computing the gradient for each scale
+        individually, if ``coarse_to_fine=='separate'`` or for a given
+        scale and all coarser scales, if
+        ``coarse_to_fine=='together'``). Once we've done each scale, we
+        spend the rest of the iterations doing them all together, as if
         ``coarse_to_fine`` was False. This can be combined with the
         above three methods. We determine if a scale has converged in
         the same way as method 3 above: if the scale-specific loss
@@ -644,8 +664,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             ``loss_change_iter`` and ``loss_change_thresh``), the
             fraction of the representation with the highest loss that we
             use to calculate the gradients
-        coarse_to_fine : bool, optional
-            If True, we attempt to use the coarse-to-fine optimization
+        coarse_to_fine : { 'together', 'separate', False}, optional
+            If False, don't do coarse-to-fine optimization. Else, there
+            are two options for how to do it:
+            - 'together': start with the coarsest scale, then gradually
+              add each finer scale. this is like blurring the objective
+              function and then gradually adding details and is probably
+              what you want.
+            - 'separate': compute the gradient with respect to each
+              scale separately (ignoring the others), then with respect
+              to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
         clip_grad_norm : bool or float, optional
@@ -945,6 +973,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # coarse_to_fine was False
             if self.scales[0] != 'all':
                 analyze_kwargs['scales'] = [self.scales[0]]
+                # if 'together', then we also want all the coarser
+                # scales
+                if self.coarse_to_fine == 'together':
+                    analyze_kwargs['scales'] += self.scales_finished
         self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
         target_rep = self.analyze(self.target_image, **analyze_kwargs)
         if self.store_progress:
@@ -1013,7 +1045,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
                 len(self.loss) - self.scales_timing[self.scales[0]][0] > self.loss_change_iter):
                 self.scales_timing[self.scales[0]].append(len(self.loss)-1)
-                self.scales = self.scales[1:]
+                self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
                 # reset scheduler and optimizer
                 self._init_optimizer(**self.optimizer_kwargs)

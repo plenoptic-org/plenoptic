@@ -1,6 +1,8 @@
+# TODO - reorganize this module as we finalize texture statistics
+
 import torch
 import abc
-from .signal import skew, kurtosis
+from .stats import skew, kurtosis
 
 
 class Clamper(metaclass=abc.ABCMeta):
@@ -121,11 +123,14 @@ class FourMomentsClamper(Clamper):
 
         """
         # kurtosis
-        im = modkurt(im, kurtosis(self.targ))
+        im = modkurt(im,kurtosis(self.targ))
+
         # skew
-        im = modskew(im, skew(self.targ))
+        im = modskew(im,skew(self.targ))
+
         # mean and variance
         im = (im - im.mean())/im.std() * self.targ.std() + self.targ.mean()
+
         # range
         im = im.clamp(self.targ.min(), self.targ.max())
         return im
@@ -277,11 +282,12 @@ def modkurt(ch, k, p=1):
 
     lmi = lNeg.max()
     lma = lPos.min()
+
     lam = torch.tensor([lmi, lma], device=ch.device)
 
     mMnewKt = (polyval(torch.tensor([A, B, C, D, E]), lam) /
                (polyval(torch.tensor([F, 0, G]), lam).pow(2)))
-    # THESE ARE NEVER USED?
+    # TODO: ARE THESE EVER USED?
     kmin = torch.min(mMnewKt)
     kmax = torch.max(mMnewKt)
 
@@ -322,7 +328,7 @@ def modskew(ch, sk, p=1):
     near pi/2 when sk is close to the original skewness, which is a realistic
     assumption when doing iterative projections in a pyramid, for example
     (small corrections to the channels' statistics).
-
+    
       [xm, snrk] = modskew(x,sk,p);
           sk: new skweness
               p [OPTIONAL]:   mixing proportion between sk0 and sk

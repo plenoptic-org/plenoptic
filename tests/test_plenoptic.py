@@ -6,6 +6,7 @@ import tqdm
 import itertools
 import tarfile
 import os
+import imageio
 import numpy as np
 import pyrtools as pt
 import plenoptic as po
@@ -221,6 +222,35 @@ class TestSteerablePyramid(object):
         pt_recon = pt_pyr.recon_pyr()
         np.allclose(po_recon, pt_recon)
 
+    @pytest.mark.parametrize("is_complex", [True, False])
+    @pytest.mark.parametrize("store_unoriented_bands", [True, False])
+    @pytest.mark.parametrize("scales", [[0], [5], [0, 1, 2], [0, 3, 5],
+                                        ['residual_highpass', 'residual_lowpass'],
+                                        ['residual_highpass', 0, 1, 'residual_lowpass']])
+    def test_scales_arg(self, is_complex, store_unoriented_bands, scales):
+        img = imageio.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img = torch.tensor(img / 255, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex,
+                                              store_unoriented_bands=store_unoriented_bands)
+        pyr_coeffs = pyr(img).copy()
+        if store_unoriented_bands:
+            unor = pyr.unoriented_bands.copy()
+        reduced_pyr_coeffs = pyr(img, scales).copy()
+        for k, v in reduced_pyr_coeffs.items():
+            if (v != pyr_coeffs[k]).any():
+                raise Exception("Reduced pyr_coeffs should be same as original, but at least key "
+                                f"{k} is not")
+        if store_unoriented_bands:
+            for k, v in pyr.unoriented_bands.items():
+                if (v != unor[k]).any():
+                    raise Exception("Reduced unoriented_bands should be same as original, but "
+                                    f"at least key {k} is not")
+        # recon_pyr should always fail
+        with pytest.raises(Exception):
+            pyr.recon_pyr()
+        with pytest.raises(Exception):
+            pyr.recon_pyr(scales)
+
 
 class TestNonLinearities(object):
 
@@ -403,6 +433,7 @@ class TestPooling(object):
             pw.plot_window_widths('pixels', i)
         fig = pt.imshow(po.to_numpy(im))
         pw.plot_windows(fig.axes[0])
+        plt.close('all')
 
     def test_PoolingWindows_caching(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -450,6 +481,7 @@ class TestPooling(object):
             pw = pw.parallel(devices)
             pooled = pw(im)
             pw.project(pooled)
+            plt.close('all')
 
     def test_PoolingWindows_sep(self):
         # test the window and pool function separate of the forward function
@@ -483,6 +515,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -503,6 +536,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -555,6 +589,7 @@ class TestVentralStream(object):
             rgc.plot_representation()
             rgc.plot_representation_image()
             metamer.plot_representation_error()
+            plt.close('all')
 
     def test_frontend(self):
         im = po.make_basic_stimuli()
@@ -570,6 +605,7 @@ class TestVentralStream(object):
         metamer.synthesize(max_iter=3, store_progress=1)
         metamer.plot_synthesis_status(figsize=(35, 5))
         metamer.animate(figsize=(35, 5))
+        plt.close('all')
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -578,6 +614,7 @@ class TestVentralStream(object):
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
+        plt.close('all')
 
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -595,6 +632,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -614,6 +652,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_parallel(self):
         if torch.cuda.device_count() > 1:
@@ -627,6 +666,7 @@ class TestVentralStream(object):
             v1.plot_representation()
             v1.plot_representation_image()
             metamer.plot_representation_error()
+            plt.close('all')
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -644,6 +684,7 @@ class TestVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:
@@ -690,6 +731,28 @@ class TestVentralStream(object):
                                 " not identical!" % i)
         # ...second time we load them
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], cache_dir=tmp_path)
+
+    @pytest.mark.parametrize('window', ['cosine', 'gaussian'])
+    @pytest.mark.parametrize('half_oct', [False, True])
+    def test_v1_scales(self, window, half_oct):
+        im = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        v1 = po.simul.PrimaryVisualCortex(1, im.shape[-2:], std_dev=1, window_type=window,
+                                          half_octave_pyramid=half_oct)
+        lum_rep = v1(im, ['mean_luminance'])
+        more_rep = v1(im, ['mean_luminance', 0])
+        if lum_rep.numel() >= more_rep.numel():
+            raise Exception("V1 not properly restricting output!")
+        if any([(i, 0) in v1.representation.keys() for i in [1, 2, 3]]):
+            raise Exception("Extra keys are showing up in v1.representation!")
+        if lum_rep.numel() != v1(im, ['mean_luminance']).numel():
+            raise Exception("V1 is not dropping unnecessary output!")
+        if half_oct:
+            if more_rep.numel() >= v1(im, ['mean_luminance', 1, .5]).numel():
+                raise Exception("V1 not properly restricting output!")
+            if any([(i, 0) in v1.representation.keys() for i in [0, 2, 3]]):
+                raise Exception("Extra keys are showing up in v1.representation!")
+            if lum_rep.numel() != v1(im, ['mean_luminance']).numel():
+                raise Exception("V1 is not dropping unnecessary output!")
 
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -835,6 +898,7 @@ class TestMetamers(object):
         metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_synthesis_status()
         metamer.plot_synthesis_status(iteration=1)
+        plt.close('all')
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -847,6 +911,7 @@ class TestMetamers(object):
         metamer.model.plot_representation_image(data=metamer.representation_error())
         metamer.plot_synthesis_status()
         metamer.plot_synthesis_status(iteration=1)
+        plt.close('all')
 
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -869,6 +934,7 @@ class TestMetamers(object):
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
+        plt.close('all')
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -911,20 +977,32 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
                            loss_change_fraction=.5, fraction_removed=.1)
 
-    def test_metamer_coarse_to_fine(self):
+    @pytest.mark.parametrize('fraction_removed', [0, .1])
+    @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
+    @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
+    def test_metamer_coarse_to_fine(self, fraction_removed, loss_change_fraction, coarse_to_fine,
+                                    tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, fraction_removed=.1)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, loss_change_fraction=.5)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
+                           coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
+                           loss_change_fraction=loss_change_fraction)
+        metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
+        metamer_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_ctf.pt"),
+                                             map_location=DEVICE)
+        # check the ctf-related attributes all saved correctly
+        for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
+                  'scales_finished']:
+            if not getattr(metamer, k) == (getattr(metamer_copy, k)):
+                raise Exception("Something went wrong with saving and loading! %s not the same"
+                                % k)
+        # check we can resume
+        metamer_copy.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
+                                loss_change_fraction=loss_change_fraction)
 
     @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1)),
                                          'clamp2', 'clamp4'])
@@ -984,6 +1062,7 @@ class TestMetamers(object):
         met.plot_synthesis_status()
         if store_progress:
             met.animate()
+        plt.close('all')
 
 
 class TestPerceptualMetrics(object):

@@ -101,6 +101,11 @@ def log_barrier(synth_img, allowed_range=(0, 1), epsilon=1., **kwargs):
 
     everything outside of ``allowed_range`` has an infinite penalty.
 
+    NOTE: this currently seems to not work unless you're very careful,
+    because the optimizer can easily adjust one of the pixels to outside
+    the allowed_range (unless the step size is small), resulting in
+    infinite loss
+
     Parameters
     ----------
     synth_img : torch.tensor
@@ -128,7 +133,7 @@ def log_barrier(synth_img, allowed_range=(0, 1), epsilon=1., **kwargs):
 
 
 def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), beta=.5, **kwargs):
-    """loss the combines L2-norm of the difference and range penalty
+    """loss that combines L2-norm of the difference and range penalty
 
     this function returns a weighted average of the L2-norm of the
     difference between ``ref_rep`` and ``synth_rep`` (as calculated by
@@ -165,6 +170,46 @@ def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), b
     l2_loss = l2_norm(ref_rep, synth_rep)
     range_penalty = penalize_range(synth_img, allowed_range)
     return beta * l2_loss + (1-beta) * range_penalty
+
+
+def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), beta=.5, **kwargs):
+    """loss that combines MSE of the difference and range penalty
+
+    this function returns a weighted average of the MSE of the
+    difference between ``ref_rep`` and ``synth_rep`` (as calculated by
+    ``mse()``) and the range penalty of ``synth_img`` (as calculated by
+    ``penalize_range()``).
+
+    The loss is: ``beta * mse(ref_rep, synth_rep) + (1-beta) *
+    penalize_range(synth_img, allowed_range)``
+
+    Parameters
+    ----------
+    synth_rep : torch.tensor
+        The first tensor to compare, model representation of the
+        synthesized image
+    ref_rep : torch.tensor
+        The second tensor to compare, model representation of the
+        reference image. must be same size as ``synth_rep``,
+    synth_img : torch.tensor
+        the tensor to penalize. the synthesized image.
+    allowed_range : tuple, optional
+        2-tuple of values giving the (min, max) allowed values
+    beta : float, optional
+        parameter that gives the tradeoff between MSE of the difference
+        and the range penalty
+    kwargs :
+        ignored, only present to absorb extra arguments
+
+    Returns
+    -------
+    loss : torch.float
+        the loss
+
+    """
+    mse_loss = mse(ref_rep, synth_rep)
+    range_penalty = penalize_range(synth_img, allowed_range)
+    return beta * mse_loss + (1-beta) * range_penalty
 
 
 def l2_and_log_barrier(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), epsilon=1, **kwargs):

@@ -5,14 +5,11 @@ from . import metric
 
 from .tools.conv import *
 from .tools.signal import *
-from .tools.visualization import *
-# from .tools.stats import *
-# from .tools.linalg import *
+from .tools.stats import *
 from .tools.display import *
 from .tools.data import *
 from .tools import optim
 
+from .tools.metamer_utils import *
 
 from .version import version as __version__
-
-from .tools.metamer_utils import *
