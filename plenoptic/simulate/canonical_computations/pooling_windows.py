@@ -398,25 +398,9 @@ class PoolingWindows(nn.Module):
             self.calculated_min_eccentricity_degrees.append(min_ecc)
             self.calculated_min_eccentricity_pixels.append(min_ecc_pix)
             if self.min_eccentricity is not None and min_ecc > self.min_eccentricity:
-                if i == 0:
-                    raise Exception("Cannot create windows with scaling %s, resolution %s, and min"
-                                    "_eccentricity %s, it will contain windows smaller than a "
-                                    "pixel. min_eccentricity must be at least %s!" %
-                                    (scaling, img_res, self.min_eccentricity, min_ecc))
-                else:
-                    warnings.warn("For scale %s, min_eccentricity set to %.2f in order to avoid "
-                                  "windows smaller than 1 pixel in area" % (i, min_ecc))
-                    # this makes sure that whatever that third decimal
-                    # place is, we're always one above it. e.g., if
-                    # min_ecc was 1.3442, we want to use 1.345, and this
-                    # will ensure that. (and we care about third decimal
-                    # place because that's we're using in the save
-                    # string)
-                    min_ecc *= 1e3
-                    min_ecc -= min_ecc % 1
-                    min_ecc = (min_ecc+1) / 1e3
-            else:
-                min_ecc = self.min_eccentricity
+                warnings.warn(f"Creating windows for scale {i} with min_ecc "
+                              f"{self.min_eccentricity}, but calculated min_ecc is {min_ecc}, so"
+                              " be aware some are smaller than a pixel!")
             # TEMPORARY
             min_ecc = self.min_eccentricity
             if transition_x is not None:
