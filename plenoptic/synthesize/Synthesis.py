@@ -1,6 +1,7 @@
 """abstract synthesis super-class
 """
 import abc
+import seaborn as sns
 import re
 import torch
 from torch import optim
@@ -1455,9 +1456,54 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         ax.yaxis.set_visible(False)
         return fig
 
+    def plot_image_hist(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(5, 5),
+                        ax=None, **kwargs):
+        r"""plot histogram of target and matched image
+
+        As a way to check the distributions of pixel intensities and see
+        if there's any values outside the allowed range
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        kwargs :
+            passed to sns.distplot
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if iteration is None:
+            image = self.matched_image[batch_idx, channel_idx]
+        else:
+            image = self.saved_image[iteration, batch_idx, channel_idx]
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+        target_image = self.target_image[batch_idx, channel_idx]
+        sns.distplot(image.flatten(), label='synthesized image', ax=ax, **kwargs)
+        sns.distplot(target_image.flatten(), label='target image', ax=ax, **kwargs)
+        ax.legend()
+        ax.set_title("Histogram of pixel values")
+        return fig
+
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
                               ylim=None, plot_representation_error=True, imshow_zoom=None,
-                              vrange=(0, 1), fig=None):
+                              vrange=(0, 1), fig=None, plot_image_hist=False):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -1518,6 +1564,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             if None, we create a new figure. otherwise we assume this is
             an empty figure that has the appropriate size and number of
             subplots
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not.
 
         Returns
         -------
@@ -1526,10 +1575,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         if fig is None:
+            n_subplots = 2
             if plot_representation_error:
-                n_subplots = 3
-            else:
-                n_subplots = 2
+                n_subplots += 1
+            if plot_image_hist:
+                n_subplots += 1
             fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
         else:
             axes = fig.axes
@@ -1538,11 +1588,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.plot_loss(iteration, ax=axes[1])
         if plot_representation_error:
             fig = self.plot_representation_error(batch_idx, iteration, ax=axes[2], ylim=ylim)
+        if plot_image_hist:
+            fig = self.plot_image_hist(batch_idx, channel_idx, iteration, ax=axes[-1])
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
                 plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
-                rep_error_kwargs={}):
+                rep_error_kwargs={}, plot_image_hist=False):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -1612,6 +1664,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         rep_error_kwargs : dict, optional
             a dictionary of kwargs to pass through to the repeated calls
             to representation_error() (in addition to the iteration)
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not. Note that we update this in the most naive way possible
+            (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
 
         Returns
         -------
@@ -1658,11 +1715,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             ylim_rescale_interval = len(self.saved_image)+1
         # initialize the figure
         fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
-                                         plot_representation_error, imshow_zoom=imshow_zoom)
+                                         plot_representation_error, imshow_zoom=imshow_zoom,
+                                         plot_image_hist=plot_image_hist)
         # grab the artists for the second plot (we don't need to do this
         # for the synthesized image or representation plot, because we
         # use the update_plot function for that)
         scat = fig.axes[1].collections
+        if plot_image_hist:
+            rep_error_axes = slice(2, -1)
+        else:
+            rep_error_axes = slice(2, None)
 
         if self.target_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
@@ -1681,13 +1743,17 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
                 # we know that the first two axes are the image and
                 # loss, so we pass everything after that to update
-                artists.extend(update_plot(fig.axes[2:], batch_idx=batch_idx, model=self.model,
-                                           data=representation_error))
+                artists.extend(update_plot(fig.axes[rep_error_axes], batch_idx=batch_idx,
+                                           model=self.model, data=representation_error))
                 # again, we know that fig.axes[2:] contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
                     if self.target_representation.ndimension() == 3:
-                        rescale_ylim(fig.axes[2:], representation_error)
+                        rescale_ylim(fig.axes[rep_error_axes], representation_error)
+            if plot_image_hist:
+                # this is the dumbest way to do this, but it's simple
+                fig.axes[-1].clear()
+                self.plot_image_hist(batch_idx, channel_idx, i, ax=fig.axes[-1])
             # loss always contains values from every iteration, but
             # everything else will be subsampled
             for s, d in zip(scat, plot_data):
