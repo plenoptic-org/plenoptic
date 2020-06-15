@@ -546,7 +546,7 @@ class Metamer(Synthesis):
                  'matched_representation', 'saved_representation', 'gradient', 'saved_image',
                  'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
-                 'scales_finished']
+                 'scales_finished', 'store_progress', 'save_progress', 'save_path']
         super().save(file_path, save_model_reduced,  attrs)
 
     def to(self, *args, **kwargs):
