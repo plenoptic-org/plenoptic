@@ -403,7 +403,7 @@ class TestPooling(object):
         pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
         pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
