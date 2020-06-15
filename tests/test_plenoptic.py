@@ -6,6 +6,7 @@ import tqdm
 import itertools
 import tarfile
 import os
+import imageio
 import numpy as np
 import pyrtools as pt
 import plenoptic as po
@@ -220,6 +221,35 @@ class TestSteerablePyramid(object):
         po_recon = po.to_numpy(po_pyr.recon_pyr())
         pt_recon = pt_pyr.recon_pyr()
         np.allclose(po_recon, pt_recon)
+
+    @pytest.mark.parametrize("is_complex", [True, False])
+    @pytest.mark.parametrize("store_unoriented_bands", [True, False])
+    @pytest.mark.parametrize("scales", [[0], [5], [0, 1, 2], [0, 3, 5],
+                                        ['residual_highpass', 'residual_lowpass'],
+                                        ['residual_highpass', 0, 1, 'residual_lowpass']])
+    def test_scales_arg(self, is_complex, store_unoriented_bands, scales):
+        img = imageio.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img = torch.tensor(img / 255, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex,
+                                              store_unoriented_bands=store_unoriented_bands)
+        pyr_coeffs = pyr(img).copy()
+        if store_unoriented_bands:
+            unor = pyr.unoriented_bands.copy()
+        reduced_pyr_coeffs = pyr(img, scales).copy()
+        for k, v in reduced_pyr_coeffs.items():
+            if (v != pyr_coeffs[k]).any():
+                raise Exception("Reduced pyr_coeffs should be same as original, but at least key "
+                                f"{k} is not")
+        if store_unoriented_bands:
+            for k, v in pyr.unoriented_bands.items():
+                if (v != unor[k]).any():
+                    raise Exception("Reduced unoriented_bands should be same as original, but "
+                                    f"at least key {k} is not")
+        # recon_pyr should always fail
+        with pytest.raises(Exception):
+            pyr.recon_pyr()
+        with pytest.raises(Exception):
+            pyr.recon_pyr(scales)
 
 
 class TestNonLinearities(object):

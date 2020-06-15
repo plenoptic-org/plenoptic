@@ -5,11 +5,50 @@ import torch
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
-from .data import to_numpy
+from .data import torch_complex_to_numpy, to_numpy
 try:
     from IPython.display import HTML
 except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
+
+
+def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
+    r"""Wrapper that makes outputs of the steerable pyramids compatible
+    with the display functions of pyrtools.
+    Selects pyramid coefficients corresponding to 'image_index' out of
+    the images in the batch, and to 'channel' out of the channel indexes
+    (eg. RGB channels that undergo steerable pyramid independently)
+    
+    Parameters
+    ----------
+    pyr_coeffs : dict
+                pyramid coefficients in the standard dictionary format as
+                specified in Steerable_Pyramid_Freq
+    image_index : int in [0, batch_size] (default=0)
+                  index of the image you would like to select from the batch
+                  of coefficients
+    channel: int (default = 0)
+             index of channel to select for image display
+             for grayscale images this will be 0. 
+    Example
+    -------
+        >>> size = 32
+        >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
+        >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
+        >>> pyr = SPF(signal)
+        >>> pt.pyrshow(po.convert_pyrshow(pyr, 1, 2), is_complex=True, plot_complex='polar', zoom=3);
+    """
+
+    pyr_coeffvis = pyr_coeffs.copy()
+    for k in pyr_coeffvis.keys():
+        im = pyr_coeffvis[k][image_index, channel, ...]
+        # imag and real component exist
+        if im.shape[-1] == 2:
+            pyr_coeffvis[k] = torch_complex_to_numpy(im)
+        else:
+            pyr_coeffvis[k] = to_numpy(im)
+
+    return pyr_coeffvis
 
 
 def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
