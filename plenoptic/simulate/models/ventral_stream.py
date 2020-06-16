@@ -1498,6 +1498,41 @@ class PrimaryVisualCortex(VentralModel):
             self.scales += ['residual_highpass']
             self.to_normalize += ['residual_highpass']
         self.normalize_dict = normalize_dict
+        self._spatial_masks = {}
+
+    def _gen_spatial_masks(self, n_angles=4):
+        r"""Generate spatial masks
+
+        Create and return masks that allow us to specifically select
+        values from ``self.representation`` that correspond to different
+        regions of the image. See ``summarize_representation()`` for an
+        example of how to use them
+
+        Parameters
+        ----------
+        n_angles : int, optional
+            The number of angular regions to subdivide the image
+            into. By default, splits it into quadrants
+
+        Returns
+        -------
+        masks : dict
+            dictionary with a key for each (scale, angle_i) that
+            contains a tensor, same shape as the representations at that
+            scale, which is a boolean mask selecting the values that
+            correspond to that angular region
+
+        """
+        masks = {}
+        for i in range(self.num_scales):
+            ecc = torch.ones_like(self.PoolingWindows.ecc_windows[i], dtype=int)
+            angles = torch.zeros_like(self.PoolingWindows.angle_windows[i], dtype=int)
+            for j in range(n_angles):
+                angles[j*angles.shape[0]//4:(j+1)*angles.shape[0]//4] = j
+            windows = torch.einsum('ahw,ehw->ea', angles, ecc)
+            for j, val in enumerate(sorted(windows.unique())):
+                masks[(i, f'region_{j}')] = (windows == val).flatten()
+        return masks
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1544,6 +1579,8 @@ class PrimaryVisualCortex(VentralModel):
                     self.normalize_dict[k][l] = w.to(*args, **kwargs)
             else:
                 self.normalize_dict[k] = v.to(*args, **kwargs)
+        for k, v in self._spatial_masks.items():
+            self._spatial_masks[k] = v.to(*args, **kwargs)
         super(self.__class__, self).to(do_windows=do_windows, *args, **kwargs)
         return self
 
@@ -1562,7 +1599,7 @@ class PrimaryVisualCortex(VentralModel):
             an empty list (the default), we include all
             scales. Otherwise, can contain subset of values present in
             this model's ``scales`` attribute (ints up to
-            self.num_scales-1, the str 'mean_luminance', or, if
+n            self.num_scales-1, the str 'mean_luminance', or, if
             ``half_octave_pyramid`` was set to True during
             initialization, the floats that lie between the integer
             scales: e.g., .5, 1.5, 2.5). Can contain a single value or
@@ -1756,6 +1793,67 @@ class PrimaryVisualCortex(VentralModel):
             idx += v.shape[-1]
         data = data_dict
         return data
+
+    def summarize_representation(self, data=None, summary_func='mse', by_angle=False):
+        r"""summarize representation by key and (optionally) quadrant
+
+        This takes data and summarizes it within each key of the
+        dictionary. The intended use case is to get the mean-squared
+        error (by passing ``data=metamer.representation_error()``)
+        within each orientation and scale. With ``by_angle=True``, also
+        breaks it down by quadrant.
+
+        Parameters
+        ----------
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to convert. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation`` or the output, with the exact same
+            structure
+        summary_func : {'mse', 'l2', callable}, optional
+            the function to use to for summarizing the
+            representation. If 'mse', we'll square and average; if 'l2',
+            we'll use the L2-norm; else, should be a callable that can
+            take a tensor and returns a scalar
+        by_angle : bool, optional
+            whether to further breakdown representation by angle. If
+            False, will just have a single value per key in
+            representation. If True, keys will be (k, 'region_{i}'),
+            where goes from 0 to 3 and represents quadrants, starting
+            from bottom right
+
+        Returns
+        -------
+        summarized : dict
+            dictionary containing keys from representation (or
+            representation and region, see above) with values giving the
+            corresponding summarized representation
+
+        """
+        if not self._spatial_masks:
+            self._spatial_masks = self._gen_spatial_masks()
+        if data is not None:
+            if not isinstance(data, dict):
+                data = self.output_to_representation(data)
+        else:
+            data = self.representation
+        summarized = {}
+        if summary_func == 'mse':
+            summary_func = lambda x: torch.pow(x, 2).mean()
+        elif summary_func == 'l2':
+            summary_func = lambda x: torch.norm(x, 2)
+        for k, v in data.items():
+            if by_angle:
+                if isinstance(k, str):
+                    mask_k = 0
+                else:
+                    mask_k = k[0]
+                for i in range(4):
+                    mask = self._spatial_masks[(mask_k, f'region_{i}')]
+                    summarized[(k, f'region_{i}')] = summary_func(v[..., mask]).item()
+            else:
+                summarized[k] = summary_func(v).item()
+        return summarized
 
     def _plot_helper(self, n_rows, n_cols, figsize=(25, 15), ax=None, title=None, batch_idx=0,
                      data=None):
