@@ -1489,7 +1489,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         return fig
 
     def plot_image_hist(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(5, 5),
-                        ax=None, **kwargs):
+                        ylim=None, ax=None, **kwargs):
         r"""plot histogram of target and matched image
 
         As a way to check the distributions of pixel intensities and see
@@ -1506,6 +1506,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             the most recent one. Negative values are also allowed.
         figsize : tuple, optional
             The size of the figure to create. Ignored if ax is not None
+        ylim : tuple or None, optional
+            if tuple, the ylimit to set for this axis. If None, we leave
+            it untouched
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
@@ -1527,9 +1530,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         else:
             fig = ax.figure
         target_image = self.target_image[batch_idx, channel_idx]
-        sns.distplot(image.flatten(), label='synthesized image', ax=ax, **kwargs)
-        sns.distplot(target_image.flatten(), label='target image', ax=ax, **kwargs)
+        sns.distplot(to_numpy(image).flatten(), label='synthesized image', ax=ax, **kwargs)
+        sns.distplot(to_numpy(target_image).flatten(), label='target image', ax=ax, **kwargs)
         ax.legend()
+        if ylim is not None:
+            ax.set_ylim(ylim)
         ax.set_title("Histogram of pixel values")
         return fig
 
@@ -1754,9 +1759,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # use the update_plot function for that)
         scat = fig.axes[1].collections
         if plot_image_hist:
-            rep_error_axes = slice(2, -1)
+            rep_error_axes = [ax for ax in fig.axes[2:] if not ax.patches]
+            hist_ax = [ax for ax in fig.axes[2:] if ax.patches][0]
         else:
-            rep_error_axes = slice(2, None)
+            rep_error_axes = fig.axes[2:]
 
         if self.target_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
@@ -1764,7 +1770,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # replace the bit of the title that specifies the range,
             # since we don't make any promises about that. we have to do
             # this here because we need the figure to have been created
-            for ax in fig.axes[2:]:
+            for ax in rep_error_axes:
                 ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
 
         def movie_plot(i):
@@ -1773,19 +1779,19 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                                        batch_idx=batch_idx))
             if plot_representation_error:
                 representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
-                # we know that the first two axes are the image and
-                # loss, so we pass everything after that to update
-                artists.extend(update_plot(fig.axes[rep_error_axes], batch_idx=batch_idx,
+                # we pass rep_error_axes to update, and we've grabbed
+                # the right things above
+                artists.extend(update_plot(rep_error_axes, batch_idx=batch_idx,
                                            model=self.model, data=representation_error))
-                # again, we know that fig.axes[2:] contains all the axes
+                # again, we know that rep_error_axes contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
                     if self.target_representation.ndimension() == 3:
-                        rescale_ylim(fig.axes[rep_error_axes], representation_error)
+                        rescale_ylim(rep_error_axes, representation_error)
             if plot_image_hist:
                 # this is the dumbest way to do this, but it's simple
-                fig.axes[-1].clear()
-                self.plot_image_hist(batch_idx, channel_idx, i, ax=fig.axes[-1])
+                hist_ax.clear()
+                self.plot_image_hist(batch_idx, channel_idx, i, ax=hist_ax)
             # loss always contains values from every iteration, but
             # everything else will be subsampled
             for s, d in zip(scat, plot_data):
