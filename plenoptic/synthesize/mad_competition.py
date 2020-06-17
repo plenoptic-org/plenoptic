@@ -1,6 +1,7 @@
 import torch
 import warnings
 from tqdm import tqdm
+import numpy as np
 import pyrtools as pt
 from .Synthesis import Synthesis
 import matplotlib.pyplot as plt
@@ -1978,7 +1979,8 @@ class MADCompetition(Synthesis):
 
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(23, 5),
                               ylim=None, plot_representation_error=True, imshow_zoom=None,
-                              vrange=(0, 1), fig=None, synthesis_target=None):
+                              vrange=(0, 1), fig=None, plot_image_hist=False,
+                              synthesis_target=None):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -2044,6 +2046,9 @@ class MADCompetition(Synthesis):
             if None, we create a new figure. otherwise we assume this is
             an empty figure that has the appropriate size and number of
             subplots
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not.
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
@@ -2057,23 +2062,28 @@ class MADCompetition(Synthesis):
         """
         last_state = self._check_state(synthesis_target, None)
         if fig is None:
+            n_subplots = 2
+            width_ratios = np.array([.5, .5])
             if plot_representation_error:
-                n_subplots = 3
-                width_ratios = [.25, .25, .5]
-            else:
-                n_subplots = 2
-                width_ratios = [.5, .5]
+                n_subplots += 1
+                width_ratios = np.concatenate([width_ratios, [1]])
+            if plot_image_hist:
+                n_subplots += 1
+                width_ratios = np.concatenate([width_ratios, [.5]])
+            width_ratios = width_ratios / width_ratios.sum()
             fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
                                      gridspec_kw={'width_ratios': width_ratios})
         super().plot_synthesis_status(batch_idx, channel_idx, iteration, figsize, ylim,
-                                      plot_representation_error, imshow_zoom, vrange, fig)
+                                      plot_representation_error, imshow_zoom, vrange, fig,
+                                      plot_image_hist)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(23, 5), framerate=10, ylim=None,
-                plot_representation_error=True, imshow_zoom=None, synthesis_target=None):
+                plot_representation_error=True, imshow_zoom=None, plot_image_hist=False,
+                synthesis_target=None):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -2145,6 +2155,11 @@ class MADCompetition(Synthesis):
             Either an int or an inverse power of 2, how much to zoom the
             images by in the plots we'll create. If None (the default), we
             attempt to find the best value ourselves.
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not. Note that we update this in the most naive way possible
+            (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
@@ -2166,7 +2181,7 @@ class MADCompetition(Synthesis):
                           "appropriate.")
         anim = super().animate(batch_idx, channel_idx, figsize, framerate, ylim,
                                plot_representation_error, imshow_zoom, ['loss_1', 'loss_2'],
-                               {'model': 'both'})
+                               {'model': 'both'}, plot_image_hist)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
