@@ -377,8 +377,6 @@ class TestPooling(object):
                                      window_type='cosine',)
         pw = pw.to(DEVICE)
         pw(im)
-        with pytest.raises(Exception):
-            po.simul.PoolingWindows(.2, (64, 64), .5)
 
     @pytest.mark.parametrize('num_scales', [1, 3])
     def test_PoolingWindows(self, num_scales):
