@@ -1379,8 +1379,9 @@ class MADCompetition(Synthesis):
                  'gradient', 'saved_image', 'learning_rate', 'saved_representation_1_gradient',
                  'saved_representation_2_gradient', 'saved_image_gradient', 'loss_function_1',
                  'initial_image', 'initial_representation', 'loss_function_2', 'scales',
-                 'scales_timing', 'scales_loss', 'scales_finished', 'coarse_to_fine']
-        super().save(file_path, save_model_reduced,  attrs, ['model_1', 'model_2'])
+                 'scales_timing', 'scales_loss', 'scales_finished', 'coarse_to_fine',
+                 'store_progress', 'save_progress', 'save_path']
+        super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
 
     @classmethod
     def load(cls, file_path, model_constructor=[None, None], map_location='cpu',
