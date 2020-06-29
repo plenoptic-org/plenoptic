@@ -1499,6 +1499,44 @@ class PoolingWindows(nn.Module):
         ax.legend(loc='upper left')
         return fig
 
+    def summarize_window_sizes(self):
+        r"""Summarize window sizes
+
+        This function returns a dictionary summarizing the window sizes
+        at the minimum and maximum eccentricity. Let ``min_window`` be
+        the window whose center is closest to ``self.min_eccentricity``
+        and ``max_window`` the one whose center is closest to
+        ``self.max_eccentricity``. We find its center, FWHM (in the
+        radial direction), and approximate area (at half-max) in
+        degrees. We do the same in pixels, for each scale.
+
+        Returns
+        -------
+        sizes : dict
+            dictionary with the keys described above, summarizing window
+            sizes. all values are scalar floats
+
+        """
+        min_idx = np.abs(self.central_eccentricity_degrees - self.min_eccentricity).argmin()
+        max_idx = np.abs(self.central_eccentricity_degrees - self.max_eccentricity).argmin()
+        sizes = {}
+        central_ecc = self.central_eccentricity_degrees
+        widths = self.window_width_degrees
+        areas = self.window_approx_area_degrees
+        for extrem, idx in zip(['min', 'max'], [min_idx, max_idx]):
+            sizes[f"{extrem}_window_center_degrees"] = central_ecc[idx]
+            sizes[f"{extrem}_window_fwhm_degrees"] = widths['radial_half'][idx]
+            sizes[f"{extrem}_window_area_degrees"] = areas['half'][idx]
+        central_ecc = self.central_eccentricity_pixels
+        widths = self.window_width_pixels
+        areas = self.window_approx_area_pixels
+        for i in range(len(central_ecc)):
+            for extrem, idx in zip(['min', 'max'], [min_idx, max_idx]):
+                sizes[f"{extrem}_window_scale_{i}_center_pixels"] = central_ecc[i][idx]
+                sizes[f"{extrem}_window_scale_{i}_fwhm_pixels"] = widths[i]['radial_half'][idx]
+                sizes[f"{extrem}_window_scale_{i}_area_pixels"] = areas[i]['half'][idx]
+        return sizes
+
     def plot_window_checks(self, angle_n=0, scale=0, plot_transition_x=True):
         r"""Make some plots to check whether DoG windows have been normalized properly
 

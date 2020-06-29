@@ -408,6 +408,26 @@ class VentralModel(nn.Module):
         """
         return self.PoolingWindows.plot_windows(ax, contour_levels, colors, subset, **kwargs)
 
+    def summarize_window_sizes(self):
+        r"""Summarize window sizes
+
+        This function returns a dictionary summarizing the window sizes
+        at the minimum and maximum eccentricity. Let ``min_window`` be
+        the window whose center is closest to ``self.min_eccentricity``
+        and ``max_window`` the one whose center is closest to
+        ``self.max_eccentricity``. We find its center, FWHM (in the
+        radial direction), and approximate area (at half-max) in
+        degrees. We do the same in pixels, for each scale.
+
+        Returns
+        -------
+        sizes : dict
+            dictionary with the keys described above, summarizing window
+            sizes. all values are scalar floats
+
+        """
+        return self.PoolingWindows.summarize_window_sizes()
+
     def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25):
         r"""plot the widths of the windows, in degrees or pixels
 
