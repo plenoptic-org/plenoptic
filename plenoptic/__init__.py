@@ -11,6 +11,7 @@ from .tools.visualization import *
 from .tools.display import *
 from .tools.data import *
 from .tools import optim
+from .tools import external
 
 
 from .version import version as __version__
