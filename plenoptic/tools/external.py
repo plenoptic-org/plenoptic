@@ -7,14 +7,13 @@ import scipy.io as sio
 import pyrtools as pt
 import os.path as op
 import imageio
-import pandas as pd
 import numpy as np
 import matplotlib.lines as lines
 
 
 def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Downloads/MAD/results1',
                      zoom=3, vrange='indep1', **kwargs):
-    """plot original MAD results, provided by Zhou Wang
+    r"""plot original MAD results, provided by Zhou Wang
 
     Plot the results of original MAD Competition, as provided in .mat
     files. The figure created shows the results for one reference image
@@ -55,15 +54,17 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Downloads
     -------
     fig : pyrtools.tools.display.Figure
         figure containing the images
-    results : pd.DataFrame
-        dataframe containing the errors for each noise level
+    results : dict
+        dictionary containing the errors for each noise level. To
+        convert to a well-structured pandas DataFrame, run
+        ``pd.DataFrame(results).T``
 
     """
     orig_img = imageio.imread(op.join(op.expanduser(results_dir), f"{original_image}.tif"))
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:
         noise_levels = [2**i for i in range(1, 11)]
-    results = []
+    results = {}
     images = np.dstack([orig_img, blanks])
     titles = ['Original image'] + 4*[None]
     super_titles = 5*[None]
@@ -85,8 +86,7 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Downloads
             super_titles.append(s)
         # this then just contains the loss information
         mat.update({'noise_level': l, 'original_image': original_image})
-        results.append(pd.DataFrame(mat, [0]))
-    results = pd.concat(results).reset_index(drop=True)
+        results[f'L{l}'] = mat
     images = images.transpose((2, 0, 1))
     if vrange.startswith('row'):
         vrange_list = []
