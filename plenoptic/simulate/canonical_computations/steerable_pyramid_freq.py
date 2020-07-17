@@ -8,16 +8,10 @@ import torch.nn as nn
 
 
 class Steerable_Pyramid_Freq(nn.Module):
-    """Steerable frequency pyramid in Torch
-    # TODO: adapt documentation to pytorch (batch, dtype, shapes, args)
+    r"""Steerable frequency pyramid in Torch
 
     Construct a steerable pyramid on matrix IM, in the Fourier domain.
-    This is similar to Spyr, except that:
-
-        + Reconstruction is exact (within floating point errors)
-        + It can produce any number of orientation bands.
-        - Typically slower, especially for non-power-of-two sizes.
-        - Boundary-handling is circular.
+    Reconstruction is exact (within floating point errors). Boundary-handling is circular.
 
     The squared radial functions tile the Fourier plane with a
     raised-cosine falloff. Angular functions are cos(theta-
@@ -45,6 +39,14 @@ class Steerable_Pyramid_Freq(nn.Module):
         Whether the pyramid coefficients should be complex or not. If True, the real and imaginary
         parts correspond to a pair of even and odd symmetric filters. If False, the coefficients
         only include the real part / even symmetric filter.
+    store_unoriented_bands: `bool`
+        Whether the residual unoriented bands should be stored or not.
+    return_list: `bool`
+        Whether the pyramid output should be returned as a list of tensors or not (will be returned
+        as a dictionary)
+    downsample: `bool`
+        Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
+        in fixed bands of size imshapeximshape.
 
     Attributes
     ----------
@@ -188,10 +190,11 @@ class Steerable_Pyramid_Freq(nn.Module):
             if not self.downsample:
                 lomask = pointOp(log_rad, self.YIrcos, Xrcos)
                 self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
-                lodft = lodft * lomask
                 lostart = np.array([0,0])
                 loend = dims
                 self._loindices.append([lostart, loend])
+                lodft = lodft * lomask
+
             else:
                 # subsample lowpass
                 dims = np.array([lodft.shape[0], lodft.shape[1]])
@@ -285,14 +288,13 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Returns
         -------
-        representation : torch.tensor
-            A 3d tensor containing the averages of the
-            'complex cell responses', that is, the squared and summed
-            outputs of the complex steerable pyramid.
+        representation: list or OrderedDict
+            if return_list is True, returns a list of Tensors
+            if return_list is False, returns the attribute pyr_coeffs which
+            is an OrderedDict of the pyramid coefficients.
 
         """
         self.pyr_coeffs = OrderedDict()
-
         if not isinstance(scales, list):
             raise Exception("scales must be a list!")
         if not scales:
@@ -304,7 +306,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         hi0mask = self.hi0mask.clone()
 
         # x is a torch tensor batch of images of size [N,C,W,H]
-
+        assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
         # x = x.squeeze(1) #flatten channel dimension first
         imdft = torch.rfft(x, signal_ndim=2, onesided=False)
         imdft = batch_fftshift(imdft)
@@ -713,7 +715,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             but now we're indexing `angles` instead of `self.num_orientations`.
         resteering_weights : `dict`
             dictionary of weights used to re-steer the pyramid coefficients. will have the same
-            keys as `resteered_coeffs`. 
+            keys as `resteered_coeffs`.
 
         """
 
@@ -730,4 +732,3 @@ class Steerable_Pyramid_Freq(nn.Module):
 
 
         return resteered_coeffs, resteering_weights
-

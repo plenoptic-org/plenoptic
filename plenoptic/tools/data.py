@@ -11,6 +11,9 @@ DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
 def to_numpy(x):
     r"""cast tensor to numpy in the most conservative way possible
+    Parameters
+    ----------------
+    x: x is a torch tensor
     """
     try:
         x = x.detach().cpu().numpy().astype(np.float32)
@@ -22,6 +25,9 @@ def to_numpy(x):
 def torch_complex_to_numpy(x):
     r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
     to a numpy complex array
+
+    Parameters
+    ----------------------
     x: assumes x is a torch tensor with last dimension of size 2 where first component is the real
     component and the second is the imaginary component
     """
@@ -29,9 +35,51 @@ def torch_complex_to_numpy(x):
     x_np = x_np[...,0] + 1j * x_np[...,1]
     return x_np
 
+def convert_pyr_to_tensor(pyr_coeffs, exclude = [], is_complex = True):
+    r"""
+    Function that takes a torch pyramid and converts the output into a single tensor
+    of BxCxHxW for use in an nn module downstream.
+
+    Parameters
+    ----------
+    pyr_coeffs: `OrderedDict`
+        the pyramid coefficients
+    exclude: `list`
+        list of bands to include, can include 'residual_lowpass', 'residual_highpass' or tuple (ind, ind)
+    is_complex: `bool`
+        boolean indicating whether complex pyramid is used or not
+
+    """
+    coeff_list = []
+    coeff_list_resid = []
+    for k in pyr_coeffs.keys():
+        if k not in exclude:
+            if 'residual' in k:
+                coeff_list_resid.append(pyr_coeffs[k])
+            else:
+                coeff_list.append(pyr_coeffs[k])
+
+    coeff_bands = torch.cat(coeff_list, dim=1)
+    batch_size = coeff_bands.shape[0]
+    imshape = [coeff_bands.shape[2], coeff_bands.shape[3]]
+    if is_complex:
+        coeff_bands = coeff_bands.permute(0,1,4,2,3).contiguous().view(batch_size,-1,imshape[0],imshape[1])
+    if len(coeff_list_resid) > 0:
+        coeff_resid = torch.cat(coeff_list_resid, dim=1)
+        coeff_out = torch.cat([coeff_bands, coeff_resid], dim=1)
+    else:
+        coeff_out = coeff_bands
+
+    return coeff_out
 
 def make_basic_stimuli(size=256, requires_grad=True):
+    r""" Make basic stimuli for testing models etc.
 
+    Parameters
+    ------------------------------------
+    size: size for stimuli (shape: sizexsize)
+    requires_grad: does the image have requires gradients
+    """
     assert size in [32, 64, 128, 256, 512], 'size not supported'
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
