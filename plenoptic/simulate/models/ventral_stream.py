@@ -8,6 +8,7 @@ import pyrtools as pt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from torch import nn
+import itertools
 from ..canonical_computations.non_linearities import cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling_windows import PoolingWindows
@@ -617,7 +618,7 @@ class VentralModel(nn.Module):
                 if isinstance(k, str):
                     mask_k = 0
                 else:
-                    mask_k = k[0]
+                    mask_k = k[1]
                 for i in range(4):
                     mask = self._spatial_masks[(mask_k, f'region_{i}')]
                     summarized[(k, f'region_{i}')] = summary_func(v[..., mask]).item()
@@ -1456,6 +1457,15 @@ class PrimaryVisualCortex(VentralModel):
     include_highpass : bool, optional
         Whether to include the high-pass residual in the model or
         not.
+    cell_types : list, optional
+        which cells to include. must come from the following list:
+        ['complex', 'simple_on', 'simple_off']
+    complex_cell_nonlin : {'square', 'fourth', 'squaresquare'}, optional
+        what nonlinearity to use for complex cells:
+        - 'square': square and sum across quadrature pair (the energy)
+        - 'fourth': raise to the fourth power across quadrature pair
+        - 'squaresquare': square, sum across quadrature pair, and square
+          again (energy squared)
 
     Attributes
     ----------
@@ -1607,12 +1617,22 @@ class PrimaryVisualCortex(VentralModel):
         represents the non-linear response of the cones to photons.
     include_highpass : bool, optional
         Whether the high-pass residual is included in the model or not.
+    cell_types : list
+        which cells are included in the models representation. must come
+        from the following list: ['complex', 'simple_on', 'simple_off']
+    complex_cell_nonlin : {'square', 'fourth', 'squaresquare'}
+        what nonlinearity to use for complex cells:
+        - 'square': square and sum across quadrature pair (the energy)
+        - 'fourth': raise to the fourth power across quadrature pair
+        - 'squaresquare': square, sum across quadrature pair, and square
+          again (energy squared)
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
-                 include_highpass=False, window_type='cosine', std_dev=None):
+                 include_highpass=False, window_type='cosine', std_dev=None,
+                 cell_types=['complex'], complex_cell_nonlin='square'):
         if window_type == 'dog':
             raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
@@ -1660,11 +1680,16 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_luminance = None
         self.representation = None
         self.include_highpass = include_highpass
-        self.to_normalize = ['complex_cell_responses', 'cone_responses']
+        self.to_normalize = ['cone_responses']
         if self.include_highpass:
             self.scales += ['residual_highpass']
             self.to_normalize += ['residual_highpass']
         self.normalize_dict = normalize_dict
+        self.cell_types = cell_types
+        self.to_normalize += [k + "_cell_responses" for k in cell_types]
+        if complex_cell_nonlin not in ['square', 'fourth', 'squaresquare']:
+            raise Exception(f"Don't know how to handle complex_cell_nonlin {complex_cell_nonlin}")
+        self.complex_cell_nonlin = complex_cell_nonlin
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1748,6 +1773,11 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             image = image.unsqueeze(0)
         if not scales:
             scales = self.scales
+        self.representation = {}
+        self.complex_cell_responses = {}
+        self.simple_on_cell_responses = {}
+        self.simple_off_cell_responses = {}
+        relu = torch.nn.ReLU()
         # this is a little weird here: the image that we detach and
         # clone here is just a copy that we keep around for later
         # examination.
@@ -1772,21 +1802,43 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
-        # to get the energy, we just square and sum across the real and
-        # imaginary parts (because there are complex tensors yet, this
-        # is the final dimension). the if statement avoids the residuals
-        self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
-                                           for k, v in self.pyr_coeffs.items()
-                                           if not isinstance(k, str))
+        if 'complex' in self.cell_types:
+            # to get the energy, we just square and sum across the real and
+            # imaginary parts (because there are complex tensors yet, this
+            # is the final dimension). the if statement avoids the residuals
+            if self.complex_cell_nonlin == 'square':
+                self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
+                                                   for k, v in self.pyr_coeffs.items()
+                                                   if not isinstance(k, str))
+            elif self.complex_cell_nonlin == 'fourth':
+                self.complex_cell_responses = dict((k, torch.pow(v, 4).sum(-1))
+                                                   for k, v in self.pyr_coeffs.items()
+                                                   if not isinstance(k, str))
+            elif self.complex_cell_nonlin == 'squaresquare':
+                self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1)**2)
+                                                   for k, v in self.pyr_coeffs.items()
+                                                   if not isinstance(k, str))
+        if 'simple_off' in self.cell_types:
+            # the simple cells are the real coefficients, and then the
+            # ON cells are positive-recitfied
+            self.simple_off_cell_responses = dict((k, relu(v[..., 0]))
+                                                  for k, v in self.pyr_coeffs.items()
+                                                  if not isinstance(k, str))
+        if 'simple_on' in self.cell_types:
+            # the simple cells are the real coefficients, and then the
+            # OFF cells are negative-recitfied
+            self.simple_on_cell_responses = dict((k, relu(-v[..., 0]))
+                                                 for k, v in self.pyr_coeffs.items()
+                                                 if not isinstance(k, str))
         if self.include_highpass and 'residual_highpass' in scales:
             self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
-        if self.complex_cell_responses:
-            self.mean_complex_cell_responses = self.PoolingWindows(self.complex_cell_responses)
-        else:
-            self.mean_complex_cell_responses = {}
-        self.representation = self.mean_complex_cell_responses
+        for k in self.cell_types:
+            setattr(self, f"mean_{k}_cell_responses",
+                    self.PoolingWindows(getattr(self, k+"_cell_responses")))
+            self.representation.update({(k, *ki): v for ki, v in
+                                        getattr(self, f"mean_{k}_cell_responses").items()})
         if 'mean_luminance' in scales:
             self.mean_luminance = self.PoolingWindows(self.cone_responses)
             self.representation['mean_luminance'] = self.mean_luminance
@@ -2061,28 +2113,108 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             col_offset = 1
         fig, gs, data, title_list = self._plot_helper(2*n_rows, 2*n_cols, figsize,
                                                       ax, title, batch_idx, data)
-        axes = []
-        for i, (k, v) in enumerate(data.items()):
-            if isinstance(k, tuple):
-                t = self._get_title(title_list, i, "scale %s, band %s" % k)
-                ax = fig.add_subplot(gs[int(2*k[1]):int(2*(k[1]+1)), int(col_multiplier*k[0]):
-                                        int(col_multiplier*(k[0]+col_offset))])
-                ax = clean_stem_plot(v, ax, t, ylim)
-                axes.append(ax)
-            elif k == 'mean_luminance':
-                t = self._get_title(title_list, -1, "mean pixel intensity")
-                if n_rows != 1:
-                    ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
-                else:
-                    ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
-                ax = clean_stem_plot(v, ax, t, ylim)
-                axes.append(ax)
-            elif k == 'residual_highpass':
-                t = self._get_title(title_list, -1, "residual highpass")
-                ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
-                ax = clean_stem_plot(v, ax, t, ylim)
-                axes.append(ax)
-        return fig, axes
+        axes = {}
+        axes_list = []
+        title_i = 0
+        for i, cell_type in enumerate(self.cell_types):
+            for j in range(self.num_scales):
+                for k in range(self.order+1):
+                    if i == 0:
+                        t = self._get_title(title_list, title_i, f"scale {j}, band {k}")
+                        ax = fig.add_subplot(gs[int(2*k):int(2*(k+1)), int(col_multiplier*j):
+                                                int(col_multiplier*(j+col_offset))])
+                        axes[(j, k)] = ax
+                        axes_list.append(ax)
+                    else:
+                        ax = axes[(j, k)]
+                        t = None
+                    ax = clean_stem_plot(data[(cell_type, j, k)], ax, t, ylim, linefmt=f"C{i}-",
+                                         markerfmt=f"C{i}o", label=cell_type)
+                    title_i += 1
+        t = self._get_title(title_list, -1, "mean pixel intensity")
+        if n_rows != 1:
+            ax = fig.add_subplot(gs[n_rows-2:n_rows, 2*(n_cols-1):])
+        else:
+            ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
+        ax = clean_stem_plot(data['mean_luminance'], ax, t, ylim)
+        axes['mean_luminance'] = ax
+        axes_list.append(ax)
+        if self.include_highpass:
+            t = self._get_title(title_list, -1, "residual highpass")
+            ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
+            ax = clean_stem_plot(data['residual_highpass'], ax, t, ylim)
+            axes['residual_highpass'] = ax
+            axes_list.append(ax)
+        # this puts a legend on that only has one of each cell type in
+        # the top right (which will always be empty)
+        axes[(self.num_scales-1, 0)].legend(loc='center left', bbox_to_anchor=(1, .5))
+        return fig, axes_list
+
+    def update_plot(self, axes, batch_idx=0, data=None):
+        r"""Update the information in our representation plot
+
+        This is used for creating an animation of the representation
+        over time. In order to create the animation, we need to know how
+        to update the matplotlib Artists, and this provides a simple way
+        of doing that. It relies on the fact that we've used
+        ``plot_representation`` to create the plots we want to update
+        and so know that they're stem plots.
+
+        We take the axes containing the representation information (note
+        that this is probably a subset of the total number of axes in
+        the figure, if we're showing other information, as done by
+        ``Metamer.animate``), grab the representation from plotting and,
+        since these are both lists, iterate through them, updating as we
+        go.
+
+        We can optionally accept a data argument, in which case it
+        should look just like the representation of this model (or be
+        able to transformed into that form, see
+        ``PrimaryVisualCortex._representation_for_plotting`).
+
+        In order for this to be used by ``FuncAnimation``, we need to
+        return Artists, so we return a list of the relevant artists, the
+        ``markerline`` and ``stemlines`` from the ``StemContainer``.
+
+        Parameters
+        ----------
+        axes : list
+            A list of axes to update. We assume that these are the axes
+            created by ``plot_representation`` and so contain stem plots
+            in the correct order.
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        data : torch.Tensor, np.array, dict or None, optional
+            The data to show on the plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+            (e.g., as returned by ``metamer.representation_error()`` or
+            another instance of this class).
+
+        Returns
+        -------
+        stem_artists : list
+            A list of the artists used to update the information on the
+            stem plots
+
+        """
+        stem_artists = []
+        # only grab those axes that have at least 1 StemContainer
+        axes = [ax for ax in axes if len(ax.containers) > 0 and
+                any([isinstance(c, mpl.container.StemContainer) for c in ax.containers])]
+        data = self._representation_for_plotting(batch_idx, data)
+        for i, (j, k) in enumerate(itertools.product(range(self.num_scales), range(self.order+1))):
+            ax = axes[i]
+            stems = [c for c in ax.containers if isinstance(c, mpl.container.StemContainer)]
+            for s, cell_type in zip(stems, self.cell_types):
+                sc = update_stem(s, data[(cell_type, j, k)])
+                stem_artists.extend([sc.markerline, sc.stemlines])
+        sc = update_stem(axes[i+1].containers[0], data['mean_luminance'])
+        stem_artists.extend([sc.markerline, sc.stemlines])
+        if self.include_highpass:
+            sc = update_stem(axes[i+2].containers[0], data['residual_highpass'])
+            stem_artists.extend([sc.markerline, sc.stemlines])
+        return stem_artists
 
     def plot_representation_image(self, figsize=(27, 5), ax=None, title=None, batch_idx=0,
                                   data=None, vrange='auto1', zoom=1):
@@ -2158,46 +2290,49 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             ax_multiplier = 1
         if self.include_highpass:
             n_cols += 1
-        fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax, title,
-                                                      batch_idx, data)
+        fig, gs, data, title_list = self._plot_helper(len(self.cell_types), n_cols, figsize, ax,
+                                                      title, batch_idx, data)
         titles = []
         axes = []
         imgs = []
         zooms = []
-        # project expects a dictionary of 3d tensors
-        data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
-                                                for k, v in data.items()))
-        for i in self.scales:
-            if isinstance(i, str):
-                continue
-            titles.append(self._get_title(title_list, i, "scale %s" % i))
-            img = np.zeros(data[(i, 0)].shape).squeeze()
-            for j in range(self.order+1):
-                d = data[(i, j)].squeeze()
-                img += to_numpy(d)
-            ax = fig.add_subplot(gs[int(ax_multiplier * i)])
-            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-            imgs.append(img)
-            axes.append(ax)
-            if isinstance(i, int):
-                zooms.append(zoom * round(data[(0, 0)].shape[-1] / img.shape[-1]))
-            elif isinstance(i, float):
-                zooms.append(zoom * round(data[(0.5, 0)].shape[-1] / img.shape[-1]))
+        for k, cell_type in enumerate(self.cell_types):
+            # project expects a dictionary of 3d tensors
+            projected_data = self.PoolingWindows.project(dict((k[1:], torch.Tensor(v).unsqueeze(0).unsqueeze(0))
+                                                              for k, v in data.items() if k[0].startswith(cell_type)))
+            for i in self.scales:
+                if isinstance(i, str):
+                    continue
+                titles.append(self._get_title(title_list, i, f"{cell_type} scale {i}"))
+                img = np.zeros(projected_data[(i, 0)].shape).squeeze()
+                for j in range(self.order+1):
+                    d = projected_data[(i, j)].squeeze()
+                    img += to_numpy(d)
+                ax = fig.add_subplot(gs[k, int(ax_multiplier * i)])
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                imgs.append(img)
+                axes.append(ax)
+                if isinstance(i, int):
+                    zooms.append(zoom * round(projected_data[(0, 0)].shape[-1] / img.shape[-1]))
+                elif isinstance(i, float):
+                    zooms.append(zoom * round(projected_data[(0.5, 0)].shape[-1] / img.shape[-1]))
         if self.include_highpass:
-            ax = fig.add_subplot(gs[-2])
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
         else:
-            ax = fig.add_subplot(gs[-1])
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
+        projected_data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
+                                                          for k, v in data.items() if not isinstance(k, tuple)))
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
-        imgs.append(to_numpy(data['mean_luminance'].squeeze()))
+        imgs.append(to_numpy(projected_data['mean_luminance'].squeeze()))
         zooms.append(zoom)
         if self.include_highpass:
-            ax = fig.add_subplot(gs[-1])
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             axes.append(ax)
             titles.append(self._get_title(title_list, -1, "residual highpass"))
-            imgs.append(to_numpy(data['residual_highpass'].squeeze()))
+            imgs.append(to_numpy(projected_data['residual_highpass'].squeeze()))
             zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
