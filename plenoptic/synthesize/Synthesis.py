@@ -241,6 +241,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.loss_change_iter = loss_change_iter
         self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
+        if coarse_to_fine not in [False, 'separate', 'together']:
+            raise Exception(f"Don't know how to handle value {coarse_to_fine}! Must be one of: "
+                            "False, 'separate', 'together'")
         if coarse_to_fine:
             if self.scales is None:
                 # this creates a new object, so we don't modify model.scales
