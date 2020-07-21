@@ -189,7 +189,7 @@ def convert_anim_to_html(anim):
         return HTML(anim.to_html5_video())
 
 
-def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
+def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     r"""convenience wrapper for plotting stem plots
 
     This plots the data, baseline, cleans up the axis, and sets the
@@ -211,8 +211,10 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     ax : matplotlib.pyplot.axis or None, optional
         The axis to plot the data on. If None, we plot on the current
         axis
-    title : str, optional
-        The title to put on the axis.
+    title : str or None, optional
+        The title to put on the axis if not None. If None, we don't call
+        ``ax.set_title`` (useful if you want to avoid changing the title
+        on an existing plot)
     ylim : tuple or None, optional
         If not None, the y-limits to use for this plot. If None, we
         use the default, slightly adjusted so that the minimum is 0
@@ -220,6 +222,8 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
         (``xvals[1]``) x values for plotting. If None, we use the
         default stem plot behavior.
+    kwargs :
+        passed to ax.stem
 
     Returns
     -------
@@ -273,9 +277,10 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     else:
         # this is the default basefmt value
         basefmt = None
-    ax.stem(data, basefmt=basefmt, use_line_collection=True)
+    ax.stem(data, basefmt=basefmt, use_line_collection=True, **kwargs)
     ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
-    ax.set_title(title)
+    if title is not None:
+        ax.set_title(title)
     return ax
 
 
@@ -331,7 +336,7 @@ def update_plot(axes, data, model=None, batch_idx=0):
 
     """
     artists = []
-    axes = [ax for ax in axes if len(ax.containers) == 1 or len(ax.images) == 1]
+    axes = [ax for ax in axes if len(ax.containers) > 0 or len(ax.images) == 1]
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
