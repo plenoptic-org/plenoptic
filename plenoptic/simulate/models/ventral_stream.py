@@ -219,6 +219,14 @@ class VentralModel(nn.Module):
         self.cone_power = cone_power
         self.num_scales = 1
         self._spatial_masks = {}
+        try:
+            dummy_ones = torch.ones_like(self.PoolingWindows(torch.ones((1, 1, *img_res))))
+            self._foveal_mask = 1 - self.PoolingWindows.project(dummy_ones).squeeze()
+        except NotImplementedError:
+            dummy_ones = torch.ones_like(self.PoolingWindows(torch.ones((1, 1, *img_res)),
+                                                             windows_key='center'))
+            windows = self.PoolingWindows.project(dummy_ones, windows_key='center').squeeze()
+            self._foveal_mask = ~(windows.to(bool))
 
     def _gen_spatial_masks(self, n_angles=4):
         r"""Generate spatial masks
@@ -245,8 +253,12 @@ class VentralModel(nn.Module):
         """
         masks = {}
         for i in range(self.num_scales):
-            ecc = torch.ones_like(self.PoolingWindows.ecc_windows[i], dtype=int)
-            angles = torch.zeros_like(self.PoolingWindows.angle_windows[i], dtype=int)
+            try:
+                ecc = torch.ones_like(self.PoolingWindows.ecc_windows[i], dtype=int)
+                angles = torch.zeros_like(self.PoolingWindows.angle_windows[i], dtype=int)
+            except KeyError:
+                # then this is DoG windows
+                raise Exception("This is not supported for DoG windows!")
             for j in range(n_angles):
                 angles[j*angles.shape[0]//4:(j+1)*angles.shape[0]//4] = j
             windows = torch.einsum('ahw,ehw->ea', angles, ecc)
@@ -606,6 +618,8 @@ class VentralModel(nn.Module):
                 data = self.output_to_representation(data)
         else:
             data = self.representation
+            if data is None:
+                raise Exception("No representation to summarize!")
         if not isinstance(data, dict):
             data = {'representation': data}
         summarized = {}
@@ -615,7 +629,11 @@ class VentralModel(nn.Module):
             summary_func = lambda x: torch.norm(x, 2)
         for k, v in data.items():
             if by_angle:
-                if isinstance(k, str):
+                if k == 'foveal_pixels':
+                    # this is special, don't want to break down by angle
+                    summarized[k] = summary_func(v).item()
+                    continue
+                elif isinstance(k, str):
                     mask_k = 0
                 else:
                     mask_k = k[1]
@@ -668,23 +686,24 @@ class VentralModel(nn.Module):
         if data is None:
             data = self.representation
 
-        if isinstance(data, dict):
-            rep_copy = {}
-            for k, v in data.items():
-                # if that batch_idx is included. otherwise, assume it's
-                # been flattened already
-                if len(v.shape) > 1:
-                    v = v[batch_idx]
-                rep_copy[k] = to_numpy(v).flatten()
-        else:
-            rep_copy = to_numpy(data[batch_idx]).flatten()
+        if not isinstance(data, dict):
+            data = self.output_to_representation(data)
+        rep_copy = {}
+        for k, v in data.items():
+            # if that batch_idx is included. otherwise, assume it's
+            # been flattened already
+            if len(v.shape) > 1:
+                v = v[batch_idx]
+            rep_copy[k] = to_numpy(v).flatten()
         return rep_copy
 
     def representation_to_output(self, data=None):
         r"""convert representation to output
 
-        For this model, the two are the same, so this doesn't do
-        anything
+        This takes data that looks like ``self.representation`` (i.e., a
+        dictionary whose keys are ``"mean_luminance"`` and ``(scale,
+        orientation)`` tuples) and flattens it to an output that looks
+        like what we get from the ``forward()`` call.
 
         Plenoptic models have two 'modes' for their representation: the
         one returned by the ``forward()`` call ("output"), which must be
@@ -705,13 +724,19 @@ class VentralModel(nn.Module):
         """
         if data is None:
             data = self.representation
-        return data
+        return torch.cat(list(data.values()), dim=2)
 
     def output_to_representation(self, data):
         r"""convert output to representation
 
-        For this model, the two are the same, so this doesn't do
-        anything
+        This takes data that looks like the output from the
+        ``forward()`` call (a big 3d tensor) and returns something that
+        looks like ``self.representation`` (i.e., a dictionary whose
+        keys are ``"mean_luminance"`` and ``(scale, orientation)``
+        tuples).
+
+        NOTE: for this to work, ``forward()`` must have been called
+        before
 
         Plenoptic models have two 'modes' for their representation: the
         one returned by the ``forward()`` call ("output"), which must be
@@ -729,6 +754,12 @@ class VentralModel(nn.Module):
             this model's forward call (i.e., a 3d tensor).
 
         """
+        data_dict = {}
+        idx = 0
+        for k, v in self.representation.items():
+            data_dict[k] = data[:, :, idx:idx+v.shape[-1]].reshape(v.shape)
+            idx += v.shape[-1]
+        data = data_dict
         return data
 
     @classmethod
@@ -1107,13 +1138,14 @@ class RetinalGanglionCells(VentralModel):
         self.cone_responses = cone_responses
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
-        self.representation = self.PoolingWindows(self.cone_responses)
+        self.representation = {'mean_luminance': self.PoolingWindows(self.cone_responses)}
+        self.representation['foveal_pixels'] = (self._foveal_mask * image).flatten(-2, -1) / 10 
         if self.window_type == 'dog':
             self.center_representation = self.PoolingWindows.forward(cone_responses,
                                                                      windows_key='center')
             self.surround_representation = self.PoolingWindows.forward(cone_responses,
                                                                        windows_key='surround')
-        return self.representation
+        return self.representation_to_output()
 
     def _plot_helper(self, n_cols=1, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
         r"""helper function for plotting that takes care of a lot of the standard stuff
@@ -1167,11 +1199,13 @@ class RetinalGanglionCells(VentralModel):
                 gs = ax.get_subplotspec().subgridspec(1, n_cols)
                 fig = ax.figure
                 ax = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
-        if n_cols > 1:
+        if n_cols > 2:
             title = [self._get_title(title, i, t) for i, t in enumerate(['difference', 'center',
-                                                                         'surround'])]
+                                                                         'surround',
+                                                                         'foveal_pixels'])]
         else:
-            title = self._get_title(title, 0, 'mean pixel intensity')
+            title = [self._get_title(title, i, t) for i, t in enumerate(['mean pixel intensity',
+                                                                         'foveal_pixels'])]
         data = self._representation_for_plotting(batch_idx, data)
         return ax, data, title
 
@@ -1241,21 +1275,23 @@ class RetinalGanglionCells(VentralModel):
 
         """
         if self.window_type != 'dog' or data is not None:
-            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
-            clean_stem_plot(data, ax, title, ylim)
-            axes = [ax]
+            axes, data, title = self._plot_helper(2, figsize, ax, title, batch_idx, data)
+            for ax, v, t in zip(axes, data.values(), title):
+                clean_stem_plot(v, ax, t, ylim)
             fig = ax.figure
         else:
-            data = {'difference': self.representation, 'center': self.center_representation,
-                    'surround': self.surround_representation}
-            axes, data, title = self._plot_helper(3, figsize, ax, title, batch_idx, data)
+            data = {'difference': self.representation['mean_luminance'],
+                    'center': self.center_representation,
+                    'surround': self.surround_representation,
+                    'foveal_pixels': self.representation['foveal_pixels']}
+            axes, data, title = self._plot_helper(4, figsize, ax, title, batch_idx, data)
             for ax, d, t in zip(axes, data.values(), title):
                 clean_stem_plot(d, ax, t, ylim)
             fig = axes[0].figure
         # fig won't always be defined, but this will return the figure belonging to our axis
         return fig, axes
 
-    def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
+    def plot_representation_image(self, figsize=(11, 5), ax=None, title=None, batch_idx=0,
                                   data=None, vrange='indep1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
@@ -1325,13 +1361,23 @@ class RetinalGanglionCells(VentralModel):
 
         """
         if self.window_type != 'dog':
-            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
-            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-            # project expects a 3d tensor
-            data = self.PoolingWindows.project(torch.tensor(data).unsqueeze(0).unsqueeze(0))
-            pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
+            axes, data, title = self._plot_helper(2, figsize, ax, title, batch_idx, data)
+            axes_final = []
+            imgs = []
+            for ax, (k, v) in zip(axes, data.items()):
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                if k == 'mean_luminance':
+                    # project expects a 3d tensor
+                    v = self.PoolingWindows.project(torch.tensor(v).unsqueeze(0).unsqueeze(0))
+                else:
+                    v = v.reshape(self.img_res)
+                axes_final.append(ax)
+                imgs.append(v.squeeze())
+            vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
+            for ax, img, t, vr in zip(axes_final, imgs, title, vrange):
+                pt.imshow(to_numpy(img), vrange=vr, ax=ax, title=t, zoom=zoom,
+                          cmap=cmap)
             fig = ax.figure
-            axes = [ax]
         else:
             if data is not None:
                 if data.ndim != 4:
@@ -1339,14 +1385,16 @@ class RetinalGanglionCells(VentralModel):
                                     " representation)! We can't invert the representation and so"
                                     " must do it from scratch (see PoolingWindows.project_dog() "
                                     "docstring for more details)")
+                self.forward(data)
             else:
                 data = self.image
-            axes, _, title = self._plot_helper(3, figsize, ax, title, batch_idx, None)
+            axes, _, title = self._plot_helper(4, figsize, ax, title, batch_idx, None)
             data = {'difference': self.PoolingWindows.project_dog(data),
                     'center': self.PoolingWindows.project(self.center_representation,
                                                           windows_key='center'),
                     'surround': self.PoolingWindows.project(self.surround_representation,
-                                                            windows_key='surround')}
+                                                            windows_key='surround'),
+                    'foveal_pixels': self.representation['foveal_pixels'].reshape(self.img_res)}
             for ax, d, t in zip(axes, data.values(), title):
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 pt.imshow(to_numpy(d.squeeze()), vrange=vrange, ax=ax, title=t, zoom=zoom)
@@ -1847,6 +1895,7 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
         if self.include_highpass and 'residual_highpass' in scales:
             self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
             self.representation['residual_highpass'] = self.mean_residual_highpass
+        self.representation['foveal_pixels'] = (self._foveal_mask * image).flatten(-2, -1) / 10
         return self.representation_to_output()
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
@@ -1912,71 +1961,6 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
         if data is not None and not isinstance(data, dict):
             data = self.output_to_representation(data)
         return super()._representation_for_plotting(batch_idx, data)
-
-    def representation_to_output(self, data=None):
-        r"""convert representation to output
-
-        This takes data that looks like ``self.representation`` (i.e., a
-        dictionary whose keys are ``"mean_luminance"`` and ``(scale,
-        orientation)`` tuples) and flattens it to an output that looks
-        like what we get from the ``forward()`` call.
-
-        Plenoptic models have two 'modes' for their representation: the
-        one returned by the ``forward()`` call ("output"), which must be
-        a 3d or 4d tensor, and the one stored as ``self.representation``
-        ("representation"), which can be structured however you want,
-        and probably represents the structure of the data. For example,
-        a dictionary of tensors, where keys naming the different types
-        of statistics. We want functions to convert between the two of
-        them. This converts representation to output.
-
-        Parameters
-        ----------
-        data : torch.Tensor, np.array, dict or None, optional
-            The data to convert. If None, we use
-            ``self.representation``. Else, should look like
-            ``self.representation``, with the exact same structure
-
-        """
-        if data is None:
-            data = self.representation
-        return torch.cat(list(data.values()), dim=2)
-
-    def output_to_representation(self, data):
-        r"""convert output to representation
-
-        This takes data that looks like the output from the
-        ``forward()`` call (a big 3d tensor) and returns something that
-        looks like ``self.representation`` (i.e., a dictionary whose
-        keys are ``"mean_luminance"`` and ``(scale, orientation)``
-        tuples).
-
-        NOTE: for this to work, ``forward()`` must have been called
-        before
-
-        Plenoptic models have two 'modes' for their representation: the
-        one returned by the ``forward()`` call ("output"), which must be
-        a 3d or 4d tensor, and the one stored as ``self.representation``
-        ("representation"), which can be structured however you want,
-        and probably represents the structure of the data. For example,
-        a dictionary of tensors, where keys naming the different types
-        of statistics. We want functions to convert between the two of
-        them. This converts output to representation.
-
-        Parameters
-        ----------
-        data : torch.Tensor, np.array, dict, optional
-            The data to convert. Should look like the value returned by
-            this model's forward call (i.e., a 3d tensor).
-
-        """
-        data_dict = {}
-        idx = 0
-        for k, v in self.representation.items():
-            data_dict[k] = data[:, :, idx:idx+v.shape[-1]].reshape(v.shape)
-            idx += v.shape[-1]
-        data = data_dict
-        return data
 
     def _plot_helper(self, n_rows, n_cols, figsize=(25, 15), ax=None, title=None, batch_idx=0,
                      data=None):
@@ -2139,17 +2123,29 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
         else:
             ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
         ax = clean_stem_plot(data['mean_luminance'], ax, t, ylim)
-        axes['mean_luminance'] = ax
         axes_list.append(ax)
+        fov_rows = slice(n_rows, n_rows+2)
         if self.include_highpass:
+            if n_rows == 1:
+                raise NotImplementedError("Can't plot highpass with only one row!")
+            elif n_rows <= 2:
+                fov_rows = slice(n_rows, n_rows+1)
+                rows = slice(n_rows+1, n_rows+2)
+            else:
+                rows = slice(n_rows+2, n_rows+4)
             t = self._get_title(title_list, -1, "residual highpass")
-            ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
+            ax = fig.add_subplot(gs[rows, 2*(n_cols-1):])
             ax = clean_stem_plot(data['residual_highpass'], ax, t, ylim)
-            axes['residual_highpass'] = ax
             axes_list.append(ax)
+        t = self._get_title(title_list, -1, "foveal pixels")
+        ax = fig.add_subplot(gs[fov_rows, 2*(n_cols-1):])
+        ax = clean_stem_plot(data['foveal_pixels'], ax, t, ylim)
+        axes_list.append(ax)
         # this puts a legend on that only has one of each cell type in
         # the top right (which will always be empty)
-        axes[(self.num_scales-1, 0)].legend(loc='center left', bbox_to_anchor=(1, .5))
+        if len(self.cell_types) > 1 or self.cell_types[0] != 'complex':
+            print(self.cell_types)
+            axes[(self.num_scales-1, 0)].legend(loc='center left', bbox_to_anchor=(1, .5))
         return fig, axes_list
 
     def update_plot(self, axes, batch_idx=0, data=None):
@@ -2212,6 +2208,8 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
                 sc = update_stem(s, data[(cell_type, j, k)])
                 stem_artists.extend([sc.markerline, sc.stemlines])
         sc = update_stem(axes[i+1].containers[0], data['mean_luminance'])
+        stem_artists.extend([sc.markerline, sc.stemlines])
+        sc = update_stem(axes[-1].containers[0], data['foveal_pixels'])
         stem_artists.extend([sc.markerline, sc.stemlines])
         if self.include_highpass:
             sc = update_stem(axes[i+2].containers[0], data['residual_highpass'])
@@ -2285,10 +2283,10 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
 
         """
         if self.half_octave_pyramid is not None:
-            n_cols = 2 * self.num_scales
+            n_cols = 2 * self.num_scales + 1
             ax_multiplier = 2
         else:
-            n_cols = self.num_scales + 1
+            n_cols = self.num_scales + 2
             ax_multiplier = 1
         if self.include_highpass:
             n_cols += 1
@@ -2319,15 +2317,25 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
                 elif isinstance(i, float):
                     zooms.append(zoom * round(projected_data[(0.5, 0)].shape[-1] / img.shape[-1]))
         if self.include_highpass:
-            ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -3])
         else:
-            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
         projected_data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
-                                                          for k, v in data.items() if not isinstance(k, tuple)))
+                                                          for k, v in data.items()
+                                                          if not isinstance(k, tuple) and k != 'foveal_pixels'))
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(projected_data['mean_luminance'].squeeze()))
+        zooms.append(zoom)
+        if self.include_highpass:
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
+        else:
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
+        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        axes.append(ax)
+        titles.append(self._get_title(title_list, -1, "foveal pixels"))
+        imgs.append(to_numpy(data['foveal_pixels'].squeeze().reshape(self.img_res)))
         zooms.append(zoom)
         if self.include_highpass:
             ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
