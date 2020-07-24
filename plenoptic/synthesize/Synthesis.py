@@ -122,6 +122,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.loss = []
         self.gradient = []
         self.learning_rate = []
+        self.pixel_change = []
+        self._last_iter_matched_image = None
         self.saved_representation = []
         self.saved_image = []
         self.saved_image_gradient = []
@@ -394,7 +396,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             True if we stored this iteration, False if not. Note that
             storing and saving can be separated (if both
             ``store_progress`` and ``save_progress`` are different
-            integers, for example). This only deals with *storing*, not
+            integers, for example). This only reflects *storing*, not
             saving
 
         """
@@ -720,10 +722,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         # and start synthesizing.
         for i in pbar:
-            # this is an example, because this is
-            # the section that will vary the most amongst synthesis methods
-            loss, g, lr = self._optimizer_step(pbar)
+            # this is an example, because this is the section that will
+            # vary the most amongst synthesis methods
+            loss, g, lr, pixel_change = self._optimizer_step(pbar)
             self.loss.append(loss.item())
+            self.pixel_change.append(pixel_change.item())
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
 
@@ -1037,8 +1040,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             1-element tensor containing the gradient on this step
         learning_rate : torch.tensor
             1-element tensor containing the learning rate on this step
+        pixel_change : torch.tensor
+            1-element tensor containing the max pixel change in
+            matched_image between this step and the last
 
         """
+        self._last_iter_matched_image = self.matched_image.clone()
         postfix_dict = {}
         if self.coarse_to_fine:
             # the last scale will be 'all', and we never remove
@@ -1088,14 +1095,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             loss = self.objective_function(self.matched_representation, self.target_representation,
                                            self.matched_image, self.target_image)
 
+        pixel_change = torch.max(torch.abs(self.matched_image - self._last_iter_matched_image))
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
                                  gradient_norm="%.4e" % g.norm().item(),
-                                 learning_rate=self.optimizer.param_groups[0]['lr'], **kwargs))
+                                 learning_rate=self.optimizer.param_groups[0]['lr'],
+                                 pixel_change=f"{pixel_change:.04e}", **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self.optimizer.param_groups[0]['lr']
+        return loss, g.norm(), self.optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
     def save(self, file_path, save_model_reduced=False, attrs=['model'],
