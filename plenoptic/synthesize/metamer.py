@@ -106,6 +106,12 @@ class Metamer(Synthesis):
     learning_rate : list
         A list of the learning_rate over iterations. We use a scheduler
         that gradually reduces this over time, so it won't be constant.
+    pixel_change : list
+        A list containing the max pixel change over iterations
+        (``pixel_change[i]`` is the max pixel change in
+        ``matched_image`` between iterations ``i`` and ``i-1``). note
+        this is calculated before any clamping, so may have some very
+        large numbers in the beginning
     saved_representation : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save ``self.matched_representation``
@@ -502,8 +508,9 @@ class Metamer(Synthesis):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss, g, lr = self._optimizer_step(pbar)
+            loss, g, lr, pixel_change = self._optimizer_step(pbar)
             self.loss.append(loss.item())
+            self.pixel_change.append(pixel_change.item())
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
 
@@ -546,7 +553,7 @@ class Metamer(Synthesis):
                  'matched_representation', 'saved_representation', 'gradient', 'saved_image',
                  'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
-                 'scales_finished', 'store_progress', 'save_progress', 'save_path']
+                 'scales_finished', 'store_progress', 'save_progress', 'save_path', 'pixel_change']
         super().save(file_path, save_model_reduced,  attrs)
 
     def to(self, *args, **kwargs):

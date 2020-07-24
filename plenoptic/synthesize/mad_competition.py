@@ -160,8 +160,16 @@ class MADCompetition(Synthesis):
         constant.
     learning_rate_all : dict
         dictionary containing ``learning_rate`` for each
-        ``synthesis_target``.  scheduler that gradually reduces this
-        over time, so it won't be constant.
+        ``synthesis_target``.
+    pixel_change : list
+        A list containing the max pixel change over iterations
+        (``pixel_change[i]`` is the max pixel change in
+        ``matched_image`` between iterations ``i`` and ``i-1``). note
+        this is calculated before any clamping, so may have some very
+        large numbers in the beginning
+    pixel_change_all : dict
+        dictionary containing ``pixel_change`` for each
+        ``synthesis_target``.
     nu : list
         list containing the nu parameter over iterations. Nu is the
         parameter used to correct the image so that the other model's
@@ -310,7 +318,7 @@ class MADCompetition(Synthesis):
                            'saved_image_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
                            'nu', 'initial_image', 'matched_image', 'initial_representation_1',
                            'initial_representation_2', 'matched_representation_1',
-                           'matched_representation_2']
+                           'matched_representation_2', 'pixel_change']
 
         def _init_dict(none_flag=False):
             if none_flag:
@@ -1133,9 +1141,10 @@ class MADCompetition(Synthesis):
             # on synthesis_target) the targeted model
             self.update_target(self.synthesis_target, 'main')
             self.step = 'main'
-            loss, g, lr = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
+            loss, g, lr, pixel_change = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
             self.loss.append(abs(loss.item()))
             self.gradient.append(g.item())
+            self.pixel_change.append(pixel_change.item())
             self.learning_rate.append(lr)
             # finally, update matched_image to try and keep the stable
             # model's loss constant
@@ -1381,7 +1390,7 @@ class MADCompetition(Synthesis):
                  'saved_representation_2_gradient', 'saved_image_gradient', 'loss_function_1',
                  'initial_image', 'initial_representation', 'loss_function_2', 'scales',
                  'scales_timing', 'scales_loss', 'scales_finished', 'coarse_to_fine',
-                 'store_progress', 'save_progress', 'save_path']
+                 'store_progress', 'save_progress', 'save_path', 'pixel_change']
         super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
 
     @classmethod
