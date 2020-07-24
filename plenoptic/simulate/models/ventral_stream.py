@@ -306,6 +306,7 @@ class VentralModel(nn.Module):
             self.PoolingWindows.to(*args, **kwargs)
         for k, v in self._spatial_masks.items():
             self._spatial_masks[k] = v.to(*args, **kwargs)
+        self._foveal_mask = self._foveal_mask.to(*args, **kwargs)
         nn.Module.to(self, *args, **kwargs)
         return self
 
