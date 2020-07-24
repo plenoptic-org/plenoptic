@@ -1802,43 +1802,45 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
                                         for k, v in half_octave_pyr_coeffs.items()
                                         if not isinstance(k, str)))
-        if 'complex' in self.cell_types:
-            # to get the energy, we just square and sum across the real and
-            # imaginary parts (because there are complex tensors yet, this
-            # is the final dimension). the if statement avoids the residuals
-            if self.complex_cell_nonlin == 'square':
-                self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
-                                                   for k, v in self.pyr_coeffs.items()
-                                                   if not isinstance(k, str))
-            elif self.complex_cell_nonlin == 'fourth':
-                self.complex_cell_responses = dict((k, torch.pow(v, 4).sum(-1))
-                                                   for k, v in self.pyr_coeffs.items()
-                                                   if not isinstance(k, str))
-            elif self.complex_cell_nonlin == 'squaresquare':
-                self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1)**2)
-                                                   for k, v in self.pyr_coeffs.items()
-                                                   if not isinstance(k, str))
-        if 'simple_off' in self.cell_types:
-            # the simple cells are the real coefficients, and then the
-            # ON cells are positive-recitfied
-            self.simple_off_cell_responses = dict((k, relu(v[..., 0]))
-                                                  for k, v in self.pyr_coeffs.items()
-                                                  if not isinstance(k, str))
-        if 'simple_on' in self.cell_types:
-            # the simple cells are the real coefficients, and then the
-            # OFF cells are negative-recitfied
-            self.simple_on_cell_responses = dict((k, relu(-v[..., 0]))
-                                                 for k, v in self.pyr_coeffs.items()
-                                                 if not isinstance(k, str))
-        if self.include_highpass and 'residual_highpass' in scales:
-            self.residual_highpass = self.pyr_coeffs['residual_highpass']
+        if self.pyr_coeffs:
+            if 'complex' in self.cell_types:
+                # to get the energy, we just square and sum across the real and
+                # imaginary parts (because there are complex tensors yet, this
+                # is the final dimension). the if statement avoids the residuals
+                if self.complex_cell_nonlin == 'square':
+                    self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
+                                                       for k, v in self.pyr_coeffs.items()
+                                                       if not isinstance(k, str))
+                elif self.complex_cell_nonlin == 'fourth':
+                    self.complex_cell_responses = dict((k, torch.pow(v, 4).sum(-1))
+                                                       for k, v in self.pyr_coeffs.items()
+                                                       if not isinstance(k, str))
+                elif self.complex_cell_nonlin == 'squaresquare':
+                    self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1)**2)
+                                                       for k, v in self.pyr_coeffs.items()
+                                                       if not isinstance(k, str))
+            if 'simple_off' in self.cell_types:
+                # the simple cells are the real coefficients, and then the
+                # ON cells are positive-recitfied
+                self.simple_off_cell_responses = dict((k, relu(v[..., 0]))
+                                                      for k, v in self.pyr_coeffs.items()
+                                                      if not isinstance(k, str))
+            if 'simple_on' in self.cell_types:
+                # the simple cells are the real coefficients, and then the
+                # OFF cells are negative-recitfied
+                self.simple_on_cell_responses = dict((k, relu(-v[..., 0]))
+                                                     for k, v in self.pyr_coeffs.items()
+                                                     if not isinstance(k, str))
+            if self.include_highpass and 'residual_highpass' in scales:
+                self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
-        for k in self.cell_types:
-            setattr(self, f"mean_{k}_cell_responses",
-                    self.PoolingWindows(getattr(self, k+"_cell_responses")))
-            self.representation.update({(k, *ki): v for ki, v in
-                                        getattr(self, f"mean_{k}_cell_responses").items()})
+        if self.pyr_coeffs:
+            for k in self.cell_types:
+                setattr(self, f"mean_{k}_cell_responses",
+                        self.PoolingWindows(getattr(self, k+"_cell_responses")))
+                self.representation.update({(k, *ki): v for ki, v in
+                                            getattr(self, f"mean_{k}_cell_responses").items()})
         if 'mean_luminance' in scales:
             self.mean_luminance = self.PoolingWindows(self.cone_responses)
             self.representation['mean_luminance'] = self.mean_luminance
