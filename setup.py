@@ -29,7 +29,7 @@ setup(
                       'torch>=1.1',
                       'pyrtools>=0.9.1',
                       'scipy>=1.0',
-                      'matplotlib<3.3',
+                      'matplotlib>=3.1',
                       'torchvision>=0.3',
                       'tqdm>=4.29',
                       'requests>=2.21',
