@@ -65,6 +65,29 @@ def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
 
         np.testing.assert_allclose(coeff_np_k, coeff_torch_k, rtol=rtol, atol=atol)
 
+def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
+    '''
+    function that checks if the energy in each band of two pyramids are the same.
+    We set an absolute and relative tolerance and the function checks for each band if
+    abs(coeff_1-coeff_2) <= atol + rtol*abs(coeff_1)
+    Args:
+    coeff_1: first dictionary of torch tensors corresponding to each band
+    coeff_2: second dictionary of torch tensors corresponding to each band
+    '''
+
+    for k,v in coeff_1.items():
+        band_1 = coeff_1[k].squeeze()
+        band_2 = coeff_2[k].squeeze()
+        if band_1.shape[-1] == 2:
+            band_1 = torch_complex_to_numpy(band_1)
+            band_2 = torch_complex_to_numpy(band_2)
+        else:
+            band_1 = to_numpy(band_1)
+            band_2 = to_numpy(band_2)
+
+        np.testing.assert_allclose(np.sum(np.abs(band_1)**2),np.sum(np.abs(band_2)**2), rtol=rtol, atol=atol)
+
+
 class TestLinear(object):
 
     def test_linear(self):
@@ -124,6 +147,25 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("height", [3,4,5])
     @pytest.mark.parametrize("order", [1,2,3])
     @pytest.mark.parametrize("is_complex", [False, True])
+    def test_not_downsample(self, height, order, is_complex):
+        x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
+        x_shape = x.shape
+        sp_downsample = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order,
+                                                        is_complex = is_complex, downsample = False, fft_normalize=True)
+        sp_notdownsample = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order,
+                                                            is_complex = is_complex, downsample = True, fft_normalize=True)
+        sp_downsample.to(device)
+        sp_notdownsample.to(device)
+
+        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        sp_downsample_coeffs = sp_downsample(x_t)
+        sp_notdownsample_coeffs = sp_notdownsample(x_t)
+
+        check_band_energies(sp_downsample_coeffs, sp_notdownsample_coeffs)
+
+    @pytest.mark.parametrize("height", [3,4,5])
+    @pytest.mark.parametrize("order", [1,2,3])
+    @pytest.mark.parametrize("is_complex", [False, True])
     def test_torch_vs_numpy_pyr(self, height, order, is_complex):
         x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
         x_shape = x.shape
@@ -159,33 +201,35 @@ class TestSteerablePyramid(object):
 
     @pytest.mark.parametrize("im", ['einstein', 'curie'])
     @pytest.mark.parametrize("is_complex", [True, False])
+    @pytest.mark.parametrize("downsample", [False, True])
     @pytest.mark.parametrize("height", ['auto', 1, 3, 4, 5])
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (128, 256), (255, 256),
                                           (256, 255)])
-    def test_complete_recon(self, im, is_complex, height, order, im_shape):
+    def test_complete_recon(self, im, is_complex, downsample, height, order, im_shape):
         im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
         im = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
-        pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex)
+        pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample)
         pyr(im)
         recon = pyr.recon_pyr()
         torch.allclose(recon, im)
 
     @pytest.mark.parametrize("im", ['einstein', 'curie'])
     @pytest.mark.parametrize("is_complex", [True, False])
+    @pytest.mark.parametrize("downsample", [False, True])
     @pytest.mark.parametrize("height", ['auto', 1, 3, 4, 5])
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (255, 256)])
-    def test_partial_recon(self, im, is_complex, height, order, im_shape):
+    def test_partial_recon(self, im, is_complex, downsample, height, order, im_shape):
         im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
         im_tensor = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
-        po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex)
+        po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, downsample=downsample)
         po_pyr(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
         # this is almost certainly over-kill: we're checking every

@@ -47,6 +47,10 @@ class Steerable_Pyramid_Freq(nn.Module):
     downsample: `bool`
         Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
         in fixed bands of size imshapeximshape.
+    fft_normalize: `bool`
+        Whether the fft and ifft are normalized to be unitary transformations or not
+        If not normalized, fft has no normalization and ifft is normalized by 1/N
+        If normalized, fft has normalization 1/sqrt(N), ifft is normalized by 1/sqrt(N)
 
     Attributes
     ----------
@@ -75,7 +79,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     """
 
     def __init__(self, image_shape, height='auto', order=3, twidth=1, is_complex=False,
-                 store_unoriented_bands=False, return_list=False, downsample=True):
+                 store_unoriented_bands=False, return_list=False, downsample=True, fft_normalize=False):
 
         super().__init__()
 
@@ -85,6 +89,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.store_unoriented_bands = store_unoriented_bands
         self.return_list = return_list
         self.downsample = downsample
+        self.fft_normalize = fft_normalize
 
         # cache constants
         self.lutsize = 1024
@@ -92,7 +97,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.alpha = (self.Xcosn + np.pi) % (2*np.pi) - np.pi
         self.pyr_size = {}
 
-        max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1]))) - 2
+        max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1])))-2
         if height == 'auto':
             self.num_scales = int(max_ht)
         elif height > max_ht:
@@ -190,9 +195,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             if not self.downsample:
                 lomask = pointOp(log_rad, self.YIrcos, Xrcos)
                 self._lomasks.append(torch.tensor(lomask).unsqueeze(0).unsqueeze(-1))
-                lostart = np.array([0,0])
-                loend = dims
-                self._loindices.append([lostart, loend])
+                self._loindices.append([np.array([0,0]), dims])
                 lodft = lodft * lomask
 
             else:
@@ -308,14 +311,14 @@ class Steerable_Pyramid_Freq(nn.Module):
         # x is a torch tensor batch of images of size [N,C,W,H]
         assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
         # x = x.squeeze(1) #flatten channel dimension first
-        imdft = torch.rfft(x, signal_ndim=2, onesided=False)
+        imdft = torch.rfft(x, signal_ndim=2, onesided=False, normalized=self.fft_normalize)
         imdft = batch_fftshift(imdft)
 
         if 'residual_highpass' in scales:
             # high-pass
             hi0dft = imdft * hi0mask
             hi0 = batch_ifftshift(hi0dft)
-            hi0 = torch.ifft(hi0, signal_ndim=2)
+            hi0 = torch.ifft(hi0, signal_ndim=2, normalized=self.fft_normalize)
             hi0_real = torch.unbind(hi0, -1)[0]
             self.pyr_coeffs['residual_highpass'] = hi0_real
             self.pyr_size['residual_highpass'] = tuple(hi0_real.shape[-2:])
@@ -331,7 +334,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
                 if self.store_unoriented_bands:
                     lo0 = batch_ifftshift(lodft)
-                    lo0 = torch.ifft(lo0, signal_ndim=2)
+                    lo0 = torch.ifft(lo0, signal_ndim=2, normalized=self.fft_normalize)
                     lo0_real = torch.unbind(lo0, -1)[0]
                     self.unoriented_bands[i] = lo0_real
 
@@ -353,7 +356,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                     banddft[..., 1] = banddft_imag
 
                     band = batch_ifftshift(banddft)
-                    band = torch.ifft(band, signal_ndim=2)
+                    band = torch.ifft(band, signal_ndim=2, normalized=self.fft_normalize)
                     if not self.is_complex:
                         band = torch.unbind(band, -1)[0]
                         self.pyr_coeffs[(i, b)] = band
@@ -384,7 +387,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         if 'residual_lowpass' in scales:
             # compute residual lowpass when height <=1
             lo0 = batch_ifftshift(lodft)
-            lo0 = torch.ifft(lo0, signal_ndim=2)
+            lo0 = torch.ifft(lo0, signal_ndim=2, normalized=self.fft_normalize)
             lo0_real = torch.unbind(lo0, -1)[0]
             self.pyr_coeffs['residual_lowpass'] = lo0_real
             self.pyr_size['residual_lowpass'] = tuple(lo0_real.shape[-2:])
@@ -580,7 +583,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # generate highpass residual Reconstruction
         if 'residual_highpass' in recon_keys:
-            hidft = torch.rfft(self.pyr_coeffs['residual_highpass'], signal_ndim=2, onesided=False)
+            hidft = torch.rfft(self.pyr_coeffs['residual_highpass'], signal_ndim=2, onesided=False, normalized=self.fft_normalize)
             hidft = batch_fftshift(hidft)
 
             # output dft is the sum of the recondft from the recursive
@@ -592,7 +595,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # get output reconstruction by inverting the fft
         reconstruction = batch_ifftshift(outdft)
-        reconstruction = torch.ifft(reconstruction, signal_ndim=2)
+        reconstruction = torch.ifft(reconstruction, signal_ndim=2, normalized=self.fft_normalize)
 
         # get real part of reconstruction (if complex)
         reconstruction = torch.unbind(reconstruction, -1)[0]
@@ -623,11 +626,11 @@ class Steerable_Pyramid_Freq(nn.Module):
         # base case, return the low-pass residual
         if scale == self.num_scales:
             if 'residual_lowpass' in recon_keys:
-                lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided=False)
+                lodft = torch.rfft(pyr_coeffs['residual_lowpass'], signal_ndim=2, onesided=False, normalized=self.fft_normalize)
                 lodft = batch_fftshift(lodft)
             else:
                 lodft = torch.rfft(torch.zeros_like(pyr_coeffs['residual_lowpass']), signal_ndim=2,
-                                   onesided=False)
+                                   onesided=False, normalized=self.fft_normalize)
 
             return lodft
 
@@ -649,9 +652,9 @@ class Steerable_Pyramid_Freq(nn.Module):
             if (scale, b) in recon_keys:
                 anglemask = self._anglemasks_recon[scale][b]
                 if self.is_complex:
-                    banddft = torch.fft(pyr_coeffs[(scale, b)], signal_ndim=2)
+                    banddft = torch.fft(pyr_coeffs[(scale, b)], signal_ndim=2, normalized=self.fft_normalize)
                 else:
-                    banddft = torch.rfft(pyr_coeffs[(scale, b)], signal_ndim=2, onesided=False)
+                    banddft = torch.rfft(pyr_coeffs[(scale, b)], signal_ndim=2, onesided=False, normalized=self.fft_normalize)
                 banddft = batch_fftshift(banddft)
 
                 banddft = banddft * anglemask * himask
