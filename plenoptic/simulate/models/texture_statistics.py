@@ -141,7 +141,7 @@ class Texture_Statistics(nn.Module):
             for nor in range(0, self.n_orientations):
                 nband = n_scales*self.n_orientations + nor + 1
                 ch = apyr0[nband]
-                Sch = np.min((ch.shape[-1], ch.shape[-2])).to(float)
+                Sch = np.min((ch.shape[-1], ch.shape[-2]))
                 le = int(np.min((Sch/2-1, la)))
                 # Find the auto-correlation of the magnitude band
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor], vari = self.compute_autocorr(ch)
