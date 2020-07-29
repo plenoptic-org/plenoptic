@@ -512,7 +512,7 @@ class Metamer(Synthesis):
             self.loss.append(loss.item())
             self.pixel_change.append(pixel_change.item())
             self.gradient.append(g.item())
-            self.learning_rate.append(lr.item())
+            self.learning_rate.append(lr)
 
             if self._check_nan_loss(loss):
                 break
