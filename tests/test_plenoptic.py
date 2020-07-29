@@ -510,7 +510,7 @@ class TestVentralStream(object):
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
-        fig, axes = plt.subplots(2, 1, figsize=(5, 12))
+        fig, axes = plt.subplots(2, 1, figsize=(12, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
         plt.close('all')
@@ -531,7 +531,7 @@ class TestVentralStream(object):
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
-        fig, axes = plt.subplots(2, 1, figsize=(5, 12))
+        fig, axes = plt.subplots(2, 1, figsize=(12, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
         plt.close('all')
@@ -694,7 +694,7 @@ class TestVentralStream(object):
             rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
             rgc = rgc.to(DEVICE)
             rgc_rep = rgc(im)
-            if not torch.allclose(rgc.representation, v1.mean_luminance):
+            if not torch.allclose(rgc.representation['mean_luminance'], v1.mean_luminance):
                 raise Exception("Somehow RGC and V1 mean luminance representations are not the "
                                 "same for image %s!" % fname)
             if not torch.allclose(rgc_rep, v1_rep[..., -rgc_rep.shape[-1]:]):
@@ -771,16 +771,16 @@ class TestVentralStream(object):
             model(im)
         # v1 mean luminance and rgc representation, for same cone power
         # and scaling, should be identical
-        (v1.representation['mean_luminance'] == rgc.representation).all()
+        (v1.representation['mean_luminance'] == rgc.representation['mean_luminance']).all()
         # v1 mean luminance and rgc representation, for same cone power
         # and scaling, should be identical
-        (v1_lin.representation['mean_luminance'] == rgc_lin.representation).all()
+        (v1_lin.representation['mean_luminance'] == rgc_lin.representation['mean_luminance']).all()
         # similarly, the representations should be different if cone
         # power is different
         (v1_lin.representation['mean_luminance'] != v1.representation['mean_luminance']).all()
         # similarly, the representations should be different if cone
         # power is different
-        (rgc_lin.representation != rgc.representation).all()
+        (rgc_lin.representation['mean_luminance'] != rgc.representation['mean_luminance']).all()
 
     @pytest.mark.parametrize("frontend", [True, False])
     @pytest.mark.parametrize("steer", [True, False])
