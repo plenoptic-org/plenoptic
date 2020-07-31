@@ -3,15 +3,16 @@
 For example, pre-existing synthesized images
 
 """
-import scipy.io as sio
-import pyrtools as pt
 import os.path as op
+
 import imageio
-import numpy as np
 import matplotlib.lines as lines
+import numpy as np
+import pyrtools as pt
+import scipy.io as sio
 
 
-def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Downloads/MAD/results1',
+def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents/MAD_Competition/data/results',
                      zoom=3, vrange='indep1', **kwargs):
     r"""plot original MAD results, provided by Zhou Wang
 
@@ -60,7 +61,14 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Downloads
         ``pd.DataFrame(results).T``
 
     """
-    orig_img = imageio.imread(op.join(op.expanduser(results_dir), f"{original_image}.tif"))
+    img_path = op.join(op.expanduser(results_dir), f"{original_image}.tif")
+    try:
+        orig_img = imageio.imread(img_path)
+    except FileNotFoundError:
+        # two basic places to check, either the same directory as the results,
+        # or replace results with images
+        img_path = op.join(op.dirname(op.dirname(img_path)), 'images', f"{original_image}.tif")
+        orig_img = imageio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:
         noise_levels = [2**i for i in range(1, 11)]
