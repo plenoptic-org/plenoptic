@@ -602,7 +602,11 @@ class VentralModel(nn.Module):
             False, will just have a single value per key in
             representation. If True, keys will be (k, 'region_{i}'),
             where goes from 0 to 3 and represents quadrants, starting
-            from bottom right
+            from bottom right. Note that, if this is the first time
+            doing this, we'll need to create spatial masks to do this,
+            which will massively increase the amount of memory used
+            (because we create copies of the PoolingWindows at the
+            coarsest scale to do so).
 
         Returns
         -------
@@ -612,7 +616,7 @@ class VentralModel(nn.Module):
             corresponding summarized representation
 
         """
-        if not self._spatial_masks:
+        if not self._spatial_masks and by_angle:
             self._spatial_masks = self._gen_spatial_masks()
         if data is not None:
             if not isinstance(data, dict):
