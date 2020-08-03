@@ -254,7 +254,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (128, 256), (255, 256),
                                           (256, 255)])
-    def test_recon_match_pyrtools(self, im, is_complex, height, order, im_shape):
+    def test_recon_match_pyrtools(self, im, is_complex,fft_normalize, height, order, im_shape):
         # this should fail if and only if test_complete_recon does, but
         # may as well include it just in case
         im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
