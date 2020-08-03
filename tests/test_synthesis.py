@@ -40,8 +40,8 @@ def get_synthesis_object(small_dim=None, large_dim=None):
         e_small = Eigendistortion(img_small, mdl, dtype=torch.float32).to(device)
 
     if large_dim is not None:
-        img = matplotlib.image.imread(op.join(DATA_DIR, 'einstein.png'))
-        img_np = img[:large_dim, :large_dim, 0] / np.max(img)
+        img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img_np = img[:large_dim, :large_dim] / np.max(img)
         img_large = torch.Tensor(img_np).view([1, 1, large_dim, large_dim]).to(device)
 
         e_large = Eigendistortion(img_large, mdl, dtype=torch.float32).to(device)
@@ -106,6 +106,19 @@ class TestEigendistortionSynthesis(object):
         assert len(e_large.distortions['eigenvalues']) == n_steps
         assert len(e_large.distortions['eigenvectors']) == 0
         assert len(e_large.distortions['eigenvector_index']) == 0
+
+    def test_method_equivalence(self):
+
+        large_dim = 20
+        _, e_large = get_synthesis_object(small_dim=None, large_dim=large_dim)
+
+        dist_jac = e_large.synthesize(method='jacobian').clone()
+        dist_power = e_large.synthesize(method='power', n_steps=100, verbose=False).clone()
+        dist_lanczos = e_large.synthesize(method='lanczos', n_steps=300, e_vecs=[0], verbose=False).clone()
+        pass
+        # assert (dist_jac['eigenvectors'][0] - dist_power['eigenvectors'][0]).norm() < 1e-6
+        # assert (dist_jac['eigenvectors'][0] - dist_lanczos['eigenvectors'][0]).norm() < 1e-6
+
 
 class TestAutodiffFunctions(object):
 
