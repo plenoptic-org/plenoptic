@@ -5,6 +5,7 @@ from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 from ..tools.data import to_numpy
 import numpy as np
 import pyrtools as pt
+import warnings
 
 
 def fisher_info_matrix_vector_product(y, x, v):
@@ -45,7 +46,7 @@ def implicit_FIM_eigenvalue(y, x, v):
     return lmbda
 
 
-def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=100, verbose=False):
+def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=1000, verbose=False):
     """ Use power method to obtain largest (smallest) eigenvalue/vector pair.
 
     Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
@@ -129,7 +130,7 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     return lmbda_new, v_new
 
 
-def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False, debug_A=None):
+def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, debug_A=None):
     r""" Lanczos Algorithm with full reorthogonalization after each iteration.
 
     Computes approximate eigenvalues/vectors of FIM (i.e. the Ritz values and vectors). Each vector returned from
@@ -179,11 +180,11 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
     e_vecs: int or array-like
        Eigenvectors to return. If num_evecs is an int, it will return all eigenvectors in range(num_evecs).
        If an iterable, then it will return all vectors selected.
-    orthogonalize: {'full', None}
+    orthogonalize: bool
         Ideally, each synthesized vector should be mutually orthogonal; due to numerical error however, vectors computed
         from much earlier iterations will 'leak' into current iterations. This generally causes newly generated
-        eigenvectors to align with eigenvectors with highest magnitude eigenvalue. 'full' argument explicitly
-        orthogonalizes the entire set at each iteration (twice!) to mitigate the effects of leakage. If 'None', then the
+        eigenvectors to align with eigenvectors with highest magnitude eigenvalue. True argument explicitly
+        orthogonalizes the entire set at each iteration (twice!) to mitigate the effects of leakage. If False, then the
         current iteration will only orthogonalize against the previous two eigenvectors, as in the original Lanczos alg.
     verbose: bool, optional
         Print progress to screen.
@@ -217,17 +218,14 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
     dtype = x.dtype
     device = x.device
 
+    if len(e_vecs) > n_steps:
+        raise Exception("Lanczos method requires at least n_steps=len(e_vecs) (but should preferably be much more).")
+
     if n_steps > n:
+        warnings.warn("Dim of Fisher matrix, n, is < n_steps. Setting n_steps = n")
         n_steps = n
-    elif n_steps < 100:
-        Warning("Consider increasing n_steps. Convergence of extremal eigenpairs is only guaranteed when n_steps is large.")
-
-    if e_vecs is not None and n_steps < 2*len(e_vecs):
-        Warning("Consider increasing n_steps to at least 2*len(e_vecs), but preferably much much more."
-                " Convergence of extremal eigenpairs is only guaranteed when n_steps is large.")
-
-    if orthogonalize not in ['full', None]:
-        raise Exception("orthogonalize must be {'full', None}, instead got %s" % orthogonalize)
+    if n_steps < 2*len(e_vecs):
+        warnings.warn("n_steps should be at least 2*len(e_vecs) but preferably even more for accuracy.")
 
     # T tridiagonal matrix, V orthogonalized Krylov vectors
     T = torch.zeros((n_steps, n_steps), device=device, dtype=dtype)
@@ -251,10 +249,10 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
         alpha = q.dot(v) # alpha = q'Aq
         # print('alpha:{:f}'.format(alpha))
 
-        if orthogonalize.lower() == 'full' and i > 0:  # orthogonalize using Gram-Schmidt TWICE to ensure orthogonality
+        if orthogonalize and i > 0:  # orthogonalize using Gram-Schmidt TWICE to ensure orthogonality
             v -= Q[:, :i+1].mv(Q[:, :i + 1].t().mv(v))
             v -= Q[:, :i+1].mv(Q[:, :i + 1].t().mv(v))
-        elif orthogonalize is None:  # Standard orthogonalization (against last 2 vecs)
+        else:  # Standard orthogonalization (against last 2 vecs)
             v += - (alpha * q) - (beta * q0)
 
         beta = torch.norm(v)
@@ -282,7 +280,7 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, orthogonalize='full', verbose=False
     T = T[:i + 1, :i + 1]
     Q = Q[:, :i + 1]
 
-    if e_vecs is not None:
+    if len(e_vecs) > 0:
         # expensive final step - diagonalize Tridiag matrix
         eig_vals, V = T.symeig(eigenvectors=True)
 
@@ -379,7 +377,8 @@ class Eigendistortion(nn.Module):
 
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def synthesize(self, method='jacobian', e_vecs=None, tol=1e-10, n_steps=100, orthogonalize='full', seed=0, verbose=True, debug_A=None):
+    def synthesize(self, method='jacobian', e_vecs=[], tol=1e-10, n_steps=1000, orthogonalize=True, seed=0,
+                   verbose=True, debug_A=None):
         '''Compute eigendistortion
         Parameters
         ----------
@@ -412,10 +411,13 @@ class Eigendistortion(nn.Module):
             is also added as an attribute to the object.
         '''
 
-        if verbose:
-            print('out size', self.out_flattensor.size(), 'in size', self.image_flattensor.size())
+        if method == 'jacobian' and self.out_flattensor.size(0) * self.image_flattensor.size(0) > 1e6:
+            warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
 
-        if method == 'jacobian' and self.out_flattensor.size(0) * self.image_flattensor.size(0) < 10e7:
+        if verbose:
+            print(f'Output dim: {self.out_flattensor.size(0)}. Input dim: {self.image_flattensor.size(0)}')
+
+        if method == 'jacobian':
             eig_vals, eig_vecs = self.solve_eigenproblem()
 
             self.distortions['eigenvalues'] = eig_vals.detach()
