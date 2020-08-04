@@ -10,6 +10,7 @@ import warnings
 
 def fisher_info_matrix_vector_product(y, x, v):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
+
     Parameters
     ----------
     y: torch.Tensor
@@ -18,10 +19,12 @@ def fisher_info_matrix_vector_product(y, x, v):
         input tensor with gradient attached
     v: torch.Tensor
         direction
+
     Returns
     -------
     Fv: torch.Tensor
         vector, fvp
+
     Notes
     -----
     under white Gaussian noise assumption, :math:`F` is matrix multiplication of
@@ -70,6 +73,7 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
         maximum number of steps
     verbose: bool, optional
         flag to control amout of information printed out
+
     Returns
     -------
     lmbda: float
@@ -300,7 +304,8 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
 
 
 class Eigendistortion(nn.Module):
-    r"""Synthesize the eigendistortions induced by a model on an image.
+    r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
+
     Attributes
     ----------
     batch_size: int
@@ -314,6 +319,7 @@ class Eigendistortion(nn.Module):
     out_flattensor: torch.Tensor
     distortions: dict
         Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
+
     Parameters
     -----------
     image: torch.Tensor
@@ -321,6 +327,7 @@ class Eigendistortion(nn.Module):
         as each image requires its own optimization.
     model: torch class
         torch model with defined forward and backward operations
+
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
@@ -346,6 +353,7 @@ class Eigendistortion(nn.Module):
     In Advances in neural information processing systems (pp. 3530-3539).
     http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
     http://www.cns.nyu.edu/~lcv/eigendistortions/
+
     TODO
     ----
     enforce bounding box during optimization (see other classes in this repo, stretch/squish)
@@ -393,6 +401,7 @@ class Eigendistortion(nn.Module):
     def synthesize(self, method='power', e_vecs=[], tol=1e-10, n_steps=1000, orthogonalize=True, seed=0,
                    verbose=True, debug_A=None):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
+
         Parameters
         ----------
         method: str
@@ -470,11 +479,13 @@ class Eigendistortion(nn.Module):
 
     def vector_to_image(self, vecs):
         r""" Reshapes eigenvectors back into correct image dimensions.
+
         Parameters
         ----------
         vecs: torch.Tensor
             Eigendistortion tensor with torch.Size(N, num_distortions). Each distortion will be reshaped into the
             original image shape and placed in a list.
+
         Returns
         -------
         imgs: list
@@ -487,6 +498,7 @@ class Eigendistortion(nn.Module):
 
     def display(self, alpha=5., beta=10., **kwargs):
         r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
+
         Parameters
         ----------
         alpha: float
