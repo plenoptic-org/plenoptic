@@ -30,4 +30,4 @@ def mse(img1, img2):
         the mean-squared error between ``img1`` and ``img2``
 
     """
-    return torch.pow(img1 - img2, 2).mean()
+    return torch.pow(img1 - img2, 2).mean((-1, -2))

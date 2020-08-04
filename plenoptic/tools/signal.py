@@ -188,5 +188,35 @@ def kurtosis(mtx):
     # implementation is only for real components
     return torch.mean(torch.abs(mtx-mtx.mean()).pow(4))/(mtx.var().pow(2))
 
+
 def skew(mtx):
     return torch.mean((mtx-mtx.mean()).pow(3))/(mtx.var().pow(1.5))
+
+
+def add_noise(img, noise_mse):
+    """Add normally distributed noise to an image
+
+    This adds normally-distributed noise to an image so that the resulting
+    noisy version has the specified mean-squared error.
+
+    Parameters
+    ----------
+    img : torch.tensor
+        the image to make noisy
+    noise_mse : float or array-like
+        the target MSE value. More than one value is allowed
+
+    Returns
+    -------
+    noisy_img : torch.tensor
+        the noisy image. If `noise_mse` contains only one element, this will be
+        the same size as `img`. Else, each separate value from `noise_mse` will
+        be along the batch dimension.
+
+    """
+    noise_mse = torch.tensor(noise_mse, dtype=torch.float32).unsqueeze(0)
+    noise_mse = noise_mse.resize(noise_mse.nelement(), 1, 1, 1)
+    noise = 20 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:])
+    noise = noise - noise.mean()
+    noise = noise * torch.sqrt(noise_mse / (noise**2).mean())
+    return img + noise

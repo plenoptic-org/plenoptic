@@ -4,6 +4,7 @@ from tqdm import tqdm
 import pyrtools as pt
 from .Synthesis import Synthesis
 import matplotlib.pyplot as plt
+from ..tools.signal import add_noise
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
 from ..tools.metamer_utils import RangeClamper
@@ -669,8 +670,7 @@ class MADCompetition(Synthesis):
 
         """
         if initial_noise is not None:
-            self.initial_image = (self.target_image + initial_noise *
-                                  torch.randn_like(self.target_image))
+            self.initial_image = add_noise(self.target_image, initial_noise)
             init_image = self.initial_image
         # we want to keep the initial_image attribute unchanged if
         # initial_noise is None (we still want it to be the initial
