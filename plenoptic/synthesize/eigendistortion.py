@@ -9,26 +9,25 @@ import warnings
 
 
 def fisher_info_matrix_vector_product(y, x, v):
-    """Compute Fisher Information Matrix Vector Product: Fv
-
+    r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
     Parameters
     ----------
-    y: torch tensor with gradient function
-        output
-    x: torch tensor with gradient function
-        input
-    v: torch tensor
+    y: torch.Tensor
+        output tensor with gradient attached
+    x: torch.Tensor
+        input tensor with gradient attached
+    v: torch.Tensor
         direction
     Returns
     -------
-    Fv: torch tensor
+    Fv: torch.Tensor
         vector, fvp
     Notes
     -----
-    under white Gaussian noise assumption, F is matrix multiplication of
-    Jacobian transpose and Jacobian: F = J.T J
+    under white Gaussian noise assumption, :math:`F` is matrix multiplication of
+    Jacobian transpose and Jacobian: :math:`F = J^T J`
     Hence:
-    Fv = J.T (Jv)
+    :math:`Fv = J^T (Jv)`
     """
 
     Jv = jacobian_vector_product(y, x, v)
@@ -38,48 +37,47 @@ def fisher_info_matrix_vector_product(y, x, v):
 
 
 def implicit_FIM_eigenvalue(y, x, v):
-    """Implicitly compute the eigenvalue of the Fisher Information Matrix corresponding to eigenvector v
-    lmbda = v.T F v
+    r"""Implicitly compute the eigenvalue of the Fisher Information Matrix corresponding to eigenvector v
+    :math:`\lambda= v^T F v`
     """
     Fv = fisher_info_matrix_vector_product(y, x, v)
-    lmbda = torch.mm(Fv.t(), v)  # transpose
+    lmbda = torch.mm(Fv.t(), v)
     return lmbda
 
 
 def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=1000, verbose=False):
-    """ Use power method to obtain largest (smallest) eigenvalue/vector pair.
-
+    r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
     Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
     Matrix, without explicitly representing that matrix.
 
     Parameters
     ----------
-    y: torch tensor with gradient function
-        output
-    x: torch tensor
+    y: torch.Tensor
+        output tensor, with gradient
+    x: torch.Tensor
         input
-    l: torch tensor, optional
-        When l=0, this function estimates the leading eval evec pair.
-        When l is set to the estimated maximum eigenvalue, this function
-        will estimate the smallest eval evec pair (minor component).
+    l: torch.Tensor, optional
+        Optional argument. When l=0, this function estimates the leading eval evec pair. When l is set to the
+        estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
     init: {'randn', 'ones'}
-        starting point for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector.
+        starting point for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector. Both
+        will be normalized.
     seed: float, optional
         manual seed
     tol: float, optional
         tolerance value
-    n_steps: integer, optional
+    n_steps: int, optional
         maximum number of steps
-    verbose: boolean, optional
+    verbose: bool, optional
         flag to control amout of information printed out
     Returns
     -------
     lmbda: float
         eigenvalue
-    v: torch tensor
+    v: torch.Tensor
         eigenvector
-    Note
-    ----
+    Notes
+    -----
     - inverse power method (F - lmbda I)v
     - this function will most likely land on linear combinations of evecs
     TODO
@@ -98,11 +96,12 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    if init == 'randn':
+    if init == 'randn' or init != 'ones':
         v = torch.randn_like(x)
-        v = v / torch.norm(v)
     elif init == 'ones':
-        v = torch.ones_like(x) / torch.sqrt(torch.tensor(n).float())
+        v = torch.ones_like(x)
+
+    v = v / v.norm()
 
     Fv = fisher_info_matrix_vector_product(y, x, v)
     v = Fv / torch.norm(Fv)
@@ -121,7 +120,7 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
 
         error = torch.sqrt((lmbda - lmbda_new) ** 2)
         if verbose and i>=0:
-            print("{:3d} -- deltaLambda: {:04.4f}".format(i, error.item()))
+            print(f"{i:3d} -- deltaLambda: {error.item():04.4f}")
 
         v = v_new
         lmbda = lmbda_new
@@ -134,18 +133,18 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
     r""" Lanczos Algorithm with full reorthogonalization after each iteration.
 
     Computes approximate eigenvalues/vectors of FIM (i.e. the Ritz values and vectors). Each vector returned from
-    power iteration is saved (i.e. v, Av, Avv, Avvv, etc.). These vectors span the Krylov subspace which is a good
+    power iteration is saved (i.e. :math:`v, Av, Avv, Avvv`, etc.). These vectors span the Krylov subspace which is a good
     approximation of the matrix. Each Lanczos iteration orthogonalizes the current vector against all previously
-    obtained vectors. Matrix A is the FIM which is computed implicitly. This orthogonalization is done via Gram-Schmidt
-    orthogonalization of the current vector against all previous vectors at each iteration. Since this procedure is done
-    by projecting the current vector onto all previous vectors (via matrix-vector multiplication), then removing the
-    projected component at each iteration, later iterations to take longer than early iterations.
+    obtained vectors. Matrix :math:`A` is the FIM which is computed implicitly. This orthogonalization is done via
+    Gram-Schmidt orthogonalization of the current vector against all previous vectors at each iteration. Since this
+    procedure is done by projecting the current vector onto all previous vectors (via matrix-vector multiplication),
+    then removing the projected component at each iteration, later iterations to take longer than early iterations.
 
     This method simultaneously approximates both ends of the eigenspectrum. This is analyzed in depth in the below
-    references [1] and [2]
+    references [1] and [2].
 
-    We want to estimate :math:'k' eigenvalues and eigenvectors of our Fisher information matrix, :math:'A'. This is done
-    by decomposing :math:'A' as
+    We want to estimate :math:`k` eigenvalues and eigenvectors of our Fisher information matrix, :math:`A`. This is done
+    by decomposing :math:`A` as
 
     .. math::
         \begin{align}
@@ -154,10 +153,10 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
         Q_k &= [\bf{q_1}, \bf{q_2}, ..., \bf{q_k}].
         \end{align}
 
-    Here :math:'T_k' is a :math:'(k \times k)' tri-diagonal matrix, and :math:'Q_k' is an :math:'(n\times k)' matrix of
-    orthogonal vectors spanning the k-dimensional Krylov subspace of :math:'A'. The matrix :math:'T_k' is easier to
-    diagonalize due to its reduced size and tridiagonal structure, :math:'T_k=V\Lambda V^T'. By subbing this into our
-    earlier approximation for :math:'A', we find
+    Here :math:`T_k` is a :math:`(k \times k)` tri-diagonal matrix, and :math:`Q_k` is an :math:`(n\times k)` matrix of
+    orthogonal vectors spanning the k-dimensional Krylov subspace of :math:`A`. The matrix :math:`T_k` is easier to
+    diagonalize due to its reduced size and tridiagonal structure, :math:`T_k=V\Lambda V^T`. By subbing this into our
+    earlier approximation for :math:`A`, we find
 
     .. math::
         \begin{align}
@@ -165,14 +164,14 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
           &= Q_kV\Lambda V^T Q_k^T
         \end{align}
 
-    Thus, :math:'Q_kV' are our estimates of :math:'k' eigenvectors of :math:'A' and :math:'\text{diag}(\Lambda )' are
+    Thus, :math:`Q_kV` are our estimates of :math:`k` eigenvectors of :math:`A` and :math:`\text{diag}(\Lambda )` are
     their associated eigenvalues.
 
     Parameters
     ----------
-    y: torch.tensor
+    y: torch.Tensor
         model output (flattened)
-    x: torch.tensor
+    x: torch.Tensor
         model input (flattened)
     n_steps: int
         number of power iteration steps (i.e. eigenvalues/eigenvectors to compute and/or return). Recommended to do many
@@ -188,27 +187,29 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
         current iteration will only orthogonalize against the previous two eigenvectors, as in the original Lanczos alg.
     verbose: bool, optional
         Print progress to screen.
-    debug_A: torch.tensor
+    debug_A: torch.Tensor
         For debugging purposes. Explicit FIM for matrix vector multiplication. Bypasses matrix-vector product with
         implicitly stored FIM of model.
 
     Returns
     -------
-    eig_vals: torch.tensor
-        (n_steps,) if e_vecs is None. tensor of eigenvalues, sorted in descending order.
-        (len(e_vecs),) if e_vecs is not None. eigenvalues corresponding to the eigenvectors at that index.
+    eig_vals: torch.Tensor
+        Tensor of eigenvalues, sorted in descending order. torch.Size(n_steps,) if e_vecs is None.
+        torch.Size(len(e_vecs),) if e_vecs is not None. eigenvalues corresponding to the eigenvectors at that index.
         Note: this is most accurate for extremal eigenvalues, e.g. top (bottom) 10,
-    eig_vecs: toch.tensor
-        (n, len(e_vecs)) tensor of n_steps eigenvectors. If return_evecs=False, then returned  eig_vecs is an empty tensor.
-    eig_vecs_ind: array-like
+    eig_vecs: toch.Tensor
+        torch.Size(n, len(e_vecs)) tensor of n_steps eigenvectors. If return_evecs=False, then returned  eig_vecs is an
+        empty tensor.
+    eig_vecs_ind: torch.Tensor
         indices of each returned eigenvector
 
     References
-    __________
+    ----------
     [1] Algorithm 7.2, Applied Numerical Linear Algebra - James W. Demmel
     [2] https://scicomp.stackexchange.com/questions/23536/quality-of-eigenvalue-approximation-in-lanczos-method
 
-    Examples:
+    Examples
+    --------
     Run Lanczos algorithm 5000 times, retain top and last 4 eigenvectors.
         >>> ee = Eigendistortion(img, model)
         >>> ee.synthesize(method='lanczos', n_steps=5000, e_vecs=[0,1,2,3,-4,-3,-2,-1], verbose=True)
@@ -285,7 +286,7 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
         eig_vals, V = T.symeig(eigenvectors=True)
 
         vecs_to_return = e_vecs
-        eig_vecs_ind = e_vecs
+        eig_vecs_ind = torch.as_tensor(e_vecs)
 
         eig_vecs = Q.mm(V).flip(dims=(1,))[:, vecs_to_return]
         eig_vals = eig_vals[vecs_to_return]
@@ -300,31 +301,46 @@ def lanczos(y, x, n_steps=1000, e_vecs=[], orthogonalize=True, verbose=False, de
 
 class Eigendistortion(nn.Module):
     r"""Synthesize the eigendistortions induced by a model on an image.
+    Attributes
+    ----------
+    batch_size: int
+    n_channels: int
+    im_height: int
+    im_width: int
+    color_image: bool
+    image_flattensor: torch.Tensor
+    model_input: torch.Tensor
+    model_output: torch.Tensor
+    out_flattensor: torch.Tensor
+    distortions: dict
+        Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
     Parameters
     -----------
     image: torch.Tensor
-        image, (B x C x H x W)
+        image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+        as each image requires its own optimization.
     model: torch class
         torch model with defined forward and backward operations
     Notes
     -----
-    This is a method for comparing image representations in terms of their
-    ability to explain perceptual sensitivity in humans. It uses the
-    power method to estimate largest and smallest eigenvectors of the FIM.
-    Model implements y = f (x), a deterministic (and differentiable) mapping
-    from the input pixels (R^n) to a mean output response vector (R^m),
-    where we assume additive white Gaussian noise in the response space:
-        f: R^n -> R^m
-            x  ->  y
+    This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
+    in humans. It estimates eigenvectors of the FIM. A model, :math:`y = f(x)`, is a deterministic (and differentiable)
+    mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output response vector :math:`y\in \mathbb{
+    R}^m`, where we assume additive white
+    Gaussian noise in the response space:
+
+    .. math::
+        \begin{align}
+        f: \mathbb{R}^n &\rightarrow \mathbb{R}^m\\
+            x &\rightarrow y
+        \end{align}
+
     The Jacobian matrix at x is:
-        J(x) = dydx        [m x n] (ie. output_dim x input_dim)
-    is the matrix of all first-order partial derivatives
-    of the vector-valued function f.
-    The Fisher Information Matrix (FIM) at x, under white Gaussian noise in
-    the response space, is:
-        F = J(x).T.dot(J(x))
-    It is a quadratic approximation of the discriminability of
-    distortions relative to x.
+        :math:`J(x) = J = dydx`,       :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
+    is the matrix of all first-order partial derivatives of the vector-valued function f.
+    The Fisher Information Matrix (FIM) at x, under white Gaussian noise in the response space, is:
+        :math:`F = J^T J`
+    It is a quadratic approximation of the discriminability of distortions relative to :math:`x`.
     Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
     Eigen-distortions of hierarchical representations.
     In Advances in neural information processing systems (pp. 3530-3539).
@@ -332,13 +348,10 @@ class Eigendistortion(nn.Module):
     http://www.cns.nyu.edu/~lcv/eigendistortions/
     TODO
     ----
-    control seed
     enforce bounding box during optimization (see other classes in this repo, stretch/squish)
     check for division by zero
-    implement deflation
-    handle batch input
     handle color image
-    make sure that the class caches learnt distortions, every couple iterations, to prevent from loosing things when crashes
+    allow for caching learnt distortions every few iterations to prevent from loosing things when crashes
     """
 
     def __init__(self, image, model, dtype=torch.float32):
@@ -347,9 +360,9 @@ class Eigendistortion(nn.Module):
         self.image = rescale(image, 0, 1)
         self.batch_size, self.n_channels, self.im_height, self.im_width = image.shape
         assert self.batch_size == 1
+        assert len(image.shape) == 4, "Input must be (1)"
 
-        if self.n_channels == 3:
-            self.color_image = True
+        self.color_image = (self.n_channels == 3)
 
         im_flat = self.image.reshape(self.n_channels * self.im_height * self.im_width, 1)
         self.image_flattensor = im_flat.clone().detach().requires_grad_(True).type(dtype)
@@ -377,18 +390,18 @@ class Eigendistortion(nn.Module):
 
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def synthesize(self, method='jacobian', e_vecs=[], tol=1e-10, n_steps=1000, orthogonalize=True, seed=0,
+    def synthesize(self, method='power', e_vecs=[], tol=1e-10, n_steps=1000, orthogonalize=True, seed=0,
                    verbose=True, debug_A=None):
-        '''Compute eigendistortion
+        r"""Compute eigendistortions of Fisher Information Matrix with given input image.
         Parameters
         ----------
-        method: String
-            Eigensolver method ('jacobian', 'block', 'power', 'lanczos'). Jacobian (default) tries to do
-            eigendecomposition directly (not recommended for very large matrices). 'power' uses the power method to
-            compute first and last eigendistortions, with maximum number of iterations dictated by n_steps. 'block' uses
-            power method on a block of eigenvectors, representing the first block of eigendistortions with highest
-            associated eigenvalues. 'lanczos' uses the Arnoldi iteration algorithm to estimate the _entire_
-            eigenspectrum and eigendistortions (GPU recommended).
+        method: str
+            Eigensolver method {'jacobian', 'block', 'power', 'lanczos'}. Jacobian tries to do
+            eigendecomposition directly (not recommended for very large matrices). 'power' (default) uses the power
+            method to compute first and last eigendistortions, with maximum number of iterations dictated by n_steps.
+            'lanczos' uses the Arnoldi iteration algorithm to estimate the _entire_ eigenspectrum and thus more than
+            just two eigendistortions, as opposed to the power method. Note: 'lanczos' method is experimental and may be
+            numerically unstable. We recommend using the power method.
         e_vecs: iterable
             integer list of which eigenvectors to return
         tol: float
@@ -399,17 +412,19 @@ class Eigendistortion(nn.Module):
             For Lanzos method, full re-orthogonalization ('full') or standard algorithm (None). More details in method.
         seed: int
             control the random seed for reproducibility
-        verbose: boolean, optional
+        verbose: bool
             show progress during power iteration and Lanczos methods.
-        debug_A: torch.tensor
+        debug_A: torch.Tensor, optional
             Explicit Fisher Information Matrix in the form of 2D tensor. Used to debug lanczos algorithm.
+            Dimensionality must be torch.Size(N, N)
 
         Returns
         -------
-        distortions: dict with keys {'eigenvalues', 'eigenvectors', 'eigenvector_index'}
-            Dictionary containing the eigenvalues and eigen-distortions in decreasing order and their indices. This dict
-            is also added as an attribute to the object.
-        '''
+        distortions: dict
+            Dictionary containing keys {'eigenvalues', 'eigenvectors', 'eigenvector_index'} the eigenvalues and
+            eigen-distortions in decreasing order and their indices. This dict is also added as an attribute to the
+            object.
+        """
 
         if method == 'jacobian' and self.out_flattensor.size(0) * self.image_flattensor.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
@@ -427,11 +442,13 @@ class Eigendistortion(nn.Module):
         elif method == 'power':
             if verbose:
                 print('implicit power method, computing the maximum distortion \n')
-            lmbda_max, v_max = implicit_power_method(self.out_flattensor, self.image_flattensor, l=0, init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
+            lmbda_max, v_max = implicit_power_method(self.out_flattensor, self.image_flattensor, l=0, init='randn',
+                                                     seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
 
             if verbose:
                 print('\nimplicit power method, computing the minimum distortion \n')
-            lmbda_min, v_min = implicit_power_method(self.out_flattensor, self.image_flattensor, l=lmbda_max, init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
+            lmbda_min, v_min = implicit_power_method(self.out_flattensor, self.image_flattensor, l=lmbda_max,
+                                                     init='randn', seed=seed, tol=tol, n_steps=n_steps, verbose=verbose)
 
             self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).detach()
             self.distortions['eigenvectors'] = self.vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
@@ -452,21 +469,42 @@ class Eigendistortion(nn.Module):
         return self.distortions
 
     def vector_to_image(self, vecs):
-        """ Reshapes eigenvectors back into correct image dimensions.
-            Returns an list with N images for each column in vecs.
+        r""" Reshapes eigenvectors back into correct image dimensions.
+        Parameters
+        ----------
+        vecs: torch.Tensor
+            Eigendistortion tensor with torch.Size(N, num_distortions). Each distortion will be reshaped into the
+            original image shape and placed in a list.
+        Returns
+        -------
+        imgs: list
+            List of torch.Tensor images, each with torch.Size(img_height, im_width).
         """
 
-        img = [vecs[:,i].reshape((self.im_height, self.im_width)) for i in range(vecs.shape[1])]
+        imgs = [vecs[:,i].reshape((self.im_height, self.im_width)) for i in range(vecs.shape[1])]
 
-        return img
+        return imgs
 
-    def display(self, alpha=5, beta=10, **kwargs):
+    def display(self, alpha=5., beta=10., **kwargs):
+        r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
+        Parameters
+        ----------
+        alpha: float
+            Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
+        beta: float
+            Amount by which to scale eigendistortion to be displayed alone.
+        kwargs:
+            Additional arguments for pt.imshow()
         """
-        Will soon be moved to different script. Should work for now though.
-        """
+
+        assert len(self.distortions['eigenvectors'])>1, "Assumes at least two eigendistortions were synthesized."
+
         image = to_numpy(self.image)
-        maxdist = to_numpy(self.distortions['eigenvectors'][0])
-        mindist = to_numpy(self.distortions['eigenvectors'][-1])
+        max_dist = to_numpy(self.distortions['eigenvectors'][0])
+        min_dist = to_numpy(self.distortions['eigenvectors'][-1])
 
-        pt.imshow([image, image + alpha * maxdist, beta * maxdist], title=['original', 'original + ' + str(alpha) + ' maxdist', str(beta) + ' * maximum eigendistortion'], **kwargs)
-        pt.imshow([image, image + alpha * mindist, beta * mindist], title=['original', 'original + ' + str(alpha) + ' mindist', str(beta) + ' * minimum eigendistortion'], **kwargs);
+        pt.imshow([image, image + alpha * max_dist, beta * max_dist],
+                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs)
+
+        pt.imshow([image, image + alpha * min_dist, beta * min_dist],
+                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);

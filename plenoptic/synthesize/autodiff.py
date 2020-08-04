@@ -7,16 +7,15 @@ def jacobian(y, x):
 
     Parameters
     ----------
-    y: torch tensor with gradient function
+    y: torch.Tensor with gradient function
         output
-    x: torch tensor with gradient function
+    x: torch.Tensor with gradient function
         input
 
     Returns
     -------
-    J: torch tensor
-        Jacobian matrix, y.size by x.size
-
+    J: torch.Tensor
+        Jacobian matrix with torch.Size([len(y), len(x)])
     """
 
     if x.shape[0] > 1E6:
@@ -34,7 +33,7 @@ def jacobian(y, x):
 
 
 def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detach=False):
-    """Compute vector Jacobian product: vjp = u^T(∂y/∂x)
+    r"""Compute vector Jacobian product: :math:`\text{vjp} = u^T(\partial y/\partial x)`
 
     Backward Mode Auto-Differentiation (`Lop` in Theano)
 
@@ -45,14 +44,14 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
 
     Parameters
     ----------
-    y: torch tensor with gradient function
-        output, shape is (m,1)
-    x: torch tensor with gradient function
-        input, shape is (n,1)
-    U: torch tensor
-        direction, shape is (m,k), i.e. same dim as output tensor
+    y: torch.Tensor
+        output with gradient attached, torch.Size([m, 1])
+    x: torch.Tensor
+        input with gradient attached, torch.Size([n, 1])
+    U: torch.Tensor
+        direction, shape is torch.Size([m, k]), i.e. same dim as output tensor
     retain_graph: bool
-        whether or not to keep graph after doing one vjp. Must be set to True if K>1.
+        whether or not to keep graph after doing one vjp. Must be set to True if k>1.
     create_graph: bool
         whether or not to create computational graph. Usually should be set to True unless you're reusing the graph like
         in the second step of jacobian_vector_product
@@ -61,8 +60,8 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
 
     Returns
     -------
-    vJ: torch tensor
-        shape (m,k)
+    vJ: torch.Tensor
+        vector-Jacobian product, torch.Size([m, k])
 
     """
 
@@ -88,7 +87,7 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
 
 
 def jacobian_vector_product(y, x, V):
-    """Compute Jacobian Vector Product: jvp = (∂y/∂x) v
+    r"""Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`
 
     Forward Mode Auto-Differentiation (`Rop` in Theano). PyTorch does not natively support this operation; this
     function essentially calls backward mode autodiff twice, as described in [1].
@@ -97,17 +96,17 @@ def jacobian_vector_product(y, x, V):
 
     Parameters
     ----------
-    y: torch tensor with gradient function
-        output, shape is (m,1)
-    x: torch tensor with gradient function
-        input, shape is (n,1), i.e. same dim as input tensor
-    V: torch tensor
-        direction, shape is (n,k) where k is number of vectors to compute
+    y: torch.Tensor with gradient function
+        output, shape is torch.Size([m, 1])
+    x: torch.Tensor with gradient function
+        input, shape is torch.Size([n, 1]), i.e. same dim as input tensor
+    V: torch.Tensor
+        direction, shape is torch.Size([n, k]) where k is number of vectors to compute
 
     Returns
     -------
-    Jv: torch tensor
-        shape (n,k)
+    Jv: torch.Tensor
+        Jacobian-vector product, torch.Size([n, k])
 
     Notes
     -----
