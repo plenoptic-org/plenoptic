@@ -129,7 +129,7 @@ class Texture_Statistics(nn.Module):
         im = mpyr[0].squeeze()
 
         # Find the auto-correlation of the low-pass residual
-        Sch = torch.min(torch.tensor(ch.shape[-2:]))
+        Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales], vari = self.compute_autocorr(im)
@@ -316,7 +316,7 @@ class Texture_Statistics(nn.Module):
 
     def compute_autocorr(self,ch):
 
-        Sch = torch.min(torch.tensor(ch.shape[-2:]))
+        Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
         
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
