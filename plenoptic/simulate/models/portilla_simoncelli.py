@@ -44,7 +44,7 @@ class Portilla_Simoncelli(nn.Module):
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
     
     '''
-    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None,inputImageIsPyramid=False):
+    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None,inputIsPyramid=False):
         super(Portilla_Simoncelli, self).__init__()
 
         self.image_shape = im_shape
@@ -57,16 +57,19 @@ class Portilla_Simoncelli(nn.Module):
 
         self.normalize = normalize
         self.normalizationFactor = normalizationFactor
-        self.inputImageIsPyramid = inputImageIsPyramid
+        self.inputIsPyramid = inputImageIsPyramid
 
 
     def forward(self, image):
         """Generate Texture Statistics representation of an image (see reference [1])
             
         Parameters
-        ==========
+        ----------
         image : torch.tensor
-            A 2d tensor containing an image to analyze.
+            A tensor containing the image to analyze. We want to operate
+            on this in the pytorch-y way, so we want it to be 4d (batch,
+            channel, height, width). If it has fewer than 4 dimensions,
+            we will unsqueeze it until its 4d
         
         Returns
         =======
@@ -74,22 +77,27 @@ class Portilla_Simoncelli(nn.Module):
             A flattened (ergo 1d) tensor containing the measured statistics.
             
         """
-        
-        # get pyramid coefficients
-        print(self.inputImageIsPyramid)
-        if self.inputImageIsPyramid:
+
+        if self.inputIsPyramid:
             pyr0 = [k for k in image[0].pyr_coeffs.values()]
             image = image[1]
         else:
+            while image.ndimension() < 4:
+                image = image.unsqueeze(0)
             pyr0 = self.pyr.forward(image) 
+
+
         
         # pixel statistics
-        mn0 = torch.min(image)
+        mn0 = Portilla_Simoncelli.min(image)
         mx0 = torch.max(image)
         mean0 = torch.mean(image)
         var0 = torch.var(image)
         skew0 = skew(image)
         kurt0 = kurtosis(image)
+
+        
+        print(var0)
         
         # STATISTIC: statg0 or the pixel statistics
         statg0 = torch.stack((mean0, var0, skew0, kurt0, mn0, mx0)).view(6, 1)
@@ -136,8 +144,8 @@ class Portilla_Simoncelli(nn.Module):
         
         # Find the auto-correlation of the low-pass residual
         Sch = torch.min(torch.tensor(ch.shape[-2:]))
-        la = int(np.floor([(self.Na-1)/2]))
-        le = int(np.min((Sch/2-1,la)))
+        la = int(np.floor([(self.Na-1)/2.0]))
+        le = int(np.min((Sch/2.0-1,la)))
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales], vari = self.compute_autocorr(im)
         skew0p[self.n_scales], kurt0p[self.n_scales] =  self.compute_skew_kurt(im,vari,var0)
 
@@ -149,11 +157,11 @@ class Portilla_Simoncelli(nn.Module):
                 nband = n_scales*self.n_orientations + nor + 1
                 ch = apyr0[nband]
                 Sch = np.min((ch.shape[-1], ch.shape[-2]))
-                le = int(np.min((Sch/2-1, la)))
+                le = int(np.min((Sch/2.0-1, la)))
                 # Find the auto-correlation of the magnitude band
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor], vari = self.compute_autocorr(ch)
             
-            im = Portilla_Simoncelli.expand(im,2)/4
+            im = Portilla_Simoncelli.expand(im,2)/4.0
             im = im[:,:,0].unsqueeze(0).unsqueeze(0)
             
             # reconstruct unoriented band
@@ -185,7 +193,7 @@ class Portilla_Simoncelli(nn.Module):
                 rparents = torch.empty((cousinSz, self.n_orientations*2))
                 for nor in range(0, self.n_orientations):
                     nband = (n_scales+1)*self.n_orientations + nor + 1
-                    tmp = Portilla_Simoncelli.expand(pyr0[nband],2)/4
+                    tmp = Portilla_Simoncelli.expand(pyr0[nband],2)/4.0
 
                     rtmp = tmp[:,:,0]
                     itmp = tmp[:,:,1]
@@ -201,7 +209,7 @@ class Portilla_Simoncelli(nn.Module):
                     parents[:,nor] = (tmp2 - tmp2.mean()).t().flatten()
 
             else:
-                tmp = Portilla_Simoncelli.expand(rpyr0[-1].squeeze(),2)/4
+                tmp = Portilla_Simoncelli.expand(rpyr0[-1].squeeze(),2)/4.0
                 tmp = tmp[:,:,0].t()
                 rparents= torch.stack((tmp.flatten(), 
                     tmp.roll(1,0).flatten(),
@@ -221,7 +229,7 @@ class Portilla_Simoncelli(nn.Module):
             if np0 > 0:
                 Cx0[0:nc, 0:np0, n_scales] = torch.mm(cousins.t(), parents)/cousinSz
                 if n_scales==self.n_scales-1:
-                    C0[0:np0, 0:np0, n_scales+1] = torch.mm(parents.t(),parents)/(cousinSz/4)
+                    C0[0:np0, 0:np0, n_scales+1] = torch.mm(parents.t(),parents)/(cousinSz/4.0)
 
             cousins = torch.stack(tuple([a[:,:,0].t() for a in pyr0[n_scales*self.n_orientations+1:(n_scales+1)*self.n_orientations+1]])).view((self.n_orientations,cousinSz)).t()
             nrc = cousins.shape[1]
@@ -234,7 +242,7 @@ class Portilla_Simoncelli(nn.Module):
                 
                 if n_scales==self.n_scales-1:
                     
-                    Cr0[0:nrp,0:nrp,n_scales+1]=torch.mm(rparents.t(),rparents)/(cousinSz/4)
+                    Cr0[0:nrp,0:nrp,n_scales+1]=torch.mm(rparents.t(),rparents)/(cousinSz/4.0)
 
         # STATISTC: vHPR0 or the variance of the high-pass residual
         channel = pyr0[0]
@@ -338,7 +346,7 @@ class Portilla_Simoncelli(nn.Module):
         Sch = torch.min(torch.tensor(ch.shape[-2:]))
         
         la = int(np.floor([(self.Na-1)/2]))
-        le = int(np.min((Sch/2-1,la)))
+        le = int(np.min((Sch/2.0-1,la)))
 
         # find the center of the channel
         cy = int(ch.shape[-1]/2)
@@ -368,5 +376,10 @@ class Portilla_Simoncelli(nn.Module):
 
 
 
-
+    def min(x,axis,keepdim=False):
+        axis = reversed(sorted(axis))
+        min_x = x
+        for i in axis:
+            min_x, _ = min_x.min(i, keepdim)
+        return min_x
 
