@@ -203,7 +203,7 @@ def add_noise(img, noise_mse):
     ----------
     img : torch.tensor
         the image to make noisy
-    noise_mse : float or array-like
+    noise_mse : float or list
         the target MSE value. More than one value is allowed
 
     Returns
@@ -215,8 +215,8 @@ def add_noise(img, noise_mse):
 
     """
     noise_mse = torch.tensor(noise_mse, dtype=torch.float32).unsqueeze(0)
-    noise_mse = noise_mse.resize(noise_mse.nelement(), 1, 1, 1)
-    noise = 20 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:])
+    noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
+    noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:])
     noise = noise - noise.mean()
-    noise = noise * torch.sqrt(noise_mse / (noise**2).mean())
+    noise = noise * torch.sqrt(noise_mse / (noise**2).mean((-1, -2)).view_as(noise_mse))
     return img + noise
