@@ -76,16 +76,17 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents
     images = np.dstack([orig_img, blanks])
     titles = ['Original image'] + 4*[None]
     super_titles = 5*[None]
-    keys = ['im_init', 'im_fixmse_minssim', 'im_fixmse_maxssim', 'im_fixssim_minmse',
+    keys = ['im_init', 'im_fixmse_maxssim', 'im_fixmse_minssim', 'im_fixssim_minmse',
             'im_fixssim_maxmse']
     for l in noise_levels:
         mat = sio.loadmat(op.join(op.expanduser(results_dir),
                                   f"{original_image}_L{l}_results.mat"), squeeze_me=True)
         # remove these metadata keys
         [mat.pop(k) for k in ['__header__', '__version__', '__globals__']]
-        key_titles = [f'Noise level: {l}', f"Min SSIM: {mat['minssim']:.05f}",
-                      f"Max SSIM: {mat['maxssim']:.05f}", f"Min MSE: {mat['minmse']:.05f}",
-                      f"Max MSE: {mat['maxmse']:.05f}"]
+        key_titles = [f'Noise level: {l}', f"Best SSIM: {mat['maxssim']:.05f}",
+                      f"Worst SSIM: {mat['minssim']:.05f}",
+                      f"Best MSE: {mat['minmse']:.05f}",
+                      f"Worst MSE: {mat['maxmse']:.05f}"]
         key_super_titles = [None, f"Fix MSE: {mat['FIX_MSE']:.0f}", None,
                             f"Fix SSIM: {mat['FIX_SSIM']:.05f}", None]
         for k, t, s in zip(keys, key_titles, key_super_titles):
@@ -132,5 +133,4 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents
             line = lines.Line2D(2*[0-((5+linewidth/2)/img_size[0])], [0, (1/.75)],
                                 transform=ax.transAxes, figure=fig, linewidth=linewidth)
             fig.lines.append(line)
-    # turn off the axes containing the blanks
     return fig, results
