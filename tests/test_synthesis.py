@@ -7,6 +7,7 @@ import plenoptic.synthesize.autodiff as autodiff
 import pyrtools as pt
 import pytest
 import torch
+from torch import nn
 from plenoptic.simulate.models.frontend import Front_End
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 
@@ -186,3 +187,33 @@ class TestAutodiffFunctions(object):
 
         assert Fv.shape == (x_dim, k)
         assert Fv2.allclose(Fv, rtol=1E-2)
+
+    def test_simple_model_eigenvalues(self):
+        """Test if Jacobian is constant in all directions for linear model"""
+        singular_value = torch.ones(1)*3.
+        class LM(nn.Module):
+            """Simple y = Mx where M=3"""
+            def __init__(self):
+                super().__init__()
+                self.M = nn.Linear(1, 1, bias=False)
+                self.M.weight.data = singular_value
+
+            def forward(self, x):
+                y = self.M(x)
+                return y
+
+        x0 = torch.randn((1, 1, 5, 1), requires_grad=True)
+        x0 = x0 / x0.norm()
+        mdl = LM()
+
+        k = 10
+        x_dim = x0.numel()
+        V = torch.randn(x_dim, k)  # random directions
+        V = V / V.norm(dim=0, p=2)
+
+        e = Eigendistortion(x0, mdl)
+        x, y = e.image_flattensor, e.out_flattensor
+        Jv = autodiff.jacobian_vector_product(y, x, V)
+        Fv = autodiff.vector_jacobian_product(y, x, Jv)
+
+        assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
