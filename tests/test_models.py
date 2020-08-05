@@ -325,7 +325,7 @@ class TestVentralStream(object):
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
-        metamer.plot_metamer_status(figsize=(35, 5))
+        metamer.plot_synthesis_status(figsize=(35, 5))
         metamer.animate(figsize=(35, 5))
 
     def test_frontend_PoolingWindows(self):
@@ -357,7 +357,7 @@ class TestVentralStream(object):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:])
-        stats = po.simul.non_linearities.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
+        stats = po.optim.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
         v1 = po.simul.PrimaryVisualCortex(.5, im.shape[2:], normalize_dict=stats)
         v1 = v1.to(device)
         v1(im)

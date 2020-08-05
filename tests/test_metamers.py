@@ -93,8 +93,8 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_error()
         metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_metamer_status()
-        metamer.plot_metamer_status(iteration=1)
+        metamer.plot_synthesis_status()
+        metamer.plot_synthesis_status(iteration=1)
 
     def test_metamer_plotting_rgc(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -105,8 +105,8 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=6, store_progress=True)
         metamer.plot_representation_error()
         metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_metamer_status()
-        metamer.plot_metamer_status(iteration=1)
+        metamer.plot_synthesis_status()
+        metamer.plot_synthesis_status(iteration=1)
 
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -125,7 +125,7 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
         # this will test several related functions for us:
-        # plot_metamer_status, plot_representation_error,
+        # plot_synthesis_status, plot_representation_error,
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
                         framerate=40)
