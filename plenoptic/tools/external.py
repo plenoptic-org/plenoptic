@@ -66,8 +66,8 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents
         orig_img = imageio.imread(img_path)
     except FileNotFoundError:
         # two basic places to check, either the same directory as the results,
-        # or replace results with images
-        img_path = op.join(op.dirname(op.dirname(img_path)), 'images', f"{original_image}.tif")
+        # or replace results with ssim_images
+        img_path = op.join(op.dirname(op.dirname(img_path)), 'ssim_images', f"{original_image}.tif")
         orig_img = imageio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:

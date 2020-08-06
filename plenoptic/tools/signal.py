@@ -218,5 +218,5 @@ def add_noise(img, noise_mse):
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
     noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:])
     noise = noise - noise.mean()
-    noise = noise * torch.sqrt(noise_mse / (noise**2).mean((-1, -2)).view_as(noise_mse))
+    noise = noise * torch.sqrt(noise_mse / (noise**2).mean((-1, -2)).unsqueeze(-1).unsqueeze(-1))
     return img + noise
