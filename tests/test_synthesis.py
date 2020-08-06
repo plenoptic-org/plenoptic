@@ -93,9 +93,9 @@ class TestEigendistortionSynthesis(object):
 
         if n_steps < len(e_vecs) * 2:
             with pytest.warns(UserWarning) as ww:
-                ed.synthesize(method='lanczos', orthogonalize='full', n_steps=n_steps, e_vecs=e_vecs)
+                ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
         else:
-            ed.synthesize(method='lanczos', orthogonalize='full', n_steps=n_steps, e_vecs=e_vecs)
+            ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
 
         if len(e_vecs) > 0:
             assert len(ed.distortions['eigenvalues']) == len(e_vecs)
