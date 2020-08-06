@@ -45,16 +45,27 @@ def test_files_dir():
 
 class TestNonLinearities(object):
 
-    def test_coordinatetransform(self):
+    def test_polar_amplitude_zero(self):
+        a = torch.rand(10)*-1
+        b = po.rescale(torch.randn(10), -np.pi / 2, np.pi / 2)
+
+        with pytest.raises(ValueError) as e:
+            _, _ = po.polar_to_rectangular(a, b)
+
+    def test_coordinate_identity_transform_rectangular(self):
         dims = (10, 5, 256, 256)
-        a = torch.randn(dims)
-        b = torch.randn(dims)
+        x = torch.randn(dims)
+        y = torch.randn(dims)
 
-        A, B = po.polar_to_rectangular(*po.rectangular_to_polar(a, b))
+        X, Y = po.polar_to_rectangular(*po.rectangular_to_polar(x, y))
 
-        assert torch.norm(a - A) < 1e-3
-        assert torch.norm(b - B) < 1e-3
+        assert torch.norm(x - X) < 1e-3
+        assert torch.norm(y - Y) < 1e-3
 
+    def test_coordinate_identity_transform_polar(self):
+        dims = (10, 5, 256, 256)
+
+        # ensure vec len a is non-zero by adding .1 and then re-normalizing
         a = torch.rand(dims) + 0.1
         a = a / a.max()
         b = po.rescale(torch.randn(dims), -np.pi / 2, np.pi / 2)
