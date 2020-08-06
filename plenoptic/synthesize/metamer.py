@@ -173,43 +173,6 @@ class Metamer(Synthesis):
        http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        http://www.cns.nyu.edu/~lcv/texture/
 
-    TODO
-    ----
-    (musts)
-    - [ ] synthesize an image of a different size than the target image
-    - [ ] flexible objective function: make objective_function an attribute, have user set it
-          during optimization, have variety of standard ones as static methods
-          (https://realpython.com/instance-class-and-static-methods-demystified/) to choose from?
-    - [x] flexibility on the optimizer / scheduler (or at least parameterize the stuff): do similar
-          to above? -- not as important right now, but added some flexibility here
-    - [x] should we initialize optimizer / scheduler at initialization
-          or during the call to synthesize? seems reasonable to me that
-          you'd want to change it I guess... -- not important right now,
-          same as above. we initialize during synthesize because you may
-          want to make multiple calls with different optimizers /
-          options and we need to re-initialize optimizer during
-          coarse-to-fine
-    - [x] is that note in analyze still up-to-date? -- No
-    - [x] add save method
-    - [x] add example for load method
-    - [x] add animate method, which creates a three-subplot animation: the metamer over time, the
-          plot of differences in representation over time, and the loss over time (as a red point
-          on the loss curve) -- some models' representation might not be practical to plot, add the
-          ability to take a function for the plot representation and if it's set to None, don't
-          plot anything; make this a separate class or whatever because we'll want to be able to do
-          this for eigendistortions, etc (this will require standardizing our API, which we want to
-          do anyway)
-    - [x] how to handle device? -- get rid of device in here, expect the user to set .to(device)
-          (and then check self.target_image.device when initializing any tensors)
-    - [x] how do we handle continuation? right now the way to do it is to just pass matched_im
-          again, but is there a better way? how then to handle self.time and
-          self.saved_image/representation? -- don't worry about this, add note about how this works
-          but don't worry about this; add ability to save every n steps, not just or every
-
-    (other)
-    - [ ] batch
-    - [ ] return multiple samples
-
     """
 
     def __init__(self, target_image, model, loss_function=None, model_kwargs={},
