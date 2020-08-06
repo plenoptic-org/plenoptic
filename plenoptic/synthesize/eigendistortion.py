@@ -14,11 +14,11 @@ def fisher_info_matrix_vector_product(y, x, v):
     Parameters
     ----------
     y: torch.Tensor
-        output tensor with gradient attached
+        Output tensor with gradient attached
     x: torch.Tensor
-        input tensor with gradient attached
+        Input tensor with gradient attached
     v: torch.Tensor
-        direction
+        The vectors with which to compute Fisher vector products.
 
     Returns
     -------
@@ -27,9 +27,8 @@ def fisher_info_matrix_vector_product(y, x, v):
 
     Notes
     -----
-    under white Gaussian noise assumption, :math:`F` is matrix multiplication of
-    Jacobian transpose and Jacobian: :math:`F = J^T J`
-    Hence:
+    Under white Gaussian noise assumption, :math:`F` is matrix multiplication of Jacobian transpose and Jacobian:
+    :math:`F = J^T J`. Hence:
     :math:`Fv = J^T (Jv)`
     """
 
@@ -56,51 +55,35 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     Parameters
     ----------
     y: torch.Tensor
-        output tensor, with gradient
+        Output tensor, with gradient attached
     x: torch.Tensor
-        input
+        Input tensor, with gradient attached
     l: torch.Tensor, optional
         Optional argument. When l=0, this function estimates the leading eval evec pair. When l is set to the
         estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
     init: {'randn', 'ones'}
-        starting point for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector. Both
+        Starting vector for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector. Both
         will be normalized.
     seed: float, optional
-        manual seed
+        Manual seed
     tol: float, optional
-        tolerance value
+        Tolerance value
     n_steps: int, optional
-        maximum number of steps
+        Maximum number of steps
     verbose: bool, optional
-        flag to control amout of information printed out
+        Flag to control amout of information printed out
     print_every: int
         Determines nth step to display convergence info. 1 (default) means it will print a message on every step.
 
     Returns
     -------
     lmbda: float
-        eigenvalue
+        Eigenvalue corresponding to final vector of power iteration.
     v: torch.Tensor
-        eigenvector
-
-    Notes
-    -----
-    - inverse power method (F - lmbda I)v
-    - this function will most likely land on linear combinations of evecs
-
-    TODO
-    ----
-    - check for division by zero
-    - cleanup implementation of minor component
-    - better stop criterion
-    #         error = torch.sqrt(torch.sum(fvp(y, x, v_new) -
-    #                                 (l + lmbda_new) * v_new)**2)
-    #         error = torch.sqrt(torch.sum(v - v_new) ** 2)
+        Final eigenvector of power iteration procedure.
     """
 
     n = x.shape[0]
-    # m = y.shape[0]
-    # assert (m >= n)
 
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -117,10 +100,8 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     lmbda = implicit_FIM_eigenvalue(y, x, v)
     i = 0
     error = torch.tensor(1)
-    #TODO convergence criteria reworking
 
     while i < n_steps and error > tol:
-        last_error = error
         Fv = fisher_info_matrix_vector_product(y, x, v)
         Fv = Fv - l * v  # minor component
         v_new = Fv / torch.norm(Fv)
@@ -128,7 +109,7 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
         lmbda_new = implicit_FIM_eigenvalue(y, x, v_new)
 
         error = torch.sqrt((lmbda - lmbda_new) ** 2)
-        if verbose and i>=0 and i % print_every == 0:
+        if verbose and i >= 0 and i % print_every == 0:
             print(f"{i:3d} -- deltaLambda: {error.item():04.4f}")
 
         v = v_new
@@ -201,12 +182,11 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
     eig_vals: torch.Tensor
         Tensor of eigenvalues, sorted in descending order. torch.Size(n_steps,) if e_vecs is None.
         torch.Size(len(e_vecs),) if e_vecs is not None. eigenvalues corresponding to the eigenvectors at that index.
-        Note: this is most accurate for extremal eigenvalues, e.g. top (bottom) 10,
     eig_vecs: toch.Tensor
-        torch.Size(n, len(e_vecs)) tensor of n_steps eigenvectors. If ``return_evecs=False``,
+        Tensor of n_steps eigenvectors with torch.Size(n, len(e_vecs)) . If ``return_evecs=False``,
         then returned  eig_vecs is an empty tensor.
     eig_vecs_ind: torch.Tensor
-        indices of each returned eigenvector
+        Indices of each returned eigenvector
 
     References
     ----------
@@ -219,6 +199,8 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
         >>> ee = Eigendistortion(img, model)
         >>> ee.synthesize(method='lanczos', n_steps=5000, e_vecs=[0,1,2,3,-4,-3,-2,-1], verbose=True)
     """
+
+    warnings.warn("Lanczos algo is currently experimental. It may be numerically unstable and give inaccurate results.")
 
     n = x.shape[0]
     dtype = x.dtype
@@ -234,7 +216,7 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
         warnings.warn("Dim of Fisher matrix, n, is < n_steps. Setting n_steps = n")
         n_steps = n
     if n_steps < 2*len(e_vecs):
-        warnings.warn("n_steps should be at least 2*len(e_vecs) but preferably even more for accuracy.")
+        warnings.warn("n_steps should be at least 2*len(e_vecs) but preferably even more for accuracy.", RuntimeWarning)
 
     # T tridiagonal matrix, V orthogonalized Krylov vectors
     T = torch.zeros((n_steps, n_steps), device=device, dtype=dtype)
@@ -262,7 +244,6 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
             v -= Q[:, :i+1].mv(Q[:, :i + 1].t().mv(v))
 
         beta = torch.norm(v)
-        # print('beta:{:f}'.format(beta))
         if beta == 0:
             print('Vector norm beta=0; Premature stoppage at iter {:d}/{:d}'.format(i, n_steps))
             break
@@ -362,13 +343,6 @@ class Eigendistortion(nn.Module):
     In Advances in neural information processing systems (pp. 3530-3539).
     http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
     http://www.cns.nyu.edu/~lcv/eigendistortions/
-
-    TODO
-    ----
-    enforce bounding box during optimization (see other classes in this repo, stretch/squish)
-    check for division by zero
-    handle color image
-    allow for caching learnt distortions every few iterations to prevent from loosing things when crashes
     """
 
     def __init__(self, image, model, dtype=torch.float32):
@@ -478,7 +452,7 @@ class Eigendistortion(nn.Module):
                                                      init='randn', seed=seed, tol=tol, n_steps=n_steps,
                                                      verbose=verbose, print_every=print_every)
 
-            self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).detach()
+            self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).squeeze()
             self.distortions['eigenvectors'] = self.vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             self.distortions['eigenvector_index'] = [0, len(self.image_flattensor)]
 

@@ -64,7 +64,6 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
     -------
     vJ: torch.Tensor
         vector-Jacobian product, ``torch.Size([m, k])``.
-
     """
 
     assert y.shape[-1] == 1
@@ -114,7 +113,6 @@ def jacobian_vector_product(y, x, V):
     -----
     [1] https://j-towns.github.io/2017/06/12/A-new-trick.html
     [2] https://pytorch.org/docs/stable/notes/faq.html ; First part talks about unintended out-of-memory errors.
-
     """
     assert y.shape[-1] == 1
     assert V.shape[0] == x.shape[0]
