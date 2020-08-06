@@ -1,9 +1,15 @@
 language: python
 dist: xenial
+env:
+  - TEST_SCRIPT=metamers
+  - TEST_SCRIPT=models
+  - TEST_SCRIPT=plenoptic
+  - TEST_SCRIPT=steerable_pyr
+  - TEST_SCRIPT=synthesis
 python:
   - "3.6"
   - "3.7"
 install:
   - pip install -e .
 script:
-  - pytest
+  - pytest tests/test_${TEST_SCRIPT}.py
