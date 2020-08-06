@@ -130,7 +130,7 @@ class TestEigendistortionSynthesis(object):
         print(e_pow.distortions['eigenvalues'][0], e_pow.distortions['eigenvalues'][1])
         print(e_jac.distortions['eigenvalues'][0], e_jac.distortions['eigenvalues'][-1])
 
-        assert e_pow.distortions['eigenvalues'][0].isclose(e_jac.distortions['eigenvalues'][0])
+        assert e_pow.distortions['eigenvalues'][0].isclose(e_jac.distortions['eigenvalues'][0], atol=1e-3)
         assert e_pow.distortions['eigenvalues'][1].isclose(e_jac.distortions['eigenvalues'][-1], atol=1e-3)
 
 
