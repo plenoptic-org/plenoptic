@@ -1373,14 +1373,16 @@ class MADCompetition(Synthesis):
             much larger) ones it gets during run-time).
 
         """
-        attrs = ['model_1', 'model_2', 'matched_image', 'target_image', 'seed', 'loss',
-                 'target_representation_1', 'target_representation_2', 'matched_representation_1',
-                 'matched_representation_2', 'saved_representation_1', 'saved_representation_2',
-                 'gradient', 'saved_image', 'learning_rate', 'saved_representation_1_gradient',
-                 'saved_representation_2_gradient', 'saved_image_gradient', 'loss_function_1',
-                 'initial_image', 'initial_representation', 'loss_function_2', 'scales',
-                 'scales_timing', 'scales_loss', 'scales_finished', 'coarse_to_fine',
-                 'store_progress', 'save_progress', 'save_path']
+        # the first two lines here make sure that we have both the _1 and _2
+        # versions, regardless of which is currently found in .values()
+        attrs = ([k.replace('_1', '_2') for k in self._names.values()] +
+                 [k.replace('_2', '_1') for k in self._names.values()] +
+                 [k + '_all' for k in self._attrs_all])
+        # Removes duplicates
+        attrs = list(set(attrs))
+        # add the attributes not included above
+        attrs += ['seed', 'scales', 'scales_timing', 'scales_loss', 'scales_finished',
+                  'store_progress', 'save_progress', 'save_path', 'synthesis_target']
         super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
 
     @classmethod
@@ -1466,8 +1468,16 @@ class MADCompetition(Synthesis):
                                                     cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
-        return super().load(file_path, ['model_1', 'model_2'], model_constructor, map_location,
-                            **state_dict_kwargs)
+        tmp = super().load(file_path, ['model_1', 'model_2'], model_constructor, map_location,
+                           **state_dict_kwargs)
+        synth_target = tmp.synthesis_target
+        if '1' in synth_target:
+            tmp_target = synth_target.replace('1', '2')
+        else:
+            tmp_target = synth_target.replace('2', '1')
+        tmp.update_target(tmp_target, 'main')
+        tmp.update_target(synth_target, 'main')
+        return tmp
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
