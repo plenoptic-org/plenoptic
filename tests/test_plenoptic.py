@@ -46,16 +46,18 @@ def test_files_dir():
 class TestNonLinearities(object):
 
     def test_coordinatetransform(self):
-        a = torch.randn(10, 5, 256, 256)
-        b = torch.randn(10, 5, 256, 256)
+        dims = (10, 5, 256, 256)
+        a = torch.randn(dims)
+        b = torch.randn(dims)
 
         A, B = po.polar_to_rectangular(*po.rectangular_to_polar(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
-        a = torch.rand(10, 5, 256, 256)
-        b = po.rescale(torch.randn(10, 5, 256, 256), -np.pi / 2, np.pi / 2)
+        a = torch.rand(dims) + 0.1
+        a = a / a.max()
+        b = po.rescale(torch.randn(dims), -np.pi / 2, np.pi / 2)
 
         A, B = po.rectangular_to_polar(*po.polar_to_rectangular(a, b))
 
