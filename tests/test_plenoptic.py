@@ -121,19 +121,18 @@ def test_find_files(test_files_dir):
 
 class TestPerceptualMetrics(object):
 
-    im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
-    im1 = torch.tensor(im1, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-    im2 = torch.rand_like(im1, requires_grad=True, device=DEVICE)
-
     @pytest.mark.parametrize('weighted', [True, False])
-    def test_ssim(self, im1, im2, weighted):
+    def test_ssim(self, weighted):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.ssim(im1, im2).requires_grad
 
     @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim'])
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
-    @pytest.mark.parametrize('im1, im2', [(im1, im2)])
-    def test_batch_handling(self, func_name, size_A, size_B, im1, im2):
+    def test_batch_handling(self, func_name, size_A, size_B):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1)
         if func_name == 'noise':
             func = po.add_noise
             A = im1.repeat(size_A, 1, 1, 1)
@@ -157,23 +156,22 @@ class TestPerceptualMetrics(object):
             assert func(A, B).shape[0] == tgt_size
 
     @pytest.mark.parametrize('mode', ['many-to-one', 'one-to-many'])
-    @pytest.mark.parametrize('im1', im1)
-    def test_noise_independence(self, mode, im1):
+    def test_noise_independence(self, mode):
         # this makes sure that we are drawing the noise independently in the
         # two cases here
+        img = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         if mode == 'many-to-one':
-            img = im1.repeat(2, 1, 1, 1)
+            img = img.repeat(2, 1, 1, 1)
             noise_lvl = 1
         elif mode == 'one-to-many':
-            img = im1
             noise_lvl = [1, 1]
         noisy = po.add_noise(img, noise_lvl)
         assert not torch.equal(*noisy)
 
-    @pytest.mark.parametrize('img', [im1, im2])
-    @pytest.mark.parametrize('noise_lvl', [1, 128, [2, 4], [2, 4, 8], 0])
+    @pytest.mark.parametrize('noise_lvl', [[1], [128], [2, 4], [2, 4, 8], [0]])
     @pytest.mark.parametrize('noise_as_tensor', [True, False])
-    def test_add_noise(self, img, noise_lvl, noise_as_tensor):
+    def test_add_noise(self, noise_lvl, noise_as_tensor):
+        img = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         if noise_as_tensor:
             noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32).unsqueeze(1)
         noisy = po.add_noise(img, noise_lvl)
@@ -201,23 +199,28 @@ class TestPerceptualMetrics(object):
         print(plen_val-mat_val, plen_val, mat_val)
         assert torch.allclose(plen_val, mat_val.view_as(plen_val), atol=1e-5)
 
-    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
-    def test_nlpd(self, im1, im2):
+    def test_nlpd(self):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nlpd(im1, im2).requires_grad
 
-    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
-    def test_nspd(self, im1, im2):
+    def test_nspd(self):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2).requires_grad
 
-    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
-    def test_nspd2(self, im1, im2):
+    def test_nspd2(self):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=3, S=5, complex=True).requires_grad
 
-    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
-    def test_nspd3(self, im1, im2):
+    def test_nspd3(self):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=1, S=5, complex=False).requires_grad
 
-    @pytest.mark.parametrize("im1, im2", [(im1, im2)])
-    def test_model_metric(self, im1, im2):
+    def test_model_metric(self):
+        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im2 = torch.randn_like(im1, requires_grad=True)
         model = po.simul.Front_End(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad

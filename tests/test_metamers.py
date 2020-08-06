@@ -115,7 +115,8 @@ class TestMetamers(object):
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
-        metamer.synthesize(max_iter=3, initial_image=metamer.matched_image.detach().clone())
+        metamer.synthesize(max_iter=3, store_progress=True,
+                           initial_image=metamer.matched_image.detach().clone())
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
