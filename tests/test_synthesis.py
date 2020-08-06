@@ -85,17 +85,17 @@ class TestEigendistortionSynthesis(object):
     @pytest.mark.parametrize("e_vecs", [[0, 1, -2, -1], []])
     def test_method_lanczos(self, e_vecs):
         # return first and last two eigenvectors
-        # full re-orthogonalization
         n_steps = 5
 
         # run once with e_vecs specified
         ed = get_synthesis_object(im_dim=LARGE_DIM)
 
         if n_steps < len(e_vecs) * 2:
-            with pytest.warns(UserWarning) as ww:
+            with pytest.warns(RuntimeWarning) as not_enough_iter_warning:
                 ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
         else:
-            ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
+            with pytest.warns(UserWarning) as lanczos_experimental_warning:
+                ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
 
         if len(e_vecs) > 0:
             assert len(ed.distortions['eigenvalues']) == len(e_vecs)
@@ -113,7 +113,8 @@ class TestEigendistortionSynthesis(object):
         e_vals = (torch.randn(n**2)**2).sort(descending=True)[0]
         eigen_test_matrix = torch.diag(e_vals)
         ed = get_synthesis_object(im_dim=n)
-        ed.synthesize(method='lanczos', n_steps=eigen_test_matrix.shape[-1], debug_A=eigen_test_matrix)
+        with pytest.warns(UserWarning) as lanczos_experimental_warning:
+            ed.synthesize(method='lanczos', n_steps=eigen_test_matrix.shape[-1], debug_A=eigen_test_matrix)
 
         assert (e_vals[0]-ed.distortions['eigenvalues'][0]) < 1e-2
 
@@ -123,7 +124,11 @@ class TestEigendistortionSynthesis(object):
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
 
         e_jac.synthesize(method='jacobian')
-        e_pow.synthesize(method='power', n_steps=200, verbose=False)
+        e_pow.synthesize(method='power', n_steps=500, verbose=False)
+
+        print(e_pow.distortions['eigenvalues'].shape)
+        print(e_pow.distortions['eigenvalues'][0], e_pow.distortions['eigenvalues'][1])
+        print(e_jac.distortions['eigenvalues'][0], e_jac.distortions['eigenvalues'][-1])
 
         assert e_pow.distortions['eigenvalues'][0].isclose(e_jac.distortions['eigenvalues'][0])
         assert e_pow.distortions['eigenvalues'][1].isclose(e_jac.distortions['eigenvalues'][-1], atol=1e-3)
@@ -191,6 +196,7 @@ class TestAutodiffFunctions(object):
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
         singular_value = torch.ones(1)*3.
+
         class LM(nn.Module):
             """Simple y = Mx where M=3"""
             def __init__(self):
