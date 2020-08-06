@@ -115,8 +115,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.target_representation = self.analyze(self.target_image)
         self.matched_image = None
         self.matched_representation = None
-        self.optimizer = None
-        self.scheduler = None
+        self._optimizer = None
+        self._scheduler = None
 
         self.loss = []
         self.gradient = []
@@ -946,18 +946,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             initial_lr = lr
         if optimizer == 'GD':
             # std gradient descent
-            self.optimizer = optim.SGD([self.matched_image], lr=lr, nesterov=False, momentum=0,
+            self._optimizer = optim.SGD([self.matched_image], lr=lr, nesterov=False, momentum=0,
                                        weight_decay=0, **optimizer_kwargs)
         elif optimizer == 'SGD':
             for k, v in zip(['nesterov', 'momentum'], [True, .8]):
                 if k not in optimizer_kwargs:
                     optimizer_kwargs[k] = v
-            self.optimizer = optim.SGD([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.SGD([self.matched_image], lr=lr, **optimizer_kwargs)
         elif optimizer == 'LBFGS':
             for k, v in zip(['history_size', 'max_iter'], [10, 4]):
                 if k not in optimizer_kwargs:
                     optimizer_kwargs[k] = v
-            self.optimizer = optim.LBFGS([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.LBFGS([self.matched_image], lr=lr, **optimizer_kwargs)
             warnings.warn('This second order optimization method is more intensive')
             if hasattr(self, 'fraction_removed') and self.fraction_removed > 0:
                 warnings.warn('For now the code is not designed to handle LBFGS and random'
@@ -965,18 +965,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         elif optimizer == 'Adam':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
-            self.optimizer = optim.Adam([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.Adam([self.matched_image], lr=lr, **optimizer_kwargs)
         elif optimizer == 'AdamW':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
-            self.optimizer = optim.AdamW([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.AdamW([self.matched_image], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
         if scheduler:
-            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.5)
+            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
         else:
-            self.scheduler = None
-        if not hasattr(self, 'optimizer_kwargs'):
+            self._scheduler = None
+        if not hasattr(self, '_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
             # optimizer to the same state (mainly used to make sure that
@@ -985,7 +985,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # initial_lr here
             optimizer_kwargs.update({'optimizer': optimizer, 'lr': initial_lr,
                                      'scheduler': scheduler})
-            self.optimizer_kwargs = optimizer_kwargs
+            self._optimizer_kwargs = optimizer_kwargs
         if clip_grad_norm is True:
             self.clip_grad_norm = 1
         else:
@@ -1010,7 +1010,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         - ``loss.backward()`` is called
 
         """
-        self.optimizer.zero_grad()
+        self._optimizer.zero_grad()
         analyze_kwargs = {}
         if self.coarse_to_fine:
             # if we've reached 'all', we act the same as if
@@ -1092,11 +1092,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
                 # reset scheduler and optimizer
-                self._init_optimizer(**self.optimizer_kwargs)
+                self._init_optimizer(**self._optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
             postfix_dict['current_scale'] = self.scales[0]
-        loss = self.optimizer.step(self._closure)
+        loss = self._optimizer.step(self._closure)
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
         # (otherwise there's an error thrown because self.scales[-1] is
@@ -1107,8 +1107,8 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             self.scales_loss.append(loss.item())
         g = self.matched_image.grad.detach()
         # optionally step the scheduler
-        if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+        if self._scheduler is not None:
+            self._scheduler.step(loss.item())
 
         if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
@@ -1132,11 +1132,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
                                  gradient_norm="%.4e" % g.norm().item(),
-                                 learning_rate=self.optimizer.param_groups[0]['lr'], **kwargs))
+                                 learning_rate=self._optimizer.param_groups[0]['lr'], **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self.optimizer.param_groups[0]['lr']
+        return loss, g.norm(), self._optimizer.param_groups[0]['lr']
 
     @abc.abstractmethod
     def save(self, file_path, save_model_reduced=False, attrs=['model'],

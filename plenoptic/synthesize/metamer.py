@@ -74,14 +74,6 @@ class Metamer(Synthesis):
 
     Attributes
     ----------
-    target_image : torch.tensor
-        A 2d tensor, this is the image whose representation we wish to
-        match.
-    model : torch.nn.Module
-        A differentiable model that takes an image as an input and
-        transforms it into a representation of some sort. We only
-        require that it has a forward method, which returns the
-        representation to match.
     target_representation : torch.tensor
         Whatever is returned by ``model.foward(target_image)``, this is
         what we match in order to create a metamer
@@ -91,14 +83,6 @@ class Metamer(Synthesis):
     matched_represetation: torch.tensor
         Whatever is returned by ``model.forward(matched_image)``; we're
         trying to make this identical to ``self.target_representation``
-    optimizer : torch.optim.Optimizer
-        A pytorch optimization method.
-    scheduler : torch.optim.lr_scheduler._LRScheduler
-        A pytorch scheduler, which tells us how to change the learning
-        rate over iterations. Currently, user cannot set and we use
-        ReduceLROnPlateau (so that the learning rate gets reduced if it
-        seems like we're on a plateau i.e., the loss isn't changing
-        much)
     loss : list
         A list of our loss over iterations.
     gradient : list

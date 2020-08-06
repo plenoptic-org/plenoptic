@@ -136,14 +136,6 @@ class MADCompetition(Synthesis):
         Dictionary containing ``matched_representation_1`` and
         ``matched_representation_2``, respectively for each
         ``synthesis_target``
-    optimizer : torch.optim.Optimizer
-        A pytorch optimization method.
-    scheduler : torch.optim.lr_scheduler._LRScheduler
-        A pytorch scheduler, which tells us how to change the learning
-        rate over iterations. Currently, user cannot set and we use
-        ReduceLROnPlateau (so that the learning rate gets reduced if it
-        seems like we're on a plateau i.e., the loss isn't changing
-        much)
     loss_1, loss_2 : list
         list of the loss with respect to model_1, model_2 over
         iterations.
@@ -516,7 +508,7 @@ class MADCompetition(Synthesis):
             The optimized (scalar) nu value
 
         """
-        lr = self.optimizer.param_groups[0]['lr']
+        lr = self._optimizer.param_groups[0]['lr']
         nu = torch.nn.Parameter(torch.tensor(1, dtype=torch.float32))
         nu_optim = torch.optim.Adam([nu], lr=1, amsgrad=True)
         nu_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(nu_optim, 'min', factor=.5)
