@@ -180,10 +180,38 @@ class TestMAD(object):
             loss_kwargs['beta'] = .9
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
-        mad.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True)
+        mad.synthesize('model_1_max', max_iter=10, loss_change_iter=5, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_save_load.pt"),
                                                 map_location=DEVICE)
+        if mad.synthesis_target != mad_copy.synthesis_target:
+            raise Exception("Something went wrong with saving and loading! synthesis_"
+                            "target not the same!")
+        for k in mad_copy._attrs_all:
+            orig = getattr(mad, k+"_all")
+            saved = getattr(mad_copy, k+"_all")
+            for ki, v in orig.items():
+                eql = False
+                try:
+                    if v == saved[ki]:
+                        eql = True
+                except RuntimeError:
+                    # then it's a tensor
+                    if v.allclose(saved[ki]):
+                        eql = True
+                if not eql:
+                    raise Exception(f"Something went wrong with saving and loading! {k, ki} not the same!")
+            eql = False
+            try:
+                if saved[mad.synthesis_target] == getattr(mad_copy, k):
+                    eql = True
+            except RuntimeError:
+                # then it's a tensor
+                if saved[mad.synthesis_target].allclose(getattr(mad_copy, k)):
+                    eql = True
+            if not eql:
+                raise Exception(f"Something went wrong with saving and loading! {k} and its _all"
+                                "version not properly synced")
         # check these attributes all saved correctly
         for k in ['target_image', 'saved_representation_1', 'saved_image',
                   'matched_representation_1', 'matched_image', 'target_representation_1',
@@ -210,8 +238,11 @@ class TestMAD(object):
             raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
                             f"after loading was {mad_copy_loss}")
         # check that can resume
-        mad_copy.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True,
+        mad_copy.synthesize('model_1_max', max_iter=10, loss_change_iter=5, store_progress=True,
                             learning_rate=None, initial_noise=None)
+        # and run another synthesis target (note neither learning_rate nor
+        # initial_noise can be None in this case)
+        mad_copy.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True)
 
     @pytest.mark.parametrize('model_name', ['class', 'function'])
     @pytest.mark.parametrize('fraction_removed', [0, .1])
