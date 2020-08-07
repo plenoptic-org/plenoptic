@@ -7,65 +7,31 @@ from ..tools.metamer_utils import RangeClamper
 class Metamer(Synthesis):
     r"""Synthesize metamers for image-computable differentiable models!
 
-    Following the basic idea in [1]_, this module creates a metamer for
-    a given model on a given image. We start with some random noise
-    (typically, though users can choose to start with something else)
-    and iterative adjust the pixel values so as to match the
-    representation of this metamer-to-be and the ``base_signal``. This
-    is optimization though, so you'll probably need to experiment with
-    the optimization hyper-parameters before you find a good solution.
+    Following the basic idea in [1]_, this module creates a metamer for a given
+    model on a given image. We start with some random noise and iteratively
+    adjust the pixel values so as to match the representation of the
+    ``synthesized_signal`` and ``base_signal``. This is optimization though, so
+    you'll probably need to experiment with the optimization hyper-parameters
+    before you find a good solution.
 
-    Currently we do not: support batch creation of images.
-
-    There are two types of objects you can pass as your models:
-    torch.nn.Module or functions.
-
-    1. Module: in this case, you're passing a visual *model*, which
-       takes an image (as a 4d tensor) and returns some representation
-       (as a 3d or 4d tensor). The model must have a forward() method
-       that we can differentiate through (so, it should use pytorch
-       methods, rather than numpy or scipy, unless you manually define
-       the gradients in the backward() method). The distance we use is
-       the L2-norm of the difference between the model's representation
-       of two images (by default, to change, set ``loss_function`` to
-       some other callable).
-
-    2. Function: in this case, you're passing a visual *metric*, a
-       function which takes two images (as 4d tensors) and returns a
-       distance between them (as a single-valued tensor), which is what
-       we use as the distance for optimization purposes. This is
-       slightly more general than the above, as you can do arbitrary
-       calculations on the images, but you'll lose some of the power of
-       the helper functions. For example, the plot of the representation
-       and representation error will just be the pixel values and
-       pixel-wise difference, respectively. This is because we construct
-       a "dummy model" that just returns a duplicate of the image and
-       use that throughout this class. You may have additional arguments
-       you want to pass to your function, in which case you can pass a
-       dictionary as ``model_1_kwargs`` (or ``model_2_kwargs``) during
-       initialization. These will be passed during every call.
+    There are two types of objects you can pass as your models: torch.nn.Module
+    or functions, which correspond to using a visual model or metric,
+    respectively. See the `MAD_Competition` notebook for more details on this.
 
     Parameters
     ----------
     base_signal : torch.tensor or array_like
-        A 2d tensor, this is the image whose representation we wish to
+        A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
-        A differentiable model that takes an image as an input and
-        transforms it into a representation of some sort. We only
-        require that it has a forward method, which returns the
-        representation to match. However, if you want to get the best
-        use form the various plot and animate function, it should also
-        have ``plot_representation`` and ``_update_plot`` functions. It
-        can also be a function, see above for explanation.
+        A visual model or metric, see `MAD_Competition` notebook for more
+        details
     loss_function : callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
-        Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, base_rep, synth_img, base_img) and
-        return some loss between them. Should probably be symmetric but
-        that might not be strictly necessary
+        Module models, ignored otherwise. If None, we use the default:
+        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        details
     model_kwargs :
         if model is a function (that is, you're using a metric instead
         of a model), then there might be additional arguments you want
@@ -83,6 +49,8 @@ class Metamer(Synthesis):
     synthesized_represetation: torch.tensor
         Whatever is returned by ``model.forward(synthesized_signal)``; we're
         trying to make this identical to ``self.base_representation``
+    seed : int
+        Number which we seeded pytorch and numpy's random number generators
     loss : list
         A list of our loss over iterations.
     gradient : list
@@ -100,8 +68,6 @@ class Metamer(Synthesis):
         or an int>0, we will save ``self.synthesized_signal`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination.
-    seed : int
-        Number which we seeded pytorch and numpy's random number generators
     saved_signal_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.synthesized_signal.grad`` at each
@@ -196,10 +162,10 @@ class Metamer(Synthesis):
             except IndexError:
                 # else we're starting over
                 synthesized_signal_data = torch.rand_like(self.base_signal, dtype=torch.float32,
-                                                     device=self.base_signal.device)
+                                                          device=self.base_signal.device)
         else:
             synthesized_signal_data = torch.tensor(initial_image, dtype=torch.float32,
-                                              device=self.base_signal.device)
+                                                   device=self.base_signal.device)
         super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,

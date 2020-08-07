@@ -30,52 +30,14 @@ class MADCompetition(Synthesis):
     args (allowing you to parallelize however you see fit), or by
     calling ``synthesize_all()``.
 
-    Because MAD Competition works with two models at once, whereas most
-    synthesis methods only work with one, this class has "doubled
-    attributes", that is, for many attributes, ``MADCompetition`` has
-    two versions. For example, instead of a single ``loss`` attribute,
-    we have a ``loss_1`` and ``loss_2`` attribute, containing the loss
-    for ``model_1`` and ``model_2``, respectively. For all attributes of
-    this type, you can access the one that is currently be modified
-    using the base string (e.g., ``loss``), but it is recommended that
-    you stick with the explicit attributes unless you're sure you know
-    what you're doing.
-
-    Because a full set consists of four synthesized images, many
-    attributes below have a corresponding ``_all`` attribute, which is a
-    dictionary containing that data from each of the four synthesis
-    sets. For example, we have a ``synthesized_signal_all`` attribute, which
-    is a dictionary with four keys (the four possible values of
-    ``synthesis_target``) that each contain the relevant synthesized
-    image.
-
-    There are two types of objects you can pass as your models:
-    torch.nn.Module or functions.
-
-    1. Module: in this case, you're passing a visual *model*, which
-       takes an image (as a 4d tensor) and returns some representation
-       (as a 3d or 4d tensor). The model must have a forward() method
-       that we can differentiate through (so, it should use pytorch
-       methods, rather than numpy or scipy, unless you manually define
-       the gradients in the backward() method). The distance we use is
-       the L2-norm of the difference between the model's representation
-       of two images (by default, to change, set ``loss_function`` to
-       some other callable).
-
-    2. Function: in this case, you're passing a visual *metric*, a
-       function which takes two images (as 4d tensors) and returns a
-       distance between them (as a single-valued tensor), which is what
-       we use as the distance for optimization purposes. This is
-       slightly more general than the above, as you can do arbitrary
-       calculations on the images, but you'll lose some of the power of
-       the helper functions. For example, the plot of the representation
-       and representation error will just be the pixel values and
-       pixel-wise difference, respectively. This is because we construct
-       a "dummy model" that just returns a duplicate of the image and
-       use that throughout this class. You may have additional arguments
-       you want to pass to your function, in which case you can pass a
-       dictionary as ``model_1_kwargs`` (or ``model_2_kwargs``) during
-       initialization. These will be passed during every call.
+    Note that for many attributes (e.g., `loss`, `matched_image`), there are
+    two versions, on with `_1` as a suffix and one with `_2`. This is because
+    we need to store those attributes for each model: the version that ends in
+    `_1` corresponds to `model_1` and the one that ends in `_2` corresponds to
+    `model_2`. Similarly, many of these have a version that ends in `_all`,
+    which is a dictionary containing that attribute for each synthesis target
+    (some, such as `loss`, have both of these). See `MAD_Competition` notebook
+    for more details.
 
     Parameters
     ----------
@@ -83,16 +45,14 @@ class MADCompetition(Synthesis):
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model_1, model_2 : torch.nn.Module or function
-        The two models to compare. See above for the two allowed types
-        (Modules and functions)
+        The two visual models or metrics to compare, see `MAD_Competition`
+        notebook for more details
     loss_function : callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
-        Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, base_rep, synth_img, base_img) and
-        return some loss between them. Should probably be symmetric but
-        that might not be strictly necessary
+        Module models, ignored otherwise. If None, we use the default:
+        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        details
     model_1_kwargs, model_2_kwargs : dict
         if model_1 or model_2 are functions (that is, you're using a
         metric instead of a model), then there might be additional
@@ -118,71 +78,49 @@ class MADCompetition(Synthesis):
     initial_image : torch.tensor
         base_signal with white noise added to it (and clamped, if
         applicable), this is the starting point of our synthesis
-    initial_image_all : dict
-        Dictionray containing ``initial_image `` for each
-        ``synthesis_target`` (if run individually, they can have
-        different noise seeds)
     synthesized_signal : torch.tensor
         The synthesized image from the last call to
         ``synthesis()``. This may be unfinished depending on how many
         iterations we've run for.
-    synthesized_signal_all : dict
-        Dictionary containing ``synthesized_signal`` for each
-        ``synthesis_target``
     synthesized_represetation_1, synthesized_representation_2: torch.tensor
         Whatever is returned by ``model_1`` and ``model_2``
         ``forward(synthesized_signal)``, respectively.
-    synthesized_representation_1_all, synthesized_representation_2_all : dict
-        Dictionary containing ``synthesized_representation_1`` and
-        ``synthesized_representation_2``, respectively for each
-        ``synthesis_target``
+    seed : int
+        Number with which to seed pytorch and numy's random number
+        generators
     loss_1, loss_2 : list
         list of the loss with respect to model_1, model_2 over
         iterations.
-    loss_1_all, loss_2_all : dict
-        Dictionary containing ``loss_1`` and ``loss_2``, respectively
-        for each ``synthesis_target``
     gradient : list
         list containing the gradient over iterations
-    gradient_all : dict
-        Dictionary containing ``gradient`` for each ``synthesis_target``
     learning_rate : list
         list containing the learning_rate over iterations. We use a
         scheduler that gradually reduces this over time, so it won't be
         constant.
-    learning_rate_all : dict
-        dictionary containing ``learning_rate`` for each
-        ``synthesis_target``.  scheduler that gradually reduces this
-        over time, so it won't be constant.
     nu : list
         list containing the nu parameter over iterations. Nu is the
         parameter used to correct the image so that the other model's
         representation will not change; see docstring of
         ``self._find_nu()`` for more details
-    nu_all : dict
-        Dictionary of ``nu`` for each ``synthesis_target``.
-    saved_representation_1, saved_representation_2 : dict
+    saved_representation_1, saved_representation_2 : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.synthesized_representation`` at
         each iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each model and each
         ``synthesis_target``).
-    saved_signal : dict
+    saved_signal : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.synthesized_signal`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each
         ``synthesis_target``).
-    seed : int
-        Number with which to seed pytorch and numy's random number
-        generators
-    saved_signal_gradient : dict
+    saved_signal_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
         or an int>0, we will save ``self.synthesized_signal.grad`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each
         ``synthesis_target``).
-    saved_representation_1_gradient, saved_representation_2_gradient : dict
+    saved_representation_1_gradient, saved_representation_2_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save
         ``self.synthesized_representation.grad`` at each iteration (or each
