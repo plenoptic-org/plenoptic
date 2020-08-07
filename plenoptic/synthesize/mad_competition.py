@@ -1638,65 +1638,6 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return rep_error
 
-    def normalized_mse(self, synthesis_target=None, model=None, iteration=None, **kwargs):
-        r"""Get the normalized mean-squared representation error
-
-        Following the method used in [2]_ to check for convergence, here
-        we take the mean-squared error between the target_representation
-        and matched_representation, then divide by the variance of
-        target_representation.
-
-        If ``iteration`` is not None, we use
-        ``self.saved_representation[iteration]`` for
-        matched_representation..
-
-        Since a single MADCompetition instance can be used for
-        synthesizing multiple targets and has two models with different
-        errors, you can specify the target and the model as well. If
-        both are None, we use the current target of the synthesis. If
-        synthesis_target is not None, but model is, we use the model
-        that's the main target (e.g., if
-        ``synthesis_target=='model_1_min'``, the we'd use `'model_1'`)
-
-        Regardless, we always reset the target state to what it was
-        before this was called
-
-        Any kwargs are passed through to self.analyze when computing the
-        matched/target representation.
-
-        Parameters
-        ----------
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
-        model : {None, 'model_1', 'model_2'}, optional
-            which model's representation to get the error for. If None
-            and ``synthesis_targe`` is not None, we use the model that's
-            the main target for synthesis_target (so if
-            synthesis_target=='model_1_min', then we'd use
-            'model_1'). If both are None, we use the current target
-        iteration: int or None, optional
-            Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
-
-        Returns
-        -------
-        torch.Tensor
-
-        References
-        ----------
-        .. [2] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
-           ventral stream. Nature Neuroscience, 14(9),
-           1195–1201. http://dx.doi.org/10.1038/nn.2889
-        """
-        last_state = self._check_state(synthesis_target, model)
-        error = super().normalized_mse(iteration, **kwargs)
-        # reset to state before calling this function
-        if last_state is not None:
-            self.update_target(*last_state)
-        return error
-
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(12, 5), ylim=None,
                                   ax=None, title='', synthesis_target=None):
         r"""Plot distance ratio showing how close we are to convergence
