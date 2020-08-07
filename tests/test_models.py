@@ -269,7 +269,7 @@ class TestVentralStream(object):
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3)
-        assert not torch.isnan(metamer.matched_image).any(), "There's a NaN here!"
+        assert not torch.isnan(metamer.synthesized_signal).any(), "There's a NaN here!"
 
     def test_rgc_save_load(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))

@@ -23,7 +23,7 @@ class MADCompetition(Synthesis):
     keeping model 1's response as close to constant as possible).
 
     Note: a complete set of MAD Competition stimuli consists of four
-    synthesized images per target image. We modularize this so that a
+    synthesized images per base image. We modularize this so that a
     call to ``synthesis()`` gets you one of the four images (by setting
     the ``synthesis_target`` arg, you determine which one). You can get
     the full set by calling ``synthesis()`` four times with different
@@ -44,7 +44,7 @@ class MADCompetition(Synthesis):
     Because a full set consists of four synthesized images, many
     attributes below have a corresponding ``_all`` attribute, which is a
     dictionary containing that data from each of the four synthesis
-    sets. For example, we have a ``matched_image_all`` attribute, which
+    sets. For example, we have a ``synthesized_signal_all`` attribute, which
     is a dictionary with four keys (the four possible values of
     ``synthesis_target``) that each contain the relevant synthesized
     image.
@@ -79,7 +79,7 @@ class MADCompetition(Synthesis):
 
     Parameters
     ----------
-    target_image : torch.tensor or array_like
+    base_signal : torch.tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model_1, model_2 : torch.nn.Module or function
@@ -90,7 +90,7 @@ class MADCompetition(Synthesis):
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the defualt:
         the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, target_rep, synth_img, target_img) and
+        arguments (synth_rep, base_rep, synth_img, base_img) and
         return some loss between them. Should probably be symmetric but
         that might not be strictly necessary
     model_1_kwargs, model_2_kwargs : dict
@@ -102,7 +102,7 @@ class MADCompetition(Synthesis):
 
     Attributes
     ----------
-    target_image : torch.tensor
+    base_signal : torch.tensor
         A 2d tensor, this is the image whose representation we wish to
         match.
     model_1, model_2 : torch.nn.Module
@@ -110,31 +110,31 @@ class MADCompetition(Synthesis):
         transforms it into a representation of some sort. We only
         require that they have a forward method, which returns the
         representation to match.
-    target_representation_1, target_representation_2 : torch.tensor
+    base_representation_1, base_representation_2 : torch.tensor
         Whatever is returned by ``model_1`` and ``model_2``
-        ``forward(target_image)`` methods, respectively. This is the
+        ``forward(base_signal)`` methods, respectively. This is the
         representation we're trying to get as close or far away from as
         possible when targeting a given model.
     initial_image : torch.tensor
-        target_image with white noise added to it (and clamped, if
+        base_signal with white noise added to it (and clamped, if
         applicable), this is the starting point of our synthesis
     initial_image_all : dict
         Dictionray containing ``initial_image `` for each
         ``synthesis_target`` (if run individually, they can have
         different noise seeds)
-    matched_image : torch.tensor
+    synthesized_signal : torch.tensor
         The synthesized image from the last call to
         ``synthesis()``. This may be unfinished depending on how many
         iterations we've run for.
-    matched_image_all : dict
-        Dictionary containing ``matched_image`` for each
+    synthesized_signal_all : dict
+        Dictionary containing ``synthesized_signal`` for each
         ``synthesis_target``
-    matched_represetation_1, matched_representation_2: torch.tensor
+    synthesized_represetation_1, synthesized_representation_2: torch.tensor
         Whatever is returned by ``model_1`` and ``model_2``
-        ``forward(matched_image)``, respectively.
-    matched_representation_1_all, matched_representation_2_all : dict
-        Dictionary containing ``matched_representation_1`` and
-        ``matched_representation_2``, respectively for each
+        ``forward(synthesized_signal)``, respectively.
+    synthesized_representation_1_all, synthesized_representation_2_all : dict
+        Dictionary containing ``synthesized_representation_1`` and
+        ``synthesized_representation_2``, respectively for each
         ``synthesis_target``
     loss_1, loss_2 : list
         list of the loss with respect to model_1, model_2 over
@@ -163,29 +163,29 @@ class MADCompetition(Synthesis):
         Dictionary of ``nu`` for each ``synthesis_target``.
     saved_representation_1, saved_representation_2 : dict
         If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_representation`` at
+        or an int>0, we will save ``self.synthesized_representation`` at
         each iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each model and each
         ``synthesis_target``).
-    saved_image : dict
+    saved_signal : dict
         If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image`` at each
+        or an int>0, we will save ``self.synthesized_signal`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each
         ``synthesis_target``).
     seed : int
         Number with which to seed pytorch and numy's random number
         generators
-    saved_image_gradient : dict
+    saved_signal_gradient : dict
         If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image.grad`` at each
+        or an int>0, we will save ``self.synthesized_signal.grad`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination (separately for each
         ``synthesis_target``).
     saved_representation_1_gradient, saved_representation_2_gradient : dict
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save
-        ``self.matched_representation.grad`` at each iteration (or each
+        ``self.synthesized_representation.grad`` at each iteration (or each
         ``store_progress`` iteration, if it's an int), for later
         examination (separately for each model and
         ``synthesis_target``).
@@ -237,13 +237,13 @@ class MADCompetition(Synthesis):
 
     """
 
-    def __init__(self, target_image, model_1, model_2, loss_function=None, model_1_kwargs={},
+    def __init__(self, base_signal, model_1, model_2, loss_function=None, model_1_kwargs={},
                  model_2_kwargs={}, loss_function_kwargs={}):
-        self._names = {'target_image': 'target_image',
-                       'matched_image': 'matched_image',
+        self._names = {'base_signal': 'base_signal',
+                       'synthesized_signal': 'synthesized_signal',
                        'model': 'model_1',
-                       'target_representation': 'target_representation_1',
-                       'matched_representation': 'matched_representation_1',
+                       'base_representation': 'base_representation_1',
+                       'synthesized_representation': 'synthesized_representation_1',
                        'initial_representation': 'initial_representation_1',
                        'loss_norm': 'loss_1_norm',
                        'loss': 'loss_1',
@@ -253,7 +253,7 @@ class MADCompetition(Synthesis):
                        'coarse_to_fine': 'coarse_to_fine_1'}
 
         self.synthesis_target = 'model_1_min'
-        super().__init__(target_image, model_1, loss_function, model_1_kwargs, loss_function_kwargs)
+        super().__init__(base_signal, model_1, loss_function, model_1_kwargs, loss_function_kwargs)
 
         # initialize the MAD-specific attributes
         self.loss_sign = 1
@@ -278,7 +278,7 @@ class MADCompetition(Synthesis):
                                      synth_img=synth_img, **loss_function_kwargs)
             self.loss_function_2 = wrapped_loss_func
         else:
-            self.model_2 = Identity(model_2.__name__).to(target_image.device)
+            self.model_2 = Identity(model_2.__name__).to(base_signal.device)
 
             def wrapped_model_2(synth_rep, ref_rep, synth_img, ref_img):
                 return model_2(synth_rep, ref_rep, **model_2_kwargs)
@@ -286,8 +286,8 @@ class MADCompetition(Synthesis):
             self.rep_warning = True
 
         self.update_target('model_1_min', 'fix')
-        self.target_representation_2 = self.analyze(self.target_image)
-        self.matched_representation_2 = None
+        self.base_representation_2 = self.analyze(self.base_signal)
+        self.synthesized_representation_2 = None
         self.loss_2 = []
         self.saved_representation_2 = []
         self.saved_representation_2_gradient = []
@@ -297,12 +297,12 @@ class MADCompetition(Synthesis):
         # these are the attributes that have 'all' versions of them, and
         # they'll all need to be initialized with a dictionary for each
         # possible target
-        self._attrs_all = ['saved_representation_1', 'saved_representation_2', 'saved_image',
+        self._attrs_all = ['saved_representation_1', 'saved_representation_2', 'saved_signal',
                            'saved_representation_1_gradient', 'saved_representation_2_gradient',
-                           'saved_image_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
-                           'nu', 'initial_image', 'matched_image', 'initial_representation_1',
-                           'initial_representation_2', 'matched_representation_1',
-                           'matched_representation_2']
+                           'saved_signal_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
+                           'nu', 'initial_image', 'synthesized_signal', 'initial_representation_1',
+                           'initial_representation_2', 'synthesized_representation_1',
+                           'synthesized_representation_2']
 
         def _init_dict(none_flag=False):
             if none_flag:
@@ -312,8 +312,8 @@ class MADCompetition(Synthesis):
             return dict((k, val) for k in ['model_1_min', 'model_1_max', 'model_2_min',
                                            'model_2_max'])
         for attr in self._attrs_all:
-            if attr == 'matched_image':
-                # matched_image is a parameter and so has to be initialized with None
+            if attr == 'synthesized_signal':
+                # synthesized_signal is a parameter and so has to be initialized with None
                 setattr(self, attr+'_all', _init_dict(True))
             else:
                 setattr(self, attr+'_all', _init_dict())
@@ -323,9 +323,9 @@ class MADCompetition(Synthesis):
 
         this is the standard __getattr__, except we override it for the
         attributes that have two versions, depending on which model
-        we're currently targeting: 'target_representation',
-        'target_image', 'matched_representation', 'loss',
-        'matched_image', 'model', 'loss_norm', 'initial_representation',
+        we're currently targeting: 'base_representation',
+        'base_signal', 'synthesized_representation', 'loss',
+        'synthesized_signal', 'model', 'loss_norm', 'initial_representation',
         'saved_representation', 'saved_representation_gradient',
         'loss_function'
 
@@ -346,9 +346,9 @@ class MADCompetition(Synthesis):
 
         this is the standard __setattr__, except we override it for the
         attributes that have two versions, depending on which model
-        we're currently targeting: 'target_representation',
-        'target_image', 'matched_representation', 'loss',
-        'matched_image', 'model', 'loss_norm', 'initial_representation',
+        we're currently targeting: 'base_representation',
+        'base_signal', 'synthesized_representation', 'loss',
+        'synthesized_signal', 'model', 'loss_norm', 'initial_representation',
         'saved_representation', 'saved_representation_gradient',
         'loss_function'
 
@@ -423,8 +423,8 @@ class MADCompetition(Synthesis):
             num = other_model_num
             self.loss_sign = 1
         self._names.update({'model': f'model_{num}',
-                            'target_representation': f'target_representation_{num}',
-                            'matched_representation': f'matched_representation_{num}',
+                            'base_representation': f'base_representation_{num}',
+                            'synthesized_representation': f'synthesized_representation_{num}',
                             'initial_representation': f'initial_representation_{num}',
                             'loss_norm': f'loss_{num}_norm',
                             'loss': f'loss_{num}',
@@ -435,8 +435,8 @@ class MADCompetition(Synthesis):
         if synthesis_target != self.synthesis_target:
             self.synthesis_target = synthesis_target
             for attr in self._attrs_all:
-                if attr == 'matched_image':
-                    # matched_image needs to be a parameter
+                if attr == 'synthesized_signal':
+                    # synthesized_signal needs to be a parameter
                     setattr(self, attr, torch.nn.Parameter(getattr(self, attr+'_all')[synthesis_target]))
                 else:
                     try:
@@ -449,7 +449,7 @@ class MADCompetition(Synthesis):
         """copy the data from attributes into their _all version
 
         in a given call to synthesis, we only update the 'local' version
-        of an attribute (e.g., matched_image), which contains the data
+        of an attribute (e.g., synthesized_signal), which contains the data
         relevant to the synthesis we're currently doing (e.g.,
         minimizing model 1's loss). however, we want to store all these
         attributes across each of the four types of runs, for which we
@@ -475,7 +475,7 @@ class MADCompetition(Synthesis):
         model_1's gradient (which we do in ``_closure()``) helps with
         this, but it's not perfect.
 
-        Call ``grad`` :math:`G`, ``target_image`` :math:`X` and the
+        Call ``grad`` :math:`G`, ``base_signal`` :math:`X` and the
         synthesized image on iteration n :math:`Y_{n}` (and thus
         :math:`Y_0` is the initial distorted image), and the proposed
         synthesized image that we've created after the main step of
@@ -494,9 +494,9 @@ class MADCompetition(Synthesis):
         Parameters
         ----------
         grad : torch.tensor
-            the gradient of ``self.matched_image`` for model 2 with
-            respect to the loss between ``self.matched_image`` and
-            ``self.target_image``
+            the gradient of ``self.synthesized_signal`` for model 2 with
+            respect to the loss between ``self.synthesized_signal`` and
+            ``self.base_signal``
         n_iter : int
             The number of iterations to use when finding the best
             nu. Obviously, the larger this number, the longer it will
@@ -512,9 +512,9 @@ class MADCompetition(Synthesis):
         nu = torch.nn.Parameter(torch.tensor(1, dtype=torch.float32))
         nu_optim = torch.optim.Adam([nu], lr=1, amsgrad=True)
         nu_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(nu_optim, 'min', factor=.5)
-        target_loss = self.objective_function(self.initial_representation,
-                                              self.target_representation, self.initial_image,
-                                              self.target_image)
+        base_loss = self.objective_function(self.initial_representation,
+                                              self.base_representation, self.initial_image,
+                                              self.base_signal)
         for i in range(n_iter):
             # in Appendix C of the paper, they just add nu*grad to get
             # the proposed image. here we also multiply by a -lr because
@@ -523,11 +523,11 @@ class MADCompetition(Synthesis):
             # when updating parameters, they add -lr * grad. thus, this
             # is what we need in order to predict what the updated image
             # will be
-            proposed_img = self.matched_image - lr * nu * grad
+            proposed_img = self.synthesized_signal - lr * nu * grad
             proposed_loss = self.objective_function(self.analyze(proposed_img),
-                                                    self.target_representation,
-                                                    proposed_img, self.target_image)
-            actual_loss = torch.abs(target_loss - proposed_loss)
+                                                    self.base_representation,
+                                                    proposed_img, self.base_signal)
+            actual_loss = torch.abs(base_loss - proposed_loss)
             actual_loss.backward()
             nu_optim.step()
             nu_scheduler.step(actual_loss.item())
@@ -556,11 +556,11 @@ class MADCompetition(Synthesis):
             # grab model_stable's gradient
             self.update_target(self.synthesis_target, 'fix')
             loss_stable = super()._closure()
-            grad_stable = self.matched_image.grad.clone()
+            grad_stable = self.synthesized_signal.grad.clone()
             # grab model_target's gradient
             self.update_target(self.synthesis_target, self.step)
             loss_target = super()._closure()
-            grad_target = self.matched_image.grad.clone()
+            grad_target = self.synthesized_signal.grad.clone()
             # we do this reshaping to make these vectors so that this matmul
             # ends up being a dot product, and thus we get a scalar output
             proj_grad = torch.matmul(grad_target.flatten().unsqueeze(0),
@@ -568,7 +568,7 @@ class MADCompetition(Synthesis):
             grad_stable_norm = torch.matmul(grad_stable.flatten().unsqueeze(0),
                                             grad_stable.flatten().unsqueeze(1))
             # project out model_stable's gradient from model_target's gradient
-            self.matched_image.grad = grad_target - (proj_grad / grad_stable_norm) * grad_stable
+            self.synthesized_signal.grad = grad_target - (proj_grad / grad_stable_norm) * grad_stable
             # return model_target's loss
             return loss_target
         # the fix step corresponds to equation C5 in the paper
@@ -576,12 +576,12 @@ class MADCompetition(Synthesis):
             # grab model_stable's gradient
             self.update_target(self.synthesis_target, self.step)
             loss = super()._closure()
-            grad = self.matched_image.grad.clone()
+            grad = self.synthesized_signal.grad.clone()
             # find the best nu
             nu = self._find_nu(grad, self.fix_step_n_iter)
             self.nu.append(nu.clone().to('cpu'))
             # update the gradient
-            self.matched_image.grad = nu * grad
+            self.synthesized_signal.grad = nu * grad
             self.update_target(self.synthesis_target, 'main')
             return loss
 
@@ -625,23 +625,23 @@ class MADCompetition(Synthesis):
             loss = loss / self.loss_norm
         return self.loss_sign * loss
 
-    def _init_matched_image(self, initial_noise=None, clamper=RangeClamper((0, 1)),
+    def _init_synthesized_signal(self, initial_noise=None, clamper=RangeClamper((0, 1)),
                             clamp_each_iter=True, norm_loss=True):
-        """initialize the matched image
+        """initialize the synthesized image
 
-        set the ``self.matched_image`` attribute to be a parameter with
+        set the ``self.synthesized_signal`` attribute to be a parameter with
         the user-supplied data, making sure it's the right shape and
         calling clamper on it, if set
 
-        also initialize the ``self.matched_representation`` attribute
+        also initialize the ``self.synthesized_representation`` attribute
 
         Parameters
         ----------
         initial_noise : `float` or None, optional
             standard deviation of the Gaussian noise used to create the
             initial image from the target image. If None (the default),
-            we try to grab the final value from ``self.saved_image``
-            (thus, if ``self.saved_image`` is empty, this will raise an
+            we try to grab the final value from ``self.saved_signal``
+            (thus, if ``self.saved_signal`` is empty, this will raise an
             Exception)
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
@@ -662,16 +662,16 @@ class MADCompetition(Synthesis):
 
         """
         if initial_noise is not None:
-            self.initial_image = add_noise(self.target_image, initial_noise)
+            self.initial_image = add_noise(self.base_signal, initial_noise)
             init_image = self.initial_image
         # we want to keep the initial_image attribute unchanged if
         # initial_noise is None (we still want it to be the initial
-        # representation), but we want to make matched_image the last
-        # saved_image
+        # representation), but we want to make synthesized_signal the last
+        # saved_signal
         else:
-            init_image = self.saved_image[-1]
+            init_image = self.saved_signal[-1]
         self.update_target(self.synthesis_target, 'main')
-        super()._init_matched_image(init_image.clone(), clamper, clamp_each_iter)
+        super()._init_synthesized_signal(init_image.clone(), clamper, clamp_each_iter)
         if clamper is not None:
             # that initial noise can take us outside the clamper
             self.initial_image.data = clamper.clamp(self.initial_image.data)
@@ -684,18 +684,18 @@ class MADCompetition(Synthesis):
         # that loss_norm is always positive
         if norm_loss:
             self.loss_norm = abs(self.objective_function(self.initial_representation,
-                                                         self.target_representation,
-                                                         self.initial_image, self.target_image,
+                                                         self.base_representation,
+                                                         self.initial_image, self.base_signal,
                                                          norm_loss=False))
         else:
             self.loss_norm = 1
         self.update_target(self.synthesis_target, 'fix')
-        self.matched_representation = self.analyze(self.matched_image)
+        self.synthesized_representation = self.analyze(self.synthesized_signal)
         self.initial_representation = self.analyze(self.initial_image)
         if norm_loss:
             self.loss_norm = self.objective_function(self.initial_representation,
-                                                     self.target_representation,
-                                                     self.initial_image, self.target_image,
+                                                     self.base_representation,
+                                                     self.initial_image, self.base_signal,
                                                      norm_loss=False)
         else:
             self.loss_norm = 1
@@ -762,9 +762,9 @@ class MADCompetition(Synthesis):
 
         sets the ``self.save_progress``, ``self.store_progress``, and
         ``self.save_path`` attributes, as well as changing
-        ``saved_image, saved_representation, saved_image_gradient,
+        ``saved_signal, saved_representation, saved_signal_gradient,
         saved_representation_gradient`` attibutes all to lists so we can
-        append to them. finally, adds first value to ``saved_image`` and
+        append to them. finally, adds first value to ``saved_signal`` and
         ``saved_representation``
 
         Parameters
@@ -775,7 +775,7 @@ class MADCompetition(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
+            same as True). If True or int>0, ``self.saved_signal``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
         save_progress : bool or int, optional
@@ -802,16 +802,16 @@ class MADCompetition(Synthesis):
         self.update_target(self.synthesis_target, 'fix')
         self.saved_representation = list(self.saved_representation)
         self.saved_representation_gradient = list(self.saved_representation_gradient)
-        self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+        self.saved_representation.append(self.analyze(self.synthesized_signal).to('cpu'))
 
     def _clamp_and_store(self, i):
-        """clamp matched_image and store/save, if appropriate
+        """clamp synthesized_signal and store/save, if appropriate
 
         these all happen together because they all happen ``with
         torch.no_grad()``
 
-        if it's the right iteration, we update: ``saved_image,
-        saved_representation, saved_image_gradient,
+        if it's the right iteration, we update: ``saved_signal,
+        saved_representation, saved_signal_gradient,
         saved_representation_gradient``
 
         Parameters
@@ -825,14 +825,14 @@ class MADCompetition(Synthesis):
             self.update_target(self.synthesis_target, 'fix')
             # these are the only ones that differ between main and fix
             with torch.no_grad():
-                self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-                self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+                self.saved_representation.append(self.analyze(self.synthesized_signal).to('cpu'))
+                self.saved_representation_gradient.append(self.synthesized_representation.grad.clone().to('cpu'))
 
     def _finalize_stored_progress(self):
         """stack the saved_* attributes
 
         if we were storing progress, stack the ``saved_representation,
-        saved_image, saved_image_gradient,
+        saved_signal, saved_signal_gradient,
         saved_representation_gradient`` attributes so they're a single
         tensor
 
@@ -869,16 +869,16 @@ class MADCompetition(Synthesis):
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
-        The synthesis is initialized with the ``target_image`` plus
+        The synthesis is initialized with the ``base_signal`` plus
         Gaussian noise with mean 0 and standard deviation
         ``initial_noise``.
 
         If ``store_progress!=False``, you can run this several times in
         sequence by setting ``initial_noise`` to ``None``. In that case,
         the initial image of subsequent calls will be equal to the last
-        value of ``self.saved_image``. Everything that stores the
+        value of ``self.saved_signal``. Everything that stores the
         progress of the optimization (``loss``,
-        ``saved_representation``, ``saved_image``) will persist between
+        ``saved_representation``, ``saved_signal``) will persist between
         calls and so potentially get very large. To most directly resume
         where you left off, it's recommended you set
         ``learning_rate=None``, in which case we use the most recent
@@ -956,10 +956,10 @@ class MADCompetition(Synthesis):
         initial_noise : `float` or None, optional
             standard deviation of the Gaussian noise used to create the
             initial image from the target image. Can only be None if
-            ``self.saved_image`` is not empty (i.e., this has been
+            ``self.saved_signal`` is not empty (i.e., this has been
             called at least once before with
             ``store_progress!=False``). In that case, the initial image
-            is the last value of ``self.saved_image``
+            is the last value of ``self.saved_signal``
         fix_step_n_iter : int, optional
             Each iteration of synthesis has two steps: update the image
             to increase/decrease one model's loss (main step), then
@@ -1011,7 +1011,7 @@ class MADCompetition(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
+            same as True). If True or int>0, ``self.saved_signal``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
         save_progress : bool or int, optional
@@ -1084,11 +1084,11 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        matched_image : torch.tensor
+        synthesized_signal : torch.tensor
             The MAD competition image we've created
-        matched_representation_1 : torch.tensor
+        synthesized_representation_1 : torch.tensor
             model_1's representation of this image
-        matched_representation_2 : torch.tensor
+        synthesized_representation_2 : torch.tensor
             The model_2's representation of this image
 
         """
@@ -1098,7 +1098,7 @@ class MADCompetition(Synthesis):
         # manually
         self.update_target(synthesis_target, 'main')
 
-        self._init_matched_image(initial_noise, clamper, clamp_each_iter, norm_loss)
+        self._init_synthesized_signal(initial_noise, clamper, clamp_each_iter, norm_loss)
 
         self.update_target(synthesis_target, 'main')
         # initialize stuff related to coarse-to-fine and randomization
@@ -1116,11 +1116,11 @@ class MADCompetition(Synthesis):
         for i in pbar:
             self.update_target(self.synthesis_target, 'fix')
             # first, figure out what the stable model's loss is
-            loss_2 = self.objective_function(self.matched_representation,
-                                             self.target_representation, self.matched_image,
-                                             self.target_image).item()
+            loss_2 = self.objective_function(self.synthesized_representation,
+                                             self.base_representation, self.synthesized_signal,
+                                             self.base_signal).item()
             self.loss.append(loss_2)
-            # then update matched_image to try and min or max (depending
+            # then update synthesized_signal to try and min or max (depending
             # on synthesis_target) the targeted model
             self.update_target(self.synthesis_target, 'main')
             self.step = 'main'
@@ -1128,18 +1128,18 @@ class MADCompetition(Synthesis):
             self.loss.append(abs(loss.item()))
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
-            # finally, update matched_image to try and keep the stable
+            # finally, update synthesized_signal to try and keep the stable
             # model's loss constant
             self.update_target(self.synthesis_target, 'fix')
             self.step = 'fix'
             self._optimizer_step()
 
             if self._check_nan_loss(loss):
-                # matched_image and the other matched represntation will
+                # synthesized_signal and the other synthesized represntation will
                 # be handled in the _check_nan_loss call (because we've
                 # got target 'fix')
                 self.update_target(self.synthesis_target, 'main')
-                self.matched_representation = self.saved_representation[-2]
+                self.synthesized_representation = self.saved_representation[-2]
                 break
 
             if self._check_for_stabilization(i):
@@ -1153,7 +1153,7 @@ class MADCompetition(Synthesis):
         self._finalize_stored_progress()
 
         self._update_attrs_all()
-        return self.matched_image.data, self.matched_representation_1.data, self.matched_representation_2.data
+        return self.synthesized_signal.data, self.synthesized_representation_1.data, self.synthesized_representation_2.data
 
     def synthesize_all(self, if_existing='skip', initial_noise=.1, fix_step_n_iter=10,
                        norm_loss=True, seed=0, max_iter=100, learning_rate=1, scheduler=True,
@@ -1186,7 +1186,7 @@ class MADCompetition(Synthesis):
             - ``'re-run'``: re-run from scratch, starting over -- note
               that this will not remove existing history however, so
               plots of ``self.loss`` or examinations of
-              ``self.saved_image`` may look weird
+              ``self.saved_signal`` may look weird
             - ``'continue'``: continue from where it left off
         initial_noise : `float`, optional
             standard deviation of the Gaussian noise used to create the
@@ -1240,7 +1240,7 @@ class MADCompetition(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
+            same as True). If True or int>0, ``self.saved_signal``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
         save_progress : bool or int, optional
@@ -1319,7 +1319,7 @@ class MADCompetition(Synthesis):
             learning_rate = learning_rate_orig
             run = True
             s = f"Synthesizing {target}"
-            if self.matched_image_all[target] is not None:
+            if self.synthesized_signal_all[target] is not None:
                 s = f"Synthesis with target {target} has been run before, "
                 if if_existing == 'skip':
                     run = False
@@ -1507,10 +1507,10 @@ class MADCompetition(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['target_image', 'target_representation_1', 'target_representation_2',
-                 'matched_image', 'matched_representation_1', 'matched_representation_2',
-                 'saved_image', 'saved_representation_1', 'saved_representation_2',
-                 'saved_image_gradient', 'saved_representation_1_gradient',
+        attrs = ['base_signal', 'base_representation_1', 'base_representation_2',
+                 'synthesized_signal', 'synthesized_representation_1', 'synthesized_representation_2',
+                 'saved_signal', 'saved_representation_1', 'saved_representation_2',
+                 'saved_signal_gradient', 'saved_representation_1_gradient',
                  'saved_representation_2_gradient', 'model_1', 'model_2']
         return super().to(*args, attrs=attrs, **kwargs)
 
@@ -1576,10 +1576,10 @@ class MADCompetition(Synthesis):
     def representation_error(self, iteration=None, synthesis_target=None, model=None, **kwargs):
         r"""Get the representation error
 
-        This is (matched_representation - target_representation). If
+        This is (synthesized_representation - base_representation). If
         ``iteration`` is not None, we use
         ``self.saved_representation[iteration]`` for
-        matched_representation..
+        synthesized_representation..
 
         Since a single MADCompetition instance can be used for
         synthesizing multiple targets and has two models with different
@@ -1595,13 +1595,13 @@ class MADCompetition(Synthesis):
         before this was called
 
         Any kwargs are passed through to self.analyze when computing the
-        matched/target representation.
+        synthesized/target representation.
 
         Parameters
         ----------
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
+            None, we use the current ``synthesized_representation``
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
@@ -1658,7 +1658,7 @@ class MADCompetition(Synthesis):
 
         If ``iteration`` is not None, we use
         ``self.saved_representation[iteration]`` for
-        matched_representation..
+        synthesized_representation..
 
         Since a single MADCompetition instance can be used for
         synthesizing multiple targets, you can specify the target as
@@ -1672,7 +1672,7 @@ class MADCompetition(Synthesis):
         before this was called
 
         Any kwargs are passed through to self.analyze when computing the
-        matched/target representation.
+        synthesized/target representation.
 
         Parameters
         ----------
@@ -1680,7 +1680,7 @@ class MADCompetition(Synthesis):
             Which index to take from the batch dimension (the first one)
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
+            None, we use the current ``synthesized_representation``
         figsize : tuple, optional
             The size of the figure to create
         ylim : tuple or None, optional
@@ -1854,7 +1854,7 @@ class MADCompetition(Synthesis):
             if imshow_zoom is None:
                 imshow_zoom = 1
             fig = pt.tools.display.make_figure(2, 2, [imshow_zoom * i for i in
-                                                      self.target_image.shape[2:]])
+                                                      self.base_signal.shape[2:]])
             axes = fig.axes
             axes = [clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                     for ax in axes]
@@ -1865,7 +1865,7 @@ class MADCompetition(Synthesis):
             axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]),
                     fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
         for ax, target in zip(axes, ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']):
-            if self.matched_image_all[target] is not None:
+            if self.synthesized_signal_all[target] is not None:
                 self.plot_synthesized_image(batch_idx, channel_idx, iteration, title, None, ax,
                                             imshow_zoom, vrange, target)
         return fig

@@ -26,8 +26,8 @@ class TestMetamers(object):
         metamer.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
         met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"),
                                          map_location=device)
-        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
-                  'matched_image', 'target_representation']:
+        for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
+                  'synthesized_signal', 'base_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
@@ -46,8 +46,8 @@ class TestMetamers(object):
         met_copy = po.synth.Metamer.load(op.join(tmp_path, 'test_metamer_save_load_reduced.pt'),
                                          po.simul.PrimaryVisualCortex.from_state_dict_reduced,
                                          map_location=device)
-        for k in ['target_image', 'saved_representation', 'saved_image', 'matched_representation',
-                  'matched_image', 'target_representation']:
+        for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
+                  'synthesized_signal', 'base_representation']:
             if not getattr(metamer, k).allclose(getattr(met_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same" % k)
 
@@ -116,7 +116,7 @@ class TestMetamers(object):
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True,
-                           initial_image=metamer.matched_image.detach().clone())
+                           initial_image=metamer.synthesized_signal.detach().clone())
 
     def test_metamer_animate(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -156,7 +156,7 @@ class TestMetamers(object):
         c = po.RangeClamper([image.min(), image.max()])
         M = po.synth.Metamer(im0, model)
 
-        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1, optimizer='SGD',
+        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1, optimizer='SGD',
                                                              fraction_removed=.1, clamper=c)
 
     def test_metamer_loss_change(self):

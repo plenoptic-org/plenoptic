@@ -213,27 +213,27 @@ class TestMAD(object):
                 raise Exception(f"Something went wrong with saving and loading! {k} and its _all"
                                 "version not properly synced")
         # check these attributes all saved correctly
-        for k in ['target_image', 'saved_representation_1', 'saved_image',
-                  'matched_representation_1', 'matched_image', 'target_representation_1',
-                  'saved_representation_2', 'matched_representation_2', 'target_representation_2']:
+        for k in ['base_signal', 'saved_representation_1', 'saved_signal',
+                  'synthesized_representation_1', 'synthesized_signal', 'base_representation_1',
+                  'saved_representation_2', 'synthesized_representation_2', 'base_representation_2']:
             if not getattr(mad, k).allclose(getattr(mad_copy, k)):
                 raise Exception("Something went wrong with saving and loading! %s not the same"
                                 % k)
-        assert not isinstance(mad_copy.matched_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
+        assert not isinstance(mad_copy.synthesized_representation, torch.nn.Parameter), "synthesized_rep shouldn't be a parameter!"
         # check loss functions correctly saved
-        mad_loss = mad.loss_function_1(mad.matched_representation_1, mad.target_representation_1,
-                                       mad.matched_image, mad.target_image)
-        mad_copy_loss = mad_copy.loss_function_1(mad_copy.matched_representation_1,
-                                                 mad_copy.target_representation_1,
-                                                 mad_copy.matched_image, mad_copy.target_image)
+        mad_loss = mad.loss_function_1(mad.synthesized_representation_1, mad.base_representation_1,
+                                       mad.synthesized_signal, mad.base_signal)
+        mad_copy_loss = mad_copy.loss_function_1(mad_copy.synthesized_representation_1,
+                                                 mad_copy.base_representation_1,
+                                                 mad_copy.synthesized_signal, mad_copy.base_signal)
         if mad_loss != mad_copy_loss:
             raise Exception(f"Loss function 1 not properly saved! Before saving was {mad_loss}, "
                             f"after loading was {mad_copy_loss}")
-        mad_loss = mad.loss_function_2(mad.matched_representation_2, mad.target_representation_2,
-                                       mad.matched_image, mad.target_image)
-        mad_copy_loss = mad_copy.loss_function_2(mad_copy.matched_representation_2,
-                                                 mad_copy.target_representation_2,
-                                                 mad_copy.matched_image, mad_copy.target_image)
+        mad_loss = mad.loss_function_2(mad.synthesized_representation_2, mad.base_representation_2,
+                                       mad.synthesized_signal, mad.base_signal)
+        mad_copy_loss = mad_copy.loss_function_2(mad_copy.synthesized_representation_2,
+                                                 mad_copy.base_representation_2,
+                                                 mad_copy.synthesized_signal, mad_copy.base_signal)
         if mad_loss != mad_copy_loss:
             raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
                             f"after loading was {mad_copy_loss}")

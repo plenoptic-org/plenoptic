@@ -11,7 +11,7 @@ class Metamer(Synthesis):
     a given model on a given image. We start with some random noise
     (typically, though users can choose to start with something else)
     and iterative adjust the pixel values so as to match the
-    representation of this metamer-to-be and the ``target_image``. This
+    representation of this metamer-to-be and the ``base_signal``. This
     is optimization though, so you'll probably need to experiment with
     the optimization hyper-parameters before you find a good solution.
 
@@ -47,7 +47,7 @@ class Metamer(Synthesis):
 
     Parameters
     ----------
-    target_image : torch.tensor or array_like
+    base_signal : torch.tensor or array_like
         A 2d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
@@ -63,7 +63,7 @@ class Metamer(Synthesis):
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the defualt:
         the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, target_rep, synth_img, target_img) and
+        arguments (synth_rep, base_rep, synth_img, base_img) and
         return some loss between them. Should probably be symmetric but
         that might not be strictly necessary
     model_kwargs :
@@ -74,15 +74,15 @@ class Metamer(Synthesis):
 
     Attributes
     ----------
-    target_representation : torch.tensor
-        Whatever is returned by ``model.foward(target_image)``, this is
+    base_representation : torch.tensor
+        Whatever is returned by ``model.foward(base_signal)``, this is
         what we match in order to create a metamer
-    matched_image : torch.tensor
+    synthesized_signal : torch.tensor
         The metamer. This may be unfinished depending on how many
         iterations we've run for.
-    matched_represetation: torch.tensor
-        Whatever is returned by ``model.forward(matched_image)``; we're
-        trying to make this identical to ``self.target_representation``
+    synthesized_represetation: torch.tensor
+        Whatever is returned by ``model.forward(synthesized_signal)``; we're
+        trying to make this identical to ``self.base_representation``
     loss : list
         A list of our loss over iterations.
     gradient : list
@@ -92,25 +92,25 @@ class Metamer(Synthesis):
         that gradually reduces this over time, so it won't be constant.
     saved_representation : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
-        True or an int>0, we will save ``self.matched_representation``
+        True or an int>0, we will save ``self.synthesized_representation``
         at each iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination.
-    saved_image : torch.tensor
+    saved_signal : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image`` at each
+        or an int>0, we will save ``self.synthesized_signal`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination.
     seed : int
         Number which we seeded pytorch and numpy's random number generators
-    saved_image_gradient : torch.tensor
+    saved_signal_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image.grad`` at each
+        or an int>0, we will save ``self.synthesized_signal.grad`` at each
         iteration (or each ``store_progress`` iteration, if it's an
         int), for later examination.
     saved_representation_gradient : torch.tensor
         If the ``store_progress`` arg in ``synthesize`` is set to
         True or an int>0, we will save
-        ``self.matched_representation.grad`` at each iteration (or each
+        ``self.synthesized_representation.grad`` at each iteration (or each
         ``store_progress`` iteration, if it's an int), for later
         examination.
     scales_loss : list
@@ -159,31 +159,31 @@ class Metamer(Synthesis):
 
     """
 
-    def __init__(self, target_image, model, loss_function=None, model_kwargs={},
+    def __init__(self, base_signal, model, loss_function=None, model_kwargs={},
                  loss_function_kwargs={}):
-        super().__init__(target_image, model, loss_function, model_kwargs, loss_function_kwargs)
+        super().__init__(base_signal, model, loss_function, model_kwargs, loss_function_kwargs)
 
-    def _init_matched_image(self, initial_image, clamper=RangeClamper((0, 1)),
+    def _init_synthesized_signal(self, initial_image, clamper=RangeClamper((0, 1)),
                             clamp_each_iter=True):
-        """initialize the matched image
+        """initialize the synthesized image
 
-        set the ``self.matched_image`` attribute to be a parameter with
+        set the ``self.synthesized_signal`` attribute to be a parameter with
         the user-supplied data, making sure it's the right shape and
         calling clamper on it, if set
 
-        also initialize the ``self.matched_representation`` attribute
+        also initialize the ``self.synthesized_representation`` attribute
 
         Parameters
         ----------
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            noise lying between 0 and 1 or, if ``self.saved_signal`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
-            None, will call ``clamper.clamp`` on matched_image
+            None, will call ``clamper.clamp`` on synthesized_signal
         clamp_each_iter : bool, optional
             If True (and ``clamper`` is not ``None``), we clamp every
             iteration. If False, we only clamp at the very end, after
@@ -192,15 +192,15 @@ class Metamer(Synthesis):
         if initial_image is None:
             try:
                 # then we have a previous run to resume
-                matched_image_data = self.saved_image[-1]
+                synthesized_signal_data = self.saved_signal[-1]
             except IndexError:
                 # else we're starting over
-                matched_image_data = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                     device=self.target_image.device)
+                synthesized_signal_data = torch.rand_like(self.base_signal, dtype=torch.float32,
+                                                     device=self.base_signal.device)
         else:
-            matched_image_data = torch.tensor(initial_image, dtype=torch.float32,
-                                              device=self.target_image.device)
-        super()._init_matched_image(matched_image_data.clone(), clamper, clamp_each_iter)
+            synthesized_signal_data = torch.tensor(initial_image, dtype=torch.float32,
+                                              device=self.base_signal.device)
+        super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
                    scheduler=True, optimizer='SGD', clamper=RangeClamper((0, 1)),
@@ -211,17 +211,17 @@ class Metamer(Synthesis):
         r"""synthesize a metamer
 
         This is the main method, trying to update the ``initial_image``
-        until its representation matches that of ``target_image``. If
+        until its representation matches that of ``base_signal``. If
         ``initial_image`` is not set, we initialize with
         uniformly-distributed random noise between 0 and 1 or, ``if
-        self.saved_image`` is not empty, we use the last value from
+        self.saved_signal`` is not empty, we use the last value from
         there (in order to make resuming synthesis easy).
 
-        NOTE: This means that the value of ``target_image`` should
+        NOTE: This means that the value of ``base_signal`` should
         probably lie between 0 and 1. If that's not the case, you might
         want to pass something to act as the initial image (because
         otherwise the range of the initial image will be very different
-        from that of the ``target_image``).
+        from that of the ``base_signal``).
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
@@ -231,10 +231,10 @@ class Metamer(Synthesis):
         sequence by setting ``initial_image`` to None.  (It's not
         recommended, but if ``store_progress==False`` and you want to
         resume an earlier run, you can do that by setting
-        ``initial_image`` equal to the ``matched_image`` this function
+        ``initial_image`` equal to the ``synthesized_signal`` this function
         returns (I would also detach and clone it just to be
         safe)). Everything that stores the progress of the optimization
-        (``loss``, ``saved_representation``, ``saved_image``) will
+        (``loss``, ``saved_representation``, ``saved_signal``) will
         persist between calls and so potentially get very large. To most
         directly resume where you left off, it's recommended you set
         ``learning_rate=None``, in which case we use the most recent
@@ -313,7 +313,7 @@ class Metamer(Synthesis):
         initial_image : torch.tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            noise lying between 0 and 1 or, if ``self.saved_signal`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
         seed : int or None, optional
@@ -350,7 +350,7 @@ class Metamer(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
+            same as True). If True or int>0, ``self.saved_signal``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
         save_progress : bool or int, optional
@@ -423,17 +423,17 @@ class Metamer(Synthesis):
 
         Returns
         -------
-        matched_image : torch.tensor
+        synthesized_signal : torch.tensor
             The metamer we've created
-        matched_representation : torch.tensor
+        synthesized_representation : torch.tensor
             The model's representation of the metamer
 
         """
         # set seed
         self._set_seed(seed)
 
-        # initialize matched_image
-        self._init_matched_image(initial_image, clamper, clamp_each_iter)
+        # initialize synthesized_signal
+        self._init_synthesized_signal(initial_image, clamper, clamp_each_iter)
 
         # initialize stuff related to coarse-to-fine and randomization
         self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
@@ -469,7 +469,7 @@ class Metamer(Synthesis):
         self._finalize_stored_progress()
 
         # return data
-        return self.matched_image.data, self.matched_representation.data
+        return self.synthesized_signal.data, self.synthesized_representation.data
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
@@ -489,9 +489,9 @@ class Metamer(Synthesis):
             much larger) ones it gets during run-time).
 
         """
-        attrs = ['model', 'matched_image', 'target_image', 'seed', 'loss', 'target_representation',
-                 'matched_representation', 'saved_representation', 'gradient', 'saved_image',
-                 'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
+        attrs = ['model', 'synthesized_signal', 'base_signal', 'seed', 'loss', 'base_representation',
+                 'synthesized_representation', 'saved_representation', 'gradient', 'saved_signal',
+                 'learning_rate', 'saved_representation_gradient', 'saved_signal_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
                  'scales_finished', 'store_progress', 'save_progress', 'save_path']
         super().save(file_path, save_model_reduced,  attrs)
@@ -532,9 +532,9 @@ class Metamer(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['target_image', 'target_representation', 'matched_image',
-                 'matched_representation', 'saved_image', 'saved_representation',
-                 'saved_image_gradient', 'saved_representation_gradient']
+        attrs = ['base_signal', 'base_representation', 'synthesized_signal',
+                 'synthesized_representation', 'saved_signal', 'saved_representation',
+                 'saved_signal_gradient', 'saved_representation_gradient']
         return super().to(*args, attrs=attrs, **kwargs)
 
     @classmethod
