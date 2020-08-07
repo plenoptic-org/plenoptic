@@ -1374,7 +1374,8 @@ class MADCompetition(Synthesis):
         attrs = list(set(attrs))
         # add the attributes not included above
         attrs += ['seed', 'scales', 'scales_timing', 'scales_loss', 'scales_finished',
-                  'store_progress', 'save_progress', 'save_path', 'synthesis_target']
+                  'store_progress', 'save_progress', 'save_path', 'synthesis_target',
+                  'coarse_to_fine']
         super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
 
     @classmethod
