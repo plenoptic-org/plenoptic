@@ -75,6 +75,24 @@ Another example specifying a test method in the command line:
 pytest test_mod.py::TestClass::test_method
 ```
 
+### Adding tests 
+
+New tests can be added in any of the existing `tests/test_*.py` scripts. Tests
+should be functions, contained within classes. The class contains a bunch of
+related tests (e.g., metamers, metrics), and each test should ideally be a unit
+test, only testing one thing. The classes should be named `TestSomething`, while
+test functions should be named `test_something` in snakecase.
+
+If you're adding a substantial bunch of tests that are separate from the
+existing ones, you can create a new test script. Its name must begin with
+`test_` and it must be contained within the `tests` directory. Additionally, you
+should add its name to the `env` section of `.travis.yml` (this enables us to
+run tests in parallel). For example, say you create a new script
+`tests/test_awesome.py`. You should then open up `.travis.yml` and add a new
+line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
+indented). **Do not** edit the `script` section -- if you did the above
+correctly, Travis will correctly run your new script.
+
 ## Build the documentation
 
 NOTE: We currently don't have a readthedocs page set up, because they
