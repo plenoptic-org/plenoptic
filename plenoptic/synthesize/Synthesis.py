@@ -18,7 +18,7 @@ import dill
 from ..tools.metamer_utils import RangeClamper
 
 
-class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
+class Synthesis(metaclass=abc.ABCMeta):
     r"""Abstract super-class for synthesis methods
 
     All synthesis methods share a variety of similarities and thus need
@@ -78,7 +78,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
     """
     def __init__(self, base_signal, model, loss_function, model_kwargs={}, loss_function_kwargs={}):
-        super().__init__()
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
         # necessary
