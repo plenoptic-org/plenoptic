@@ -285,11 +285,6 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
     return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
 
 
-def color_to_grayscale(img):
-    """Takes weighted sum of RGB channels to return a grayscale image"""
-
-    gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
-    return gray
 
 
 class Eigendistortion(nn.Module):
@@ -391,27 +386,27 @@ class Eigendistortion(nn.Module):
         Parameters
         ----------
         method: str, optional
-            Eigensolver method {'jacobian', 'block', 'power', 'lanczos'}. Jacobian tries to do
-            eigendecomposition directly (not recommended for very large matrices). 'power' (default) uses the power
-            method to compute first and last eigendistortions, with maximum number of iterations dictated by n_steps.
-            'lanczos' uses the Arnoldi iteration algorithm to estimate the _entire_ eigenspectrum and thus more than
-            just two eigendistortions, as opposed to the power method. Note: 'lanczos' method is experimental and may be
-            numerically unstable. We recommend using the power method.
+            Eigensolver method {'jacobian', 'power', 'lanczos'}. Jacobian tries to do eigendecomposition directly (
+            not recommended for very large matrices). 'power' (default) uses the power method to compute first and
+            last eigendistortions, with maximum number of iterations dictated by n_steps. 'lanczos' uses the Arnoldi
+            iteration algorithm to estimate the _entire_ eigenspectrum and thus more than just two eigendistortions,
+            as opposed to the power method. Note: 'lanczos' method is experimental and may be numerically unstable.
+            We recommend using the power method.
         e_vecs: iterable, optional
-            Integer list of which eigenvectors to return.
+            Integer list of which eigenvectors to return for ``method='lanczos'``.
         tol: float, optional
             Tolerance for error criterion in power iteration.
         n_steps: int, optional
-            Total steps to run for power iteration in eigenvalue computation.
+            Total steps to run for ``method='power'`` or ``method='lanczos'`` in eigenvalue computation.
         seed: int, optional
             Control the random seed for reproducibility.
         verbose: bool, optional
-            Show progress during power iteration and Lanczos methods.
+            Show progress during ``method='power'`` or ``method='lanczos'``.
         print_every: int, optional
             Prints progress of iterative method after every ``print_every`` steps.
         debug_A: torch.Tensor, optional
             Explicit Fisher Information Matrix in the form of 2D tensor. Used to debug lanczos algorithm.
-            Dimensionality must be torch.Size(N, N).
+            Dimensionality must be torch.Size([N, N]) where N is the flattened input size.
 
         Returns
         -------
@@ -487,9 +482,16 @@ class Eigendistortion(nn.Module):
             List of torch.Tensor images, each with ``torch.Size(img_height, im_width)``.
         """
 
-        imgs = [vecs[:,i].reshape(self.image.shape).squeeze()for i in range(vecs.shape[1])]
+        imgs = [vecs[:, i].reshape(self.image.shape).squeeze()for i in range(vecs.shape[1])]
 
         return imgs
+
+    @staticmethod
+    def color_to_grayscale(img):
+        """Takes weighted sum of RGB channels to return a grayscale image"""
+
+        gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
+        return gray
 
     def display(self, alpha=5., beta=10., **kwargs):
         r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
@@ -512,8 +514,8 @@ class Eigendistortion(nn.Module):
         if self.color_image:
             print('Collapsing color image to grayscale for display')
             image = self.image.mean(dim=1).squeeze()
-            max_dist = color_to_grayscale(self.distortions['eigenvectors'][0]).squeeze()
-            min_dist = color_to_grayscale(self.distortions['eigenvectors'][-1]).squeeze()
+            max_dist = self.color_to_grayscale(self.distortions['eigenvectors'][0]).squeeze()
+            min_dist = self.color_to_grayscale(self.distortions['eigenvectors'][-1]).squeeze()
         else:
             image = self.image.squeeze()
             max_dist = self.distortions['eigenvectors'][0]
