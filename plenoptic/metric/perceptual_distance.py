@@ -8,9 +8,7 @@ from ..simulate.canonical_computations import local_gain_control, rectangular_to
 import os
 dirname = os.path.dirname(__file__)
 
-# TODO
-# clean up, test and document (MS)SSIM
-
+# TODO: clean up, test and document (MS)SSIM
 
 def gaussian(window_size, sigma):
     gauss = torch.tensor([np.exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)])
@@ -252,8 +250,6 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
 
     spatially local normalization pool
 
-    TODO
-
     under construction
     """
 
@@ -279,7 +275,7 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     return torch.stack(dist).mean()
 
 
-# # TODO:
+# # TODO: Spectral Residual based Similarity
 # function sim = SR_SIM(image1, image2)
 # % ========================================================================
 # % SR_SIM Index with automatic downsampling, Version 1.0

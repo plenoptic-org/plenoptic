@@ -40,7 +40,7 @@ class Texture_Statistics(nn.Module):
     http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
     http://www.cns.nyu.edu/~lcv/texture/
 
-    TODO
+    TODO: finalize texture statistics
     ----
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
 
@@ -85,14 +85,12 @@ class Texture_Statistics(nn.Module):
         # STATISTIC: statg0 or the pixel statistics
         statg0 = torch.stack((mean0, var0, skew0, kurt0, mn0, mx0)).view(6, 1)
 
-
         # get pyramid coefficients
         pyr0 = self.pyr.forward(image)
 
         # subtract mean of lowBand
         nbands = len(pyr0)
         pyr0[-1] = (pyr0[-1])-torch.mean((pyr0[-1]))
-
 
         apyr0 = []
         rpyr0 = []
@@ -130,7 +128,7 @@ class Texture_Statistics(nn.Module):
         im = mpyr[0].squeeze()
 
         # Find the auto-correlation of the low-pass residual
-        Sch = torch.min(torch.tensor(ch.shape[-2:]))
+        Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales], vari = self.compute_autocorr(im)
@@ -147,7 +145,6 @@ class Texture_Statistics(nn.Module):
                 le = int(np.min((Sch/2-1, la)))
                 # Find the auto-correlation of the magnitude band
                 ace[la-le:la+le+1, la-le:la+le+1, n_scales, nor], vari = self.compute_autocorr(ch)
-
 
             ch = self.pyr.unoriented_bands[n_scales].squeeze()
 
@@ -317,7 +314,7 @@ class Texture_Statistics(nn.Module):
 
     def compute_autocorr(self,ch):
 
-        Sch = torch.min(torch.tensor(ch.shape[-2:]))
+        Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
 
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
