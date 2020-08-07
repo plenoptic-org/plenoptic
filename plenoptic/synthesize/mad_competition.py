@@ -256,8 +256,8 @@ class MADCompetition(Synthesis):
         super().__init__(base_signal, model_1, loss_function, model_1_kwargs, loss_function_kwargs)
 
         # initialize the MAD-specific attributes
-        self.loss_sign = 1
-        self.step = 'main'
+        self._loss_sign = 1
+        self._step = 'main'
         self.nu = []
         self.initial_image = None
 
@@ -283,7 +283,7 @@ class MADCompetition(Synthesis):
             def wrapped_model_2(synth_rep, ref_rep, synth_img, ref_img):
                 return model_2(synth_rep, ref_rep, **model_2_kwargs)
             self.loss_function_2 = wrapped_model_2
-            self.rep_warning = True
+            self._rep_warning = True
 
         self.update_target('model_1_min', 'fix')
         self.base_representation_2 = self.analyze(self.base_signal)
@@ -418,10 +418,10 @@ class MADCompetition(Synthesis):
         synth_direction = synthesis_target.split('_')[2]
         if step == 'main':
             num = model_num
-            self.loss_sign = {'min': 1, 'max': -1}[synth_direction]
+            self._loss_sign = {'min': 1, 'max': -1}[synth_direction]
         else:
             num = other_model_num
-            self.loss_sign = 1
+            self._loss_sign = 1
         self._names.update({'model': f'model_{num}',
                             'base_representation': f'base_representation_{num}',
                             'synthesized_representation': f'synthesized_representation_{num}',
@@ -541,7 +541,7 @@ class MADCompetition(Synthesis):
         each iteration of synthesis, we update the image twice: once to
         do our best to minimize/maximize one model's loss, and once to
         correct the image so that the other model's loss hasn't changed
-        by much. We do this by checking ``self.step``: if ``'main'``, we
+        by much. We do this by checking ``self._step``: if ``'main'``, we
         minimize/maximize the first model's loss; if ``'fix'``, we
         correct for the second model's loss. (note that which model in
         the desription above corresponds to the attributes
@@ -552,13 +552,13 @@ class MADCompetition(Synthesis):
 
         """
         # the main step corresponds to equation C3 in the paper
-        if self.step == "main":
+        if self._step == "main":
             # grab model_stable's gradient
             self.update_target(self.synthesis_target, 'fix')
             loss_stable = super()._closure()
             grad_stable = self.synthesized_signal.grad.clone()
             # grab model_target's gradient
-            self.update_target(self.synthesis_target, self.step)
+            self.update_target(self.synthesis_target, self._step)
             loss_target = super()._closure()
             grad_target = self.synthesized_signal.grad.clone()
             # we do this reshaping to make these vectors so that this matmul
@@ -572,9 +572,9 @@ class MADCompetition(Synthesis):
             # return model_target's loss
             return loss_target
         # the fix step corresponds to equation C5 in the paper
-        elif self.step == 'fix':
+        elif self._step == 'fix':
             # grab model_stable's gradient
-            self.update_target(self.synthesis_target, self.step)
+            self.update_target(self.synthesis_target, self._step)
             loss = super()._closure()
             grad = self.synthesized_signal.grad.clone()
             # find the best nu
@@ -596,10 +596,10 @@ class MADCompetition(Synthesis):
         our two models at the same magnitude (normalizing by their
         initial loss)
 
-        Finally, we also multiply the loss by ``self.loss_sign``,
+        Finally, we also multiply the loss by ``self._loss_sign``,
         because sometimes we want to minimize the loss and sometimes we
         want to maximize it; maximizing the loss is the same as
-        minimizing its negative (the setting of ``self.loss_sign`` is
+        minimizing its negative (the setting of ``self._loss_sign`` is
         handled automatically by the ``update_target()`` method)
 
         Parameters
@@ -623,7 +623,7 @@ class MADCompetition(Synthesis):
         loss = super().objective_function(synth_rep, ref_rep, synth_img, ref_img)
         if norm_loss:
             loss = loss / self.loss_norm
-        return self.loss_sign * loss
+        return self._loss_sign * loss
 
     def _init_synthesized_signal(self, initial_noise=None, clamper=RangeClamper((0, 1)),
                             clamp_each_iter=True, norm_loss=True):
@@ -676,7 +676,7 @@ class MADCompetition(Synthesis):
             # that initial noise can take us outside the clamper
             self.initial_image.data = clamper.clamp(self.initial_image.data)
         self.initial_representation = self.analyze(self.initial_image)
-        # if synthesis target is model_1/2_max, then loss_sign is
+        # if synthesis target is model_1/2_max, then _loss_sign is
         # negative (for main step; because minimizing the negative of
         # the loss is the same as maximizing it). But if we include the
         # negative in both the regular calculation of the loss and the
@@ -1123,7 +1123,7 @@ class MADCompetition(Synthesis):
             # then update synthesized_signal to try and min or max (depending
             # on synthesis_target) the targeted model
             self.update_target(self.synthesis_target, 'main')
-            self.step = 'main'
+            self._step = 'main'
             loss, g, lr = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
             self.loss.append(abs(loss.item()))
             self.gradient.append(g.item())
@@ -1131,7 +1131,7 @@ class MADCompetition(Synthesis):
             # finally, update synthesized_signal to try and keep the stable
             # model's loss constant
             self.update_target(self.synthesis_target, 'fix')
-            self.step = 'fix'
+            self._step = 'fix'
             self._optimizer_step()
 
             if self._check_nan_loss(loss):

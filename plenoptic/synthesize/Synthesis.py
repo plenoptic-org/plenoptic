@@ -82,13 +82,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
         # necessary
-        self.use_subset_for_gradient = False
+        self._use_subset_for_gradient = False
 
         if not isinstance(base_signal, torch.Tensor):
             base_signal = torch.tensor(base_signal, dtype=torch.float32)
         self.base_signal = base_signal
         self.seed = None
-        self.rep_warning = False
+        self._rep_warning = False
 
         if loss_function is None:
             loss_function = l2_norm
@@ -110,7 +110,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             def wrapped_model(synth_rep, ref_rep, synth_img, ref_img):
                 return model(synth_rep, ref_rep, **model_kwargs)
             self.loss_function = wrapped_model
-            self.rep_warning = True
+            self._rep_warning = True
 
         self.base_representation = self.analyze(self.base_signal)
         self.synthesized_signal = None
@@ -229,7 +229,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         if fraction_removed > 0 or loss_change_fraction < 1:
-            self.use_subset_for_gradient = True
+            self._use_subset_for_gradient = True
             if isinstance(self.model, Identity):
                 raise Exception("Can't use fraction_removed or loss_change_fraction with metrics!"
                                 " Since most of the metrics rely on the image being correctly "
@@ -815,7 +815,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         torch.Tensor
 
         """
-        if self.rep_warning:
+        if self._rep_warning:
             warnings.warn("Since at least one of your models is a metric, its representation_error"
                           " will be meaningless -- it will just show the pixel-by-pixel difference"
                           ". (Your loss is still meaningful, however, since it's the actual "
@@ -977,7 +977,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if self.store_progress:
             self.synthesized_representation.retain_grad()
 
-        if self.use_subset_for_gradient:
+        if self._use_subset_for_gradient:
             # here we get a boolean mask (bunch of ones and zeroes) for all
             # the statistics we want to include. We only do this if the loss
             # appears to be roughly unchanging for some number of iterations
