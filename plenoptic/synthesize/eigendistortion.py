@@ -285,9 +285,7 @@ def lanczos(y, x, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_
     return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
 
 
-
-
-class Eigendistortion(nn.Module):
+class Eigendistortion:
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
 
     Attributes

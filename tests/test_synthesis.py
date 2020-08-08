@@ -19,6 +19,7 @@ DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 SMALL_DIM = 20
 LARGE_DIM = 100
 
+
 def get_synthesis_object(im_dim=20):
     r""" Helper for Pytests. Instantiates Eigendistortion object for FrontEnd model.
 
@@ -38,12 +39,12 @@ def get_synthesis_object(im_dim=20):
     img_np = img[:im_dim, :im_dim] / np.max(img)
     img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(device)
 
-    ed = Eigendistortion(img, mdl, dtype=torch.float32).to(device)
+    ed = Eigendistortion(img, mdl, dtype=torch.float32)
 
     return ed
 
 
-class TestEigendistortionSynthesis(object):
+class TestEigendistortionSynthesis:
 
     def test_input_dimensionality(self):
         mdl = Front_End().to(device)
@@ -134,9 +135,10 @@ class TestEigendistortionSynthesis(object):
         assert e_pow.distortions['eigenvalues'][1].isclose(e_jac.distortions['eigenvalues'][-1], atol=1e-3)
 
 
-class TestAutodiffFunctions(object):
+class TestAutodiffFunctions:
 
-    def _state(self):
+    @staticmethod
+    def _state():
         """variables to be reused across tests in this class"""
         torch.manual_seed(0)
 
