@@ -447,7 +447,7 @@ class Eigendistortion:
 
             self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).squeeze()
             self.distortions['eigenvectors'] = self.vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
-            self.distortions['eigenvector_index'] = [0, len(self.image_flattensor)]
+            self.distortions['eigenvector_index'] = [0, len(self.image_flattensor) - 1]
 
         elif method == 'lanczos' and n_steps is not None:
             eig_vals, eig_vecs, eig_vecs_ind = lanczos(self.out_flattensor, self.image_flattensor, n_steps=n_steps,
