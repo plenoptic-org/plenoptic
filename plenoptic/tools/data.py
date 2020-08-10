@@ -11,10 +11,13 @@ DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
 def to_numpy(x):
     r"""cast tensor to numpy in the most conservative way possible
+
     Parameters
     ----------------
-    x: x is a torch tensor
+    x: `torch.Tensor`
+       Tensor to be converted to `numpy.ndarray` on CPU.
     """
+
     try:
         x = x.detach().cpu().numpy().astype(np.float32)
     except AttributeError:
@@ -22,34 +25,37 @@ def to_numpy(x):
         pass
     return x
 
+
 def torch_complex_to_numpy(x):
     r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
     to a numpy complex array
 
     Parameters
     ----------------------
-    x: assumes x is a torch tensor with last dimension of size 2 where first component is the real
-    component and the second is the imaginary component
+    x: `torch.Tensor`
+        Tensor whose last dimension is size 2 where first component is the real component and the second is the
+        imaginary component.
     """
+
     x_np = to_numpy(x)
     x_np = x_np[...,0] + 1j * x_np[...,1]
     return x_np
 
+
 def convert_pyr_to_tensor(pyr_coeffs, exclude = [], is_complex = True):
-    r"""
-    Function that takes a torch pyramid and converts the output into a single tensor
-    of BxCxHxW for use in an nn module downstream.
+    r""" Function that takes a torch pyramid and converts the output into a single tensor
+    of `torch.Size([B, C, H, W])` for use in an `nn.Module` downstream.
 
     Parameters
     ----------
     pyr_coeffs: `OrderedDict`
-        the pyramid coefficients
+        Steerable pyramid coefficients
     exclude: `list`
-        list of bands to include, can include 'residual_lowpass', 'residual_highpass' or tuple (ind, ind)
+        List of bands to include, can include 'residual_lowpass', 'residual_highpass' or tuple (ind, ind).
     is_complex: `bool`
-        boolean indicating whether complex pyramid is used or not
-
+        Boolean indicating whether or not complex pyramid is used.
     """
+
     coeff_list = []
     coeff_list_resid = []
     for k in pyr_coeffs.keys():
@@ -72,13 +78,16 @@ def convert_pyr_to_tensor(pyr_coeffs, exclude = [], is_complex = True):
 
     return coeff_out
 
+
 def make_basic_stimuli(size=256, requires_grad=True):
     r""" Make basic stimuli for testing models etc.
 
     Parameters
-    ------------------------------------
-    size: size for stimuli (shape: sizexsize)
-    requires_grad: does the image have requires gradients
+    ----------
+    size: `int`
+        Stimulus will have `torch.Size([size, size])`
+    requires_grad: `bool`
+        Does the image require gradients
     """
     assert size in [32, 64, 128, 256, 512], 'size not supported'
     impulse = np.zeros((size, size))

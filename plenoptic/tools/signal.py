@@ -4,35 +4,35 @@ from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
 def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, even_phase=True):
-    '''Steer BASIS to the specfied ANGLE.
+    """Steer BASIS to the specfied ANGLE.
 
     Parameters
     ----------
-    basis : `array_like`
+    basis : array_like
         array whose columns are vectorized rotated copies of a steerable function, or the responses
         of a set of steerable filters.
-    angle : `array_like` or `int`
+    angle : array_like or int
         scalar or column vector the size of the basis. specifies the angle(s) (in radians) to
         steer to
-    harmonics : `list` or None
+    harmonics : list or None
         a list of harmonic numbers indicating the angular harmonic content of the basis. if None
         (default), N even or odd low frequencies, as for derivative filters
-    steermtx : `array_like` or None.
+    steermtx : array_like or None
         matrix which maps the filters onto Fourier series components (ordered [cos0 cos1 sin1 cos2
         sin2 ... sinN]). See steer_to_harmonics_mtx function for more details. If None (default),
         assumes cosine phase harmonic components, and filter positions at 2pi*n/N.
-    return_weights : `bool`
+    return_weights : bool
         whether to return the weights or not.
-    even_phase : `bool`
+    even_phase : bool
         specifies whether the harmonics are cosine or sine phase aligned about those positions.
 
     Returns
     -------
-    res : `np.array`
+    res : np.ndarray
         the resteered basis
-    steervect : `np.array`
-        the weights used to resteer the basis. only returned if `return_weights` is True
-    '''
+    steervect : np.ndarray
+        the weights used to resteer the basis. only returned if ``return_weights`` is True
+    """
 
     num = basis.shape[-1]
     device = basis.device
@@ -41,8 +41,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:
-            raise Exception("""ANGLE must be a scalar, or a column vector
-                                    the size of the basis elements""")
+            raise Exception("""ANGLE must be a scalar, or a column vector the size of the basis elements""")
 
     # If HARMONICS is not specified, assume derivatives.
     if harmonics is None:
@@ -59,8 +58,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
 
     # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
     if steermtx is None:
-        steermtx = steer_to_harmonics_mtx(harmonics, np.pi * np.arange(num) / num,
-                                          even_phase=even_phase)
+        steermtx = steer_to_harmonics_mtx(harmonics, np.pi * np.arange(num) / num, even_phase=even_phase)
 
     steervect = np.zeros((angle.shape[0], num))
     arg = angle * harmonics[np.nonzero(harmonics)[0]].T
@@ -74,7 +72,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
 
     steervect = np.dot(steervect, steermtx)
 
-    steervect = torch.tensor(steervect, dtype = basis.dtype).to(device)
+    steervect = torch.tensor(steervect, dtype=basis.dtype).to(device)
     if steervect.shape[0] > 1:
         tmp = basis @ steervect
         res = tmp.sum().t()
@@ -97,11 +95,27 @@ def rescale(x, a=0, b=1):
 
 
 def roll_n(X, axis, n):
+    r""" Helper for ``fftshift``. Performs circular shift by n indices along given axis.
+    shifts by ``n_shift``
+    Parameters
+    ----------
+    X: torch.Tensor
+        Signal or frequency domain
+    axis: int
+        Axis along which to roll
+    n: int
+        How many indices to circularly shift
+    Returns
+    -------
+    rolled: torch.Tensor
+
+    """
     f_idx = tuple(slice(None, None, None) if i != axis else slice(0, n, None) for i in range(X.dim()))
     b_idx = tuple(slice(None, None, None) if i != axis else slice(n, None, None) for i in range(X.dim()))
     front = X[f_idx]
     back = X[b_idx]
-    return torch.cat([back, front], axis)
+    rolled = torch.cat([back, front], axis)
+    return rolled
 
 
 def batch_fftshift(x):
@@ -123,7 +137,7 @@ def batch_fftshift(x):
 
 
 def batch_ifftshift(x):
-    r"""The inverse of 'batch_fftshift.
+    r"""The inverse of ``batch_fftshift``.
     The input x is expected to have real and imaginary parts along the last dimension.
     """
     real, imag = torch.unbind(x, -1)
@@ -138,19 +152,19 @@ def batch_ifftshift(x):
 
 
 def rcosFn(width=1, position=0, values=(0, 1)):
-    '''Return a lookup table containing a "raised cosine" soft threshold function
+    """Return a lookup table containing a "raised cosine" soft threshold function
 
     Y =  VALUES(1) + (VALUES(2)-VALUES(1)) * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
 
     this lookup table is suitable for use by `pointOp`
 
-    Arguments
+    Parameters
     ---------
-    width : `float`
+    width : float
         the width of the region over which the transition occurs
-    position : `float`
+    position : float
         the location of the center of the threshold
-    values : `tuple`
+    values : tuple
         2-tuple specifying the values to the left and right of the transition.
 
     Returns
@@ -159,7 +173,7 @@ def rcosFn(width=1, position=0, values=(0, 1)):
         the x valuesof this raised cosine
     Y : `np.array`
         the y valuesof this raised cosine
-    '''
+    """
 
     sz = 256   # arbitrary!
 
@@ -177,20 +191,35 @@ def rcosFn(width=1, position=0, values=(0, 1)):
 
 
 def pointOp(im, Y, X):
+    r""" Wrapper function to ``np.interp()`` Returns piecewise linear interpolant to function with given discrete
+    datapoints (X, Y), evaluated at image.
+
+    Parameters
+    ----------
+    im: torch.Tensor
+    Y: array_like
+    X: array_like
+
+    Returns
+    -------
+    Interpolated image
+    """
+
     out = np.interp(im.flatten(), X, Y)
 
     return np.reshape(out, im.shape)
 
 
 def rectangular_to_polar(real, imaginary):
-    """Rectangular to polar coordinate transform
+    r"""Rectangular to polar coordinate transform
 
-    Argument
+    Parameters
     --------
     real: torch.Tensor
         tensor containing the real component
     imaginary: torch.Tensor
         tensor containing the imaginary component
+
     Returns
     -------
     amplitude: torch.Tensor
@@ -204,20 +233,22 @@ def rectangular_to_polar(real, imaginary):
     numbers are represented as an extra dimension in the tensor of interest, the user needs to index through
     that dimension.
     """
+
     amplitude = torch.sqrt(real ** 2 + imaginary ** 2)
     phase = torch.atan2(imaginary, real)
     return amplitude, phase
 
 
 def polar_to_rectangular(amplitude, phase):
-    """Polar to rectangular coordinate transform
+    r"""Polar to rectangular coordinate transform
 
-    Argument
-    --------
+    Parameters
+    ----------
     amplitude: torch.Tensor
         tensor containing the amplitude (aka. complex modulus)
     phase: torch.Tensor
         tensor containing the phase
+
     Returns
     -------
     real: torch.Tensor
@@ -225,6 +256,7 @@ def polar_to_rectangular(amplitude, phase):
     imaginary: torch.Tensor
         tensor containing the imaginary component
     Note
+
     ----
     Since complex numbers are not supported by pytorch, this function returns two tensors of the same shape.
     One containing the real component, one containing the imaginary component.
@@ -235,6 +267,20 @@ def polar_to_rectangular(amplitude, phase):
 
 
 def power_spectrum(x, log=True):
+    """ Returns the fft shifted power spectrum or log power spectrum of a signal.
+
+    Parameters
+    ----------
+    x: torch.Tensor
+        Signal tensor
+    log: bool
+        Whether or not to take the log of the power. A small epsilon=1e-5 is added to avoid log(0) errors.
+    Returns
+    -------
+    sp_power: torch.Tensor
+        Power spectrum of signal
+
+    """
 
     sp = torch.rfft(x, signal_ndim=2, onesided=False)
     sp = batch_fftshift(sp)
@@ -248,6 +294,25 @@ def power_spectrum(x, log=True):
 
 
 def make_disk(img_size, outer_radius=None, inner_radius=None):
+    r""" Create a circularr mask with softened edges to element-wise multiply with an image.
+    All values within ``inner_radius`` will be 1, and all values from ``inner_radius`` to ``outer_radius`` will decay
+    smoothly to 0.
+
+    Parameters
+    ----------
+    img_size: int
+        Size of square image in pixels.
+    outer_radius: float, optional
+        Total radius of disk. Values from ``inner_radius`` to ``outer_radius`` will decay smoothly to zero.
+    inner_radius: float, optional
+        Radius of inner disk. All elements from the origin to ``inner_radius`` will be set to 1.
+
+    Returns
+    -------
+    mask: torch.Tensor
+        Mask with torch.Size([img_size, img_size]).
+
+    """
 
     if outer_radius is None:
         outer_radius = (img_size-1) / 2
