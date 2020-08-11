@@ -207,7 +207,8 @@ def add_noise(img, noise_mse):
     img : torch.tensor
         the image to make noisy
     noise_mse : float or list
-        the target MSE value. More than one value is allowed
+        the target MSE value / variance of the noise. More than one value is
+        allowed
 
     Returns
     -------

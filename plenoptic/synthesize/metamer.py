@@ -18,6 +18,15 @@ class Metamer(Synthesis):
     or functions, which correspond to using a visual model or metric,
     respectively. See the `MAD_Competition` notebook for more details on this.
 
+    All ``saved_`` attributes are initialized as empty lists and will be
+    non-empty if the ``store_progress`` arg to ``synthesize()`` is not
+    ``False``. They will be appended to on every iteration if
+    ``store_progress=True`` or every ``store_progress`` iterations if it's an
+    ``int``.
+
+    All ``scales`` attributes will only be non-None if ``coarse_to_fine`` is
+    not ``False``. See ``Metamer`` tutorial for more details.
+
     Parameters
     ----------
     base_signal : torch.tensor or array_like
@@ -41,16 +50,17 @@ class Metamer(Synthesis):
     Attributes
     ----------
     base_representation : torch.tensor
-        Whatever is returned by ``model.foward(base_signal)``, this is
+        Whatever is returned by ``model(base_signal)``, this is
         what we match in order to create a metamer
     synthesized_signal : torch.tensor
         The metamer. This may be unfinished depending on how many
         iterations we've run for.
     synthesized_represetation: torch.tensor
-        Whatever is returned by ``model.forward(synthesized_signal)``; we're
+        Whatever is returned by ``model(synthesized_signal)``; we're
         trying to make this identical to ``self.base_representation``
     seed : int
-        Number which we seeded pytorch and numpy's random number generators
+        Number with which we seeded pytorch and numpy's random number
+        generators
     loss : list
         A list of our loss over iterations.
     gradient : list
@@ -58,62 +68,24 @@ class Metamer(Synthesis):
     learning_rate : list
         A list of the learning_rate over iterations. We use a scheduler
         that gradually reduces this over time, so it won't be constant.
-    saved_representation : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to
-        True or an int>0, we will save ``self.synthesized_representation``
-        at each iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    saved_signal : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.synthesized_signal`` at each
-        iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    saved_signal_gradient : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.synthesized_signal.grad`` at each
-        iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    saved_representation_gradient : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to
-        True or an int>0, we will save
-        ``self.synthesized_representation.grad`` at each iteration (or each
-        ``store_progress`` iteration, if it's an int), for later
-        examination.
-    scales_loss : list
-        If ``coarse_to_fine`` is not False, this contains the
-        scale-specific loss at each iteration (that is, the loss
-        computed on just the scale(s) we're optimizing on that
-        iteration; which we use to determine when to switch scales). If
-        ``coarse_to_fine=='together'``, then this will not include the
-        coarsest scale, since that scale is equivalent to 'all'.If
-        ``coarse_to_fine`` is False, this will be empty
+    saved_signal : torch.tensor or list
+        Saved ``self.synthesized_signal`` for later examination.
+    saved_representation : torch.tensor or list
+        Saved ``self.synthesized_representation`` for later examination.
+    saved_signal_gradient : torch.tensor or list
+        Saved ``self.synthesized_signal.grad`` for later examination.
+    saved_representation_gradient : torch.tensor or list
+        Saved ``self.synthesized_representation.grad`` for later examination.
     scales : list or None
-        If ``coarse_to_fine`` is not False, this is a list of the scales
-        in optimization order (i.e., from coarse to fine). The last
-        entry will be 'all' (since after we've optimized each individual
-        scale, we move on to optimizing all at once) This will be
-        modified by the synthesize() method and is used to track which
-        scale we're currently optimizing (the first one). When we've
-        gone through all the scales present, this will just contain a
-        single value: 'all'. If ``coarse_to_fine=='together'``, then
-        this will never include the coarsest scale, since that scale is
-        equivalent to 'all'. If ``coarse_to_fine`` is False, this will
-        be None.
+        The list of scales in optimization order (i.e., from coarse to fine).
+        Will be modified during the course of optimization.
+    scales_loss : list or None
+        The scale-specific loss at each iteration
     scales_timing : dict or None
-        If ``coarse_to_fine`` is not False, this is a dictionary whose
-        keys are the values of scales. The values are lists, with 0
-        through 2 entries: the first entry is the iteration where we
-        started optimizing this scale, the second is when we stopped
-        (thus if it's an empty list, we haven't started optimzing it
-        yet). If ``coarse_to_fine=='together'``, then this will not
-        include the coarsest scale, since that scale is equivalent to
-        'all'. If ``coarse_to_fine`` is False, this will be None.
+        Keys are the values found in ``scales``, values are lists, specifying
+        the iteration where we started and stopped optimizing this scale.
     scales_finished : list or None
-        If ``coarse_to_fine`` is not False, this is a list of the scales
-        that we've finished optimizing (in the order we've finished).
-        If ``coarse_to_fine=='together'``, then this will never include
-        the coarsest scale, since that scale is equivalent to 'all'. If
-        ``coarse_to_fine`` is False, this will be None.
+        List of scales that we've finished optimizing.
 
     References
     -----
@@ -130,7 +102,7 @@ class Metamer(Synthesis):
         super().__init__(base_signal, model, loss_function, model_kwargs, loss_function_kwargs)
 
     def _init_synthesized_signal(self, initial_image, clamper=RangeClamper((0, 1)),
-                            clamp_each_iter=True):
+                                 clamp_each_iter=True):
         """initialize the synthesized image
 
         set the ``self.synthesized_signal`` attribute to be a parameter with
@@ -174,119 +146,26 @@ class Metamer(Synthesis):
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
                    fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
                    coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
-        r"""synthesize a metamer
+        r"""Synthesize a metamer
 
-        This is the main method, trying to update the ``initial_image``
-        until its representation matches that of ``base_signal``. If
-        ``initial_image`` is not set, we initialize with
-        uniformly-distributed random noise between 0 and 1 or, ``if
-        self.saved_signal`` is not empty, we use the last value from
-        there (in order to make resuming synthesis easy).
-
-        NOTE: This means that the value of ``base_signal`` should
-        probably lie between 0 and 1. If that's not the case, you might
-        want to pass something to act as the initial image (because
-        otherwise the range of the initial image will be very different
-        from that of the ``base_signal``).
+        This is the main method, which updates the ``initial_image`` until its
+        representation matches that of ``base_signal``.
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
-        If ``store_progress!=False``, you can run this several times in
-        sequence by setting ``initial_image`` to None.  (It's not
-        recommended, but if ``store_progress==False`` and you want to
-        resume an earlier run, you can do that by setting
-        ``initial_image`` equal to the ``synthesized_signal`` this function
-        returns (I would also detach and clone it just to be
-        safe)). Everything that stores the progress of the optimization
-        (``loss``, ``saved_representation``, ``saved_signal``) will
-        persist between calls and so potentially get very large. To most
-        directly resume where you left off, it's recommended you set
-        ``learning_rate=None``, in which case we use the most recent
-        learning rate (since we use a learning rate scheduler, the
-        learning rate decreases over time as the gradient shrinks; note
-        that we will still reset to the original value in coarse-to-fine
-        optimization). ``store_progress`` has to have the same value
-        between calls and we'll throw an Exception if that's not the
-        case; you can set ``store_progress=None`` to re-use your
-        ``store_progress`` argument. Coarse-to-fine optimization will
-        also resume where you left off.
-
-        We currently do not exactly preserve the state of the RNG
-        between calls (the seed will be reset), because it's difficult
-        to figure out which device we should grab the RNG state for. If
-        you're interested in doing this yourself, see
-        https://pytorch.org/docs/stable/random.html, specifically the
-        fork_rng function (I recommend looking at the source code for
-        that function to see how to get and set the RNG state). This
-        means that there will be a transient increase in loss right
-        after resuming synthesis. In every example I've seen, it goes
-        away and continues decreasing after a relatively small number of
-        iterations, but it means that running synthesis for 500
-        iterations is not the same as running it twice for 250
-        iterations each.
-
-        We provide three ways to try and add some more randomness to
-        this optimization, in order to either improve the diversity of
-        generated metamers or avoid getting stuck in local optima:
-
-        1. Use a different optimizer (and change its hyperparameters)
-           with ``optimizer`` and ``optimizer_kwargs``
-
-        2. Only calculate the gradient with respect to some random
-           subset of the model's representation. By setting
-           ``fraction_removed`` to some number between 0 and 1, the
-           gradient and loss are computed using a random subset of the
-           representation on each iteration (this random subset is drawn
-           independently on each trial). Therefore, if you wish to
-           disable this (to use all of the representation), this should
-           be set to 0.
-
-        3. Only calculate the gradient with respect to the parts of the
-           representation that have the highest error. If we think the
-           loss has stopped changing (by seeing that the loss
-           ``loss_change_iter`` iterations ago is within
-           ``loss_change_thresh`` of the most recent loss), then only
-           compute the loss and gradient using the top
-           ``loss_change_fraction`` of the representation. This can be
-           combined wth ``fraction_removed`` so as to randomly subsample
-           from this selection. To disable this (and use all the
-           representation), this should be set to 1.
-
-        We also provide the ability of using a coarse-to-fine
-        optimization. Unlike the above methods, this will not work
-        out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in coarse-to-fine
-        order, i.e., the order that we will be optimizing) and its
-        ``forward`` method can accept a ``scales`` keyword argument, a
-        list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is not False, then we
-        optimize each scale until we think it's reached convergence
-        before moving on (either computing the gradient for each scale
-        individually, if ``coarse_to_fine=='separate'`` or for a given
-        scale and all coarser scales, if
-        ``coarse_to_fine=='together'``). Once we've done each scale, we
-        spend the rest of the iterations doing them all together, as if
-        ``coarse_to_fine`` was False. This can be combined with the
-        above three methods. We determine if a scale has converged in
-        the same way as method 3 above: if the scale-specific loss
-        ``loss_change_iter`` iterations ago is within
-        ``loss_change_thresh`` of the most recent loss.
-
         Parameters
         ----------
         initial_image : torch.tensor, array_like, or None, optional
-            The 2d tensor we use to initialize the metamer. If None (the
+            The 4d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
             noise lying between 0 and 1 or, if ``self.saved_signal`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
         seed : int or None, optional
             Number with which to seed pytorch and numy's random number
-            generators. If None, won't set the seed; general use case
-            for this is to avoid resetting the seed when resuming
-            synthesis
+            generators. If None, won't set the seed.
         max_iter : int, optinal
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
@@ -295,12 +174,10 @@ class Metamer(Synthesis):
             learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
+            learning rate will never decrease.
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
-            gradient descent, as decribed in [1]_
+            gradient descent.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -316,23 +193,12 @@ class Metamer(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_signal``
-            contains the stored images, and ``self.saved_representation
-            contains the stored representations.
+            same as True).
         save_progress : bool or int, optional
-            Whether to save the metamer as we go (so that you can check
-            it periodically and so you don't lose everything if you have
-            to kill the job / it dies before it finishes running). If
-            True, we save to ``save_path`` every time we update the
-            saved_representation. We attempt to save with the
-            ``save_model_reduced`` flag set to True. If an int, we save
-            every ``save_progress`` iterations. Note that this can end
-            up actually taking a fair amount of time, especially for
-            large numbers of iterations (and thus, presumably, larger
-            saved history tensors) -- it's therefore recommended that
-            you set this to a relatively large integer (say, one-tenth
-            ``max_iter``) for the purposes of speeding up your
-            synthesis.
+            Whether to save the metamer as we go. If True, we save to
+            ``save_path`` every ``store_progress`` iterations. If an int, we
+            save every ``save_progress`` iterations. Note that this can end up
+            actually taking a fair amount of time.
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -349,8 +215,6 @@ class Metamer(Synthesis):
             The fraction of the representation that will be ignored
             when computing the loss. At every step the loss is computed
             using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         loss_change_thresh : float, optional
             The threshold below which we consider the loss as unchanging
             in order to determine whether we should only calculate the
@@ -366,22 +230,15 @@ class Metamer(Synthesis):
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
             - 'together': start with the coarsest scale, then gradually
-              add each finer scale. this is like blurring the objective
-              function and then gradually adding details and is probably
-              what you want.
+              add each finer scale.
             - 'separate': compute the gradient with respect to each
               scale separately (ignoring the others), then with respect
               to all of them at the end.
-            (see above for more details on what's required of the model
-            for this to work).
+            (see ``Metamer`` tutorial for more details).
         clip_grad_norm : bool or float, optional
-            If the gradient norm gets too large, the optimization can
-            run into problems with numerical overflow. In order to avoid
-            that, you can clip the gradient norm to a certain maximum by
-            setting this to True or a float (if you set this to False,
-            we don't clip the gradient norm). If True, then we use 1,
-            which seems reasonable. Otherwise, we use the value set
-            here.
+            Clip the gradient norm to avoid issues with numerical overflow.
+            Gradient norm will be clipped to the specified value (True is
+            equivalent to 1).
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on

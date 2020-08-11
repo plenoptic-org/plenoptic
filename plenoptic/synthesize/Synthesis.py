@@ -47,6 +47,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         on every call.
 
     """
+
     def __init__(self, base_signal, model, loss_function, model_kwargs={}, loss_function_kwargs={}):
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
@@ -94,7 +95,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.saved_signal = []
         self.saved_signal_gradient = []
         self.saved_representation_gradient = []
-        self.scales_loss = []
+        self.scales_loss = None
         self.scales = None
         self.scales_timing = None
         self.scales_finished = None
@@ -120,7 +121,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             np.random.seed(seed)
 
     def _init_synthesized_signal(self, synthesized_signal_data, clamper=RangeClamper((0, 1)),
-                            clamp_each_iter=True):
+                                 clamp_each_iter=True):
         """initialize the synthesized image
 
         set the ``self.synthesized_signal`` attribute to be a parameter with
@@ -219,6 +220,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.scales_timing = dict((k, []) for k in self.scales)
                 self.scales_timing[self.scales[0]].append(0)
                 self.scales_finished = []
+                self.scales_loss = []
             # else, we're continuing a previous version and want to continue
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
@@ -495,65 +497,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         ARGUMENTS AND FOLLOW THE GENERAL STRUCTURE OUTLINED IN THIS
         FUNCTION
 
-        We run this until either we reach ``max_iter`` or the change
-        over the past ``loss_change_iter`` iterations is less than
-        ``loss_thresh``, whichever comes first
-
-        We provide three ways to try and add some more randomness to
-        this optimization, in order to either improve the diversity of
-        generated metamers or avoid getting stuck in local optima:
-
-        1. Use a different optimizer (and change its hyperparameters)
-           with ``optimizer`` and ``optimizer_kwargs``
-
-        2. Only calculate the gradient with respect to some random
-           subset of the model's representation. By setting
-           ``fraction_removed`` to some number between 0 and 1, the
-           gradient and loss are computed using a random subset of the
-           representation on each iteration (this random subset is drawn
-           independently on each trial). Therefore, if you wish to
-           disable this (to use all of the representation), this should
-           be set to 0.
-
-        3. Only calculate the gradient with respect to the parts of the
-           representation that have the highest error. If we think the
-           loss has stopped changing (by seeing that the loss
-           ``loss_change_iter`` iterations ago is within
-           ``loss_change_thresh`` of the most recent loss), then only
-           compute the loss and gradient using the top
-           ``loss_change_fraction`` of the representation. This can be
-           combined wth ``fraction_removed`` so as to randomly subsample
-           from this selection. To disable this (and use all the
-           representation), this should be set to 1.
-
-        We also provide the ability of using a coarse-to-fine
-        optimization. Unlike the above methods, this will not work
-        out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in coarse-to-fine
-        order, i.e., the order that we will be optimizing) and its
-        ``forward`` method can accept a ``scales`` keyword argument, a
-        list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is not False, then we
-        optimize each scale until we think it's reached convergence
-        before moving on (either computing the gradient for each scale
-        individually, if ``coarse_to_fine=='separate'`` or for a given
-        scale and all coarser scales, if
-        ``coarse_to_fine=='together'``). Once we've done each scale, we
-        spend the rest of the iterations doing them all together, as if
-        ``coarse_to_fine`` was False. This can be combined with the
-        above three methods. We determine if a scale has converged in
-        the same way as method 3 above: if the scale-specific loss
-        ``loss_change_iter`` iterations ago is within
-        ``loss_change_thresh`` of the most recent loss.
-
         Parameters
         ----------
         seed : int or None, optional
             Number with which to seed pytorch and numy's random number
-            generators. If None, won't set the seed; general use case
-            for this is to avoid resetting the seed when resuming
-            synthesis
-        max_iter : int, optional
+            generators. If None, won't set the seed.
+        max_iter : int, optinal
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
             The learning rate for our optimizer. None is only accepted
@@ -561,12 +510,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
+            learning rate will never decrease.
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
-            gradient descent, as decribed in [1]_
+            gradient descent.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -582,23 +529,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_signal``
-            contains the stored images, and ``self.saved_representation
-            contains the stored representations.
+            same as True).
         save_progress : bool or int, optional
-            Whether to save the metamer as we go (so that you can check
-            it periodically and so you don't lose everything if you have
-            to kill the job / it dies before it finishes running). If
-            True, we save to ``save_path`` every time we update the
-            saved_representation. We attempt to save with the
-            ``save_model_reduced`` flag set to True. If an int, we save
-            every ``save_progress`` iterations. Note that this can end
-            up actually taking a fair amount of time, especially for
-            large numbers of iterations (and thus, presumably, larger
-            saved history tensors) -- it's therefore recommended that
-            you set this to a relatively large integer (say, one-tenth
-            ``max_iter``) for the purposes of speeding up your
-            synthesis.
+            Whether to save the metamer as we go. If True, we save to
+            ``save_path`` every ``store_progress`` iterations. If an int, we
+            save every ``save_progress`` iterations. Note that this can end up
+            actually taking a fair amount of time.
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -615,8 +551,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             The fraction of the representation that will be ignored
             when computing the loss. At every step the loss is computed
             using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         loss_change_thresh : float, optional
             The threshold below which we consider the loss as unchanging
             in order to determine whether we should only calculate the
@@ -632,23 +566,16 @@ class Synthesis(metaclass=abc.ABCMeta):
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
             - 'together': start with the coarsest scale, then gradually
-              add each finer scale. this is like blurring the objective
-              function and then gradually adding details and is probably
-              what you want.
+              add each finer scale.
             - 'separate': compute the gradient with respect to each
               scale separately (ignoring the others), then with respect
               to all of them at the end.
-            (see above for more details on what's required of the model
-            for this to work).
+            (see ``Metamer`` tutorial for more details).
         clip_grad_norm : bool or float, optional
-            If the gradient norm gets too large, the optimization can
-            run into problems with numerical overflow. In order to avoid
-            that, you can clip the gradient norm to a certain maximum by
-            setting this to True or a float (if you set this to False,
-            we don't clip the gradient norm). If True, then we use 1,
-            which seems reasonable. Otherwise, we use the value set
-            here.
-        optimizer_kwargs :
+            Clip the gradient norm to avoid issues with numerical overflow.
+            Gradient norm will be clipped to the specified value (True is
+            equivalent to 1).
+        optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
@@ -866,8 +793,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             initial_lr = lr
         if optimizer == 'GD':
             # std gradient descent
-            self._optimizer = optim.SGD([self.synthesized_signal], lr=lr, nesterov=False, momentum=0,
-                                       weight_decay=0, **optimizer_kwargs)
+            self._optimizer = optim.SGD([self.synthesized_signal], lr=lr, nesterov=False,
+                                        momentum=0, weight_decay=0, **optimizer_kwargs)
         elif optimizer == 'SGD':
             for k, v in zip(['nesterov', 'momentum'], [True, .8]):
                 if k not in optimizer_kwargs:
@@ -1113,6 +1040,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path, pickle_module=dill)
 
     @classmethod
+    @abc.abstractmethod
     def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
              **state_dict_kwargs):
         r"""load all relevant stuff from a .pt file
