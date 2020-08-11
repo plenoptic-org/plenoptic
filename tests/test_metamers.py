@@ -185,17 +185,12 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=True, loss_change_fraction=.5, fraction_removed=.1)
 
-    @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1)),
-                                         'clamp2', 'clamp4'])
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     @pytest.mark.parametrize("cone_power", [1, 1/3])
-    def test_metamer_clamper(self, clamper, clamp_each_iter, cone_power):
+    def test_metamer_clamper(self, clamp_each_iter, cone_power):
+        clamper = po.RangeClamper((0, 1))
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
-        if type(clamper) == str and clamper == 'clamp2':
-            clamper = po.TwoMomentsClamper(im)
-        elif type(clamper) == str and clamper == 'clamp4':
-            clamper = po.FourMomentsClamper(im)
         rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=cone_power)
         rgc = rgc.to(device)
         metamer = po.synth.Metamer(im, rgc)
