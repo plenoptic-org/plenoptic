@@ -83,6 +83,39 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
     else:
         return res
 
+def min_multidim(x, axis, keepdim=False):
+    r"""compute minimum in torch over any axis or combination of axes in tensor
+    Parameters
+    -----------
+    x: torch.Tensor
+    input tensor
+    axis: list of ints
+    dimensions over which you would like to compute the minimum
+    keepdim=bool
+    keep original dimensions of tensor when returning result
+    """
+    axis = reversed(sorted(axis))
+    min_x = x
+    for i in axis:
+        min_x, _ = min_x.min(i, keepdim)
+    return min_x
+
+def max_multidim(x, axis, keepdim=False):
+    r"""compute maximum in torch over any axis or combination of axes in tensor
+    Parameters
+    -----------
+    x: torch.Tensor
+    input tensor
+    axis: list of ints
+    dimensions over which you would like to compute the minimum
+    keepdim=bool
+    keep original dimensions of tensor when returning result
+    """
+    axis = reversed(sorted(axis))
+    max_x = x
+    for i in axis:
+        max_x, _ = max_x.max(i, keepdim)
+    return max_x
 
 def rescale(x, a=0, b=1):
     r"""Linearly rescale the dynamic range of the input x to [a,b]

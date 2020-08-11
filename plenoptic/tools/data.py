@@ -42,42 +42,6 @@ def torch_complex_to_numpy(x):
     return x_np
 
 
-def convert_pyr_to_tensor(pyr_coeffs, exclude = [], is_complex = True):
-    r""" Function that takes a torch pyramid and converts the output into a single tensor
-    of `torch.Size([B, C, H, W])` for use in an `nn.Module` downstream.
-
-    Parameters
-    ----------
-    pyr_coeffs: `OrderedDict`
-        Steerable pyramid coefficients
-    exclude: `list`
-        List of bands to include, can include 'residual_lowpass', 'residual_highpass' or tuple (ind, ind).
-    is_complex: `bool`
-        Boolean indicating whether or not complex pyramid is used.
-    """
-
-    coeff_list = []
-    coeff_list_resid = []
-    for k in pyr_coeffs.keys():
-        if k not in exclude:
-            if 'residual' in k:
-                coeff_list_resid.append(pyr_coeffs[k])
-            else:
-                coeff_list.append(pyr_coeffs[k])
-
-    coeff_bands = torch.cat(coeff_list, dim=1)
-    batch_size = coeff_bands.shape[0]
-    imshape = [coeff_bands.shape[2], coeff_bands.shape[3]]
-    if is_complex:
-        coeff_bands = coeff_bands.permute(0,1,4,2,3).contiguous().view(batch_size,-1,imshape[0],imshape[1])
-    if len(coeff_list_resid) > 0:
-        coeff_resid = torch.cat(coeff_list_resid, dim=1)
-        coeff_out = torch.cat([coeff_bands, coeff_resid], dim=1)
-    else:
-        coeff_out = coeff_bands
-
-    return coeff_out
-
 
 def make_basic_stimuli(size=256, requires_grad=True):
     r""" Make basic stimuli for testing models etc.
