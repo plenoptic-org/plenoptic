@@ -253,7 +253,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("height", ['auto', 1, 3, 4])
     @pytest.mark.parametrize("order", [1, 2, 3])
     @pytest.mark.parametrize("im_shape", [None, (224,224),  (256, 128), (128, 256)])
-    def test_recon_match_pyrtools(self, im, is_complex, height, order, im_shape):
+    def test_recon_match_pyrtools(self, im, is_complex, height, order, im_shape, rtol=1e-6, atol=1e-6):
         # this should fail if and only if test_complete_recon does, but
         # may as well include it just in case
         im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
@@ -264,9 +264,9 @@ class TestSteerablePyramid(object):
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, tight_frame=False)
         po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
-        po_recon = po.to_numpy(po_pyr.recon_pyr())
+        po_recon = po.to_numpy(po_pyr.recon_pyr().squeeze())
         pt_recon = pt_pyr.recon_pyr()
-        np.testing.assert_allclose(po_recon, pt_recon)
+        np.testing.assert_allclose(po_recon, pt_recon, rtol=rtol, atol=atol)
 
     @pytest.mark.parametrize("is_complex", [True, False])
     @pytest.mark.parametrize("downsample", [True, False])
