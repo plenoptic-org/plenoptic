@@ -315,7 +315,6 @@ class Texture_Statistics(nn.Module):
     def compute_autocorr(self,ch):
 
         Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
-
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
 

@@ -278,7 +278,7 @@ def polar_to_rectangular(amplitude, phase):
     Parameters
     ----------
     amplitude: torch.Tensor
-        tensor containing the amplitude (aka. complex modulus)
+        tensor containing the amplitude (aka. complex modulus). Must be > 0.
     phase: torch.Tensor
         tensor containing the phase
 
@@ -294,6 +294,9 @@ def polar_to_rectangular(amplitude, phase):
     Since complex numbers are not supported by pytorch, this function returns two tensors of the same shape.
     One containing the real component, one containing the imaginary component.
     """
+    if (amplitude<=0).any():
+        raise ValueError("Amplitudes must be strictly positive.")
+
     real = amplitude * torch.cos(phase)
     imaginary = amplitude * torch.sin(phase)
     return real, imaginary
