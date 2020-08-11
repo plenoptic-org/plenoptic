@@ -71,7 +71,9 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     n_steps: int, optional
         Maximum number of steps
     verbose: bool, optional
-        Flag to control amout of information printed out
+        Flag for printing eigenval at this iter minus eigenval at last iter. Use this as a proxy for convergence --
+        the closer to zero, the less the eigenvalue is changing upon each iteration, and the closer you are getting
+        to the true eigendistortion.
     print_every: int
         Determines nth step to display convergence info. 1 (default) means it will print a message on every step.
 
@@ -88,7 +90,10 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    if init == 'randn' or init != 'ones':
+    if init not in ['randn', 'ones']:
+        raise ValueError("init should be in ['randn', 'ones']")
+
+    if init == 'randn':
         v = torch.randn_like(x)
     elif init == 'ones':
         v = torch.ones_like(x)
@@ -110,7 +115,7 @@ def implicit_power_method(y, x, l=0, init='randn', seed=0, tol=1e-10, n_steps=10
 
         error = torch.sqrt((lmbda - lmbda_new) ** 2)
         if verbose and i >= 0 and i % print_every == 0:
-            print(f"{i:3d} -- deltaLambda: {error.item():04.4f}")
+            print(f"{i:3d} -- delta_eigenval: {error.item():04.4f}")
 
         v = v_new
         lmbda = lmbda_new
@@ -295,10 +300,15 @@ class Eigendistortion:
     im_height: int
     im_width: int
     color_image: bool
-    image_flattensor: torch.Tensor
     model_input: torch.Tensor
+        Image input tensor with ``torch.Size([batch_size=1, n_channels, im_height, im_width])``. No support for batch
+        synthesis yet.
     model_output: torch.Tensor
+        Model representation of input image. Size varies by model.
+    image_flattensor: torch.Tensor
+        Eigendistortions are computed using vectorized (flattened) inputs and outputs.
     out_flattensor: torch.Tensor
+        See above.
     distortions: dict
         Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
     jacobian: torch.Tensor
@@ -383,8 +393,8 @@ class Eigendistortion:
 
         Parameters
         ----------
-        method: str, optional
-            Eigensolver method {'jacobian', 'power', 'lanczos'}. Jacobian tries to do eigendecomposition directly (
+        method: {'jacobian', 'power', 'lanczos'}, optional
+            Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large matrices). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'lanczos' uses the Arnoldi
             iteration algorithm to estimate the _entire_ eigenspectrum and thus more than just two eigendistortions,
