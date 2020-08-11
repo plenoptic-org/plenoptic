@@ -38,7 +38,7 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
     Note that energy and state is not computed on the residuals.
 
     Computing the state is local gain control in disguise, see
-    ``real_rectangular_to_polar`` and ``local_gain_control``.
+    ``rectangular_to_polar_real`` and ``local_gain_control``.
 
     Example
     -------
@@ -133,7 +133,7 @@ def local_gain_control(coeff_dict, residuals=False):
 
     See Also
     --------
-    ``real_rectangular_to_polar``
+    :meth:`rectangular_to_polar_real`
 
     """
     energy = {}
