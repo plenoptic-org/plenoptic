@@ -19,12 +19,12 @@ class Identity(torch.nn.Module):
 
         Parameters
         ----------
-        img : torch.tensor
+        img : torch.Tensor
             The image to return
 
         Returns
         -------
-        img : torch.tensor
+        img : torch.Tensor
             a clone of the input image
 
         """

@@ -18,10 +18,10 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
     Returns
     -------
     energy : dictionary
-        The dictionary of torch.tensors containing the local complex
+        The dictionary of torch.Tensors containing the local complex
         modulus of ``x``.
     state: dictionary
-        The dictionary of torch.tensors containing the local phase of
+        The dictionary of torch.Tensors containing the local phase of
         ``x``.
 
     Note
@@ -79,17 +79,17 @@ def rectangular_to_polar_real(x, epsilon=1e-12):
 
     Parameters
     ----------
-    x : torch.tensor
+    x : torch.Tensor
         Tensor of shape (B,C,H,W)
     epsilon: float
         Small constant to avoid division by zero.
 
     Returns
     -------
-    norm : torch.tensor
+    norm : torch.Tensor
         The local energy of ``x``. Note that it is down sampled by a
         factor 2 in (unlike rect2pol).
-    direction: torch.tensor
+    direction: torch.Tensor
         The local phase of ``x`` (aka. local unit vector, or local
         state)
 
@@ -121,10 +121,10 @@ def local_gain_control(coeff_dict, residuals=False):
     Returns
     -------
     energy : dictionary
-        The dictionary of torch.tensors containing the local energy of
+        The dictionary of torch.Tensors containing the local energy of
         ``x``.
     state: dictionary
-        The dictionary of torch.tensors containing the local phase of
+        The dictionary of torch.Tensors containing the local phase of
         ``x``.
 
     Note
@@ -235,7 +235,7 @@ def normalize_dict(coeff_dict, power=2, sum_dim=-1):
         The dictionary of torch.Tensors containing the energy/norm of
         each entry in ``coeff_dict``.
     state: dictionary
-        The dictionary of torch.tensors containing the phase/magnitude of
+        The dictionary of torch.Tensors containing the phase/magnitude of
         each entry in ``coeff_dict``.
 
     """
@@ -268,7 +268,7 @@ def cone(x, power=1/3, epsilon=1e-10):
 
     Parameters
     ----------
-    x : torch.tensor
+    x : torch.Tensor
         Tensor of shape (B,C,H,W), representing the photon counts
     power : float
         The power to raise all values of ``x`` to.
@@ -279,7 +279,7 @@ def cone(x, power=1/3, epsilon=1e-10):
 
     Returns
     -------
-    cone_response : torch.tensor
+    cone_response : torch.Tensor
         Tensor, same shape as ``x``, representing the non-linear cone
         response
 

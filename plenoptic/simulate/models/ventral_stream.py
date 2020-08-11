@@ -735,18 +735,18 @@ class RetinalGanglionCells(VentralModel):
     transition_region_width : `float`, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
-    windows : torch.tensor
+    windows : torch.Tensor
         A list of 3d tensors containing the pooling windows in which the
         pixel intensities are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
-    image : torch.tensor
+    image : torch.Tensor
         A 2d containing the image most recently analyzed.
-    cone_responses : torch.tensor
+    cone_responses : torch.Tensor
         A 2d tensor containing the cone responses to the most recent
         image analyzed. That is, ``po.non_linearities.cone(image,
         self.cone_power)``
-    representation : torch.tensor
+    representation : torch.Tensor
         A tensor containing the averages of the pixel intensities within
         each pooling window for ``self.image``. This will be 3d: (batch,
         channel, windows).
@@ -849,7 +849,7 @@ class RetinalGanglionCells(VentralModel):
 
         Parameters
         ----------
-        image : torch.tensor
+        image : torch.Tensor
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
@@ -857,7 +857,7 @@ class RetinalGanglionCells(VentralModel):
 
         Returns
         -------
-        representation : torch.tensor
+        representation : torch.Tensor
             A 3d tensor containing the averages of the pixel intensities
             within each pooling window for ``image``
 
@@ -1146,14 +1146,14 @@ class PrimaryVisualCortex(VentralModel):
         The eccentricity at which the pooling windows start.
     max_eccentricity : float
         The eccentricity at which the pooling windows end.
-    windows : torch.tensor
+    windows : torch.Tensor
         A list of 3d tensors containing the pooling windows in which the
         complex cell responses are averaged. Each entry in the list
         corresponds to a different scale and thus is a different size
         (though they should all have the same number of windows)
-    image : torch.tensor
+    image : torch.Tensor
         A 2d tensor containing the most recent image analyzed.
-    cone_responses : torch.tensor
+    cone_responses : torch.Tensor
         A 2d tensor containing the cone responses to the most recent
         image analyzed. That is, ``po.non_linearities.cone(image,
         self.cone_power)``
@@ -1169,12 +1169,12 @@ class PrimaryVisualCortex(VentralModel):
         and summed (i.e., the squared complex modulus) of
         ``self.pyr_coeffs``. Does not include the residual high- and
         low-pass bands. Each of these is now 4d: ``(1, 1, *img_res)``.
-    mean_luminance : torch.tensor
+    mean_luminance : torch.Tensor
         A 1d tensor representing the mean luminance of the image, found
         by averaging the pixel values of the image using the windows at
         the lowest scale. This is identical to the RetinalGanglionCell
         representation of the image with the same ``scaling`` value.
-    representation : torch.tensor
+    representation : torch.Tensor
         A dictionary containing the 'complex cell responses' (that is,
         the squared, summed, and square-rooted outputs of the complex
         steerable pyramid) and the mean luminance of the image in the
@@ -1381,7 +1381,7 @@ class PrimaryVisualCortex(VentralModel):
 
         Parameters
         ----------
-        image : torch.tensor
+        image : torch.Tensor
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
@@ -1400,7 +1400,7 @@ class PrimaryVisualCortex(VentralModel):
 
         Returns
         -------
-        representation : torch.tensor
+        representation : torch.Tensor
             A 3d tensor containing the averages of the
             'complex cell responses', that is, the squared and summed
             outputs of the complex steerable pyramid.

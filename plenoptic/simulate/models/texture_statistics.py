@@ -63,12 +63,12 @@ class Texture_Statistics(nn.Module):
             
         Parameters
         ==========
-        image : torch.tensor
+        image : torch.Tensor
             A 2d tensor containing an image to analyze.
         
         Returns
         =======
-        representation: torch.tensor
+        representation: torch.Tensor
             A flattened (ergo 1d) tensor containing the measured statistics.
             
         """

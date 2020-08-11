@@ -54,7 +54,7 @@ class MADCompetition(Synthesis):
 
     Parameters
     ----------
-    base_signal : torch.tensor or array_like
+    base_signal : torch.Tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model_1, model_2 : torch.nn.Module or function
@@ -75,7 +75,7 @@ class MADCompetition(Synthesis):
 
     Attributes
     ----------
-    base_signal : torch.tensor
+    base_signal : torch.Tensor
         A 2d tensor, this is the image whose representation we wish to
         match.
     model_1, model_2 : torch.nn.Module
@@ -83,19 +83,19 @@ class MADCompetition(Synthesis):
         transforms it into a representation of some sort. We only
         require that they have a forward method, which returns the
         representation to match.
-    base_representation_1, base_representation_2 : torch.tensor
+    base_representation_1, base_representation_2 : torch.Tensor
         Whatever is returned by ``model_1`` and ``model_2``
         ``forward(base_signal)`` methods, respectively. This is the
         representation we're trying to get as close or far away from as
         possible when targeting a given model.
-    initial_image : torch.tensor
+    initial_image : torch.Tensor
         base_signal with white noise added to it (and clamped, if
         applicable), this is the starting point of our synthesis
-    synthesized_signal : torch.tensor
+    synthesized_signal : torch.Tensor
         The synthesized image from the last call to
         ``synthesis()``. This may be unfinished depending on how many
         iterations we've run for.
-    synthesized_represetation_1, synthesized_representation_2: torch.tensor
+    synthesized_represetation_1, synthesized_representation_2: torch.Tensor
         Whatever is returned by ``model_1`` and ``model_2``
         ``forward(synthesized_signal)``, respectively.
     seed : int
@@ -115,13 +115,13 @@ class MADCompetition(Synthesis):
         parameter used to correct the image so that the other model's
         representation will not change; see docstring of
         ``self._find_nu()`` for more details
-    saved_signal : torch.tensor or list
+    saved_signal : torch.Tensor or list
         Saved ``self.synthesized_signal`` for later examination.
-    saved_representation : torch.tensor or list
+    saved_representation : torch.Tensor or list
         Saved ``self.synthesized_representation`` for later examination.
-    saved_signal_gradient : torch.tensor or list
+    saved_signal_gradient : torch.Tensor or list
         Saved ``self.synthesized_signal.grad`` for later examination.
-    saved_representation_gradient : torch.tensor or list
+    saved_representation_gradient : torch.Tensor or list
         Saved ``self.synthesized_representation.grad`` for later examination.
     scales : list or None
         The list of scales in optimization order (i.e., from coarse to fine).
@@ -402,7 +402,7 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        grad : torch.tensor
+        grad : torch.Tensor
             the gradient of ``self.synthesized_signal`` for model 2 with
             respect to the loss between ``self.synthesized_signal`` and
             ``self.base_signal``
@@ -513,18 +513,18 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        synth_rep : torch.tensor
+        synth_rep : torch.Tensor
             model representation of the synthesized image
-        ref_rep : torch.tensor
+        ref_rep : torch.Tensor
             model representation of the reference image
-        synth_img : torch.tensor
+        synth_img : torch.Tensor
             the synthesized image.
-        ref_img : torch.tensor
+        ref_img : torch.Tensor
             the reference image
 
         Returns
         -------
-        loss : torch.tensor
+        loss : torch.Tensor
             single-element tensor containing the L2-norm of the
             difference between x and y
 
@@ -879,11 +879,11 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        synthesized_signal : torch.tensor
+        synthesized_signal : torch.Tensor
             The MAD competition image we've created
-        synthesized_representation_1 : torch.tensor
+        synthesized_representation_1 : torch.Tensor
             model_1's representation of this image
-        synthesized_representation_2 : torch.tensor
+        synthesized_representation_2 : torch.Tensor
             The model_2's representation of this image
 
         """

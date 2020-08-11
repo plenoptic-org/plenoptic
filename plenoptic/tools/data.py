@@ -113,19 +113,19 @@ def convert_float_to_int(im, dtype=np.uint8):
 
     Parameters
     ----------
-    im : numpy array
+    im : np.ndarray
         The image to convert
     dtype : {np.uint8, np.uint16}
         The target data type
 
     Returns
     -------
-    im : numpy array
+    im : np.ndarray
         The converted image, now with dtype=dtype
 
     """
     if im.max() > 1:
-        raise Exception("all values of im must lie between 0 and 1, but max is %s" % im.max())
+        raise Exception(f"all values of im must lie between 0 and 1, but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 

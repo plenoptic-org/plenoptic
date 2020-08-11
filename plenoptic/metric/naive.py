@@ -19,9 +19,9 @@ def mse(img1, img2):
 
     Parameters
     ----------
-    img1 : torch.tensor
+    img1 : torch.Tensor
         The first image to compare
-    img2 : torch.tensor
+    img2 : torch.Tensor
         The second image to compare, must be same size as ``img1``
 
     Returns

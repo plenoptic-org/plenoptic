@@ -28,7 +28,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     Parameters
     ----------
-    base_signal : torch.tensor or array_like
+    base_signal : torch.Tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
@@ -132,7 +132,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        synthesized_signal_data : torch.tensor or array_like
+        synthesized_signal_data : torch.Tensor or array_like
             the data to use as the first synthesized_signal
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
@@ -312,7 +312,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        loss : torch.tensor
+        loss : torch.Tensor
             the loss from the most recent iteration
 
         Returns
@@ -582,9 +582,9 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        synthesized_signal : torch.tensor
+        synthesized_signal : torch.Tensor
             The synthesized image we've created
-        synthesized_representation : torch.tensor
+        synthesized_representation : torch.Tensor
             model's representation of this image
 
         """
@@ -640,12 +640,12 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        x : torch.tensor
+        x : torch.Tensor
             The image to analyze
 
         Returns
         -------
-        y : torch.tensor
+        y : torch.Tensor
             The model's representation of x
         """
         y = self.model(x, **kwargs)
@@ -670,18 +670,18 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        synth_rep : torch.tensor
+        synth_rep : torch.Tensor
             model representation of the synthesized image
-        ref_rep : torch.tensor
+        ref_rep : torch.Tensor
             model representation of the reference image
-        synth_img : torch.tensor
+        synth_img : torch.Tensor
             the synthesized image.
-        ref_img : torch.tensor
+        ref_img : torch.Tensor
             the reference image
 
         Returns
         -------
-        loss : torch.tensor
+        loss : torch.Tensor
             single-element tensor containing the L2-norm of the
             difference between x and y
 
@@ -919,11 +919,11 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        loss : torch.tensor
+        loss : torch.Tensor
             1-element tensor containing the loss on this step
-        gradient : torch.tensor
+        gradient : torch.Tensor
             1-element tensor containing the gradient on this step
-        learning_rate : torch.tensor
+        learning_rate : torch.Tensor
             1-element tensor containing the learning rate on this step
 
         """

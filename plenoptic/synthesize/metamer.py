@@ -29,7 +29,7 @@ class Metamer(Synthesis):
 
     Parameters
     ----------
-    base_signal : torch.tensor or array_like
+    base_signal : torch.Tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
@@ -49,13 +49,13 @@ class Metamer(Synthesis):
 
     Attributes
     ----------
-    base_representation : torch.tensor
+    base_representation : torch.Tensor
         Whatever is returned by ``model(base_signal)``, this is
         what we match in order to create a metamer
-    synthesized_signal : torch.tensor
+    synthesized_signal : torch.Tensor
         The metamer. This may be unfinished depending on how many
         iterations we've run for.
-    synthesized_represetation: torch.tensor
+    synthesized_represetation: torch.Tensor
         Whatever is returned by ``model(synthesized_signal)``; we're
         trying to make this identical to ``self.base_representation``
     seed : int
@@ -68,13 +68,13 @@ class Metamer(Synthesis):
     learning_rate : list
         A list of the learning_rate over iterations. We use a scheduler
         that gradually reduces this over time, so it won't be constant.
-    saved_signal : torch.tensor or list
+    saved_signal : torch.Tensor or list
         Saved ``self.synthesized_signal`` for later examination.
-    saved_representation : torch.tensor or list
+    saved_representation : torch.Tensor or list
         Saved ``self.synthesized_representation`` for later examination.
-    saved_signal_gradient : torch.tensor or list
+    saved_signal_gradient : torch.Tensor or list
         Saved ``self.synthesized_signal.grad`` for later examination.
-    saved_representation_gradient : torch.tensor or list
+    saved_representation_gradient : torch.Tensor or list
         Saved ``self.synthesized_representation.grad`` for later examination.
     scales : list or None
         The list of scales in optimization order (i.e., from coarse to fine).
@@ -113,7 +113,7 @@ class Metamer(Synthesis):
 
         Parameters
         ----------
-        initial_image : torch.tensor, array_like, or None, optional
+        initial_image : torch.Tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
             noise lying between 0 and 1 or, if ``self.saved_signal`` is
@@ -157,7 +157,7 @@ class Metamer(Synthesis):
 
         Parameters
         ----------
-        initial_image : torch.tensor, array_like, or None, optional
+        initial_image : torch.Tensor, array_like, or None, optional
             The 4d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
             noise lying between 0 and 1 or, if ``self.saved_signal`` is
@@ -246,9 +246,9 @@ class Metamer(Synthesis):
 
         Returns
         -------
-        synthesized_signal : torch.tensor
+        synthesized_signal : torch.Tensor
             The metamer we've created
-        synthesized_representation : torch.tensor
+        synthesized_representation : torch.Tensor
             The model's representation of the metamer
 
         """

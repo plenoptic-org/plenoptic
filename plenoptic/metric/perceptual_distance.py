@@ -31,7 +31,7 @@ def _gaussian(window_size=11, sigma=1.5):
 
     Returns
     -------
-    window : torch.tensor
+    window : torch.Tensor
         1d gaussian
 
     """
@@ -59,7 +59,7 @@ def create_window(window_size=11, n_channels=1):
 
     Returns
     -------
-    window : torch.tensor
+    window : torch.Tensor
         4d tensor containing the Gaussian windows
 
     """
@@ -76,9 +76,9 @@ def _ssim_parts(img1, img2, dynamic_range):
 
     Parameters
     ----------
-    img1 : torch.tensor
+    img1 : torch.Tensor
         4d tensor with first image to compare
-    img2 : torch.tensor
+    img2 : torch.Tensor
         4d tensor with second image to compare. Must have the same height and
         width (last two dimensions) as `img1`
     dynamic_range : int, optional.
@@ -185,9 +185,9 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
 
     Parameters
     ----------
-    img1 : torch.tensor
+    img1 : torch.Tensor
         4d tensor with first image to compare
-    img2 : torch.tensor
+    img2 : torch.Tensor
         4d tensor with second image to compare. Must have the same height and
         width (last two dimensions) as `img1`
     weighted : bool, optional
@@ -204,7 +204,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
 
     Returns
     ------
-    mssim : torch.tensor
+    mssim : torch.Tensor
         2d tensor containing the mean SSIM for each image, averaged over the
         whole image
 
@@ -266,9 +266,9 @@ def ssim_map(img1, img2, dynamic_range=1):
 
     Parameters
     ----------
-    img1 : torch.tensor
+    img1 : torch.Tensor
         4d tensor with first image to compare
-    img2 : torch.tensor
+    img2 : torch.Tensor
         4d tensor with second image to compare. Must have the same height and
         width (last two dimensions) as `img1`
     weighted : bool, optional
@@ -285,7 +285,7 @@ def ssim_map(img1, img2, dynamic_range=1):
 
     Returns
     ------
-    ssim_map : torch.tensor
+    ssim_map : torch.Tensor
         4d tensor containing the map of SSIM values.
 
     References

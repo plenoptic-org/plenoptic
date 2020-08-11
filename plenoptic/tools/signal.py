@@ -204,7 +204,7 @@ def add_noise(img, noise_mse):
 
     Parameters
     ----------
-    img : torch.tensor
+    img : torch.Tensor
         the image to make noisy
     noise_mse : float or list
         the target MSE value / variance of the noise. More than one value is
@@ -212,7 +212,7 @@ def add_noise(img, noise_mse):
 
     Returns
     -------
-    noisy_img : torch.tensor
+    noisy_img : torch.Tensor
         the noisy image. If `noise_mse` contains only one element, this will be
         the same size as `img`. Else, each separate value from `noise_mse` will
         be along the batch dimension.
