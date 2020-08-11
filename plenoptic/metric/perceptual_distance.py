@@ -170,7 +170,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     contrast, and structure. All of these are computed in windows across the
     images. See the references for more information.
 
-    This implementations follows the original implementation, as found at [2]_,
+    This implementation follows the original implementation, as found at [2]_,
     as well as providing the option to use the weighted version used in [4]_
     (which was shown to consistently improve the image quality prediction on
     the LIVE database).
@@ -252,7 +252,7 @@ def ssim_map(img1, img2, dynamic_range=1):
     contrast, and structure. All of these are computed in windows across the
     images. See the references for more information.
 
-    This implementations follows the original implementation, as found at [2]_,
+    This implementation follows the original implementation, as found at [2]_,
     as well as providing the option to use the weighted version used in [4]_
     (which was shown to consistently improve the image quality prediction on
     the LIVE database).
