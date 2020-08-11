@@ -115,7 +115,7 @@ def test_find_files(test_files_dir):
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
-    im1 = torch.tensor(im1, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+    im1 = torch.tensor(im1, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
     im2 = torch.rand_like(im1, requires_grad=True, device=device)
 
     @pytest.mark.parametrize("im1, im2", [(im1, im2)])
