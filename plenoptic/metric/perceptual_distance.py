@@ -9,9 +9,6 @@ from ..simulate.canonical_computations import local_gain_control, rectangular_to
 import os
 dirname = os.path.dirname(__file__)
 
-# TODO
-# clean up, test and document (MS)SSIM
-
 
 def _gaussian(window_size=11, sigma=1.5):
     """Normalized, centered Gaussian
