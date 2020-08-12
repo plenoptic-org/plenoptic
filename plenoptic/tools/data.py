@@ -44,16 +44,23 @@ def torch_complex_to_numpy(x):
 
 
 def make_basic_stimuli(size=256, requires_grad=True):
-    r""" Make basic stimuli for testing models etc.
+    r""" Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
     ----------
-    size: `int`
-        Stimulus will have `torch.Size([size, size])`
+    size: `int` in [8, 16, 32, 64, 128, 256]
+        the stimuli will have `torch.Size([size, size])`
     requires_grad: `bool`
-        Does the image require gradients
+        weather to initialize the simuli with gradients
+
+    Returns
+    -------
+    stimuli: `torch.FloatTensor` of shape [15, 1, size, size]
+        the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
+                sine_grating, square_grating, polar_angle, angular_sine, zone_plate,
+                fract, checkerboard, sawtooth, reptil_skin, image]
     """
-    assert size in [32, 64, 128, 256, 512], 'size not supported'
+
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
@@ -81,8 +88,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
 
     checkerboard = plt.imread(op.join(DATA_PATH, 'checkerboard.pgm')).astype(float)
     # adjusting form 256 to desired size
-    l = int(np.log2(256 // size))
-    # for larger size use upConv
+    l = int(np.log2(checkerboard.shape[0] // size))
     checkerboard = blurDn(checkerboard, l, 'qmf9')
 
     sawtooth = plt.imread(op.join(DATA_PATH, 'sawtooth.pgm')).astype(float)
