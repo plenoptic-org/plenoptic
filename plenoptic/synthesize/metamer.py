@@ -799,7 +799,7 @@ class Metamer(nn.Module):
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
-            VentralModel class for an example of this.
+            PooledVentralStream class for an example of this.
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
@@ -825,26 +825,26 @@ class Metamer(nn.Module):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 po.simul.PooledRGC.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
         run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
+        local machine. The PooledVentralStream classes have a ``cache_dir``
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 po.simul.PooledRGC.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
@@ -1012,13 +1012,13 @@ class Metamer(nn.Module):
 
         We plot ``self.representation_error(iteration)``
 
-        The goal is to use the model's ``plot_representation``
-        method. However, in order for this to work, it needs to not only
-        have that method, but a way to make a 'mock copy', a separate
-        model that has the same initialization parameters, but whose
-        representation we can set. For the VentralStream models, we can
-        do this using their ``state_dict_reduced`` attribute. If we can't
-        do this, then we'll fall back onto using ``plt.plot``
+        The goal is to use the model's ``plot_representation`` method. However,
+        in order for this to work, it needs to not only have that method, but a
+        way to make a 'mock copy', a separate model that has the same
+        initialization parameters, but whose representation we can set. For the
+        PooledVentralStream models, we can do this using their
+        ``state_dict_reduced`` attribute. If we can't do this, then we'll fall
+        back onto using ``plt.plot``
 
         In order for this to work, we also count on
         ``plot_representation`` to return the figure and the axes it
@@ -1096,9 +1096,9 @@ class Metamer(nn.Module):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for PooledV1, try (39, 11).
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1187,9 +1187,9 @@ class Metamer(nn.Module):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for PooledV1, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

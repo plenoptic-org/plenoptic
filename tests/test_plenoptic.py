@@ -103,7 +103,7 @@ class TestNonLinearities(object):
 
     def test_normalize_dict(self):
         x = po.make_basic_stimuli()
-        v1 = po.simul.PrimaryVisualCortex(1, x.shape[-2:])
+        v1 = po.simul.PooledV1(1, x.shape[-2:])
         v1(x[0])
         po.simul.non_linearities.normalize_dict(v1.representation)
 
