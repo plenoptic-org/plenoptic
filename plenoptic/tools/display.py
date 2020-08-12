@@ -11,7 +11,6 @@ try:
 except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
-
 def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
                   axes_to_remove=['x']):
     r"""Clean up an axis, as desired when making a stem plot of the representation
@@ -240,8 +239,76 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     return ax
 
 
+def _get_artists_from_axes(axes, data):
+    """Grab artists from axes.
+
+    For now, we only grab containers (stem plots), images, or lines
+
+    See the docstring of :meth:`update_plot()` for details on how `axes` and
+    `data` should be structured
+
+    Parameters
+    ----------
+    axes : list or matplotlib.axes.Axes
+        The axis/axes to update.
+    data : torch.Tensor or dict
+        The new data to plot.
+
+    Returns
+    -------
+    artists : dict
+        dictionary of artists for updating plots. values are the artists to
+        use, keys are the corresponding keys for data
+
+    """
+    if not hasattr(axes, '__iter__'):
+        # then we only have one axis, so we may be able to update more than one
+        # data element.
+        if len(axes.containers) > 0:
+            artists = axes.containers
+        elif len(axes.images) > 0:
+            artists = axes.images
+        elif len(axes.lines) > 0:
+            artists = axes.lines
+        if isinstance(data, dict):
+            artists = {ax.get_label(): ax for ax in artists}
+        else:
+            if data.shape[1] != len(artists):
+                raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"your axis contains {len(artists)} plotting artists, "
+                                "so unsure how to continue! Pass data as a dictionary"
+                                " with keys corresponding to the labels of the artists"
+                                " to update to resolve this.")
+    else:
+        # then we have multiple axes, so we are only updating one data element
+        # per plot
+        artists = []
+        for ax in axes:
+            if len(ax.containers) == 1:
+                artists.extend(ax.containers)
+            elif len(ax.images) == 1:
+                artists.extend(ax.images)
+            elif len(ax.lines) == 1:
+                artists.extend(ax.lines)
+        if isinstance(data, dict):
+            if len(data.keys()) != len(artists):
+                raise Exception(f"data has {len(data.keys())} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+            artists = {k: a for k, a in zip(data.keys(), artists)}
+            print(artists.keys())
+        else:
+            if data.shape[1] != len(artists):
+                raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+    if not isinstance(artists, dict):
+        artists = {f"{i:02d}": a for i, a in enumerate(artists)}
+    return artists
+
+
 def update_plot(axes, data, model=None, batch_idx=0):
-    r"""Update the information in a stem plot or image
+    r"""Update the information in some axes.
 
     This is used for creating an animation over time. In order to create
     the animation, we need to know how to update the matplotlib Artists,
@@ -249,40 +316,41 @@ def update_plot(axes, data, model=None, batch_idx=0):
     has been created by something like ``plot_representation``, which
     initializes all the artists.
 
-    We take a list of axes containing the information to update (note
-    that this is probably a subset of the total number of axes in the
-    figure, if we're showing other information, as done by
-    ``Metamer.animate``), as well as the data to show on these plots
-    and, since these are both lists, iterate through them, updating as
-    we go.
+    We can update stem plots, lines (as returned by ``plt.plot``), or images.
+    All artists-to-update do not need to be of the same type.
 
-    In order for this to be used by ``FuncAnimation``, we need to return
-    Artists, so we return a list of the relevant artists, either the
-    ``markerline`` and ``stemlines`` from the ``StemContainer`` or the
-    image artist, ``ax.images[0]``.
+    There are two modes for this:
+
+    - single axis: axes is a single axis, which may contain multiple artists to
+      update. data should be a Tensor with multiple channels (one per artist in
+      the same order) or be a dictionary whose keys give the label(s) of the
+      corresponding artist(s).
+
+    - multiple axes: axes is a list of axes, each of which contains a single
+      artist to update. data should be a Tensor with multiple channels (one per
+      axis in the same order) or a dictionary with the same number of keys as
+      axes, which we can iterate through in order.
+
+    If you have multiple axes, each with multiple artists you want to update,
+    that's too complicated for us, and so you should write a
+    ``model.update_plot()`` function which handles that.
 
     If ``model`` is set, we try to call ``model.update_plot()`` (which
     must also return artists). If model doesn't have an ``update_plot``
     method, then we try to figure out how to update the axes ourselves,
     based on the shape of the data.
 
-    If ``data`` contains multiple channels or is a dictionary with
-    multiple keys, we assume that the different channels/keys each
-    belong on a separate axis (and thus, the number of channels/keys and
-    the number of entries in the ``axes`` list *must* be the same --
-    this will throw a very strange warning otherwise).
-
     Parameters
     ----------
-    axes : list
-        A list of axes to update. We assume that these are the axes
-        created by ``plot_representation`` and so contain stem plots
-        in the correct order.
+    axes : list or matplotlib.axes.Axes
+        The axis/axes to update.
     data : torch.Tensor or dict
         The new data to plot.
     model : torch.nn.Module or None, optional
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
+    batch_idx : int, optional
+        Which index to take from the batch dimension
 
     Returns
     -------
@@ -291,28 +359,41 @@ def update_plot(axes, data, model=None, batch_idx=0):
         plots
 
     """
-    artists = []
-    axes = [ax for ax in axes if len(ax.containers) == 1 or len(ax.images) == 1]
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
+        ax_artists = _get_artists_from_axes(axes, data)
+        artists = []
         if not isinstance(data, dict):
             data_dict = {}
             for i, d in enumerate(data.unbind(1)):
                 # need to keep the shape the same because of how we
                 # check for shape below (unbinding removes a dimension,
                 # so we add it back)
-                data_dict['%02d' % i] = d.unsqueeze(1)
+                data_dict[f'{i:02d}'] = d.unsqueeze(1)
             data = data_dict
-        for ax, d in zip(axes, data.values()):
+        for k, d in data.items():
+            try:
+                art = ax_artists[k]
+            except KeyError:
+                # If the we're grabbing these labels from the line labels and
+                # they were originally ints, they will get converted to
+                # strings. this catches that
+                art = ax_artists[str(k)]
             d = to_numpy(d[batch_idx]).squeeze()
             if d.ndim == 1:
-                sc = update_stem(ax.containers[0], d)
-                artists.extend([sc.markerline, sc.stemlines])
+                try:
+                    # then it's a line
+                    x, _ = art.get_data()
+                    art.set_data(x, d)
+                    artists.append(art)
+                except AttributeError:
+                    # then it's a scatterplot
+                    sc = update_stem(art, d)
+                    artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
-                image_artist = ax.images[0]
-                image_artist.set_data(d)
-                artists.append(image_artist)
+                art.set_data(d)
+                artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]

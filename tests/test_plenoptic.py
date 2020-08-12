@@ -21,6 +21,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'ssim_analysis.mat': 'ndtc7'}
 print("On device %s" % DEVICE)
 
+
 def osf_download(filename):
     path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', filename)
     if not op.exists(path.replace('.tar.gz', '')):
@@ -237,3 +238,169 @@ class TestPerceptualMetrics(object):
         im2 = torch.randn_like(im1, requires_grad=True)
         model = po.simul.Front_End(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad
+
+
+class TestDisplay(object):
+
+    def test_update_plot_line(self):
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(*x.shape)
+        y2 = np.random.rand(*x.shape)
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(x, y1, '-o', label='hi')
+        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        assert len(ax.lines) == 1, "Too many lines were plotted!"
+        _, ax_y = ax.lines[0].get_data()
+        if not np.allclose(ax_y, y2):
+            raise Exception("Didn't update line correctly!")
+
+    @pytest.mark.parametrize('how', ['dict', 'tensor'])
+    def test_update_plot_line_multi_axes(self, how):
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(*x.shape)
+        y2 = np.random.rand(2, *y1.shape)
+        if how == 'tensor':
+            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
+        elif how == 'dict':
+            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+        fig, axes = plt.subplots(1, 2)
+        for ax in axes:
+            ax.plot(x, y1, '-o', label='hi')
+        po.update_plot(axes, y2)
+        for i, ax in enumerate(axes):
+            assert len(ax.lines) == 1, "Too many lines were plotted!"
+            _, ax_y = ax.lines[0].get_data()
+            if how == 'tensor':
+                y_check = y2[0, i]
+            else:
+                y_check = y2[i]
+            if not np.allclose(ax_y, y_check):
+                raise Exception("Didn't update line correctly!")
+
+    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
+    def test_update_plot_line_multi_channel(self, how):
+        if how == 'dict-single':
+            n_data = 1
+        else:
+            n_data = 2
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(2, *x.shape)
+        y2 = np.random.rand(n_data, *x.shape)
+        if how == 'tensor':
+            y2 = torch.tensor(y2).reshape(1, 2, len(x))
+        elif how == 'dict-multi':
+            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
+        elif how == 'dict-single':
+            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+        fig, ax = plt.subplots(1, 1)
+        for i in range(2):
+            ax.plot(x, y1[i], label=i)
+        po.update_plot(ax, y2)
+        assert len(ax.lines) == 2, "Too many lines were plotted!"
+        for i in range(2):
+            _, ax_y = ax.lines[i].get_data()
+            if how == 'tensor':
+                y_check = y2[0, i]
+            elif how == 'dict-multi':
+                y_check = y2[i]
+            elif how == 'dict-single':
+                y_check = {0: y2[0], 1: y1[1]}[i]
+            if not np.allclose(ax_y, y_check):
+                raise Exception("Didn't update line correctly!")
+
+    def test_update_plot_stem(self):
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(*x.shape)
+        y2 = np.random.rand(*x.shape)
+        fig, ax = plt.subplots(1, 1)
+        ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
+        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        assert len(ax.containers) == 1, "Too many stems were plotted!"
+        ax_y = ax.containers[0].markerline.get_ydata()
+        if not np.allclose(ax_y, y2):
+            raise Exception("Didn't update stems correctly!")
+
+    @pytest.mark.parametrize('how', ['dict', 'tensor'])
+    def test_update_plot_stem_multi_axes(self, how):
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(*x.shape)
+        y2 = np.random.rand(2, *y1.shape)
+        if how == 'tensor':
+            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
+        elif how == 'dict':
+            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+        fig, axes = plt.subplots(1, 2)
+        for ax in axes:
+            ax.stem(x, y1, label='hi', use_line_collection=True)
+        po.update_plot(axes, y2)
+        for i, ax in enumerate(axes):
+            assert len(ax.containers) == 1, "Too many stems were plotted!"
+            ax_y = ax.containers[0].markerline.get_ydata()
+            if how == 'tensor':
+                y_check = y2[0, i]
+            else:
+                y_check = y2[i]
+            if not np.allclose(ax_y, y_check):
+                raise Exception("Didn't update stem correctly!")
+
+    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
+    def test_update_plot_stem_multi_channel(self, how):
+        if how == 'dict-single':
+            n_data = 1
+        else:
+            n_data = 2
+        x = np.linspace(0, 100)
+        y1 = np.random.rand(2, *x.shape)
+        y2 = np.random.rand(n_data, *x.shape)
+        if how == 'tensor':
+            y2 = torch.tensor(y2).reshape(1, 2, len(x))
+        elif how == 'dict-multi':
+            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
+        elif how == 'dict-single':
+            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+        fig, ax = plt.subplots(1, 1)
+        for i in range(2):
+            ax.stem(x, y1[i], label=i, use_line_collection=True)
+        po.update_plot(ax, y2)
+        assert len(ax.containers) == 2, "Too many lines were plotted!"
+        for i in range(2):
+            ax_y = ax.containers[i].markerline.get_ydata()
+            if how == 'tensor':
+                y_check = y2[0, i]
+            elif how == 'dict-multi':
+                y_check = y2[i]
+            elif how == 'dict-single':
+                y_check = {0: y2[0], 1: y1[1]}[i]
+            if not np.allclose(ax_y, y_check):
+                raise Exception("Didn't update line correctly!")
+
+    def test_update_plot_image(self):
+        y1 = np.random.rand(1, 1, 100, 100)
+        y2 = np.random.rand(*y1.shape)
+        fig = pt.imshow(y1.squeeze())
+        ax = fig.axes[0]
+        po.update_plot(ax, torch.tensor(y2))
+        assert len(ax.images) == 1, "Too many images were plotted!"
+        ax_y = ax.images[0].get_array().data
+        if not np.allclose(ax_y, y2):
+            raise Exception("Didn't update image correctly!")
+
+    @pytest.mark.parametrize('how', ['dict', 'tensor'])
+    def test_update_plot_image_multi_axes(self, how):
+        y1 = np.random.rand(1, 2, 100, 100)
+        y2 = np.random.rand(1, 2, 100, 100)
+        if how == 'tensor':
+            y2 = torch.tensor(y2)
+        elif how == 'dict':
+            y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
+        fig = pt.imshow(y1.squeeze())
+        po.update_plot(fig.axes, y2)
+        for i, ax in enumerate(fig.axes):
+            assert len(ax.images) == 1, "Too many lines were plotted!"
+            ax_y = ax.images[0].get_array().data
+            if how == 'tensor':
+                y_check = y2[0, i]
+            else:
+                y_check = y2[i]
+            if not np.allclose(ax_y, y_check):
+                raise Exception("Didn't update image correctly!")
