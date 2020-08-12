@@ -21,17 +21,18 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
     
     Parameters
     ----------
-    pyr_coeffs : dict
+    pyr_coeffs : `dict`
                 pyramid coefficients in the standard dictionary format as
                 specified in Steerable_Pyramid_Freq
-    image_index : int in [0, batch_size] (default=0)
+    image_index : `int` in [0, batch_size]
                   index of the image you would like to select from the batch
                   of coefficients
-    channel: int (default = 0)
+    channel: `int`
              index of channel to select for image display
-             for grayscale images this will be 0. 
-    Example
-    -------
+             for grayscale images this will be 0.
+
+    Examples
+    --------
         >>> size = 32
         >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
         >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
@@ -51,25 +52,20 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
     return pyr_coeffvis
 
 
-def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
-                  axes_to_remove=['x']):
+def clean_up_axes(ax, ylim=None, spines_to_remove=None, axes_to_remove=None):
     r"""Clean up an axis, as desired when making a stem plot of the representation
-
-    This helper function takes in an axis
 
     Parameters
     ----------
-    ax : matplotlib.pyplot.axis
-        The axis to clean up
-    ylim : tuple, False, or None
-        If a tuple, the y-limits to use for this plot. If None, we use
-        the default, slightly adjusted so that the minimum is 0. If
-        False, we do nothing.
-    spines_to_remove : list
-        Some combination of 'top', 'right', 'bottom', and 'left'. The
-        spines we remove from the axis
-    axes_to_remove : list
-        Some combination of 'x', 'y'. The axes to set as invisible
+    ax : `matplotlib.pyplot.axis`
+        The axis to clean up.
+    ylim : `tuple`, False, or None
+        If a tuple, the y-limits to use for this plot. If None, we use the default, slightly adjusted so that the
+        minimum is 0. If False, we do nothing.
+    spines_to_remove : `list`
+        Some combination of 'top', 'right', 'bottom', and 'left'. The spines we remove from the axis.
+    axes_to_remove : `list`
+        Some combination of 'x', 'y'. The axes to set as invisible.
 
     Returns
     -------
@@ -77,6 +73,11 @@ def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
         The cleaned-up axis
 
     """
+    if spines_to_remove is None:
+        spines_to_remove = ['top', 'right', 'bottom']
+    if axes_to_remove is None:
+        axes_to_remove = ['x']
+
     if ylim is not None:
         if ylim:
             ax.set_ylim(ylim)
@@ -106,7 +107,7 @@ def update_stem(stem_container, ydata):
 
     Parameters
     ----------
-    stem_container : matplotlib.container.StemContainer
+    stem_container : `matplotlib.container.StemContainer`
         Single container for the artists created in a ``plt.stem``
         plot. It can be treated like a namedtuple ``(markerline,
         stemlines, baseline)``. In order to get this from an axis
@@ -118,7 +119,7 @@ def update_stem(stem_container, ydata):
 
     Returns
     -------
-    stem_container : matplotlib.container.StemContainer
+    stem_container : `matplotlib.container.StemContainer`
         The StemContainer containing the updated artists.
 
     """
@@ -148,11 +149,12 @@ def rescale_ylim(axes, data):
 
     Parameters
     ----------
-    axes : list
+    axes : `list`
         A list of matplotlib axes to rescale
     data : array_like
         The data to use when rescaling
     """
+
     try:
         y_max = np.abs(data).max()
     except RuntimeError:
@@ -171,9 +173,10 @@ def convert_anim_to_html(anim):
 
     Parameters
     ----------
-    anim : matplotlib.animation.FuncAnimation
+    anim : `matplotlib.animation.FuncAnimation`
         The animation object to convert to HTML
     """
+
     # to_html5_video will call savefig with a dpi kwarg, so our
     # custom figure class will raise a warning. we don't want to
     # worry people, so we go ahead and suppress it
@@ -199,24 +202,24 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
 
     Parameters
     ----------
-    data : np.array
+    data : `np.ndarray`
         The data to plot (as a stem plot)
-    ax : matplotlib.pyplot.axis or None, optional
+    ax : `matplotlib.pyplot.axis` or `None`, optional
         The axis to plot the data on. If None, we plot on the current
         axis
-    title : str, optional
+    title : `str`, optional
         The title to put on the axis.
-    ylim : tuple or None, optional
+    ylim : `tuple` or `None`, optional
         If not None, the y-limits to use for this plot. If None, we
         use the default, slightly adjusted so that the minimum is 0
-    xvals : tuple or None, optional
+    xvals : `tuple` or `None`, optional
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
         (``xvals[1]``) x values for plotting. If None, we use the
         default stem plot behavior.
 
     Returns
     -------
-    ax : matplotlib.pyplot.axis
+    ax : `matplotlib.pyplot.axis`
         The axis with the plot
 
     Example
@@ -306,19 +309,19 @@ def update_plot(axes, data, model=None, batch_idx=0):
 
     Parameters
     ----------
-    axes : list
+    axes : `list`
         A list of axes to update. We assume that these are the axes
         created by ``plot_representation`` and so contain stem plots
         in the correct order.
-    data : torch.Tensor or dict
+    data : `torch.Tensor` or `dict`
         The new data to plot.
-    model : torch.nn.Module or None, optional
+    model : `torch.nn.Module` or `None`, optional
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
 
     Returns
     -------
-    artists : list
+    artists : `list`
         A list of the artists used to update the information on the
         plots
 
@@ -386,22 +389,22 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
 
     Parameters
     ----------
-    model : torch.nn.Module or None, optional
+    model : `torch.nn.Module` or None, optional
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
-    data : array_like, dict, or None, optional
+    data : `array_like`, `dict`, or `None`, optional
         The data to plot. See above for behavior if ``None``.
     ax : matplotlib.pyplot.axis or None, optional
         The axis to plot on. See above for behavior if ``None``.
-    figsize : tuple, optional
+    figsize : `tuple`, optional
         The size of the figure to create. Ignored if ``ax`` is not
         ``None``.
-    ylim : tuple,None, or False, optional
+    ylim : `tuple`, `None`, or `False`, optional
         If not None, the y-limits to use for this plot. See above for
         behavior if ``None``. If False, we do nothing.
-    batch_idx : int, optional
+    batch_idx : `int`, optional
         Which index to take from the batch dimension (the first one)
-    title : str, optional
+    title : `str`, optional
         The title to put above this axis. If you want no title, pass
         the empty string (``''``)
 
