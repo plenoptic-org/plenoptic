@@ -1,51 +1,53 @@
 import torch
 import torch.nn as nn
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ..canonical_computations.non_linearities import rectangular_to_polar_dict
+from ...tools.stats import skew, kurtosis
+from ...tools.signal import min, max
 
 
 class Spectral(nn.Module):
-
-    def __init__(self,image_size, Nsc=4, Nor=4):
+    """
+    """
+    def __init__(self,image_size, n_ori=6, n_scale=4):
         super().__init__()
-        self.complex_steerable_pyramid =  Steerable_Pyramid_Freq(image_size,height=Nsc,is_complex=True,order = Nor-1)
-        self.Nsc = Nsc
-        self.Nor = Nor
 
-        # weighted local statistics
+        self.complex_steerable_pyramid =  Steerable_Pyramid_Freq(image_size, height=n_scale, is_complex=True, order=n_ori-1, downsample=True)
+        self.non_linearity = rectangular_to_polar_dict
 
-    def forward(self, im0):
+    def forward(self, x):
 
+        dims = (1, 2, 3)
         # pixel statistics
-        mn0 = torch.min(im0)
-        mx0 = torch.max(im0)
-        mean0 = torch.mean(im0)
-        var0 = torch.var(im0)
-        skew0 = Spectral.skew(im0, mean0, var0)
-        kurt0 = Spectral.kurtosis(im0, mean0,var0)
+        x_min = min(x, dim=dims)
+        x_max = max(x, dim=dims)
+        x_mean = torch.mean(x, dim=dims)
+        x_var = torch.var(x, dim=dims)
+        x_skew = skew(x, dim=dims, keepdim=True).view(x.shape[0])
+        x_kurt = kurtosis(x, dim=dims, keepdim=True).view(x.shape[0])
+        x_stats = torch.stack((x_mean, x_var, x_skew, x_kurt, x_min, x_max)).view(x.shape[0], 6)
 
-        statg0 = torch.stack((mean0, var0,skew0,kurt0,mn0,mx0)).view(6,1)
-        # im0 = (im0-mean0)/var0
         # build steerable pyramid
-        self.complex_steerable_pyramid.forward(im0)
-        pyr0 = self.complex_steerable_pyramid.coeffout
+        x = (x-x_mean.unsqueeze(1).unsqueeze(1).unsqueeze(1))/x_var.unsqueeze(1).unsqueeze(1).unsqueeze(1)
 
-        # stats = torch.empty((len(pyr0),1))
-        stats = torch.empty((len(pyr0),1))  
+        y = self.complex_steerable_pyramid(x)
+
+        stats = torch.empty((x.shape[0], len(y)))
         cnt=0
-        for mat in pyr0:
-            tmp = torch.unbind(mat,-1)
-            stats[cnt]=torch.abs(((tmp[0]**2+tmp[1]**2)**.5).squeeze()).mean()
-            cnt+=1            
+        for channel in y.values():
+            if channel.shape[-1] == 2:
+                real, imag = torch.unbind(channel, -1)
+                stats[:, cnt]=torch.abs(((real**2 + imag**2)**.5)).mean(dim=dims)
+            else:
+                stats[:, cnt]=torch.mean(torch.abs(channel))
+            cnt+=1
 
+        # TODO
+        # energy, phase = self.non_linearity(y, residuals=True)
+        # y_stats = torch.cat([torch.abs(e).mean(dim=dims) for e in energy.values()]).view(x.shape[0], len(energy.values()))
+        # print(stats)
+        # print(y_stats)
+        # print(stats - y_stats)
 
-
-        stats = torch.cat((stats,statg0))
-
+        stats = torch.cat((x_stats, stats), 1)
         return stats
-
-    def kurtosis(mtx, mn, v):
-        # implementation is only for real components
-        return torch.mean(torch.abs(mtx-mn).pow(4))/(v.pow(2))
-
-    def skew(mtx, mn, v):
-        return torch.mean((mtx-mn).pow(3))/(v.pow(1.5))
