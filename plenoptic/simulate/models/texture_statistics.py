@@ -53,7 +53,7 @@ class Texture_Statistics(nn.Module):
         self.n_scales = n_scales
         self.n_orientations = n_orientations
         self.pyr = Steerable_Pyramid_Freq(self.image_shape, height=self.n_scales,
-            order=self.n_orientations-1, is_complex=True, store_unoriented_bands=True,
+            order=self.n_orientations-1, is_complex=True,
                                           return_list=True)
 
         self.normalize = normalize

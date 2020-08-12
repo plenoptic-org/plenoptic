@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os.path as op
+import imageio
 import torch
 import plenoptic as po
 import matplotlib.pyplot as plt
