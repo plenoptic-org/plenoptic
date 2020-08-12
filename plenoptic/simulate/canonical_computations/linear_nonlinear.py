@@ -5,13 +5,13 @@ from pyrtools.tools.synthetic_images import gaussian
 
 class Linear_Nonlinear(nn.Module):
 
-    def __init__(self, kernel_size=(7, 7)):
+    def __init__(self, kernel_size=(7, 7), var = 3):
         super().__init__()
 
 
         self.conv1 = nn.Conv2d(1, 3, kernel_size=kernel_size, padding=(0, 0), bias=False)
-        f1 = gaussian(kernel_size, covariance=2)
-        f2 = gaussian(kernel_size, covariance=1) - f1
+        f1 = gaussian(kernel_size, covariance=2 * var)
+        f2 = gaussian(kernel_size, covariance=var) - f1
         self.conv1.weight.data[0,0] = nn.Parameter(torch.tensor(f1, dtype=torch.float32))
         self.conv1.weight.data[1,0] = nn.Parameter(torch.tensor(f2, dtype=torch.float32))
         self.conv1.weight.data[2,0] = nn.Parameter(torch.tensor(-f2, dtype=torch.float32))
