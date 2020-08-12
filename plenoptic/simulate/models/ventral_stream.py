@@ -1485,12 +1485,6 @@ class PrimaryVisualCortex(VentralModel):
     cell_types : list, optional
         which cells to include. must come from the following list:
         ['complex', 'simple_on', 'simple_off']
-    complex_cell_nonlin : {'square', 'fourth', 'squaresquare'}, optional
-        what nonlinearity to use for complex cells:
-        - 'square': square and sum across quadrature pair (the energy)
-        - 'fourth': raise to the fourth power across quadrature pair
-        - 'squaresquare': square, sum across quadrature pair, and square
-          again (energy squared)
 
     Attributes
     ----------
@@ -1645,19 +1639,13 @@ class PrimaryVisualCortex(VentralModel):
     cell_types : list
         which cells are included in the models representation. must come
         from the following list: ['complex', 'simple_on', 'simple_off']
-    complex_cell_nonlin : {'square', 'fourth', 'squaresquare'}
-        what nonlinearity to use for complex cells:
-        - 'square': square and sum across quadrature pair (the energy)
-        - 'fourth': raise to the fourth power across quadrature pair
-        - 'squaresquare': square, sum across quadrature pair, and square
-          again (energy squared)
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
                  include_highpass=False, window_type='cosine', std_dev=None,
-                 cell_types=['complex'], complex_cell_nonlin='square'):
+                 cell_types=['complex']):
         if window_type == 'dog':
             raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
@@ -1712,9 +1700,6 @@ class PrimaryVisualCortex(VentralModel):
         self.normalize_dict = normalize_dict
         self.cell_types = cell_types
         self.to_normalize += [k + "_cell_responses" for k in cell_types]
-        if complex_cell_nonlin not in ['square', 'fourth', 'squaresquare']:
-            raise Exception(f"Don't know how to handle complex_cell_nonlin {complex_cell_nonlin}")
-        self.complex_cell_nonlin = complex_cell_nonlin
 
     def to(self, *args, do_windows=True, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -1832,18 +1817,9 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
                 # to get the energy, we just square and sum across the real and
                 # imaginary parts (because there are complex tensors yet, this
                 # is the final dimension). the if statement avoids the residuals
-                if self.complex_cell_nonlin == 'square':
-                    self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
-                                                       for k, v in self.pyr_coeffs.items()
-                                                       if not isinstance(k, str))
-                elif self.complex_cell_nonlin == 'fourth':
-                    self.complex_cell_responses = dict((k, torch.pow(v, 4).sum(-1))
-                                                       for k, v in self.pyr_coeffs.items()
-                                                       if not isinstance(k, str))
-                elif self.complex_cell_nonlin == 'squaresquare':
-                    self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1)**2)
-                                                       for k, v in self.pyr_coeffs.items()
-                                                       if not isinstance(k, str))
+                self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
+                                                   for k, v in self.pyr_coeffs.items()
+                                                   if not isinstance(k, str))
             if 'simple_off' in self.cell_types:
                 # the simple cells are the real coefficients, and then the
                 # ON cells are positive-recitfied
