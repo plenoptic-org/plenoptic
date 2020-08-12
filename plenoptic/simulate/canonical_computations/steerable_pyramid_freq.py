@@ -420,7 +420,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         coeff_list = []
         coeff_list_resid = []
         for k in pyr_coeffs.keys():
-            print(k)
+            # print(k)
             if 'residual' in k:
                 coeff_list_resid.append(pyr_coeffs[k])
             else:
