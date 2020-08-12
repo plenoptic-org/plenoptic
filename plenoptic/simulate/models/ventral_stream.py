@@ -219,14 +219,6 @@ class VentralModel(nn.Module):
         self.cone_power = cone_power
         self.num_scales = 1
         self._spatial_masks = {}
-        try:
-            dummy_ones = torch.ones_like(self.PoolingWindows(torch.ones((1, 1, *img_res))))
-            self._foveal_mask = 1 - self.PoolingWindows.project(dummy_ones).squeeze()
-        except NotImplementedError:
-            dummy_ones = torch.ones_like(self.PoolingWindows(torch.ones((1, 1, *img_res)),
-                                                             windows_key='center'))
-            windows = self.PoolingWindows.project(dummy_ones, windows_key='center').squeeze()
-            self._foveal_mask = ~(windows.to(bool))
 
     def _gen_spatial_masks(self, n_angles=4):
         r"""Generate spatial masks
@@ -306,7 +298,6 @@ class VentralModel(nn.Module):
             self.PoolingWindows.to(*args, **kwargs)
         for k, v in self._spatial_masks.items():
             self._spatial_masks[k] = v.to(*args, **kwargs)
-        self._foveal_mask = self._foveal_mask.to(*args, **kwargs)
         nn.Module.to(self, *args, **kwargs)
         return self
 
@@ -634,11 +625,7 @@ class VentralModel(nn.Module):
             summary_func = lambda x: torch.norm(x, 2)
         for k, v in data.items():
             if by_angle:
-                if k == 'foveal_pixels':
-                    # this is special, don't want to break down by angle
-                    summarized[k] = summary_func(v).item()
-                    continue
-                elif isinstance(k, str):
+                if isinstance(k, str):
                     mask_k = 0
                 else:
                     mask_k = k[1]
@@ -1144,7 +1131,6 @@ class RetinalGanglionCells(VentralModel):
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
         self.representation = {'mean_luminance': self.PoolingWindows(self.cone_responses)}
-        self.representation['foveal_pixels'] = (self._foveal_mask * image).flatten(-2, -1) / 10 
         if self.window_type == 'dog':
             self.center_representation = self.PoolingWindows.forward(cone_responses,
                                                                      windows_key='center')
@@ -1206,11 +1192,9 @@ class RetinalGanglionCells(VentralModel):
                 ax = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
         if n_cols > 2:
             title = [self._get_title(title, i, t) for i, t in enumerate(['difference', 'center',
-                                                                         'surround',
-                                                                         'foveal_pixels'])]
+                                                                         'surround'])]
         else:
-            title = [self._get_title(title, i, t) for i, t in enumerate(['mean pixel intensity',
-                                                                         'foveal_pixels'])]
+            title = self._get_title(title, 0, 'mean pixel intensity')
         data = self._representation_for_plotting(batch_idx, data)
         return ax, data, title
 
@@ -1280,23 +1264,22 @@ class RetinalGanglionCells(VentralModel):
 
         """
         if self.window_type != 'dog' or data is not None:
-            axes, data, title = self._plot_helper(2, figsize, ax, title, batch_idx, data)
-            for ax, v, t in zip(axes, data.values(), title):
-                clean_stem_plot(v, ax, t, ylim)
+            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+            clean_stem_plot(data['mean_luminance'], ax, title, ylim)
+            axes = [ax]
             fig = ax.figure
         else:
             data = {'difference': self.representation['mean_luminance'],
                     'center': self.center_representation,
-                    'surround': self.surround_representation,
-                    'foveal_pixels': self.representation['foveal_pixels']}
-            axes, data, title = self._plot_helper(4, figsize, ax, title, batch_idx, data)
+                    'surround': self.surround_representation}
+            axes, data, title = self._plot_helper(3, figsize, ax, title, batch_idx, data)
             for ax, d, t in zip(axes, data.values(), title):
                 clean_stem_plot(d, ax, t, ylim)
             fig = axes[0].figure
         # fig won't always be defined, but this will return the figure belonging to our axis
         return fig, axes
 
-    def plot_representation_image(self, figsize=(11, 5), ax=None, title=None, batch_idx=0,
+    def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
                                   data=None, vrange='indep1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
@@ -1366,23 +1349,13 @@ class RetinalGanglionCells(VentralModel):
 
         """
         if self.window_type != 'dog':
-            axes, data, title = self._plot_helper(2, figsize, ax, title, batch_idx, data)
-            axes_final = []
-            imgs = []
-            for ax, (k, v) in zip(axes, data.items()):
-                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-                if k == 'mean_luminance':
-                    # project expects a 3d tensor
-                    v = self.PoolingWindows.project(torch.tensor(v).unsqueeze(0).unsqueeze(0))
-                else:
-                    v = v.reshape(self.img_res)
-                axes_final.append(ax)
-                imgs.append(v.squeeze())
-            vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
-            for ax, img, t, vr in zip(axes_final, imgs, title, vrange):
-                pt.imshow(to_numpy(img), vrange=vr, ax=ax, title=t, zoom=zoom,
-                          cmap=cmap)
+            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+            # project expects a 3d tensor
+            data = self.PoolingWindows.project(torch.tensor(data['mean_luminance']).unsqueeze(0).unsqueeze(0))
+            pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
             fig = ax.figure
+            axes = ax
         else:
             if data is not None:
                 if data.ndim != 4:
@@ -1393,13 +1366,12 @@ class RetinalGanglionCells(VentralModel):
                 self.forward(data)
             else:
                 data = self.image
-            axes, _, title = self._plot_helper(4, figsize, ax, title, batch_idx, None)
+            axes, _, title = self._plot_helper(3, figsize, ax, title, batch_idx, None)
             data = {'difference': self.PoolingWindows.project_dog(data),
                     'center': self.PoolingWindows.project(self.center_representation,
                                                           windows_key='center'),
                     'surround': self.PoolingWindows.project(self.surround_representation,
-                                                            windows_key='surround'),
-                    'foveal_pixels': self.representation['foveal_pixels'].reshape(self.img_res)}
+                                                            windows_key='surround')}
             for ax, d, t in zip(axes, data.values(), title):
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 pt.imshow(to_numpy(d.squeeze()), vrange=vrange, ax=ax, title=t, zoom=zoom)
@@ -1900,7 +1872,6 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
         if self.include_highpass and 'residual_highpass' in scales:
             self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
             self.representation['residual_highpass'] = self.mean_residual_highpass
-        self.representation['foveal_pixels'] = (self._foveal_mask * image).flatten(-2, -1) / 10
         return self.representation_to_output()
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
@@ -2129,28 +2100,14 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
             ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
         ax = clean_stem_plot(data['mean_luminance'], ax, t, ylim)
         axes_list.append(ax)
-        fov_rows = slice(n_rows, n_rows+2)
         if self.include_highpass:
-            if n_rows == 1:
-                raise NotImplementedError("Can't plot highpass with only one row!")
-            elif n_rows <= 2:
-                fov_rows = slice(n_rows, n_rows+1)
-                rows = slice(n_rows+1, n_rows+2)
-            else:
-                rows = slice(n_rows+2, n_rows+4)
             t = self._get_title(title_list, -1, "residual highpass")
-            ax = fig.add_subplot(gs[rows, 2*(n_cols-1):])
+            ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
             ax = clean_stem_plot(data['residual_highpass'], ax, t, ylim)
             axes_list.append(ax)
-        t = self._get_title(title_list, -1, "foveal pixels")
-        ax = fig.add_subplot(gs[fov_rows, 2*(n_cols-1):])
-        ax = clean_stem_plot(data['foveal_pixels'], ax, t, ylim)
-        axes_list.append(ax)
         # this puts a legend on that only has one of each cell type in
         # the top right (which will always be empty)
-        if len(self.cell_types) > 1 or self.cell_types[0] != 'complex':
-            print(self.cell_types)
-            axes[(self.num_scales-1, 0)].legend(loc='center left', bbox_to_anchor=(1, .5))
+        axes[(self.num_scales-1, 0)].legend(loc='center left', bbox_to_anchor=(1, .5))
         return fig, axes_list
 
     def update_plot(self, axes, batch_idx=0, data=None):
@@ -2213,8 +2170,6 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
                 sc = update_stem(s, data[(cell_type, j, k)])
                 stem_artists.extend([sc.markerline, sc.stemlines])
         sc = update_stem(axes[i+1].containers[0], data['mean_luminance'])
-        stem_artists.extend([sc.markerline, sc.stemlines])
-        sc = update_stem(axes[-1].containers[0], data['foveal_pixels'])
         stem_artists.extend([sc.markerline, sc.stemlines])
         if self.include_highpass:
             sc = update_stem(axes[i+2].containers[0], data['residual_highpass'])
@@ -2288,10 +2243,10 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
 
         """
         if self.half_octave_pyramid is not None:
-            n_cols = 2 * self.num_scales + 1
+            n_cols = 2 * self.num_scales
             ax_multiplier = 2
         else:
-            n_cols = self.num_scales + 2
+            n_cols = self.num_scales + 1
             ax_multiplier = 1
         if self.include_highpass:
             n_cols += 1
@@ -2322,25 +2277,15 @@ n            self.num_scales-1, the str 'mean_luminance', or, if
                 elif isinstance(i, float):
                     zooms.append(zoom * round(projected_data[(0.5, 0)].shape[-1] / img.shape[-1]))
         if self.include_highpass:
-            ax = fig.add_subplot(gs[len(self.cell_types)//2, -3])
-        else:
             ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
+        else:
+            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
         projected_data = self.PoolingWindows.project(dict((k, torch.Tensor(v).unsqueeze(0).unsqueeze(0))
-                                                          for k, v in data.items()
-                                                          if not isinstance(k, tuple) and k != 'foveal_pixels'))
+                                                          for k, v in data.items() if not isinstance(k, tuple)))
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(projected_data['mean_luminance'].squeeze()))
-        zooms.append(zoom)
-        if self.include_highpass:
-            ax = fig.add_subplot(gs[len(self.cell_types)//2, -2])
-        else:
-            ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
-        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-        axes.append(ax)
-        titles.append(self._get_title(title_list, -1, "foveal pixels"))
-        imgs.append(to_numpy(data['foveal_pixels'].squeeze().reshape(self.img_res)))
         zooms.append(zoom)
         if self.include_highpass:
             ax = fig.add_subplot(gs[len(self.cell_types)//2, -1])
