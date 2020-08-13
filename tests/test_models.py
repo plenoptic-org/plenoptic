@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pytest
 import numpy as np
 import pyrtools as pt
+import scipy.io as sio
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
@@ -496,11 +497,14 @@ class TestVentralStream(object):
         metamer.synthesize(max_iter=3)
 
 
+
+
+
 class TestPortillaSimoncelli(object):
 
     ## still need to add tests for normalization factors
-    @pytest.mark.parametrize("n_scales", [0,1,2,3,4])
-    @pytest.mark.parametrize("n_orientations", [1,2,3,4])  # why can't we go below 3 orienations???
+    @pytest.mark.parametrize("n_scales", [1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [1,2,3,4]) 
     @pytest.mark.parametrize("Na", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
     def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape):
@@ -510,24 +514,23 @@ class TestPortillaSimoncelli(object):
         spc = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
         spc(x)
 
-    @pytest.mark.parametrize("n_scales", [4])
-    @pytest.mark.parametrize("n_orientations", [4])  # why can't we go below 3 orienations???
-    @pytest.mark.parametrize("Na", [9])
+    @pytest.mark.parametrize("n_scales", [1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [1,2,3,4])
+    @pytest.mark.parametrize("Na", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    @pytest.mark.parametrize("im",['curie'])
+    @pytest.mark.parametrize("im",['curie','einstein','checkerboard','metal','nuts','sawtooth'])
     def test_torch_v_matlab(self, n_scales, n_orientations, Na, im_shape,im):
         torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f'{im}.pgm'))
+        x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
+        spc = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
+        python_vector = spc(im0)
+        
 
-	# @pytest.mark.parametrize("n_scales", [4])
-	# @pytest.mark.parametrize("n_orientations", [4])
-	# @pytest.mark.parametrize("Na", [9])
-	# @pytest.mark.parametrize("im_shape", [(256,256)])
-	# @pytest.mark.parametrize("im", ['nuts.pgm'])
-	# def test_torch_vs_matlab(self, n_scales, n_orientations, Na, im_shape,testNum ):
-	# 	torch.set_default_dtype(torch.float64) 
-	# 	x = plt.imread(op.join(DATA_DIR, f'{im}.pgm'))
-	# 	im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
+        matlab = sio.loadmat(f'/Users/kathrynbonnen/Documents/MATLAB/textureSynth/pythonTestVectors/{im}-scales{n_scales}-ori{n_orientations}-spat{Na}.mat')
+        matlab_vector = matlab['params_vector'].flatten()
+        
+        np.testing.assert_allclose(python_vector[:], matlab_vector[:], rtol=1e-4, atol=1e-4)
+
 
 
