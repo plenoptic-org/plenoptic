@@ -408,7 +408,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         Function that takes a torch pyramid (without downsampling) dictonary and converts the output into a single tensor
         of BxCxHxW for use in an nn module downstream.
 
-        Parameter
+        Parameters
         ----------
         pyr_coeffs: `OrderedDict`
             the pyramid coefficients
