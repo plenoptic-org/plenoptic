@@ -11,7 +11,9 @@ class Steerable_Pyramid_Freq(nn.Module):
     r"""Steerable frequency pyramid in Torch
 
     Construct a steerable pyramid on matrix IM, in the Fourier domain.
-    Reconstruction is exact (within floating point errors). Boundary-handling is circular.
+    Reconstruction is exact (within floating point errors). However, if the image ahs odd-shape, the reconstruction
+    will not be exact due to boundary-handling issues that have not been resolved.
+    Boundary-handling is circular.
 
     The squared radial functions tile the Fourier plane with a
     raised-cosine falloff. Angular functions are cos(theta-
@@ -42,10 +44,10 @@ class Steerable_Pyramid_Freq(nn.Module):
     downsample: `bool`
         Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
         in fixed bands of size imshapeximshape. When downsample is False, the forward method returns a tensor.
-    fft_normalize: `bool`
-        Whether the fft and ifft are normalized to be unitary transformations or not
-        If not normalized, fft has no normalization and ifft is normalized by 1/N
-        If normalized, fft has normalization 1/sqrt(N), ifft is normalized by 1/sqrt(N)
+    tight_frame: `bool` default: True
+        Whether the pyramid obeys the generalized parseval theorem or not (i.e. is a tight frame).
+        If True, the energy of the pyr_coeffs = energy of the image. If not this is not true.
+        In order to match the matlabPyrTools or pyrtools pyramids, this must be set to False
 
     Attributes
     ----------
@@ -59,6 +61,9 @@ class Steerable_Pyramid_Freq(nn.Module):
     pyr_size : `dict`
         Dictionary containing the sizes of the pyramid coefficients. Keys are `(level, band)`
         tuples and values are tuples.
+    fft_normalize : `bool`
+        Whether the fft's are normalized or not. It is automatically set to True when tight_frame is true
+        else it is set to False
     is_complex : `bool`
         Whether the coefficients are complex- or real-valued.
 
@@ -407,8 +412,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         ----------
         pyr_coeffs: `OrderedDict`
             the pyramid coefficients
-        is_complex: `bool`
-            boolean indicating whether complex pyramid is used or not
 
         Returns
         -----------
@@ -452,8 +455,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         ----------
         pyr_tensor: `torch.Tensor` (BxCxHxW)
             the pyramid coefficients
-        is_complex: `bool`
-            boolean indicating whether complex pyramid is used or not
 
         Returns
         ----------
@@ -619,7 +620,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Returns
         -------
-        recon : `torch.tensor`
+        recon : `torch.Tensor`
             The reconstructed image or batch of images.
             Output is of size BxCxHxW
 
@@ -695,7 +696,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Returns
         -------
-        recondft : `torch.tensor`
+        recondft : `torch.Tensor`
             Current reconstruction based on the orientation band dft from the current scale
             summed with the output of recursive call with the next scale incremented
 

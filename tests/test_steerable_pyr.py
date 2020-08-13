@@ -9,11 +9,8 @@ import pyrtools as pt
 import numpy as np
 import itertools
 from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
+from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float32
-DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
-print("On device %s" % device)
 
 def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
     '''
@@ -108,7 +105,7 @@ class TestSteerablePyramid(object):
             im = im[:im_shape[0], :im_shape[1]]
 
         im = im / 255
-        im = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
 
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = True)
         pyr.forward(im)
@@ -129,10 +126,10 @@ class TestSteerablePyramid(object):
                                                         is_complex = is_complex, downsample = False, tight_frame=True)
         sp_notdownsample = po.simul.Steerable_Pyramid_Freq(image_shape = im.shape, height = height, order = order,
                                                             is_complex = is_complex, downsample = True, tight_frame=True)
-        sp_downsample.to(device)
-        sp_notdownsample.to(device)
+        sp_downsample.to(DEVICE)
+        sp_notdownsample.to(DEVICE)
 
-        im_t = torch.tensor(im, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        im_t = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         sp_downsample.forward(im_t)
         sp_notdownsample.forward(im_t)
 
@@ -153,8 +150,8 @@ class TestSteerablePyramid(object):
         im = im / 255
         sp_notdownsample = po.simul.Steerable_Pyramid_Freq(image_shape = im.shape, height = height, order = order,
                                                                 is_complex = is_complex, downsample = False)
-        sp_notdownsample.to(device)
-        im_t = torch.tensor(im, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        sp_notdownsample.to(DEVICE)
+        im_t = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
 
         pyr_tensor = sp_notdownsample.forward(im_t, scales = scales)
         pyr_coeff_dict = sp_notdownsample.convert_tensor_to_pyr(pyr_tensor)
@@ -170,9 +167,9 @@ class TestSteerablePyramid(object):
         x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex, tight_frame=False,downsample=True)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -181,9 +178,9 @@ class TestSteerablePyramid(object):
         x = pt.synthetic_images.ramp((256,128))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex, tight_frame = False, downsample = True)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -192,9 +189,9 @@ class TestSteerablePyramid(object):
         x = pt.synthetic_images.ramp((200,200))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
-        x_t = torch.tensor(x, dtype = dtype).unsqueeze(0).unsqueeze(0).to(device)
+        x_t = torch.tensor(x, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
         torch_sp = po.simul.Steerable_Pyramid_Freq(image_shape = x.shape, height = height, order = order, is_complex = is_complex, tight_frame = False, downsample = True)
-        torch_sp.to(device)
+        torch_sp.to(DEVICE)
         torch_spc = torch_sp.forward(x_t)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
@@ -214,7 +211,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = tight_frame)
         pyr.forward(im)
         recon = to_numpy(pyr.recon_pyr())
@@ -233,7 +230,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, downsample=downsample, tight_frame=tight_frame)
         po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
@@ -261,7 +258,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=dtype).unsqueeze(0).unsqueeze(0)
+        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, tight_frame=False)
         po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)

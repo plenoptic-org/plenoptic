@@ -1,2 +1,4 @@
-from .perceptual_distance import ssim, msssim, nlpd, nspd
+from .perceptual_distance import ssim, nlpd, nspd, ssim_map
 from .model_metric import model_metric
+from .naive import mse
+from .classes import NLP
