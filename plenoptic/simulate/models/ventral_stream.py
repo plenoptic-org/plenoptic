@@ -8,7 +8,6 @@ import pyrtools as pt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from torch import nn
-import itertools
 from ..canonical_computations.non_linearities import cone
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ..canonical_computations.pooling_windows import PoolingWindows
@@ -1479,9 +1478,6 @@ class PrimaryVisualCortex(VentralModel):
         interpolation), in order to include the frequencies centered at
         half-octave steps and thus have a more complete representation
         of frequency space
-    include_highpass : bool, optional
-        Whether to include the high-pass residual in the model or
-        not.
 
     Attributes
     ----------
@@ -1631,14 +1627,12 @@ class PrimaryVisualCortex(VentralModel):
         The first step of the model, before calculating any of the
         statistics to pool, is to raise the image to this value, which
         represents the non-linear response of the cones to photons.
-    include_highpass : bool, optional
-        Whether the high-pass residual is included in the model or not.
 
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
-                 include_highpass=False, window_type='cosine', std_dev=None):
+                 window_type='cosine', std_dev=None):
         if window_type == 'dog':
             raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
@@ -1646,8 +1640,7 @@ class PrimaryVisualCortex(VentralModel):
                          cache_dir=cache_dir, window_type=window_type, std_dev=std_dev)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales,
-                                        'normalize_dict': normalize_dict,
-                                        'include_highpass': include_highpass})
+                                        'normalize_dict': normalize_dict})
         # these are DoG-associated keys and so aren't supported
         # here. they end up in this dict because they come from the
         # PoolingWindows' dict
@@ -1686,11 +1679,7 @@ class PrimaryVisualCortex(VentralModel):
         self.mean_complex_cell_responses = None
         self.mean_luminance = None
         self.representation = None
-        self.include_highpass = include_highpass
         self.to_normalize = ['cone_responses', 'complex_cell_responses']
-        if self.include_highpass:
-            self.scales += ['residual_highpass']
-            self.to_normalize += ['residual_highpass']
         self.normalize_dict = normalize_dict
 
     def to(self, *args, do_windows=True, **kwargs):
@@ -1809,8 +1798,6 @@ class PrimaryVisualCortex(VentralModel):
             self.complex_cell_responses = dict((k, torch.pow(v, 2).sum(-1))
                                                for k, v in self.pyr_coeffs.items()
                                                if not isinstance(k, str))
-            if self.include_highpass and 'residual_highpass' in scales:
-                self.residual_highpass = self.pyr_coeffs['residual_highpass']
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
         if self.complex_cell_responses:
@@ -1819,9 +1806,6 @@ class PrimaryVisualCortex(VentralModel):
         if 'mean_luminance' in scales:
             self.mean_luminance = self.PoolingWindows(self.cone_responses)
             self.representation['mean_luminance'] = self.mean_luminance
-        if self.include_highpass and 'residual_highpass' in scales:
-            self.mean_residual_highpass = self.PoolingWindows(self.residual_highpass)
-            self.representation['residual_highpass'] = self.mean_residual_highpass
         return self.representation_to_output()
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
@@ -2041,11 +2025,6 @@ class PrimaryVisualCortex(VentralModel):
                     ax = fig.add_subplot(gs[n_rows-1:n_rows, 2*(n_cols-1):])
                 ax = clean_stem_plot(v, ax, t, ylim)
                 axes.append(ax)
-            elif k == 'residual_highpass':
-                t = self._get_title(title_list, -1, "residual highpass")
-                ax = fig.add_subplot(gs[n_rows:n_rows+2, 2*(n_cols-1):])
-                ax = clean_stem_plot(v, ax, t, ylim)
-                axes.append(ax)
         return fig, axes
 
     def plot_representation_image(self, figsize=(27, 5), ax=None, title=None, batch_idx=0,
@@ -2120,8 +2099,6 @@ class PrimaryVisualCortex(VentralModel):
         else:
             n_cols = self.num_scales + 1
             ax_multiplier = 1
-        if self.include_highpass:
-            n_cols += 1
         fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax,
                                                       title, batch_idx, data)
         titles = []
@@ -2147,22 +2124,12 @@ class PrimaryVisualCortex(VentralModel):
                 zooms.append(zoom * round(data[(0, 0)].shape[-1] / img.shape[-1]))
             elif isinstance(i, float):
                 zooms.append(zoom * round(data[(0.5, 0)].shape[-1] / img.shape[-1]))
-        if self.include_highpass:
-            ax = fig.add_subplot(gs[-2])
-        else:
-            ax = fig.add_subplot(gs[-1])
+        ax = fig.add_subplot(gs[-1])
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
         imgs.append(to_numpy(data['mean_luminance'].squeeze()))
         zooms.append(zoom)
-        if self.include_highpass:
-            ax = fig.add_subplot(gs[-1])
-            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-            axes.append(ax)
-            titles.append(self._get_title(title_list, -1, "residual highpass"))
-            imgs.append(to_numpy(data['residual_highpass'].squeeze()))
-            zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
             pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
