@@ -1,5 +1,2 @@
 from .frontend import Front_End
-from .texture_statistics import Texture_Statistics
-from .spectral import Spectral
-from .ventral_stream import RetinalGanglionCells, PrimaryVisualCortex
-from .V2 import V2
+from .ventral_stream import PooledVentralStream, PooledV1, PooledRGC

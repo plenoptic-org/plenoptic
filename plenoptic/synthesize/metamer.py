@@ -382,7 +382,7 @@ class Metamer(Synthesis):
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
-            VentralModel class for an example of this.
+            PooledVentralStream class for an example of this.
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
@@ -412,26 +412,26 @@ class Metamer(Synthesis):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
         run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
+        local machine. The PooledVentralStream classes have a ``cache_dir``
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """

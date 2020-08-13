@@ -15,7 +15,7 @@ import scipy.io as sio
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DTYPE = torch.float32
+DTYPE = torch.float64
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
            'ssim_analysis.mat': 'ndtc7'}
@@ -123,7 +123,7 @@ class TestNonLinearities(object):
 
     def test_normalize_dict(self):
         x = po.make_basic_stimuli()
-        v1 = po.simul.PrimaryVisualCortex(1, x.shape[-2:])
+        v1 = po.simul.PooledV1(1, x.shape[-2:])
         v1(x[0])
         po.simul.non_linearities.normalize_dict(v1.representation)
 

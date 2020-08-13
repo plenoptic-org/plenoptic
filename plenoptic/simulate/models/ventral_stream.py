@@ -16,8 +16,8 @@ from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Fr
 from ...tools.data import to_numpy
 
 
-class VentralModel(nn.Module):
-    r"""Generic class that everyone inherits. Sets up the scaling windows
+class PooledVentralStream(nn.Module):
+    r"""Generic class that sets up scaling windows
 
     Note that we will calculate the minimum eccentricity at which the
     area of the windows at half-max exceeds one pixel (based on
@@ -121,7 +121,7 @@ class VentralModel(nn.Module):
         keep the (very large) representation and intermediate steps
         around. To save, use ``self.save_reduced(filename)``, and then
         load from that same file using the class method
-        ``po.simul.VentralModel.load_reduced(filename)``
+        ``po.simul.PooledVentralStream.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are six keys, corresponding to a 2x2 for the
@@ -496,16 +496,16 @@ class VentralModel(nn.Module):
         # want to remove class if it's here
         state_dict_reduced.pop('class', None)
         if model_name == 'RGC':
-            return RetinalGanglionCells(**state_dict_reduced)
+            return PooledRGC(**state_dict_reduced)
         elif model_name == 'V1':
-            return PrimaryVisualCortex(**state_dict_reduced)
+            return PooledV1(**state_dict_reduced)
         else:
             raise Exception("Don't know how to handle model_name %s!" % model_name)
 
     def _representation_for_plotting(self, batch_idx=0, data=None):
         r"""Get the representation in the form required for plotting
 
-        VentralStream objects' representation has a lot of structure:
+        PooledVentralStream objects' representation has a lot of structure:
         each consists of some number of different representation types,
         each averaged per window. And the windows themselves are
         structured: we have several different eccentricity bands, each
@@ -619,7 +619,7 @@ class VentralModel(nn.Module):
         We can optionally accept a data argument, in which case it
         should look just like the representation of this model (or be
         able to transformed into that form, see
-        ``PrimaryVisualCortex._representation_for_plotting`).
+        ``PooledV1._representation_for_plotting`).
 
         In order for this to be used by ``FuncAnimation``, we need to
         return Artists, so we return a list of the relevant artists, the
@@ -658,8 +658,8 @@ class VentralModel(nn.Module):
         return stem_artists
 
 
-class RetinalGanglionCells(VentralModel):
-    r"""A wildly simplistic model of retinal ganglion cells (RGCs)
+class PooledRGC(PooledVentralStream):
+    r"""Model RGCs by pooling pixel intensity
 
     This model averages together the pixel intensities in each of its
     pooling windows to generate a super simple
@@ -758,7 +758,7 @@ class RetinalGanglionCells(VentralModel):
         keep the (very large) representation and intermediate steps
         around. To save, use ``self.save_reduced(filename)``, and then
         load from that same file using the class method
-        ``po.simul.VentralModel.load_reduced(filename)``
+        ``po.simul.PooledVentralStream.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -1022,8 +1022,8 @@ class RetinalGanglionCells(VentralModel):
         return ax.figure, [ax]
 
 
-class PrimaryVisualCortex(VentralModel):
-    r"""Model V1 using the Steerable Pyramid
+class PooledV1(PooledVentralStream):
+    r"""Model V1 by pooling spectral energy (using Steerable Pyramid)
 
     This just models V1 as containing complex cells and a representation
     of the mean luminance. For the complex cells, we take the outputs of
@@ -1188,7 +1188,7 @@ class PrimaryVisualCortex(VentralModel):
         keep the (very large) representation and intermediate steps
         around. To save, use ``self.save_reduced(filename)``, and then
         load from that same file using the class method
-        ``po.simul.VentralModel.load_reduced(filename)``
+        ``po.simul.PooledVentralStream.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are four keys: 'radial_top', 'radial_full',
@@ -1266,7 +1266,7 @@ class PrimaryVisualCortex(VentralModel):
         "cone_responses"
     to_normalize : list
         List of attributes that we want to normalize by whitening (for
-        PrimaryVisualCortex, that's just "complex_cell_responses")
+        PooledV1, that's just "complex_cell_responses")
     scales : list
         List of the scales in the model, from fine to coarse. Used for
         synthesizing in coarse-to-fine order
@@ -1461,7 +1461,7 @@ class PrimaryVisualCortex(VentralModel):
     def _representation_for_plotting(self, batch_idx=0, data=None):
         r"""Get data into the form required for plotting
 
-        PrimaryVisualCortex objects' representation has a lot of
+        PooledV1 objects' representation has a lot of
         structure: each consists of some number of different
         representation types, each averaged per window. And the windows
         themselves are structured: we have several different
@@ -1597,7 +1597,7 @@ class PrimaryVisualCortex(VentralModel):
                             data=None):
         r"""plot the representation of the V1 model
 
-        Since our PrimaryVisualCortex model has more statistics than the
+        Since our PooledV1 model has more statistics than the
         RetinalGanglionCell model, this is a much more complicated
         plot. We end up creating a grid, showing each band and scale
         separately, and then a separate plot, off to the side, for the
@@ -1695,7 +1695,7 @@ class PrimaryVisualCortex(VentralModel):
         intensity. In order to visualize these as images, we take each
         statistic, multiply it by the pooling windows, then sum across
         windows, as in
-        ``RetinalGanglionCells.plot_representation_image``. We also sum
+        ``PooledRGC.plot_representation_image``. We also sum
         across orientations at the same scale, so that we end up with an
         image for each scale (each will be a different size), plus one
         for mean pixel intensity, which we attempt to zoom so that they

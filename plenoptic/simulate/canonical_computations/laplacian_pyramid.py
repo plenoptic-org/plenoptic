@@ -92,7 +92,7 @@ class Laplacian_Pyramid(nn.Module):
 #             pad_down = nn.ReflectionPad2d(downsample_filter.shape[-1]//2)
 #             self.correlate_downsample = transforms.Compose([pad_down, correlate_downsample])
 #
-#             # TODO - generalize to other image / filter sizes!
+#             # generalize to other image / filter sizes!
 #             # this solution is specific to power of two images and filter [5 x 5]
 #             # need start and stop arguments, two tuples of boolean values, even / odd
 #             upsample_convolve = nn.ConvTranspose2d(in_channels=1, out_channels=1, kernel_size=upsample_filter.shape[-1], stride=2, padding=4, output_padding=1, bias=False)
