@@ -1469,15 +1469,6 @@ class PrimaryVisualCortex(VentralModel):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
-    half_octave_pyramid : bool, optional
-        Whether to include the half octaves in the model's
-        representation. If False (the default), we only use the
-        steerable pyramid constructed on the original image. If True, we
-        include a second pyramid, constructed on a version of the image
-        that's been down-sampled by a factor of sqrt(2) (using bicubic
-        interpolation), in order to include the frequencies centered at
-        half-octave steps and thus have a more complete representation
-        of frequency space
 
     Attributes
     ----------
@@ -1631,8 +1622,7 @@ class PrimaryVisualCortex(VentralModel):
     """
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
-                 cone_power=1.0, cache_dir=None, half_octave_pyramid=False,
-                 window_type='cosine', std_dev=None):
+                 cone_power=1.0, cache_dir=None, window_type='cosine', std_dev=None):
         if window_type == 'dog':
             raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
@@ -1650,29 +1640,7 @@ class PrimaryVisualCortex(VentralModel):
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
                                                                 self.order, is_complex=True)
-        self.scales = ['mean_luminance']
-        if half_octave_pyramid:
-            self.half_octave_img_res = [int(round(i / np.sqrt(2))) for i in img_res]
-            # want this to be even. for plotting purposes, the more
-            # dividible by 2 this number is, the easier our lives will
-            # be
-            for i, r in enumerate(self.half_octave_img_res):
-                if r % 2 == 1:
-                    self.half_octave_img_res[i] += 1
-            second_PoolingWindows = PoolingWindows(scaling, self.half_octave_img_res,
-                                                   min_eccentricity, max_eccentricity,
-                                                   num_scales-1, cache_dir, window_type,
-                                                   transition_region_width, std_dev)
-            self.PoolingWindows.merge(second_PoolingWindows)
-            self.half_octave_pyramid = Steerable_Pyramid_Freq(self.half_octave_img_res,
-                                                              num_scales-1, order,
-                                                              is_complex=True)
-            for i in range(num_scales)[::-1]:
-                self.scales.extend([i, i-.5])
-            self.scales = self.scales[:-1]
-        else:
-            self.half_octave_pyramid = None
-            self.scales += list(range(num_scales))[::-1]
+        self.scales = ['mean_luminance'] + list(range(num_scales))[::-1]
         self.image = None
         self.pyr_coeffs = None
         self.complex_cell_responses = None
@@ -1719,8 +1687,6 @@ class PrimaryVisualCortex(VentralModel):
             Module: self
         """
         self.complex_steerable_pyramid.to(*args, **kwargs)
-        if self.half_octave_pyramid:
-            self.half_octave_pyramid.to(*args, **kwargs)
         for k, v in self.normalize_dict.items():
             if isinstance(v, dict):
                 for l, w in v.items():
@@ -1741,16 +1707,12 @@ class PrimaryVisualCortex(VentralModel):
             channel, height, width). If it has fewer than 4 dimensions,
             we will unsqueeze it until its 4d
         scales : list, optional
-            Which scales to include in the returned representation. If
-            an empty list (the default), we include all
-            scales. Otherwise, can contain subset of values present in
-            this model's ``scales`` attribute (ints up to
-            self.num_scales-1, the str 'mean_luminance', or, if
-            ``half_octave_pyramid`` was set to True during
-            initialization, the floats that lie between the integer
-            scales: e.g., .5, 1.5, 2.5). Can contain a single value or
-            multiple values. If it's an int or float, we include all
-            orientations from that scale.
+            Which scales to include in the returned representation. If an empty
+            list (the default), we include all scales. Otherwise, can contain
+            subset of values present in this model's ``scales`` attribute (ints
+            up to self.num_scales-1, the str 'mean_luminance'). Can contain a
+            single value or multiple values. If it's an int or float, we
+            include all orientations from that scale.
 
         Returns
         -------
@@ -1782,15 +1744,6 @@ class PrimaryVisualCortex(VentralModel):
         self.pyr_coeffs = {}
         if any([i in self.complex_steerable_pyramid.scales for i in scales]):
             self.pyr_coeffs.update(self.complex_steerable_pyramid(cone_responses, scales))
-        half_octave_scales = [i-.5 for i in scales if not isinstance(i, str)]
-        if (self.half_octave_pyramid and
-            any([i in self.half_octave_pyramid.scales for i in half_octave_scales])):
-            half_cones = nn.functional.interpolate(cone_responses, self.half_octave_img_res,
-                                                   mode='bicubic')
-            half_octave_pyr_coeffs = self.half_octave_pyramid(half_cones, half_octave_scales)
-            self.pyr_coeffs.update(dict(((k[0]+.5, k[1]), v)
-                                        for k, v in half_octave_pyr_coeffs.items()
-                                        if not isinstance(k, str)))
         if self.pyr_coeffs:
             # to get the energy, we just square and sum across the real and
             # imaginary parts (because there are complex tensors yet, this
@@ -1995,18 +1948,10 @@ class PrimaryVisualCortex(VentralModel):
             A list of axes that contain the plots we've created
 
         """
-        # order is number of orientations - 1 and we want to have
-        # columns equal to number of orientations + 1
-        if self.half_octave_pyramid is not None:
-            n_cols = 2 * self.num_scales
-            n_rows = self.order + 1
-            col_multiplier = 4
-            col_offset = .5
-        else:
-            n_cols = self.num_scales + 1
-            n_rows = self.order + 1
-            col_multiplier = 2
-            col_offset = 1
+        n_cols = self.num_scales + 1
+        n_rows = self.order + 1
+        col_multiplier = 2
+        col_offset = 1
         fig, gs, data, title_list = self._plot_helper(2*n_rows, 2*n_cols, figsize,
                                                       ax, title, batch_idx, data)
         axes = []
@@ -2093,12 +2038,7 @@ class PrimaryVisualCortex(VentralModel):
             A list of axes that contain the plots we've created
 
         """
-        if self.half_octave_pyramid is not None:
-            n_cols = 2 * self.num_scales
-            ax_multiplier = 2
-        else:
-            n_cols = self.num_scales + 1
-            ax_multiplier = 1
+        n_cols = self.num_scales + 1
         fig, gs, data, title_list = self._plot_helper(1, n_cols, figsize, ax,
                                                       title, batch_idx, data)
         titles = []
@@ -2116,7 +2056,7 @@ class PrimaryVisualCortex(VentralModel):
             for j in range(self.order+1):
                 d = data[(i, j)].squeeze()
                 img += to_numpy(d)
-            ax = fig.add_subplot(gs[int(ax_multiplier * i)])
+            ax = fig.add_subplot(gs[int(i)])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             imgs.append(img)
             axes.append(ax)
