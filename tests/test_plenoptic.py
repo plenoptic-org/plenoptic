@@ -3,19 +3,16 @@ import torch
 import requests
 import math
 import tqdm
-import itertools
 import tarfile
 import os
 import numpy as np
-import pyrtools as pt
 import plenoptic as po
 import os.path as op
-import matplotlib.pyplot as plt
 import scipy.io as sio
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DTYPE = torch.float64
+DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
            'ssim_analysis.mat': 'ndtc7'}
