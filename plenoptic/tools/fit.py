@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 
 def pretty_print(i, max_iter, t, loss, g_norm,lr=[]):
@@ -16,12 +15,17 @@ def pretty_print(i, max_iter, t, loss, g_norm,lr=[]):
               '\tgrad norm', round(g_norm, 3),
               '\tlr', round(lr,6))
 
-def stretch(z):
-    """soft rescaling, the inverse of squish
-    used at initialization
-    from (-1, 1) to (-inf,inf) - avoid infinity by clamping
 
+def stretch(z):
+    """Soft rescaling, the inverse of squish used at initialization
+    from (-1, 1) to (-inf,inf) - avoid infinity by clamping
     tanh(log((1+x)/(1-x))/2) = identity, for x in (-1,1)
+
+    Parameters
+    ----------
+    z: `torch.Tensor`
+        Tensor whose values will be stretched.
+
     """
     epsilon = 10e-8
     z = torch.clamp(z, -1 + epsilon, 1 - epsilon)

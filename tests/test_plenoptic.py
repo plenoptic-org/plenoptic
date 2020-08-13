@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float32
+dtype = torch.float64
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 print("On device %s" % device)
 
@@ -103,7 +103,7 @@ class TestNonLinearities(object):
 
     def test_normalize_dict(self):
         x = po.make_basic_stimuli()
-        v1 = po.simul.PrimaryVisualCortex(1, x.shape[-2:])
+        v1 = po.simul.PooledV1(1, x.shape[-2:])
         v1(x[0])
         po.simul.non_linearities.normalize_dict(v1.representation)
 
@@ -115,7 +115,7 @@ def test_find_files(test_files_dir):
 class TestPerceptualMetrics(object):
 
     im1 = po.rescale(plt.imread(op.join(DATA_DIR, 'einstein.png')).astype(float)[:, :, 0])
-    im1 = torch.tensor(im1, dtype=dtype, device=device).unsqueeze(0).unsqueeze(0)
+    im1 = torch.tensor(im1, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
     im2 = torch.rand_like(im1, requires_grad=True, device=device)
 
     @pytest.mark.parametrize("im1, im2", [(im1, im2)])
