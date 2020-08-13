@@ -6,7 +6,7 @@ Gaussians. They're laid out in the same fashion as the raised-cosine
 windows, but are wider and have values everywhere (whereas the
 raised-cosine windows are clipped so that they're zero for most of the
 image). Using the raised-cosine windows led to issues with aliasing in
-metamer synthesis, visible as ringing, with the PrimaryVisualCortex
+metamer synthesis, visible as ringing, with the PooledV1
 model, because of the interactions between the windows and the steerable
 pyramid filters.
 
@@ -1755,14 +1755,14 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
 
     Returns
     -------
-    angle_windows : torch.tensor or dict
+    angle_windows : torch.Tensor or dict
         The 3d tensor of 2d polar angle windows. Its shape will be
         ``(n_angle_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``
         and ``radial_to_circumferential_width``. If
         ``window_type='dog'``, then we return a dictionary with two keys
         ('center' and 'surround') containing those windows instead.
-    ecc_windows : torch.tensor or dict
+    ecc_windows : torch.Tensor or dict
         The 3d tensor of 2d log-eccentricity windows. Its shape will be
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,

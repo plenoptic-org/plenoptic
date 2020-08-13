@@ -28,12 +28,12 @@ class NLP(torch.nn.Module):
 
         Parameters
         ----------
-        image : torch.tensor
+        image : torch.Tensor
             image to pass to normalized_laplacian_pyramid
 
         Returns
         -------
-        representatio : torch.tensor
+        representation : torch.Tensor
             3d tensor with flattened NLP activations
 
         """

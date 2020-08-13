@@ -15,7 +15,13 @@ DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
 def to_numpy(x):
     r"""cast tensor to numpy in the most conservative way possible
+
+    Parameters
+    ----------------
+    x: `torch.Tensor`
+       Tensor to be converted to `numpy.ndarray` on CPU.
     """
+
     try:
         x = x.detach().cpu().numpy().astype(np.float32)
     except AttributeError:
@@ -113,36 +119,57 @@ def convert_float_to_int(im, dtype=np.uint8):
 
     Parameters
     ----------
-    im : numpy array
+    im : np.ndarray
         The image to convert
     dtype : {np.uint8, np.uint16}
         The target data type
 
     Returns
     -------
-    im : numpy array
+    im : np.ndarray
         The converted image, now with dtype=dtype
 
     """
     if im.max() > 1:
-        raise Exception("all values of im must lie between 0 and 1, but max is %s" % im.max())
+        raise Exception(f"all values of im must lie between 0 and 1, but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
 def torch_complex_to_numpy(x):
     r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
     to a numpy complex array
-    x: assumes x is a torch tensor with last dimension of size 2 where first component is the real
-    component and the second is the imaginary component
+
+    Parameters
+    ----------------------
+    x: `torch.Tensor`
+        Tensor whose last dimension is size 2 where first component is the real component and the second is the
+        imaginary component.
     """
+
     x_np = to_numpy(x)
     x_np = x_np[..., 0] + 1j * x_np[..., 1]
     return x_np
 
 
-def make_basic_stimuli(size=256, requires_grad=True):
 
-    assert size in [32, 64, 128, 256, 512], 'size not supported'
+def make_basic_stimuli(size=256, requires_grad=True):
+    r""" Make a set of basic stimuli, useful for developping and debugging models
+
+    Parameters
+    ----------
+    size: `int` in [8, 16, 32, 64, 128, 256]
+        the stimuli will have `torch.Size([size, size])`
+    requires_grad: `bool`
+        weather to initialize the simuli with gradients
+
+    Returns
+    -------
+    stimuli: `torch.FloatTensor` of shape [15, 1, size, size]
+        the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
+                sine_grating, square_grating, polar_angle, angular_sine, zone_plate,
+                fract, checkerboard, sawtooth, reptil_skin, image]
+    """
+
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
@@ -170,8 +197,7 @@ def make_basic_stimuli(size=256, requires_grad=True):
 
     checkerboard = plt.imread(op.join(DATA_PATH, 'checkerboard.pgm')).astype(float)
     # adjusting form 256 to desired size
-    l = int(np.log2(256 // size))
-    # for larger size use upConv
+    l = int(np.log2(checkerboard.shape[0] // size))
     checkerboard = blurDn(checkerboard, l, 'qmf9')
 
     sawtooth = plt.imread(op.join(DATA_PATH, 'sawtooth.pgm')).astype(float)

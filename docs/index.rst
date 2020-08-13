@@ -16,6 +16,16 @@ If anything is unclear, please `open an issue <https://github.com/LabForComputat
 
    modules
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials and examples
+
+   tutorials/eigendistortion.nblink
+   tutorials/mad.nblink
+   tutorials/metamer.nblink
+   tutorials/simple_mad.nblink
+   tutorials/orig_mad.nblink
+   tutorials/synthesis.nblink
 
 Indices and tables
 ==================

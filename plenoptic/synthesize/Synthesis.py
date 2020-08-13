@@ -19,7 +19,7 @@ import dill
 from ..tools.metamer_utils import RangeClamper
 
 
-class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
+class Synthesis(metaclass=abc.ABCMeta):
     r"""Abstract super-class for synthesis methods
 
     All synthesis methods share a variety of similarities and thus need
@@ -27,50 +27,20 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     simply inherited, some of them will need to be different for each
     sub-class and thus are marked as abstract methods here
 
-    There are two types of objects you can pass as your models:
-    torch.nn.Module or functions.
-
-    1. Module: in this case, you're passing a visual *model*, which
-       takes an image (as a 4d tensor) and returns some representation
-       (as a 3d or 4d tensor). The model must have a forward() method
-       that we can differentiate through (so, it should use pytorch
-       methods, rather than numpy or scipy, unless you manually define
-       the gradients in the backward() method). The distance we use is
-       the L2-norm of the difference between the model's representation
-       of two images (by default, to change, set ``loss_function`` to
-       some other callable).
-
-    2. Function: in this case, you're passing a visual *metric*, a
-       function which takes two images (as 4d tensors) and returns a
-       distance between them (as a single-valued tensor), which is what
-       we use as the distance for optimization purposes. This is
-       slightly more general than the above, as you can do arbitrary
-       calculations on the images, but you'll lose some of the power of
-       the helper functions. For example, the plot of the representation
-       and representation error will just be the pixel values and
-       pixel-wise difference, respectively. This is because we construct
-       a "dummy model" that just returns a duplicate of the image and
-       use that throughout this class. You may have additional arguments
-       you want to pass to your function, in which case you can pass a
-       dictionary as ``model_1_kwargs`` (or ``model_2_kwargs``) during
-       initialization. These will be passed during every call.
-
     Parameters
     ----------
-    target_image : torch.tensor or array_like
+    base_signal : torch.Tensor or array_like
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
-        The model to synthesize with. See above for the two allowed
-        types (Modules and functions)
+        The visual model or metric to synthesize with. See `MAD_Competition`
+        for details.
     loss_function : callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
-        Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, target_rep, synth_img, target_img) and
-        return some loss between them. Should probably be symmetric but
-        that might not be strictly necessary
+        Module models, ignored otherwise. If None, we use the default:
+        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        details
     model_kwargs : dict
         if model is a function (that is, you're using a metric instead
         of a model), then there might be additional arguments you want
@@ -78,18 +48,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         on every call.
 
     """
-    def __init__(self, target_image, model, loss_function, model_kwargs={}, loss_function_kwargs={}):
-        super().__init__()
+
+    def __init__(self, base_signal, model, loss_function, model_kwargs={}, loss_function_kwargs={}):
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
         # necessary
-        self.use_subset_for_gradient = False
+        self._use_subset_for_gradient = False
 
-        if not isinstance(target_image, torch.Tensor):
-            target_image = torch.tensor(target_image, dtype=torch.float32)
-        self.target_image = target_image
+        if not isinstance(base_signal, torch.Tensor):
+            base_signal = torch.tensor(base_signal, dtype=torch.float32)
+        self.base_signal = base_signal
         self.seed = None
-        self.rep_warning = False
+        self._rep_warning = False
 
         if loss_function is None:
             loss_function = l2_norm
@@ -106,18 +76,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                                      synth_img=synth_img, **loss_function_kwargs)
             self.loss_function = wrapped_loss_func
         else:
-            self.model = Identity(model.__name__).to(target_image.device)
+            self.model = Identity(model.__name__).to(base_signal.device)
 
             def wrapped_model(synth_rep, ref_rep, synth_img, ref_img):
                 return model(synth_rep, ref_rep, **model_kwargs)
             self.loss_function = wrapped_model
-            self.rep_warning = True
+            self._rep_warning = True
 
-        self.target_representation = self.analyze(self.target_image)
-        self.matched_image = None
-        self.matched_representation = None
-        self.optimizer = None
-        self.scheduler = None
+        self.base_representation = self.analyze(self.base_signal)
+        self.synthesized_signal = None
+        self.synthesized_representation = None
+        self._optimizer = None
+        self._scheduler = None
 
         self.loss = []
         self.gradient = []
@@ -125,10 +95,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self.pixel_change = []
         self._last_iter_matched_image = None
         self.saved_representation = []
-        self.saved_image = []
-        self.saved_image_gradient = []
+        self.saved_signal = []
+        self.saved_signal_gradient = []
         self.saved_representation_gradient = []
-        self.scales_loss = []
+        self.scales_loss = None
         self.scales = None
         self.scales_timing = None
         self.scales_finished = None
@@ -153,35 +123,35 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             torch.manual_seed(seed)
             np.random.seed(seed)
 
-    def _init_matched_image(self, matched_image_data, clamper=RangeClamper((0, 1)),
-                            clamp_each_iter=True):
-        """initialize the matched image
+    def _init_synthesized_signal(self, synthesized_signal_data, clamper=RangeClamper((0, 1)),
+                                 clamp_each_iter=True):
+        """initialize the synthesized image
 
-        set the ``self.matched_image`` attribute to be a parameter with
+        set the ``self.synthesized_signal`` attribute to be a parameter with
         the user-supplied data, making sure it's the right shape and
         calling clamper on it, if set
 
-        also initialize the ``self.matched_representation`` attribute
+        also initialize the ``self.synthesized_representation`` attribute
 
         Parameters
         ----------
-        matched_image_data : torch.tensor or array_like
-            the data to use as the first matched_image
+        synthesized_signal_data : torch.Tensor or array_like
+            the data to use as the first synthesized_signal
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
-            None, will call ``clamper.clamp`` on matched_image
+            None, will call ``clamper.clamp`` on synthesized_signal
         clamp_each_iter : bool, optional
             If True (and ``clamper`` is not ``None``), we clamp every
             iteration. If False, we only clamp at the very end, after
             the last iteration
         """
-        self.matched_image = torch.nn.Parameter(matched_image_data, requires_grad=True)
-        while self.matched_image.ndimension() < 4:
-            self.matched_image.data = self.matched_image.data.unsqueeze(0)
+        self.synthesized_signal = torch.nn.Parameter(synthesized_signal_data, requires_grad=True)
+        while self.synthesized_signal.ndimension() < 4:
+            self.synthesized_signal.data = self.synthesized_signal.data.unsqueeze(0)
         self.clamper = clamper
         if self.clamper is not None:
-            self.matched_image.data = self.clamper.clamp(self.matched_image.data)
-        self.matched_representation = self.analyze(self.matched_image)
+            self.synthesized_signal.data = self.clamper.clamp(self.synthesized_signal.data)
+        self.synthesized_representation = self.analyze(self.synthesized_signal)
         self.clamp_each_iter = clamp_each_iter
 
     def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
@@ -232,7 +202,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         if fraction_removed > 0 or loss_change_fraction < 1:
-            self.use_subset_for_gradient = True
+            self._use_subset_for_gradient = True
             if isinstance(self.model, Identity):
                 raise Exception("Can't use fraction_removed or loss_change_fraction with metrics!"
                                 " Since most of the metrics rely on the image being correctly "
@@ -256,6 +226,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 self.scales_timing = dict((k, []) for k in self.scales)
                 self.scales_timing[self.scales[0]].append(0)
                 self.scales_finished = []
+                self.scales_loss = []
             # else, we're continuing a previous version and want to continue
         if loss_thresh >= loss_change_thresh:
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
@@ -266,9 +237,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         sets the ``self.save_progress``, ``self.store_progress``, and
         ``self.save_path`` attributes, as well as changing
-        ``saved_image, saved_representation, saved_image_gradient,
+        ``saved_signal, saved_representation, saved_signal_gradient,
         saved_representation_gradient`` attibutes all to lists so we can
-        append to them. finally, adds first value to ``saved_image`` and
+        append to them. finally, adds first value to ``saved_signal`` and
         ``saved_representation``
 
         Parameters
@@ -279,7 +250,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
+            same as True). If True or int>0, ``self.saved_signal``
             contains the stored images, and ``self.saved_representation
             contains the stored representations.
         save_progress : bool or int, optional
@@ -310,16 +281,16 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 store_progress = 1
             # if this is not the first time synthesize is being run for
             # this metamer object,
-            # saved_image/saved_representation(_gradient) will be
+            # saved_signal/saved_representation(_gradient) will be
             # tensors instead of lists. This converts them back to lists
             # so we can use append. If it's the first time, they'll be
             # empty lists and this does nothing
-            self.saved_image = list(self.saved_image)
+            self.saved_signal = list(self.saved_signal)
             self.saved_representation = list(self.saved_representation)
-            self.saved_image_gradient = list(self.saved_image_gradient)
+            self.saved_signal_gradient = list(self.saved_signal_gradient)
             self.saved_representation_gradient = list(self.saved_representation_gradient)
-            self.saved_image.append(self.matched_image.clone().to('cpu'))
-            self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
+            self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
+            self.saved_representation.append(self.analyze(self.synthesized_signal).to('cpu'))
         else:
             if save_progress:
                 raise Exception("Can't save progress if we're not storing it! If save_progress is"
@@ -328,7 +299,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # we require store_progress to be the same because otherwise
             # the subsampling relationship between attrs that are stored
             # every iteration (loss, gradient, etc) and those that are
-            # stored every store_progress iteration (e.g., saved_image,
+            # stored every store_progress iteration (e.g., saved_signal,
             # saved_representation) changes partway through and that's
             # annoying
             raise Exception("If you've already run synthesize() before, must re-run it with same"
@@ -342,12 +313,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         """check if loss is nan and, if so, return True
 
         This checks if loss is NaN and, if so, updates
-        matched_image/representation to be several iterations ago (so
+        synthesized_signal/representation to be several iterations ago (so
         they're meaningful) and then returns True
 
         Parameters
         ----------
-        loss : torch.tensor
+        loss : torch.Tensor
             the loss from the most recent iteration
 
         Returns
@@ -357,32 +328,32 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         if np.isnan(loss.item()):
-            warnings.warn("Loss is NaN, quitting out! We revert matched_image / matched_"
+            warnings.warn("Loss is NaN, quitting out! We revert synthesized_signal / synthesized_"
                           "representation to our last saved values (which means this will "
                           "throw an IndexError if you're not saving anything)!")
             # need to use the -2 index because the last one will be
             # the one full of NaNs. this happens because the loss is
             # computed before calculating the gradient and updating
-            # matched_image; therefore the iteration where loss is
+            # synthesized_signal; therefore the iteration where loss is
             # NaN is the one *after* the iteration where
-            # matched_image (and thus matched_representation)
+            # synthesized_signal (and thus synthesized_representation)
             # started to have NaN values. this will fail if it hits
             # a nan before store_progress iterations (because then
-            # saved_image/saved_representation only has a length of
+            # saved_signal/saved_representation only has a length of
             # 1) but in that case, you have more severe problems
-            self.matched_image = torch.nn.Parameter(self.saved_image[-2])
-            self.matched_representation = self.saved_representation[-2]
+            self.synthesized_signal = torch.nn.Parameter(self.saved_signal[-2])
+            self.synthesized_representation = self.saved_representation[-2]
             return True
         return False
 
     def _clamp_and_store(self, i):
-        """clamp matched_image and store/save, if appropriate
+        """clamp synthesized_signal and store/save, if appropriate
 
         these all happen together because they all happen ``with
         torch.no_grad()``
 
-        if it's the right iteration, we update: ``saved_image,
-        saved_representation, saved_image_gradient,
+        if it's the right iteration, we update: ``saved_signal,
+        saved_representation, saved_signal_gradient,
         saved_representation_gradient``
 
         Parameters
@@ -403,7 +374,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         stored = False
         with torch.no_grad():
             if self.clamper is not None and self.clamp_each_iter:
-                self.matched_image.data = self.clamper.clamp(self.matched_image.data)
+                self.synthesized_signal.data = self.clamper.clamp(self.synthesized_signal.data)
 
             # i is 0-indexed but in order for the math to work out we want to be checking a
             # 1-indexed thing against the modulo (e.g., if max_iter=10 and
@@ -411,14 +382,14 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # at 0, 3, 6, 9; but we just want to save it three times, at 3, 6, 9)
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
-                self.saved_image.append(self.matched_image.clone().to('cpu'))
+                self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
                 # we do this instead of using
-                # self.matched_representation because its size might
+                # self.synthesized_representation because its size might
                 # change over time (if we're doing coarse-to-fine), and
                 # we want to be able to stack this
-                self.saved_representation.append(self.analyze(self.matched_image).to('cpu'))
-                self.saved_image_gradient.append(self.matched_image.grad.clone().to('cpu'))
-                self.saved_representation_gradient.append(self.matched_representation.grad.clone().to('cpu'))
+                self.saved_representation.append(self.analyze(self.synthesized_signal).to('cpu'))
+                self.saved_signal_gradient.append(self.synthesized_signal.grad.clone().to('cpu'))
+                self.saved_representation_gradient.append(self.synthesized_representation.grad.clone().to('cpu'))
                 if self.save_progress is True:
                     self.save(self.save_path, True)
                 stored = True
@@ -478,7 +449,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         """stack the saved_* attributes
 
         if we were storing progress, stack the ``saved_representation,
-        saved_image, saved_image_gradient,
+        saved_signal, saved_signal_gradient,
         saved_representation_gradient`` attributes so they're a single
         tensor
 
@@ -491,23 +462,23 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             try:
                 # setting the data directly avoids the issue of setting
                 # a non-Parameter tensor where a tensor should be
-                self.matched_image.data = self.clamper.clamp(self.matched_image.data)
-                self.matched_representation.data = self.analyze(self.matched_image).data
+                self.synthesized_signal.data = self.clamper.clamp(self.synthesized_signal.data)
+                self.synthesized_representation.data = self.analyze(self.synthesized_signal).data
             except RuntimeError:
                 # this means that we hit a NaN during optimization and
-                # so self.matched_image is on the cpu (since we're
+                # so self.synthesized_signal is on the cpu (since we're
                 # copying from self.saved_imgae, which is always on the
                 # cpu), whereas the model is on a different device. this
-                # should be the same as self.target_image.device
+                # should be the same as self.base_signal.device
                 # (unfortunatley we can't trust that self.model has a
                 # device attribute), and so the following should hopefully work
-                self.matched_image.data = self.clamper.clamp(self.matched_image.data.to(self.target_image.device))
-                self.matched_representation.data = self.analyze(self.matched_image).data
+                self.synthesized_signal.data = self.clamper.clamp(self.synthesized_signal.data.to(self.base_signal.device))
+                self.synthesized_representation.data = self.analyze(self.synthesized_signal).data
 
         if self.store_progress:
             self.saved_representation = torch.stack(self.saved_representation)
-            self.saved_image = torch.stack(self.saved_image)
-            self.saved_image_gradient = torch.stack(self.saved_image_gradient)
+            self.saved_signal = torch.stack(self.saved_signal)
+            self.saved_signal_gradient = torch.stack(self.saved_signal_gradient)
             # we can't stack the gradients if we used coarse-to-fine
             # optimization, because then they'll be different shapes, so
             # we have to keep them as a list
@@ -536,65 +507,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         ARGUMENTS AND FOLLOW THE GENERAL STRUCTURE OUTLINED IN THIS
         FUNCTION
 
-        We run this until either we reach ``max_iter`` or the change
-        over the past ``loss_change_iter`` iterations is less than
-        ``loss_thresh``, whichever comes first
-
-        We provide three ways to try and add some more randomness to
-        this optimization, in order to either improve the diversity of
-        generated metamers or avoid getting stuck in local optima:
-
-        1. Use a different optimizer (and change its hyperparameters)
-           with ``optimizer`` and ``optimizer_kwargs``
-
-        2. Only calculate the gradient with respect to some random
-           subset of the model's representation. By setting
-           ``fraction_removed`` to some number between 0 and 1, the
-           gradient and loss are computed using a random subset of the
-           representation on each iteration (this random subset is drawn
-           independently on each trial). Therefore, if you wish to
-           disable this (to use all of the representation), this should
-           be set to 0.
-
-        3. Only calculate the gradient with respect to the parts of the
-           representation that have the highest error. If we think the
-           loss has stopped changing (by seeing that the loss
-           ``loss_change_iter`` iterations ago is within
-           ``loss_change_thresh`` of the most recent loss), then only
-           compute the loss and gradient using the top
-           ``loss_change_fraction`` of the representation. This can be
-           combined wth ``fraction_removed`` so as to randomly subsample
-           from this selection. To disable this (and use all the
-           representation), this should be set to 1.
-
-        We also provide the ability of using a coarse-to-fine
-        optimization. Unlike the above methods, this will not work
-        out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in coarse-to-fine
-        order, i.e., the order that we will be optimizing) and its
-        ``forward`` method can accept a ``scales`` keyword argument, a
-        list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is not False, then we
-        optimize each scale until we think it's reached convergence
-        before moving on (either computing the gradient for each scale
-        individually, if ``coarse_to_fine=='separate'`` or for a given
-        scale and all coarser scales, if
-        ``coarse_to_fine=='together'``). Once we've done each scale, we
-        spend the rest of the iterations doing them all together, as if
-        ``coarse_to_fine`` was False. This can be combined with the
-        above three methods. We determine if a scale has converged in
-        the same way as method 3 above: if the scale-specific loss
-        ``loss_change_iter`` iterations ago is within
-        ``loss_change_thresh`` of the most recent loss.
-
         Parameters
         ----------
         seed : int or None, optional
             Number with which to seed pytorch and numy's random number
-            generators. If None, won't set the seed; general use case
-            for this is to avoid resetting the seed when resuming
-            synthesis
-        max_iter : int, optional
+            generators. If None, won't set the seed.
+        max_iter : int, optinal
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
             The learning rate for our optimizer. None is only accepted
@@ -602,12 +520,10 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
+            learning rate will never decrease.
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
-            gradient descent, as decribed in [1]_
+            gradient descent.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -623,23 +539,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
-            contains the stored images, and ``self.saved_representation
-            contains the stored representations.
+            same as True).
         save_progress : bool or int, optional
-            Whether to save the metamer as we go (so that you can check
-            it periodically and so you don't lose everything if you have
-            to kill the job / it dies before it finishes running). If
-            True, we save to ``save_path`` every time we update the
-            saved_representation. We attempt to save with the
-            ``save_model_reduced`` flag set to True. If an int, we save
-            every ``save_progress`` iterations. Note that this can end
-            up actually taking a fair amount of time, especially for
-            large numbers of iterations (and thus, presumably, larger
-            saved history tensors) -- it's therefore recommended that
-            you set this to a relatively large integer (say, one-tenth
-            ``max_iter``) for the purposes of speeding up your
-            synthesis.
+            Whether to save the metamer as we go. If True, we save to
+            ``save_path`` every ``store_progress`` iterations. If an int, we
+            save every ``save_progress`` iterations. Note that this can end up
+            actually taking a fair amount of time.
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -656,8 +561,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             The fraction of the representation that will be ignored
             when computing the loss. At every step the loss is computed
             using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         loss_change_thresh : float, optional
             The threshold below which we consider the loss as unchanging
             in order to determine whether we should only calculate the
@@ -673,41 +576,34 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
             - 'together': start with the coarsest scale, then gradually
-              add each finer scale. this is like blurring the objective
-              function and then gradually adding details and is probably
-              what you want.
+              add each finer scale.
             - 'separate': compute the gradient with respect to each
               scale separately (ignoring the others), then with respect
               to all of them at the end.
-            (see above for more details on what's required of the model
-            for this to work).
+            (see ``Metamer`` tutorial for more details).
         clip_grad_norm : bool or float, optional
-            If the gradient norm gets too large, the optimization can
-            run into problems with numerical overflow. In order to avoid
-            that, you can clip the gradient norm to a certain maximum by
-            setting this to True or a float (if you set this to False,
-            we don't clip the gradient norm). If True, then we use 1,
-            which seems reasonable. Otherwise, we use the value set
-            here.
-        optimizer_kwargs :
+            Clip the gradient norm to avoid issues with numerical overflow.
+            Gradient norm will be clipped to the specified value (True is
+            equivalent to 1).
+        optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
 
         Returns
         -------
-        matched_image : torch.tensor
+        synthesized_signal : torch.Tensor
             The synthesized image we've created
-        matched_representation : torch.tensor
+        synthesized_representation : torch.Tensor
             model's representation of this image
 
         """
         raise NotImplementedError("Synthesis.synthesize() should not be called!")
         # set the seed
         self._set_seed(seed)
-        # initialize matched_image -- how exactly you do this will
+        # initialize synthesized_signal -- how exactly you do this will
         # depend on the synthesis method
-        self._init_matched_image(matched_image_data, clamper, clamp_each_iter)
+        self._init_synthesized_signal(synthesized_signal_data, clamper, clamp_each_iter)
         # initialize stuff related to coarse-to-fine and randomization
         self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
@@ -746,7 +642,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         self._finalize_store_progress()
 
         # and return
-        return self.matched_image.data, self.matched_representation.data
+        return self.synthesized_signal.data, self.synthesized_representation.data
 
     def analyze(self, x, **kwargs):
         r"""Analyze the image, that is, obtain the model's representation of it
@@ -755,12 +651,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        x : torch.tensor
+        x : torch.Tensor
             The image to analyze
 
         Returns
         -------
-        y : torch.tensor
+        y : torch.Tensor
             The model's representation of x
         """
         y = self.model(x, **kwargs)
@@ -785,18 +681,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        synth_rep : torch.tensor
+        synth_rep : torch.Tensor
             model representation of the synthesized image
-        ref_rep : torch.tensor
+        ref_rep : torch.Tensor
             model representation of the reference image
-        synth_img : torch.tensor
+        synth_img : torch.Tensor
             the synthesized image.
-        ref_img : torch.tensor
+        ref_img : torch.Tensor
             the reference image
 
         Returns
         -------
-        loss : torch.tensor
+        loss : torch.Tensor
             single-element tensor containing the L2-norm of the
             difference between x and y
 
@@ -807,43 +703,43 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
     def representation_error(self, iteration=None, **kwargs):
         r"""Get the representation error
 
-        This is (matched_representation - target_representation). If
+        This is (synthesized_representation - base_representation). If
         ``iteration`` is not None, we use
         ``self.saved_representation[iteration]`` for
-        matched_representation
+        synthesized_representation
 
         Any kwargs are passed through to self.analyze when computing the
-        matched/target representation.
+        synthesized/base representation.
 
         Parameters
         ----------
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
+            None, we use the current ``synthesized_representation``
 
         Returns
         -------
         torch.Tensor
 
         """
-        if self.rep_warning:
+        if self._rep_warning:
             warnings.warn("Since at least one of your models is a metric, its representation_error"
                           " will be meaningless -- it will just show the pixel-by-pixel difference"
                           ". (Your loss is still meaningful, however, since it's the actual "
                           "metric)")
         if iteration is not None:
-            matched_rep = self.saved_representation[iteration].to(self.target_representation.device)
+            synthesized_rep = self.saved_representation[iteration].to(self.base_representation.device)
         else:
-            matched_rep = self.analyze(self.matched_image, **kwargs)
+            synthesized_rep = self.analyze(self.synthesized_signal, **kwargs)
         try:
-            rep_error = matched_rep - self.target_representation
+            rep_error = synthesized_rep - self.base_representation
         except RuntimeError:
             # try to use the last scale (if the above failed, it's
             # because they were different shapes), but only if the user
             # didn't give us another scale to use
             if 'scales' not in kwargs.keys():
                 kwargs['scales'] = [self.scales[-1]]
-            rep_error = matched_rep - self.analyze(self.target_image, **kwargs)
+            rep_error = synthesized_rep - self.analyze(self.base_signal, **kwargs)
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
@@ -908,18 +804,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             initial_lr = lr
         if optimizer == 'GD':
             # std gradient descent
-            self.optimizer = optim.SGD([self.matched_image], lr=lr, nesterov=False, momentum=0,
-                                       weight_decay=0, **optimizer_kwargs)
+            self._optimizer = optim.SGD([self.synthesized_signal], lr=lr, nesterov=False,
+                                        momentum=0, weight_decay=0, **optimizer_kwargs)
         elif optimizer == 'SGD':
             for k, v in zip(['nesterov', 'momentum'], [True, .8]):
                 if k not in optimizer_kwargs:
                     optimizer_kwargs[k] = v
-            self.optimizer = optim.SGD([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.SGD([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         elif optimizer == 'LBFGS':
             for k, v in zip(['history_size', 'max_iter'], [10, 4]):
                 if k not in optimizer_kwargs:
                     optimizer_kwargs[k] = v
-            self.optimizer = optim.LBFGS([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.LBFGS([self.synthesized_signal], lr=lr, **optimizer_kwargs)
             warnings.warn('This second order optimization method is more intensive')
             if hasattr(self, 'fraction_removed') and self.fraction_removed > 0:
                 warnings.warn('For now the code is not designed to handle LBFGS and random'
@@ -927,18 +823,18 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         elif optimizer == 'Adam':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
-            self.optimizer = optim.Adam([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.Adam([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         elif optimizer == 'AdamW':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
-            self.optimizer = optim.AdamW([self.matched_image], lr=lr, **optimizer_kwargs)
+            self._optimizer = optim.AdamW([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
         if scheduler:
-            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=.5)
+            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
         else:
-            self.scheduler = None
-        if not hasattr(self, 'optimizer_kwargs'):
+            self._scheduler = None
+        if not hasattr(self, '_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
             # optimizer to the same state (mainly used to make sure that
@@ -947,7 +843,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             # initial_lr here
             optimizer_kwargs.update({'optimizer': optimizer, 'lr': initial_lr,
                                      'scheduler': scheduler})
-            self.optimizer_kwargs = optimizer_kwargs
+            self._optimizer_kwargs = optimizer_kwargs
         if clip_grad_norm is True:
             self.clip_grad_norm = 1
         else:
@@ -968,11 +864,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                could schedule the optimization (eg. coarse to fine)
 
         Additionally, this is where:
-        - ``matched_representation`` is updated
+        - ``synthesized_representation`` is updated
         - ``loss.backward()`` is called
 
         """
-        self.optimizer.zero_grad()
+        self._optimizer.zero_grad()
         analyze_kwargs = {}
         if self.coarse_to_fine:
             # if we've reached 'all', we act the same as if
@@ -983,12 +879,12 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 # scales
                 if self.coarse_to_fine == 'together':
                     analyze_kwargs['scales'] += self.scales_finished
-        self.matched_representation = self.analyze(self.matched_image, **analyze_kwargs)
-        target_rep = self.analyze(self.target_image, **analyze_kwargs)
+        self.synthesized_representation = self.analyze(self.synthesized_signal, **analyze_kwargs)
+        base_rep = self.analyze(self.base_signal, **analyze_kwargs)
         if self.store_progress:
-            self.matched_representation.retain_grad()
+            self.synthesized_representation.retain_grad()
 
-        if self.use_subset_for_gradient:
+        if self._use_subset_for_gradient:
             # here we get a boolean mask (bunch of ones and zeroes) for all
             # the statistics we want to include. We only do this if the loss
             # appears to be roughly unchanging for some number of iterations
@@ -998,29 +894,29 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
             # else, we use all of the statistics
             else:
-                error_idx = torch.nonzero(torch.ones_like(self.matched_representation.flatten()))
+                error_idx = torch.nonzero(torch.ones_like(self.synthesized_representation.flatten()))
             # for some reason, pytorch doesn't have the equivalent of
             # np.random.permutation, something that returns a shuffled copy
             # of a tensor, so we use numpy's version
             idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
             # then we optionally randomly select some subset of those.
             idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-            matched_rep = self.matched_representation.flatten()[idx_sub]
-            target_rep = target_rep.flatten()[idx_sub]
+            synthesized_rep = self.synthesized_representation.flatten()[idx_sub]
+            base_rep = base_rep.flatten()[idx_sub]
         else:
-            matched_rep = self.matched_representation
+            synthesized_rep = self.synthesized_representation
 
-        loss = self.objective_function(matched_rep, target_rep, self.matched_image,
-                                       self.target_image)
+        loss = self.objective_function(synthesized_rep, base_rep, self.synthesized_signal,
+                                       self.base_signal)
         loss.backward(retain_graph=True)
 
         if self.clip_grad_norm:
-            torch.nn.utils.clip_grad_norm_([self.matched_image], self.clip_grad_norm)
+            torch.nn.utils.clip_grad_norm_([self.synthesized_signal], self.clip_grad_norm)
 
         return loss
 
     def _optimizer_step(self, pbar=None, **kwargs):
-        r"""Compute and propagate gradients, then step the optimizer to update matched_image
+        r"""Compute and propagate gradients, then step the optimizer to update synthesized_signal
 
         Parameters
         ----------
@@ -1034,11 +930,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        loss : torch.tensor
+        loss : torch.Tensor
             1-element tensor containing the loss on this step
-        gradient : torch.tensor
+        gradient : torch.Tensor
             1-element tensor containing the gradient on this step
-        learning_rate : torch.tensor
+        learning_rate : torch.Tensor
             1-element tensor containing the learning rate on this step
         pixel_change : torch.tensor
             1-element tensor containing the max pixel change in
@@ -1058,44 +954,44 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
                 # reset scheduler and optimizer
-                self._init_optimizer(**self.optimizer_kwargs)
+                self._init_optimizer(**self._optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
             postfix_dict['current_scale'] = self.scales[0]
-        loss = self.optimizer.step(self._closure)
+        loss = self._optimizer.step(self._closure)
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
         # (otherwise there's an error thrown because self.scales[-1] is
-        # not the same scale we computed matched_representation using)
+        # not the same scale we computed synthesized_representation using)
         if self.coarse_to_fine:
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        g = self.matched_image.grad.detach()
+        g = self.synthesized_signal.grad.detach()
         # optionally step the scheduler
-        if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+        if self._scheduler is not None:
+            self._scheduler.step(loss.item())
 
         if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
-                tmp_im = self.matched_image.detach().clone()
-                full_matched_rep = self.analyze(tmp_im)
-                loss = self.objective_function(full_matched_rep, self.target_representation,
-                                               self.matched_image, self.target_image)
+                tmp_im = self.synthesized_signal.detach().clone()
+                full_synthesized_rep = self.analyze(tmp_im)
+                loss = self.objective_function(full_synthesized_rep, self.base_representation,
+                                               self.synthesized_signal, self.base_signal)
         else:
-            loss = self.objective_function(self.matched_representation, self.target_representation,
-                                           self.matched_image, self.target_image)
+            loss = self.objective_function(self.synthesized_representation, self.base_representation,
+                                           self.synthesized_signal, self.base_signal)
 
         pixel_change = torch.max(torch.abs(self.matched_image - self._last_iter_matched_image))
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
                                  gradient_norm="%.4e" % g.norm().item(),
-                                 learning_rate=self.optimizer.param_groups[0]['lr'],
+                                 learning_rate=self._optimizer.param_groups[0]['lr'],
                                  pixel_change=f"{pixel_change:.04e}", **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self.optimizer.param_groups[0]['lr'], pixel_change
+        return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
     def save(self, file_path, save_model_reduced=False, attrs=['model'],
@@ -1152,6 +1048,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path, pickle_module=dill)
 
     @classmethod
+    @abc.abstractmethod
     def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
              **state_dict_kwargs):
         r"""load all relevant stuff from a .pt file
@@ -1240,7 +1137,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             model_attr_name = [model_attr_name]
         if not isinstance(model_constructor, list):
             model_constructor = [model_constructor]
-        target_image = tmp_dict.pop('target_image').to(device)
+        base_signal = tmp_dict.pop('base_signal').to(device)
         models = {}
         for attr, constructor in zip(model_attr_name, model_constructor):
             model = tmp_dict.pop(attr)
@@ -1252,11 +1149,11 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 # then we've got a state_dict_reduced and we need the model_constructor
                 model = constructor(model)
                 # want to make sure the dtypes match up as well
-                model = model.to(device, target_image.dtype)
+                model = model.to(device, base_signal.dtype)
             models[attr] = model
         loss_function = tmp_dict.pop('loss_function', None)
         loss_function_kwargs = tmp_dict.pop('loss_function_kwargs', {})
-        synth = cls(target_image, loss_function=loss_function,
+        synth = cls(base_signal, loss_function=loss_function,
                     loss_function_kwargs=loss_function_kwargs, **models)
         for k, v in tmp_dict.items():
             setattr(synth, k, v)
@@ -1348,7 +1245,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             Which index to take from the batch dimension (the first one)
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
-            None, we use the current ``matched_representation``
+            None, we use the current ``synthesized_representation``
         figsize : tuple, optional
             The size of the figure to create
         ylim : tuple or None, optional
@@ -1471,9 +1368,9 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         """
         if iteration is None:
-            image = self.matched_image[batch_idx, channel_idx]
+            image = self.synthesized_signal[batch_idx, channel_idx]
         else:
-            image = self.saved_image[iteration, batch_idx, channel_idx]
+            image = self.saved_signal[iteration, batch_idx, channel_idx]
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
@@ -1717,13 +1614,13 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             or save.
 
         """
-        if len(self.saved_image) != len(self.saved_representation):
-            raise Exception("saved_image and saved_representation need to be the same length in "
+        if len(self.saved_signal) != len(self.saved_representation):
+            raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
         # every time we call synthesize(), store_progress gets one extra
         # element compared to loss. this uses that fact to figure out
         # how many times we've called sythesize())
-        times_called = ((self.saved_image.shape[0] * self.store_progress - len(self.loss)) //
+        times_called = ((self.saved_signal.shape[0] * self.store_progress - len(self.loss)) //
                         self.store_progress)
         # which we use in order to pad out the end of plot_data so that
         # the lengths work out correctly (technically, should be
@@ -1733,7 +1630,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         # called synthesize(max_iter=5) 100 times).
         plot_data = [getattr(self, d) + self.store_progress*times_called*[getattr(self, d)[-1]]
                      for d in plot_data_attr]
-        if self.target_representation.ndimension() == 4:
+        if self.base_representation.ndimension() == 4:
             # we have to do this here so that we set the
             # ylim_rescale_interval such that we never rescale ylim
             # (rescaling ylim messes up an image axis)
@@ -1752,7 +1649,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 raise Exception("Don't know how to handle ylim %s!" % ylim)
         except AttributeError:
             # this way we'll never rescale
-            ylim_rescale_interval = len(self.saved_image)+1
+            ylim_rescale_interval = len(self.saved_signal)+1
         # initialize the figure
         fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
                                          plot_representation_error, imshow_zoom=imshow_zoom,
@@ -1767,7 +1664,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         else:
             rep_error_axes = fig.axes[2:]
 
-        if self.target_representation.ndimension() == 4:
+        if self.base_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
                           " to best handle rescaling color ranges yet!")
             # replace the bit of the title that specifies the range,
@@ -1778,7 +1675,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
 
         def movie_plot(i):
             artists = []
-            artists.extend(update_plot([fig.axes[0]], data=self.saved_image[i],
+            artists.extend(update_plot([fig.axes[0]], data=self.saved_signal[i],
                                        batch_idx=batch_idx))
             if plot_representation_error:
                 representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
@@ -1789,7 +1686,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
                 # again, we know that rep_error_axes contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
-                    if self.target_representation.ndimension() == 3:
+                    if self.base_representation.ndimension() == 3:
                         rescale_ylim(rep_error_axes, representation_error)
             if plot_image_hist:
                 # this is the dumbest way to do this, but it's simple
@@ -1804,7 +1701,7 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
             return artists
 
         # don't need an init_func, since we handle initialization ourselves
-        anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_image),
+        anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_signal),
                                        blit=True, interval=1000./framerate, repeat=False)
         plt.close(fig)
         return anim
