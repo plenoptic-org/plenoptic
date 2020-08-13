@@ -751,28 +751,6 @@ class TestVentralStream(object):
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3)
 
-    def test_cone_nonlinear(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1_lin = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1)
-        v1 = po.simul.PrimaryVisualCortex(1, im.shape[2:], cone_power=1/3)
-        rgc_lin = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1)
-        rgc = po.simul.RetinalGanglionCells(1, im.shape[2:], cone_power=1/3)
-        for model in [v1, v1_lin, rgc, rgc_lin]:
-            model(im)
-        # v1 mean luminance and rgc representation, for same cone power
-        # and scaling, should be identical
-        (v1.representation['mean_luminance'] == rgc.representation['mean_luminance']).all()
-        # v1 mean luminance and rgc representation, for same cone power
-        # and scaling, should be identical
-        (v1_lin.representation['mean_luminance'] == rgc_lin.representation['mean_luminance']).all()
-        # similarly, the representations should be different if cone
-        # power is different
-        (v1_lin.representation['mean_luminance'] != v1.representation['mean_luminance']).all()
-        # similarly, the representations should be different if cone
-        # power is different
-        (rgc_lin.representation['mean_luminance'] != rgc.representation['mean_luminance']).all()
-
     @pytest.mark.parametrize("frontend", [True, False])
     @pytest.mark.parametrize("steer", [True, False])
     def test_v2(self, frontend, steer):
@@ -996,18 +974,17 @@ class TestMetamers(object):
     @pytest.mark.parametrize("clamper", [po.RangeClamper((0, 1)), po.RangeRemapper((0, 1)),
                                          'clamp2', 'clamp4'])
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
-    @pytest.mark.parametrize("cone_power", [1, 1/3])
-    def test_metamer_clamper(self, clamper, clamp_each_iter, cone_power):
+    def test_metamer_clamper(self, clamper, clamp_each_iter):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         if type(clamper) == str and clamper == 'clamp2':
             clamper = po.TwoMomentsClamper(im)
         elif type(clamper) == str and clamper == 'clamp4':
             clamper = po.FourMomentsClamper(im)
-        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=cone_power)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
-        if cone_power == 1/3 and not clamp_each_iter:
+        if not clamp_each_iter:
             # these will fail because we'll end up outside the 0, 1 range
             with pytest.raises(IndexError):
                 metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
@@ -1017,7 +994,7 @@ class TestMetamers(object):
     def test_metamer_no_clamper(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:], cone_power=1)
+        rgc = po.simul.RetinalGanglionCells(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
         metamer.synthesize(max_iter=3, clamper=None)

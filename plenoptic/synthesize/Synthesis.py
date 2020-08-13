@@ -1079,15 +1079,6 @@ class Synthesis(torch.nn.Module, metaclass=abc.ABCMeta):
         if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
                 tmp_im = self.matched_image.detach().clone()
-                # if the model has a cone_power attribute, it's going to
-                # raise its input to some power and if that power is
-                # fractional, it won't handle negative values well. this
-                # should be generally handled by clamping, but clamping
-                # happens after this, which is just intended to give a
-                # sense of the overall loss, so we clamp with a min of 0
-                if hasattr(self.model, 'cone_power'):
-                    if self.model.cone_power != int(self.model.cone_power):
-                        tmp_im = torch.clamp(tmp_im, min=0)
                 full_matched_rep = self.analyze(tmp_im)
                 loss = self.objective_function(full_matched_rep, self.target_representation,
                                                self.matched_image, self.target_image)
