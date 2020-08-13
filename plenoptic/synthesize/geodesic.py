@@ -1,173 +1,169 @@
-import math
-import time
+from tqdm import tqdm
+from collections import OrderedDict
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
-from ..tools.signal import make_disk, rescale
-from ..tools.fit import pretty_print, stretch
+from ..tools.straightness import sample_brownian_bridge, make_straight_line
+from ..tools.fit import penalize_range
 
 
 class Geodesic(nn.Module):
-    '''Synthesize a geodesic between two images according to a model.
+    r'''Synthesize a geodesic between two images according to a model [1]_.
 
     Parameters
     ----------
-    imgA:
+    imgA (resp. imgB): 'torch.FloatTensor'
+        Start (resp. stop) anchor of the geodesic, of shape [1, C, H, W] in range [0, 1].
 
-    imgB:
+    model: nn.Module
 
-    model:
+    n_steps: int
 
-    Returns
+    lmbda: float
+        strength of the regularizer
+
+    init: 'straight' (default) or 'bridge'
+        pixel linear, or brownian bridge
+
+    Attributes
     -------
-    gamma:
+    geodesic:
         the calculated geodesic
+
+    pixelfade:
+
+    dist_from_line:
+        stored
+
+    step_lengths:
+        stored
+
+    reference_length:
+        for relative loss
 
     Notes
     -----
     Method for visualizing and refining the invariances of learned representations
 
-    http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
-    this script is based on an earlier version by Olivier Henaff
-
-    TODO
-    ----
-    finish clean-up / reorganization
-    in particular put much of the constructor in a class method
-    compare losses
-        multiscale
-        angle vs. distance
-    compute the argmin and substract it from loss so that 0 is meaningful
-        argmin = nsmpl * ((output[-1] - output[0]) / nsmpl) ** 2
-    accelerate
-        with torch.autograd.profiler.profile() as prof:
-            print(prof)
-    conditional geodesics (project out)
+    References
+    ----------
+    .. [1] Geodesics of learned representations
+        O J Hénaff and E P Simoncelli
+        Published in Int'l Conf on Learning Representations (ICLR), May 2016.
+        http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
     '''
 
-    def __init__(self, imgA, imgB, n_steps, model):
+    def __init__(self, imgA, imgB, model, n_steps=11, init='straight', lmbda=.1):
         super().__init__()
 
-        self.n_steps = n_steps
-        image_size = imgA.size(1)
-
-        # TODO explicitely asserts that A and B are square and of same size, no batch no channel for now
-        # accomodate numpy and torch
-        # self.xA = torch.tensor(imgA, dtype=torch.float32).unsqueeze(0)
-
-        # rescale image to [-1,1]
-        # rescale(imgA)
-        self.xA = (2*imgA/255 - 1).view(1, image_size, image_size)
-        self.xB = (2*imgB/255 - 1).view(1, image_size, image_size)
-
-        # compute pixel linear interpolation for initialization
-        self.x = torch.Tensor(self.n_steps-2, image_size, image_size)
-        for i in range(self.n_steps-2):
-            t = (i+1)/(self.n_steps-1)
-            self.x[i].copy_(self.xA[0] * (1 - t)+(t * self.xB[0]))
-
-        # disk mask, note that it divides amplitude by two
-        self.mask = torch.Tensor(image_size, image_size)
-        self.mask.copy_(make_disk(image_size)).div_(2)
-
-        # keep rescaled pixel linear interpolation for reference
-        self.pixelfade = torch.Tensor(self.n_steps, image_size, image_size)
-        self.pixelfade[0].copy_(self.xA.squeeze())
-        self.pixelfade[1:-1].copy_(self.x)
-        self.pixelfade[-1].copy_(self.xB.squeeze())
-        self.pixelfade = (self.mask * self.pixelfade).add_(0.5).mul_(255)
-
-        # initialization
-        self.gamma = torch.Tensor(self.n_steps, image_size, image_size)
-
-        # soft rescaling from (-inf,inf) to (-1, 1)
-        # used before each optimization step
-        self.squish = nn.Tanh()
-
-        self.xA = stretch(self.xA)
-        self.xB = stretch(self.xB)
-        self.x = stretch(self.x)
-
-        self.x = self.x.requires_grad_()
-
+        self.xA = imgA.clone().detach()
+        self.xB = imgB.clone().detach()
         self.model = model
+        self.n_steps = n_steps
+        self.lmbda = lmbda
+        self.image_size = imgA.shape
 
-        # multi-scale tools
-        self.n_scales = int(np.log2(self.n_steps))
-        # self.diff = nn.Conv3d(1, 1, (2, 1, 1), bias=False)
-        # self.blur = nn.Conv3d(1, 1, (2, 1, 1), bias=False, stride=(2, 1, 1))
-        # self.diff.weight.requires_grad = False
-        # self.blur.weight.requires_grad = False
-        # self.diff.weight = nn.Parameter(torch.tensor([[[[[-1.]], [[1.]]]]]))
-        # self.blur.weight = nn.Parameter(torch.ones_like(self.diff.weight))
-        # self.diff.weight.requires_grad = False
-        # self.blur.weight.requires_grad = False
-        self.diff = nn.Conv1d(1, 1, (2), bias=False)
-        self.blur = nn.Conv1d(1, 1, (2), bias=False, stride=(2))
-        self.diff.weight.requires_grad = False
-        self.blur.weight.requires_grad = False
-        self.diff.weight = nn.Parameter(torch.tensor([[[-1., 1.]]]))
-        self.blur.weight = nn.Parameter(torch.ones_like(self.diff.weight))
-        self.diff.weight.requires_grad = False
-        self.blur.weight.requires_grad = False
+        self.pixelfade = self.initialize(init='straight')
+        self.x = self.initialize(init=init)[1:-1]
+        self.x = nn.Parameter(self.x)
 
-    def analyze(self, x):
+        self.loss = []
+        self.dist_from_line = []
+        self.step_lengths = []
 
-        x = torch.cat((self.xA, x, self.xB), 0)
-        x = self.squish(x)
-        self.img = self.mask * x
-        y = self.model(self.img.unsqueeze(1))
+        with torch.no_grad():
+            self.yA = self.model(self.xA)
+            self.yB = self.model(self.xB)
 
-        # TODO reshape n_steps, C, Y, X -> n_steps, -1
-        if isinstance(y, dict):
-            return torch.cat([s.view(self.n_steps, -1) for s in y.values()], dim=1)
-        else:
-            return y.view(self.n_steps, -1)
+        step = (self.n_steps - 2)/(self.n_steps - 1) * self.yB + 1/(self.n_steps - 1) * self.yA
+        self.reference_length = self.metric(self.yB - step) * (self.n_steps - 1)
 
-    def objective_function(self, x):
+    def initialize(self, init):
+        if init == 'straight':
+            x = make_straight_line(self.xA, self.xB, self.n_steps)
+        elif init == 'bridge':
+            x = sample_brownian_bridge(self.xA, self.xB, self.n_steps)
+        return x
 
-        z = x.permute(1, 0).unsqueeze(1)
-        loss = 0
-        for s in range(self.n_scales):
-            loss = loss + torch.sum(self.diff(z) ** 2)
-            z = self.blur(z)
+    def analyze(self):
+        y = self.model(self.x)
+        return y
 
-        return loss
+    def metric(self, x):
+        return torch.norm(x) ** 2
 
-    def _optimizer_step(self, i, max_iter):
+    def objective_function(self, y):
+        """relative to straight interpolation
+        """
+
+        step_lengths = torch.empty(1, self.n_steps - 1)
+
+        step_lengths[:, 0] = self.metric(self.yA - y[0])
+        for i in range(1, self.n_steps-2):
+            step_lengths[:, i] = self.metric(y[i] - y[i-1])
+        step_lengths[:, -1] = self.metric(self.yB - y[-1])
+
+        loss = torch.sum(step_lengths)
+        self.step_lengths.append(step_lengths.detach())
+
+        return loss / self.reference_length - 1
+
+    def _optimizer_step(self, i, pbar, noise):
 
         self.optimizer.zero_grad()
-        output = self.analyze(self.x)
-        loss = self.objective_function(output)
-        loss.backward()
-        g = self.x.grad.data
-        if math.isnan(loss.item()):
+        y = self.analyze()
+        loss = self.objective_function(y)
+        if self.lmbda >= 0:
+            loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
+        if loss.item() != loss.item():
             raise Exception('found a NaN during optimization')
+
+        loss.backward()
         self.optimizer.step()
-
-        self.t0 = self.t1
-        self.t1 = time.time()
-        pretty_print(i, max_iter, (self.t1 - self.t0), loss.item(), g.norm().item())
-        if self.store_grad:
-            self.grad.append(g.numpy())
-
+        pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
+                                         ('gradient norm', f'{torch.norm(self.x.grad.data):.4e}'),
+                                         ('lr', self.optimizer.param_groups[0]['lr'])]))
         return loss
 
-    def synthesize(self, max_iter=20, learning_rate=.01, objective='multiscale', seed=0, store_grad=False):
+    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam', objective='multiscale', noise=None, seed=0):
+        """
+        objective:
+
+        noise:
+        """
 
         torch.manual_seed(seed)
-        self.optimizer = optim.Adam([self.x], lr=learning_rate, amsgrad=True)
-        self.store_grad = store_grad
-        self.loss = []
-        if self.store_grad:
-            self.grad = []
-        self.t1 = time.time()
+        if optimizer == 'adam':
+            self.optimizer = optim.Adam([self.x], lr=learning_rate, amsgrad=True)
+        elif optimizer == 'sgd':
+            self.optimizer = optim.SGD([self.x], lr=learning_rate, momentum=0.9)
 
-        for i in range(max_iter):
-            loss = self._optimizer_step(i, max_iter)
+        pbar = tqdm(range(max_iter))
+        for i in pbar:
+            loss = self._optimizer_step(i, pbar, noise)
+
+            # storing some information
             self.loss.append(loss.item())
+            self.geodesic = torch.cat((self.xA, self.x.data, self.xB), 0)
+            self.dist_from_line.append(self.distance_from_line(self.geodesic).unsqueeze(0))
 
-        self.gamma.copy_(self.img.data.squeeze()).add_(0.5).mul_(255)
+            if loss.item() < 1e-6:
+                print("""the geodesic matches the representation straight line up
+                       to floating point precision!""")
+                break
 
-        return self.gamma
+    def distance_from_line(self, x):
+        """l2 distance of x's representation to its projection onto the representation line
+
+        x: torch.FloatTensor
+            a sequence of images, preferably with anchor images as endpoints
+        """
+
+        y = self.model(x)
+        l = (self.yB - self.yA).flatten()
+        l /= torch.norm(l)
+        y_ = (y - self.yA).view(self.n_steps, -1)
+
+        return torch.norm(y_ - (y_ @ l)[:, None]*l[None, :], dim=1)
