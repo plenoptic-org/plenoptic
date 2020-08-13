@@ -44,7 +44,7 @@ class Portilla_Simoncelli(nn.Module):
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
     
     '''
-    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None,inputIsPyramid=False):
+    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None,inputImageIsPyramid=False):
         super(Portilla_Simoncelli, self).__init__()
 
         self.image_shape = im_shape
@@ -57,7 +57,7 @@ class Portilla_Simoncelli(nn.Module):
 
         self.normalize = normalize
         self.normalizationFactor = normalizationFactor
-        self.inputIsPyramid = inputImageIsPyramid
+        self.inputImageIsPyramid = inputImageIsPyramid
 
 
     def forward(self, image):
@@ -78,7 +78,7 @@ class Portilla_Simoncelli(nn.Module):
             
         """
 
-        if self.inputIsPyramid:
+        if self.inputImageIsPyramid:
             pyr0 = [k for k in image[0].pyr_coeffs.values()]
             image = image[1]
         else:
@@ -89,15 +89,12 @@ class Portilla_Simoncelli(nn.Module):
 
         
         # pixel statistics
-        mn0 = Portilla_Simoncelli.min(image)
+        mn0 = torch.min(image)
         mx0 = torch.max(image)
         mean0 = torch.mean(image)
         var0 = torch.var(image)
         skew0 = skew(image)
         kurt0 = kurtosis(image)
-
-        
-        print(var0)
         
         # STATISTIC: statg0 or the pixel statistics
         statg0 = torch.stack((mean0, var0, skew0, kurt0, mn0, mx0)).view(6, 1)
@@ -116,7 +113,6 @@ class Portilla_Simoncelli(nn.Module):
                 tmp = torch.unbind(pyr0[bb],-1)
                 apyr0.append(((tmp[0]**2+tmp[1]**2)**.5).squeeze())
                 rpyr0.append(tmp[0].squeeze())
-
             else:
                 rpyr0.append(pyr0[bb].squeeze())
                 apyr0.append(torch.abs(pyr0[bb]).squeeze())
@@ -146,9 +142,9 @@ class Portilla_Simoncelli(nn.Module):
         Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
+        self.acr_im = im
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales], vari = self.compute_autocorr(im)
         skew0p[self.n_scales], kurt0p[self.n_scales] =  self.compute_skew_kurt(im,vari,var0)
-
 
         # STATISTIC: ace or the auto-correlation of each magnitude band
         ace = torch.zeros([self.Na, self.Na, self.n_scales, self.n_orientations])
@@ -181,8 +177,8 @@ class Portilla_Simoncelli(nn.Module):
         C0 = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales+1)
         Cx0 = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales)
  
-        Cr0 = torch.zeros(2*self.n_orientations, 2*self.n_orientations, self.n_scales+1)
-        Crx0 = torch.zeros(2*self.n_orientations, 2*self.n_orientations, self.n_scales)
+        Cr0 = torch.zeros(max(2*self.n_orientations,5), max(2*self.n_orientations,5), self.n_scales+1)
+        Crx0 = torch.zeros(2*self.n_orientations, max(2*self.n_orientations,5), self.n_scales)
 
         for n_scales in range(0, self.n_scales):
             firstBnum = (n_scales)*self.n_orientations + 1
@@ -191,6 +187,7 @@ class Portilla_Simoncelli(nn.Module):
             if n_scales < self.n_scales-1:
                 parents = torch.empty((cousinSz, self.n_orientations))
                 rparents = torch.empty((cousinSz, self.n_orientations*2))
+                
                 for nor in range(0, self.n_orientations):
                     nband = (n_scales+1)*self.n_orientations + nor + 1
                     tmp = Portilla_Simoncelli.expand(pyr0[nband],2)/4.0
@@ -207,6 +204,8 @@ class Portilla_Simoncelli(nn.Module):
 
                     tmp2 = (rtmp2**2+itmp2**2)**.5
                     parents[:,nor] = (tmp2 - tmp2.mean()).t().flatten()
+
+
 
             else:
                 tmp = Portilla_Simoncelli.expand(rpyr0[-1].squeeze(),2)/4.0
@@ -225,24 +224,25 @@ class Portilla_Simoncelli(nn.Module):
                 np0 = parents.shape[1]
             else:
                 np0 = 0
-            C0[0:nc, 0:nc, n_scales] = torch.mm(cousins.t(),cousins)/cousinSz
+            C0[0:nc, 0:nc, n_scales] = (cousins.t()@cousins)/cousinSz
             if np0 > 0:
-                Cx0[0:nc, 0:np0, n_scales] = torch.mm(cousins.t(), parents)/cousinSz
+                Cx0[0:nc, 0:np0, n_scales] = (cousins.t()@parents)/cousinSz
                 if n_scales==self.n_scales-1:
-                    C0[0:np0, 0:np0, n_scales+1] = torch.mm(parents.t(),parents)/(cousinSz/4.0)
+                    C0[0:np0, 0:np0, n_scales+1] = (parents.t()@parents)/(cousinSz/4.0)
 
             cousins = torch.stack(tuple([a[:,:,0].t() for a in pyr0[n_scales*self.n_orientations+1:(n_scales+1)*self.n_orientations+1]])).view((self.n_orientations,cousinSz)).t()
             nrc = cousins.shape[1]
             nrp = 0
             if rparents.shape[0]>0:
                 nrp = rparents.shape[1]
-            Cr0[0:nrc,0:nrc,n_scales]=torch.mm(cousins.t(),cousins)/cousinSz
+
+            Cr0[0:nrc,0:nrc,n_scales]=(cousins.t()@cousins)/cousinSz
             if nrp>0:
-                Crx0[0:nrc,0:nrp,n_scales] = torch.mm(cousins.t(),rparents)/cousinSz
+                Crx0[0:nrc,0:nrp,n_scales] = (cousins.t()@rparents)/cousinSz
                 
                 if n_scales==self.n_scales-1:
                     
-                    Cr0[0:nrp,0:nrp,n_scales+1]=torch.mm(rparents.t(),rparents)/(cousinSz/4.0)
+                    Cr0[0:nrp,0:nrp,n_scales+1]=(rparents.t()@rparents)/(cousinSz/4.0)
 
         # STATISTC: vHPR0 or the variance of the high-pass residual
         channel = pyr0[0]
@@ -251,6 +251,8 @@ class Portilla_Simoncelli(nn.Module):
         representation = torch.cat((statg0.flatten(),magMeans0.flatten(),ace.flatten(),
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
             Cx0.flatten(), Cr0.flatten(), Crx0.flatten(), vHPR0.unsqueeze(0))) 
+
+        self.Crx0 = Crx0;
 
         if self.normalizationFactor is not None:
             representation = self.normalizationFactor @ representation
@@ -261,7 +263,7 @@ class Portilla_Simoncelli(nn.Module):
         """
             
             """
-        # leg=['statsg0','magMeans0','ace','skew0p','kurt0p','acr','C0','Cx0','Cr0','Crx0','vHPR0']
+        # leg=['statsg0','magMeans0','ace','skew0p','kurt0','acr','C0','Cx0','Cr0','Crx0','vHPR0']
         # statg0
         statg0 = (self.n_scales+2)*torch.ones(6)
         
@@ -373,13 +375,4 @@ class Portilla_Simoncelli(nn.Module):
             skew0p = 0
             kurt0p = 3
         return skew0p,kurt0p
-
-
-
-    def min(x,axis,keepdim=False):
-        axis = reversed(sorted(axis))
-        min_x = x
-        for i in axis:
-            min_x, _ = min_x.min(i, keepdim)
-        return min_x
 
