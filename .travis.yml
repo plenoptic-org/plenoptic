@@ -1,5 +1,7 @@
 language: python
 dist: xenial
+services:
+  - xvfb
 env:
   - TEST_SCRIPT=metamers
   - TEST_SCRIPT=models

@@ -5,14 +5,15 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
-    plenoptic.simulate.canonical_computations
-    plenoptic.simulate.models
+   plenoptic.simulate.canonical_computations
+   plenoptic.simulate.models
 
 Module contents
 ---------------
 
 .. automodule:: plenoptic.simulate
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

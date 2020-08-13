@@ -620,7 +620,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Returns
         -------
-        recon : `torch.tensor`
+        recon : `torch.Tensor`
             The reconstructed image or batch of images.
             Output is of size BxCxHxW
 
@@ -696,7 +696,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Returns
         -------
-        recondft : `torch.tensor`
+        recondft : `torch.Tensor`
             Current reconstruction based on the orientation band dft from the current scale
             summed with the output of recursive call with the next scale incremented
 

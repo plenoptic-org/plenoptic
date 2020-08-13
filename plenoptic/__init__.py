@@ -8,6 +8,8 @@ from .tools.conv import *
 from .tools.signal import *
 from .tools.stats import *
 from .tools.display import *
+from .tools import optim
+from .tools import external
 
 from .tools.metamer_utils import *
 

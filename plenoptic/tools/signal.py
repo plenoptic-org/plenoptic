@@ -372,3 +372,33 @@ def make_disk(img_size, outer_radius=None, inner_radius=None):
                 mask[i][j] = (1 + np.cos(np.pi * (r - inner_radius) / (outer_radius - inner_radius))) / 2
 
     return mask
+
+
+def add_noise(img, noise_mse):
+    """Add normally distributed noise to an image
+
+    This adds normally-distributed noise to an image so that the resulting
+    noisy version has the specified mean-squared error.
+
+    Parameters
+    ----------
+    img : torch.Tensor
+        the image to make noisy
+    noise_mse : float or list
+        the target MSE value / variance of the noise. More than one value is
+        allowed
+
+    Returns
+    -------
+    noisy_img : torch.Tensor
+        the noisy image. If `noise_mse` contains only one element, this will be
+        the same size as `img`. Else, each separate value from `noise_mse` will
+        be along the batch dimension.
+
+    """
+    noise_mse = torch.tensor(noise_mse, dtype=torch.float32).unsqueeze(0)
+    noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
+    noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:])
+    noise = noise - noise.mean()
+    noise = noise * torch.sqrt(noise_mse / (noise**2).mean((-1, -2)).unsqueeze(-1).unsqueeze(-1))
+    return img + noise

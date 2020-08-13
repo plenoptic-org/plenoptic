@@ -1016,12 +1016,12 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
 
     Returns
     -------
-    angle_windows : `torch.tensor`
+    angle_windows : `torch.Tensor`
         The 3d tensor of 2d polar angle windows. Its shape will be
         ``(n_angle_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``
         and ``radial_to_circumferential_width``.
-    ecc_windows : `torch.tensor`
+    ecc_windows : `torch.Tensor`
         The 3d tensor of 2d log-eccentricity windows. Its shape will be
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,
