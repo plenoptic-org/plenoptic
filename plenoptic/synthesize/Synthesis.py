@@ -93,7 +93,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.gradient = []
         self.learning_rate = []
         self.pixel_change = []
-        self._last_iter_matched_image = None
+        self._last_iter_synthesized_signal = None
         self.saved_representation = []
         self.saved_signal = []
         self.saved_signal_gradient = []
@@ -938,10 +938,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             1-element tensor containing the learning rate on this step
         pixel_change : torch.tensor
             1-element tensor containing the max pixel change in
-            matched_image between this step and the last
+            synthesized_signal between this step and the last
 
         """
-        self._last_iter_matched_image = self.matched_image.clone()
+        self._last_iter_synthesized_signal = self.synthesized_signal.clone()
         postfix_dict = {}
         if self.coarse_to_fine:
             # the last scale will be 'all', and we never remove
@@ -982,7 +982,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             loss = self.objective_function(self.synthesized_representation, self.base_representation,
                                            self.synthesized_signal, self.base_signal)
 
-        pixel_change = torch.max(torch.abs(self.matched_image - self._last_iter_matched_image))
+        pixel_change = torch.max(torch.abs(self.synthesized_signal - self._last_iter_synthesized_signal))
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
                                  gradient_norm="%.4e" % g.norm().item(),
@@ -1108,12 +1108,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
@@ -1122,12 +1122,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
@@ -1422,16 +1422,16 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         """
         if iteration is None:
-            image = self.matched_image[batch_idx, channel_idx]
+            image = self.synthesized_signal[batch_idx, channel_idx]
         else:
-            image = self.saved_image[iteration, batch_idx, channel_idx]
+            image = self.saved_signal[iteration, batch_idx, channel_idx]
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             fig = ax.figure
-        target_image = self.target_image[batch_idx, channel_idx]
+        base_signal = self.base_signal[batch_idx, channel_idx]
         sns.distplot(to_numpy(image).flatten(), label='synthesized image', ax=ax, **kwargs)
-        sns.distplot(to_numpy(target_image).flatten(), label='target image', ax=ax, **kwargs)
+        sns.distplot(to_numpy(base_signal).flatten(), label='target image', ax=ax, **kwargs)
         ax.legend()
         if ylim is not None:
             ax.set_ylim(ylim)
@@ -1480,9 +1480,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for PooledV1, try (39, 11).
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1564,9 +1564,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for PooledV1, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

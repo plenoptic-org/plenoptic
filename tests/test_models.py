@@ -21,7 +21,7 @@ class TestLinear(object):
         image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
         im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
+        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
 
 
 class TestLinearNonlinear(object):
@@ -36,7 +36,7 @@ class TestLinearNonlinear(object):
         image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
         im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
+        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
 
 
 # class TestConv(object):
@@ -423,7 +423,7 @@ class TestPooledVentralStream(object):
             rgc = po.simul.PooledRGC(.5, im.shape[2:])
             rgc = rgc.to(DEVICE)
             rgc_rep = rgc(im)
-            if not torch.allclose(rgc.representation, v1.mean_luminance):
+            if not torch.allclose(rgc.representation['mean_luminance'], v1.mean_luminance):
                 raise Exception("Somehow RGC and V1 mean luminance representations are not the "
                                 "same for image %s!" % fname)
             if not torch.allclose(rgc_rep, v1_rep[..., -rgc_rep.shape[-1]:]):
@@ -462,7 +462,7 @@ class TestPooledVentralStream(object):
     @pytest.mark.parametrize('window', ['cosine', 'gaussian'])
     def test_v1_scales(self, window):
         im = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
-        v1 = po.simul.PrimaryVisualCortex(1, im.shape[-2:], std_dev=1, window_type=window)
+        v1 = po.simul.PooledV1(1, im.shape[-2:], std_dev=1, window_type=window)
         lum_rep = v1(im, ['mean_luminance'])
         more_rep = v1(im, ['mean_luminance', 0])
         if lum_rep.numel() >= more_rep.numel():

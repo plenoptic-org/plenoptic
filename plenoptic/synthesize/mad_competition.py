@@ -31,7 +31,7 @@ class MADCompetition(Synthesis):
     args (allowing you to parallelize however you see fit), or by
     calling ``synthesize_all()``.
 
-    Note that for many attributes (e.g., `loss`, `matched_image`), there are
+    Note that for many attributes (e.g., `loss`, `synthesized_signal`), there are
     two versions, on with `_1` as a suffix and one with `_2`. This is because
     we need to store those attributes for each model: the version that ends in
     `_1` corresponds to `model_1` and the one that ends in `_2` corresponds to
@@ -114,7 +114,7 @@ class MADCompetition(Synthesis):
     pixel_change : list
         A list containing the max pixel change over iterations
         (``pixel_change[i]`` is the max pixel change in
-        ``matched_image`` between iterations ``i`` and ``i-1``). note
+        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
         this is calculated before any clamping, so may have some very
         large numbers in the beginning
     nu : list
@@ -1112,13 +1112,13 @@ class MADCompetition(Synthesis):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model1 = po.simul.RetinalGanglionCells(1)
+        >>> model1 = po.simul.PooledRGC(1)
         >>> model2 = po.metric.nlpd
         >>> mad = po.synth.MADCompetition(img, model1, model2)
         >>> mad.synthesize(max_iter=10, store_progress=True)
         >>> mad.save('mad.pt', save_model_reduced=True)
         >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
-                                                    [po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                    [po.simul.PooledRGC.from_state_dict_reduced,
                                                      None])
 
         You may want to update one or more of the arguments used to
@@ -1128,13 +1128,13 @@ class MADCompetition(Synthesis):
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model1 = po.simul.RetinalGanglionCells(1)
+        >>> model1 = po.simul.PooledRGC(1)
         >>> model2 = po.metric.nlpd
         >>> mad = po.synth.MADCompetition(img, model1, model2)
         >>> mad.synthesize(max_iter=10, store_progress=True)
         >>> mad.save('mad.pt', save_model_reduced=True)
         >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
-                                                    [po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                    [po.simul.PooledRGC.from_state_dict_reduced,
                                                      None],
                                                     cache_dir="/home/user/Desktop/metamers/windows_cache")
 
@@ -1807,9 +1807,9 @@ class MADCompetition(Synthesis):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for PooledV1, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

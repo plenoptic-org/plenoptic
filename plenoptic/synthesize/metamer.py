@@ -71,7 +71,7 @@ class Metamer(Synthesis):
     pixel_change : list
         A list containing the max pixel change over iterations
         (``pixel_change[i]`` is the max pixel change in
-        ``matched_image`` between iterations ``i`` and ``i-1``). note
+        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
         this is calculated before any clamping, so may have some very
         large numbers in the beginning
     saved_signal : torch.Tensor or list
