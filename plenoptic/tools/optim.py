@@ -174,7 +174,7 @@ def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1),
         the loss
 
     """
-    mse_loss = mse_norm(synth_rep, ref_rep)
+    mse_loss = mse(synth_rep, ref_rep)
     range_penalty = penalize_range(synth_img, allowed_range)
     return mse_loss + lmbda * range_penalty
 
