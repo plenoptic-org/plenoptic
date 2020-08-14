@@ -232,7 +232,7 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
                           p)
             continue
         if img_shape is None:
-            img_shape == im.shape
+            img_shape = im.shape
         im = im / np.iinfo(im.dtype).max
         # we don't actually use the as_gray argument because that
         # converts the dtype to float32 and we want to make sure to
