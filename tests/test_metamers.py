@@ -199,12 +199,7 @@ class TestMetamers(object):
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
         metamer = po.synth.Metamer(im, rgc)
-        if not clamp_each_iter:
-            # these will fail because we'll end up outside the 0, 1 range
-            with pytest.raises(IndexError):
-                metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
-        else:
-            metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
+        metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
     def test_metamer_no_clamper(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
