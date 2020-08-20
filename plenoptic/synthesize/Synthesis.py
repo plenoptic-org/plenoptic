@@ -210,7 +210,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.fraction_removed = fraction_removed
         self.loss_thresh = loss_thresh
         self.loss_change_thresh = loss_change_thresh
-        self.loss_change_iter = loss_change_iter
+        self.loss_change_iter = int(loss_change_iter)
         self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
         if coarse_to_fine not in [False, 'separate', 'together']:
