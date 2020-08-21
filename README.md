@@ -5,6 +5,7 @@
 [![Build Status](https://travis-ci.com/LabForComputationalVision/plenoptic.svg?branch=master)](https://travis-ci.com/LabForComputationalVision/plenoptic)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
