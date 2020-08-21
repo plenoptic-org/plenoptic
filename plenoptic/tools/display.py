@@ -5,11 +5,149 @@ import torch
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
-from .data import to_numpy
+from .data import to_numpy, torch_complex_to_numpy
 try:
     from IPython.display import HTML
 except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
+
+
+def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
+           cmap=None, plot_complex='rectangular', batch_idx=None,
+           channel_idx=None, as_rgb=False, **kwargs):
+    """Show image(s) correctly.
+
+    This function shows images correctly, making sure that each element in the
+    tensor corresponds to a pixel or an integer number of pixels, to avoid
+    aliasing (NOTE: this guarantee only holds for the saved image; it should
+    generally hold in notebooks as well, but will fail if, e.g., you plot an
+    image that's 2000 pixels wide on an monitor 1000 pixels wide; the notebook
+    handles the rescaling in a way we can't control).
+
+    Arguments
+    ---------
+    image : torch.Tensor or list
+        The images to display. Tensors should be 4d (batch, channel, height,
+        width) or 5d (if complex). List of tensors should be used for tensors
+        of different height and width: all images will automatically be
+        rescaled so they're displayed at the same height and width, thus, their
+        heights and widths must be scalar multiples of each other.
+    vrange : `tuple` or `str`
+        If a 2-tuple, specifies the image values vmin/vmax that are mapped to
+        the minimum and maximum value of the colormap, respectively. If a
+        string:
+
+        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
+                     value, and come from the minimum or maximum across all
+                     images, whichever has the larger absolute value
+        * `'auto/auto1'`: all images have same vmin/vmax, which are the
+                          minimum/maximum values across all images
+        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
+                     all images) minus/ plus 2 std dev (across all images)
+        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
+                     10th/90th percentile values to the 10th/90th percentile of
+                     the display intensity range. For example: vmin is the 10th
+                     percentile image value minus 1/8 times the difference
+                     between the 90th and 10th percentile
+        * `'indep0'`: each image has an independent vmin/vmax, which have the
+                      same absolute value, which comes from either their
+                      minimum or maximum value, whichever has the larger
+                      absolute value.
+        * `'indep1'`: each image has an independent vmin/vmax, which are their
+                      minimum/maximum values
+        * `'indep2'`: each image has an independent vmin/vmax, which is their
+                      mean minus/plus 2 std dev
+        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
+                      the 10th/90th percentile values map to the 10th/90th
+                      percentile intensities.
+    zoom : `float`
+        ratio of display pixels to image pixels. if >1, must be an integer. If
+        <1, must be 1/d where d is a a divisor of the size of the largest
+        image.
+    title : `str`, `list`, or None, optional
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom)
+        * if `str`, will put the same title on every plot.
+        * if `list`, all values must be `str`, must be the same length as img,
+          assigning each title to corresponding image.
+        * if None, no title will be printed (and subtitle will be removed;
+          unsupported for complex tensors).
+    col_wrap : `int` or None, optional
+        number of axes to have in each row. If None, will fit all axes in a
+        single row.
+    ax : `matplotlib.pyplot.axis` or None, optional
+        if None, we make the appropriate figure. otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception!,
+        so first define a large enough figure using either make_figure or
+        plt.figure)
+    cmap : matplotlib colormap, optional
+        colormap to use when showing these images
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        specifies handling of complex values.
+
+        * `'rectangular'`: plot real and imaginary components as separate images
+        * `'polar'`: plot amplitude and phase as separate images
+        * `'logpolar'`: plot log_2 amplitude and phase as separate images
+        for any other value, we raise a warning and default to rectangular.
+    batch_idx : int or None, optional
+        Which element from the batch dimension to plot. If None, we plot all.
+    channel_idx : int or None, optional
+        Which element from the channel dimension to plot. If None, we plot all.
+        Note if this is an int, then `as_rgb=True` will fail, because we
+        restrict the channels.
+    as_rgb : bool, optional
+        Whether to consider the channels as encoding RGB(A) values. If True, we
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if
+        you want the alpha channel) elements in the channel dimension, or this
+        will raise an Exception. If False, we plot each channel as a separate
+        grayscale image.
+    kwargs :
+        Passed to `ax.imshow`
+
+    Returns
+    -------
+    fig : `PyrFigure`
+        figure containing the plotted images
+
+    """
+    if not isinstance(image, list):
+        image = [image]
+    images_to_plot = []
+    for im in image:
+        if im.ndimension() == 5:
+            # this will also call to_numpy on it
+            im = torch_complex_to_numpy(im)
+        else:
+            im = to_numpy(im)
+        if im.shape[0] > 1 and batch_idx is not None:
+            # this preserves the number of dimensions
+            im = im[batch_idx:batch_idx+1]
+        if channel_idx is not None:
+            # this preserves the number of dimensions
+            im = im[:, channel_idx:channel_idx+1]
+        # allow RGB and RGBA
+        if as_rgb:
+            if im.shape[1] not in [3, 4]:
+                raise Exception("If as_rgb is True, then channel must have 3 "
+                                "or 4 elements!")
+            im = im.transpose(0, 2, 3, 1)
+            # want to insert a fake "channel" dimension here, so our putting it
+            # into a list below works as expected
+            im = im.reshape((im.shape[0], 1, *im.shape[1:]))
+        elif im.shape[1] > 1 and im.shape[0] > 1:
+            raise Exception("Don't know how to plot images with more than one channel and batch!"
+                            " Use batch_idx / channel_idx to choose a subset for plotting")
+        # by iterating through it twice, we make sure to peel apart the batch
+        # and channel dimensions so that they each show up as a separate image.
+        # because of how we've handled everything above, we know that im will
+        # be (b,c,h,w) or (b,c,h,w,r) where r is the RGB(A) values
+        for i in im:
+            images_to_plot.extend([i_.squeeze() for i_ in i])
+    return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
+                     col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
+                     **kwargs)
+
 
 def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
                   axes_to_remove=['x']):

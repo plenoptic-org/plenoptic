@@ -136,6 +136,9 @@ def torch_complex_to_numpy(x):
     component and the second is the imaginary component
     """
     x_np = to_numpy(x)
+    if x.ndim != 5:
+        raise Exception(f"x has {x.ndim} dimensions, but a complex tensor should have 5 "
+                        "(real and imaginary stacked along the final dim)!")
     x_np = x_np[..., 0] + 1j * x_np[..., 1]
     return x_np
 
