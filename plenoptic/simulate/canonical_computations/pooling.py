@@ -6,7 +6,7 @@ Gaussians. They're laid out in the same fashion as the raised-cosine
 windows, but are wider and have values everywhere (whereas the
 raised-cosine windows are clipped so that they're zero for most of the
 image). Using the raised-cosine windows led to issues with aliasing in
-metamer synthesis, visible as ringing, with the PrimaryVisualCortex
+metamer synthesis, visible as ringing, with the PooledV1
 model, because of the interactions between the windows and the steerable
 pyramid filters.
 
@@ -1016,12 +1016,12 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
 
     Returns
     -------
-    angle_windows : `torch.tensor`
+    angle_windows : `torch.Tensor`
         The 3d tensor of 2d polar angle windows. Its shape will be
         ``(n_angle_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``
         and ``radial_to_circumferential_width``.
-    ecc_windows : `torch.tensor`
+    ecc_windows : `torch.Tensor`
         The 3d tensor of 2d log-eccentricity windows. Its shape will be
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,
@@ -1202,7 +1202,7 @@ class PoolingWindows(nn.Module):
         keep the (very large) representation and intermediate steps
         around. To save, use ``self.save_reduced(filename)``, and then
         load from that same file using the class method
-        ``po.simul.VentralModel.load_reduced(filename)``
+        ``po.simul.PooledVentralStream.load_reduced(filename)``
     window_width_degrees : dict
         Dictionary containing the widths of the windows in
         degrees. There are six keys, corresponding to a 2x2 for the

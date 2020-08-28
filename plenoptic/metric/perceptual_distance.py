@@ -9,9 +9,7 @@ from ..simulate.canonical_computations import local_gain_control, rectangular_to
 import os
 dirname = os.path.dirname(__file__)
 
-# TODO
-# clean up, test and document (MS)SSIM
-
+# TODO: clean up, test and document (MS)SSIM
 
 def _gaussian(window_size=11, sigma=1.5):
     """Normalized, centered Gaussian
@@ -31,7 +29,7 @@ def _gaussian(window_size=11, sigma=1.5):
 
     Returns
     -------
-    window : torch.tensor
+    window : torch.Tensor
         1d gaussian
 
     """
@@ -59,7 +57,7 @@ def create_window(window_size=11, n_channels=1):
 
     Returns
     -------
-    window : torch.tensor
+    window : torch.Tensor
         4d tensor containing the Gaussian windows
 
     """
@@ -68,32 +66,19 @@ def create_window(window_size=11, n_channels=1):
     window = _2D_window.expand(n_channels, 1, window_size, window_size).contiguous()
     return window / window.sum((-1, -2))
 
+def _ssim_parts(img1, img2, dynamic_range):
+    """Calcluates the various components used to compute SSIM
 
-def ssim(img1, img2, weighted=False, dynamic_range=1):
-    """Structural similarity index
+    This should not be called by users directly, but is meant to assist for
+    calculating SSIM and MS-SSIM.
 
-    As described in [1]_, the structural similarity index (SSIM) is a
-    perceptual distance metric, giving the distance between two images. SSIM is
-    based on three comparison measurements between the two images: luminance,
-    contrast, and structure. All of these are computed in windows across the
-    images. See the references for more information.
-
-    This implementations follows the original implementation, as found at [2]_,
-    as well as providing the option to use the weighted version used in [4]_
-    (which was shown to consistently improve the image quality prediction on
-    the LIVE database).
-
-    Argument
-    --------
-    img1 : torch.tensor
+    Parameters
+    ----------
+    img1 : torch.Tensor
         4d tensor with first image to compare
-    img2 : torch.tensor
+    img2 : torch.Tensor
         4d tensor with second image to compare. Must have the same height and
         width (last two dimensions) as `img1`
-    weighted : bool, optional
-        whether to use the original, unweighted SSIM version (`False`) as used
-        in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
-        section for the weight
     dynamic_range : int, optional.
         dynamic range of the images. Note we assume that both images have the
         same dynamic range. 1, the default, is appropriate for float images
@@ -101,27 +86,6 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
         images between -1 and 1, and 255 is appropriate for standard 8-bit
         integer images. We'll raise a warning if it looks like your value is
         not appropriate for `img1` or `img2`, but will calculate it anyway.
-
-    Returns
-    ------
-    mssim : torch.tensor
-        2d tensor containing the mean SSIM for each image, averaged over the
-        whole image
-    ssim_map : torch.tensor
-        4d tensor containing the SSIM map, giving the SSIM value at each
-        location on the image
-
-    References
-    ----------
-    .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
-       quality assessment: From error measurement to structural similarity"
-       IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
-    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
-    .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
-       competition: A methodology for comparing computational models of
-       perceptual discriminability. Journal of Vision, 8(12), 1–13.
-       http://dx.doi.org/10.1167/8.12.8
 
     """
     img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
@@ -181,82 +145,161 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     v1 = 2.0 * sigma12 + C2
     v2 = sigma1_sq + sigma2_sq + C2
 
+    # SSIM consists of a luminance component, a contrast component, and a
+    # structure component. This is the contrast component, which is used to
+    # compute MS-SSIM This is the contrast component, which is used to compute
+    # MS-SSIM.
+    contrast_map = v1 / v2
+
+    # the weight used for stability
+    weight = torch.log(torch.matmul((1+(sigma1_sq/C2)), (1+(sigma2_sq/C2))))
+
     ssim_map = ((2 * mu1_mu2 + C1) * v1) / ((mu1_sq + mu2_sq + C1) * v2)
+    ssim_map = ((2 * mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)) * contrast_map
+    return ssim_map, contrast_map, weight
 
+
+def ssim(img1, img2, weighted=False, dynamic_range=1):
+    r"""Structural similarity index
+
+    As described in [1]_, the structural similarity index (SSIM) is a
+    perceptual distance metric, giving the distance between two images. SSIM is
+    based on three comparison measurements between the two images: luminance,
+    contrast, and structure. All of these are computed in windows across the
+    images. See the references for more information.
+
+    This implementation follows the original implementation, as found at [2]_,
+    as well as providing the option to use the weighted version used in [4]_
+    (which was shown to consistently improve the image quality prediction on
+    the LIVE database).
+
+    Note that this is a similarity metric (not a distance), and so 1 means the
+    two images are identical and 0 means they're very different. It is bounded
+    between 0 and 1.
+
+    This function returns the mean SSIM, a scalar-valued metric giving the
+    average over the whole image. For the SSIM map (showing the computed value
+    across the image), call `ssim_map`.
+
+    Parameters
+    ----------
+    img1 : torch.Tensor
+        4d tensor with first image to compare
+    img2 : torch.Tensor
+        4d tensor with second image to compare. Must have the same height and
+        width (last two dimensions) as `img1`
+    weighted : bool, optional
+        whether to use the original, unweighted SSIM version (`False`) as used
+        in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
+        section for the weight
+    dynamic_range : int, optional.
+        dynamic range of the images. Note we assume that both images have the
+        same dynamic range. 1, the default, is appropriate for float images
+        between 0 and 1, as is common in synthesis. 2 is appropriate for float
+        images between -1 and 1, and 255 is appropriate for standard 8-bit
+        integer images. We'll raise a warning if it looks like your value is
+        not appropriate for `img1` or `img2`, but will calculate it anyway.
+
+    Returns
+    ------
+    mssim : torch.Tensor
+        2d tensor containing the mean SSIM for each image, averaged over the
+        whole image
+
+    Notes
+    -----
+    The weight used when `weighted=True` is:
+
+    .. math::
+       \log((1+\frac{\sigma_1^2}{C_2})(1+\frac{\sigma_2^2}{C_2}))
+
+    where :math:`sigma_1^2` and :math:`sigma_2^2` are the variances of `img1`
+    and `img2`, respectively, and :math:`C_2` is a constant which depends on
+    `dynamic_range`. See [4]_ for more details.
+
+    References
+    ----------
+    .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
+       quality assessment: From error measurement to structural similarity"
+       IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
+    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
+    .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
+       competition: A methodology for comparing computational models of
+       perceptual discriminability. Journal of Vision, 8(12), 1–13.
+       http://dx.doi.org/10.1167/8.12.8
+
+    """
+    # these are named map_ssim instead of the perhaps more natural ssim_map
+    # because that's the name of a function
+    map_ssim, _, weight = _ssim_parts(img1, img2, dynamic_range)
     if not weighted:
-        mssim = ssim_map.mean((-1, -2))
+        mssim = map_ssim.mean((-1, -2))
     else:
-        weight = torch.log(torch.matmul((1+(sigma1_sq/C2)), (1+(sigma2_sq/C2))))
-        mssim = (ssim_map*weight).sum((-1, -2)) / weight.sum((-1, -2))
+        mssim = (map_ssim*weight).sum((-1, -2)) / weight.sum((-1, -2))
 
-    return mssim, ssim_map
-
-
-def msssim(img1, img2, window_size=11, size_average=True, dynamic_range=None, normalize=False):
-    device = img1.device
-    weights = torch.FloatTensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333]).to(device)
-    levels = weights.size()[0]
-    mssim = []
-    mcs = []
-    for _ in range(levels):
-        sim, cs = ssim(img1, img2, window_size=window_size, size_average=size_average, full=True,
-                       dynamic_range=dynamic_range)
-        mssim.append(sim)
-        mcs.append(cs)
-
-        img1 = F.avg_pool2d(img1, (2, 2))
-        img2 = F.avg_pool2d(img2, (2, 2))
-
-    mssim = torch.stack(mssim)
-    mcs = torch.stack(mcs)
-
-    # Normalize (to avoid NaNs during training unstable models, not compliant with original definition)
-    if normalize:
-        mssim = (mssim + 1) / 2
-        mcs = (mcs + 1) / 2
-
-    pow1 = mcs ** weights
-    pow2 = mssim ** weights
-    # From Matlab implementation https://ece.uwaterloo.ca/~z70wang/research/iwssim/
-    output = torch.prod(pow1[:-1] * pow2[-1])
-    return output
+    return mssim
 
 
-# Classes to re-use window
-class SSIM(torch.nn.Module):
-    def __init__(self, window_size=11, size_average=True, dynamic_range=None):
-        super(SSIM, self).__init__()
-        self.window_size = window_size
-        self.size_average = size_average
-        self.dynamic_range = dynamic_range
+def ssim_map(img1, img2, dynamic_range=1):
+    """Structural similarity index map
 
-        # Assume 1 channel for SSIM
-        self.channel = 1
-        self.window = create_window(window_size)
+    As described in [1]_, the structural similarity index (SSIM) is a
+    perceptual distance metric, giving the distance between two images. SSIM is
+    based on three comparison measurements between the two images: luminance,
+    contrast, and structure. All of these are computed in windows across the
+    images. See the references for more information.
 
-    def forward(self, img1, img2):
-        (_, channel, _, _) = img1.size()
+    This implementation follows the original implementation, as found at [2]_,
+    as well as providing the option to use the weighted version used in [4]_
+    (which was shown to consistently improve the image quality prediction on
+    the LIVE database).
 
-        if channel == self.channel and self.window.dtype == img1.dtype:
-            window = self.window
-        else:
-            window = create_window(self.window_size, channel).to(img1.device).type(img1.dtype)
-            self.window = window
-            self.channel = channel
+    Note that this is a similarity metric (not a distance), and so 1 means the
+    two images are identical and 0 means they're very different. It is bounded
+    between 0 and 1.
 
-        return ssim(img1, img2, window=window, window_size=self.window_size, size_average=self.size_average)
+    This function returns the SSIM map, showing the SSIM values across the
+    image. For the mean SSIM (a single value metric), call `ssim`.
 
+    Parameters
+    ----------
+    img1 : torch.Tensor
+        4d tensor with first image to compare
+    img2 : torch.Tensor
+        4d tensor with second image to compare. Must have the same height and
+        width (last two dimensions) as `img1`
+    weighted : bool, optional
+        whether to use the original, unweighted SSIM version (`False`) as used
+        in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
+        section for the weight
+    dynamic_range : int, optional.
+        dynamic range of the images. Note we assume that both images have the
+        same dynamic range. 1, the default, is appropriate for float images
+        between 0 and 1, as is common in synthesis. 2 is appropriate for float
+        images between -1 and 1, and 255 is appropriate for standard 8-bit
+        integer images. We'll raise a warning if it looks like your value is
+        not appropriate for `img1` or `img2`, but will calculate it anyway.
 
-class MSSSIM(torch.nn.Module):
-    def __init__(self, window_size=11, size_average=True, channel=3):
-        super(MSSSIM, self).__init__()
-        self.window_size = window_size
-        self.size_average = size_average
-        self.channel = channel
+    Returns
+    ------
+    ssim_map : torch.Tensor
+        4d tensor containing the map of SSIM values.
 
-    def forward(self, img1, img2):
-        # TODO: store window between calls if possible
-        return msssim(img1, img2, window_size=self.window_size, size_average=self.size_average)
+    References
+    ----------
+    .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
+       quality assessment: From error measurement to structural similarity"
+       IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
+    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
+    .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
+       competition: A methodology for comparing computational models of
+       perceptual discriminability. Journal of Vision, 8(12), 1–13.
+       http://dx.doi.org/10.1167/8.12.8
+
+    """
+    return _ssim_parts(img1, img2, dynamic_range)[0]
 
 
 def normalized_laplacian_pyramid(im):
@@ -341,8 +384,6 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
-
-    TODO
 
     under construction
     """

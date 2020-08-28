@@ -1,29 +1,36 @@
 # plenoptic
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
+![Python version](https://img.shields.io/badge/python-3.6%7C3.7-blue.svg)
+[![Build Status](https://travis-ci.com/LabForComputationalVision/plenoptic.svg?branch=master)](https://travis-ci.com/LabForComputationalVision/plenoptic)
+[![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
+[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
+
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
-demonstrated how difficult it is to understand how models make sense
-of the images they process. The space of all possible images is
-impossibly vast and difficult to explore, so that even training a
-model on millions of images represent just a small fraction of all
-that could be shown. `plenoptic` is a python library that provides
-tools to help researchers better understand their models by using
-optimization to synthesize novel images. These images allow researchers
-to gain a sense for what features the model ignores and what it
-considers important, and they can be used in experiments for further
-model testing and validation.
+demonstrated how difficult it is to understand how complex models process
+images. The space of all possible images is impossibly vast and difficult
+to explore: even when training on millions of images, a dataset only
+represents a tiny fraction of all images.
 
-To get a little more technical, all models have three components,
+`plenoptic` is a python library that provides tools to help researchers
+better understand their models by using optimization to synthesize novel 
+informative images. These images allow us to build our intuition for what
+features the model ignores and what it is sensitive to. These synthetic 
+images can then be used in psychophysics experiments for further investigation.
+
+More specifically, all models have three components,
 inputs `x`, outputs `y`, and parameters `θ`. When working with models,
 we typically either simulate, by holding `x` and `θ` constant, and
 generating predictions for `y`, or fit, by holding `x` and `y`
 constant and using optimization to find the best-fitting `θ`. However,
 for optimization purposes, there's nothing special about `x`, so we
 can instead hold `y` and `θ` constant and use optimization to
-synthesize new `x`. Synthesis methods do exactely that: they
-take a model with set parameters, set outputs and generate new images.
-They allow you to better understand the model by determining
-what it is sensitive to and, crucially, what it is not sensitive to,
+synthesize new inputs `x`. Synthesis methods do exactely that: they
+take a model with set parameters, set outputs and generate new inputs.
+They allow for better understanding of the model by assessing what
+it is sensitive to and, crucially, what it is not sensitive to,
 as well as generating novel stimuli for testing the model.
 
 Here's a table summarizing this:
@@ -40,20 +47,20 @@ Here's a table summarizing this:
 to the papers describing them):
 
 - [metamers](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf):
-  given a model and an image, synthesize a new image that the model
-  thinks is identical.
+  given a model and an image, synthesize a new image which is admits
+  a model representation identical to that of the original image.
 - [Maximal differentiation (MAD)
   competition](https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf):
   given two models and an image, synthesize two pairs of images: two
-  that the first model thinks are identical that the second thinks are
-  as different as possible, and two that the first model thinks are as
-  identical as possible.
+  that the first model represents identically, while the second model
+  represents as differently as possible; and two that the first model
+  represents as differently as possible while the second model represents
+  identically.
 - [Geodesics](https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf):
-  given a model and two images, synthesize a set of images that the
-  model thinks are intermediate between the two. That is, how does the
-  model think you go from one image (for example, a picture of a human
-  on the left side of a chair) to another (a picture of a human on the
-  right side of the chair).
+  given a model and two images, synthesize a sequence of images that form
+  a short path in the model's representation space. That is, a sequence of 
+  images that are represented to as close as possible to a straight interpolation 
+  line between the two anchor images.
 - [Eigendistortions](https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf):
   given a model and an image, synthesize the most and least noticeable
   distortion on the image (with a constant mean-squared error in
@@ -62,11 +69,13 @@ to the papers describing them):
   as possible, and how does the model think you should do it to make
   it unnoticeable.
   
-(where for all of these, when I say "the model thinks", I'm referring
-to the L2-distance in a model's representation, so that "model thinks
-is identical" means that the model representations are identical, and
-"model thinks are as different as possible" means that the model
-representations are as far apart from each other as possible)
+(where for all of these, "identical (resp. different) representation",
+stands for small (resp. large) l2-distance in a model's representation space)
+
+# Status
+
+This project is currently in alpha, under heavy development. Not all features
+have been implemented, and there will be breaking changes.
 
 # Roadmap
 
@@ -76,8 +85,7 @@ for a more detailed roadmap, but at the high level:
 
 - Short term:
   1. Finalize Portilla-Simoncelli texture statistics
-  2. Add MAD competition
-  3. Create `Synthesis` superclass
+  2. Recreate existing `MADCompetition` examples.
 - Medium term:
   1. Finalize geodesics
   2. Get eigendistortion and geodesics to use `Synthesis` superclass

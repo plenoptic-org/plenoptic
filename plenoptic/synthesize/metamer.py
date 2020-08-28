@@ -7,65 +7,40 @@ from ..tools.metamer_utils import RangeClamper
 class Metamer(Synthesis):
     r"""Synthesize metamers for image-computable differentiable models!
 
-    Following the basic idea in [1]_, this module creates a metamer for
-    a given model on a given image. We start with some random noise
-    (typically, though users can choose to start with something else)
-    and iterative adjust the pixel values so as to match the
-    representation of this metamer-to-be and the ``target_image``. This
-    is optimization though, so you'll probably need to experiment with
-    the optimization hyper-parameters before you find a good solution.
+    Following the basic idea in [1]_, this module creates a metamer for a given
+    model on a given image. We start with some random noise and iteratively
+    adjust the pixel values so as to match the representation of the
+    ``synthesized_signal`` and ``base_signal``. This is optimization though, so
+    you'll probably need to experiment with the optimization hyper-parameters
+    before you find a good solution.
 
-    Currently we do not: support batch creation of images.
+    There are two types of objects you can pass as your models: torch.nn.Module
+    or functions, which correspond to using a visual model or metric,
+    respectively. See the `MAD_Competition` notebook for more details on this.
 
-    There are two types of objects you can pass as your models:
-    torch.nn.Module or functions.
+    All ``saved_`` attributes are initialized as empty lists and will be
+    non-empty if the ``store_progress`` arg to ``synthesize()`` is not
+    ``False``. They will be appended to on every iteration if
+    ``store_progress=True`` or every ``store_progress`` iterations if it's an
+    ``int``.
 
-    1. Module: in this case, you're passing a visual *model*, which
-       takes an image (as a 4d tensor) and returns some representation
-       (as a 3d or 4d tensor). The model must have a forward() method
-       that we can differentiate through (so, it should use pytorch
-       methods, rather than numpy or scipy, unless you manually define
-       the gradients in the backward() method). The distance we use is
-       the L2-norm of the difference between the model's representation
-       of two images (by default, to change, set ``loss_function`` to
-       some other callable).
-
-    2. Function: in this case, you're passing a visual *metric*, a
-       function which takes two images (as 4d tensors) and returns a
-       distance between them (as a single-valued tensor), which is what
-       we use as the distance for optimization purposes. This is
-       slightly more general than the above, as you can do arbitrary
-       calculations on the images, but you'll lose some of the power of
-       the helper functions. For example, the plot of the representation
-       and representation error will just be the pixel values and
-       pixel-wise difference, respectively. This is because we construct
-       a "dummy model" that just returns a duplicate of the image and
-       use that throughout this class. You may have additional arguments
-       you want to pass to your function, in which case you can pass a
-       dictionary as ``model_1_kwargs`` (or ``model_2_kwargs``) during
-       initialization. These will be passed during every call.
+    All ``scales`` attributes will only be non-None if ``coarse_to_fine`` is
+    not ``False``. See ``Metamer`` tutorial for more details.
 
     Parameters
     ----------
-    target_image : torch.tensor or array_like
-        A 2d tensor, this is the image whose representation we wish to
+    base_signal : torch.Tensor or array_like
+        A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model : torch.nn.Module or function
-        A differentiable model that takes an image as an input and
-        transforms it into a representation of some sort. We only
-        require that it has a forward method, which returns the
-        representation to match. However, if you want to get the best
-        use form the various plot and animate function, it should also
-        have ``plot_representation`` and ``_update_plot`` functions. It
-        can also be a function, see above for explanation.
+        A visual model or metric, see `MAD_Competition` notebook for more
+        details
     loss_function : callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
-        Module models, ignored otherwise. If None, we use the defualt:
-        the element-wise 2-norm. If a callable, must take four keyword
-        arguments (synth_rep, target_rep, synth_img, target_img) and
-        return some loss between them. Should probably be symmetric but
-        that might not be strictly necessary
+        Module models, ignored otherwise. If None, we use the default:
+        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        details
     model_kwargs :
         if model is a function (that is, you're using a metric instead
         of a model), then there might be additional arguments you want
@@ -74,31 +49,18 @@ class Metamer(Synthesis):
 
     Attributes
     ----------
-    target_image : torch.tensor
-        A 2d tensor, this is the image whose representation we wish to
-        match.
-    model : torch.nn.Module
-        A differentiable model that takes an image as an input and
-        transforms it into a representation of some sort. We only
-        require that it has a forward method, which returns the
-        representation to match.
-    target_representation : torch.tensor
-        Whatever is returned by ``model.foward(target_image)``, this is
+    base_representation : torch.Tensor
+        Whatever is returned by ``model(base_signal)``, this is
         what we match in order to create a metamer
-    matched_image : torch.tensor
+    synthesized_signal : torch.Tensor
         The metamer. This may be unfinished depending on how many
         iterations we've run for.
-    matched_represetation: torch.tensor
-        Whatever is returned by ``model.forward(matched_image)``; we're
-        trying to make this identical to ``self.target_representation``
-    optimizer : torch.optim.Optimizer
-        A pytorch optimization method.
-    scheduler : torch.optim.lr_scheduler._LRScheduler
-        A pytorch scheduler, which tells us how to change the learning
-        rate over iterations. Currently, user cannot set and we use
-        ReduceLROnPlateau (so that the learning rate gets reduced if it
-        seems like we're on a plateau i.e., the loss isn't changing
-        much)
+    synthesized_represetation: torch.Tensor
+        Whatever is returned by ``model(synthesized_signal)``; we're
+        trying to make this identical to ``self.base_representation``
+    seed : int
+        Number with which we seeded pytorch and numpy's random number
+        generators
     loss : list
         A list of our loss over iterations.
     gradient : list
@@ -106,64 +68,24 @@ class Metamer(Synthesis):
     learning_rate : list
         A list of the learning_rate over iterations. We use a scheduler
         that gradually reduces this over time, so it won't be constant.
-    saved_representation : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to
-        True or an int>0, we will save ``self.matched_representation``
-        at each iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    saved_image : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image`` at each
-        iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    seed : int
-        Number which we seeded pytorch and numpy's random number generators
-    saved_image_gradient : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to True
-        or an int>0, we will save ``self.matched_image.grad`` at each
-        iteration (or each ``store_progress`` iteration, if it's an
-        int), for later examination.
-    saved_representation_gradient : torch.tensor
-        If the ``store_progress`` arg in ``synthesize`` is set to
-        True or an int>0, we will save
-        ``self.matched_representation.grad`` at each iteration (or each
-        ``store_progress`` iteration, if it's an int), for later
-        examination.
-    scales_loss : list
-        If ``coarse_to_fine`` is not False, this contains the
-        scale-specific loss at each iteration (that is, the loss
-        computed on just the scale(s) we're optimizing on that
-        iteration; which we use to determine when to switch scales). If
-        ``coarse_to_fine=='together'``, then this will not include the
-        coarsest scale, since that scale is equivalent to 'all'.If
-        ``coarse_to_fine`` is False, this will be empty
+    saved_signal : torch.Tensor or list
+        Saved ``self.synthesized_signal`` for later examination.
+    saved_representation : torch.Tensor or list
+        Saved ``self.synthesized_representation`` for later examination.
+    saved_signal_gradient : torch.Tensor or list
+        Saved ``self.synthesized_signal.grad`` for later examination.
+    saved_representation_gradient : torch.Tensor or list
+        Saved ``self.synthesized_representation.grad`` for later examination.
     scales : list or None
-        If ``coarse_to_fine`` is not False, this is a list of the scales
-        in optimization order (i.e., from coarse to fine). The last
-        entry will be 'all' (since after we've optimized each individual
-        scale, we move on to optimizing all at once) This will be
-        modified by the synthesize() method and is used to track which
-        scale we're currently optimizing (the first one). When we've
-        gone through all the scales present, this will just contain a
-        single value: 'all'. If ``coarse_to_fine=='together'``, then
-        this will never include the coarsest scale, since that scale is
-        equivalent to 'all'. If ``coarse_to_fine`` is False, this will
-        be None.
+        The list of scales in optimization order (i.e., from coarse to fine).
+        Will be modified during the course of optimization.
+    scales_loss : list or None
+        The scale-specific loss at each iteration
     scales_timing : dict or None
-        If ``coarse_to_fine`` is not False, this is a dictionary whose
-        keys are the values of scales. The values are lists, with 0
-        through 2 entries: the first entry is the iteration where we
-        started optimizing this scale, the second is when we stopped
-        (thus if it's an empty list, we haven't started optimzing it
-        yet). If ``coarse_to_fine=='together'``, then this will not
-        include the coarsest scale, since that scale is equivalent to
-        'all'. If ``coarse_to_fine`` is False, this will be None.
+        Keys are the values found in ``scales``, values are lists, specifying
+        the iteration where we started and stopped optimizing this scale.
     scales_finished : list or None
-        If ``coarse_to_fine`` is not False, this is a list of the scales
-        that we've finished optimizing (in the order we've finished).
-        If ``coarse_to_fine=='together'``, then this will never include
-        the coarsest scale, since that scale is equivalent to 'all'. If
-        ``coarse_to_fine`` is False, this will be None.
+        List of scales that we've finished optimizing.
 
     References
     -----
@@ -173,70 +95,33 @@ class Metamer(Synthesis):
        http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        http://www.cns.nyu.edu/~lcv/texture/
 
-    TODO
-    ----
-    (musts)
-    - [ ] synthesize an image of a different size than the target image
-    - [ ] flexible objective function: make objective_function an attribute, have user set it
-          during optimization, have variety of standard ones as static methods
-          (https://realpython.com/instance-class-and-static-methods-demystified/) to choose from?
-    - [x] flexibility on the optimizer / scheduler (or at least parameterize the stuff): do similar
-          to above? -- not as important right now, but added some flexibility here
-    - [x] should we initialize optimizer / scheduler at initialization
-          or during the call to synthesize? seems reasonable to me that
-          you'd want to change it I guess... -- not important right now,
-          same as above. we initialize during synthesize because you may
-          want to make multiple calls with different optimizers /
-          options and we need to re-initialize optimizer during
-          coarse-to-fine
-    - [x] is that note in analyze still up-to-date? -- No
-    - [x] add save method
-    - [x] add example for load method
-    - [x] add animate method, which creates a three-subplot animation: the metamer over time, the
-          plot of differences in representation over time, and the loss over time (as a red point
-          on the loss curve) -- some models' representation might not be practical to plot, add the
-          ability to take a function for the plot representation and if it's set to None, don't
-          plot anything; make this a separate class or whatever because we'll want to be able to do
-          this for eigendistortions, etc (this will require standardizing our API, which we want to
-          do anyway)
-    - [x] how to handle device? -- get rid of device in here, expect the user to set .to(device)
-          (and then check self.target_image.device when initializing any tensors)
-    - [x] how do we handle continuation? right now the way to do it is to just pass matched_im
-          again, but is there a better way? how then to handle self.time and
-          self.saved_image/representation? -- don't worry about this, add note about how this works
-          but don't worry about this; add ability to save every n steps, not just or every
-
-    (other)
-    - [ ] batch
-    - [ ] return multiple samples
-
     """
 
-    def __init__(self, target_image, model, loss_function=None, model_kwargs={},
+    def __init__(self, base_signal, model, loss_function=None, model_kwargs={},
                  loss_function_kwargs={}):
-        super().__init__(target_image, model, loss_function, model_kwargs, loss_function_kwargs)
+        super().__init__(base_signal, model, loss_function, model_kwargs, loss_function_kwargs)
 
-    def _init_matched_image(self, initial_image, clamper=RangeClamper((0, 1)),
-                            clamp_each_iter=True):
-        """initialize the matched image
+    def _init_synthesized_signal(self, initial_image, clamper=RangeClamper((0, 1)),
+                                 clamp_each_iter=True):
+        """initialize the synthesized image
 
-        set the ``self.matched_image`` attribute to be a parameter with
+        set the ``self.synthesized_signal`` attribute to be a parameter with
         the user-supplied data, making sure it's the right shape and
         calling clamper on it, if set
 
-        also initialize the ``self.matched_representation`` attribute
+        also initialize the ``self.synthesized_representation`` attribute
 
         Parameters
         ----------
-        initial_image : torch.tensor, array_like, or None, optional
+        initial_image : torch.Tensor, array_like, or None, optional
             The 2d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            noise lying between 0 and 1 or, if ``self.saved_signal`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
         clamper : Clamper or None, optional
             will set ``self.clamper`` attribute to this, and if not
-            None, will call ``clamper.clamp`` on matched_image
+            None, will call ``clamper.clamp`` on synthesized_signal
         clamp_each_iter : bool, optional
             If True (and ``clamper`` is not ``None``), we clamp every
             iteration. If False, we only clamp at the very end, after
@@ -245,15 +130,15 @@ class Metamer(Synthesis):
         if initial_image is None:
             try:
                 # then we have a previous run to resume
-                matched_image_data = self.saved_image[-1]
+                synthesized_signal_data = self.saved_signal[-1]
             except IndexError:
                 # else we're starting over
-                matched_image_data = torch.rand_like(self.target_image, dtype=torch.float32,
-                                                     device=self.target_image.device)
+                synthesized_signal_data = torch.rand_like(self.base_signal, dtype=torch.float32,
+                                                          device=self.base_signal.device)
         else:
-            matched_image_data = torch.tensor(initial_image, dtype=torch.float32,
-                                              device=self.target_image.device)
-        super()._init_matched_image(matched_image_data.clone(), clamper, clamp_each_iter)
+            synthesized_signal_data = torch.tensor(initial_image, dtype=torch.float32,
+                                                   device=self.base_signal.device)
+        super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
                    scheduler=True, optimizer='SGD', clamper=RangeClamper((0, 1)),
@@ -261,119 +146,26 @@ class Metamer(Synthesis):
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
                    fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
                    coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
-        r"""synthesize a metamer
+        r"""Synthesize a metamer
 
-        This is the main method, trying to update the ``initial_image``
-        until its representation matches that of ``target_image``. If
-        ``initial_image`` is not set, we initialize with
-        uniformly-distributed random noise between 0 and 1 or, ``if
-        self.saved_image`` is not empty, we use the last value from
-        there (in order to make resuming synthesis easy).
-
-        NOTE: This means that the value of ``target_image`` should
-        probably lie between 0 and 1. If that's not the case, you might
-        want to pass something to act as the initial image (because
-        otherwise the range of the initial image will be very different
-        from that of the ``target_image``).
+        This is the main method, which updates the ``initial_image`` until its
+        representation matches that of ``base_signal``.
 
         We run this until either we reach ``max_iter`` or the change
         over the past ``loss_change_iter`` iterations is less than
         ``loss_thresh``, whichever comes first
 
-        If ``store_progress!=False``, you can run this several times in
-        sequence by setting ``initial_image`` to None.  (It's not
-        recommended, but if ``store_progress==False`` and you want to
-        resume an earlier run, you can do that by setting
-        ``initial_image`` equal to the ``matched_image`` this function
-        returns (I would also detach and clone it just to be
-        safe)). Everything that stores the progress of the optimization
-        (``loss``, ``saved_representation``, ``saved_image``) will
-        persist between calls and so potentially get very large. To most
-        directly resume where you left off, it's recommended you set
-        ``learning_rate=None``, in which case we use the most recent
-        learning rate (since we use a learning rate scheduler, the
-        learning rate decreases over time as the gradient shrinks; note
-        that we will still reset to the original value in coarse-to-fine
-        optimization). ``store_progress`` has to have the same value
-        between calls and we'll throw an Exception if that's not the
-        case; you can set ``store_progress=None`` to re-use your
-        ``store_progress`` argument. Coarse-to-fine optimization will
-        also resume where you left off.
-
-        We currently do not exactly preserve the state of the RNG
-        between calls (the seed will be reset), because it's difficult
-        to figure out which device we should grab the RNG state for. If
-        you're interested in doing this yourself, see
-        https://pytorch.org/docs/stable/random.html, specifically the
-        fork_rng function (I recommend looking at the source code for
-        that function to see how to get and set the RNG state). This
-        means that there will be a transient increase in loss right
-        after resuming synthesis. In every example I've seen, it goes
-        away and continues decreasing after a relatively small number of
-        iterations, but it means that running synthesis for 500
-        iterations is not the same as running it twice for 250
-        iterations each.
-
-        We provide three ways to try and add some more randomness to
-        this optimization, in order to either improve the diversity of
-        generated metamers or avoid getting stuck in local optima:
-
-        1. Use a different optimizer (and change its hyperparameters)
-           with ``optimizer`` and ``optimizer_kwargs``
-
-        2. Only calculate the gradient with respect to some random
-           subset of the model's representation. By setting
-           ``fraction_removed`` to some number between 0 and 1, the
-           gradient and loss are computed using a random subset of the
-           representation on each iteration (this random subset is drawn
-           independently on each trial). Therefore, if you wish to
-           disable this (to use all of the representation), this should
-           be set to 0.
-
-        3. Only calculate the gradient with respect to the parts of the
-           representation that have the highest error. If we think the
-           loss has stopped changing (by seeing that the loss
-           ``loss_change_iter`` iterations ago is within
-           ``loss_change_thresh`` of the most recent loss), then only
-           compute the loss and gradient using the top
-           ``loss_change_fraction`` of the representation. This can be
-           combined wth ``fraction_removed`` so as to randomly subsample
-           from this selection. To disable this (and use all the
-           representation), this should be set to 1.
-
-        We also provide the ability of using a coarse-to-fine
-        optimization. Unlike the above methods, this will not work
-        out-of-the-box with every model, as the model object must have a
-        ``scales`` attributes (which gives the scales in coarse-to-fine
-        order, i.e., the order that we will be optimizing) and its
-        ``forward`` method can accept a ``scales`` keyword argument, a
-        list that specifies which scales to use to compute the
-        representation. If ``coarse_to_fine`` is not False, then we
-        optimize each scale until we think it's reached convergence
-        before moving on (either computing the gradient for each scale
-        individually, if ``coarse_to_fine=='separate'`` or for a given
-        scale and all coarser scales, if
-        ``coarse_to_fine=='together'``). Once we've done each scale, we
-        spend the rest of the iterations doing them all together, as if
-        ``coarse_to_fine`` was False. This can be combined with the
-        above three methods. We determine if a scale has converged in
-        the same way as method 3 above: if the scale-specific loss
-        ``loss_change_iter`` iterations ago is within
-        ``loss_change_thresh`` of the most recent loss.
-
         Parameters
         ----------
-        initial_image : torch.tensor, array_like, or None, optional
-            The 2d tensor we use to initialize the metamer. If None (the
+        initial_image : torch.Tensor, array_like, or None, optional
+            The 4d tensor we use to initialize the metamer. If None (the
             default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1 or, if ``self.saved_image`` is
+            noise lying between 0 and 1 or, if ``self.saved_signal`` is
             not empty, use the final value there. If this is not a
             tensor or None, we try to cast it as a tensor.
         seed : int or None, optional
             Number with which to seed pytorch and numy's random number
-            generators. If None, won't set the seed; general use case
-            for this is to avoid resetting the seed when resuming
-            synthesis
+            generators. If None, won't set the seed.
         max_iter : int, optinal
             The maximum number of iterations to run before we end
         learning_rate : float or None, optional
@@ -382,12 +174,10 @@ class Metamer(Synthesis):
             learning rate from the previous instance.
         scheduler : bool, optional
             whether to initialize the scheduler or not. If False, the
-            learning rate will never decrease. Setting this to True
-            seems to improve performance, but it might be useful to turn
-            it off in order to better work through what's happening
+            learning rate will never decrease.
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
-            gradient descent, as decribed in [1]_
+            gradient descent.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -403,23 +193,12 @@ class Metamer(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_image``
-            contains the stored images, and ``self.saved_representation
-            contains the stored representations.
+            same as True).
         save_progress : bool or int, optional
-            Whether to save the metamer as we go (so that you can check
-            it periodically and so you don't lose everything if you have
-            to kill the job / it dies before it finishes running). If
-            True, we save to ``save_path`` every time we update the
-            saved_representation. We attempt to save with the
-            ``save_model_reduced`` flag set to True. If an int, we save
-            every ``save_progress`` iterations. Note that this can end
-            up actually taking a fair amount of time, especially for
-            large numbers of iterations (and thus, presumably, larger
-            saved history tensors) -- it's therefore recommended that
-            you set this to a relatively large integer (say, one-tenth
-            ``max_iter``) for the purposes of speeding up your
-            synthesis.
+            Whether to save the metamer as we go. If True, we save to
+            ``save_path`` every ``store_progress`` iterations. If an int, we
+            save every ``save_progress`` iterations. Note that this can end up
+            actually taking a fair amount of time.
         save_path : str, optional
             The path to save the synthesis-in-progress to (ignored if
             ``save_progress`` is False)
@@ -436,8 +215,6 @@ class Metamer(Synthesis):
             The fraction of the representation that will be ignored
             when computing the loss. At every step the loss is computed
             using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         loss_change_thresh : float, optional
             The threshold below which we consider the loss as unchanging
             in order to determine whether we should only calculate the
@@ -453,22 +230,15 @@ class Metamer(Synthesis):
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
             - 'together': start with the coarsest scale, then gradually
-              add each finer scale. this is like blurring the objective
-              function and then gradually adding details and is probably
-              what you want.
+              add each finer scale.
             - 'separate': compute the gradient with respect to each
               scale separately (ignoring the others), then with respect
               to all of them at the end.
-            (see above for more details on what's required of the model
-            for this to work).
+            (see ``Metamer`` tutorial for more details).
         clip_grad_norm : bool or float, optional
-            If the gradient norm gets too large, the optimization can
-            run into problems with numerical overflow. In order to avoid
-            that, you can clip the gradient norm to a certain maximum by
-            setting this to True or a float (if you set this to False,
-            we don't clip the gradient norm). If True, then we use 1,
-            which seems reasonable. Otherwise, we use the value set
-            here.
+            Clip the gradient norm to avoid issues with numerical overflow.
+            Gradient norm will be clipped to the specified value (True is
+            equivalent to 1).
         optimizer_kwargs : dict, optional
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
@@ -476,17 +246,17 @@ class Metamer(Synthesis):
 
         Returns
         -------
-        matched_image : torch.tensor
+        synthesized_signal : torch.Tensor
             The metamer we've created
-        matched_representation : torch.tensor
+        synthesized_representation : torch.Tensor
             The model's representation of the metamer
 
         """
         # set seed
         self._set_seed(seed)
 
-        # initialize matched_image
-        self._init_matched_image(initial_image, clamper, clamp_each_iter)
+        # initialize synthesized_signal
+        self._init_synthesized_signal(initial_image, clamper, clamp_each_iter)
 
         # initialize stuff related to coarse-to-fine and randomization
         self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
@@ -522,7 +292,7 @@ class Metamer(Synthesis):
         self._finalize_stored_progress()
 
         # return data
-        return self.matched_image.data, self.matched_representation.data
+        return self.synthesized_signal.data, self.synthesized_representation.data
 
     def save(self, file_path, save_model_reduced=False):
         r"""save all relevant variables in .pt file
@@ -542,9 +312,9 @@ class Metamer(Synthesis):
             much larger) ones it gets during run-time).
 
         """
-        attrs = ['model', 'matched_image', 'target_image', 'seed', 'loss', 'target_representation',
-                 'matched_representation', 'saved_representation', 'gradient', 'saved_image',
-                 'learning_rate', 'saved_representation_gradient', 'saved_image_gradient',
+        attrs = ['model', 'synthesized_signal', 'base_signal', 'seed', 'loss', 'base_representation',
+                 'synthesized_representation', 'saved_representation', 'gradient', 'saved_signal',
+                 'learning_rate', 'saved_representation_gradient', 'saved_signal_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
                  'scales_finished', 'store_progress', 'save_progress', 'save_path']
         super().save(file_path, save_model_reduced,  attrs)
@@ -585,9 +355,9 @@ class Metamer(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['target_image', 'target_representation', 'matched_image',
-                 'matched_representation', 'saved_image', 'saved_representation',
-                 'saved_image_gradient', 'saved_representation_gradient']
+        attrs = ['base_signal', 'base_representation', 'synthesized_signal',
+                 'synthesized_representation', 'saved_signal', 'saved_representation',
+                 'saved_signal_gradient', 'saved_representation_gradient']
         return super().to(*args, attrs=attrs, **kwargs)
 
     @classmethod
@@ -612,7 +382,7 @@ class Metamer(Synthesis):
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
             dictionary and returns the initialized model. See the
-            VentralModel class for an example of this.
+            PooledVentralStream class for an example of this.
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
@@ -642,26 +412,26 @@ class Metamer(Synthesis):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
         run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
+        local machine. The PooledVentralStream classes have a ``cache_dir``
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """

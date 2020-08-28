@@ -75,6 +75,24 @@ Another example specifying a test method in the command line:
 pytest test_mod.py::TestClass::test_method
 ```
 
+### Adding tests 
+
+New tests can be added in any of the existing `tests/test_*.py` scripts. Tests
+should be functions, contained within classes. The class contains a bunch of
+related tests (e.g., metamers, metrics), and each test should ideally be a unit
+test, only testing one thing. The classes should be named `TestSomething`, while
+test functions should be named `test_something` in snakecase.
+
+If you're adding a substantial bunch of tests that are separate from the
+existing ones, you can create a new test script. Its name must begin with
+`test_` and it must be contained within the `tests` directory. Additionally, you
+should add its name to the `env` section of `.travis.yml` (this enables us to
+run tests in parallel). For example, say you create a new script
+`tests/test_awesome.py`. You should then open up `.travis.yml` and add a new
+line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
+indented). **Do not** edit the `script` section -- if you did the above
+correctly, Travis will correctly run your new script.
+
 ## Build the documentation
 
 NOTE: We currently don't have a readthedocs page set up, because they
@@ -121,3 +139,31 @@ cd docs/
 sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
+
+### Add tutorials
+
+We build tutorials as Jupyter notebooks so that they can be launched in Binder
+and people can play with them on their local machine. In order to include them
+in the built docs, add a `nblink` file to the `docs/tutorials/` directory. This
+is a json file that should contain the path to the notebook, like so, for
+`docs/tutorials/my_awesome_tutorial.nblink`:
+
+```
+{
+    "path": "../../examples/my_tutorial.ipynb"
+}
+```
+
+note that you *cannot* have a trailing comma there, because json is very
+particular. See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
+page for more details.
+
+Once you've done that, you should add it to our `index.rst`. Towards the bottom
+of that page, you'll find a `toctree` with the caption "Tutorials and examples".
+Add your new tutorial by adding the line `tutorials/my_awesome_tutorial.nblink`
+after the existing ones. Then, once you run `make html`, your tutorial should
+now be included!
+
+*NOTE*: In order for the `toctree` formatting to work correctly, your notebook
+should only have one H1 title (i.e., line starting with a single `#`), but you
+can have as many lower-level titles as you'd like.
