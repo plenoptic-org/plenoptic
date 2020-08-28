@@ -511,9 +511,10 @@ class TestPortillaSimoncelli(object):
         x = po.make_basic_stimuli()
         if im_shape is not None:
             x = x[0,0, :im_shape[0], :im_shape[1]]
-        spc = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
-        spc(x)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
+        ps(x)
 
+    ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
     @pytest.mark.parametrize("n_orientations", [1,2,3,4])
     @pytest.mark.parametrize("Na", [3,5,7,9])
@@ -523,8 +524,8 @@ class TestPortillaSimoncelli(object):
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
-        spc = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
-        python_vector = spc(im0)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
+        python_vector = ps(im0)
         
 
         matlab = sio.loadmat(f'/Users/kathrynbonnen/Documents/MATLAB/textureSynth/pythonTestVectors/{im}-scales{n_scales}-ori{n_orientations}-spat{Na}.mat')

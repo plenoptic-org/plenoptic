@@ -14,3 +14,5 @@ data/plenoptic-test-files
 data/cat7*
 data/elep*
 docs/_build
+build/
+dist/
