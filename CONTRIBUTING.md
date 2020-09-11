@@ -165,5 +165,7 @@ after the existing ones. Then, once you run `make html`, your tutorial should
 now be included!
 
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
-should only have one H1 title (i.e., line starting with a single `#`), but you
-can have as many lower-level titles as you'd like.
+should have exactly one H1 title (i.e., line starting with a single `#`), but
+you can have as many lower-level titles as you'd like. If you have multiple H1
+titles, they'll each show up as different tutorials. If you don't have an H1
+title, it won't show up at all.
