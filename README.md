@@ -150,6 +150,12 @@ git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). See
 [this cheatsheet](https://neuroplausible.com/github) for some more
 explanation of git, Github, and the associated terminology.
 
+### ffmpeg
+
+Several methods in this package generate videos. In order to save them or
+convert them to HTML5 for viewing, you'll need
+[ffmpeg](https://ffmpeg.org/download.html) installed on your system as well.
+
 ## plenoptic
 
 Once git is installed, you can clone the repository:
@@ -193,6 +199,20 @@ running this section straight through, you won't need to do anything
 extra, but if you closed your terminal session after the last section
 (for example), you'll need to make sure to activate the correct
 environment first: `conda activate plenoptic`.
+
+## Keeping up-to-date
+
+Once you've downloaded and set up plenoptic for the first time, you can use `git
+pull` to keep it up-to-date. Navigate to the directory (if you downloaded
+plenoptic into your Documents folder above, that's `cd ~/Documents/plenoptic`)
+and run `git pull origin master`. git may yell at you if you've made local
+changes it can't figure out how to resolve. You'll have a merge conflict on your
+hands, see
+[here](https://www.atlassian.com/git/tutorials/using-branches/merge-conflicts)
+for more information and how to proceed.
+
+If you'd like to contribute any of the changes you've made, view the
+[Contributing](#contributing) section.
 
 # Getting started
 
