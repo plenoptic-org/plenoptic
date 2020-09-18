@@ -801,6 +801,11 @@ class Synthesis(metaclass=abc.ABCMeta):
             Dictionary of keyword arguments to pass to the SWA object.
 
         """
+        # there's a weird scoping issue that happens if we don't copy the
+        # dictionary, where it can accidentally persist across instances of the
+        # object, which messes all sorts of things up
+        optimizer_kwargs = optimizer_kwargs.copy()
+        swa_kwargs = swa_kwargs.copy()
         # if lr is None, we're resuming synthesis from earlier, and we
         # want to start with the last learning rate. however, we also
         # want to keep track of the initial learning rate, since we use
