@@ -239,3 +239,21 @@ class TestMetamers(object):
         if store_progress:
             met.animate()
         plt.close('all')
+
+    @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
+    @pytest.mark.parametrize('swa', [True, False])
+    def test_optimizer_opts(self, optimizer, swa):
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        model = po.metric.NLP().to(DEVICE)
+        if '-' in optimizer:
+            optimizer = optimizer.split('-')[0]
+            optimizer_kwargs = {'weight_decay': .1}
+        else:
+            optimizer_kwargs = {}
+        if swa:
+            swa_kwargs = {'swa_start': 1, 'swa_freq': 1, 'swa_lr': .05}
+        else:
+            swa_kwargs = {}
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=10, loss_change_iter=5, swa=swa, swa_kwargs=swa_kwargs,
+                       optimizer=optimizer, optimizer_kwargs=optimizer_kwargs)

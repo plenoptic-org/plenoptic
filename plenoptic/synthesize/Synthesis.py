@@ -5,6 +5,7 @@ import seaborn as sns
 import re
 import torch
 from torch import optim
+import torchcontrib
 import numpy as np
 import warnings
 from ..tools.data import to_numpy
@@ -489,11 +490,11 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
                    loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False,
-                   **optimizer_kwargs):
+                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False):
         r"""synthesize an image
 
         this is a skeleton of how synthesize() works, just to serve as a
@@ -524,6 +525,15 @@ class Synthesis(metaclass=abc.ABCMeta):
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent.
+        optimizer_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object. See
+            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -552,7 +562,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             If the loss over the past ``loss_change_iter`` has changed
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
-            How many iterations back to check in order to see if the
             loss has stopped decreasing in order to determine whether we
             should only calculate the gradient with respect to the
             ``loss_change_fraction`` fraction of statistics with
@@ -585,10 +594,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             Clip the gradient norm to avoid issues with numerical overflow.
             Gradient norm will be clipped to the specified value (True is
             equivalent to 1).
-        optimizer_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the optimizer (in
-            addition to learning_rate). What these should be depend on
-            the specific optimizer you're using
 
         Returns
         -------
@@ -609,7 +614,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             **optimizer_kwargs)
+                             optimizer_kwargs, swa, swa_kwargs)
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress)
 
@@ -743,7 +748,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
-                        **optimizer_kwargs):
+                        optimizer_kwargs={}, swa=False, swa_kwargs={}):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -790,6 +795,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             here.
         optimizer_kwargs :
             passed to the optimizer's initializer
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object.
 
         """
         # if lr is None, we're resuming synthesis from earlier, and we
@@ -830,10 +839,15 @@ class Synthesis(metaclass=abc.ABCMeta):
             self._optimizer = optim.AdamW([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-        if scheduler:
-            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
+        self._swa = swa
+        if swa:
+            self._optimizer = torchcontrib.optim.SWA(self._optimizer, **swa_kwargs)
+            warnings.warn("When using SWA, can't also use LR scheduler")
         else:
-            self._scheduler = None
+            if scheduler:
+                self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
+            else:
+                self._scheduler = None
         if not hasattr(self, '_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
