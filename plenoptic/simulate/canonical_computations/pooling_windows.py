@@ -1633,7 +1633,7 @@ class PoolingWindows(nn.Module):
                         label = None
                     ax.scatter(ecc, dk, label=label)
                 ax.set(title=t, xlabel='Window central eccentricity (deg)', ylabel=name)
-                if plot_transition_x:
+                if plot_transition_x and self.transition_x is not None:
                     ax.vlines(self.transition_x, 0, d.max(), linestyles='--')
             fig.text(.5, [.91, .47][i], ha='center', fontsize=1.5*plt.rcParams['font.size'],
                      s=f'{name} of windows in some angle slices out of {angle_all}')
