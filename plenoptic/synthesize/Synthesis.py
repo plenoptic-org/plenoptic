@@ -772,6 +772,11 @@ class Synthesis(metaclass=abc.ABCMeta):
         - 'Adam': Adam, ``optim.Adam(amsgrad=True)``
         - 'AdamW': AdamW, ``optim.AdamW(amsgrad=True)``
 
+        Note that if you modify this function to take extra arguments, make
+        sure to modify the line that creates _init_optimizer_kwargs and add it
+        there. If you over-write this in a subclass, will also need to update
+        _init_optimizer_kwargs to include additional arguments
+
         Parameters
         ----------
         optimizer : {'GD', 'SGD', 'LBFGS', 'Adam', 'AdamW'}
@@ -853,16 +858,18 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
             else:
                 self._scheduler = None
-        if not hasattr(self, '_optimizer_kwargs'):
+        if not hasattr(self, '_init_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
             # optimizer to the same state (mainly used to make sure that
             # the learning rate gets reset when we change target during
             # coarse-to-fine optimization). note that we use the
             # initial_lr here
-            optimizer_kwargs.update({'optimizer': optimizer, 'lr': initial_lr,
-                                     'scheduler': scheduler})
-            self._optimizer_kwargs = optimizer_kwargs
+            init_optimizer_kwargs = {'optimizer': optimizer, 'lr': initial_lr,
+                                     'scheduler': scheduler, 'swa': swa,
+                                     'swa_kwargs': swa_kwargs,
+                                     'optimizer_kwargs': optimizer_kwargs}
+            self._init_optimizer_kwargs = init_optimizer_kwargs
         if clip_grad_norm is True:
             self.clip_grad_norm = 1
         else:
@@ -972,8 +979,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.scales_timing[self.scales[0]].append(len(self.loss)-1)
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
-                # reset scheduler and optimizer
-                self._init_optimizer(**self._optimizer_kwargs)
+                # reset scheduler and optimizer.
+                self._init_optimizer(**self._init_optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
             postfix_dict['current_scale'] = self.scales[0]
