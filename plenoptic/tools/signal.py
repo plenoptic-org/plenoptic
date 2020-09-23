@@ -83,7 +83,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
     else:
         return res
 
-def min(x, dim, keepdim=False):
+def minimum(x, dim=None, keepdim=False):
     r"""compute minimum in torch over any axis or combination of axes in tensor
     Parameters
     -----------
@@ -94,13 +94,15 @@ def min(x, dim, keepdim=False):
     keepdim=bool
     keep original dimensions of tensor when returning result
     """
+    if dim is None:
+        dim = tuple(range(x.ndim))
     dim = reversed(sorted(dim))
     min_x = x
     for i in dim:
         min_x, _ = min_x.min(i, keepdim)
     return min_x
 
-def max(x, dim, keepdim=False):
+def maximum(x, dim=None, keepdim=False):
     r"""compute maximum in torch over any dim or combination of axes in tensor
     Parameters
     -----------
@@ -111,6 +113,8 @@ def max(x, dim, keepdim=False):
     keepdim=bool
     keep original dimensions of tensor when returning result
     """
+    if dim is None:
+        dim = tuple(range(x.ndim))
     dim = reversed(sorted(dim))
     max_x = x
     for i in dim:
