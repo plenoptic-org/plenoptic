@@ -8,6 +8,7 @@ __pycache__/
 *.pt
 .ftpconfig
 .idea/
+.vscode
 
 examples/data/cifar*
 data/plenoptic-test-files
