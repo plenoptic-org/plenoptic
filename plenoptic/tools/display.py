@@ -15,9 +15,17 @@ except ImportError:
 def imshow(x, color=False, **kwargs):
     if 'torch' in str(x.dtype):
         x = to_numpy(x, squeeze=True)
-    if x.ndim == 3 and color==False:
+    if x.ndim == 3 and color is False:
         x = list(x)
     pt.imshow(x, **kwargs)
+
+
+def animshow(x, color=False, **kwargs):
+    if 'torch' in str(x.dtype):
+        x = to_numpy(x, squeeze=True)
+    if x.ndim == 4 and color is False:
+        x = list(x)
+    return pt.animshow(x, **kwargs)
 
 
 def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
@@ -41,11 +49,14 @@ def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
 
     Examples
     --------
+        # sampling two random images, each with three channels
         >>> size = 32
-        >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
-        >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
+        >>> signal = torch.randn(2, 3, size, size)
+        >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3,
+                                height=3, is_complex=True, downsample=False)
         >>> pyr = SPF(signal)
-        >>> po.pyrshow(pyr, image_index=1, channel=2, is_complex=True, plot_complex='polar', zoom=3);
+        >>> po.pyrshow(pyr, image_index=1, channel=2, is_complex=True,
+                       plot_complex='polar', zoom=3);
     """
 
     pyr_coeffvis = pyr_coeffs.copy()
@@ -62,17 +73,20 @@ def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
 
 
 def clean_up_axes(ax, ylim=None, spines_to_remove=None, axes_to_remove=None):
-    r"""Clean up an axis, as desired when making a stem plot of the representation
+    r"""Clean up an axis, as desired when making a stem plot of the
+    representation.
 
     Parameters
     ----------
     ax : `matplotlib.pyplot.axis`
         The axis to clean up.
     ylim : `tuple`, False, or None
-        If a tuple, the y-limits to use for this plot. If None, we use the default, slightly adjusted so that the
-        minimum is 0. If False, we do nothing.
+        If a tuple, the y-limits to use for this plot. If None, we use the
+        default, slightly adjusted so that the minimum is 0. If False,
+        we do nothing.
     spines_to_remove : `list`
-        Some combination of 'top', 'right', 'bottom', and 'left'. The spines we remove from the axis.
+        Some combination of 'top', 'right', 'bottom', and 'left'. The spines we
+        remove from the axis.
     axes_to_remove : `list`
         Some combination of 'x', 'y'. The axes to set as invisible.
 
@@ -136,9 +150,10 @@ def update_stem(stem_container, ydata):
     try:
         segments = stem_container.stemlines.get_segments().copy()
     except AttributeError:
-        raise Exception("We require that the initial stem plot be called with use_line_collection="
-                        "True in order to correctly update it. This will significantly improve "
-                        "performance as well.")
+        raise Exception("We require that the initial stem plot be called with"
+                        "use_line_collection=True in order to correctly update"
+                        "it. This will significantly improve performance as"
+                        "well.")
     for s, y in zip(segments, ydata):
         try:
             s[1, 1] = y
@@ -280,7 +295,8 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
         ax = plt.gca()
     if xvals is not None:
         basefmt = ' '
-        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3', zorder=10)
+        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3',
+                  zorder=10)
     else:
         # this is the default basefmt value
         basefmt = None
@@ -369,8 +385,8 @@ def update_plot(axes, data, model=None, batch_idx=0):
     return artists
 
 
-def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=False, batch_idx=0,
-                        title=''):
+def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
+                        ylim=False, batch_idx=0, title=''):
     r"""Helper function for plotting model representation
 
     We are trying to plot ``data`` on ``ax``, using
@@ -456,7 +472,8 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         else:
             warnings.warn("data has keys, so we're ignoring title!")
         # want to make sure the axis we're taking over is basically invisible.
-        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        ax = clean_up_axes(ax, False,
+                           ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes = []
         if len(list(data.values())[0].shape) == 3:
             # then this is 'vector-like'
@@ -477,15 +494,19 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                                                   min(4, len(data)))
             for i, (k, v) in enumerate(data.items()):
                 ax = fig.add_subplot(gs[i // 4, i % 4])
-                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                ax = clean_up_axes(ax,
+                                   False, ['top', 'right', 'bottom', 'left'],
+                                   ['x', 'y'])
                 # only plot the specified batch
-                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax, vrange='indep0')
+                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax,
+                          vrange='indep0')
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all
             ylim = False
         else:
-            raise Exception("Don't know what to do with data of shape %s" % data.shape)
+            raise Exception("Don't know what to do with data of shape"
+                            f" {data.shape}")
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
