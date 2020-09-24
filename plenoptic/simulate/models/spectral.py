@@ -1,53 +1,31 @@
 import torch
 import torch.nn as nn
-from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
-from ..canonical_computations.non_linearities import rectangular_to_polar_dict
-from ...tools.stats import skew, kurtosis
-from ...tools.signal import min, max
+from ..canonical_computations.steerable_pyramid_freq \
+    import Steerable_Pyramid_Freq
+from ...tools.signal import rectangular_to_polar
 
 
 class Spectral(nn.Module):
+    """This model computes the mean energy in each pyramid band, that is to
+    say the local spectral properties of the signal.
     """
-    """
-    def __init__(self,image_size, n_ori=6, n_scale=4):
+
+    def __init__(self, image_size, n_ori=6, n_scale=4):
         super().__init__()
 
-        self.complex_steerable_pyramid =  Steerable_Pyramid_Freq(image_size, height=n_scale, is_complex=True, order=n_ori-1, downsample=True)
-        self.non_linearity = rectangular_to_polar_dict
+        self.pyr = Steerable_Pyramid_Freq(image_size, height=n_scale,
+                                          is_complex=True, order=n_ori-1,
+                                          downsample=False)
 
     def forward(self, x):
+        assert x.ndim == 4
 
-        dims = (1, 2, 3)
-        # pixel statistics
-        x_min = min(x, dim=dims)
-        x_max = max(x, dim=dims)
-        x_mean = torch.mean(x, dim=dims)
-        x_var = torch.var(x, dim=dims)
-        x_skew = skew(x, dim=dims, keepdim=True).view(x.shape[0])
-        x_kurt = kurtosis(x, dim=dims, keepdim=True).view(x.shape[0])
-        x_stats = torch.stack((x_mean, x_var, x_skew, x_kurt, x_min, x_max)).view(x.shape[0], 6)
+        y = self.pyr(x)
+        energy, phase = rectangular_to_polar(y[:, 1:-1:2], y[:, 2:-1:2])
 
-        # build steerable pyramid
-        x = (x-x_mean.unsqueeze(1).unsqueeze(1).unsqueeze(1))/x_var.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        stats = torch.cat([torch.sqrt(y[:, 0:1]**2).mean(dim=(2, 3)),
+                           energy.mean(dim=(2, 3)),
+                           torch.sqrt(y[:, -1:]**2).mean(dim=(2, 3))],
+                          dim=1).view(x.shape[0], -1)
 
-        y = self.complex_steerable_pyramid(x)
-
-        stats = torch.empty((x.shape[0], len(y)))
-        cnt=0
-        for channel in y.values():
-            if channel.shape[-1] == 2:
-                real, imag = torch.unbind(channel, -1)
-                stats[:, cnt]=torch.abs(((real**2 + imag**2)**.5)).mean(dim=dims)
-            else:
-                stats[:, cnt]=torch.mean(torch.abs(channel))
-            cnt+=1
-
-        # TODO
-        # energy, phase = self.non_linearity(y, residuals=True)
-        # y_stats = torch.cat([torch.abs(e).mean(dim=dims) for e in energy.values()]).view(x.shape[0], len(energy.values()))
-        # print(stats)
-        # print(y_stats)
-        # print(stats - y_stats)
-
-        stats = torch.cat((x_stats, stats), 1)
         return stats

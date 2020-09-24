@@ -19,9 +19,11 @@ class TestLinear(object):
     def test_linear_metamer(self):
         model = po.simul.Linear()
         image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE).squeeze().unsqueeze(0).unsqueeze(0)
+        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE
+                           ).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
+        m_image, m_representation = M.synthesize(max_iter=3, learning_rate=1,
+                                                 seed=1)
 
 
 class TestLinearNonlinear(object):
@@ -34,9 +36,11 @@ class TestLinearNonlinear(object):
     def test_linear_nonlinear_metamer(self):
         model = po.simul.Linear_Nonlinear()
         image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
+        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE
+                           ).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        matched_image, matched_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
+        m_image, m_representation = M.synthesize(max_iter=3, learning_rate=1,
+                                                 seed=0)
 
 
 # class TestConv(object):
@@ -49,6 +53,27 @@ class TestLaplacianPyramid(object):
         L = po.simul.Laplacian_Pyramid()
         y = L.analysis(po.make_basic_stimuli())
         assert y[0].requires_grad
+
+
+class TestSpectral(object):
+
+    def test_spectral(self):
+        imageA = plt.imread(op.join(DATA_DIR, 'reptil_skin.pgm')) / 255.
+        imgA = torch.tensor(imageA, dtype=DTYPE, device=DEVICE
+                            ).unsqueeze(0).unsqueeze(0)
+
+        model = po.simul.Spectral(imgA.shape[-2:])
+        y = model(imgA)
+        assert (y >= 0).all()
+
+    def test_spectral_metamer(self):
+        image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
+        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE
+                           ).squeeze().unsqueeze(0).unsqueeze(0)
+        model = po.simul.Spectral(im0.shape[-2:])
+        M = po.synth.Metamer(im0, model)
+        m_image, m_representation = M.synthesize(max_iter=3, learning_rate=1,
+                                                 seed=1)
 
 
 class TestPooling(object):
@@ -210,10 +235,6 @@ class TestPooling(object):
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
         pw.pool(pw.window(im))
-
-# class TestSpectral(object):
-#
-
 
 class TestPooledVentralStream(object):
 
