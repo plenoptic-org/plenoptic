@@ -13,7 +13,7 @@ from glob import glob
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
 
-def to_numpy(x):
+def to_numpy(x, squeeze=False):
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
@@ -23,10 +23,13 @@ def to_numpy(x):
     """
 
     try:
-        x = x.detach().cpu().numpy().astype(np.float32)
+        # x = x.detach().cpu().numpy().astype(np.float32)
+        x = x.detach().cpu().numpy().squeeze()
     except AttributeError:
         # in this case, it's already a numpy array
         pass
+    if squeeze:
+        x = x.squeeze()
     return x
 
 

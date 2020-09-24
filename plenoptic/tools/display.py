@@ -12,13 +12,21 @@ except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
 
-def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
+def imshow(x, color=False, **kwargs):
+    if 'torch' in str(x.dtype):
+        x = to_numpy(x, squeeze=True)
+    if x.ndim == 3 and color==False:
+        x = list(x)
+    pt.imshow(x, **kwargs)
+
+
+def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
     r"""Wrapper that makes outputs of the steerable pyramids compatible
     with the display functions of pyrtools.
     Selects pyramid coefficients corresponding to 'image_index' out of
     the images in the batch, and to 'channel' out of the channel indexes
     (eg. RGB channels that undergo steerable pyramid independently)
-    
+
     Parameters
     ----------
     pyr_coeffs : `dict`
@@ -37,7 +45,7 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
         >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
         >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
         >>> pyr = SPF(signal)
-        >>> pt.pyrshow(po.convert_pyrshow(pyr, 1, 2), is_complex=True, plot_complex='polar', zoom=3);
+        >>> po.pyrshow(pyr, image_index=1, channel=2, is_complex=True, plot_complex='polar', zoom=3);
     """
 
     pyr_coeffvis = pyr_coeffs.copy()
@@ -49,7 +57,8 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
         else:
             pyr_coeffvis[k] = to_numpy(im)
 
-    return pyr_coeffvis
+    pt.pyrshow(pyr_coeffvis, **kwargs)
+    # return pyr_coeffvis
 
 
 def clean_up_axes(ax, ylim=None, spines_to_remove=None, axes_to_remove=None):
