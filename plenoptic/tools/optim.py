@@ -44,9 +44,7 @@ def mse(synth_rep, ref_rep, **kwargs):
 
 
 def l2_norm(synth_rep, ref_rep, **kwargs):
-    r"""L2-norm of the difference between ref_rep and synth_rep
-
-    good default objective function
+    r"""l2-norm of the difference between ref_rep and synth_rep
 
     Parameters
     ----------
@@ -66,6 +64,32 @@ def l2_norm(synth_rep, ref_rep, **kwargs):
 
     """
     return torch.norm(ref_rep - synth_rep, p=2)
+
+
+def relative_MSE(synth_rep, ref_rep, **kwargs):
+    r"""squared l2-norm of the difference between reference representation
+    and synthesized representation relative to the squared l2-norm of the
+    reference representation
+
+    Parameters
+    ----------
+    synth_rep : torch.Tensor
+        The first tensor to compare, model representation of the
+        synthesized image
+    ref_rep : torch.Tensor
+        The second tensor to compare, model representation of the
+        reference image. must be same size as ``synth_rep``,
+    kwargs :
+        ignored, only present to absorb extra arguments
+
+    Returns
+    -------
+    loss : torch.float
+        ratio of the squared l2-norm of the difference between ``ref_rep`` and
+        ``synth_rep`` to the squared l2-norm of ``ref_rep``
+
+    """
+    return torch.norm(ref_rep - synth_rep, p=2) ** 2 / torch.norm(ref_rep, p=2) ** 2
 
 
 def penalize_range(synth_img, allowed_range=(0, 1), **kwargs):
