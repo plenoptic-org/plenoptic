@@ -9,6 +9,7 @@ import numpy as np
 import plenoptic as po
 import os.path as op
 import scipy.io as sio
+import matplotlib.pyplot as plt
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
