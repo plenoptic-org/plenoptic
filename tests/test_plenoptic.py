@@ -438,6 +438,9 @@ class TestDisplay(object):
                 shape = [2, 4, 5, 5]
                 n_axes += 8
             im = [im, torch.rand(shape)]
+        if not is_complex:
+            # need to change this to one of the acceptable strings
+            is_complex = 'rectangular'
         if batch_idx is None and channel_idx is None and not as_rgb:
             # then we'd have a 4d array we want to plot in grayscale -- don't
             # know how to do that
