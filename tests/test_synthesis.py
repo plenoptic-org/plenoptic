@@ -1,19 +1,13 @@
 import os.path as op
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import plenoptic as po
 import plenoptic.synthesize.autodiff as autodiff
-import pyrtools as pt
 import pytest
 import torch
 from torch import nn
 from plenoptic.simulate.models.frontend import Front_End
 from plenoptic.synthesize.eigendistortion import Eigendistortion
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float32
-DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
+from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 # to be used for default model instantiation
 SMALL_DIM = 20
@@ -33,13 +27,13 @@ def get_synthesis_object(im_dim=20):
         Eigendistortion object to be used in tests.
     """
     torch.manual_seed(0)
-    mdl = Front_End().to(device)  # initialize simple model with which to compute eigendistortions
+    mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
 
     img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
     img_np = img[:im_dim, :im_dim] / np.max(img)
-    img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(device)
+    img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
 
-    ed = Eigendistortion(img, mdl, dtype=torch.float32)
+    ed = Eigendistortion(img, mdl, dtype=DTYPE)
 
     return ed
 
@@ -47,7 +41,7 @@ def get_synthesis_object(im_dim=20):
 class TestEigendistortionSynthesis:
 
     def test_input_dimensionality(self):
-        mdl = Front_End().to(device)
+        mdl = Front_End().to(DEVICE)
         with pytest.raises(AssertionError) as e_info:
             e = Eigendistortion(torch.zeros(1, 1, 1), mdl)  # should be 4D
 

@@ -50,30 +50,52 @@ RECOGNITION MODEL?
 
 CONTACT INFO?
 
+## Contributing to the code
+
+We welcome contributions to `plenoptic`! In order to contribute, please createb
+your own branch, make sure the tests pass, and open a Pull Request. If you're a
+member of the [LCV github](https://github.com/LabForComputationalVision/), you
+can create a branch directly in the repository: from within the `plenoptic`
+repository:
+
+```
+git checkout -b my_cool_branch # create the branch
+# make some changes
+git commit -a -m "A helpful message explaining my changes" # commit your changes
+git push origin my_cool_branch # push to the origin remote
+```
+
+Once you're happy with your changes, [add tests](#adding-tests) to check that
+they run correctly, then make sure the rest of the [tests](#testing) all run
+successfully, that your branch is up-to-date with master, and then open a pull
+request (see [here](https://yangsu.github.io/pull-request-tutorial/) for a
+tutorial).
+
+If you're not a member of the LCV github, you'll need to first [create a
+fork](https://docs.github.com/en/enterprise/2.20/user/github/getting-started-with-github/fork-a-repo)
+of the repository to your own github account, and then proceed as above.
+
 ## Testing
 
-from the [pytest documentation](http://doc.pytest.org/en/latest/usage.html):
+To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
+will take a while, as we have many tests, broken into categories. There are
+several choices for how to run a subset of the tests:
 
-- Run tests by keyword expressions:
+- Run tests from one file: `pytest tests/test_mod.py`
 
-```
-pytest -k "MyClass and not method"
-```
+- Run tests by keyword expressions: `pytest -k "MyClass and not method"`. This
+  will run tests which contain names that match the given string expression,
+  which can include Python operators that use filenames, class names and
+  function names as variables. The example above will run
+  `TestMyClass.test_something` but not `TestMyClass.test_method_simple`.
 
-This will run tests which contain names that match the given string expression, which can include Python operators
-that use filenames, class names and function names as variables. The example above will run `TestMyClass.test_something`
-but not `TestMyClass.test_method_simple`.
+- To run a specific test within a module: `pytest tests/test_mod.py::test_func`
 
-- To run a specific test within a module:
+- Another example specifying a test method in the command line: `pytest
+  test_mod.py::TestClass::test_method`
 
-```
-pytest test_mod.py::test_func
-```
-Another example specifying a test method in the command line:
-
-```
-pytest test_mod.py::TestClass::test_method
-```
+View the [pytest documentation](http://doc.pytest.org/en/latest/usage.html) for
+more info.
 
 ### Adding tests 
 
@@ -93,7 +115,69 @@ line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
 indented). **Do not** edit the `script` section -- if you did the above
 correctly, Travis will correctly run your new script.
 
-## Build the documentation
+## Documentation
+
+### Adding documentation
+
+Documentation in `plenoptic` is built using Sphinx and lives on readthedocs. If
+that means nothing to you, don't worry!
+
+Documentation comes in two types: `.rst` files (reST, the markup language used
+by Sphinx, see
+[here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
+for a primer), which contain only text (including math) and images, and `.ipynb`
+files (Jupyter notebooks), which also contain code.
+
+Jupyter notebooks are tutorials and show how to use the various functions and
+classes contained in the package, and they all should be located in the
+`examples/` directory. If you add or change a substantial amount of code, please
+add a tutorial showing how to use it. Once you've added a tutorial, see
+[here](#add-tutorials) for how to include it on the readthedocs page.
+
+reST files contain everything else, especially discussions about why you should
+use some code in the package and the theory behind it, and should all be located
+in the `docs/` directory. Add it to the table of contents in `index.rst` by
+adding the name of the file (without extension, but with any subfolders) to the
+`toctree` block. For example, if you add two new files, `docs/my_cool_docs.rst`
+and `docs/some_folder/even_cooler_docs.rst`, you should edit `docs/index.rst`
+like so:
+
+```
+.. toctree
+   :maxdepth: 2
+   # other existing docs
+   my_cool_docs
+   some_folder/even_cooler_docs
+```
+
+In order for table of contents to look good, your `.rst` file must be well
+structured. Similar to [tutorials](#add-tutorials), it must have a single H1
+header (you can have as many sub-headers as you'd like).
+
+You should [build the docs yourself](#build-the-documentation) to ensure it
+looks correct before pushing.
+ 
+### Docstrings
+
+All public-facing functions and classes should have complete docstrings, which
+start with a one-line short summary of the function, a medium-length description
+of the function / class and what it does, and a complete description of all
+arguments and return values. Math should be included in a `Notes` section when
+necessary to explain what the function is doing, and references to primary
+literature should be included in a `References` section when appropriate.
+Docstrings should be relatively short, providing the information necessary for a
+user to use the code. Longer discussions of why you would use one method over
+another, an explanation of the theory behind a method, and extended examples
+should instead be part of the tutorials or documentation.
+
+Private functions and classes should have sufficient explanation that other
+developers know what the function / class does and how to use it, but do not
+need to be as extensive.
+
+We follow the [numpydoc](https://numpydoc.readthedocs.io/en/latest/) conventions
+for docstring structure.
+
+### Build the documentation
 
 NOTE: We currently don't have a readthedocs page set up, because they
 don't support private repos for free. Once we make this repo public,
@@ -165,5 +249,7 @@ after the existing ones. Then, once you run `make html`, your tutorial should
 now be included!
 
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
-should only have one H1 title (i.e., line starting with a single `#`), but you
-can have as many lower-level titles as you'd like.
+should have exactly one H1 title (i.e., line starting with a single `#`), but
+you can have as many lower-level titles as you'd like. If you have multiple H1
+titles, they'll each show up as different tutorials. If you don't have an H1
+title, it won't show up at all.

@@ -9,7 +9,6 @@ from ..simulate.canonical_computations import local_gain_control, rectangular_to
 import os
 dirname = os.path.dirname(__file__)
 
-
 def _gaussian(window_size=11, sigma=1.5):
     """Normalized, centered Gaussian
 
@@ -383,8 +382,6 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
-
-    TODO
 
     under construction
     """

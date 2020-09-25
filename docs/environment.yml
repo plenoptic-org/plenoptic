@@ -10,6 +10,7 @@ dependencies:
   - numpy
   - python
   - pip==9.0.3
+  - ipython
   - pip:
     - nbsphinx
     - nbsphinx_link
