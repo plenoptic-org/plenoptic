@@ -111,9 +111,9 @@ class Steerable_Pyramid_Freq(nn.Module):
         else:
             self.num_scales = int(height)
 
-        if self.order > 15 or self.order <= 0:
+        if self.order > 15 or self.order < 0:
             warnings.warn("order must be an integer in the range [1,15]. Truncating.")
-            self.order = min(max(self.order, 1), 15)
+            self.order = min(max(self.order, 0), 15)
         self.num_orientations = int(self.order + 1)
 
         if twidth <= 0:

@@ -484,8 +484,8 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
     @pytest.mark.parametrize("n_orientations", [1,2,3,4]) 
     @pytest.mark.parametrize("Na", [3,5,7,9])
-    @pytest.mark.parametrize("im_shape", [(256,256)])
-    def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape):
+    # @pytest.mark.parametrize("im_shape", [(256,256)])
+    def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape=(256,256)):
         x = po.make_basic_stimuli()
         if im_shape is not None:
             x = x[0,0, :im_shape[0], :im_shape[1]]
