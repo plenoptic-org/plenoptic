@@ -80,9 +80,8 @@ class Portilla_Simoncelli(nn.Module):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         pyr_coeffs_dict = self.pyr.forward(image)
-        pyr_coeffs = [pyr_coeffs_dict[key] for key in pyr_coeffs_dict.keys()]
-
-        # STATISTIC: pixel statistics
+        
+        # STATISTIC: calculate pixel statistics
         pixel_statistics = torch.zeros((6,1))
         pixel_statistics[0] = torch.mean(image)
         pixel_statistics[1] = torch.var(image)
@@ -93,31 +92,27 @@ class Portilla_Simoncelli(nn.Module):
         
         
         # subtract mean from lowest scale band
-        nbands = len(pyr_coeffs)
-        pyr_coeffs[-1] = (pyr_coeffs[-1])-torch.mean((pyr_coeffs[-1]))
-
+        pyr_coeffs_dict['residual_lowpass'] = pyr_coeffs_dict['residual_lowpass'] - torch.mean(pyr_coeffs_dict['residual_lowpass'])
         
-        apyr = []
-        rpyr = []
-        for bb in range(0, nbands):
 
-            if self.pyr.is_complex==True and pyr_coeffs[bb].shape[-1] == 2:  # if the pyramid complex
-            # if self.complex_steerable_pyramid.complex and len(pyr_coeffs[bb].shape)==3:
-                tmp = torch.unbind(pyr_coeffs[bb],-1)
-                apyr.append(((tmp[0]**2+tmp[1]**2)**.5).squeeze())
-                rpyr.append(tmp[0].squeeze())
+        # create two sets of coefficients: 1) abs(pyr_coeffs_dict), 2) real(pyr_coeffs_dict)
+        abs_pyr_coeffs = dict();
+        real_pyr_coeffs = dict();
+        for key,val in pyr_coeffs_dict.items():
+            if self.pyr.is_complex==True and val.shape[-1] == 2:
+                tmp = torch.unbind(val,-1)
+                abs_pyr_coeffs[key] = ((tmp[0]**2+tmp[1]**2)**.5).squeeze()
+                real_pyr_coeffs[key] = tmp[0].squeeze()
             else:
-                rpyr.append(pyr_coeffs[bb].squeeze())
-                apyr.append(torch.abs(pyr_coeffs[bb]).squeeze())
-
-            pyr_coeffs[bb] = pyr_coeffs[bb].squeeze()
+                abs_pyr_coeffs[key] = torch.abs(val).squeeze()
+                real_pyr_coeffs[key] = val.squeeze()
 
         # STATISTIC: magMeans0 or the mean magnitude of each pyramid band
-        magMeans0 = torch.empty([len(pyr_coeffs), 1])
-        for bb in range(0, nbands):
-            magMeans0[bb] = torch.mean(apyr[bb])
-            apyr[bb] = apyr[bb] - magMeans0[bb]   # subtract mean of magnitude
-        print(magMeans0)
+        magMeans0 = torch.empty([len(pyr_coeffs_dict.keys()), 1])
+        for bb, (key, val) in enumerate(abs_pyr_coeffs.items()):
+            magMeans0[bb] = torch.mean(val)
+            abs_pyr_coeffs[key] = abs_pyr_coeffs[key] - magMeans0[bb]   # subtract mean of magnitude
+
         # STATISTIC: acr or the central auto-correlation
         acr = torch.zeros([self.Na, self.Na, self.n_scales+1])
         # STATISTIC: skew0p or the skew of the unoriented bands
@@ -125,18 +120,16 @@ class Portilla_Simoncelli(nn.Module):
         # STATISTIC: kurt0p or the kurtosis of the unoriented bands
         kurt0p = torch.empty((self.n_scales+1,1))
 
-        # high-pass filter the low-pass residual.  We're still not sure why the original paper does this...
-        ch = pyr_coeffs[-1]
-        mpyrM = Steerable_Pyramid_Freq(ch.shape[-2:], height=0, order=0,tight_frame=False)
+        # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
+        ch = pyr_coeffs_dict['residual_lowpass']
+        mpyrM = Steerable_Pyramid_Freq(ch.shape[-2:], height=0, order=0, tight_frame=False)
         mpyr_dict = mpyrM.forward(ch.squeeze().unsqueeze(0).unsqueeze(0))
-        mpyr = [mpyr_dict[key] for key in mpyr_dict.keys()]
-        im = mpyr[1].squeeze()
+        im = mpyr_dict['residual_lowpass'].squeeze()
         
         # Find the auto-correlation of the low-pass residual
         Sch = torch.min(torch.tensor(ch.shape[-2:])).to(float)
         la = int(np.floor([(self.Na-1)/2]))
         le = int(np.min((Sch/2-1,la)))
-        self.acr_im = im
         acr[la-le:la+le+1, la-le:la+le+1, self.n_scales], vari = self.compute_autocorr(im)
         skew0p[self.n_scales], kurt0p[self.n_scales] =  self.compute_skew_kurt(im,vari,pixel_statistics[1])
 
@@ -144,8 +137,8 @@ class Portilla_Simoncelli(nn.Module):
         ace = torch.zeros([self.Na, self.Na, self.n_scales, self.n_orientations])
         for n_scales in range(self.n_scales-1, -1, -1):
             for nor in range(0, self.n_orientations):
-                nband = n_scales*self.n_orientations + nor + 1
-                ch = apyr[nband]
+                # nband = n_scales*self.n_orientations + nor + 1
+                ch = abs_pyr_coeffs[(n_scales,nor)]
                 Sch = np.min((ch.shape[-1], ch.shape[-2]))
                 le = int(np.min((Sch/2.0-1, la)))
                 # Find the auto-correlation of the magnitude band
@@ -158,7 +151,7 @@ class Portilla_Simoncelli(nn.Module):
             tmp_pyr = Steerable_Pyramid_Freq(im.shape[-2:],height=1, order=self.n_orientations-1, is_complex=False,tight_frame=False);
             _ = tmp_pyr.forward(im)
             for ii in range(0,self.n_orientations):
-                tmp_pyr.pyr_coeffs[(0,ii)] = rpyr[n_scales*self.n_orientations+1+ii].unsqueeze(0).unsqueeze(0)
+                tmp_pyr.pyr_coeffs[(0,ii)] = real_pyr_coeffs[(n_scales,ii)].unsqueeze(0).unsqueeze(0)
             ch = tmp_pyr.recon_pyr(levels=[0])
             
             im = im + ch
@@ -175,16 +168,13 @@ class Portilla_Simoncelli(nn.Module):
         Crx0 = torch.zeros(2*self.n_orientations, max(2*self.n_orientations,5), self.n_scales)
 
         for n_scales in range(0, self.n_scales):
-            firstBnum = (n_scales)*self.n_orientations + 1
-            cousinSz = rpyr[firstBnum].shape[0]*rpyr[firstBnum].shape[1]
-
+            cousinSz = real_pyr_coeffs[(n_scales,0)].shape[0]*real_pyr_coeffs[(n_scales,0)].shape[1]
             if n_scales < self.n_scales-1:
                 parents = torch.empty((cousinSz, self.n_orientations))
                 rparents = torch.empty((cousinSz, self.n_orientations*2))
                 
                 for nor in range(0, self.n_orientations):
-                    nband = (n_scales+1)*self.n_orientations + nor + 1
-                    tmp = Portilla_Simoncelli.expand(pyr_coeffs[nband],2)/4.0
+                    tmp = Portilla_Simoncelli.expand(pyr_coeffs_dict[(n_scales+1,nor)].squeeze(),2)/4.0
 
                     rtmp = tmp[:,:,0]
                     itmp = tmp[:,:,1]
@@ -202,7 +192,7 @@ class Portilla_Simoncelli(nn.Module):
 
 
             else:
-                tmp = Portilla_Simoncelli.expand(rpyr[-1].squeeze(),2)/4.0
+                tmp = Portilla_Simoncelli.expand(real_pyr_coeffs['residual_lowpass'].squeeze(),2)/4.0
                 tmp = tmp[:,:,0].t()
                 rparents= torch.stack((tmp.flatten(), 
                     tmp.roll(1,0).flatten(),
@@ -212,7 +202,8 @@ class Portilla_Simoncelli(nn.Module):
 
                 parents=torch.empty((0))
 
-            cousins = torch.stack(tuple([a.t() for a in apyr[n_scales * self.n_orientations+1:(n_scales+1) * self.n_orientations+1]])).view((self.n_orientations, cousinSz)).t()
+            cousins = torch.stack(tuple([aa.t() for aa in [abs_pyr_coeffs[(n_scales,ii)] for ii in range(0,self.n_orientations)]])).view((self.n_orientations, cousinSz)).t()
+
             nc = cousins.shape[1]
             if parents.shape[0] > 0:
                 np0 = parents.shape[1]
@@ -224,7 +215,7 @@ class Portilla_Simoncelli(nn.Module):
                 if n_scales==self.n_scales-1:
                     C0[0:np0, 0:np0, n_scales+1] = (parents.t()@parents)/(cousinSz/4.0)
 
-            cousins = torch.stack(tuple([a[:,:,0].t() for a in pyr_coeffs[n_scales*self.n_orientations+1:(n_scales+1)*self.n_orientations+1]])).view((self.n_orientations,cousinSz)).t()
+            cousins = torch.stack(tuple([aa[:,:,0].t() for aa in [pyr_coeffs_dict[(n_scales,ii)].squeeze() for ii in range(0,self.n_orientations)]])).view((self.n_orientations,cousinSz)).t()
             nrc = cousins.shape[1]
             nrp = 0
             if rparents.shape[0]>0:
@@ -239,17 +230,16 @@ class Portilla_Simoncelli(nn.Module):
                     Cr0[0:nrp,0:nrp,n_scales+1]=(rparents.t()@rparents)/(cousinSz/4.0)
 
         # STATISTC: vHPR0 or the variance of the high-pass residual
-        channel = pyr_coeffs[0]
+        channel = pyr_coeffs_dict['residual_highpass']
         vHPR0 = channel.pow(2).mean()
         
         representation = torch.cat((pixel_statistics.flatten(),magMeans0.flatten(),ace.flatten(),
             skew0p.flatten(),kurt0p.flatten(),acr.flatten(), C0.flatten(), 
             Cx0.flatten(), Cr0.flatten(), Crx0.flatten(), vHPR0.unsqueeze(0))) 
 
-        self.Crx0 = Crx0;
-
         if self.normalizationFactor is not None:
             representation = self.normalizationFactor @ representation
+
         return representation
 
 
