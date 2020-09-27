@@ -44,7 +44,7 @@ class Portilla_Simoncelli(nn.Module):
     = [ ] Operate on Steerable Pyramid coefficients in dictionaries not lists.
     
     '''
-    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalizationFactor=None):
+    def __init__(self, im_shape, n_scales=4, n_orientations=4, Na=9,normalize=False,normalization_mu=None,normalization_std=None):
         super(Portilla_Simoncelli, self).__init__()
 
         self.image_shape = im_shape
@@ -55,7 +55,8 @@ class Portilla_Simoncelli(nn.Module):
             order=self.n_orientations-1, is_complex=True,tight_frame=False)
 
         self.normalize = normalize
-        self.normalizationFactor = normalizationFactor
+        self.normalization_mu = normalization_mu
+        self.normalization_std = normalization_std
 
 
     def forward(self, image):
@@ -79,7 +80,7 @@ class Portilla_Simoncelli(nn.Module):
         
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
-        pyr_coeffs_dict = self.pyr.forward(image)
+        pyr_coeffs = self.pyr.forward(image)
         
         # STATISTIC: calculate pixel statistics
         pixel_statistics = torch.zeros((6,1))
@@ -92,13 +93,13 @@ class Portilla_Simoncelli(nn.Module):
         
         
         # subtract mean from lowest scale band
-        pyr_coeffs_dict['residual_lowpass'] = pyr_coeffs_dict['residual_lowpass'] - torch.mean(pyr_coeffs_dict['residual_lowpass'])
+        pyr_coeffs['residual_lowpass'] = pyr_coeffs['residual_lowpass'] - torch.mean(pyr_coeffs['residual_lowpass'])
         
 
         # create two sets of coefficients: 1) magnitude of the pyramid coefficients, 2) real part of the pyramid coefficients
         magnitude_pyr_coeffs = dict();
         real_pyr_coeffs = dict();
-        for key,val in pyr_coeffs_dict.items():
+        for key,val in pyr_coeffs.items():
             if self.pyr.is_complex==True and val.shape[-1] == 2:
                 tmp = torch.unbind(val,-1)
                 magnitude_pyr_coeffs[key] = ((tmp[0]**2+tmp[1]**2)**.5).squeeze()
@@ -108,7 +109,7 @@ class Portilla_Simoncelli(nn.Module):
                 real_pyr_coeffs[key] = val.squeeze()
 
         # STATISTIC: magnitude_means or the mean magnitude of each pyramid band
-        magnitude_means = torch.empty([len(pyr_coeffs_dict.keys()), 1])
+        magnitude_means = torch.empty([len(pyr_coeffs.keys()), 1])
         for bb, (key, val) in enumerate(magnitude_pyr_coeffs.items()):
             magnitude_means[bb] = torch.mean(val)
             magnitude_pyr_coeffs[key] = magnitude_pyr_coeffs[key] - magnitude_means[bb]   # subtract mean of magnitude
@@ -121,7 +122,7 @@ class Portilla_Simoncelli(nn.Module):
         kurtosis_reconstructed = torch.empty((self.n_scales+1,1))
 
         # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
-        lowpass = pyr_coeffs_dict['residual_lowpass']
+        lowpass = pyr_coeffs['residual_lowpass']
         filterPyr = Steerable_Pyramid_Freq(lowpass.shape[-2:], height=0, order=0, tight_frame=False)
         _ = filterPyr.forward(lowpass.squeeze().unsqueeze(0).unsqueeze(0))
         reconstructed_image = filterPyr.pyr_coeffs['residual_lowpass'].squeeze()
@@ -161,11 +162,11 @@ class Portilla_Simoncelli(nn.Module):
             skew_reconstructed[n_scales], kurtosis_reconstructed[n_scales] =  self.compute_skew_kurt(reconstructed_image,vari,pixel_statistics[1])
 
         # compute the cross-correlation matrices of the coefficient magnitudes pyramid at the different levels and orientations
-        cousin_magnitude_correlation = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales+1)
-        parent_magnitude_correlation = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales)
+        cross_orientation_correlation_magnitude = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales+1)
+        cross_scale_correlation_magnitude = torch.zeros(self.n_orientations, self.n_orientations, self.n_scales)
  
-        cousin_real_correlation = torch.zeros(max(2*self.n_orientations,5), max(2*self.n_orientations,5), self.n_scales+1)
-        parent_real_correlation = torch.zeros(2*self.n_orientations, max(2*self.n_orientations,5), self.n_scales)
+        cross_orientation_correlation_real = torch.zeros(max(2*self.n_orientations,5), max(2*self.n_orientations,5), self.n_scales+1)
+        cross_scale_correlation_real = torch.zeros(2*self.n_orientations, max(2*self.n_orientations,5), self.n_scales)
 
         for n_scales in range(0, self.n_scales):
             cousinSz = real_pyr_coeffs[(n_scales,0)].shape[0]*real_pyr_coeffs[(n_scales,0)].shape[1]
@@ -174,11 +175,10 @@ class Portilla_Simoncelli(nn.Module):
                 rparents = torch.empty((cousinSz, self.n_orientations*2))
                 
                 for nor in range(0, self.n_orientations):
-                    tmp = Portilla_Simoncelli.expand(pyr_coeffs_dict[(n_scales+1,nor)].squeeze(),2)/4.0
+                    tmp = Portilla_Simoncelli.expand(pyr_coeffs[(n_scales+1,nor)].squeeze(),2)/4.0
 
                     rtmp = tmp[:,:,0]
                     itmp = tmp[:,:,1]
-                    # double phase
 
                     rtmp2 = (rtmp**2 + itmp**2)**.5 * torch.cos(2*torch.atan2(rtmp, itmp))
                     itmp2 = (rtmp**2 + itmp**2)**.5 * torch.sin(2*torch.atan2(rtmp, itmp))
@@ -207,37 +207,37 @@ class Portilla_Simoncelli(nn.Module):
                 np0 = parents.shape[1]
             else:
                 np0 = 0
-            cousin_magnitude_correlation[0:nc, 0:nc, n_scales] = (cousins.t()@cousins)/cousinSz
+            cross_orientation_correlation_magnitude[0:nc, 0:nc, n_scales] = (cousins.t()@cousins)/cousinSz
             if np0 > 0:
-                parent_magnitude_correlation[0:nc, 0:np0, n_scales] = (cousins.t()@parents)/cousinSz
+                cross_scale_correlation_magnitude[0:nc, 0:np0, n_scales] = (cousins.t()@parents)/cousinSz
                 if n_scales==self.n_scales-1:
-                    cousin_magnitude_correlation[0:np0, 0:np0, n_scales+1] = (parents.t()@parents)/(cousinSz/4.0)
+                    cross_orientation_correlation_magnitude[0:np0, 0:np0, n_scales+1] = (parents.t()@parents)/(cousinSz/4.0)
 
-            cousins = torch.stack(tuple([aa[:,:,0].t() for aa in [pyr_coeffs_dict[(n_scales,ii)].squeeze() for ii in range(0,self.n_orientations)]])).view((self.n_orientations,cousinSz)).t()
+            cousins = torch.stack(tuple([aa[:,:,0].t() for aa in [pyr_coeffs[(n_scales,ii)].squeeze() for ii in range(0,self.n_orientations)]])).view((self.n_orientations,cousinSz)).t()
             nrc = cousins.shape[1]
             nrp = 0
             if rparents.shape[0]>0:
                 nrp = rparents.shape[1]
 
-            cousin_real_correlation[0:nrc,0:nrc,n_scales]=(cousins.t()@cousins)/cousinSz
+            cross_orientation_correlation_real[0:nrc,0:nrc,n_scales]=(cousins.t()@cousins)/cousinSz
             if nrp>0:
-                parent_real_correlation[0:nrc,0:nrp,n_scales] = (cousins.t()@rparents)/cousinSz
+                cross_scale_correlation_real[0:nrc,0:nrp,n_scales] = (cousins.t()@rparents)/cousinSz
                 
                 if n_scales==self.n_scales-1:
                     
-                    cousin_real_correlation[0:nrp,0:nrp,n_scales+1]=(rparents.t()@rparents)/(cousinSz/4.0)
+                    cross_orientation_correlation_real[0:nrp,0:nrp,n_scales+1]=(rparents.t()@rparents)/(cousinSz/4.0)
 
         # STATISTC: var_highpass_residual or the variance of the high-pass residual
-        var_highpass_residual = pyr_coeffs_dict['residual_highpass'].pow(2).mean()
+        var_highpass_residual = pyr_coeffs['residual_highpass'].pow(2).mean()
         
         representation = torch.cat((pixel_statistics.flatten(),magnitude_means.flatten(),
             auto_correlation_magnitude.flatten(), skew_reconstructed.flatten(),
-            kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cousin_magnitude_correlation.flatten(), 
-            parent_magnitude_correlation.flatten(), cousin_real_correlation.flatten(), 
-            parent_real_correlation.flatten(), var_highpass_residual.unsqueeze(0))) 
+            kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cross_orientation_correlation_magnitude.flatten(), 
+            cross_scale_correlation_magnitude.flatten(), cross_orientation_correlation_real.flatten(), 
+            cross_scale_correlation_real.flatten(), var_highpass_residual.unsqueeze(0))) 
 
-        if self.normalizationFactor is not None:
-            representation = self.normalizationFactor @ representation
+        if self.normalize:
+            representation = (representation-self.normalization_mu) / self.normalization_std
 
         return representation
 
@@ -246,7 +246,7 @@ class Portilla_Simoncelli(nn.Module):
         """
             
             """
-        # leg=['statsg0','magnitude_means','auto_correlation_magnitude','skew_reconstructed','kurt0','acr','cousin_magnitude_correlation','parent_magnitude_correlation','cousin_real_correlation','parent_real_correlation','var_highpass_residual']
+        # leg=['statsg0','magnitude_means','auto_correlation_magnitude','skew_reconstructed','kurt0','acr','cross_orientation_correlation_magnitude','cross_scale_correlation_magnitude','cross_orientation_correlation_real','cross_scale_correlation_real','var_highpass_residual']
         # statg0
         statg0 = (self.n_scales+2)*torch.ones(6)
         
@@ -263,27 +263,27 @@ class Portilla_Simoncelli(nn.Module):
         kurtosis_reconstructed=torch.arange(1,self.n_scales+2,dtype=torch.float)
         
         auto_correlation = torch.empty([self.Na,self.Na,self.n_scales+1])
-        cousin_magnitude_correlation = torch.empty(self.n_orientations,self.n_orientations,self.n_scales+1)
-        cousin_real_correlation = torch.empty(2*self.n_orientations,2*self.n_orientations,self.n_scales+1)
+        cross_orientation_correlation_magnitude = torch.empty(self.n_orientations,self.n_orientations,self.n_scales+1)
+        cross_orientation_correlation_real = torch.empty(2*self.n_orientations,2*self.n_orientations,self.n_scales+1)
         auto_correlation_magnitude = torch.empty([self.Na,self.Na,self.n_scales,self.n_orientations])
-        parent_magnitude_correlation = torch.empty(self.n_orientations, self.n_orientations, self.n_scales)
-        parent_real_correlation = torch.empty(2*self.n_orientations, 2*self.n_orientations, self.n_scales)
+        cross_scale_correlation_magnitude = torch.empty(self.n_orientations, self.n_orientations, self.n_scales)
+        cross_scale_correlation_real = torch.empty(2*self.n_orientations, 2*self.n_orientations, self.n_scales)
         
         for i in range(0,self.n_scales+1):
-            cousin_magnitude_correlation[:,:,i] = i+1
-            cousin_real_correlation[:,:,i] = i+1
+            cross_orientation_correlation_magnitude[:,:,i] = i+1
+            cross_orientation_correlation_real[:,:,i] = i+1
             auto_correlation[:,:,i] = i+1
             if i<self.n_scales:
-                parent_magnitude_correlation[:,:,i]=i+1
-                parent_real_correlation[:,:,i]=i+1
+                cross_scale_correlation_magnitude[:,:,i]=i+1
+                cross_scale_correlation_real[:,:,i]=i+1
                 auto_correlation_magnitude[:,:,i,:]=i+1
         var_highpass_residual = torch.zeros(1)
         
         skew_reconstructed.flatten().shape
         
         levs = torch.cat((statg0.flatten(),magnitude_means.flatten(),auto_correlation_magnitude.flatten(),
-                          skew_reconstructed.flatten(),kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cousin_magnitude_correlation.flatten(),
-                          parent_magnitude_correlation.flatten(), cousin_real_correlation.flatten(), parent_real_correlation.flatten(), var_highpass_residual.flatten()))
+                          skew_reconstructed.flatten(),kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cross_orientation_correlation_magnitude.flatten(),
+                          cross_scale_correlation_magnitude.flatten(), cross_orientation_correlation_real.flatten(), cross_scale_correlation_real.flatten(), var_highpass_residual.flatten()))
         return levs
 
 
