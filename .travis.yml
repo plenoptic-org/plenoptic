@@ -8,6 +8,7 @@ env:
   - TEST_SCRIPT=plenoptic
   - TEST_SCRIPT=steerable_pyr
   - TEST_SCRIPT=synthesis
+  - TEST_SCRIPT=mad
 python:
   - "3.6"
   - "3.7"
