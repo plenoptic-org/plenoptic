@@ -482,7 +482,7 @@ class TestPortillaSimoncelli(object):
 
     ## still need to add tests for normalization factors
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
-    @pytest.mark.parametrize("n_orientations", [1,2,3,4]) 
+    @pytest.mark.parametrize("n_orientations", [2,3,4]) 
     @pytest.mark.parametrize("Na", [3,5,7,9])
     # @pytest.mark.parametrize("im_shape", [(256,256)])
     def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape=(256,256)):
@@ -494,7 +494,7 @@ class TestPortillaSimoncelli(object):
 
     ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
-    @pytest.mark.parametrize("n_orientations", [1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [2,3,4])
     @pytest.mark.parametrize("Na", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
     @pytest.mark.parametrize("im",['curie','einstein','checkerboard','metal','nuts','sawtooth'])

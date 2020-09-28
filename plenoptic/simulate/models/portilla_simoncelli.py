@@ -57,9 +57,10 @@ class Portilla_Simoncelli(nn.Module):
         self.normalize = normalize
         self.normalization_mu = normalization_mu
         self.normalization_std = normalization_std
+        self.scales = ['pixel_statistics','residual_lowpass']+[ii for ii in range(n_scales-1,-1,-1)]+['residual_highpass']
+        self.statistic_scales = self._get_statistic_scales()
 
-
-    def forward(self, image):
+    def forward(self, image, scales=None):
         """Generate Texture Statistics representation of an image (see reference [1])
             
         Parameters
@@ -76,21 +77,20 @@ class Portilla_Simoncelli(nn.Module):
             A flattened tensor (1d) containing the measured statistics.
             
         """
-
         
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         pyr_coeffs = self.pyr.forward(image)
         
         # STATISTIC: calculate pixel statistics
-        pixel_statistics = torch.zeros((6,1))
+
+        pixel_statistics = torch.ones((6,1))
         pixel_statistics[0] = torch.mean(image)
         pixel_statistics[1] = torch.var(image)
         pixel_statistics[2] = Portilla_Simoncelli.skew(image)
         pixel_statistics[3] = Portilla_Simoncelli.kurtosis(image)
         pixel_statistics[4] = torch.min(image)
-        pixel_statistics[5] = torch.max(image)
-        
+        pixel_statistics[5] = torch.max(image)        
         
         # subtract mean from lowest scale band
         pyr_coeffs['residual_lowpass'] = pyr_coeffs['residual_lowpass'] - torch.mean(pyr_coeffs['residual_lowpass'])
@@ -123,7 +123,7 @@ class Portilla_Simoncelli(nn.Module):
 
         # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
         lowpass = pyr_coeffs['residual_lowpass']
-        filterPyr = Steerable_Pyramid_Freq(lowpass.shape[-2:], height=0, order=0, tight_frame=False)
+        filterPyr = Steerable_Pyramid_Freq(lowpass.shape[-2:], height=0, order=1, tight_frame=False)
         _ = filterPyr.forward(lowpass.squeeze().unsqueeze(0).unsqueeze(0))
         reconstructed_image = filterPyr.pyr_coeffs['residual_lowpass'].squeeze()
         
@@ -229,7 +229,7 @@ class Portilla_Simoncelli(nn.Module):
 
         # STATISTC: var_highpass_residual or the variance of the high-pass residual
         var_highpass_residual = pyr_coeffs['residual_highpass'].pow(2).mean()
-        
+
         representation = torch.cat((pixel_statistics.flatten(),magnitude_means.flatten(),
             auto_correlation_magnitude.flatten(), skew_reconstructed.flatten(),
             kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cross_orientation_correlation_magnitude.flatten(), 
@@ -239,52 +239,45 @@ class Portilla_Simoncelli(nn.Module):
         if self.normalize:
             representation = (representation-self.normalization_mu) / self.normalization_std
 
+        # This is likely NOT efficient and should be replaced [did some timing tests... and it actually doesn't seem to matter]
+        if scales is not None:
+            ind = torch.LongTensor([i for i,s in enumerate(self.statistic_scales) if s in self.scales])
+            return representation.index_select(0,ind)
+
         return representation
 
 
-    def get_stat_levels(self):
+    def _get_statistic_scales(self):
         """
             
             """
-        # leg=['statsg0','magnitude_means','auto_correlation_magnitude','skew_reconstructed','kurt0','acr','cross_orientation_correlation_magnitude','cross_scale_correlation_magnitude','cross_orientation_correlation_real','cross_scale_correlation_real','var_highpass_residual']
-        # statg0
-        statg0 = (self.n_scales+2)*torch.ones(6)
-        
+        pixel_statistics = ['pixel_statistics']*6
+
         # magnitude_means
-        t = torch.arange(1,self.n_scales+1)
-        t =t.repeat(self.n_orientations,1).t().flatten()
-        t= torch.cat((torch.tensor([0]),t,torch.tensor([self.n_scales+1])))
-        magnitude_means = t.type(torch.float)
+        magnitude_means = ['residual_lowpass'] + [s for s in self.scales[2:-1] for i in range(0,self.n_orientations)] \
+                            + ['residual_highpass']
         
         # skew_reconstructed
-        skew_reconstructed = torch.arange(1,self.n_scales+2,dtype=torch.float)
-        
+        skew_reconstructed = self.scales[1:-1]
+
         # kurtosis_reconstructed
-        kurtosis_reconstructed=torch.arange(1,self.n_scales+2,dtype=torch.float)
+        kurtosis_reconstructed = self.scales[1:-1]
         
-        auto_correlation = torch.empty([self.Na,self.Na,self.n_scales+1])
-        cross_orientation_correlation_magnitude = torch.empty(self.n_orientations,self.n_orientations,self.n_scales+1)
-        cross_orientation_correlation_real = torch.empty(2*self.n_orientations,2*self.n_orientations,self.n_scales+1)
-        auto_correlation_magnitude = torch.empty([self.Na,self.Na,self.n_scales,self.n_orientations])
-        cross_scale_correlation_magnitude = torch.empty(self.n_orientations, self.n_orientations, self.n_scales)
-        cross_scale_correlation_real = torch.empty(2*self.n_orientations, 2*self.n_orientations, self.n_scales)
+        auto_correlation = (self.Na*self.Na)*self.scales[1:-1]
+        cross_orientation_correlation_magnitude = (self.n_orientations*self.n_orientations) * self.scales[1:-1]
+        cross_orientation_correlation_real = (4*self.n_orientations*self.n_orientations) * self.scales[1:-1]
         
-        for i in range(0,self.n_scales+1):
-            cross_orientation_correlation_magnitude[:,:,i] = i+1
-            cross_orientation_correlation_real[:,:,i] = i+1
-            auto_correlation[:,:,i] = i+1
-            if i<self.n_scales:
-                cross_scale_correlation_magnitude[:,:,i]=i+1
-                cross_scale_correlation_real[:,:,i]=i+1
-                auto_correlation_magnitude[:,:,i,:]=i+1
-        var_highpass_residual = torch.zeros(1)
+        auto_correlation_magnitude = (self.Na*self.Na)*[s for s in self.scales[2:-1] for i in range(0,self.n_orientations)]
+        cross_scale_correlation_magnitude = (self.n_orientations*self.n_orientations) * self.scales[2:-1]
+        cross_scale_correlation_real = (2*self.n_orientations*max(2*self.n_orientations,5)) * self.scales[2:-1]
+        var_highpass_residual = [self.scales[-1]]
+
+        scales = pixel_statistics + magnitude_means + auto_correlation_magnitude + skew_reconstructed + \
+        kurtosis_reconstructed + auto_correlation + cross_orientation_correlation_magnitude + \
+        cross_scale_correlation_magnitude + cross_orientation_correlation_real + \
+        cross_scale_correlation_real + var_highpass_residual
         
-        skew_reconstructed.flatten().shape
-        
-        levs = torch.cat((statg0.flatten(),magnitude_means.flatten(),auto_correlation_magnitude.flatten(),
-                          skew_reconstructed.flatten(),kurtosis_reconstructed.flatten(),auto_correlation.flatten(), cross_orientation_correlation_magnitude.flatten(),
-                          cross_scale_correlation_magnitude.flatten(), cross_orientation_correlation_real.flatten(), cross_scale_correlation_real.flatten(), var_highpass_residual.flatten()))
-        return levs
+        return scales
 
 
     def expand(t,f):
