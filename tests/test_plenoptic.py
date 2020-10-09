@@ -472,3 +472,66 @@ class TestDisplay(object):
             with pytest.raises(Exception):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
+
+    @pytest.mark.parametrize('as_rgb', [True, False])
+    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('is_complex', [False, 'logpolar', 'rectangular', 'polar'])
+    @pytest.mark.parametrize('mini_vid', [True, False])
+    def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
+        fails = False
+        if is_complex:
+            vid = torch.rand((2, 4, 10, 10, 10, 2))
+            # this is 2 (the two complex components) * 4 (the four channels) *
+            # 2 (the two batches)
+            n_axes = 16
+        else:
+            vid = torch.rand((2, 4, 10, 10, 10))
+            # this is 4 (the four channels) * 2 (the two batches)
+            n_axes = 8
+        if mini_vid:
+            # n_axes here follows the same logic as above
+            if is_complex:
+                shape = [2, 4, 10, 5, 5, 2]
+                n_axes += 16
+            else:
+                shape = [2, 4, 10, 5, 5]
+                n_axes += 8
+            vid = [vid, torch.rand(shape)]
+        if not is_complex:
+            # need to change this to one of the acceptable strings
+            is_complex = 'rectangular'
+        if batch_idx is None and channel_idx is None and not as_rgb:
+            # then we'd have a 4d array we want to plot in grayscale -- don't
+            # know how to do that
+            fails = True
+        else:
+            if batch_idx is not None:
+                # then we're only plotting one of the two batches
+                n_axes /= 2
+            if channel_idx is not None:
+                # then we're only plotting one of the four channels
+                n_axes /= 4
+                # if channel_idx is not None, then we don't have all the
+                # channels necessary for plotting RGB, so this will fail
+                if as_rgb:
+                    fails = True
+            # when channel_idx=0, as_rgb does nothing, so don't want to
+            # double-count
+            elif as_rgb:
+                # if we're plotting as_rgb, the four channels just specify
+                # RGBA, so we only have one video for them
+                n_axes /= 4
+        if isinstance(batch_idx, list) or isinstance(channel_idx, list):
+            # neither of these are supported
+            fails = True
+        if not fails:
+            anim = po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
+                               batch_idx=batch_idx, plot_complex=is_complex)
+            fig = anim._fig
+            assert len(fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
+            plt.close('all')
+        if fails:
+            with pytest.raises(Exception):
+                po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
+                            batch_idx=batch_idx, plot_complex=is_complex)

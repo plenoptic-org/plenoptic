@@ -149,6 +149,157 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
                      **kwargs)
 
 
+def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
+             title='', col_wrap=None, ax=None, cmap=None,
+             plot_complex='rectangular', batch_idx=None, channel_idx=None,
+             as_rgb=False, **kwargs):
+    """Animate video(s) correctly.
+
+    This function animates videos correctly, making sure that each element in
+    the tensor corresponds to a pixel or an integer number of pixels, to avoid
+    aliasing (NOTE: this guarantee only holds for the saved animation (assuming
+    video compression doesn't interfere); it should generally hold in notebooks
+    as well, but will fail if, e.g., your video is 2000 pixels wide on an
+    monitor 1000 pixels wide; the notebook handles the rescaling in a way we
+    can't control).
+
+    This functions returns the matplotlib FuncAnimation object. In order to
+    view it in a Jupyter notebook, use the
+    ``plenoptic.convert_anim_to_html(anim)`` function. In order to save, use
+    ``anim.save(filename)`` (note for this that you'll need the appropriate
+    writer installed and on your path, e.g., ffmpeg, imagemagick, etc).
+
+    Arguments
+    ---------
+    video : torch.Tensor or list
+        The videos to display. Tensors should be 5d (batch, channel, time,
+        height, width) or 6d (if complex). List of tensors should be used for
+        tensors of different height and width: all videos will automatically be
+        rescaled so they're displayed at the same height and width, thus, their
+        heights and widths must be scalar multiples of each other. Videos must
+        all have the same number of frames as well.
+    framerate : `float`
+        Temporal resolution of the video, in Hz (frames per second).
+    repeat : `bool`
+        whether to loop the animation or just play it once
+    vrange : `tuple` or `str`
+        If a 2-tuple, specifies the image values vmin/vmax that are mapped to
+        the minimum and maximum value of the colormap, respectively. If a
+        string:
+
+        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
+                     value, and come from the minimum or maximum across all
+                     images, whichever has the larger absolute value
+        * `'auto/auto1'`: all images have same vmin/vmax, which are the
+                          minimum/maximum values across all images
+        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
+                     all images) minus/ plus 2 std dev (across all images)
+        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
+                     10th/90th percentile values to the 10th/90th percentile of
+                     the display intensity range. For example: vmin is the 10th
+                     percentile image value minus 1/8 times the difference
+                     between the 90th and 10th percentile
+        * `'indep0'`: each image has an independent vmin/vmax, which have the
+                      same absolute value, which comes from either their
+                      minimum or maximum value, whichever has the larger
+                      absolute value.
+        * `'indep1'`: each image has an independent vmin/vmax, which are their
+                      minimum/maximum values
+        * `'indep2'`: each image has an independent vmin/vmax, which is their
+                      mean minus/plus 2 std dev
+        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
+                      the 10th/90th percentile values map to the 10th/90th
+                      percentile intensities.
+    zoom : `float`
+        ratio of display pixels to image pixels. if >1, must be an integer. If
+        <1, must be 1/d where d is a a divisor of the size of the largest
+        image.
+    title : `str`, `list`, or None, optional
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom)
+        * if `str`, will put the same title on every plot.
+        * if `list`, all values must be `str`, must be the same length as img,
+          assigning each title to corresponding image.
+        * if None, no title will be printed (and subtitle will be removed;
+          unsupported for complex tensors).
+    col_wrap : `int` or None, optional
+        number of axes to have in each row. If None, will fit all axes in a
+        single row.
+    ax : `matplotlib.pyplot.axis` or None, optional
+        if None, we make the appropriate figure. otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception!,
+        so first define a large enough figure using either
+        pyrtools.make_figure or plt.figure)
+    cmap : matplotlib colormap, optional
+        colormap to use when showing these images
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        specifies handling of complex values.
+
+        * `'rectangular'`: plot real and imaginary components as separate images
+        * `'polar'`: plot amplitude and phase as separate images
+        * `'logpolar'`: plot log_2 amplitude and phase as separate images
+        for any other value, we raise a warning and default to rectangular.
+    batch_idx : int or None, optional
+        Which element from the batch dimension to plot. If None, we plot all.
+    channel_idx : int or None, optional
+        Which element from the channel dimension to plot. If None, we plot all.
+        Note if this is an int, then `as_rgb=True` will fail, because we
+        restrict the channels.
+    as_rgb : bool, optional
+        Whether to consider the channels as encoding RGB(A) values. If True, we
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if
+        you want the alpha channel) elements in the channel dimension, or this
+        will raise an Exception. If False, we plot each channel as a separate
+        grayscale image.
+    kwargs :
+        Passed to `ax.imshow`
+
+    Returns
+    -------
+    anim : matplotlib.animation.FuncAnimation
+        The animation object. In order to view, must convert to HTML
+        or save.
+
+    """
+    if not isinstance(video, list):
+        video = [video]
+    videos_to_show = []
+    for vid in video:
+        if vid.ndimension() == 6:
+            vid = torch_complex_to_numpy(vid)
+        else:
+            vid = to_numpy(vid)
+        if vid.shape[0] > 1 and batch_idx is not None:
+            # this preserves the number of dimensions
+            vid = vid[batch_idx:batch_idx+1]
+        if channel_idx is not None:
+            # this preserves the number of dimensions
+            vid = vid[:, channel_idx:channel_idx+1]
+        # allow RGB and RGBA
+        if as_rgb:
+            if vid.shape[1] not in [3, 4]:
+                raise Exception("If as_rgb is True, then channel must have 3 "
+                                "or 4 elements!")
+            vid = vid.transpose(0, 2, 3, 4, 1)
+            # want to insert a fake "channel" dimension here, so our putting it
+            # into a list below works as expected
+            vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
+        elif vid.shape[1] > 1 and vid.shape[0] > 1:
+            raise Exception("Don't know how to plot images with more than one channel and batch!"
+                            " Use batch_idx / channel_idx to choose a subset for plotting")
+        # by iterating through it twice, we make sure to peel apart the batch
+        # and channel dimensions so that they each show up as a separate video.
+        # because of how we've handled everything above, we know that vid will
+        # be (b,c,t,h,w) or (b,c,t,h,w,r) where r is the RGB(A) values
+        for v in vid:
+            videos_to_show.extend([v_.squeeze() for v_ in v])
+    return pt.animshow(videos_to_show, framerate=framerate, as_html5=False,
+                       repeat=repeat, vrange=vrange, zoom=zoom, title=title,
+                       col_wrap=col_wrap, ax=ax, cmap=cmap,
+                       plot_complex=plot_complex, **kwargs)
+
+
 def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
     r"""Wrapper that makes outputs of the steerable pyramids compatible
     with the display functions of pyrtools.
