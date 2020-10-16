@@ -745,27 +745,24 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
     All of these arguments are optional, but at least some of them need
     to be set:
 
-    - If ``model`` is ``None``, we fall-back to a type of plot based on
-      the shape of ``data``. If it looks image-like, we'll use
-      ``pyrtools.imshow`` and if it looks vector-like, we'll use
-      ``plenoptic.clean_stem_plot``. If it's a dictionary, we'll assume
-      each key, value pair gives the title and data to plot on a
-      separate sub-plot.
+    - If ``model`` is ``None``, we fall-back to a type of plot based on the
+      shape of ``data``. If it looks image-like, we'll use ``plenoptic.imshow``
+      and if it looks vector-like, we'll use ``plenoptic.clean_stem_plot``. If
+      it's a dictionary, we'll assume each key, value pair gives the title and
+      data to plot on a separate sub-plot.
 
     - If ``data`` is ``None``, we can only do something if
       ``model.plot_representation`` has some default behavior when
       ``data=None``; this is probably to plot its own ``representation``
-      attribute. Thus, this will raise an Exception if both ``model``
-      and ``data`` are ``None``, because we have no idea what to plot
-      then.
+      attribute. Thus, this will raise an Exception if both ``model`` and
+      ``data`` are ``None``, because we have no idea what to plot then.
 
-    - If ``ax`` is ``None``, we create a one-subplot figure using
-      ``figsize``. If ``ax`` is not ``None``, we therefore ignore
-      ``figsize``.
+    - If ``ax`` is ``None``, we create a one-subplot figure using ``figsize``.
+      If ``ax`` is not ``None``, we therefore ignore ``figsize``.
 
-    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the
-      axes' y-limits to be ``(-y_max, y_max)``, where
-      ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
+    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the axes'
+      y-limits to be ``(-y_max, y_max)``, where ``y_max=np.abs(data).max()``.
+      If it's ``False``, we do nothing.
 
     Parameters
     ----------
@@ -844,7 +841,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                 ax = fig.add_subplot(gs[i // 4, i % 4])
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 # only plot the specified batch
-                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax, vrange='indep0')
+                imshow(v, batch_idx=batch_idx, title=title, ax=ax, vrange='indep0')
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all
