@@ -179,16 +179,16 @@ for docstring structure.
 
 ### Build the documentation
 
-NOTE: We currently don't have a readthedocs page set up, because they
-don't support private repos for free. Once we make this repo public,
-we'll set one up.
+NOTE: If you just want to read the documentation, you do not need to do this;
+documentation is built automatically on
+[readthedocs](https://plenoptic.readthedocs.io/).
 
-So for now, in order to view the documentation, it must be built
-locally. You would do this if you've made changes locally to the
-documentation (or the docstrings) that you would like to examine
-before pushing. The virtual environment required to do so is defined
-in `docs/environment.yml`, so to create that environment and build the
-docs, do the following from the project's root directory:
+However, it can be built locally as well. You would do this if you've
+made changes locally to the documentation (or the docstrings) that you
+would like to examine before pushing. The virtual environment required
+to do so is defined in `docs/environment.yml`, so to create that
+environment and build the docs, do the following from the project's
+root directory:
 
 ```
 # install sphinx and required packages to build documentation
