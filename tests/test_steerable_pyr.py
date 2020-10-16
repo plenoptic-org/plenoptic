@@ -25,11 +25,12 @@ def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
 
     for k in coeff_np.keys():
         coeff_np_k = coeff_np[k]
-        coeff_torch_k  = coeff_torch[k].squeeze()
+        coeff_torch_k  = coeff_torch[k]
         if coeff_torch_k.shape[-1] == 2:
             coeff_torch_k = torch_complex_to_numpy(coeff_torch_k)
         else:
             coeff_torch_k = to_numpy(coeff_torch_k)
+        coeff_torch_k = coeff_torch_k.squeeze()
         np.testing.assert_allclose(coeff_torch_k, coeff_np_k, rtol=rtol, atol=atol)
 
 def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
@@ -45,14 +46,16 @@ def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
     for i in range(len(coeff_1.items())):
         k1 = list(coeff_1.keys())[i]
         k2 = list(coeff_2.keys())[i]
-        band_1 = coeff_1[k1].squeeze()
-        band_2 = coeff_2[k2].squeeze()
+        band_1 = coeff_1[k1]
+        band_2 = coeff_2[k2]
         if band_1.shape[-1] == 2:
             band_1 = torch_complex_to_numpy(band_1)
             band_2 = torch_complex_to_numpy(band_2)
         else:
             band_1 = to_numpy(band_1)
             band_2 = to_numpy(band_2)
+        band_1 = band_1.squeeze()
+        band_2 = band_2.squeeze()
 
         np.testing.assert_allclose(np.sum(np.abs(band_1)**2),np.sum(np.abs(band_2)**2), rtol=rtol, atol=atol)
 
