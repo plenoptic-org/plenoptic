@@ -14,5 +14,6 @@ python:
   - "3.7"
 install:
   - pip install -e .
+  - pip install pytest-cov
 script:
   - pytest --cov=tests/ tests/test_${TEST_SCRIPT}.py
