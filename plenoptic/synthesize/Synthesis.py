@@ -1100,12 +1100,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         ``save_model_reduced`` flag to ``True``. In that case, you also
         need to pass a model constructor argument, like so:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced)
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
 
         You may want to update one or more of the arguments used to
         initialize the model. The example I have in mind is where you
@@ -1114,12 +1114,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         attribute which you will want to change so it finds the
         appropriate location:
 
-        >>> model = po.simul.RetinalGanglionCells(1)
+        >>> model = po.simul.PooledRGC(1)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt', save_model_reduced=True)
         >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.RetinalGanglionCells.from_state_dict_reduced,
+                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
                                                  cache_dir="/home/user/Desktop/metamers/windows_cache")
 
         """
@@ -1422,9 +1422,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for ``PooledV1``, try (39, 11).
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1500,9 +1500,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``RetinalGanglionCells`, then (17,5) is probably fine,
+            like ``PooledRGC``, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PrimaryVisualCortex, try (39, 11).
+            for ``PooledV1``, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

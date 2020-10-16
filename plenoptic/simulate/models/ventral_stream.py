@@ -1031,7 +1031,7 @@ class PooledV1(PooledVentralStream):
     (that is, squares, sums, and takes the square root across the real
     and imaginary parts; this is a phase-invariant measure of the local
     magnitude). The mean luminance representation is the same as that
-    computed by the RetinalGanglionCell model.
+    computed by the PooledRGC model.
 
     Note that we will calculate the minimum eccentricity at which the
     area of the windows at half-max exceeds one pixel (based on
@@ -1172,7 +1172,7 @@ class PooledV1(PooledVentralStream):
     mean_luminance : torch.Tensor
         A 1d tensor representing the mean luminance of the image, found
         by averaging the pixel values of the image using the windows at
-        the lowest scale. This is identical to the RetinalGanglionCell
+        the lowest scale. This is identical to the PooledRGC
         representation of the image with the same ``scaling`` value.
     representation : torch.Tensor
         A dictionary containing the 'complex cell responses' (that is,
@@ -1598,7 +1598,7 @@ class PooledV1(PooledVentralStream):
         r"""plot the representation of the V1 model
 
         Since our PooledV1 model has more statistics than the
-        RetinalGanglionCell model, this is a much more complicated
+        PooledRGC model, this is a much more complicated
         plot. We end up creating a grid, showing each band and scale
         separately, and then a separate plot, off to the side, for the
         mean pixel intensity.
