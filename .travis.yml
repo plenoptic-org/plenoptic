@@ -15,4 +15,4 @@ python:
 install:
   - pip install -e .
 script:
-  - pytest tests/test_${TEST_SCRIPT}.py
+  - pytest --cov=tests/ tests/test_${TEST_SCRIPT}.py
