@@ -67,11 +67,12 @@ def check_parseval(im ,coeff, rtol=1e-4, atol=0):
     total_band_energy = 0
     im_energy = np.sum(to_numpy(im)**2)
     for k,v in coeff.items():
-        band = coeff[k].squeeze()
+        band = coeff[k]
         if band.shape[-1] == 2:
             band = torch_complex_to_numpy(band)
         else:
             band = to_numpy(band)
+        band = band.squeeze()
 
         total_band_energy += np.sum(np.abs(band)**2)
 
