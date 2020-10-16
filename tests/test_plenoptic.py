@@ -7,6 +7,7 @@ import tarfile
 import os
 import numpy as np
 import plenoptic as po
+import pyrtools as pt
 import os.path as op
 import scipy.io as sio
 import matplotlib.pyplot as plt
@@ -398,7 +399,7 @@ class TestDisplay(object):
             y2 = torch.tensor(y2)
         elif how == 'dict':
             y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
-        fig = pt.imshow(y1.squeeze())
+        fig = pt.imshow([y for y in y1.squeeze()])
         po.update_plot(fig.axes, y2)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
