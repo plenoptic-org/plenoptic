@@ -330,12 +330,13 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
 
     pyr_coeffvis = pyr_coeffs.copy()
     for k in pyr_coeffvis.keys():
-        im = pyr_coeffvis[k][image_index, channel, ...]
+        im = pyr_coeffvis[k]
         # imag and real component exist
         if im.shape[-1] == 2:
-            pyr_coeffvis[k] = torch_complex_to_numpy(im)
+            im = torch_complex_to_numpy(im)
         else:
-            pyr_coeffvis[k] = to_numpy(im)
+            im = to_numpy(im)
+        pyr_coeffvis[k] = im[image_index, channel, ...]
 
     return pyr_coeffvis
 
