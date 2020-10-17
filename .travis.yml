@@ -16,4 +16,6 @@ install:
   - pip install -e .
   - pip install pytest-cov
 script:
-  - pytest --cov=tests/ tests/test_${TEST_SCRIPT}.py
+  - pytest --cov=plenoptic tests/test_${TEST_SCRIPT}.py
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
