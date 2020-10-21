@@ -453,3 +453,54 @@ class Metamer(Synthesis):
         """
         return super().load(file_path, 'model', model_constructor, map_location,
                             **state_dict_kwargs)
+
+    def plot_value_comparison(self, value='representation', batch_idx=0,
+                              channel_idx=0, iteration=None, figsize=(5, 5),
+                              ax=None, func='scatter', **kwargs):
+        """Plot comparison of base vs. synthesized representation or signal.
+
+        Plotting representation is another way of visualizing the
+        representation error, while plotting signal is similar to
+        plot_image_hist, but allows you to see whether there's any pattern of
+        individual correspondence.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this
+            comparison. When there are many values (as often happens when
+            plotting signal), then hist2d will be clearer
+        hist2d_nbins: int, optional
+            Number of bins between 0 and 1 to use for hist2d
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        fig = super().plot_value_comparison(value=value, batch_idx=batch_idx,
+                                            channel_idx=channel_idx,
+                                            iteration=iteration,
+                                            figsize=figsize, ax=ax, func=func,
+                                            **kwargs)
+        if ax is None:
+            ax = fig.axes[0]
+        ax.set(ylabel='Target representation')
+        return fig
