@@ -502,5 +502,5 @@ class Metamer(Synthesis):
                                             **kwargs)
         if ax is None:
             ax = fig.axes[0]
-        ax.set(ylabel='Target representation')
+        ax.set(ylabel=f'Target {value}')
         return fig

@@ -602,16 +602,29 @@ def _get_artists_from_axes(axes, data):
         # then we only have one axis, so we may be able to update more than one
         # data element.
         if len(axes.containers) > 0:
+            data_check = 1
             artists = axes.containers
         elif len(axes.images) > 0:
+            # images are weird, so don't check them like this
+            data_check = None
             artists = axes.images
         elif len(axes.lines) > 0:
+            data_check = 1
             artists = axes.lines
+        elif len(axes.collections) > 0:
+            data_check = 2
+            artists = axes.collections
         if isinstance(data, dict):
             artists = {ax.get_label(): ax for ax in artists}
         else:
-            if data.shape[1] != len(artists):
+            if data_check == 1 and data.shape[1] != len(artists):
                 raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"your axis contains {len(artists)} plotting artists, "
+                                "so unsure how to continue! Pass data as a dictionary"
+                                " with keys corresponding to the labels of the artists"
+                                " to update to resolve this.")
+            elif data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
+                raise Exception(f"data has {data.shape[-3]} things to plot, but "
                                 f"your axis contains {len(artists)} plotting artists, "
                                 "so unsure how to continue! Pass data as a dictionary"
                                 " with keys corresponding to the labels of the artists"
@@ -622,21 +635,30 @@ def _get_artists_from_axes(axes, data):
         artists = []
         for ax in axes:
             if len(ax.containers) == 1:
+                data_check = 1
                 artists.extend(ax.containers)
             elif len(ax.images) == 1:
+                data_check = None
                 artists.extend(ax.images)
             elif len(ax.lines) == 1:
                 artists.extend(ax.lines)
+                data_check = 1
+            elif len(ax.collections) == 1:
+                artists.extend(ax.collections)
+                data_check = 2
         if isinstance(data, dict):
             if len(data.keys()) != len(artists):
                 raise Exception(f"data has {len(data.keys())} things to plot, but "
                                 f"you passed {len(axes)} axes , so unsure how "
                                 "to continue!")
             artists = {k: a for k, a in zip(data.keys(), artists)}
-            print(artists.keys())
         else:
-            if data.shape[1] != len(artists):
+            if data_check == 1 and data.shape[1] != len(artists):
                 raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+            if data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
+                raise Exception(f"data has {data.shape[-3]} things to plot, but "
                                 f"you passed {len(axes)} axes , so unsure how "
                                 "to continue!")
     if not isinstance(artists, dict):
@@ -653,8 +675,8 @@ def update_plot(axes, data, model=None, batch_idx=0):
     has been created by something like ``plot_representation``, which
     initializes all the artists.
 
-    We can update stem plots, lines (as returned by ``plt.plot``), or images.
-    All artists-to-update do not need to be of the same type.
+    We can update stem plots, lines (as returned by ``plt.plot``), scatter
+    plots, or images. All artists-to-update do not need to be of the same type.
 
     There are two modes for this:
 
@@ -727,12 +749,18 @@ def update_plot(axes, data, model=None, batch_idx=0):
                     art.set_data(x, d)
                     artists.append(art)
                 except AttributeError:
-                    # then it's a scatterplot
+                    # then it's a stemplot
                     sc = update_stem(art, d)
                     artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
-                art.set_data(d)
-                artists.append(art)
+                try:
+                    # then it's an image
+                    art.set_data(d)
+                    artists.append(art)
+                except AttributeError:
+                    # then it's a scatterplot
+                    art.set_offsets(d)
+                    artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]

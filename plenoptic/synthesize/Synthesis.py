@@ -1528,9 +1528,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig = ax.figure
         if func == 'scatter':
             ax.scatter(synthesized_val, base_val)
+            ax.set(xlim=ax.get_ylim())
         elif func == 'hist2d':
             ax.hist2d(synthesized_val, base_val, bins=np.linspace(0, 1, hist2d_nbins))
-        ax.set(xlabel='Synthesized representation', ylabel='Base representation')
+        ax.set(xlabel=f'Synthesized {value}', ylabel=f'Base {value}')
         return fig
 
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
@@ -1835,12 +1836,22 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # this is the dumbest way to do this, but it's simple
                 fig.axes[axes_idx['hist']].clear()
                 self.plot_image_hist(batch_idx, channel_idx, i, ax=fig.axes[axes_idx['hist']])
+            if plot_signal_comparison:
+                # this is the dumbest way to do this, but it's simple
+                fig.axes[axes_idx['signal_comp']].clear()
+                self.plot_value_comparison('signal', batch_idx, channel_idx, i,
+                                           ax=fig.axes[axes_idx['signal_comp']],
+                                           func='hist2d')
             if plot_loss:
                 # loss always contains values from every iteration, but
                 # everything else will be subsampled
                 for s, d in zip(scat, plot_data):
                     s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
                 artists.extend(scat)
+            if plot_rep_comparison:
+                artists.extend(update_plot(fig.axes[axes_idx['rep_comp']],
+                                           torch.stack((self.saved_representation[i],
+                                                        self.base_representation), -1)))
             # as long as blitting is True, need to return a sequence of artists
             return artists
 
