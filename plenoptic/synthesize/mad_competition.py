@@ -1818,7 +1818,7 @@ class MADCompetition(Synthesis):
             of detail in that plot. If it only creates one set of axes,
             like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PooledV1, try (39, 11).
+            for ``PooledV1``, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

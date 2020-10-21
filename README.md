@@ -1,5 +1,13 @@
 # plenoptic
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
+![Python version](https://img.shields.io/badge/python-3.6%7C3.7-blue.svg)
+[![Build Status](https://travis-ci.com/LabForComputationalVision/plenoptic.svg?branch=master)](https://travis-ci.com/LabForComputationalVision/plenoptic)
+[![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
+[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
+[![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
+
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
 demonstrated how difficult it is to understand how complex models process
@@ -65,6 +73,11 @@ to the papers describing them):
 (where for all of these, "identical (resp. different) representation",
 stands for small (resp. large) l2-distance in a model's representation space)
 
+# Status
+
+This project is currently in alpha, under heavy development. Not all features
+have been implemented, and there will be breaking changes.
+
 # Roadmap
 
 See the [github
@@ -73,8 +86,7 @@ for a more detailed roadmap, but at the high level:
 
 - Short term:
   1. Finalize Portilla-Simoncelli texture statistics
-  2. Add MAD competition
-  3. Create `Synthesis` superclass
+  2. Recreate existing `MADCompetition` examples.
 - Medium term:
   1. Finalize geodesics
   2. Get eigendistortion and geodesics to use `Synthesis` superclass
@@ -139,6 +151,12 @@ git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). See
 [this cheatsheet](https://neuroplausible.com/github) for some more
 explanation of git, Github, and the associated terminology.
 
+### ffmpeg
+
+Several methods in this package generate videos. In order to save them or
+convert them to HTML5 for viewing, you'll need
+[ffmpeg](https://ffmpeg.org/download.html) installed on your system as well.
+
 ## plenoptic
 
 Once git is installed, you can clone the repository:
@@ -182,6 +200,20 @@ running this section straight through, you won't need to do anything
 extra, but if you closed your terminal session after the last section
 (for example), you'll need to make sure to activate the correct
 environment first: `conda activate plenoptic`.
+
+## Keeping up-to-date
+
+Once you've downloaded and set up plenoptic for the first time, you can use `git
+pull` to keep it up-to-date. Navigate to the directory (if you downloaded
+plenoptic into your Documents folder above, that's `cd ~/Documents/plenoptic`)
+and run `git pull origin master`. git may yell at you if you've made local
+changes it can't figure out how to resolve. You'll have a merge conflict on your
+hands, see
+[here](https://www.atlassian.com/git/tutorials/using-branches/merge-conflicts)
+for more information and how to proceed.
+
+If you'd like to contribute any of the changes you've made, view the
+[Contributing](#contributing) section.
 
 # Getting started
 

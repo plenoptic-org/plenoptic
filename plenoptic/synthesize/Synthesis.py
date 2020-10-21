@@ -1578,7 +1578,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             of detail in that plot. If it only creates one set of axes,
             like ``PooledRGC`, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PooledV1, try (39, 11).
+            for ``PooledV1``, try (39, 11).
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1700,9 +1700,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             showing the representation, (12, 5) probably makes sense. If
             you are showing the representation, it depends on the level
             of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
+            like ``PooledRGC``, then (17,5) is probably fine,
             but you may need much larger if it's more complicated; e.g.,
-            for PooledV1, try (39, 11).
+            for ``PooledV1``, try (39, 11).
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional
