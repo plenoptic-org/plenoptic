@@ -1467,6 +1467,7 @@ class Synthesis(metaclass=abc.ABCMeta):
     def plot_value_comparison(self, value='representation', batch_idx=0,
                               channel_idx=0, iteration=None, figsize=(5, 5),
                               ax=None, func='scatter', hist2d_nbins=21,
+                              hist2d_cmap='Blues', scatter_subsample=1,
                               **kwargs):
         """Plot comparison of base vs. synthesized representation or signal.
 
@@ -1497,6 +1498,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             plotting signal), then hist2d will be clearer
         hist2d_nbins: int, optional
             Number of bins between 0 and 1 to use for hist2d
+        hist2d_cmap : str or matplotlib colormap, optional
+            Colormap to use for hist2d
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
         kwargs :
             passed to self.analyze
 
@@ -1527,17 +1535,25 @@ class Synthesis(metaclass=abc.ABCMeta):
         else:
             fig = ax.figure
         if func == 'scatter':
-            ax.scatter(synthesized_val, base_val)
+            if scatter_subsample < 1:
+                # these have been flattened, so len will return the number of
+                # elements
+                synthesized_val = synthesized_val[::int(1/scatter_subsample)]
+                base_val = base_val[::int(1/scatter_subsample)]
+            ax.scatter(base_val, synthesized_val)
             ax.set(xlim=ax.get_ylim())
         elif func == 'hist2d':
-            ax.hist2d(synthesized_val, base_val, bins=np.linspace(0, 1, hist2d_nbins))
-        ax.set(xlabel=f'Synthesized {value}', ylabel=f'Base {value}')
+            ax.hist2d(base_val, synthesized_val,
+                      bins=np.linspace(0,1, hist2d_nbins),
+                      cmap=hist2d_cmap, cmin=0)
+        ax.set(ylabel=f'Synthesized {value}', xlabel=f'Base {value}')
         return fig
 
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
                               ylim=None, plot_loss=True, plot_representation_error=True, imshow_zoom=None,
                               vrange=(0, 1), fig=None, plot_image_hist=False,
-                              plot_rep_comparison=False, plot_signal_comparison=False):
+                              plot_rep_comparison=False, plot_signal_comparison=False,
+                              signal_comp_func='scatter', signal_comp_subsample=.01):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -1607,6 +1623,14 @@ class Synthesis(metaclass=abc.ABCMeta):
         plot_signal_comparison : bool, optional
             Whether to plot a 2d histogram comparing the synthesized and base
             representation.
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
 
         Returns
         -------
@@ -1667,14 +1691,16 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig = self.plot_value_comparison('signal', batch_idx, channel_idx,
                                              iteration,
                                              ax=axes[axes_idx['signal_comp']],
-                                             func='hist2d')
+                                             func=signal_comp_func,
+                                             scatter_subsample=signal_comp_subsample)
         self._axes_idx = axes_idx
         return fig
 
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
                 plot_loss=True, plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
                 rep_error_kwargs={}, plot_image_hist=False, plot_rep_comparison=False,
-                plot_signal_comparison=False, fig=None):
+                plot_signal_comparison=False, fig=None, signal_comp_func='scatter',
+                signal_comp_subsample=.01):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -1761,6 +1787,14 @@ class Synthesis(metaclass=abc.ABCMeta):
             If None, create the figure from scratch. Else, should be an empty
             figure with enough axes (the expected use here is have same-size
             movies with different plots).
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
 
         Returns
         -------
@@ -1811,7 +1845,9 @@ class Synthesis(metaclass=abc.ABCMeta):
                                          imshow_zoom=imshow_zoom, fig=fig,
                                          plot_image_hist=plot_image_hist,
                                          plot_signal_comparison=plot_signal_comparison,
-                                         plot_rep_comparison=plot_rep_comparison)
+                                         plot_rep_comparison=plot_rep_comparison,
+                                         signal_comp_func=signal_comp_func,
+                                         signal_comp_subsample=signal_comp_subsample)
         # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
         # which tells us which axes contains which plot
         axes_idx = self._axes_idx
@@ -1859,7 +1895,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 fig.axes[axes_idx['signal_comp']].clear()
                 self.plot_value_comparison('signal', batch_idx, channel_idx, i,
                                            ax=fig.axes[axes_idx['signal_comp']],
-                                           func='hist2d')
+                                           func=signal_comp_func,
+                                           scatter_subsample=signal_comp_subsample)
             if plot_loss:
                 # loss always contains values from every iteration, but
                 # everything else will be subsampled
@@ -1868,8 +1905,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 artists.extend(scat)
             if plot_rep_comparison:
                 artists.extend(update_plot(fig.axes[axes_idx['rep_comp']],
-                                           torch.stack((self.saved_representation[i],
-                                                        self.base_representation), -1)))
+                                           torch.stack((self.base_representation,
+                                                        self.saved_representation[i]), -1)))
             # as long as blitting is True, need to return a sequence of artists
             return artists
 
