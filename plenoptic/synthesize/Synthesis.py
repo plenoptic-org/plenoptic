@@ -1601,6 +1601,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         plot_image_hist : bool, optional
             Whether to plot the histograms of image pixel intensities or
             not.
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot a 2d histogram comparing the synthesized and base
+            representation.
 
         Returns
         -------
@@ -1668,7 +1674,7 @@ class Synthesis(metaclass=abc.ABCMeta):
     def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
                 plot_loss=True, plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
                 rep_error_kwargs={}, plot_image_hist=False, plot_rep_comparison=False,
-                plot_signal_comparison=False):
+                plot_signal_comparison=False, fig=None):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -1743,6 +1749,18 @@ class Synthesis(metaclass=abc.ABCMeta):
             not. Note that we update this in the most naive way possible
             (by clearing and replotting the values), so it might not
             look as good as the others and may take some time.
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot a 2d histogram comparing the synthesized and base
+            representation. Note that we update this in the most naive way
+            possible (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
+        fig : plt.Figure or None, optional
+            If None, create the figure from scratch. Else, should be an empty
+            figure with enough axes (the expected use here is have same-size
+            movies with different plots).
 
         Returns
         -------
@@ -1790,7 +1808,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         # initialize the figure
         fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
                                          plot_loss, plot_representation_error,
-                                         imshow_zoom=imshow_zoom,
+                                         imshow_zoom=imshow_zoom, fig=fig,
                                          plot_image_hist=plot_image_hist,
                                          plot_signal_comparison=plot_signal_comparison,
                                          plot_rep_comparison=plot_rep_comparison)
