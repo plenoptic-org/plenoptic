@@ -1885,12 +1885,18 @@ class Synthesis(metaclass=abc.ABCMeta):
                         rescale_ylim(rep_error_axes,
                                      representation_error)
             if plot_image_hist:
-                # this is the dumbest way to do this, but it's simple
+                # this is the dumbest way to do this, but it's simple --
+                # clearing the axes can cause problems if the user has, for
+                # example, changed the tick locator or formatter. not sure how
+                # to handle this best right now
                 fig.axes[axes_idx['hist']].clear()
                 self.plot_image_hist(batch_idx, channel_idx, i, ax=fig.axes[axes_idx['hist']])
             if plot_signal_comparison:
                 if signal_comp_func == 'hist2d':
-                    # this is the dumbest way to do this, but it's simple
+                    # this is the dumbest way to do this, but it's simple --
+                    # clearing the axes can cause problems if the user has, for
+                    # example, changed the tick locator or formatter. not sure how
+                    # to handle this best right now
                     fig.axes[axes_idx['signal_comp']].clear()
                     self.plot_value_comparison('signal', batch_idx,
                                                channel_idx, i,
