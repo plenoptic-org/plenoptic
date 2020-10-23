@@ -8,7 +8,7 @@ from torch import optim
 import torchcontrib
 import numpy as np
 import warnings
-from ..tools.data import to_numpy
+from ..tools.data import to_numpy, _find_min_int
 from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
 import pyrtools as pt
@@ -1548,10 +1548,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         return fig
 
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
-                              ylim=None, plot_loss=True, plot_representation_error=True, imshow_zoom=None,
+                              ylim=None, plot_synthesized_image=True, plot_loss=True,
+                              plot_representation_error=True, imshow_zoom=None,
                               vrange=(0, 1), fig=None, plot_image_hist=False,
                               plot_rep_comparison=False, plot_signal_comparison=False,
-                              signal_comp_func='scatter', signal_comp_subsample=.01):
+                              signal_comp_func='scatter', signal_comp_subsample=.01,
+                              axes_idx={}):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
 
         We create two or three subplots on a new figure. The first one
@@ -1597,6 +1599,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
+        plot_synthesized_image : bool, optional
+            Whether to plot the synthesized image or not.
+        plot_loss : bool, optional
+            Whether to plot the loss or not.
         plot_representation_error : bool, optional
             Whether to plot the representation ratio or not.
         imshow_zoom : None or float, optional
@@ -1619,8 +1625,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             Whether to plot a scatter plot comparing the synthesized and base
             representation.
         plot_signal_comparison : bool, optional
-            Whether to plot a 2d histogram comparing the synthesized and base
-            representation.
+            Whether to plot the comparison of the synthesized and base
+            signal.
         signal_comp_func : {'scatter', 'hist2d'}, optional
             Whether to use a scatter plot or 2d histogram to plot this signal
             comparison. When there are many values (as often happens), then
@@ -1629,6 +1635,15 @@ class Synthesis(metaclass=abc.ABCMeta):
             What percentage of signal points to plot. If less than 1, will
             randomly select that proportion of the points to plot. Done to make
             visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this functio to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
 
         Returns
         -------
@@ -1636,37 +1651,42 @@ class Synthesis(metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
-        n_subplots = 1
-        axes_idx = {'image': 0}
-        idx = 1
+        n_subplots = 0
+        axes_idx = axes_idx.copy()
+        if plot_synthesized_image:
+            n_subplots += 1
+            if 'image' not in axes_idx.keys():
+                axes_idx['image'] = 0
         if plot_loss:
             n_subplots += 1
-            axes_idx['loss'] = idx
-            idx += 1
+            if 'loss' not in axes_idx.keys():
+                axes_idx['loss'] = _find_min_int(axes_idx.values())
         if plot_representation_error:
             n_subplots += 1
-            axes_idx['rep_error'] = idx
-            idx += 1
+            if 'rep_error' not in axes_idx.keys():
+                axes_idx['rep_error'] = _find_min_int(axes_idx.values())
         if plot_image_hist:
             n_subplots += 1
-            axes_idx['hist'] = idx
-            idx += 1
+            if 'hist' not in axes_idx.keys():
+                axes_idx['hist'] = _find_min_int(axes_idx.values())
         if plot_rep_comparison:
             n_subplots += 1
-            axes_idx['rep_comp'] = idx
-            idx += 1
+            if 'rep_comp' not in axes_idx.keys():
+                axes_idx['rep_comp'] = _find_min_int(axes_idx.values())
         if plot_signal_comparison:
             n_subplots += 1
-            axes_idx['signal_comp'] = idx
+            if 'signal_comp' not in axes_idx.keys():
+                axes_idx['signal_comp'] = _find_min_int(axes_idx.values())
         if fig is None:
             fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
             if n_subplots == 1:
                 axes = [axes]
         else:
             axes = fig.axes
-        self.plot_synthesized_image(batch_idx, channel_idx, iteration, None,
-                                    ax=axes[axes_idx['image']], imshow_zoom=imshow_zoom,
-                                    vrange=vrange)
+        if plot_synthesized_image:
+            self.plot_synthesized_image(batch_idx, channel_idx, iteration, None,
+                                        ax=axes[axes_idx['image']], imshow_zoom=imshow_zoom,
+                                        vrange=vrange)
         if plot_loss:
             self.plot_loss(iteration, ax=axes[axes_idx['loss']])
         if plot_representation_error:
@@ -1694,11 +1714,14 @@ class Synthesis(metaclass=abc.ABCMeta):
         self._axes_idx = axes_idx
         return fig
 
-    def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_loss=True, plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
-                rep_error_kwargs={}, plot_image_hist=False, plot_rep_comparison=False,
-                plot_signal_comparison=False, fig=None, signal_comp_func='scatter',
-                signal_comp_subsample=.01):
+    def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5),
+                framerate=10, ylim='rescale', plot_loss=True,
+                plot_synthesized_image=True, plot_representation_error=True,
+                imshow_zoom=None, plot_data_attr=['loss'], rep_error_kwargs={},
+                plot_image_hist=False, plot_rep_comparison=False,
+                plot_signal_comparison=False, fig=None,
+                signal_comp_func='scatter', signal_comp_subsample=.01,
+                axes_idx={}, init_figure=True):
         r"""Animate synthesis progress!
 
         This is essentially the figure produced by
@@ -1793,6 +1816,20 @@ class Synthesis(metaclass=abc.ABCMeta):
             What percentage of signal points to plot. If less than 1, will
             randomly select that proportion of the points to plot. Done to make
             visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this functio to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
+        init_figure : bool, optional
+            If True, we call plot_synthesis_status to initialize the figure. If
+            False, we assume fig has already been intialized with the proper
+            plots. In this case, axes_idx must also be set, since
+            plot_synthesis_status normally sets it up for us
 
         Returns
         -------
@@ -1837,18 +1874,22 @@ class Synthesis(metaclass=abc.ABCMeta):
         except AttributeError:
             # this way we'll never rescale
             ylim_rescale_interval = len(self.saved_signal)+1
-        # initialize the figure
-        fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
-                                         plot_loss, plot_representation_error,
-                                         imshow_zoom=imshow_zoom, fig=fig,
-                                         plot_image_hist=plot_image_hist,
-                                         plot_signal_comparison=plot_signal_comparison,
-                                         plot_rep_comparison=plot_rep_comparison,
-                                         signal_comp_func=signal_comp_func,
-                                         signal_comp_subsample=signal_comp_subsample)
-        # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
-        # which tells us which axes contains which plot
-        axes_idx = self._axes_idx
+        if init_figure:
+            # initialize the figure
+            fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
+                                             plot_loss=plot_loss,
+                                             plot_representation_error=plot_representation_error,
+                                             imshow_zoom=imshow_zoom, fig=fig,
+                                             plot_synthesized_image=plot_synthesized_image,
+                                             plot_image_hist=plot_image_hist,
+                                             plot_signal_comparison=plot_signal_comparison,
+                                             plot_rep_comparison=plot_rep_comparison,
+                                             signal_comp_func=signal_comp_func,
+                                             signal_comp_subsample=signal_comp_subsample,
+                                             axes_idx=axes_idx)
+            # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
+            # which tells us which axes contains which plot
+            axes_idx = self._axes_idx
         # grab the artists for the second plot (we don't need to do this
         # for the synthesized image or representation plot, because we
         # use the update_plot function for that)
@@ -1868,7 +1909,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         def movie_plot(i):
             artists = []
-            artists.extend(update_plot([fig.axes[0]], data=self.saved_signal[i],
+            artists.extend(update_plot(fig.axes[0], data=self.saved_signal[i],
                                        batch_idx=batch_idx))
             if plot_representation_error:
                 representation_error = self.representation_error(iteration=i, **rep_error_kwargs)

@@ -332,5 +332,34 @@ def polar_angle(size, phase=0, origin=None, device=None):
     return res
 
 
+def _find_min_int(vals):
+    """Find the minimum non-negative int not in an iterable.
+
+    Parameters
+    ----------
+    vals : iterable
+        iterable of ints or iterables of ints
+
+    Returns
+    -------
+    min_idx : int
+        minimum non-negative int
+
+    """
+    flat_vals = []
+    for v in vals:
+        try:
+            flat_vals.extend(v)
+        except TypeError:
+            flat_vals.append(v)
+    flat_vals = set(flat_vals)
+    poss_vals = set(np.arange(max(flat_vals)+1))
+    try:
+        min_int = min(poss_vals - flat_vals)
+    except ValueError:
+        min_int = max(flat_vals) + 1
+    return min_int
+
+
 if __name__ == '__main__':
     make_basic_stimuli()
