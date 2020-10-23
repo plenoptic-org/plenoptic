@@ -1536,8 +1536,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig = ax.figure
         if func == 'scatter':
             if scatter_subsample < 1:
-                # these have been flattened, so len will return the number of
-                # elements
                 synthesized_val = synthesized_val[::int(1/scatter_subsample)]
                 base_val = base_val[::int(1/scatter_subsample)]
             ax.scatter(base_val, synthesized_val)
@@ -1891,12 +1889,23 @@ class Synthesis(metaclass=abc.ABCMeta):
                 fig.axes[axes_idx['hist']].clear()
                 self.plot_image_hist(batch_idx, channel_idx, i, ax=fig.axes[axes_idx['hist']])
             if plot_signal_comparison:
-                # this is the dumbest way to do this, but it's simple
-                fig.axes[axes_idx['signal_comp']].clear()
-                self.plot_value_comparison('signal', batch_idx, channel_idx, i,
-                                           ax=fig.axes[axes_idx['signal_comp']],
-                                           func=signal_comp_func,
-                                           scatter_subsample=signal_comp_subsample)
+                if signal_comp_func == 'hist2d':
+                    # this is the dumbest way to do this, but it's simple
+                    fig.axes[axes_idx['signal_comp']].clear()
+                    self.plot_value_comparison('signal', batch_idx,
+                                               channel_idx, i,
+                                               ax=fig.axes[axes_idx['signal_comp']],
+                                               func=signal_comp_func)
+                else:
+                    # flatten the last two dimensions
+                    base_sig = self.base_signal.flatten(-2, -1)
+                    saved_sig = self.saved_signal[i].flatten(-2, -1)
+                    if signal_comp_subsample < 1:
+                        base_sig = base_sig[..., ::int(1/signal_comp_subsample)]
+                        saved_sig = saved_sig[..., ::int(1/signal_comp_subsample)]
+                    artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
+                                               torch.stack((base_sig,
+                                                            saved_sig), -1)))
             if plot_loss:
                 # loss always contains values from every iteration, but
                 # everything else will be subsampled
