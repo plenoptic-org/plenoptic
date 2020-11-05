@@ -304,8 +304,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             # saved_representation) changes partway through and that's
             # annoying
             raise Exception("If you've already run synthesize() before, must re-run it with same"
-                            f" store_progress arg ({self.store_progress}; True is equivalent to "
-                            "1)")
+                            f" store_progress arg. You passed {store_progress} instead of"
+                            " {self.store_progress} (True is equivalent to 1)")
         self.store_progress = store_progress
         self.save_progress = save_progress
         self.save_path = save_path
