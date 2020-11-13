@@ -5,13 +5,11 @@ on:
   schedule:
     - cron: "0 0 * * 0" # weekly
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.6, 3.7]
-  run:
-    runs-on: ubuntu-latest
     name: Run treebeard
     steps:
       - uses: actions/checkout@v2
