@@ -115,6 +115,29 @@ line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
 indented). **Do not** edit the `script` section -- if you did the above
 correctly, Travis will correctly run your new script.
 
+### Testing notebooks
+
+We use [treebeard](https://github.com/treebeardtech/treebeard) to test our
+notebooks and make sure everything runs. Under the hood, this uses
+[papermill](https://papermill.readthedocs.io/en/latest/) to run all the
+notebooks, and is not easy to run a local version. However, you may be able to
+do some local trouble-shooting. When running papermill locally, I've had issues
+with papermill correctly determining which kernel to use (this happens since I
+use [nb_conda](https://github.com/Anaconda-Platform/nb_conda_kernels) to specify
+conda environments as notebook kernels), which leads to `NoSuchKernel` errors.
+If you run into this problem, [this
+page](https://papermill.readthedocs.io/en/latest/troubleshooting.html) has
+troubleshooting info. I also got an error when trying to run the example
+`jupyter kernelspec install` command given, and had to use the solution [on this
+page](https://github.com/jupyter/jupyter_client/issues/72) instead:
+
+```
+conda activate my-env
+python -m ipykernel install --user --name my-env --display-name "my-env"
+```
+
+And then `papermill` worked.
+
 ## Documentation
 
 ### Adding documentation
