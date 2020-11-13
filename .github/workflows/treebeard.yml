@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e .
-          apt install ffmpeg
+          sudo apt install ffmpeg
       - uses: treebeardtech/treebeard@master
         with:
           use-docker: false
