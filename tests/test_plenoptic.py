@@ -15,7 +15,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7'}
+           'ssim_analysis.mat': 'ndtc7', 'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y'}
 print("On device %s" % DEVICE)
 
 def osf_download(filename):

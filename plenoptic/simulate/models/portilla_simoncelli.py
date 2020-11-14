@@ -239,7 +239,7 @@ class Portilla_Simoncelli(nn.Module):
                 for nor in range(0, self.n_orientations):
                     upsampled = Portilla_Simoncelli.expand(pyr_coeffs[(this_scale+1,nor)].squeeze(),2)/4.0
 
-                    # double the phase of the upsampled band -- why?
+                    # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
                     X = (upsampled[:,:,0]**2 + upsampled[:,:,1]**2)**.5 * torch.cos(2*torch.atan2(upsampled[:,:,0], upsampled[:,:,1]))
                     Y = (upsampled[:,:,0]**2 + upsampled[:,:,1]**2)**.5 * torch.sin(2*torch.atan2(upsampled[:,:,0], upsampled[:,:,1]))
                     

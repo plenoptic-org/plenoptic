@@ -9,7 +9,7 @@ import pyrtools as pt
 import scipy.io as sio
 
 
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
+from test_plenoptic import DEVICE, DATA_DIR, DTYPE, osf_download
 
 
 class TestLinear(object):
@@ -484,7 +484,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
     @pytest.mark.parametrize("n_orientations", [2,3,4]) 
     @pytest.mark.parametrize("Na", [3,5,7,9])
-    # @pytest.mark.parametrize("im_shape", [(256,256)])
+    @pytest.mark.parametrize("im_shape", [(256,256)])
     def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape=(256,256)):
         x = po.make_basic_stimuli()
         if im_shape is not None:
@@ -499,6 +499,8 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("im_shape", [(256,256)])
     @pytest.mark.parametrize("im",['curie','einstein','checkerboard','metal','nuts','sawtooth'])
     def test_torch_v_matlab(self, n_scales, n_orientations, Na, im_shape,im):
+        path = osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
+
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
@@ -506,7 +508,7 @@ class TestPortillaSimoncelli(object):
         python_vector = ps(im0)
         
 
-        matlab = sio.loadmat(f'/Users/kathrynbonnen/Documents/MATLAB/textureSynth/pythonTestVectors/{im}-scales{n_scales}-ori{n_orientations}-spat{Na}.mat')
+        matlab = sio.loadmat(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{Na}.mat')
         matlab_vector = matlab['params_vector'].flatten()
         
         np.testing.assert_allclose(python_vector[:], matlab_vector[:], rtol=1e-4, atol=1e-4)
