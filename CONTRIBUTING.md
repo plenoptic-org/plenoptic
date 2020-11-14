@@ -152,6 +152,14 @@ locally by running `treebeard run` in the `examples/` directory (which contains
 all the notebooks). This will re-run all notebooks. You can specify specific
 notebook using the `-n` flag.
 
+Similar to adding new [test scripts](#adding-tests), you need to add new
+tutorials to the corresponding build matrix so they can be tested. For this, go
+to `.github/workflows/treebeard.yml` and add the name of the new notebook
+(without the `.ipynb` extension) to the `notebook` field (under
+`run:strategy:matrix`). So if your new tutorial was
+`examples/100_awesome_tutorial.ipynb`, you would add `100_awesome_tutorial` as
+the a new item in the `notebook` list.
+
 ## Documentation
 
 ### Adding documentation
@@ -290,3 +298,7 @@ should have exactly one H1 title (i.e., line starting with a single `#`), but
 you can have as many lower-level titles as you'd like. If you have multiple H1
 titles, they'll each show up as different tutorials. If you don't have an H1
 title, it won't show up at all.
+
+When you add a new tutorial, don't forget to add it to the `treebeard.yml` file
+so it can be tested (see last paragraph of the [testing
+notebooks](#testing-notebooks) section for details).
