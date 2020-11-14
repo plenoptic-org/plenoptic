@@ -26,4 +26,4 @@ jobs:
       - uses: treebeardtech/treebeard@master
         with:
           use-docker: false
-          notebooks: '${{ matrix.notebook }}.ipynb'
+          notebooks: 'examples/${{ matrix.notebook }}.ipynb'
