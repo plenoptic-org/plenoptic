@@ -118,12 +118,20 @@ correctly, Travis will correctly run your new script.
 ### Testing notebooks
 
 We use [treebeard](https://github.com/treebeardtech/treebeard) to test our
-notebooks and make sure everything runs. Under the hood, this uses
-[papermill](https://papermill.readthedocs.io/en/latest/) to run all the
-notebooks, and is not easy to run a local version. However, you may be able to
-do some local trouble-shooting. When running papermill locally, I've had issues
-with papermill correctly determining which kernel to use (this happens since I
-use [nb_conda](https://github.com/Anaconda-Platform/nb_conda_kernels) to specify
+notebooks and make sure everything runs. `treebeard` is still in development and
+so their documentation may not be up-to-date. You can run it locally to try and
+debug some errors (though errors that result from environment issues obviously
+will be harder to figure out locally).
+
+WARNING: If you run `treebeard` locally (with default options, so it doesn't use
+`repo2docker` ), then it will restart, re-run, and overwrite your local
+notebooks. Make sure this is okay with you.
+
+`treebeard` uses [papermill](https://papermill.readthedocs.io/en/latest/) under
+the hood, so if you have problems getting it to run at all, `papermill` may be
+where to look. When running papermill locally, I've had issues with papermill
+correctly determining which kernel to use (this happens since I use
+[nb_conda](https://github.com/Anaconda-Platform/nb_conda_kernels) to specify
 conda environments as notebook kernels), which leads to `NoSuchKernel` errors.
 If you run into this problem, [this
 page](https://papermill.readthedocs.io/en/latest/troubleshooting.html) has
@@ -136,7 +144,13 @@ conda activate my-env
 python -m ipykernel install --user --name my-env --display-name "my-env"
 ```
 
-And then `papermill` worked.
+And then `papermill` worked. (You may also need to specify the kernel using `-k
+my-env` when calling `papermill`).
+
+Once you've gotten that taken care of, you should be able to run `treebeard`
+locally by running `treebeard run` in the `examples/` directory (which contains
+all the notebooks). This will re-run all notebooks. You can specify specific
+notebook using the `-n` flag.
 
 ## Documentation
 
