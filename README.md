@@ -202,6 +202,14 @@ extra, but if you closed your terminal session after the last section
 (for example), you'll need to make sure to activate the correct
 environment first: `conda activate plenoptic`.
 
+Note that you may also run into an error in the `02_Eigendistortions` notebook
+when creating the `NthLayer` class -- we download the trained VGG model using
+`torchvision`, which requires `ipywidgets`. See [official
+page](https://ipywidgets.readthedocs.io/en/stable/user_install.html) for help;
+in our experience, installing `jupyter` (instead of `jupyterlab`) seems to fix
+the problem, but is probably overkill. Installing `ipywidgets` directly (either
+via `conda` or `pip`) also seems to work.
+
 ## Keeping up-to-date
 
 Once you've downloaded and set up plenoptic for the first time, you can use `git
