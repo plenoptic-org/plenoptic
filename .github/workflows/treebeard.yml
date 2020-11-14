@@ -25,4 +25,3 @@ jobs:
       - uses: treebeardtech/treebeard@master
         with:
           use-docker: false
-          cell_execution_timeout_seconds: 600
