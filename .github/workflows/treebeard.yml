@@ -20,6 +20,8 @@ jobs:
         run: |
           pip install -e .
           sudo apt install ffmpeg
+          pip install jupyter
+          pip install ipywidgets
       - uses: treebeardtech/treebeard@master
         with:
           use-docker: false
