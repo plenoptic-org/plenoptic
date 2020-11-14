@@ -1,12 +1,10 @@
 import torch
-from torch import nn
 from ..tools.signal import rescale
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
-from ..tools.data import to_numpy
 import numpy as np
 import pyrtools as pt
 import warnings
-
+from .Synthesis import Synthesis
 
 def fisher_info_matrix_vector_product(y, x, v):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
@@ -537,3 +535,33 @@ class Eigendistortion:
 
         pt.imshow([clamp(image), clamp(image + alpha * min_dist), beta * min_dist],
                   title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+
+
+class Eigendistortion2(Synthesis):
+    def __init__(self, base_signal, model):
+        super().__init__()
+
+        assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
+
+        self.image = rescale(base_signal, 0, 1)
+        self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
+        assert self.batch_size == 1, "Batch synthesis is not available"
+
+        self.color_image = (self.n_channels == 3)
+
+        im_flat = self.image.reshape(self.n_channels * self.im_height * self.im_width, 1)
+        self.image_flattensor = im_flat.clone().detach().requires_grad_(True)
+        self.model_input = self.image_flattensor.view((1, self.n_channels, self.im_height, self.im_width))
+
+        self.model = model
+        self.model_output = self.model(self.model_input)
+
+        if len(self.model_output) > 1:
+            self.out_flattensor = torch.cat([s.squeeze().view(-1) for s in self.model_output]).unsqueeze(1)
+        else:
+            self.out_flattensor = self.model_output.squeeze().view(-1).unsqueeze(1)
+        self.distortions = dict()
+
+        self.jacobian = None
+
+

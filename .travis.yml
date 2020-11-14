@@ -7,7 +7,7 @@ env:
   - TEST_SCRIPT=models
   - TEST_SCRIPT=plenoptic
   - TEST_SCRIPT=steerable_pyr
-  - TEST_SCRIPT=synthesis
+  - TEST_SCRIPT=eigendistortion
   - TEST_SCRIPT=mad
 python:
   - "3.6"
