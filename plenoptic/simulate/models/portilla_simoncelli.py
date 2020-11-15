@@ -59,7 +59,7 @@ class Portilla_Simoncelli(nn.Module):
         self.normalize = normalize
         self.normalization_mu = normalization_mu
         self.normalization_std = normalization_std
-        self.scales = ['pixel_statistics','residual_lowpass']+[ii for ii in range(n_scales-1,-1,-1)]+['residual_highpass']
+        self.scales = ['residual_lowpass']+[ii for ii in range(n_scales-1,-1,-1)]+['residual_highpass','pixel_statistics']
         self.statistic_scales = self._get_statistic_scales()
 
     def forward(self, image, scales=None):

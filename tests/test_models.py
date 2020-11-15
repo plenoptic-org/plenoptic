@@ -485,7 +485,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_orientations", [2,3,4]) 
     @pytest.mark.parametrize("Na", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape=(256,256)):
+    def test_portilla_simoncelli(self, n_scales, n_orientations, Na, im_shape):
         x = po.make_basic_stimuli()
         if im_shape is not None:
             x = x[0,0, :im_shape[0], :im_shape[1]]
@@ -512,4 +512,23 @@ class TestPortillaSimoncelli(object):
         matlab_vector = matlab['params_vector'].flatten()
         
         np.testing.assert_allclose(python_vector[:], matlab_vector[:], rtol=1e-4, atol=1e-4)
+
+    ## tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    @pytest.mark.parametrize("n_scales", [1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [2,3,4])
+    @pytest.mark.parametrize("Na", [3,5,7,9])
+    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts','sawtooth','checkerboard'])
+    def test_torch_output(self, n_scales, n_orientations, Na, im):
+        path = osf_download('portilla_simoncelli_test_vectors.tar.gz')
+
+        torch.set_default_dtype(torch.float64)
+        x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
+        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,Na=Na)
+        output = ps(im0)
+        
+
+        saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{Na}.npy')
+        
+        np.testing.assert_allclose(output[:], saved[:])
 
