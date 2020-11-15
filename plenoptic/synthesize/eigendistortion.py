@@ -57,8 +57,7 @@ class Eigendistortion(Synthesis):
     color_image: bool
     model_input: torch.Tensor
         Image input tensor with ``torch.Size([batch_size=1, n_channels, im_height, im_width])``. No support for
-        batch
-        synthesis yet.
+        batch synthesis yet.
     model_output: torch.Tensor
         Model representation of input image. Size varies by model.
     image_flattensor: torch.Tensor
@@ -79,8 +78,7 @@ class Eigendistortion(Synthesis):
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
-    in humans. It estimates eigenvectors of the FIM. A model, :math:`y = f(x)`, is a deterministic (and
-    differentiable)
+    in humans. It estimates eigenvectors of the FIM. A model, :math:`y = f(x)`, is a deterministic (and differentiable)
     mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output response vector :math:`y\in \mathbb{
     R}^m`, where we assume additive white
     Gaussian noise in the response space:
