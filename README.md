@@ -2,19 +2,19 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
 ![Python version](https://img.shields.io/badge/python-3.6%7C3.7-blue.svg)
-[![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/Run%20Python%20Tests/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3A%22Run+Python+Tests%22)
+[![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
-[![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/.github/workflows/treebeard.yml/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3A.github%2Fworkflows%2Ftreebeard.yml)
+[![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
 demonstrated how difficult it is to understand how complex models process
-images. The space of all possible images is impossibly vast and difficult
-to explore: even when training on millions of images, a dataset only
-represents a tiny fraction of all images.
+images. The space of all possible images is impossibly vast and difficult to
+explore: even when training on millions of images, a dataset only represents a
+tiny fraction of all images.
 
 `plenoptic` is a python library that provides tools to help researchers
 better understand their models by using optimization to synthesize novel 

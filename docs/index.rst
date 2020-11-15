@@ -3,8 +3,11 @@
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.6%7C3.7-blue.svg
 
-.. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/Run%20Python%20Tests/badge.svg
-		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3A%22Run+Python+Tests%22
+.. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
+		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
+
+.. |tutorials| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg
+		         :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials
 
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
             :target: https://doi.org/10.5281/zenodo.3995057
@@ -17,7 +20,7 @@
 plenoptic
 =====================================
 
-|license-shield| |travis| |zenodo|
+|license-shield| |build| |tutorials |zenodo|
 
 Currently there's nothing here! However, we'll expand it as we go
 
