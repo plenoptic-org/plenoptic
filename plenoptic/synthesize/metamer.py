@@ -456,7 +456,9 @@ class Metamer(Synthesis):
 
     def plot_value_comparison(self, value='representation', batch_idx=0,
                               channel_idx=0, iteration=None, figsize=(5, 5),
-                              ax=None, func='scatter', **kwargs):
+                              ax=None, func='scatter', hist2d_nbins=21,
+                              hist2d_cmap='Blues', scatter_subsample=1,
+                              **kwargs):
         """Plot comparison of base vs. synthesized representation or signal.
 
         Plotting representation is another way of visualizing the
@@ -486,6 +488,13 @@ class Metamer(Synthesis):
             plotting signal), then hist2d will be clearer
         hist2d_nbins: int, optional
             Number of bins between 0 and 1 to use for hist2d
+        hist2d_cmap : str or matplotlib colormap, optional
+            Colormap to use for hist2d
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
         kwargs :
             passed to self.analyze
 
@@ -499,6 +508,9 @@ class Metamer(Synthesis):
                                             channel_idx=channel_idx,
                                             iteration=iteration,
                                             figsize=figsize, ax=ax, func=func,
+                                            hist2d_nbins=hist2d_nbins,
+                                            histd2d_cmap=hist2d_cmap,
+                                            scatter_subsample=scatter_subsample,
                                             **kwargs)
         if ax is None:
             ax = fig.axes[0]
