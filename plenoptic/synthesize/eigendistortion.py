@@ -47,9 +47,64 @@ def implicit_FIM_eigenvalue(y, x, v):
 
 
 class Eigendistortion(Synthesis):
-    # TODO: make note about rescaling
+    r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
+    Attributes
+    ----------
+    batch_size: int
+    n_channels: int
+    im_height: int
+    im_width: int
+    color_image: bool
+    model_input: torch.Tensor
+        Image input tensor with ``torch.Size([batch_size=1, n_channels, im_height, im_width])``. No support for
+        batch
+        synthesis yet.
+    model_output: torch.Tensor
+        Model representation of input image. Size varies by model.
+    image_flattensor: torch.Tensor
+        Eigendistortions are computed using vectorized (flattened) inputs and outputs.
+    out_flattensor: torch.Tensor
+        See above.
+    distortions: dict
+        Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
+    jacobian: torch.Tensor
+        Is only set when :func:`synthesize` is run with ``method='jacobian'``. Default to ``None``.
+    Parameters
+    -----------
+    image: torch.Tensor
+        image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+        as each image requires its own optimization.
+    model: torch class
+        torch model with defined forward and backward operations
+    Notes
+    -----
+    This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
+    in humans. It estimates eigenvectors of the FIM. A model, :math:`y = f(x)`, is a deterministic (and
+    differentiable)
+    mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output response vector :math:`y\in \mathbb{
+    R}^m`, where we assume additive white
+    Gaussian noise in the response space:
+    .. math::
+        \begin{align}
+        f: \mathbb{R}^n &\rightarrow \mathbb{R}^m\\
+            x &\rightarrow y
+        \end{align}
+    The Jacobian matrix at x is:
+        :math:`J(x) = J = dydx`,       :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
+    is the matrix of all first-order partial derivatives of the vector-valued function f.
+    The Fisher Information Matrix (FIM) at x, under white Gaussian noise in the response space, is:
+        :math:`F = J^T J`
+    It is a quadratic approximation of the discriminability of distortions relative to :math:`x`.
+    Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
+    Eigen-distortions of hierarchical representations.
+    In Advances in neural information processing systems (pp. 3530-3539).
+    http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
+    http://www.cns.nyu.edu/~lcv/eigendistortions/
+    """
+
     def __init__(self, base_signal, model, **model_kwargs):
         base_signal = rescale(base_signal, 0, 1)
+        # TODO: make note about rescaling
         assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
 
         self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
@@ -61,9 +116,6 @@ class Eigendistortion(Synthesis):
 
         super().__init__(self.input_flat.view(*base_signal.shape), model, loss_function=None)
 
-        # im_flat = self.image_rescaled.reshape(self.n_channels * self.im_height * self.im_width, 1)
-        # self.input_flat = im_flat.clone().detach().requires_grad_(True)
-        # self.model_input = self.input_flat.view((1, self.n_channels, self.im_height, self.im_width))
         if len(self.base_representation) > 1:
             self.representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
         else:
