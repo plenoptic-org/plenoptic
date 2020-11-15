@@ -1,0 +1,30 @@
+# .github/workflows/treebeard.yml
+# Run all notebooks on every push and weekly
+name: tutorials
+on:
+  push:
+  schedule:
+    - cron: "0 0 * * 0" # weekly
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7]
+        notebook: ['00_simple_example', '02_Eigendistortions', '01_Linear_approximation_of_nonlinear_model', '03_Steerable_Pyramid', '04_Perceptual_distance', '05_Geodesics', '06_Metamer', '07_MAD_Competition', '08_Simple_MAD', '09_Original_MAD', '10_Synthesis']
+    name: Run treebeard
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          sudo apt install ffmpeg
+          pip install jupyter
+          pip install ipywidgets
+      - uses: treebeardtech/treebeard@master
+        with:
+          use-docker: false
+          notebooks: 'examples/${{ matrix.notebook }}.ipynb'
