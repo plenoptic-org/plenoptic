@@ -242,7 +242,6 @@ conda activate plenoptic_docs
 pip install -e .
 # build documentation
 cd docs/
-sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
 
@@ -263,7 +262,6 @@ documentation, run:
 ```
 conda activate plenoptic_docs
 cd docs/
-sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
 
