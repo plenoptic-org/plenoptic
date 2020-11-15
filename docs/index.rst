@@ -20,7 +20,7 @@
 plenoptic
 =====================================
 
-|license-shield| |build| |tutorials |zenodo|
+|license-shield| |build| |tutorials| |zenodo|
 
 Currently there's nothing here! However, we'll expand it as we go
 
