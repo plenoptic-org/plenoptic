@@ -67,7 +67,7 @@ class Eigendistortion(Synthesis):
     distortions: dict
         Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
     jacobian: torch.Tensor
-        Is only set when :func:`synthesize` is run with ``method='jacobian'``. Default to ``None``.
+        Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``.
     Parameters
     -----------
     image: torch.Tensor
@@ -167,7 +167,7 @@ class Eigendistortion(Synthesis):
 
         Parameters
         ----------
-        method: {'jacobian', 'power', 'lanczos'}, optional
+        method: {'exact', 'power', 'lanczos'}, optional
             Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large matrices). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'lanczos' uses the Arnoldi
@@ -201,16 +201,16 @@ class Eigendistortion(Synthesis):
         if e_vecs is None:
             e_vecs = []
 
-        assert method in ['power', 'jacobian', 'lanczos'], "method must be in {'power', 'jacobian', 'lanczos'}"
+        assert method in ['power', 'exact', 'lanczos'], "method must be in {'power', 'exact', 'lanczos'}"
 
-        if method == 'jacobian' and self.representation_flat.size(0) * self.input_flat.size(0) > 1e6:
+        if method == 'exact' and self.representation_flat.size(0) * self.input_flat.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
 
         if verbose:
             print(f'Output dim: {self.representation_flat.size(0)}. Input dim: {self.input_flat.size(0)}')
 
-        if method == 'jacobian':
-            eig_vals, eig_vecs = self._solve_eigenproblem()
+        if method == 'exact':
+            eig_vals, eig_vecs = self._synthesize_exact()
             self.distortions['eigenvalues'] = eig_vals.detach()
             self.distortions['eigenvectors'] = self._vector_to_image(eig_vecs.detach())
             self.distortions['eigenvector_index'] = torch.arange(len(eig_vals))
@@ -218,21 +218,21 @@ class Eigendistortion(Synthesis):
         elif method == 'power':
             if verbose:
                 print('Power method -- computing the maximum distortion \n')
-            lmbda_max, v_max = self._implicit_power_method(l=0, init='randn', seed=seed, tol=tol, n_steps=n_steps,
-                                                           verbose=verbose, print_every=print_every)
+            lmbda_max, v_max = self._synthesize_power(l=0, init='randn', seed=seed, tol=tol, n_steps=n_steps,
+                                                      verbose=verbose, print_every=print_every)
 
             if verbose:
                 print('\nPower method -- computing the minimum distortion \n')
-            lmbda_min, v_min = self._implicit_power_method(l=lmbda_max, init='randn', seed=seed, tol=tol,
-                                                           n_steps=n_steps, verbose=verbose, print_every=print_every)
+            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, init='randn', seed=seed, tol=tol,
+                                                      n_steps=n_steps, verbose=verbose, print_every=print_every)
 
             self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).squeeze()
             self.distortions['eigenvectors'] = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             self.distortions['eigenvector_index'] = [0, len(self.input_flat) - 1]
 
         elif method == 'lanczos' and n_steps is not None:
-            eig_vals, eig_vecs, eig_vecs_ind = self._lanczos(n_steps=n_steps, e_vecs=e_vecs, verbose=verbose,
-                                                             print_every=print_every, debug_A=debug_A)
+            eig_vals, eig_vecs, eig_vecs_ind = self._synthesize_lanczos(n_steps=n_steps, e_vecs=e_vecs, verbose=verbose,
+                                                                        print_every=print_every, debug_A=debug_A)
             self.distortions['eigenvalues'] = eig_vals.type(torch.float32).detach()
 
             # reshape into image if not empty tensor
@@ -309,7 +309,12 @@ class Eigendistortion(Synthesis):
                   title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
 
     def compute_jacobian(self):
-        """Calls autodiff.jacobian and returns jacobian. Will throw error if input too big."""
+        """Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
+        Returns
+        -------
+        J: torch.Tensor
+            Jacobian of representation wrt input.
+        """
         if self.jacobian is None:
             J = jacobian(self.representation_flat, self.input_flat)
             self.jacobian = J
@@ -319,10 +324,18 @@ class Eigendistortion(Synthesis):
 
         return J
 
-    def _solve_eigenproblem(self):
-        r""" Eigendecomposition of explicitly computed FIM.
+    def _synthesize_exact(self):
+        r""" Eigendecomposition of explicitly computed Fisher Information Matrix.
         To be used when the input is small (e.g. less than 70x70 image on cluster or 30x30 on your own machine). This
-        method obviates the power iteration and its related algorithms (e.g. Lanczos).
+        method obviates the power iteration and its related algorithms (e.g. Lanczos). This method computes the
+        Fisher Information Matrix by explicitly computing the Jacobian of the representation wrt the input.
+
+        Returns
+        -------
+        eig_vals: torch.Tensor
+            Eigenvalues in decreasing order.
+        eig_ves: torch.Tensor
+            Eigenvectors corresponding to eigenvalues.
         """
         J = self.compute_jacobian()
         F = J.T @ J
@@ -330,8 +343,8 @@ class Eigendistortion(Synthesis):
 
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def _implicit_power_method(self, l=0, init='randn', seed=0, tol=1e-10, n_steps=1000, verbose=False,
-                               print_every=1):
+    def _synthesize_power(self, l=0, init='randn', seed=0, tol=1e-10, n_steps=1000, verbose=False,
+                          print_every=1):
         r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
         Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
         Matrix, without explicitly representing that matrix.
@@ -404,7 +417,7 @@ class Eigendistortion(Synthesis):
 
         return lmbda_new, v_new
 
-    def _lanczos(self, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_A=None):
+    def _synthesize_lanczos(self, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_A=None):
         r""" Lanczos Algorithm with full reorthogonalization after each iteration.
 
         Computes approximate eigenvalues/vectors of FIM (i.e. the Ritz values and vectors). Each vector returned from
