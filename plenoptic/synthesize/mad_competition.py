@@ -1773,7 +1773,7 @@ class MADCompetition(Synthesis):
 
 
     def plot_synthesis_status(self, synthesis_target=None, batch_idx=0,
-                              channel_idx=0, iteration=None, figsize=(23, 5),
+                              channel_idx=0, iteration=None, figsize=None,
                               ylim=None, plot_synthesized_image=True,
                               plot_loss=True, plot_representation_error=True,
                               imshow_zoom=None, vrange=(0, 1), fig=None,
@@ -1839,9 +1839,10 @@ class MADCompetition(Synthesis):
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value.
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1894,7 +1895,7 @@ class MADCompetition(Synthesis):
         return fig
 
     def animate(self, synthesis_target=None, batch_idx=0, channel_idx=0,
-                figsize=(23, 5), framerate=10, ylim=None,
+                figsize=None, framerate=10, ylim=None,
                 plot_synthesized_image=True, plot_loss=True,
                 plot_representation_error=True, imshow_zoom=None,
                 plot_image_hist=False, plot_rep_comparison=False,
@@ -1906,12 +1907,6 @@ class MADCompetition(Synthesis):
         This is essentially the figure produced by
         ``self.plot_synthesis_status`` animated over time, for each stored
         iteration.
-
-        It's difficult to determine a reasonable figsize, because we
-        don't know how much information is in the plot showing the
-        representation ratio. Therefore, it's recommended you play
-        around with ``plot_synthesis_status`` until you find a
-        good-looking value for figsize.
 
         We return the matplotlib FuncAnimation object. In order to view
         it in a Jupyter notebook, use the
@@ -1939,15 +1934,10 @@ class MADCompetition(Synthesis):
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
             Which index to take from the channel dimension (the second one)
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional

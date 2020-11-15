@@ -1585,15 +1585,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             have a corresponding key, we find the lowest int that is not
             already in the dict, so if you have axes that you want unchanged,
             place their idx in misc.
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have relative width=1 correspond to 5
         plot_synthesized_image : bool, optional
             Whether to include axis for plot of the synthesized image or not.
         plot_loss : bool, optional
@@ -1667,6 +1662,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                 axes_idx['signal_comp'] = _find_min_int(axes_idx.values())
         if fig is None:
             width_ratios = np.array(width_ratios)
+            if figsize is None:
+                # we want (5, 5) for each subplot, with a bit of room between
+                # each subplot
+                figsize = ((width_ratios*5).sum() + width_ratios.sum()-1, 5)
             width_ratios = width_ratios / width_ratios.sum()
             fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
                                      gridspec_kw={'width_ratios': width_ratios})
@@ -1677,7 +1676,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return fig, axes, axes_idx
 
     def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None,
-                              figsize=(17, 5), ylim=None,
+                              figsize=None, ylim=None,
                               plot_synthesized_image=True, plot_loss=True,
                               plot_representation_error=True, imshow_zoom=None,
                               vrange=(0, 1), fig=None, plot_image_hist=False,
@@ -1735,15 +1734,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1846,7 +1840,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         self._axes_idx = axes_idx
         return fig
 
-    def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5),
+    def animate(self, batch_idx=0, channel_idx=0, figsize=None,
                 framerate=10, ylim='rescale', plot_synthesized_image=True,
                 plot_loss=True, plot_representation_error=True,
                 imshow_zoom=None, plot_data_attr=['loss'], rep_error_kwargs={},
@@ -1859,12 +1853,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         This is essentially the figure produced by
         ``self.plot_synthesis_status`` animated over time, for each stored
         iteration.
-
-        It's difficult to determine a reasonable figsize, because we
-        don't know how much information is in the plot showing the
-        representation ratio. Therefore, it's recommended you play
-        around with ``plot_synthesis_status`` until you find a
-        good-looking value for figsize.
 
         We return the matplotlib FuncAnimation object. In order to view
         it in a Jupyter notebook, use the
@@ -1880,15 +1868,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
             Which index to take from the channel dimension (the second one)
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC``, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional
