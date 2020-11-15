@@ -1783,18 +1783,27 @@ class MADCompetition(Synthesis):
                               signal_comp_subsample=.01, axes_idx={}):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio.
 
-        We create two or three subplots on a new figure. The first one
-        contains the synthesized image, the second contains the loss,
-        and the (optional) third contains the representation ratio, as
-        plotted by ``self.plot_representation_error``.
+        We create several subplots to analyze this. By default, we create three
+        subplots on a new figure: the first one contains the synthesized image,
+        the second contains the loss, and the third contains the representation
+        error.
 
-        You can specify what iteration to view by using the
-        ``iteration`` arg. The default, ``None``, shows the final one.
+        There are several optional additional plots: image_hist, rep_comparison, and
+        signal_comparison:
 
-        The loss plot shows the loss as a function of iteration for all
-        iterations (even if we didn't save the representation or
-        synthesized image at each iteration), with a red dot showing the
-        location of the iteration.
+        - image_hist contains a histogram of pixel values of the synthesized
+          and base images.
+
+        - rep_comparison is a scatter plot comparing the representation of the
+          synthesized and base images.
+
+        - signal_comparison is a scatter plot (by default) or 2d histogram (if
+          signal_comp_func='hist2d') of the pixel values in the synthesized and
+          base images.
+
+        All of these (including the default plots) can be toggled using their
+        corresponding boolean flags, and can be created separately using the
+        method with the same name as the flag.
 
         We use ``pyrtools.imshow`` to display the synthesized image and
         attempt to automatically find the most reasonable zoom
@@ -1809,12 +1818,13 @@ class MADCompetition(Synthesis):
         synthesizing multiple targets, you can specify the target as
         well. If None, we use the current target of the synthesis.
 
-        MADCompetition also has two models, and we will plot the loss
-        for both of them, on the same subplot (labelling them
-        appropriately).
-
         Regardless, we always reset the target state to what it was
-        before this was called
+        before this was called.
+
+        MADCompetition also has two models, and we will plot the loss for both
+        of them, on the same subplot (labelling them appropriately). The
+        rep_comparison and representation_error plots will take up 2 subplots
+        (one for each model), if created.
 
         Parameters
         ----------
@@ -1915,12 +1925,13 @@ class MADCompetition(Synthesis):
         synthesizing multiple targets, you can specify the target as
         well. If None, we use the current target of the synthesis.
 
-        MADCompetition also has two models, and we will plot the loss
-        for both of them, on the same subplot (labelling them
-        appropriately).
-
         Regardless, we always reset the target state to what it was
-        before this was called
+        before this was called.
+
+        MADCompetition also has two models, and we will plot the loss for both
+        of them, on the same subplot (labelling them appropriately). The
+        rep_comparison and representation_error plots will each take up 2
+        subplots (one for each model), if created.
 
         Parameters
         ----------
