@@ -53,10 +53,10 @@ class TestEigendistortionSynthesis:
         with pytest.raises(AssertionError) as e_info:
             ed.synthesize(method='asdfsdfasf')
 
-    def test_method_jacobian(self):
+    def test_method_exact(self):
         # invert matrix explicitly
         ed = get_synthesis_object(im_dim=SMALL_DIM)
-        ed.synthesize(method='jacobian')
+        ed.synthesize(method='exact')
 
         assert len(ed.distortions['eigenvalues']) == SMALL_DIM**2
         assert len(ed.distortions['eigenvectors']) == SMALL_DIM**2
@@ -118,7 +118,7 @@ class TestEigendistortionSynthesis:
         e_jac = get_synthesis_object(im_dim=SMALL_DIM)
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
 
-        e_jac.synthesize(method='jacobian')
+        e_jac.synthesize(method='exact')
         e_pow.synthesize(method='power', n_steps=500, verbose=False)
 
         print(e_pow.distortions['eigenvalues'].shape)
@@ -140,7 +140,7 @@ class TestAutodiffFunctions:
 
         ed = get_synthesis_object(im_dim=SMALL_DIM)  # eigendistortion object
 
-        x, y = ed.image_flattensor, ed.out_flattensor
+        x, y = ed.input_flat, ed.representation_flat
 
         x_dim = x.flatten().shape[0]
         y_dim = y.flatten().shape[0]
@@ -214,7 +214,7 @@ class TestAutodiffFunctions:
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
-        x, y = e.image_flattensor, e.out_flattensor
+        x, y = e.input_flat, e.representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 

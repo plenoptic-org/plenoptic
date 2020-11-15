@@ -5,7 +5,7 @@ import numpy as np
 import pyrtools as pt
 import warnings
 from .synthesis import Synthesis
-
+from tqdm import tqdm
 
 def fisher_info_matrix_vector_product(y, x, v):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
@@ -42,7 +42,7 @@ def implicit_FIM_eigenvalue(y, x, v):
     :math:`\lambda= v^T F v`
     """
     Fv = fisher_info_matrix_vector_product(y, x, v)
-    lmbda = torch.mm(Fv.t(), v)
+    lmbda = Fv.T @ v
     return lmbda
 
 
@@ -68,6 +68,7 @@ class Eigendistortion(Synthesis):
         Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
     jacobian: torch.Tensor
         Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``.
+    # TODO: synthesized_signal, eigenvalues, eigenvectors
     Parameters
     -----------
     image: torch.Tensor
@@ -123,6 +124,8 @@ class Eigendistortion(Synthesis):
 
         self.distortions = dict()
         self.jacobian = None
+        self.synthesized_eigenvalues = None
+        self.synthesized_eigenindex = None
 
     @staticmethod
     def _hidden_attrs():
@@ -150,7 +153,7 @@ class Eigendistortion(Synthesis):
     @classmethod
     def load(file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
              **state_dict_kwargs):
-        # TODO
+        # TODO attribute name *****O
         super().load(file_path, model_attr_name, model_constructor, map_location, **state_dict_kwargs)
 
     def save(self, file_path, save_model_reduced=False, attrs=['model'], model_attr_names=['model']):
@@ -197,6 +200,7 @@ class Eigendistortion(Synthesis):
             eigen-distortions in decreasing order and their indices. This dict is also added as an attribute to the
             object.
         """
+        self._set_seed(seed)
 
         if e_vecs is None:
             e_vecs = []
@@ -211,39 +215,54 @@ class Eigendistortion(Synthesis):
 
         if method == 'exact':
             eig_vals, eig_vecs = self._synthesize_exact()
+            eig_vecs = self._vector_to_image(eig_vecs.detach())
+            eig_vecs_ind = np.arange(len(eig_vecs))
+
             self.distortions['eigenvalues'] = eig_vals.detach()
-            self.distortions['eigenvectors'] = self._vector_to_image(eig_vecs.detach())
+            self.distortions['eigenvectors'] = eig_vecs
             self.distortions['eigenvector_index'] = torch.arange(len(eig_vals))
 
         elif method == 'power':
             if verbose:
                 print('Power method -- computing the maximum distortion \n')
-            lmbda_max, v_max = self._synthesize_power(l=0, init='randn', seed=seed, tol=tol, n_steps=n_steps,
+            lmbda_max, v_max = self._synthesize_power(l=0., init='randn', tol=tol, n_steps=n_steps,
                                                       verbose=verbose, print_every=print_every)
 
             if verbose:
                 print('\nPower method -- computing the minimum distortion \n')
-            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, init='randn', seed=seed, tol=tol,
-                                                      n_steps=n_steps, verbose=verbose, print_every=print_every)
+            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, init='randn', tol=tol, n_steps=n_steps,
+                                                      verbose=verbose, print_every=print_every)
+            eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
+            eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
+            eig_vecs_ind = [0, len(self.input_flat) - 1]
 
-            self.distortions['eigenvalues'] = torch.cat([lmbda_max, lmbda_min]).squeeze()
-            self.distortions['eigenvectors'] = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
+            self.distortions['eigenvalues'] = eig_vals
+            self.distortions['eigenvectors'] = eig_vecs
             self.distortions['eigenvector_index'] = [0, len(self.input_flat) - 1]
 
         elif method == 'lanczos' and n_steps is not None:
             eig_vals, eig_vecs, eig_vecs_ind = self._synthesize_lanczos(n_steps=n_steps, e_vecs=e_vecs, verbose=verbose,
                                                                         print_every=print_every, debug_A=debug_A)
-            self.distortions['eigenvalues'] = eig_vals.type(torch.float32).detach()
+            self.distortions['eigenvalues'] = eig_vals.detach()
 
-            # reshape into image if not empty tensor
-            if eig_vecs.ndim == 2 and eig_vecs.shape[0] == self.im_height*self.im_width:
-                self.distortions['eigenvectors'] = self._vector_to_image(eig_vecs.type(torch.float32).detach())
+            if len(e_vecs) > 0:  # reshape to image if we returned eigenvectors
+                eig_vecs = self._vector_to_image(eig_vecs.detach())
+                self.distortions['eigenvectors'] = eig_vecs
             else:
                 self.distortions['eigenvectors'] = eig_vecs
 
             self.distortions['eigenvector_index'] = eig_vecs_ind
 
+        # reshape to (n x num_chans x h x w)
+        if method == 'lanczos' and len(e_vecs) == 0:
+            self.synthesized_signal = []
+        else:
+            self.synthesized_signal = torch.stack(eig_vecs).unsqueeze(1)
+        self.synthesized_eigenvalues = eig_vals
+        self.synthesized_eigenindex = eig_vecs_ind
+
         return self.distortions
+        return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
 
     def _vector_to_image(self, vecs):
         r""" Reshapes eigenvectors back into correct image dimensions.
@@ -267,7 +286,6 @@ class Eigendistortion(Synthesis):
     @staticmethod
     def _color_to_grayscale(img):
         """Takes weighted sum of RGB channels to return a grayscale image"""
-
         gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
         return gray
 
@@ -340,10 +358,9 @@ class Eigendistortion(Synthesis):
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
-
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def _synthesize_power(self, l=0, init='randn', seed=0, tol=1e-10, n_steps=1000, verbose=False,
+    def _synthesize_power(self, l=0, init='randn', tol=1e-10, n_steps=1000, verbose=False,
                           print_every=1):
         r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
         Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
@@ -351,14 +368,12 @@ class Eigendistortion(Synthesis):
 
         Parameters
         ----------
-        l: torch.Tensor, optional
+        l: Union([float, torch.Tensor]), optional
             Optional argument. When l=0, this function estimates the leading eval evec pair. When l is set to the
             estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
         init: {'randn', 'ones'}
             Starting vector for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector. Both
             will be normalized.
-        seed: float, optional
-            Manual seed
         tol: float, optional
             Tolerance value
         n_steps: int, optional
@@ -380,9 +395,6 @@ class Eigendistortion(Synthesis):
         x, y = self.input_flat, self.representation_flat
 
         n = x.shape[0]
-
-        np.random.seed(seed)
-        torch.manual_seed(seed)
 
         if init not in ['randn', 'ones']:
             raise ValueError("init should be in ['randn', 'ones']")
@@ -573,8 +585,8 @@ class Eigendistortion(Synthesis):
             eig_vals = eig_vals[vecs_to_return]
         else:
             print("Returning all computed eigenvals and 0 eigenvectors. Set e_vecs if you want eigvectors returned.")
+            eig_vecs = []
             eig_vals, _ = T.symeig(eigenvectors=False)  # expensive final step
-            eig_vecs = torch.zeros(0)
             eig_vecs_ind = torch.zeros(0)
 
         return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
