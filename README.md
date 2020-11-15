@@ -2,12 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
 ![Python version](https://img.shields.io/badge/python-3.6%7C3.7-blue.svg)
-[![Build Status](https://travis-ci.com/LabForComputationalVision/plenoptic.svg?branch=master)](https://travis-ci.com/LabForComputationalVision/plenoptic)
+[![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/Run%20Python%20Tests/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3A%22Run+Python+Tests%22)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
-![.github/workflows/treebeard.yml](https://github.com/LabForComputationalVision/plenoptic/workflows/.github/workflows/treebeard.yml/badge.svg)
+[![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/.github/workflows/treebeard.yml/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3A.github%2Fworkflows%2Ftreebeard.yml)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have

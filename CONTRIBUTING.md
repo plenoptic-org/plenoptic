@@ -28,21 +28,19 @@ README, and documentation and let us know if anything is unclear, what
 needs more detail (or clearer writing), etc. But if you think you can
 make progress on one of the existing issues, please give it a try.
 
-In order to submit changes, create a branch or fork of the project,
-make your changes, add documentation and tests, and submit a [Pull
+In order to submit changes, create a branch or fork of the project, make your
+changes, add documentation and tests, and submit a [Pull
 Request](https://github.com/LabForComputationalVision/plenoptic/pulls). The
-amount and form of documentation to add depends on the size of the
-submitted changes. For a significant change (a new model or synthesis
-method), please include a new tutorial notebook that walks through how
-to use them. For enhancements of existing methods, you can probably
-just modify the existing tutorials and add documentation. If unsure,
-ask! For docstrings, we follow
-[numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html)
-style. See later in this file for more details on how to run the tests
-and build the documentation (if you create a branch on the main repo,
-TravisCI will run tests automatically whenever you push, so you don't
-need to worry about running them locally -- but I'm not sure if
-everyone can view them?).
+amount and form of documentation to add depends on the size of the submitted
+changes. For a significant change (a new model or synthesis method), please
+include a new tutorial notebook that walks through how to use them. For
+enhancements of existing methods, you can probably just modify the existing
+tutorials and add documentation. If unsure, ask! For docstrings, we follow
+[numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html) style. See
+later in this file for more details on how to run the tests and build the
+documentation (if you create a branch on the main repo, Github Actions will run
+tests automatically whenever you push, so you don't need to worry about running
+them locally).
 
 COMMUNICATION CHANNELS?
 
@@ -108,12 +106,12 @@ test functions should be named `test_something` in snakecase.
 If you're adding a substantial bunch of tests that are separate from the
 existing ones, you can create a new test script. Its name must begin with
 `test_` and it must be contained within the `tests` directory. Additionally, you
-should add its name to the `env` section of `.travis.yml` (this enables us to
-run tests in parallel). For example, say you create a new script
-`tests/test_awesome.py`. You should then open up `.travis.yml` and add a new
-line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
-indented). **Do not** edit the `script` section -- if you did the above
-correctly, Travis will correctly run your new script.
+should add its name to the `build:strategy:matrix:test_script` section of
+`.github/workflows/ci.yml` (this enables us to run tests in parallel). For
+example, say you create a new script `tests/test_awesome.py`. You should then
+open up `ci.yml` and add a new item to the `test_script` list containing
+`awesome`. **Do not** edit the anything else -- if you did the above correctly,
+Github Actions will correctly run your new script.
 
 ### Testing notebooks
 

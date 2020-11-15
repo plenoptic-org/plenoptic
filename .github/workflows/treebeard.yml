@@ -1,5 +1,6 @@
 # .github/workflows/treebeard.yml
 # Run all notebooks on every push and weekly
+name: Run tutorials
 on:
   push:
   schedule:
