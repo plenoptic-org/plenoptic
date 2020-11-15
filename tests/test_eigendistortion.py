@@ -219,3 +219,30 @@ class TestAutodiffFunctions:
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
+
+
+from plenoptic.synthesize.eigendistortion import Eigendistortion2
+from plenoptic.synthesize.synthesis import Synthesis
+from pprint import pprint
+class TestEigendistortion2:
+
+    @staticmethod
+    def _get_img():
+        im_dim = SMALL_DIM
+        torch.manual_seed(0)
+        img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img_np = img[:im_dim, :im_dim] / np.max(img)
+
+        img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
+        return img
+
+    def test_(self):
+        img = self._get_img()
+        mdl = Front_End().to(DEVICE)
+        ed = Eigendistortion2(img, mdl)
+        # print(dir(ed))
+        # ed.plot_representation_error()
+        ed.synthesize(method='lanczos', n_steps=10)
+        # print(ed.__dict__.keys())
+
+
