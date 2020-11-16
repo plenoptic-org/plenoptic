@@ -14,9 +14,10 @@ import scipy.io as sio
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
-OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7'}
+OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8',
+           'ssim_images.tar.gz': 'j65tw', 'ssim_analysis.mat': 'ndtc7'}
 print("On device %s" % DEVICE)
+
 
 def osf_download(filename):
     path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', filename)
@@ -66,7 +67,7 @@ class TestNonLinearities(object):
         a = torch.rand(10)*-1
         b = po.rescale(torch.randn(10), -np.pi / 2, np.pi / 2)
 
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(ValueError) as _:
             _, _ = po.polar_to_rectangular(a, b)
 
     def test_coordinate_identity_transform_rectangular(self):
@@ -94,7 +95,8 @@ class TestNonLinearities(object):
 
     def test_rectangular_to_polar_dict(self):
         x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1, is_complex=True)
+        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
+                                              is_complex=True)
         y = spc(x)
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y)
 
@@ -104,7 +106,8 @@ class TestNonLinearities(object):
 
     def test_local_gain_control(self):
         x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1, is_complex=False)
+        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
+                                              is_complex=False)
         y = spc(x)
         energy, state = po.simul.non_linearities.local_gain_control(y)
 
@@ -127,6 +130,25 @@ class TestNonLinearities(object):
 
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
+
+
+class TestSignalTools(object):
+
+    def test_autocorr(self):
+        x = po.make_basic_stimuli()
+        x_centered = x - x.mean((2, 3), keepdim=True)
+        a = po.autocorr(x_centered, n_shifts=7)
+
+        # autocorr with zero delay is variance
+        assert (torch.abs(
+                torch.var(x, dim=(2, 3)) - a[..., 3, 3])
+                < 1e-5).all()
+        # autocorr can be computed in signal domain directly with roll
+        assert (torch.abs(
+                (x_centered * torch.roll(x_centered, 1, 2)).sum((2, 3))
+                / np.prod(x.shape[-2:])
+                - a[..., 4, 3])
+                < 1e-5).all()
 
 
 class TestPerceptualMetrics(object):
@@ -183,16 +205,19 @@ class TestPerceptualMetrics(object):
     def test_add_noise(self, noise_lvl, noise_as_tensor):
         img = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         if noise_as_tensor:
-            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32).unsqueeze(1)
+            noise_lvl = torch.tensor(noise_lvl,
+                                     dtype=torch.float32).unsqueeze(1)
         noisy = po.add_noise(img, noise_lvl)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
-            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32).unsqueeze(1)
+            noise_lvl = torch.tensor(noise_lvl,
+                                     dtype=torch.float32).unsqueeze(1)
         assert torch.allclose(po.metric.mse(img, noisy), noise_lvl)
 
     @pytest.mark.parametrize('weighted', [True, False])
     @pytest.mark.parametrize('other_img', np.arange(1, 11))
-    def test_ssim_analysis(self, weighted, other_img, ssim_images, ssim_analysis):
+    def test_ssim_analysis(self, weighted, other_img, ssim_images,
+                           ssim_analysis):
         analysis = sio.loadmat(ssim_analysis, squeeze_me=True)
         print(ssim_analysis)
         mat_type = {True: 'weighted', False: 'standard'}[weighted]
@@ -203,7 +228,8 @@ class TestPerceptualMetrics(object):
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
         # that should be corrected for
         plen_val = po.metric.ssim(base_img, other, weighted)
-        mat_val = torch.tensor(analysis[mat_type][f'samp{other_img}'].astype(np.float32))
+        mat_val = torch.tensor(
+                   analysis[mat_type][f'samp{other_img}'].astype(np.float32))
         # float32 precision is ~1e-6 (see `np.finfo(np.float32)`), and the
         # errors increase through multiplication and other operations.
         print(plen_val-mat_val, plen_val, mat_val)
