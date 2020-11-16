@@ -28,21 +28,19 @@ README, and documentation and let us know if anything is unclear, what
 needs more detail (or clearer writing), etc. But if you think you can
 make progress on one of the existing issues, please give it a try.
 
-In order to submit changes, create a branch or fork of the project,
-make your changes, add documentation and tests, and submit a [Pull
+In order to submit changes, create a branch or fork of the project, make your
+changes, add documentation and tests, and submit a [Pull
 Request](https://github.com/LabForComputationalVision/plenoptic/pulls). The
-amount and form of documentation to add depends on the size of the
-submitted changes. For a significant change (a new model or synthesis
-method), please include a new tutorial notebook that walks through how
-to use them. For enhancements of existing methods, you can probably
-just modify the existing tutorials and add documentation. If unsure,
-ask! For docstrings, we follow
-[numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html)
-style. See later in this file for more details on how to run the tests
-and build the documentation (if you create a branch on the main repo,
-TravisCI will run tests automatically whenever you push, so you don't
-need to worry about running them locally -- but I'm not sure if
-everyone can view them?).
+amount and form of documentation to add depends on the size of the submitted
+changes. For a significant change (a new model or synthesis method), please
+include a new tutorial notebook that walks through how to use them. For
+enhancements of existing methods, you can probably just modify the existing
+tutorials and add documentation. If unsure, ask! For docstrings, we follow
+[numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html) style. See
+later in this file for more details on how to run the tests and build the
+documentation (if you create a branch on the main repo, Github Actions will run
+tests automatically whenever you push, so you don't need to worry about running
+them locally).
 
 COMMUNICATION CHANNELS?
 
@@ -108,12 +106,57 @@ test functions should be named `test_something` in snakecase.
 If you're adding a substantial bunch of tests that are separate from the
 existing ones, you can create a new test script. Its name must begin with
 `test_` and it must be contained within the `tests` directory. Additionally, you
-should add its name to the `env` section of `.travis.yml` (this enables us to
-run tests in parallel). For example, say you create a new script
-`tests/test_awesome.py`. You should then open up `.travis.yml` and add a new
-line in the `env` section containing `- TEST_SCRIPT=awesome` (properly
-indented). **Do not** edit the `script` section -- if you did the above
-correctly, Travis will correctly run your new script.
+should add its name to the `build:strategy:matrix:test_script` section of
+`.github/workflows/ci.yml` (this enables us to run tests in parallel). For
+example, say you create a new script `tests/test_awesome.py`. You should then
+open up `ci.yml` and add a new item to the `test_script` list containing
+`awesome`. **Do not** edit the anything else -- if you did the above correctly,
+Github Actions will correctly run your new script.
+
+### Testing notebooks
+
+We use [treebeard](https://github.com/treebeardtech/treebeard) to test our
+notebooks and make sure everything runs. `treebeard` is still in development and
+so their documentation may not be up-to-date. You can run it locally to try and
+debug some errors (though errors that result from environment issues obviously
+will be harder to figure out locally).
+
+WARNING: If you run `treebeard` locally (with default options, so it doesn't use
+`repo2docker` ), then it will restart, re-run, and overwrite your local
+notebooks. Make sure this is okay with you.
+
+`treebeard` uses [papermill](https://papermill.readthedocs.io/en/latest/) under
+the hood, so if you have problems getting it to run at all, `papermill` may be
+where to look. When running papermill locally, I've had issues with papermill
+correctly determining which kernel to use (this happens since I use
+[nb_conda](https://github.com/Anaconda-Platform/nb_conda_kernels) to specify
+conda environments as notebook kernels), which leads to `NoSuchKernel` errors.
+If you run into this problem, [this
+page](https://papermill.readthedocs.io/en/latest/troubleshooting.html) has
+troubleshooting info. I also got an error when trying to run the example
+`jupyter kernelspec install` command given, and had to use the solution [on this
+page](https://github.com/jupyter/jupyter_client/issues/72) instead:
+
+```
+conda activate my-env
+python -m ipykernel install --user --name my-env --display-name "my-env"
+```
+
+And then `papermill` worked. (You may also need to specify the kernel using `-k
+my-env` when calling `papermill`).
+
+Once you've gotten that taken care of, you should be able to run `treebeard`
+locally by running `treebeard run` in the `examples/` directory (which contains
+all the notebooks). This will re-run all notebooks. You can specify specific
+notebook using the `-n` flag.
+
+Similar to adding new [test scripts](#adding-tests), you need to add new
+tutorials to the corresponding build matrix so they can be tested. For this, go
+to `.github/workflows/treebeard.yml` and add the name of the new notebook
+(without the `.ipynb` extension) to the `notebook` field (under
+`run:strategy:matrix`). So if your new tutorial was
+`examples/100_awesome_tutorial.ipynb`, you would add `100_awesome_tutorial` as
+the a new item in the `notebook` list.
 
 ## Documentation
 
@@ -199,7 +242,6 @@ conda activate plenoptic_docs
 pip install -e .
 # build documentation
 cd docs/
-sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
 
@@ -220,7 +262,6 @@ documentation, run:
 ```
 conda activate plenoptic_docs
 cd docs/
-sphinx-apidoc -f -o . ../plenoptic
 make html
 ```
 
@@ -253,3 +294,7 @@ should have exactly one H1 title (i.e., line starting with a single `#`), but
 you can have as many lower-level titles as you'd like. If you have multiple H1
 titles, they'll each show up as different tutorials. If you don't have an H1
 title, it won't show up at all.
+
+When you add a new tutorial, don't forget to add it to the `treebeard.yml` file
+so it can be tested (see last paragraph of the [testing
+notebooks](#testing-notebooks) section for details).

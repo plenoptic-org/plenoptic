@@ -16,15 +16,35 @@ import matplotlib.pyplot as plt
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
+# If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7'}
+           'ssim_analysis.mat': 'ndtc7', 'MAD_results.tar.gz': 'jwcsr'}
 print("On device %s" % DEVICE)
 
 
 def osf_download(filename):
+    f"""Download file from plenoptic OSF page.
+
+    From the OSF project at https://osf.io/ts37w/.
+
+    Downloads the specified file to `plenoptic/data`, extracts and deletes the
+    the .tar.gz file (if applicable), and returns the path.
+
+    Parameters
+    ----------
+    filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
+                'ssim_analysis.mat', 'MAD_results.tar.gz'}
+        Which file to download.
+
+    Returns
+    -------
+    path : str
+        The path to the downloaded directory or file.
+
+    """
     path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', filename)
     if not op.exists(path.replace('.tar.gz', '')):
-        print("matfiles required for testing not found, downloading now...")
+        print(f"{filename} not found, downloading now...")
         # Streaming, so we can iterate over the response.
         r = requests.get(f"https://osf.io/{OSF_URL[filename]}/download",
                          stream=True)
@@ -45,6 +65,7 @@ def osf_download(filename):
             with tarfile.open(path) as f:
                 f.extractall(op.dirname(path))
             os.remove(path)
+        print("DONE")
     return path.replace('.tar.gz', '')
 
 
