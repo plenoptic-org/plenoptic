@@ -68,7 +68,7 @@ class TestDisplay(object):
         for i in range(2):
             ax.plot(x, y1[i], label=i)
         po.update_plot(ax, y2)
-        assert len(ax.lines) == 2, "Too many lines were plotted!"
+        assert len(ax.lines) == 2, "Incorrect number of lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
             if how == 'tensor':
@@ -137,7 +137,7 @@ class TestDisplay(object):
         for i in range(2):
             ax.stem(x, y1[i], label=i, use_line_collection=True)
         po.update_plot(ax, y2)
-        assert len(ax.containers) == 2, "Too many lines were plotted!"
+        assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
             if how == 'tensor':
@@ -147,7 +147,7 @@ class TestDisplay(object):
             elif how == 'dict-single':
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, y_check):
-                raise Exception("Didn't update line correctly!")
+                raise Exception("Didn't update stem correctly!")
         plt.close('all')
 
     def test_update_plot_image(self):
@@ -182,6 +182,79 @@ class TestDisplay(object):
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update image correctly!")
         plt.close('all')
+
+    def test_update_plot_scatter(self):
+        x1 = np.random.rand(100)
+        x2 = np.random.rand(100)
+        y1 = np.random.rand(*x1.shape)
+        y2 = np.random.rand(*x2.shape)
+        fig, ax = plt.subplots(1, 1)
+        ax.scatter(x1, y1)
+        data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 1, len(x2), 2)
+        po.update_plot(ax, data)
+        assert len(ax.collections) == 1, "Too many scatter plots created"
+        ax_data = ax.collections[0].get_offsets()
+        if not np.allclose(ax_data, data):
+            raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close('all')
+
+    @pytest.mark.parametrize('how', ['dict', 'tensor'])
+    def test_update_plot_scatter_multi_axes(self, how):
+        x1 = np.random.rand(100)
+        x2 = np.random.rand(2, 100)
+        y1 = np.random.rand(*x1.shape)
+        y2 = np.random.rand(2, *y1.shape)
+        if how == 'tensor':
+            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, len(x1), 2)
+        elif how == 'dict':
+            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, len(x1), 2) for i in range(2)}
+        fig, axes = plt.subplots(1, 2)
+        for ax in axes:
+            ax.scatter(x1, y1)
+        po.update_plot(axes, data)
+        for i, ax in enumerate(axes):
+            assert len(ax.collections) == 1, "Too many scatter plots created"
+            ax_data = ax.collections[0].get_offsets()
+            if how == 'tensor':
+                data_check = data[0, i]
+            else:
+                data_check = data[i]
+            if not np.allclose(ax_data, data_check):
+                raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close('all')
+
+    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
+    def test_update_plot_scatter_multi_channel(self, how):
+        if how == 'dict-single':
+            n_data = 1
+        else:
+            n_data = 2
+        x1 = np.random.rand(2, 100)
+        x2 = np.random.rand(n_data, 100)
+        y1 = np.random.rand(*x1.shape)
+        y2 = np.random.rand(*x2.shape)
+        if how == 'tensor':
+            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, x1.shape[-1], 2)
+        elif how == 'dict-multi':
+            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
+        elif how == 'dict-single':
+            data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])), -1).reshape(1, 1, x1.shape[-1], 2)}
+        fig, ax = plt.subplots(1, 1)
+        for i in range(2):
+            ax.scatter(x1[i], y1[i], label=i)
+        po.update_plot(ax, data)
+        assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
+        for i in range(2):
+            ax_data = ax.collections[i].get_offsets()
+            if how == 'tensor':
+                data_check = data[0, i]
+            elif how == 'dict-multi':
+                data_check = data[i]
+            elif how == 'dict-single':
+                tmp = torch.stack((torch.tensor(x1), torch.tensor(y1)), -1)
+                data_check = {0: data[0], 1: tmp[1]}[i]
+            if not np.allclose(ax_data, data_check):
+                raise Exception("Didn't update points of the scatter plot correctly!")
 
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
