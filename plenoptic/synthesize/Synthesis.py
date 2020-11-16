@@ -2020,6 +2020,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # in this case, axes_idx['rep_error'] is not iterable and so is
                 # a single value
                 rep_error_axes = [fig.axes[axes_idx['rep_error']]]
+        else:
+            rep_error_axes = []
 
         if self.base_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
