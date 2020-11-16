@@ -5,30 +5,302 @@ import torch
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
-from .data import torch_complex_to_numpy, to_numpy
+from .data import to_numpy, torch_complex_to_numpy
 try:
     from IPython.display import HTML
 except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
 
-def imshow(x, color=False, **kwargs):
-    if 'torch' in str(x.dtype):
-        x = to_numpy(x, squeeze=True)
-    if x.ndim == 3 and color is False:
-        x = list(x)
-    pt.imshow(x, **kwargs)
+def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
+           cmap=None, plot_complex='rectangular', batch_idx=None,
+           channel_idx=None, as_rgb=False, **kwargs):
+    """Show image(s) correctly.
+
+    This function shows images correctly, making sure that each element in the
+    tensor corresponds to a pixel or an integer number of pixels, to avoid
+    aliasing (NOTE: this guarantee only holds for the saved image; it should
+    generally hold in notebooks as well, but will fail if, e.g., you plot an
+    image that's 2000 pixels wide on an monitor 1000 pixels wide; the notebook
+    handles the rescaling in a way we can't control).
+
+    Arguments
+    ---------
+    image : torch.Tensor or list
+        The images to display. Tensors should be 4d (batch, channel, height,
+        width) or 5d (if complex). List of tensors should be used for tensors
+        of different height and width: all images will automatically be
+        rescaled so they're displayed at the same height and width, thus, their
+        heights and widths must be scalar multiples of each other.
+    vrange : `tuple` or `str`
+        If a 2-tuple, specifies the image values vmin/vmax that are mapped to
+        the minimum and maximum value of the colormap, respectively. If a
+        string:
+
+        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
+                     value, and come from the minimum or maximum across all
+                     images, whichever has the larger absolute value
+        * `'auto/auto1'`: all images have same vmin/vmax, which are the
+                          minimum/maximum values across all images
+        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
+                     all images) minus/ plus 2 std dev (across all images)
+        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
+                     10th/90th percentile values to the 10th/90th percentile of
+                     the display intensity range. For example: vmin is the 10th
+                     percentile image value minus 1/8 times the difference
+                     between the 90th and 10th percentile
+        * `'indep0'`: each image has an independent vmin/vmax, which have the
+                      same absolute value, which comes from either their
+                      minimum or maximum value, whichever has the larger
+                      absolute value.
+        * `'indep1'`: each image has an independent vmin/vmax, which are their
+                      minimum/maximum values
+        * `'indep2'`: each image has an independent vmin/vmax, which is their
+                      mean minus/plus 2 std dev
+        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
+                      the 10th/90th percentile values map to the 10th/90th
+                      percentile intensities.
+    zoom : `float`
+        ratio of display pixels to image pixels. if >1, must be an integer. If
+        <1, must be 1/d where d is a a divisor of the size of the largest
+        image.
+    title : `str`, `list`, or None, optional
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom)
+        * if `str`, will put the same title on every plot.
+        * if `list`, all values must be `str`, must be the same length as img,
+          assigning each title to corresponding image.
+        * if None, no title will be printed (and subtitle will be removed;
+          unsupported for complex tensors).
+    col_wrap : `int` or None, optional
+        number of axes to have in each row. If None, will fit all axes in a
+        single row.
+    ax : `matplotlib.pyplot.axis` or None, optional
+        if None, we make the appropriate figure. otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception!,
+        so first define a large enough figure using either make_figure or
+        plt.figure)
+    cmap : matplotlib colormap, optional
+        colormap to use when showing these images
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        specifies handling of complex values.
+
+        * `'rectangular'`: plot real and imaginary components as separate images
+        * `'polar'`: plot amplitude and phase as separate images
+        * `'logpolar'`: plot log_2 amplitude and phase as separate images
+        for any other value, we raise a warning and default to rectangular.
+    batch_idx : int or None, optional
+        Which element from the batch dimension to plot. If None, we plot all.
+    channel_idx : int or None, optional
+        Which element from the channel dimension to plot. If None, we plot all.
+        Note if this is an int, then `as_rgb=True` will fail, because we
+        restrict the channels.
+    as_rgb : bool, optional
+        Whether to consider the channels as encoding RGB(A) values. If True, we
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if
+        you want the alpha channel) elements in the channel dimension, or this
+        will raise an Exception. If False, we plot each channel as a separate
+        grayscale image.
+    kwargs :
+        Passed to `ax.imshow`
+
+    Returns
+    -------
+    fig : `PyrFigure`
+        figure containing the plotted images
+
+    """
+    if not isinstance(image, list):
+        image = [image]
+    images_to_plot = []
+    for im in image:
+        if im.ndimension() == 5:
+            # this will also call to_numpy on it
+            im = torch_complex_to_numpy(im)
+        else:
+            im = to_numpy(im)
+        if im.shape[0] > 1 and batch_idx is not None:
+            # this preserves the number of dimensions
+            im = im[batch_idx:batch_idx+1]
+        if channel_idx is not None:
+            # this preserves the number of dimensions
+            im = im[:, channel_idx:channel_idx+1]
+        # allow RGB and RGBA
+        if as_rgb:
+            if im.shape[1] not in [3, 4]:
+                raise Exception("If as_rgb is True, then channel must have 3 "
+                                "or 4 elements!")
+            im = im.transpose(0, 2, 3, 1)
+            # want to insert a fake "channel" dimension here, so our putting it
+            # into a list below works as expected
+            im = im.reshape((im.shape[0], 1, *im.shape[1:]))
+        elif im.shape[1] > 1 and im.shape[0] > 1:
+            raise Exception("Don't know how to plot images with more than one channel and batch!"
+                            " Use batch_idx / channel_idx to choose a subset for plotting")
+        # by iterating through it twice, we make sure to peel apart the batch
+        # and channel dimensions so that they each show up as a separate image.
+        # because of how we've handled everything above, we know that im will
+        # be (b,c,h,w) or (b,c,h,w,r) where r is the RGB(A) values
+        for i in im:
+            images_to_plot.extend([i_.squeeze() for i_ in i])
+    return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
+                     col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
+                     **kwargs)
 
 
-def animshow(x, color=False, **kwargs):
-    if 'torch' in str(x.dtype):
-        x = to_numpy(x, squeeze=True)
-    if x.ndim == 4 and color is False:
-        x = list(x)
-    return pt.animshow(x, **kwargs)
+def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
+             title='', col_wrap=None, ax=None, cmap=None,
+             plot_complex='rectangular', batch_idx=None, channel_idx=None,
+             as_rgb=False, **kwargs):
+    """Animate video(s) correctly.
+
+    This function animates videos correctly, making sure that each element in
+    the tensor corresponds to a pixel or an integer number of pixels, to avoid
+    aliasing (NOTE: this guarantee only holds for the saved animation (assuming
+    video compression doesn't interfere); it should generally hold in notebooks
+    as well, but will fail if, e.g., your video is 2000 pixels wide on an
+    monitor 1000 pixels wide; the notebook handles the rescaling in a way we
+    can't control).
+
+    This functions returns the matplotlib FuncAnimation object. In order to
+    view it in a Jupyter notebook, use the
+    ``plenoptic.convert_anim_to_html(anim)`` function. In order to save, use
+    ``anim.save(filename)`` (note for this that you'll need the appropriate
+    writer installed and on your path, e.g., ffmpeg, imagemagick, etc).
+
+    Arguments
+    ---------
+    video : torch.Tensor or list
+        The videos to display. Tensors should be 5d (batch, channel, time,
+        height, width) or 6d (if complex). List of tensors should be used for
+        tensors of different height and width: all videos will automatically be
+        rescaled so they're displayed at the same height and width, thus, their
+        heights and widths must be scalar multiples of each other. Videos must
+        all have the same number of frames as well.
+    framerate : `float`
+        Temporal resolution of the video, in Hz (frames per second).
+    repeat : `bool`
+        whether to loop the animation or just play it once
+    vrange : `tuple` or `str`
+        If a 2-tuple, specifies the image values vmin/vmax that are mapped to
+        the minimum and maximum value of the colormap, respectively. If a
+        string:
+
+        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
+                     value, and come from the minimum or maximum across all
+                     images, whichever has the larger absolute value
+        * `'auto/auto1'`: all images have same vmin/vmax, which are the
+                          minimum/maximum values across all images
+        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
+                     all images) minus/ plus 2 std dev (across all images)
+        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
+                     10th/90th percentile values to the 10th/90th percentile of
+                     the display intensity range. For example: vmin is the 10th
+                     percentile image value minus 1/8 times the difference
+                     between the 90th and 10th percentile
+        * `'indep0'`: each image has an independent vmin/vmax, which have the
+                      same absolute value, which comes from either their
+                      minimum or maximum value, whichever has the larger
+                      absolute value.
+        * `'indep1'`: each image has an independent vmin/vmax, which are their
+                      minimum/maximum values
+        * `'indep2'`: each image has an independent vmin/vmax, which is their
+                      mean minus/plus 2 std dev
+        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
+                      the 10th/90th percentile values map to the 10th/90th
+                      percentile intensities.
+    zoom : `float`
+        ratio of display pixels to image pixels. if >1, must be an integer. If
+        <1, must be 1/d where d is a a divisor of the size of the largest
+        image.
+    title : `str`, `list`, or None, optional
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom)
+        * if `str`, will put the same title on every plot.
+        * if `list`, all values must be `str`, must be the same length as img,
+          assigning each title to corresponding image.
+        * if None, no title will be printed (and subtitle will be removed;
+          unsupported for complex tensors).
+    col_wrap : `int` or None, optional
+        number of axes to have in each row. If None, will fit all axes in a
+        single row.
+    ax : `matplotlib.pyplot.axis` or None, optional
+        if None, we make the appropriate figure. otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception!,
+        so first define a large enough figure using either
+        pyrtools.make_figure or plt.figure)
+    cmap : matplotlib colormap, optional
+        colormap to use when showing these images
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        specifies handling of complex values.
+
+        * `'rectangular'`: plot real and imaginary components as separate images
+        * `'polar'`: plot amplitude and phase as separate images
+        * `'logpolar'`: plot log_2 amplitude and phase as separate images
+        for any other value, we raise a warning and default to rectangular.
+    batch_idx : int or None, optional
+        Which element from the batch dimension to plot. If None, we plot all.
+    channel_idx : int or None, optional
+        Which element from the channel dimension to plot. If None, we plot all.
+        Note if this is an int, then `as_rgb=True` will fail, because we
+        restrict the channels.
+    as_rgb : bool, optional
+        Whether to consider the channels as encoding RGB(A) values. If True, we
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if
+        you want the alpha channel) elements in the channel dimension, or this
+        will raise an Exception. If False, we plot each channel as a separate
+        grayscale image.
+    kwargs :
+        Passed to `ax.imshow`
+
+    Returns
+    -------
+    anim : matplotlib.animation.FuncAnimation
+        The animation object. In order to view, must convert to HTML
+        or save.
+
+    """
+    if not isinstance(video, list):
+        video = [video]
+    videos_to_show = []
+    for vid in video:
+        if vid.ndimension() == 6:
+            vid = torch_complex_to_numpy(vid)
+        else:
+            vid = to_numpy(vid)
+        if vid.shape[0] > 1 and batch_idx is not None:
+            # this preserves the number of dimensions
+            vid = vid[batch_idx:batch_idx+1]
+        if channel_idx is not None:
+            # this preserves the number of dimensions
+            vid = vid[:, channel_idx:channel_idx+1]
+        # allow RGB and RGBA
+        if as_rgb:
+            if vid.shape[1] not in [3, 4]:
+                raise Exception("If as_rgb is True, then channel must have 3 "
+                                "or 4 elements!")
+            vid = vid.transpose(0, 2, 3, 4, 1)
+            # want to insert a fake "channel" dimension here, so our putting it
+            # into a list below works as expected
+            vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
+        elif vid.shape[1] > 1 and vid.shape[0] > 1:
+            raise Exception("Don't know how to plot images with more than one channel and batch!"
+                            " Use batch_idx / channel_idx to choose a subset for plotting")
+        # by iterating through it twice, we make sure to peel apart the batch
+        # and channel dimensions so that they each show up as a separate video.
+        # because of how we've handled everything above, we know that vid will
+        # be (b,c,t,h,w) or (b,c,t,h,w,r) where r is the RGB(A) values
+        for v in vid:
+            videos_to_show.extend([v_.squeeze() for v_ in v])
+    return pt.animshow(videos_to_show, framerate=framerate, as_html5=False,
+                       repeat=repeat, vrange=vrange, zoom=zoom, title=title,
+                       col_wrap=col_wrap, ax=ax, cmap=cmap,
+                       plot_complex=plot_complex, **kwargs)
 
 
-def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
+def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
     r"""Wrapper that makes outputs of the steerable pyramids compatible
     with the display functions of pyrtools.
     Selects pyramid coefficients corresponding to 'image_index' out of
@@ -61,20 +333,21 @@ def pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
 
     pyr_coeffvis = pyr_coeffs.copy()
     for k in pyr_coeffvis.keys():
-        im = pyr_coeffvis[k][image_index, channel, ...]
+        im = pyr_coeffvis[k]
         # imag and real component exist
         if im.shape[-1] == 2:
-            pyr_coeffvis[k] = torch_complex_to_numpy(im)
+            im = torch_complex_to_numpy(im)
         else:
-            pyr_coeffvis[k] = to_numpy(im)
+            im = to_numpy(im)
+        pyr_coeffvis[k] = im[image_index, channel, ...]
 
     pt.pyrshow(pyr_coeffvis, **kwargs)
     # return pyr_coeffvis
 
 
-def clean_up_axes(ax, ylim=None, spines_to_remove=None, axes_to_remove=None):
-    r"""Clean up an axis, as desired when making a stem plot of the
-    representation.
+def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
+                  axes_to_remove=['x']):
+    r"""Clean up an axis, as desired when making a stem plot of the representation
 
     Parameters
     ----------
@@ -306,8 +579,76 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     return ax
 
 
+def _get_artists_from_axes(axes, data):
+    """Grab artists from axes.
+
+    For now, we only grab containers (stem plots), images, or lines
+
+    See the docstring of :meth:`update_plot()` for details on how `axes` and
+    `data` should be structured
+
+    Parameters
+    ----------
+    axes : list or matplotlib.axes.Axes
+        The axis/axes to update.
+    data : torch.Tensor or dict
+        The new data to plot.
+
+    Returns
+    -------
+    artists : dict
+        dictionary of artists for updating plots. values are the artists to
+        use, keys are the corresponding keys for data
+
+    """
+    if not hasattr(axes, '__iter__'):
+        # then we only have one axis, so we may be able to update more than one
+        # data element.
+        if len(axes.containers) > 0:
+            artists = axes.containers
+        elif len(axes.images) > 0:
+            artists = axes.images
+        elif len(axes.lines) > 0:
+            artists = axes.lines
+        if isinstance(data, dict):
+            artists = {ax.get_label(): ax for ax in artists}
+        else:
+            if data.shape[1] != len(artists):
+                raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"your axis contains {len(artists)} plotting artists, "
+                                "so unsure how to continue! Pass data as a dictionary"
+                                " with keys corresponding to the labels of the artists"
+                                " to update to resolve this.")
+    else:
+        # then we have multiple axes, so we are only updating one data element
+        # per plot
+        artists = []
+        for ax in axes:
+            if len(ax.containers) == 1:
+                artists.extend(ax.containers)
+            elif len(ax.images) == 1:
+                artists.extend(ax.images)
+            elif len(ax.lines) == 1:
+                artists.extend(ax.lines)
+        if isinstance(data, dict):
+            if len(data.keys()) != len(artists):
+                raise Exception(f"data has {len(data.keys())} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+            artists = {k: a for k, a in zip(data.keys(), artists)}
+            print(artists.keys())
+        else:
+            if data.shape[1] != len(artists):
+                raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+    if not isinstance(artists, dict):
+        artists = {f"{i:02d}": a for i, a in enumerate(artists)}
+    return artists
+
+
 def update_plot(axes, data, model=None, batch_idx=0):
-    r"""Update the information in a stem plot or image
+    r"""Update the information in some axes.
 
     This is used for creating an animation over time. In order to create
     the animation, we need to know how to update the matplotlib Artists,
@@ -315,28 +656,29 @@ def update_plot(axes, data, model=None, batch_idx=0):
     has been created by something like ``plot_representation``, which
     initializes all the artists.
 
-    We take a list of axes containing the information to update (note
-    that this is probably a subset of the total number of axes in the
-    figure, if we're showing other information, as done by
-    ``Metamer.animate``), as well as the data to show on these plots
-    and, since these are both lists, iterate through them, updating as
-    we go.
+    We can update stem plots, lines (as returned by ``plt.plot``), or images.
+    All artists-to-update do not need to be of the same type.
 
-    In order for this to be used by ``FuncAnimation``, we need to return
-    Artists, so we return a list of the relevant artists, either the
-    ``markerline`` and ``stemlines`` from the ``StemContainer`` or the
-    image artist, ``ax.images[0]``.
+    There are two modes for this:
+
+    - single axis: axes is a single axis, which may contain multiple artists to
+      update. data should be a Tensor with multiple channels (one per artist in
+      the same order) or be a dictionary whose keys give the label(s) of the
+      corresponding artist(s).
+
+    - multiple axes: axes is a list of axes, each of which contains a single
+      artist to update. data should be a Tensor with multiple channels (one per
+      axis in the same order) or a dictionary with the same number of keys as
+      axes, which we can iterate through in order.
+
+    If you have multiple axes, each with multiple artists you want to update,
+    that's too complicated for us, and so you should write a
+    ``model.update_plot()`` function which handles that.
 
     If ``model`` is set, we try to call ``model.update_plot()`` (which
     must also return artists). If model doesn't have an ``update_plot``
     method, then we try to figure out how to update the axes ourselves,
     based on the shape of the data.
-
-    If ``data`` contains multiple channels or is a dictionary with
-    multiple keys, we assume that the different channels/keys each
-    belong on a separate axis (and thus, the number of channels/keys and
-    the number of entries in the ``axes`` list *must* be the same --
-    this will throw a very strange warning otherwise).
 
     Parameters
     ----------
@@ -349,6 +691,8 @@ def update_plot(axes, data, model=None, batch_idx=0):
     model : `torch.nn.Module` or `None`, optional
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
+    batch_idx : int, optional
+        Which index to take from the batch dimension
 
     Returns
     -------
@@ -357,28 +701,41 @@ def update_plot(axes, data, model=None, batch_idx=0):
         plots
 
     """
-    artists = []
-    axes = [ax for ax in axes if len(ax.containers) == 1 or len(ax.images) == 1]
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
+        ax_artists = _get_artists_from_axes(axes, data)
+        artists = []
         if not isinstance(data, dict):
             data_dict = {}
             for i, d in enumerate(data.unbind(1)):
                 # need to keep the shape the same because of how we
                 # check for shape below (unbinding removes a dimension,
                 # so we add it back)
-                data_dict['%02d' % i] = d.unsqueeze(1)
+                data_dict[f'{i:02d}'] = d.unsqueeze(1)
             data = data_dict
-        for ax, d in zip(axes, data.values()):
+        for k, d in data.items():
+            try:
+                art = ax_artists[k]
+            except KeyError:
+                # If the we're grabbing these labels from the line labels and
+                # they were originally ints, they will get converted to
+                # strings. this catches that
+                art = ax_artists[str(k)]
             d = to_numpy(d[batch_idx]).squeeze()
             if d.ndim == 1:
-                sc = update_stem(ax.containers[0], d)
-                artists.extend([sc.markerline, sc.stemlines])
+                try:
+                    # then it's a line
+                    x, _ = art.get_data()
+                    art.set_data(x, d)
+                    artists.append(art)
+                except AttributeError:
+                    # then it's a scatterplot
+                    sc = update_stem(art, d)
+                    artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
-                image_artist = ax.images[0]
-                image_artist.set_data(d)
-                artists.append(image_artist)
+                art.set_data(d)
+                artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]
@@ -396,27 +753,24 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
     All of these arguments are optional, but at least some of them need
     to be set:
 
-    - If ``model`` is ``None``, we fall-back to a type of plot based on
-      the shape of ``data``. If it looks image-like, we'll use
-      ``pyrtools.imshow`` and if it looks vector-like, we'll use
-      ``plenoptic.clean_stem_plot``. If it's a dictionary, we'll assume
-      each key, value pair gives the title and data to plot on a
-      separate sub-plot.
+    - If ``model`` is ``None``, we fall-back to a type of plot based on the
+      shape of ``data``. If it looks image-like, we'll use ``plenoptic.imshow``
+      and if it looks vector-like, we'll use ``plenoptic.clean_stem_plot``. If
+      it's a dictionary, we'll assume each key, value pair gives the title and
+      data to plot on a separate sub-plot.
 
     - If ``data`` is ``None``, we can only do something if
       ``model.plot_representation`` has some default behavior when
       ``data=None``; this is probably to plot its own ``representation``
-      attribute. Thus, this will raise an Exception if both ``model``
-      and ``data`` are ``None``, because we have no idea what to plot
-      then.
+      attribute. Thus, this will raise an Exception if both ``model`` and
+      ``data`` are ``None``, because we have no idea what to plot then.
 
-    - If ``ax`` is ``None``, we create a one-subplot figure using
-      ``figsize``. If ``ax`` is not ``None``, we therefore ignore
-      ``figsize``.
+    - If ``ax`` is ``None``, we create a one-subplot figure using ``figsize``.
+      If ``ax`` is not ``None``, we therefore ignore ``figsize``.
 
-    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the
-      axes' y-limits to be ``(-y_max, y_max)``, where
-      ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
+    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the axes'
+      y-limits to be ``(-y_max, y_max)``, where ``y_max=np.abs(data).max()``.
+      If it's ``False``, we do nothing.
 
     Parameters
     ----------
@@ -498,8 +852,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
                                    False, ['top', 'right', 'bottom', 'left'],
                                    ['x', 'y'])
                 # only plot the specified batch
-                pt.imshow(to_numpy(v[batch_idx]), title=k, ax=ax,
-                          vrange='indep0')
+                imshow(v, batch_idx=batch_idx, title=title, ax=ax, vrange='indep0')
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all

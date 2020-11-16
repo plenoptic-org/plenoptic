@@ -11,6 +11,7 @@ __pycache__/
 .vscode
 
 docs/_build
+docs/api
 
 data/plenoptic-test-files
 data/ssim_images

@@ -27,7 +27,7 @@ setup(
               'plenoptic.tools'],
     install_requires=['numpy>=1.1',
                       'torch>=1.1',
-                      'pyrtools>=0.9.1',
+                      'pyrtools>=1.0.0',
                       'scipy>=1.0',
                       'matplotlib>=3.1',
                       'torchvision>=0.3',

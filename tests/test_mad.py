@@ -38,7 +38,8 @@ class TestMAD(object):
         plt.close('all')
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
-                                           'range_penalty_w_beta'])
+                                           'range_penalty_w_lmbda',
+                                           'mse_range_penalty_w_lmbda'])
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
@@ -56,9 +57,12 @@ class TestMAD(object):
             loss = po.optim.mse
         elif loss_func == 'range_penalty':
             loss = po.optim.l2_and_penalize_range
-        elif loss_func == 'range_penalty_w_beta':
+        elif loss_func == 'range_penalty_w_lmbda':
             loss = po.optim.l2_and_penalize_range
-            loss_kwargs['beta'] = .9
+            loss_kwargs['lmbda'] = .1
+        elif loss_func == 'mse_range_penalty_w_lmbda':
+            loss = po.optim.mse_and_penalize_range
+            loss_kwargs['lmbda'] = .1
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
         mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
@@ -119,7 +123,7 @@ class TestMAD(object):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'V1':
-            model1 = po.simul.PrimaryVisualCortex(1, img.shape[-2:]).to(DEVICE)
+            model1 = po.simul.PooledV1(1, img.shape[-2:]).to(DEVICE)
         elif model_name == 'NLP':
             model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':
@@ -159,7 +163,7 @@ class TestMAD(object):
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
-    @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
+    @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_lmbda'])
     def test_save_load(self, model1, model2, loss_func, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
         if model1 == 'class':
@@ -175,9 +179,9 @@ class TestMAD(object):
             loss = None
         elif loss_func == 'l2':
             loss = po.optim.l2_norm
-        elif loss_func == 'range_penalty_w_beta':
+        elif loss_func == 'range_penalty_w_lmbda':
             loss = po.optim.l2_and_penalize_range
-            loss_kwargs['beta'] = .9
+            loss_kwargs['lmbda'] = .1
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
         mad.synthesize('model_1_max', max_iter=10, loss_change_iter=5, store_progress=True)

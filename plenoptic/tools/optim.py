@@ -123,15 +123,15 @@ def penalize_range(synth_img, allowed_range=(0, 1), **kwargs):
     return torch.sum(torch.cat([below_min, above_max]))
 
 
-def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), beta=.5, **kwargs):
-    """loss the combines L2-norm of the difference and range penalty
+def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1),
+                          lmbda=.1, **kwargs):
+    """Loss the combines L2-norm of the difference and range penalty.
 
-    this function returns a weighted average of the L2-norm of the
-    difference between ``ref_rep`` and ``synth_rep`` (as calculated by
-    ``l2_norm()``) and the range penalty of ``synth_img`` (as calculated
-    by ``penalize_range()``).
+    this function returns a weighted average of the L2-norm of the difference
+    between ``ref_rep`` and ``synth_rep`` (as calculated by ``l2_norm()``) and
+    the range penalty of ``synth_img`` (as calculated by ``penalize_range()``).
 
-    The loss is: ``beta * l2_norm(ref_rep, synth_rep) + (1-beta) *
+    The loss is: ``l2_norm(synth_rep, ref_rep) + lmbda *
     penalize_range(synth_img, allowed_range)``
 
     Parameters
@@ -146,9 +146,9 @@ def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), b
         the tensor to penalize. the synthesized image.
     allowed_range : tuple, optional
         2-tuple of values giving the (min, max) allowed values
-    beta : float, optional
+    lmbda : float, optional
         parameter that gives the tradeoff between L2-norm of the
-        difference and the range penalty
+        difference and the range penalty, as described above
     kwargs :
         ignored, only present to absorb extra arguments
 
@@ -158,9 +158,49 @@ def l2_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), b
         the loss
 
     """
-    l2_loss = l2_norm(ref_rep, synth_rep)
+    l2_loss = l2_norm(synth_rep, ref_rep)
     range_penalty = penalize_range(synth_img, allowed_range)
-    return beta * l2_loss + (1-beta) * range_penalty
+    return l2_loss + lmbda * range_penalty
+
+
+def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1),
+                           lmbda=.1, **kwargs):
+    """Loss the combines MSE of the difference and range penalty.
+
+    this function returns a weighted average of the MSE of the difference
+    between ``ref_rep`` and ``synth_rep`` (as calculated by ``mse()``) and
+    the range penalty of ``synth_img`` (as calculated by ``penalize_range()``).
+
+    The loss is: ``mse(synth_rep, ref_rep) + lmbda * penalize_range(synth_img,
+    allowed_range)``
+
+    Parameters
+    ----------
+    synth_rep : torch.Tensor
+        The first tensor to compare, model representation of the
+        synthesized image
+    ref_rep : torch.Tensor
+        The second tensor to compare, model representation of the
+        reference image. must be same size as ``synth_rep``,
+    synth_img : torch.Tensor
+        the tensor to penalize. the synthesized image.
+    allowed_range : tuple, optional
+        2-tuple of values giving the (min, max) allowed values
+    lmbda : float, optional
+        parameter that gives the tradeoff between MSE of the
+        difference and the range penalty, as described above
+    kwargs :
+        ignored, only present to absorb extra arguments
+
+    Returns
+    -------
+    loss : torch.float
+        the loss
+
+    """
+    mse_loss = mse(synth_rep, ref_rep)
+    range_penalty = penalize_range(synth_img, allowed_range)
+    return mse_loss + lmbda * range_penalty
 
 
 def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gray=True,
@@ -256,7 +296,7 @@ def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gra
                           p)
             continue
         if img_shape is None:
-            img_shape == im.shape
+            img_shape = im.shape
         im = im / np.iinfo(im.dtype).max
         # we don't actually use the as_gray argument because that
         # converts the dtype to float32 and we want to make sure to
