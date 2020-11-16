@@ -353,7 +353,11 @@ def _find_min_int(vals):
         except TypeError:
             flat_vals.append(v)
     flat_vals = set(flat_vals)
-    poss_vals = set(np.arange(max(flat_vals)+1))
+    try:
+        poss_vals = set(np.arange(max(flat_vals)+1))
+    except ValueError:
+        # then this is empty sequence and thus we should return 0
+        return 0
     try:
         min_int = min(poss_vals - flat_vals)
     except ValueError:

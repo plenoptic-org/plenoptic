@@ -1634,7 +1634,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             n_subplots += 1
             width_ratios.append(synthesized_image_width)
             if 'image' not in axes_idx.keys():
-                axes_idx['image'] = 0
+                axes_idx['image'] = _find_min_int(axes_idx.values())
         if plot_loss:
             n_subplots += 1
             width_ratios.append(loss_width)
@@ -1936,15 +1936,17 @@ class Synthesis(metaclass=abc.ABCMeta):
             allows for more fine-grained control of the resulting figure.
             Probably only helpful if fig is also defined. Possible keys: image,
             loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
-            all be ints. If you tell this functio to create a plot that doesn't
+            all be ints. If you tell this function to create a plot that doesn't
             have a corresponding key, we find the lowest int that is not
             already in the dict, so if you have axes that you want unchanged,
             place their idx in misc.
         init_figure : bool, optional
             If True, we call plot_synthesis_status to initialize the figure. If
             False, we assume fig has already been intialized with the proper
-            plots. In this case, axes_idx must also be set, since
-            plot_synthesis_status normally sets it up for us
+            plots (e.g., you already called plot_synthesis_status and are
+            passing that figure as the fig argument). In this case, axes_idx
+            must also be set and include keys for each of the included plots,
+            since plot_synthesis_status normally sets it up for us
 
         Returns
         -------
@@ -2012,7 +2014,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         if plot_loss:
             scat = fig.axes[axes_idx['loss']].collections
         if plot_representation_error:
-            rep_error_axes = [fig.axes[i] for i in axes_idx['rep_error']]
+            try:
+                rep_error_axes = [fig.axes[i] for i in axes_idx['rep_error']]
+            except TypeError:
+                # in this case, axes_idx['rep_error'] is not iterable and so is
+                # a single value
+                rep_error_axes = [fig.axes[axes_idx['rep_error']]]
 
         if self.base_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
