@@ -76,6 +76,22 @@ class TestSpectral(object):
                                                  seed=1)
 
 
+class TestPolarPyramid(object):
+
+    def test_polar_pyramid(self):
+        x = po.make_basic_stimuli(128)
+        b, c, h, w = x.shape
+
+        PP = po.simul.Polar_Pyramid((h, w))
+        x_hat = PP.synthesis(PP.analysis(x))
+        assert (x - x_hat).pow(2).mean() < 1e-10
+
+# class TestTextureStatistics(object):
+
+#     def test_texture_statistics(self):
+        
+
+
 class TestPooling(object):
 
     def test_creation(self):
