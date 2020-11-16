@@ -676,19 +676,20 @@ def update_plot(axes, data, model=None, batch_idx=0):
     initializes all the artists.
 
     We can update stem plots, lines (as returned by ``plt.plot``), scatter
-    plots, or images. All artists-to-update do not need to be of the same type.
+    plots, or images.
 
     There are two modes for this:
 
-    - single axis: axes is a single axis, which may contain multiple artists to
-      update. data should be a Tensor with multiple channels (one per artist in
-      the same order) or be a dictionary whose keys give the label(s) of the
-      corresponding artist(s).
+    - single axis: axes is a single axis, which may contain multiple artists
+      (all of the same type) to update. data should be a Tensor with multiple
+      channels (one per artist in the same order) or be a dictionary whose keys
+      give the label(s) of the corresponding artist(s).
 
     - multiple axes: axes is a list of axes, each of which contains a single
-      artist to update. data should be a Tensor with multiple channels (one per
-      axis in the same order) or a dictionary with the same number of keys as
-      axes, which we can iterate through in order.
+      artist to update (artists can be different types). data should be a
+      Tensor with multiple channels (one per axis in the same order) or a
+      dictionary with the same number of keys as axes, which we can iterate
+      through in order.
 
     If you have multiple axes, each with multiple artists you want to update,
     that's too complicated for us, and so you should write a

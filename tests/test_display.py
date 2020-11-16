@@ -256,6 +256,34 @@ class TestDisplay(object):
             if not np.allclose(ax_data, data_check):
                 raise Exception("Didn't update points of the scatter plot correctly!")
 
+    def test_update_plot_mixed_multi_axes(self):
+        x1 = np.linspace(0, 1, 100)
+        x2 = np.random.rand(2, 100)
+        y1 = np.random.rand(*x1.shape)
+        y2 = np.random.rand(*x2.shape)
+        data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])),
+                               -1).reshape(1, 1, x2.shape[-1], 2)}
+        data[1] = torch.tensor(y2[1]).reshape(1, 1, x2.shape[-1])
+        fig, axes = plt.subplots(1, 2)
+        for i, ax in enumerate(axes):
+            if i == 0:
+                ax.scatter(x1, y1)
+            else:
+                ax.plot(x1, y1)
+        po.update_plot(axes, data)
+        for i, ax in enumerate(axes):
+            if i == 0:
+                assert len(ax.collections) == 1, "Too many scatter plots created"
+                assert len(ax.lines) == 0, "Too many lines created"
+                ax_data = ax.collections[0].get_offsets()
+            else:
+                assert len(ax.collections) == 0, "Too many scatter plots created"
+                assert len(ax.lines) == 1, "Too many lines created"
+                _, ax_data = ax.lines[0].get_data()
+            if not np.allclose(ax_data, data[i]):
+                raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close('all')
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
