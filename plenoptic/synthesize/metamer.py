@@ -509,7 +509,7 @@ class Metamer(Synthesis):
                                             iteration=iteration,
                                             figsize=figsize, ax=ax, func=func,
                                             hist2d_nbins=hist2d_nbins,
-                                            histd2d_cmap=hist2d_cmap,
+                                            hist2d_cmap=hist2d_cmap,
                                             scatter_subsample=scatter_subsample,
                                             **kwargs)
         if ax is None:
