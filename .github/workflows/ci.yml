@@ -12,6 +12,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
         test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'synthesis', 'mad', 'display']
+      fail-fast: false
     name: CI
     steps:
       - uses: actions/checkout@v2
