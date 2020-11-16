@@ -1,12 +1,13 @@
 from tqdm import tqdm
 from collections import OrderedDict
-import numpy as np
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 import torch.optim as optim
 from ..tools.straightness import sample_brownian_bridge, make_straight_line
 from ..tools.fit import penalize_range
+from ..tools.data import to_numpy
 
 
 class Geodesic(nn.Module):
@@ -15,37 +16,48 @@ class Geodesic(nn.Module):
     Parameters
     ----------
     imgA (resp. imgB): 'torch.FloatTensor'
-        Start (resp. stop) anchor of the geodesic, of shape [1, C, H, W] in range [0, 1].
+        Start (resp. stop) anchor of the geodesic,
+        of shape [1, C, H, W] in range [0, 1].
 
     model: nn.Module
+        an analysis model that computes image representations
 
     n_steps: int
+        the number of steps in the trajectory between the two anchor points
 
-    lmbda: float
-        strength of the regularizer
+    lmbda: float, optional
+        strength of the regularizer that enforces the image range,
+        default value is .1
 
-    init: 'straight' (default) or 'bridge'
-        pixel linear, or brownian bridge
+    init: string in ['straight', 'bridge'], optional
+        initialize the geodesic with pixel linear interpolation (default),
+        or with a brownian bridge between the two anchors
 
     Attributes
     -------
     geodesic:
-        the calculated geodesic
+        synthesized sequence of images between the two anchor points that
+        minimizes distance in representation space
 
     pixelfade:
-
-    dist_from_line:
-        stored
+        straight interpolation between the two anchor points for reference
+        
+    reference_length:
+        step length of representation strainght line, used as a reference
+        when computing loss
 
     step_lengths:
-        stored
+        step lengths in representation space, stored along the optimization
+        process
 
-    reference_length:
-        for relative loss
+    dist_from_line:
+        l2 distance of the geodesic's representation to the straight line in
+        representation space, stored along the optimization process
 
     Notes
     -----
-    Method for visualizing and refining the invariances of learned representations
+    Method for visualizing and refining the invariances of a model's
+    representations
 
     References
     ----------
@@ -53,9 +65,11 @@ class Geodesic(nn.Module):
         O J Hénaff and E P Simoncelli
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
+
     '''
 
-    def __init__(self, imgA, imgB, model, n_steps=11, init='straight', lmbda=.1):
+    def __init__(self, imgA, imgB, model, n_steps=11, init='straight',
+                 lmbda=.1):
         super().__init__()
 
         self.xA = imgA.clone().detach()
@@ -77,8 +91,9 @@ class Geodesic(nn.Module):
             self.yA = self.model(self.xA)
             self.yB = self.model(self.xB)
 
-        step = (self.n_steps - 2)/(self.n_steps - 1) * self.yB + 1/(self.n_steps - 1) * self.yA
-        self.reference_length = self.metric(self.yB - step) * (self.n_steps - 1)
+        n = self.n_steps - 1
+        step = (n-1)/n * self.yB + 1/n * self.yA
+        self.reference_length = self.metric(self.yB - step) * n
 
     def initialize(self, init):
         if init == 'straight':
@@ -91,8 +106,8 @@ class Geodesic(nn.Module):
         y = self.model(self.x)
         return y
 
-    def metric(self, x):
-        return torch.norm(x) ** 2
+    def metric(self, x, p=2):
+        return torch.norm(x, p=p) ** p
 
     def objective_function(self, y):
         """relative to straight interpolation
@@ -118,16 +133,21 @@ class Geodesic(nn.Module):
         if self.lmbda >= 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
         if loss.item() != loss.item():
-            raise Exception('found a NaN during optimization')
+            raise Exception('found a NaN in the loss during optimization')
 
         loss.backward()
         self.optimizer.step()
+        grad_norm = torch.norm(self.x.grad.data)
         pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
-                                         ('gradient norm', f'{torch.norm(self.x.grad.data):.4e}'),
-                                         ('lr', self.optimizer.param_groups[0]['lr'])]))
+                        ('gradient norm', f'{grad_norm:.4e}'),
+                        ('lr', self.optimizer.param_groups[0]['lr'])]))
+        if grad_norm.item() != grad_norm.item():
+            raise Exception('found a NaN in the gradients during optimization')
+
         return loss
 
-    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam', objective='multiscale', noise=None, seed=0):
+    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam',
+                   objective='multiscale', noise=None, seed=0):
         """
         objective:
 
@@ -136,9 +156,13 @@ class Geodesic(nn.Module):
 
         torch.manual_seed(seed)
         if optimizer == 'adam':
-            self.optimizer = optim.Adam([self.x], lr=learning_rate, amsgrad=True)
+            self.optimizer = optim.Adam([self.x],
+                                        lr=learning_rate, amsgrad=True)
         elif optimizer == 'sgd':
-            self.optimizer = optim.SGD([self.x], lr=learning_rate, momentum=0.9)
+            self.optimizer = optim.SGD([self.x],
+                                       lr=learning_rate, momentum=0.9)
+        elif isinstance(optimizer, torch.optim.Optimizer):
+            self.optimizer = optimizer
 
         pbar = tqdm(range(max_iter))
         for i in pbar:
@@ -150,9 +174,7 @@ class Geodesic(nn.Module):
             self.dist_from_line.append(self.distance_from_line(self.geodesic).unsqueeze(0))
 
             if loss.item() < 1e-6:
-                print("""the geodesic matches the representation straight line up
-                       to floating point precision!""")
-                break
+                raise Exception("""the geodesic matches the representation straight line up to floating point precision""")
 
     def distance_from_line(self, x):
         """l2 distance of x's representation to its projection onto the representation line
@@ -167,3 +189,15 @@ class Geodesic(nn.Module):
         y_ = (y - self.yA).view(self.n_steps, -1)
 
         return torch.norm(y_ - (y_ @ l)[:, None]*l[None, :], dim=1)
+
+    def plot_distance_from_line(self, vid=None):
+        import matplotlib.pyplot as plt
+        if vid is not None:
+            plt.plot(to_numpy(self.distance_from_line(vid)), 'b-o', label='video')
+        plt.plot(to_numpy(self.distance_from_line(self.pixelfade)), 'g-o', label='pixelfade')
+        plt.plot(to_numpy(self.distance_from_line(self.geodesic)), 'r-o', label='geodesic')
+        plt.legend(loc=1)
+        plt.ylabel('distance from representation line')
+        plt.xlabel('projection on representation line')
+        # plt.yscale('log')
+        plt.show()
