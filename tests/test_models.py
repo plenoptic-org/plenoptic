@@ -167,56 +167,12 @@ class TestPooling(object):
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
 
-    def test_PoolingWindows_parallel(self, tmp_path):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            pw = po.simul.PoolingWindows(.5, im.shape[2:])
-            pw = pw.parallel(devices)
-            pw(im)
-            pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
-            pw = pw.parallel(devices)
-            pw(im)
-            pw = po.simul.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
-            pw = pw.parallel(devices)
-            pw(im)
-            for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
-                tmp = im[:sh[0], :sh[1]]
-                rgc = po.simul.PooledRGC(.9, tmp.shape[2:])
-                rgc = rgc.parallel(devices)
-                rgc(tmp)
-                v1 = po.simul.PooledRGC(.9, tmp.shape[2:])
-                v1 = v1.parallel(devices)
-                v1(tmp)
-            pw = po.simul.PoolingWindows(.8, im.shape[2:], num_scales=2)
-            pw = pw.parallel(devices)
-            pw.plot_window_areas()
-            pw.plot_window_widths()
-            for i in range(2):
-                pw.plot_window_areas('pixels', i)
-                pw.plot_window_widths('pixels', i)
-            fig = pt.imshow(po.to_numpy(im).squeeze())
-            pw.plot_windows(fig.axes[0])
-            pw = po.simul.PoolingWindows(.5, im.shape[2:])
-            pw = pw.parallel(devices)
-            pooled = pw(im)
-            pw.project(pooled)
-            pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
-            pw = pw.parallel(devices)
-            pooled = pw(im)
-            pw.project(pooled)
-            plt.close('all')
-
     def test_PoolingWindows_sep(self):
         # test the window and pool function separate of the forward function
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw.pool(pw.window(im))
-
-# class TestSpectral(object):
-#
 
 
 class TestPooledVentralStream(object):
@@ -302,20 +258,6 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         rgc = po.simul.PooledRGC(.5, im.shape[2:], cache_dir=tmp_path)
 
-    def test_rgc_parallel(self):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            rgc = po.simul.PooledRGC(.5, im.shape[2:])
-            rgc = rgc.parallel(devices)
-            metamer = po.synth.Metamer(im, rgc)
-            metamer.synthesize(max_iter=3)
-            rgc.plot_representation()
-            rgc.plot_representation_image()
-            metamer.plot_representation_error()
-            plt.close('all')
-
     def test_frontend(self):
         im = po.make_basic_stimuli()
         frontend = po.simul.Front_End()
@@ -378,20 +320,6 @@ class TestPooledVentralStream(object):
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
         plt.close('all')
-
-    def test_v1_parallel(self):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            v1 = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-            v1 = v1.parallel(devices)
-            metamer = po.synth.Metamer(im, v1)
-            metamer.synthesize(max_iter=3)
-            v1.plot_representation()
-            v1.plot_representation_image()
-            metamer.plot_representation_error()
-            plt.close('all')
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
