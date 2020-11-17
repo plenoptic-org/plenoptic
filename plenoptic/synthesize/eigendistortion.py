@@ -6,6 +6,8 @@ import pyrtools as pt
 import warnings
 from .synthesis import Synthesis
 from tqdm import tqdm
+from matplotlib import pyplot as plt
+import plenoptic as po
 
 def fisher_info_matrix_vector_product(y, x, v):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
@@ -37,7 +39,7 @@ def fisher_info_matrix_vector_product(y, x, v):
     return Fv
 
 
-def implicit_FIM_eigenvalue(y, x, v):
+def fisher_info_matrix_eigenvalue(y, x, v):
     r"""Implicitly compute the eigenvalue of the Fisher Information Matrix corresponding to eigenvector v
     :math:`\lambda= v^T F v`
     """
@@ -48,30 +50,25 @@ def implicit_FIM_eigenvalue(y, x, v):
 
 class Eigendistortion(Synthesis):
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
+
     Attributes
     ----------
     batch_size: int
     n_channels: int
     im_height: int
     im_width: int
-    color_image: bool
-    model_input: torch.Tensor
-        Image input tensor with ``torch.Size([batch_size=1, n_channels, im_height, im_width])``. No support for
-        batch synthesis yet.
-    model_output: torch.Tensor
-        Model representation of input image. Size varies by model.
-    image_flattensor: torch.Tensor
-        Eigendistortions are computed using vectorized (flattened) inputs and outputs.
-    out_flattensor: torch.Tensor
-        See above.
-    distortions: dict
-        Dict whose keys are {'eigenvectors', 'eigenvalues', 'eigenvector_index'} after `synthesis()` is run.
     jacobian: torch.Tensor
         Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``.
-    # TODO: synthesized_signal, eigenvalues, eigenvectors
+    synthesized_signal: torch.Tensor
+        Tensor of eigendistortions (eigenvectors of Fisher matrix) with Size((n_distortions, n_channels, h, w)).
+    synthesized_eigenvalues: torch.Tensor
+        Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order.
+    synthesized_eigenindex: listlike
+        Index of each eigenvector/eigenvalue.
+
     Parameters
     -----------
-    image: torch.Tensor
+    signal: torch.Tensor
         image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.
     model: torch class
@@ -101,37 +98,38 @@ class Eigendistortion(Synthesis):
     http://www.cns.nyu.edu/~lcv/eigendistortions/
     """
 
-    def __init__(self, base_signal, model, **model_kwargs):
+    def __init__(self, base_signal, model):
         base_signal = rescale(base_signal, 0, 1)
         # TODO: make note about rescaling
         assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
 
         self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
-        assert self.batch_size == 1, "Batch synthesis is not available"
-        self.is_color_image = (self.n_channels == 3)
+        assert self.batch_size == 1, "Batch dim must be 1. Image batch synthesis is not available."
 
         # flatten and attach gradient and reshape to image
-        self.input_flat = base_signal.flatten().unsqueeze(1).requires_grad_(True)
+        self._input_flat = base_signal.flatten().unsqueeze(1).requires_grad_(True)
 
-        super().__init__(self.input_flat.view(*base_signal.shape), model, loss_function=None)
+        super().__init__(self._input_flat.view(*base_signal.shape), model, loss_function=None)
 
         if len(self.base_representation) > 1:
-            self.representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
+            self._representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
         else:
-            self.representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
+            self._representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
 
-        print(self.input_flat.shape, self.representation_flat.shape)
+        print(self._input_flat.shape, self._representation_flat.shape)
 
-        self.distortions = dict()
         self.jacobian = None
         self.synthesized_eigenvalues = None
         self.synthesized_eigenindex = None
+
+        self._all_losses = []
+        self._all_saved_signals = []
 
     @staticmethod
     def _hidden_attrs():
         """Inherited attributes from parent `Synthesis` class that aren't necessary for `Eigendistortion`."""
         hidden_attrs = ['coarse_to_fine', 'gradient', 'loss_function', 'learning_rate',
-                        'objective_function', 'plot_loss', 'plot_representation_error',
+                        'objective_function', 'plot_representation_error',
                          'representation_error', 'saved_representation', 'saved_representation_gradient',
                         'saved_signal_gradient', 'scales', 'scales_finished', 'scales_loss', 'scales_timing',
                         'synthesized_representation']
@@ -151,21 +149,20 @@ class Eigendistortion(Synthesis):
         return Synthesis.__getattribute__(self, attr)
 
     @classmethod
-    def load(file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
-             **state_dict_kwargs):
-        # TODO attribute name *****O
-        super().load(file_path, model_attr_name, model_constructor, map_location, **state_dict_kwargs)
+    def load(file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
+        # TODO attribute name *****
+        super().load(file_path, 'model', model_constructor, map_location, **state_dict_kwargs)
 
     def save(self, file_path, save_model_reduced=False, attrs=['model'], model_attr_names=['model']):
         # TODO
         super().save(file_path, save_model_reduced, attrs, model_attr_names)
 
     def to(self, *args, attrs=[], **kwargs):
-        # TODO
+        """Send attrs to specified device. See docstring of Synthesis.to()"""
         super().to(*args, attrs, **kwargs)
 
-    def synthesize(self, method='power', e_vecs=None, tol=1e-10, n_steps=1000, seed=0, verbose=True, print_every=1,
-                   debug_A=None):
+    def synthesize(self, method='power', e_vecs=None, tol=1e-10, n_steps=1000, seed=0, debug_A=None,
+                   store_progress=False):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
         Parameters
@@ -185,83 +182,63 @@ class Eigendistortion(Synthesis):
             Total steps to run for ``method='power'`` or ``method='lanczos'`` in eigenvalue computation.
         seed: int, optional
             Control the random seed for reproducibility.
-        verbose: bool, optional
-            Show progress during ``method='power'`` or ``method='lanczos'``.
-        print_every: int, optional
-            Prints progress of iterative method after every ``print_every`` steps.
         debug_A: torch.Tensor, optional
             Explicit Fisher Information Matrix in the form of 2D tensor. Used to debug lanczos algorithm.
             Dimensionality must be torch.Size([N, N]) where N is the flattened input size.
 
         Returns
         -------
-        distortions: dict
-            Dictionary containing keys {'eigenvalues', 'eigenvectors', 'eigenvector_index'} the eigenvalues and
-            eigen-distortions in decreasing order and their indices. This dict is also added as an attribute to the
+        eigendistortions: Union([torch.Tensor, List])
+            Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. For Lanczos method, it is possible
+            to not return any eigendistortions, in which case an empty list will be returned. This tensor points to
+            the `synthesized_signal` attribute of the object. If not an empty list, then Size((num_distortions,
+            num_channels, img_height, img_width)).
+        eigenvalues: Tensor
+            Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
+            `synthesized_eigenvalue` attribute of the object.
+        eigen_index: Listlike
+            Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
         self._set_seed(seed)
+        self.store_progress = store_progress
 
         if e_vecs is None:
             e_vecs = []
 
         assert method in ['power', 'exact', 'lanczos'], "method must be in {'power', 'exact', 'lanczos'}"
 
-        if method == 'exact' and self.representation_flat.size(0) * self.input_flat.size(0) > 1e6:
+        if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
 
-        if verbose:
-            print(f'Output dim: {self.representation_flat.size(0)}. Input dim: {self.input_flat.size(0)}')
+        print(f'Output dim: {self._representation_flat.size(0)}. Input dim: {self._input_flat.size(0)}')
 
-        if method == 'exact':
+        if method == 'exact':  # compute exact Jacobian
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = np.arange(len(eig_vecs))
 
-            self.distortions['eigenvalues'] = eig_vals.detach()
-            self.distortions['eigenvectors'] = eig_vecs
-            self.distortions['eigenvector_index'] = torch.arange(len(eig_vals))
-
         elif method == 'power':
-            if verbose:
-                print('Power method -- computing the maximum distortion \n')
-            lmbda_max, v_max = self._synthesize_power(l=0., init='randn', tol=tol, n_steps=n_steps,
-                                                      verbose=verbose, print_every=print_every)
+            print('\nComputing max and min eigendistortion.\n')
+            lmbda_max, v_max = self._synthesize_power(l=0., tol=tol, n_steps=n_steps)
+            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, tol=tol, n_steps=n_steps)
 
-            if verbose:
-                print('\nPower method -- computing the minimum distortion \n')
-            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, init='randn', tol=tol, n_steps=n_steps,
-                                                      verbose=verbose, print_every=print_every)
             eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
-            eig_vecs_ind = [0, len(self.input_flat) - 1]
-
-            self.distortions['eigenvalues'] = eig_vals
-            self.distortions['eigenvectors'] = eig_vecs
-            self.distortions['eigenvector_index'] = [0, len(self.input_flat) - 1]
+            eig_vecs_ind = [0, len(self._input_flat) - 1]
 
         elif method == 'lanczos' and n_steps is not None:
-            eig_vals, eig_vecs, eig_vecs_ind = self._synthesize_lanczos(n_steps=n_steps, e_vecs=e_vecs, verbose=verbose,
-                                                                        print_every=print_every, debug_A=debug_A)
-            self.distortions['eigenvalues'] = eig_vals.detach()
-
+            eig_vals, eig_vecs, eig_vecs_ind = self._synthesize_lanczos(n_steps=n_steps, e_vecs=e_vecs, debug_A=debug_A)
             if len(e_vecs) > 0:  # reshape to image if we returned eigenvectors
                 eig_vecs = self._vector_to_image(eig_vecs.detach())
-                self.distortions['eigenvectors'] = eig_vecs
-            else:
-                self.distortions['eigenvectors'] = eig_vecs
-
-            self.distortions['eigenvector_index'] = eig_vecs_ind
 
         # reshape to (n x num_chans x h x w)
-        if method == 'lanczos' and len(e_vecs) == 0:
-            self.synthesized_signal = []
-        else:
-            self.synthesized_signal = torch.stack(eig_vecs).unsqueeze(1)
-        self.synthesized_eigenvalues = eig_vals
+        self.synthesized_signal = torch.stack(eig_vecs).unsqueeze(1) if len(eig_vecs) != 0 else []
+
+        self.synthesized_eigenvalues = eig_vals.detach()
         self.synthesized_eigenindex = eig_vecs_ind
 
-        return self.distortions
+        # return self.distortions
         return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
 
     def _vector_to_image(self, vecs):
@@ -280,61 +257,31 @@ class Eigendistortion(Synthesis):
         """
 
         imgs = [vecs[:, i].reshape(self.base_signal.shape).squeeze() for i in range(vecs.shape[1])]
-
         return imgs
 
-    @staticmethod
-    def _color_to_grayscale(img):
-        """Takes weighted sum of RGB channels to return a grayscale image"""
-        gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
-        return gray
-
-    def display(self, alpha=5., beta=10., **kwargs):
-        r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
-
-        If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
-        grayscale. This is merely for display convenience and may change in the future.
+    def _check_for_stabilization(self, i):
+        r"""Check whether the loss has stabilized and, if so, return True, else return False.
 
         Parameters
         ----------
-        alpha: float, optional
-            Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
-        beta: float, optional
-            Amount by which to scale eigendistortion to be displayed alone.
-        kwargs:
-            Additional arguments for :meth:`pt.imshow()`.
+        i : int
+            the current iteration (0-indexed)
         """
-
-        assert len(self.distortions['eigenvectors'])>1, "Assumes at least two eigendistortions were synthesized."
-
-        if self.is_color_image:
-            print('Collapsing color image to grayscale for display')
-            image = self.base_signal.mean(dim=1).squeeze()
-            max_dist = self._color_to_grayscale(self.distortions['eigenvectors'][0]).squeeze()
-            min_dist = self._color_to_grayscale(self.distortions['eigenvectors'][-1]).squeeze()
-        else:
-            image = self.base_signal.squeeze()
-            max_dist = self.distortions['eigenvectors'][0]
-            min_dist = self.distortions['eigenvectors'][-1]
-
-        def clamp(img):
-            return torch.clamp(img, 0, 1)
-
-        pt.imshow([clamp(image), clamp(image + alpha * max_dist), beta * max_dist],
-                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs)
-
-        pt.imshow([clamp(image), clamp(image + alpha * min_dist), beta * min_dist],
-                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+        if len(self.loss) > self.loss_change_iter:
+            if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
+                return True
+        return False
 
     def compute_jacobian(self):
-        """Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
+        r"""Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
+
         Returns
         -------
         J: torch.Tensor
             Jacobian of representation wrt input.
         """
         if self.jacobian is None:
-            J = jacobian(self.representation_flat, self.input_flat)
+            J = jacobian(self._representation_flat, self._input_flat)
             self.jacobian = J
         else:
             print("Jacobian already computed, returning self.jacobian")
@@ -352,16 +299,16 @@ class Eigendistortion(Synthesis):
         -------
         eig_vals: torch.Tensor
             Eigenvalues in decreasing order.
-        eig_ves: torch.Tensor
-            Eigenvectors corresponding to eigenvalues.
+        eig_vecs: torch.Tensor
+            Eigenvectors in 2D tensor, whose cols are eigenvectors (i.e. eigendistortions) corresponding to eigenvalues.
         """
+
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def _synthesize_power(self, l=0, init='randn', tol=1e-10, n_steps=1000, verbose=False,
-                          print_every=1):
+    def _synthesize_power(self, l=0, tol=1e-10, n_steps=1000):
         r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
         Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
         Matrix, without explicitly representing that matrix.
@@ -371,65 +318,67 @@ class Eigendistortion(Synthesis):
         l: Union([float, torch.Tensor]), optional
             Optional argument. When l=0, this function estimates the leading eval evec pair. When l is set to the
             estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
-        init: {'randn', 'ones'}
-            Starting vector for the power iteration. 'randn' is random normal noise vector, 'ones' is a ones vector. Both
-            will be normalized.
         tol: float, optional
             Tolerance value
         n_steps: int, optional
             Maximum number of steps
-        verbose: bool, optional
-            Flag for printing eigenval at this iter minus eigenval at last iter. Use this as a proxy for convergence --
-            the closer to zero, the less the eigenvalue is changing upon each iteration, and the closer you are getting
-            to the true eigendistortion.
-        print_every: int
-            Determines nth step to display convergence info. 1 (default) means it will print a message on every step.
 
         Returns
         -------
         lmbda: float
             Eigenvalue corresponding to final vector of power iteration.
         v: torch.Tensor
-            Final eigenvector of power iteration procedure.
+            Final eigenvector (i.e. eigendistortion) of power iteration procedure.
         """
-        x, y = self.input_flat, self.representation_flat
 
-        n = x.shape[0]
+        if self.store_progress:
+            idx = len(self._all_losses)
+            self._all_losses.append([])
 
-        if init not in ['randn', 'ones']:
-            raise ValueError("init should be in ['randn', 'ones']")
+        x, y = self._input_flat, self._representation_flat
 
-        if init == 'randn':
-            v = torch.randn_like(x)
-        elif init == 'ones':
-            v = torch.ones_like(x)
-
+        v = torch.randn_like(x)
         v = v / v.norm()
 
         Fv = fisher_info_matrix_vector_product(y, x, v)
         v = Fv / torch.norm(Fv)
-        lmbda = implicit_FIM_eigenvalue(y, x, v)
-        i = 0
-        error = torch.tensor(1)
+        lmbda = fisher_info_matrix_eigenvalue(y, x, v)
+
+        d_lambda = torch.tensor(1)
         lmbda_new, v_new = None, None
-        while i < n_steps and error > tol:
+        pbar = tqdm(range(n_steps))
+        postfix_dict = {'step': None, 'delta_eigenval': None}
+        for i in pbar:
+            postfix_dict.update(dict(step=f"{i+1:d}/{n_steps:d}", delta_eigenval=f"{d_lambda.item():04.4f}"))
+            pbar.set_postfix(**postfix_dict)
+
+            if d_lambda <= tol:
+                print(f"Tolerance {tol:.2E} reached. Stopping early.")
+                break
+
             Fv = fisher_info_matrix_vector_product(y, x, v)
             Fv = Fv - l * v  # minor component
             v_new = Fv / torch.norm(Fv)
 
-            lmbda_new = implicit_FIM_eigenvalue(y, x, v_new)
+            lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new)
 
-            error = torch.sqrt((lmbda - lmbda_new) ** 2)
-            if verbose and i >= 0 and i % print_every == 0:
-                print(f"{i:3d} -- delta_eigenval: {error.item():04.4f}")
-
+            d_lambda = torch.sqrt((lmbda - lmbda_new) ** 2)
             v = v_new
             lmbda = lmbda_new
-            i += 1
+
+            self._clamp_and_store(idx, v.clone(), lmbda.clone())
+
+        pbar.close()
 
         return lmbda_new, v_new
 
-    def _synthesize_lanczos(self, n_steps=1000, e_vecs=None, verbose=True, print_every=1, debug_A=None):
+    def _clamp_and_store(self, idx, v, d_lambda):
+        """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
+        if self.store_progress:
+            self._all_saved_signals[idx].append(v)
+            self._all_losses[idx].append(d_lambda.item())
+
+    def _synthesize_lanczos(self, n_steps=1000, e_vecs=None, debug_A=None):
         r""" Lanczos Algorithm with full reorthogonalization after each iteration.
 
         Computes approximate eigenvalues/vectors of FIM (i.e. the Ritz values and vectors). Each vector returned from
@@ -475,10 +424,6 @@ class Eigendistortion(Synthesis):
         e_vecs: int or iterable, optional
            Eigenvectors to return. If num_evecs is an int, it will return all eigenvectors in range(num_evecs).
            If an iterable, then it will return all vectors selected.
-        verbose: bool, optional
-            Print progress to screen.
-        print_every: int
-            Determines nth step to display convergence info. 1 (default) means it will print a message on every step.
         debug_A: torch.Tensor
             For debugging purposes. Explicit FIM for matrix vector multiplication. Bypasses matrix-vector product with
             implicitly stored FIM of model.
@@ -507,7 +452,7 @@ class Eigendistortion(Synthesis):
         """
 
         warnings.warn("Lanczos algo is currently experimental. It may be numerically unstable and give inaccurate results.")
-        x, y = self.input_flat, self.representation_flat
+        x, y = self._input_flat, self._representation_flat
 
         n = x.shape[0]
         dtype = x.dtype
@@ -529,14 +474,14 @@ class Eigendistortion(Synthesis):
         T = torch.zeros((n_steps, n_steps), device=device, dtype=dtype)
         Q = torch.zeros((n, n_steps), device=device, dtype=dtype)
 
-        q0 = torch.zeros(n, device=device, dtype=dtype)
         q = torch.randn(n, device=device, dtype=dtype)
         q /= torch.norm(q)
-        beta = torch.zeros(1, device=device, dtype=dtype)
+        pbar = tqdm(range(n_steps))
+        postfix_dict = {}
 
-        for i in range(n_steps):
-            if verbose and i % print_every == 0:
-                print(f'Step {i+1:d}/{n_steps:d}')
+        for i in pbar:
+            postfix_dict.update(dict(step=f"{i+1:d}/{n_steps:d}"))
+            pbar.set_postfix(**postfix_dict)
 
             # v = Aq where A is implicitly stored FIM operator
             if debug_A is None:
@@ -552,10 +497,9 @@ class Eigendistortion(Synthesis):
 
             beta = torch.norm(v)
             if beta == 0:
-                print('Vector norm beta=0; Premature stoppage at iter {:d}/{:d}'.format(i, n_steps))
+                print(f'Vector norm beta=0; Premature stoppage at step {i:d}/{n_steps:d}')
                 break
 
-            q0 = q
             # normalize
             q = v / beta
 
@@ -570,6 +514,7 @@ class Eigendistortion(Synthesis):
             # assign new vector to matrix
             Q[:, i] = q
 
+        pbar.close()
         # only use T and Q that were successfully computed
         T = T[:i + 1, :i + 1]
         Q = Q[:, :i + 1]
@@ -590,3 +535,90 @@ class Eigendistortion(Synthesis):
             eig_vecs_ind = torch.zeros(0)
 
         return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
+
+    def _indexer(self, idx):
+        """Maps eigenindex to arg index (0-indexed)"""
+        if idx == 0 or idx == -1:
+            return idx
+        else:
+            all_idx = self.synthesized_eigenindex
+            assert idx in all_idx, "eigenindex must be the index of one of the vectors"
+            assert all_idx is not None and len(all_idx) != 0, "No eigendistortions have been synthesized."
+            return int(np.where(all_idx==idx))
+
+    def plot_loss(self, eigenindex, iteration=None, figsize=(5, 5), ax=None, title='Change in eigenval', **kwargs):
+        """Wraps plot_loss of base class. Plots change in eigenvalue after each iteration."""
+        idx = self._indexer(eigenindex)
+        self.loss = self._all_losses[idx]
+        # call super plot_loss
+        fig = super().plot_loss(iteration, figsize, ax, title, **kwargs)
+        plt.show()
+        return fig
+
+    @staticmethod
+    def _color_to_grayscale(img):
+        """Takes weighted sum of RGB channels to return a grayscale image"""
+        gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
+        return gray
+
+    def display(self, alpha=5., beta=10., **kwargs):
+        r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
+
+        If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
+        grayscale. This is merely for display convenience and may change in the future.
+
+        Parameters
+        ----------
+        alpha: float, optional
+            Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
+        beta: float, optional
+            Amount by which to scale eigendistortion to be displayed alone.
+        kwargs:
+            Additional arguments for :meth:`pt.imshow()`.
+        """
+
+        assert len(self.synthesized_signal) > 1, "Assumes at least two eigendistortions were synthesized."
+
+        if self.n_channels == 3:
+            print('Collapsing color image to grayscale for display')
+            image = self.base_signal.mean(dim=1).squeeze()
+            max_dist = self._color_to_grayscale(self.synthesized_signal[0])
+            min_dist = self._color_to_grayscale(self.synthesized_signal[-1])
+        else:
+            image = self.base_signal.squeeze().detach().view((1, self.n_channels, self.im_height, self.im_width))
+            max_dist = self.synthesized_signal[0].unsqueeze(0)
+            min_dist = self.synthesized_signal[-1].unsqueeze(0)
+
+        print(max_dist.shape)
+
+        def _clamp(img):
+            return torch.clamp(img, 0, 1)
+
+        po.imshow(torch.cat([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist], 0),
+                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs)
+
+        po.imshow(torch.cat([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist], 0),
+                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+
+    def plot_synthesized_image(self, eigenindex, channel_idx=None, iteration=None, title=None,
+                               figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
+        """Wraps Synthesis.plot_synthesized_image.
+        Parameters
+        ---------
+        eigenindex: int
+            Index of eigendistortion to display. Must be an element of `synthesized_eigenindex` attribute of object,
+            or 0 for first, and -1 for last. This is converted to an index with which to index the batch dim of tensor.
+        """
+
+        if channel_idx is None:
+            channel_idx = range(self.n_channels)
+        batch_idx = self._indexer(eigenindex)
+        super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize, ax, imshow_zoom, vrange)
+
+    def animate(self, eigenindex, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
+                plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
+                rep_error_kwargs={}):
+        """Wraps Synthesis.animate"""
+        self.saved_signal = self._all_saved_signals[eigenindex]
+        # TODO:
+        pass

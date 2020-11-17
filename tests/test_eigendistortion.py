@@ -33,7 +33,7 @@ def get_synthesis_object(im_dim=20):
     img_np = img[:im_dim, :im_dim] / np.max(img)
     img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
 
-    ed = Eigendistortion(img, mdl, dtype=DTYPE)
+    ed = Eigendistortion(img, mdl)
 
     return ed
 
@@ -58,12 +58,12 @@ class TestEigendistortionSynthesis:
         ed = get_synthesis_object(im_dim=SMALL_DIM)
         ed.synthesize(method='exact')
 
-        assert len(ed.distortions['eigenvalues']) == SMALL_DIM**2
-        assert len(ed.distortions['eigenvectors']) == SMALL_DIM**2
-        assert len(ed.distortions['eigenvector_index']) == SMALL_DIM**2
+        assert len(ed.synthesized_eigenvalues) == SMALL_DIM**2
+        assert len(ed.synthesized_signal) == SMALL_DIM**2
+        assert len(ed.synthesized_eigenindex) == SMALL_DIM**2
 
         # test that each eigenvector returned is original img shape
-        assert ed.distortions['eigenvectors'][0].shape == (SMALL_DIM, SMALL_DIM)
+        assert ed.synthesized_signal.shape[-2:] == (SMALL_DIM, SMALL_DIM)
 
     def test_method_power(self):
         n_steps = 3
@@ -71,11 +71,11 @@ class TestEigendistortionSynthesis:
         ed.synthesize(method='power', n_steps=n_steps)
 
         # test it should only return two eigenvectors and values
-        assert len(ed.distortions['eigenvalues']) == 2
-        assert len(ed.distortions['eigenvectors']) == 2
-        assert len(ed.distortions['eigenvector_index']) == 2
+        assert len(ed.synthesized_eigenvalues) == 2
+        assert len(ed.synthesized_signal) == 2
+        assert len(ed.synthesized_eigenindex) == 2
 
-        assert ed.distortions['eigenvectors'][0].shape == (LARGE_DIM, LARGE_DIM)
+        assert ed.synthesized_signal.shape[-2:] == (LARGE_DIM, LARGE_DIM)
 
     @pytest.mark.parametrize("e_vecs", [[0, 1, -2, -1], []])
     def test_method_lanczos(self, e_vecs):
@@ -93,15 +93,15 @@ class TestEigendistortionSynthesis:
                 ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
 
         if len(e_vecs) > 0:
-            assert len(ed.distortions['eigenvalues']) == len(e_vecs)
+            assert len(ed.synthesized_eigenvalues) == len(e_vecs)
         else:
-            assert len(ed.distortions['eigenvalues']) == n_steps
+            assert len(ed.synthesized_eigenvalues) == n_steps
 
-        assert len(ed.distortions['eigenvectors']) == len(e_vecs)
-        assert len(ed.distortions['eigenvector_index']) == len(e_vecs)
+        assert len(ed.synthesized_signal) == len(e_vecs)
+        assert len(ed.synthesized_eigenindex) == len(e_vecs)
 
         if len(e_vecs) > 0:
-            assert ed.distortions['eigenvectors'][0].shape == (LARGE_DIM, LARGE_DIM)
+            assert ed.synthesized_signal.shape[-2:] == (LARGE_DIM, LARGE_DIM)
 
     def test_lanczos_accuracy(self):
         n = 30
@@ -111,7 +111,7 @@ class TestEigendistortionSynthesis:
         with pytest.warns(UserWarning) as lanczos_experimental_warning:
             ed.synthesize(method='lanczos', n_steps=eigen_test_matrix.shape[-1], debug_A=eigen_test_matrix)
 
-        assert (e_vals[0]-ed.distortions['eigenvalues'][0]) < 1e-2
+        assert (e_vals[0]-ed.synthesized_eigenvalues[0]) < 1e-2
 
     def test_method_equivalence(self):
 
@@ -119,14 +119,22 @@ class TestEigendistortionSynthesis:
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
 
         e_jac.synthesize(method='exact')
-        e_pow.synthesize(method='power', n_steps=500, verbose=False)
+        e_pow.synthesize(method='power', n_steps=500)
 
-        print(e_pow.distortions['eigenvalues'].shape)
-        print(e_pow.distortions['eigenvalues'][0], e_pow.distortions['eigenvalues'][1])
-        print(e_jac.distortions['eigenvalues'][0], e_jac.distortions['eigenvalues'][-1])
+        print(e_pow.synthesized_eigenvalues.shape)
+        print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[1])
+        print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
 
-        assert e_pow.distortions['eigenvalues'][0].isclose(e_jac.distortions['eigenvalues'][0], atol=1e-3)
-        assert e_pow.distortions['eigenvalues'][1].isclose(e_jac.distortions['eigenvalues'][-1], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-3)
+
+        fig = e_pow.plot_loss(0)
+        fig.show()
+
+    def test_display(self):
+        e_pow = get_synthesis_object(im_dim=SMALL_DIM)
+        e_pow.synthesize(method='power', n_steps=5)
+        e_pow.display()
 
 
 class TestAutodiffFunctions:
@@ -140,7 +148,7 @@ class TestAutodiffFunctions:
 
         ed = get_synthesis_object(im_dim=SMALL_DIM)  # eigendistortion object
 
-        x, y = ed.input_flat, ed.representation_flat
+        x, y = ed._input_flat, ed._representation_flat
 
         x_dim = x.flatten().shape[0]
         y_dim = y.flatten().shape[0]
@@ -214,7 +222,7 @@ class TestAutodiffFunctions:
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
-        x, y = e.input_flat, e.representation_flat
+        x, y = e._input_flat, e._representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
