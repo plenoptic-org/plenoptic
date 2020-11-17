@@ -9,11 +9,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        python-version: [3.6, 3.7]
-        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'synthesis', 'mad', 'display']
-      fail-fast: false
-    name: CI
+    #   matrix:
+    #     python-version: [3.6, 3.7]
+    #     test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'synthesis', 'mad', 'display']
+    #   fail-fast: false
+    # name: CI
     steps:
       - uses: actions/checkout@v2
       - name: Install Python 3
@@ -24,7 +24,9 @@ jobs:
         run: |
           pip install -e .
           pip install pytest-cov
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: Run tests with pytest
-        run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
+        run: 'pytest --cov=plenoptic tests/test_display.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
