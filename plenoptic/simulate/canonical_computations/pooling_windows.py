@@ -227,9 +227,7 @@ class PoolingWindows(nn.Module):
         if len(img_res) != 2:
             raise Exception("img_res must be 2d!")
         self.scaling = scaling
-        if min_eccentricity is not None:
-            min_eccentricity = float(min_eccentricity)
-        self.min_eccentricity = min_eccentricity
+        self.min_eccentricity = float(min_eccentricity)
         self.max_eccentricity = float(max_eccentricity)
         self.img_res = img_res
         self.num_scales = num_scales
@@ -283,8 +281,6 @@ class PoolingWindows(nn.Module):
                 warnings.warn(f"Creating windows for scale {i} with min_ecc "
                               f"{self.min_eccentricity}, but calculated min_ecc is {min_ecc}, so"
                               " be aware some are smaller than a pixel!")
-            # TEMPORARY
-            min_ecc = self.min_eccentricity
             angle_windows = None
             ecc_windows = None
             if cache_dir is not None:
@@ -292,7 +288,7 @@ class PoolingWindows(nn.Module):
                                      img_res=','.join([str(int(i)) for i in scaled_img_res]),
                                      window_width=window_width_for_saving,
                                      window_type=window_type,
-                                     min_eccentricity=float(self.min_eccentricity))
+                                     min_eccentricity=self.min_eccentricity)
                 self.cache_paths.append(cache_path_template.format(**format_kwargs))
                 if op.exists(self.cache_paths[-1]):
                     warnings.warn("Loading windows from cache: %s" % self.cache_paths[-1])
@@ -301,8 +297,10 @@ class PoolingWindows(nn.Module):
                     ecc_windows = windows['ecc']
             if angle_windows is None or ecc_windows is None:
                 angle_windows, ecc_windows = pooling.create_pooling_windows(
-                    scaling, scaled_img_res, min_ecc, max_eccentricity, std_dev=self.std_dev,
-                    transition_region_width=self.transition_region_width, window_type=window_type)
+                    scaling, scaled_img_res, self.min_eccentricity,
+                    self.max_eccentricity, std_dev=self.std_dev,
+                    transition_region_width=self.transition_region_width,
+                    window_type=window_type)
 
                 if cache_dir is not None:
                     warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
