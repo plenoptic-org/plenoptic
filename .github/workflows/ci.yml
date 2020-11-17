@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
+    # strategy:
     #   matrix:
     #     python-version: [3.6, 3.7]
     #     test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'synthesis', 'mad', 'display']
