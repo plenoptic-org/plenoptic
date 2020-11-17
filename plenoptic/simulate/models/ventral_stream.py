@@ -186,23 +186,21 @@ class PooledVentralStream(nn.Module):
         List of attributes that we want to normalize by whitening
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 transition_region_width=.5, cache_dir=None, window_type='cosine',
-                 std_dev=None, center_surround_ratio=.53, surround_std_dev=3, transition_x=None,
+    def __init__(self, scaling, img_res, min_eccentricity=.5,
+                 max_eccentricity=15, num_scales=1, transition_region_width=.5,
+                 cache_dir=None, window_type='cosine', std_dev=None,
                  normalize_dict={}):
         super().__init__()
         self.PoolingWindows = PoolingWindows(scaling, img_res, min_eccentricity, max_eccentricity,
                                              num_scales, cache_dir, window_type,
-                                             transition_region_width, std_dev,
-                                             center_surround_ratio, surround_std_dev, transition_x)
+                                             transition_region_width, std_dev)
         for attr in ['n_polar_windows', 'n_eccentricity_bands', 'scaling', 'state_dict_reduced',
                      'transition_region_width', 'window_width_pixels', 'window_width_degrees',
                      'min_eccentricity', 'max_eccentricity', 'cache_dir', 'deg_to_pix',
                      'window_approx_area_degrees', 'window_approx_area_pixels', 'cache_paths',
                      'calculated_min_eccentricity_degrees', 'calculated_min_eccentricity_pixels',
                      'central_eccentricity_pixels', 'central_eccentricity_degrees', 'img_res',
-                     'window_type', 'std_dev', 'surround_std_dev', 'center_surround_ratio',
-                     'transition_x']:
+                     'window_type', 'std_dev']:
             setattr(self, attr, getattr(self.PoolingWindows, attr))
         self.normalize_dict = normalize_dict
         self.to_normalize = []
@@ -235,12 +233,8 @@ class PooledVentralStream(nn.Module):
         """
         masks = {}
         for i in range(self.num_scales):
-            try:
-                ecc = torch.ones_like(self.PoolingWindows.ecc_windows[i], dtype=int)
-                angles = torch.zeros_like(self.PoolingWindows.angle_windows[i], dtype=int)
-            except KeyError:
-                # then this is DoG windows
-                raise Exception("This is not supported for DoG windows!")
+            ecc = torch.ones_like(self.PoolingWindows.ecc_windows[i], dtype=int)
+            angles = torch.zeros_like(self.PoolingWindows.angle_windows[i], dtype=int)
             for j in range(n_angles):
                 angles[j*angles.shape[0]//4:(j+1)*angles.shape[0]//4] = j
             windows = torch.einsum('ahw,ehw->ea', angles, ecc)
@@ -915,33 +909,17 @@ class PooledRGC(PooledVentralStream):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
-    window_type : {'cosine', 'gaussian', 'dog'}
-        Whether to use the raised cosine function from [1]_, a Gaussian
-        that has approximately the same structure, or a difference of
-        two such gaussians (``'dog'``, as in [2]_). If cosine,
-        ``transition_region_width`` must be set; if gaussian, then
-        ``std_dev`` must be set; if dog, then ``std_dev``,
-        ``center_surround_ratio``, and ``surround_std_dev`` must all be
-        set.
+    window_type : {'cosine', 'gaussian'}
+        Whether to use the raised cosine function from [1]_ or a Gaussian that
+        has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then ``std_dev``
+        must be set.
     std_dev : float or None, optional
         The standard deviation of the Gaussian window. WARNING -- For
         now, we only support ``std_dev=1`` (in order to ensure that the
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
-    center_surround_ratio : float, optional
-        ratio giving the relative weights of the center and surround
-        gaussians. default is the value from [2]_ (this is parameter
-        :math:`w_c` from that paper)
-    surround_std_dev : float, optional
-        the standard deviation of the surround Gaussian window. default
-        is the value from [2]_ (assuming ``std_dev=1``, this is
-        parameter :math:`k_s` from that paper).
-    transition_x : float or None, optional
-        If set, the point at which the eccentricity transitions from
-        linear to log. If set, ``min_ecc`` must be None. If None,
-        ``min_ecc`` must be set. This is required for difference of
-        Gaussian windows, and not allowed for any others
 
     Attributes
     ----------
@@ -1046,18 +1024,6 @@ class PooledRGC(PooledVentralStream):
     cached_paths : list
         List of strings, one per scale, that we either saved or loaded
         the cached windows tensors from
-    center_representation : torch.tensor or None
-        the representation of the RGC centers. None if window_type is
-        'gaussian' or 'cosine', tensor if window_type is 'dog'. this is
-        not necessary for synthesis or computing the actual
-        representation (that's all handled within PoolingWindows), so
-        may remove this if it ends up taking too much memory
-    surround_representation : torch.tensor or None
-        the representation of the RGC surrounds. None if window_type is
-        'gaussian' or 'cosine', tensor if window_type is 'dog'. this is
-        not necessary for synthesis or computing the actual
-        representation (that's all handled within PoolingWindows), so
-        may remove this if it ends up taking too much memory
     normalize_dict : dict
         Dict containing the statistics to normalize, as generated by
         ``po.simul.non_linearities.generate_norm_stats``. If this is an
@@ -1066,20 +1032,18 @@ class PooledRGC(PooledVentralStream):
         List of attributes that we want to normalize by whitening
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15,
-                 transition_region_width=.5, normalize_dict={}, cache_dir=None,
-                 window_type='cosine', std_dev=None, center_surround_ratio=.53,
-                 surround_std_dev=3, transition_x=None):
+
+    def __init__(self, scaling, img_res, min_eccentricity=.5,
+                 max_eccentricity=15, transition_region_width=.5,
+                 normalize_dict={}, cache_dir=None, window_type='cosine',
+                 std_dev=None):
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity,
                          transition_region_width=transition_region_width,
-                         cache_dir=cache_dir, window_type=window_type, std_dev=std_dev,
-                         center_surround_ratio=center_surround_ratio, transition_x=transition_x,
-                         surround_std_dev=surround_std_dev, normalize_dict=normalize_dict)
+                         cache_dir=cache_dir, window_type=window_type,
+                         std_dev=std_dev, normalize_dict=normalize_dict)
         self.state_dict_reduced.update({'model_name': 'RGC'})
         self.image = None
         self.representation = None
-        self.center_representation = None
-        self.surround_representation = None
         self.to_normalize += ['cone_responses']
 
     def forward(self, image):
@@ -1107,25 +1071,18 @@ class PooledRGC(PooledVentralStream):
         if self.normalize_dict:
             self = zscore_stats(self.normalize_dict, self)
         self.representation = {'mean_luminance': self.PoolingWindows(self.cone_responses)}
-        if self.window_type == 'dog':
-            self.center_representation = self.PoolingWindows.forward(self.cone_responses,
-                                                                     windows_key='center')
-            self.surround_representation = self.PoolingWindows.forward(self.cone_responses,
-                                                                       windows_key='surround')
         return self.representation_to_output()
 
     def _plot_helper(self, n_cols=1, figsize=(10, 5), ax=None, title=None, batch_idx=0, data=None):
         r"""helper function for plotting that takes care of a lot of the standard stuff
 
-        If n_cols is 1, we assume this RGC model has ``window_type``
-        'gaussian' or 'cosine'. Only other use case we expect is
-        n_cols=3, for ``window_type='dog'``. Should still work if these
-        expectations are violated, but things might not be quite correct
+        I'm pretty sure that n_cols should only ever be 1, but provided as an
+        option, just in case.
 
         Parameters
         ----------
         n_cols : int
-            The number oc columns in the (sub-)figure we're creating (we
+            The number of columns in the (sub-)figure we're creating (we
             always have a single row)
         figsize : tuple, optional
             The size of the figure to create
@@ -1161,16 +1118,7 @@ class PooledRGC(PooledVentralStream):
             fig, ax = plt.subplots(1, n_cols, figsize=figsize)
         else:
             warnings.warn("ax is not None, so we're ignoring figsize...")
-            if n_cols > 1:
-                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-                gs = ax.get_subplotspec().subgridspec(1, n_cols)
-                fig = ax.figure
-                ax = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
-        if n_cols > 2:
-            title = [self._get_title(title, i, t) for i, t in enumerate(['difference', 'center',
-                                                                         'surround'])]
-        else:
-            title = self._get_title(title, 0, 'mean pixel intensity')
+        title = self._get_title(title, 0, 'mean pixel intensity')
         data = self._representation_for_plotting(batch_idx, data)
         return ax, data, title
 
@@ -1178,31 +1126,14 @@ class PooledRGC(PooledVentralStream):
                             data=None):
         r"""plot the representation of the RGC model
 
-        There are two types of RGC models: average pixel intensity per
-        window (with ``window_type`` 'gaussian' or 'cosine'), and
-        center-surround receptive fields (with ``window_type='dog'``).
+        Because our model just takes the average pixel intensities in each
+        window, our representation plot is just a simple stem plot showing each
+        of these average intensities (different positions on the x axis
+        correspond to different windows). We have a small break in the data to
+        show where we've moved out to the next eccentricity ring.
 
-        1. Because our model just takes the average pixel intensities in
-           each window, our representation plot is just a simple stem
-           plot showing each of these average intensities (different
-           positions on the x axis correspond to different windows). We
-           have a small break in the data to show where we've moved out
-           to the next eccentricity ring.
-
-        2. Two possibilities here. If ``data`` is set, then we default
-           to the above plot, because we can't back out the center and
-           surround components. If ``data=None``, then we use the stored
-           attributes ``representation, center_representation,
-           surround_representation`` to plot the center, surround, and
-           their weighted difference as separate stem plots. Note that
-           the weighted difference is the only actual representation
-           (others are just provided so you can better understand the
-           difference). In this case, you should probably set
-           ``ylim=False`` and make the figure wider, something like
-           ``figsize=(15, 5)``.
-
-        In either case, this looks better when it's wider than it is
-        tall (like the default figsize suggests)
+        This looks better when it's wider than it is tall (like the default
+        figsize suggests)
 
         Parameters
         ----------
@@ -1223,13 +1154,10 @@ class PooledRGC(PooledVentralStream):
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         data : torch.Tensor, np.array, dict or None, optional
-            The data to plot. If None, we use
-            ``self.representation`` (if ``self.window_type=='dog'``,
-            things are slightly different, see above for more
-            details). Else, should look like ``self.representation``,
-            with the exact same structure (e.g., as returned by
-            ``metamer.representation_error()`` or another instance of
-            this class).
+            The data to plot. If None, we use ``self.representation`` . Else,
+            should look like ``self.representation``, with the exact same
+            structure (e.g., as returned by ``metamer.representation_error()``
+            or another instance of this class).
 
         Returns
         -------
@@ -1239,56 +1167,27 @@ class PooledRGC(PooledVentralStream):
             A list of axes that contain the plots we've created
 
         """
-        if self.window_type != 'dog' or data is not None:
-            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
-            clean_stem_plot(data['mean_luminance'], ax, title, ylim)
-            axes = [ax]
-            fig = ax.figure
-        else:
-            data = {'difference': self.representation['mean_luminance'],
-                    'center': self.center_representation,
-                    'surround': self.surround_representation}
-            axes, data, title = self._plot_helper(3, figsize, ax, title, batch_idx, data)
-            for ax, d, t in zip(axes, data.values(), title):
-                clean_stem_plot(d, ax, t, ylim)
-            fig = axes[0].figure
+        ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+        clean_stem_plot(data['mean_luminance'], ax, title, ylim)
+        axes = [ax]
         # fig won't always be defined, but this will return the figure belonging to our axis
-        return fig, axes
+        return ax.figure, axes
 
     def plot_representation_image(self, figsize=(5, 5), ax=None, title=None, batch_idx=0,
                                   data=None, vrange='indep1', zoom=1):
         r"""Plot representation as an image, using the weights from PoolingWindows
 
-        There are two types of RGC models: average pixel intensity per
-        window (with ``window_type`` 'gaussian' or 'cosine'), and
-        center-surround receptive fields (with ``window_type='dog'``).
+        The RGC model consists of average pixel intensity per window, thus, our
+        representation has a single value for each pooling window, so we take
+        that value and multiply it by the pooling window, and then sum across
+        all windows. Thus the value at a single pixel shows a weighted sum of
+        the representation.
 
-        1. Our representation has a single value for each pooling
-           window, so we take that value and multiply it by the pooling
-           window, and then sum across all windows. Thus the value at a
-           single pixel shows a weighted sum of the representation.
-
-           By setting ``data``, you can use this to visualize any vector
-           with the same length as the number of windows. For example,
-           you can view metamer synthesis error by setting
-           ``data=metamer.representation_error()`` (then you'd probably
-           want to set ``vrange='auto0'`` in order to change the
-           colormap to a diverging one cenetered at 0).
-
-        2. We cannot invert the representation directly (we can't unmix
-           the center and surround), and so the input must be image-like
-           (4d), instead of representation-like (3d). If ``data=None``,
-           then we use the stored ``self.image``. Otherwise, we follow
-           the same logic as above. See the docstring of
-           ``PoolingWindows.project_dog()`` for more details.
-
-           In this case, we create three axes (similar to
-           ``plot_representation``), one each for the center, surround,
-           and their weighted difference. Note that the weighted
-           difference is the only actual representation (others are just
-           provided so you can better understand the difference). Also,
-           you should probably make the figsize wider, something like
-           ``figsize=(16, 5)``.
+        By setting ``data``, you can use this to visualize any vector with the
+        same length as the number of windows. For example, you can view metamer
+        synthesis error by setting ``data=metamer.representation_error()``
+        (then you'd probably want to set ``vrange='auto0'`` in order to change
+        the colormap to a diverging one cenetered at 0).
 
         Parameters
         ----------
@@ -1320,39 +1219,16 @@ class PooledRGC(PooledVentralStream):
         -------
         fig : matplotlib.figure.Figure
             The figure containing the plot
-        axes : list
+        ax : matplotlib.pyplot.axis
             A list of axes that contain the plots we've created
 
         """
-        if self.window_type != 'dog':
-            ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
-            ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-            # project expects a 3d tensor
-            data = self.PoolingWindows.project(torch.tensor(data['mean_luminance']).unsqueeze(0).unsqueeze(0))
-            pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
-            fig = ax.figure
-            axes = ax
-        else:
-            if data is not None:
-                if data.ndim != 4:
-                    raise Exception("For RGC with DoG windows, data must be image-like (not the"
-                                    " representation)! We can't invert the representation and so"
-                                    " must do it from scratch (see PoolingWindows.project_dog() "
-                                    "docstring for more details)")
-                self.forward(data)
-            else:
-                data = self.image
-            axes, _, title = self._plot_helper(3, figsize, ax, title, batch_idx, None)
-            data = {'difference': self.PoolingWindows.project_dog(data),
-                    'center': self.PoolingWindows.project(self.center_representation,
-                                                          windows_key='center'),
-                    'surround': self.PoolingWindows.project(self.surround_representation,
-                                                            windows_key='surround')}
-            for ax, d, t in zip(axes, data.values(), title):
-                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-                pt.imshow(to_numpy(d.squeeze()), vrange=vrange, ax=ax, title=t, zoom=zoom)
-            fig = axes[0].figure
-        return fig, axes
+        ax, data, title = self._plot_helper(1, figsize, ax, title, batch_idx, data)
+        ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        # project expects a 3d tensor
+        data = self.PoolingWindows.project(torch.tensor(data['mean_luminance']).unsqueeze(0).unsqueeze(0))
+        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
+        return ax.figure, ax
 
 
 class PooledV1(PooledVentralStream):
@@ -1434,6 +1310,17 @@ class PooledV1(PooledVentralStream):
         there for cached versions of the windows we create, load them if
         they exist and create and cache them if they don't. If None, we
         don't check for or cache the windows.
+    window_type : {'cosine', 'gaussian'}
+        Whether to use the raised cosine function from [1]_ or a Gaussian that
+        has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then ``std_dev``
+        must be set.
+    std_dev : float or None, optional
+        The standard deviation of the Gaussian window. WARNING -- For
+        now, we only support ``std_dev=1`` (in order to ensure that the
+        windows tile correctly, intersect at the proper point, follow
+        scaling, and have proper aspect ratio; not sure we can make that
+        happen for other values).
 
     Attributes
     ----------
@@ -1583,19 +1470,12 @@ class PooledV1(PooledVentralStream):
     def __init__(self, scaling, img_res, num_scales=4, order=3, min_eccentricity=.5,
                  max_eccentricity=15, transition_region_width=.5, normalize_dict={},
                  cache_dir=None, window_type='cosine', std_dev=None):
-        if window_type == 'dog':
-            raise Exception('DoG windows not supported for V1')
         super().__init__(scaling, img_res, min_eccentricity, max_eccentricity, num_scales,
                          transition_region_width=transition_region_width,
                          cache_dir=cache_dir, window_type=window_type, std_dev=std_dev,
                          normalize_dict=normalize_dict)
         self.state_dict_reduced.update({'order': order, 'model_name': 'V1',
                                         'num_scales': num_scales})
-        # these are DoG-associated keys and so aren't supported
-        # here. they end up in this dict because they come from the
-        # PoolingWindows' dict
-        for k in ['transition_x', 'center_surround_ratio', 'surround_std_dev']:
-            self.state_dict_reduced.pop(k)
         self.num_scales = num_scales
         self.order = order
         self.complex_steerable_pyramid = Steerable_Pyramid_Freq(img_res, self.num_scales,
