@@ -1682,6 +1682,76 @@ class MADCompetition(Synthesis):
             self.plot_loss(iteration=iteration, ax=ax, synthesis_target=target)
         return fig
 
+    def _grab_value_for_comparison(self, value, iteration=None,
+                                   scatter_subsample=1, synthesis_target=None,
+                                   model=None, **kwargs):
+        """Grab and shape values for comparison plot.
+
+        This grabs the appropriate batch_idx, channel_idx, and iteration from
+        the saved representation or signal, respectively, and subsamples it if
+        necessary.
+
+        We then concatenate thema long the last dimension.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        model : {None, 'model_1', 'model_2', 'both'}, optional
+            which model's representation to get the error for. If None
+            and ``synthesis_targe`` is not None, we use the model that's
+            the main target for synthesis_target (so if
+            synthesis_target=='model_1_min', then we'd use
+            'model_1'). If both are None, we use the current target. If
+            'both', we return a dictionary of tensors (with keys
+            'model_1' and 'model_2'), which contain both representation
+            errors
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        plot_vals : torch.tensor
+            2d tensor containing the base and synthesized value (indexed along
+            last dimension)
+
+        """
+        if model == 'both':
+            last_state = self._check_state(synthesis_target, None)
+            plot_vals = {}
+            plot_vals['model_1'] = self._grab_value_for_comparison(value=value,
+                                                                   iteration=iteration,
+                                                                   synthesis_target=synthesis_target,
+                                                                   scatter_subsample=scatter_subsample,
+                                                                   model='model_1', **kwargs)
+            plot_vals['model_2'] = self._grab_value_for_comparison(value=value,
+                                                                   iteration=iteration,
+                                                                   synthesis_target=synthesis_target,
+                                                                   scatter_subsample=scatter_subsample,
+                                                                   model='model_2', **kwargs)
+        else:
+            last_state = self._check_state(synthesis_target, model)
+            plot_vals = super()._grab_value_for_comparison(value=value,
+                                                           iteration=iteration,
+                                                           scatter_subsample=scatter_subsample,
+                                                           **kwargs)
+            # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return plot_vals
+
     def plot_value_comparison(self, synthesis_target=None,
                               value='representation', batch_idx=0,
                               channel_idx=0, iteration=None, figsize=(10, 5),
@@ -1738,6 +1808,7 @@ class MADCompetition(Synthesis):
             The figure containing this plot
 
         """
+        last_state = self._check_state(synthesis_target, None)
         if ax is None:
             if value == 'representation':
                 fig, axes = plt.subplots(1, 2, figsize=figsize)
@@ -1755,14 +1826,15 @@ class MADCompetition(Synthesis):
                 fig = ax.figure
                 axes = [ax]
         for ax, model in zip(axes, ['model_1', 'model_2']):
-            last_state = self._check_state(synthesis_target, model)
-            model_name = self._get_model_name(model)
             super().plot_value_comparison(value, batch_idx, channel_idx,
                                           iteration, ax=ax, func=func,
                                           hist2d_nbins=hist2d_nbins,
                                           hist2d_cmap=hist2d_cmap,
                                           scatter_subsample=scatter_subsample,
+                                          synthesis_target=synthesis_target,
+                                          model=model,
                                           **kwargs)
+            model_name = self._get_model_name(model)
             if value == 'representation':
                 ax.set(ylabel=f'{model_name} synthesized {value}',
                        xlabel=f'{model_name} base {value}')
@@ -1770,7 +1842,6 @@ class MADCompetition(Synthesis):
         if last_state is not None:
             self.update_target(*last_state)
         return fig
-
 
     def plot_synthesis_status(self, synthesis_target=None, batch_idx=0,
                               channel_idx=0, iteration=None, figsize=None,

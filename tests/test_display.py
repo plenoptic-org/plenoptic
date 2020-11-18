@@ -496,6 +496,8 @@ class TestMADDisplay(object):
                                             plot_rep_comparison=True,
                                             plot_signal_comparison=True, fig=fig,
                                             axes_idx=axes_idx)
+            # axes_idx gets updated by plot_synthesis_status
+            axes_idx = mad._axes_idx
         if func == 'animate':
             mad.animate(plot_synthesized_image=plot_synthesized_image,
                         plot_loss=True, plot_representation_error=True,
@@ -590,6 +592,8 @@ class TestMetamerDisplay(object):
                                             plot_rep_comparison=True,
                                             plot_signal_comparison=True, fig=fig,
                                             axes_idx=axes_idx)
+            # axes_idx gets updated by plot_synthesis_status
+            axes_idx = met._axes_idx
         if func == 'animate':
             met.animate(plot_synthesized_image=plot_synthesized_image,
                         plot_loss=True, plot_representation_error=True,

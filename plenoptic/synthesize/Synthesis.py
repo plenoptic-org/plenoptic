@@ -1464,6 +1464,62 @@ class Synthesis(metaclass=abc.ABCMeta):
         ax.set_title("Histogram of pixel values")
         return fig
 
+    def _grab_value_for_comparison(self, value, iteration=None,
+                                   scatter_subsample=1, **kwargs):
+        """Grab and shape values for comparison plot.
+
+        This grabs the appropriate batch_idx, channel_idx, and iteration from
+        the saved representation or signal, respectively, and subsamples it if
+        necessary.
+
+        We then concatenate thema long the last dimension.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        plot_vals : torch.tensor
+            2d tensor containing the base and synthesized value (indexed along
+            last dimension)
+
+        """
+        if value == 'representation':
+            if iteration is not None:
+                synthesized_val = self.saved_representation[iteration]
+            else:
+                synthesized_val = self.analyze(self.synthesized_signal, **kwargs)
+            base_val = self.base_representation
+        elif value == 'signal':
+            if iteration is not None:
+                synthesized_val = self.saved_signal[iteration]
+            else:
+                synthesized_val = self.synthesized_signal
+            base_val = self.base_signal
+        else:
+            raise Exception(f"Don't know how to handle value {value}!")
+        # if this is 4d, this will convert it to 3d (if it's 3d, nothing
+        # changes)
+        base_val = base_val.flatten(2, -1)
+        synthesized_val = synthesized_val.flatten(2, -1)
+        plot_vals = torch.stack((base_val, synthesized_val), -1)
+        if scatter_subsample < 1:
+            plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]
+        return plot_vals
+
+
     def plot_value_comparison(self, value='representation', batch_idx=0,
                               channel_idx=0, iteration=None, figsize=(5, 5),
                               ax=None, func='scatter', hist2d_nbins=21,
@@ -1519,35 +1575,21 @@ class Synthesis(metaclass=abc.ABCMeta):
                           " will be meaningless -- it will just show the pixel values"
                           ". (Your loss is still meaningful, however, since it's the actual "
                           "metric)")
-        if value == 'representation':
-            if iteration is not None:
-                synthesized_val = self.saved_representation[iteration, batch_idx, channel_idx]
-            else:
-                synthesized_val = self.analyze(self.synthesized_signal, **kwargs)[batch_idx, channel_idx]
-            base_val = to_numpy(self.base_representation[batch_idx, channel_idx]).flatten()
-            synthesized_val = to_numpy(synthesized_val.flatten())
-        elif value == 'signal':
-            if iteration is not None:
-                synthesized_val = self.saved_signal[iteration, batch_idx, channel_idx]
-            else:
-                synthesized_val = self.synthesized_signal[batch_idx, channel_idx]
-            base_val = to_numpy(self.base_signal[batch_idx, channel_idx]).flatten()
-            synthesized_val = to_numpy(synthesized_val.flatten())
-        else:
-            raise Exception(f"Don't know how to handle value {value}!")
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize, subplot_kw={'aspect': 1})
         else:
             fig = ax.figure
+        plot_vals = self._grab_value_for_comparison(value,
+                                                    iteration,
+                                                    scatter_subsample,
+                                                    **kwargs)
+        plot_vals = to_numpy(plot_vals[batch_idx, channel_idx])
         if func == 'scatter':
-            if scatter_subsample < 1:
-                synthesized_val = synthesized_val[::int(1/scatter_subsample)]
-                base_val = base_val[::int(1/scatter_subsample)]
-            ax.scatter(base_val, synthesized_val)
+            ax.scatter(plot_vals[:, 0], plot_vals[:, 1])
             ax.set(xlim=ax.get_ylim())
         elif func == 'hist2d':
-            ax.hist2d(base_val, synthesized_val,
-                      bins=np.linspace(0,1, hist2d_nbins),
+            ax.hist2d(plot_vals[:, 0], plot_vals[:, 1],
+                      bins=np.linspace(0, 1, hist2d_nbins),
                       cmap=hist2d_cmap, cmin=0)
         ax.set(ylabel=f'Synthesized {value}', xlabel=f'Base {value}')
         return fig
@@ -1800,6 +1842,18 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                         plot_image_hist,
                                                         plot_rep_comparison,
                                                         plot_signal_comparison)
+
+        def check_iterables(i, vals):
+            for j in vals:
+                try:
+                    # then it's an iterable
+                    if i in j:
+                        return True
+                except TypeError:
+                    # then it's not an iterable
+                    if i == j:
+                        return True
+
         if plot_synthesized_image:
             self.plot_synthesized_image(batch_idx=batch_idx,
                                         channel_idx=channel_idx,
@@ -1815,8 +1869,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                  ylim=ylim)
             # this can add a bunch of axes, so this will try and figure
             # them out
-            new_axes = [i for i, _ in enumerate(fig.axes) if i not in
-                        axes_idx.values()] + [axes_idx['rep_error']]
+            new_axes = [i for i, _ in enumerate(fig.axes) if not
+                        check_iterables(i, axes_idx.values())] + [axes_idx['rep_error']]
             axes_idx['rep_error'] = new_axes
         if plot_image_hist:
             fig = self.plot_image_hist(batch_idx=batch_idx,
@@ -1829,6 +1883,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                                              channel_idx=channel_idx,
                                              iteration=iteration,
                                              ax=axes[axes_idx['rep_comp']])
+            # this can add some axes, so this will try and figure them out
+            new_axes = [i for i, _ in enumerate(fig.axes) if not
+                        check_iterables(i, axes_idx.values())] + [axes_idx['rep_comp']]
+            axes_idx['rep_comp'] = new_axes
         if plot_signal_comparison:
             fig = self.plot_value_comparison(value='signal',
                                              batch_idx=batch_idx,
@@ -1843,7 +1901,7 @@ class Synthesis(metaclass=abc.ABCMeta):
     def animate(self, batch_idx=0, channel_idx=0, figsize=None,
                 framerate=10, ylim='rescale', plot_synthesized_image=True,
                 plot_loss=True, plot_representation_error=True,
-                imshow_zoom=None, plot_data_attr=['loss'], rep_error_kwargs={},
+                imshow_zoom=None, plot_data_attr=['loss'], rep_func_kwargs={},
                 plot_image_hist=False, plot_rep_comparison=False,
                 plot_signal_comparison=False, fig=None,
                 signal_comp_func='scatter', signal_comp_subsample=.01,
@@ -1903,9 +1961,11 @@ class Synthesis(metaclass=abc.ABCMeta):
             whatever is in there if your plot_synthesis_status() plots
             something other than loss or if you plotted more than one
             attribute (e.g., MADCompetition plots two losses)
-        rep_error_kwargs : dict, optional
-            a dictionary of kwargs to pass through to the repeated calls
-            to representation_error() (in addition to the iteration)
+        rep_func_kwargs : dict, optional
+            a dictionary of additional kwargs to pass through to the repeated
+            calls to representation_error() or _grab_value_for_comparison()
+            (for plotting representation error and representation comparison,
+            respectively)
         plot_image_hist : bool, optional
             Whether to plot the histograms of image pixel intensities or
             not. Note that we update this in the most naive way possible
@@ -2013,6 +2073,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         # use the update_plot function for that)
         if plot_loss:
             scat = fig.axes[axes_idx['loss']].collections
+        # can have multiple plots
         if plot_representation_error:
             try:
                 rep_error_axes = [fig.axes[i] for i in axes_idx['rep_error']]
@@ -2022,6 +2083,16 @@ class Synthesis(metaclass=abc.ABCMeta):
                 rep_error_axes = [fig.axes[axes_idx['rep_error']]]
         else:
             rep_error_axes = []
+        # can also have multiple plots
+        if plot_rep_comparison:
+            try:
+                rep_comp_axes = [fig.axes[i] for i in axes_idx['rep_comp']]
+            except TypeError:
+                # in this case, axes_idx['rep_comp'] is not iterable and so is
+                # a single value
+                rep_comp_axes = [fig.axes[axes_idx['rep_comp']]]
+        else:
+            rep_comp_axes = []
 
         if self.base_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
@@ -2034,10 +2105,13 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         def movie_plot(i):
             artists = []
-            artists.extend(update_plot(fig.axes[0], data=self.saved_signal[i],
-                                       batch_idx=batch_idx))
+            if plot_synthesized_image:
+                artists.extend(update_plot(fig.axes[axes_idx['image']],
+                                           data=self.saved_signal[i],
+                                           batch_idx=batch_idx))
             if plot_representation_error:
-                representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
+                representation_error = self.representation_error(iteration=i,
+                                                                 **rep_func_kwargs)
                 # we pass rep_error_axes to update, and we've grabbed
                 # the right things above
                 artists.extend(update_plot(rep_error_axes,
@@ -2071,15 +2145,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                ax=fig.axes[axes_idx['signal_comp']],
                                                func=signal_comp_func)
                 else:
-                    # flatten the last two dimensions
-                    base_sig = self.base_signal.flatten(-2, -1)
-                    saved_sig = self.saved_signal[i].flatten(-2, -1)
-                    if signal_comp_subsample < 1:
-                        base_sig = base_sig[..., ::int(1/signal_comp_subsample)]
-                        saved_sig = saved_sig[..., ::int(1/signal_comp_subsample)]
+                    plot_vals = self._grab_value_for_comparison('signal', i,
+                                                                signal_comp_subsample)
                     artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
-                                               torch.stack((base_sig,
-                                                            saved_sig), -1)))
+                                               plot_vals))
             if plot_loss:
                 # loss always contains values from every iteration, but
                 # everything else will be subsampled
@@ -2087,11 +2156,12 @@ class Synthesis(metaclass=abc.ABCMeta):
                     s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
                 artists.extend(scat)
             if plot_rep_comparison:
-                artists.extend(update_plot(fig.axes[axes_idx['rep_comp']],
-                                           torch.stack((self.base_representation,
-                                                        self.saved_representation[i]), -1)))
+                plot_vals = self._grab_value_for_comparison('representation', i,
+                                                            **rep_func_kwargs)
+                artists.extend(update_plot(rep_comp_axes, plot_vals))
             # as long as blitting is True, need to return a sequence of artists
             return artists
+
 
         # don't need an init_func, since we handle initialization ourselves
         anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_signal),
