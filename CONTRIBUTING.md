@@ -75,6 +75,9 @@ of the repository to your own github account, and then proceed as above.
 
 ## Testing
 
+Before running tests locally, you'll need
+[ffmpeg](https://ffmpeg.org/download.html) installed on your system.
+
 To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
 will take a while, as we have many tests, broken into categories. There are
 several choices for how to run a subset of the tests:

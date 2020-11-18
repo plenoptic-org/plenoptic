@@ -34,7 +34,7 @@ class TestMAD(object):
                            initial_noise=None)
         mad.plot_synthesis_status()
         if store_progress:
-            mad.animate()
+            mad.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
@@ -79,7 +79,7 @@ class TestMAD(object):
         # we'll get rid of it?
         mad.plot_synthesis_status()
         if store_progress:
-            mad.animate()
+            mad.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
@@ -109,7 +109,7 @@ class TestMAD(object):
         mad.plot_loss_all()
         if store_progress:
             for t in ['model_1_min', 'model_2_min', 'model_1_max', 'model_2_max']:
-                mad.animate(synthesis_target=t)
+                mad.animate(synthesis_target=t).to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',

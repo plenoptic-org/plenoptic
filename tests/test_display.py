@@ -459,7 +459,7 @@ class TestMADDisplay(object):
                         plot_image_hist=plot_image_hist,
                         plot_rep_comparison=plot_rep_comparison,
                         plot_signal_comparison=plot_signal_comparison,
-                        signal_comp_func=func, fig=fig, axes_idx=axes_idx)
+                        signal_comp_func=func, fig=fig, axes_idx=axes_idx).to_html5_video()
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
@@ -497,7 +497,7 @@ class TestMADDisplay(object):
                         plot_loss=True, plot_representation_error=True,
                         plot_image_hist=True, plot_rep_comparison=True,
                         plot_signal_comparison=True, fig=fig,
-                        axes_idx=axes_idx, init_figure=init_fig)
+                        axes_idx=axes_idx, init_figure=init_fig).to_html5_video()
 
 
 class TestMetamerDisplay(object):
@@ -553,7 +553,7 @@ class TestMetamerDisplay(object):
                         plot_image_hist=plot_image_hist,
                         plot_rep_comparison=plot_rep_comparison,
                         plot_signal_comparison=plot_signal_comparison,
-                        signal_comp_func=func, fig=fig, axes_idx=axes_idx)
+                        signal_comp_func=func, fig=fig, axes_idx=axes_idx).to_html5_video()
 
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
@@ -591,4 +591,4 @@ class TestMetamerDisplay(object):
                         plot_loss=True, plot_representation_error=True,
                         plot_image_hist=True, plot_rep_comparison=True,
                         plot_signal_comparison=True, fig=fig,
-                        axes_idx=axes_idx, init_figure=init_fig)
+                        axes_idx=axes_idx, init_figure=init_fig).to_html5_video()

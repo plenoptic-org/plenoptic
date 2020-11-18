@@ -138,7 +138,7 @@ class TestMetamers(object):
         # plot_synthesis_status, plot_representation_error,
         # representation_error
         metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
-                        framerate=40)
+                        framerate=40).to_html5_video()
         plt.close('all')
 
     def test_metamer_save_progress(self, tmp_path):
@@ -237,7 +237,7 @@ class TestMetamers(object):
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None)
         met.plot_synthesis_status()
         if store_progress:
-            met.animate()
+            met.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
