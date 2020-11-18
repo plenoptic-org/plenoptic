@@ -1835,6 +1835,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
+        if iteration is not None and not self.store_progress:
+            raise Exception("synthesis() was run with store_progress=False, "
+                            "cannot specify which iteration to plot (only"
+                            " last one, with iteration=None)")
         fig, axes, axes_idx = self._setup_synthesis_fig(fig, axes_idx, figsize,
                                                         plot_synthesized_image,
                                                         plot_loss,
@@ -2015,6 +2019,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             or save.
 
         """
+        if not self.store_progress:
+            raise Exception("synthesize() was run with store_progress=False,"
+                            " cannot animate!")
         if len(self.saved_signal) != len(self.saved_representation):
             raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
