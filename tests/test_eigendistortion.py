@@ -133,8 +133,9 @@ class TestEigendistortionSynthesis:
 
     def test_display(self):
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
-        e_pow.synthesize(method='power', n_steps=5)
-        e_pow.display()
+        e_pow.synthesize(method='power', n_steps=50, store_progress=True)
+        # e_pow.display_first_and_last()
+        # e_pow.plot_synthesized_image(0)
 
 
 class TestAutodiffFunctions:

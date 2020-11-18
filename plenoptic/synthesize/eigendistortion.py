@@ -124,6 +124,7 @@ class Eigendistortion(Synthesis):
 
         self._all_losses = []
         self._all_saved_signals = []
+        self.saved_representation = None
 
     @staticmethod
     def _hidden_attrs():
@@ -331,9 +332,10 @@ class Eigendistortion(Synthesis):
             Final eigenvector (i.e. eigendistortion) of power iteration procedure.
         """
 
+        idx = len(self._all_losses)
         if self.store_progress:
-            idx = len(self._all_losses)
             self._all_losses.append([])
+            self._all_saved_signals.append([])
 
         x, y = self._input_flat, self._representation_flat
 
@@ -375,6 +377,7 @@ class Eigendistortion(Synthesis):
     def _clamp_and_store(self, idx, v, d_lambda):
         """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
         if self.store_progress:
+            v = self._vector_to_image(v)[0]
             self._all_saved_signals[idx].append(v)
             self._all_losses[idx].append(d_lambda.item())
 
@@ -561,7 +564,7 @@ class Eigendistortion(Synthesis):
         gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
         return gray
 
-    def display(self, alpha=5., beta=10., **kwargs):
+    def display_first_and_last(self, alpha=5., beta=10., **kwargs):
         r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
 
         If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
@@ -589,8 +592,6 @@ class Eigendistortion(Synthesis):
             max_dist = self.synthesized_signal[0].unsqueeze(0)
             min_dist = self.synthesized_signal[-1].unsqueeze(0)
 
-        print(max_dist.shape)
-
         def _clamp(img):
             return torch.clamp(img, 0, 1)
 
@@ -600,8 +601,8 @@ class Eigendistortion(Synthesis):
         po.imshow(torch.cat([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist], 0),
                   title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
 
-    def plot_synthesized_image(self, eigenindex, channel_idx=None, iteration=None, title=None,
-                               figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
+    def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
+                               title=None, figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
         """Wraps Synthesis.plot_synthesized_image.
         Parameters
         ---------
@@ -610,15 +611,24 @@ class Eigendistortion(Synthesis):
             or 0 for first, and -1 for last. This is converted to an index with which to index the batch dim of tensor.
         """
 
-        if channel_idx is None:
-            channel_idx = range(self.n_channels)
         batch_idx = self._indexer(eigenindex)
-        super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize, ax, imshow_zoom, vrange)
+        fig = super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize, ax, imshow_zoom, vrange)
+        return fig
 
     def animate(self, eigenindex, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
+                plot_representation_error=False, imshow_zoom=None, plot_data_attr=['loss'],
                 rep_error_kwargs={}):
         """Wraps Synthesis.animate"""
-        self.saved_signal = self._all_saved_signals[eigenindex]
-        # TODO:
-        pass
+        # TODO: Does not work properly yet
+        saved_signal = self._all_saved_signals[eigenindex]
+        img_shape = (self.batch_size, self.n_channels, self.im_height, self.im_width)
+        n_iters = len(saved_signal)
+        self.saved_signal = torch.stack(saved_signal).view((n_iters, 20, 20))
+        print(self.saved_signal.shape)
+        self.loss = self._all_losses[eigenindex]
+        idx = self._indexer(eigenindex)
+        fig = super().animate(idx, channel_idx, figsize, framerate, ylim, plot_representation_error, imshow_zoom,
+                              plot_data_attr, rep_error_kwargs)
+
+        return fig
+
