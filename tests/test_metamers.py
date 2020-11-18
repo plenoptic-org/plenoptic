@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# necessary to avoid issues with animate:
+# https://github.com/matplotlib/matplotlib/issues/10287/
 import matplotlib
 matplotlib.use('agg')
 import os.path as op

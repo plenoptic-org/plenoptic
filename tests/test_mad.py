@@ -1,3 +1,5 @@
+# necessary to avoid issues with animate:
+# https://github.com/matplotlib/matplotlib/issues/10287/
 import matplotlib
 matplotlib.use('agg')
 import pytest
