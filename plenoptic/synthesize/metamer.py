@@ -514,5 +514,5 @@ class Metamer(Synthesis):
                                             **kwargs)
         if ax is None:
             ax = fig.axes[0]
-        ax.set(ylabel=f'Target {value}')
+        ax.set(xlabel=f'Target {value}')
         return fig
