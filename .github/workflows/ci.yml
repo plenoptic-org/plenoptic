@@ -19,13 +19,13 @@ jobs:
       - name: Install Python 3
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           pip install -e .
           pip install pytest-cov
           sudo apt install ffmpeg
       - name: Run tests with pytest
-        run: 'pytest --cov=plenoptic tests/test_display.py'
+        run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
