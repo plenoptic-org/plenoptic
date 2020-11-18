@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('agg')
 import pytest
 import matplotlib.pyplot as plt
 import plenoptic as po

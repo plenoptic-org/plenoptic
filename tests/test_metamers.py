@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+import matplotlib
+matplotlib.use('agg')
 import os.path as op
 import torch
 import plenoptic as po
