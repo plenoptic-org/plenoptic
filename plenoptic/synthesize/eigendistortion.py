@@ -186,6 +186,9 @@ class Eigendistortion(Synthesis):
         debug_A: torch.Tensor, optional
             Explicit Fisher Information Matrix in the form of 2D tensor. Used to debug lanczos algorithm.
             Dimensionality must be torch.Size([N, N]) where N is the flattened input size.
+        store_progress: bool
+            Store loss after each iteration. Change in approximated eigenvalue is used as a proxy for loss and a
+            measure of convergence. Can be displayed with `plot_loss()`.
 
         Returns
         -------
@@ -234,7 +237,7 @@ class Eigendistortion(Synthesis):
                 eig_vecs = self._vector_to_image(eig_vecs.detach())
 
         # reshape to (n x num_chans x h x w)
-        self.synthesized_signal = torch.stack(eig_vecs).unsqueeze(1) if len(eig_vecs) != 0 else []
+        self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
 
         self.synthesized_eigenvalues = eig_vals.detach()
         self.synthesized_eigenindex = eig_vecs_ind
@@ -257,7 +260,7 @@ class Eigendistortion(Synthesis):
             List of torch.Tensor images, each with ``torch.Size(img_height, im_width)``.
         """
 
-        imgs = [vecs[:, i].reshape(self.base_signal.shape).squeeze() for i in range(vecs.shape[1])]
+        imgs = [vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width)) for i in range(vecs.shape[1])]
         return imgs
 
     def _check_for_stabilization(self, i):
@@ -582,24 +585,18 @@ class Eigendistortion(Synthesis):
 
         assert len(self.synthesized_signal) > 1, "Assumes at least two eigendistortions were synthesized."
 
-        if self.n_channels == 3:
-            print('Collapsing color image to grayscale for display')
-            image = self.base_signal.mean(dim=1).squeeze()
-            max_dist = self._color_to_grayscale(self.synthesized_signal[0])
-            min_dist = self._color_to_grayscale(self.synthesized_signal[-1])
-        else:
-            image = self.base_signal.squeeze().detach().view((1, self.n_channels, self.im_height, self.im_width))
-            max_dist = self.synthesized_signal[0].unsqueeze(0)
-            min_dist = self.synthesized_signal[-1].unsqueeze(0)
+        image = self.base_signal.squeeze().detach().view((1, self.n_channels, self.im_height, self.im_width))
+        max_dist = self.synthesized_signal[0].unsqueeze(0)
+        min_dist = self.synthesized_signal[-1].unsqueeze(0)
 
         def _clamp(img):
             return torch.clamp(img, 0, 1)
 
-        po.imshow(torch.cat([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist], 0),
-                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs)
+        po.imshow([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist],
+                  title=None, **kwargs)
 
-        po.imshow(torch.cat([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist], 0),
-                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+        po.imshow([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist],
+                  title=None, **kwargs);
 
     def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
                                title=None, figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
