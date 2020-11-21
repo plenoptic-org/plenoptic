@@ -335,7 +335,7 @@ class Eigendistortion(Synthesis):
         idx = len(self._all_losses)
         if self.store_progress:
             self._all_losses.append([])
-            self._all_saved_signals.append([])
+            # self._all_saved_signals.append([])
 
         x, y = self._input_flat, self._representation_flat
 
@@ -368,7 +368,7 @@ class Eigendistortion(Synthesis):
             v = v_new
             lmbda = lmbda_new
 
-            self._clamp_and_store(idx, v.clone(), lmbda.clone())
+            self._clamp_and_store(idx, v.clone(), d_lambda.clone())
 
         pbar.close()
 
@@ -378,7 +378,7 @@ class Eigendistortion(Synthesis):
         """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
         if self.store_progress:
             v = self._vector_to_image(v)[0]
-            self._all_saved_signals[idx].append(v)
+            # self._all_saved_signals[idx].append(v)
             self._all_losses[idx].append(d_lambda.item())
 
     def _synthesize_lanczos(self, n_steps=1000, e_vecs=None, debug_A=None):
@@ -619,16 +619,6 @@ class Eigendistortion(Synthesis):
                 plot_representation_error=False, imshow_zoom=None, plot_data_attr=['loss'],
                 rep_error_kwargs={}):
         """Wraps Synthesis.animate"""
-        # TODO: Does not work properly yet
-        saved_signal = self._all_saved_signals[eigenindex]
-        img_shape = (self.batch_size, self.n_channels, self.im_height, self.im_width)
-        n_iters = len(saved_signal)
-        self.saved_signal = torch.stack(saved_signal).view((n_iters, 20, 20))
-        print(self.saved_signal.shape)
-        self.loss = self._all_losses[eigenindex]
-        idx = self._indexer(eigenindex)
-        fig = super().animate(idx, channel_idx, figsize, framerate, ylim, plot_representation_error, imshow_zoom,
-                              plot_data_attr, rep_error_kwargs)
+        raise(NotImplementedError, "This function does not work yet")
 
-        return fig
 

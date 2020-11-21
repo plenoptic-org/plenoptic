@@ -118,18 +118,21 @@ class TestEigendistortionSynthesis:
         e_jac = get_synthesis_object(im_dim=SMALL_DIM)
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
 
-        e_jac.synthesize(method='exact')
-        e_pow.synthesize(method='power', n_steps=500)
+        e_jac.synthesize(method='exact', store_progress=True)
+        e_pow.synthesize(method='power', n_steps=500, store_progress=True)
 
         print(e_pow.synthesized_eigenvalues.shape)
         print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[1])
         print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
 
         assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
-        assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
 
-        fig = e_pow.plot_loss(0)
-        fig.show()
+        fig_max = e_pow.plot_loss(0)
+        fig_max.show()
+
+        fig_min = e_pow.plot_loss(-1)
+        fig_min.show()
 
     def test_display(self):
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
@@ -228,3 +231,7 @@ class TestAutodiffFunctions:
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
+
+if __name__ == '__main__':
+    tmp = TestEigendistortionSynthesis()
+    tmp.test_method_equivalence()
