@@ -116,7 +116,7 @@ class Eigendistortion(Synthesis):
         else:
             self._representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
 
-        print(self._input_flat.shape, self._representation_flat.shape)
+        print(f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
 
         self.jacobian = None
         self.synthesized_eigenvalues = None
@@ -585,18 +585,20 @@ class Eigendistortion(Synthesis):
 
         assert len(self.synthesized_signal) > 1, "Assumes at least two eigendistortions were synthesized."
 
-        image = self.base_signal.squeeze().detach().view((1, self.n_channels, self.im_height, self.im_width))
-        max_dist = self.synthesized_signal[0].unsqueeze(0)
-        min_dist = self.synthesized_signal[-1].unsqueeze(0)
+        # reshape so channel dim is last
+        im_shape = self.n_channels, self.im_height, self.im_width
+        image = self.base_signal.detach().view(im_shape).permute((1, 2, 0))
+        max_dist = self.synthesized_signal[0].permute((1, 2, 0))
+        min_dist = self.synthesized_signal[-1].permute((1, 2, 0))
 
         def _clamp(img):
-            return torch.clamp(img, 0, 1)
+            return torch.clamp(img, 0, 1).numpy()
 
-        po.imshow([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist],
-                  title=None, **kwargs)
+        pt.imshow([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist.numpy()],
+                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs);
 
-        po.imshow([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist],
-                  title=None, **kwargs);
+        pt.imshow([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist.numpy()],
+                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
 
     def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
                                title=None, figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
