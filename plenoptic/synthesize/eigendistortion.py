@@ -587,17 +587,18 @@ class Eigendistortion(Synthesis):
 
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
-        image = self.base_signal.detach().view(im_shape).permute((1, 2, 0))
-        max_dist = self.synthesized_signal[0].permute((1, 2, 0))
-        min_dist = self.synthesized_signal[-1].permute((1, 2, 0))
+        image = self.base_signal.detach().view(im_shape).permute((1, 2, 0)).squeeze()
+        max_dist = self.synthesized_signal[0].permute((1, 2, 0)).squeeze()
+        min_dist = self.synthesized_signal[-1].permute((1, 2, 0)).squeeze()
 
-        def _clamp(img):
-            return torch.clamp(img, 0, 1).numpy()
+        def _preprocess(img):
+            x = torch.clamp(img, 0, 1)
+            return x.numpy()
 
-        pt.imshow([_clamp(image), _clamp(image + alpha * max_dist), beta * max_dist.numpy()],
+        pt.imshow([_preprocess(image), _preprocess(image + alpha * max_dist), beta * max_dist.numpy()],
                   title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs);
 
-        pt.imshow([_clamp(image), _clamp(image + alpha * min_dist), beta * min_dist.numpy()],
+        pt.imshow([_preprocess(image), _preprocess(image + alpha * min_dist), beta * min_dist.numpy()],
                   title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
 
     def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
