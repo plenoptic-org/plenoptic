@@ -215,8 +215,6 @@ class Eigendistortion(Synthesis):
         if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
 
-        print(f'Output dim: {self._representation_flat.size(0)}. Input dim: {self._input_flat.size(0)}')
-
         if method == 'exact':  # compute exact Jacobian
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
