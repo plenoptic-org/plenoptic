@@ -99,7 +99,6 @@ class Eigendistortion(Synthesis):
     """
 
     def __init__(self, base_signal, model):
-        base_signal = rescale(base_signal, 0, 1)
         # TODO: make note about rescaling
         assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
 
@@ -550,11 +549,12 @@ class Eigendistortion(Synthesis):
             assert all_idx is not None and len(all_idx) != 0, "No eigendistortions have been synthesized."
             return int(np.where(all_idx==idx))
 
-    def plot_loss(self, eigenindex, iteration=None, figsize=(5, 5), ax=None, title='Change in eigenval', **kwargs):
+    def plot_loss(self, eigenindex, iteration=None, figsize=(5, 5), ax=None,  **kwargs):
         """Wraps plot_loss of base class. Plots change in eigenvalue after each iteration."""
         idx = self._indexer(eigenindex)
         self.loss = self._all_losses[idx]
         # call super plot_loss
+        title = f"Change in eigenval {eigenindex:d}"
         fig = super().plot_loss(iteration, figsize, ax, title, **kwargs)
         plt.show()
         return fig
@@ -593,11 +593,13 @@ class Eigendistortion(Synthesis):
             x = torch.clamp(img, 0, 1)
             return x.numpy()
 
-        pt.imshow([_preprocess(image), _preprocess(image + alpha * max_dist), beta * max_dist.numpy()],
-                  title=['original', f'original + {alpha:.0f} * maxdist', f'{beta:.0f} * maxdist'], **kwargs);
+        fig_max = pt.imshow([_preprocess(image), _preprocess(image + alpha * max_dist), alpha * max_dist.numpy()],
+                  title=['original', f'original + {alpha:.0f} * maxdist', f'{alpha:.0f} * maxdist'], **kwargs);
 
-        pt.imshow([_preprocess(image), _preprocess(image + alpha * min_dist), beta * min_dist.numpy()],
-                  title=['original', f'original + {alpha:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+        fig_min = pt.imshow([_preprocess(image), _preprocess(image + beta * min_dist), beta * min_dist.numpy()],
+                  title=['original', f'original + {beta:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
+
+        return fig_max, fig_min
 
     def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
                                title=None, figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
