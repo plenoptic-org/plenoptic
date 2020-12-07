@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
+from torchvision.transforms.functional import center_crop
 
 
 def minimum(x, dim=None, keepdim=False):
@@ -142,22 +143,6 @@ def fftshift(x, dims=None):
     return torch.roll(x, shifts=shifts, dims=dims)
 
 
-def center_crop(x, n_shifts=7):
-    """ crop to center
-
-    expects even height and width
-    """
-
-    n_batch, n_ch, h, w = x.shape
-    s = min(h, w)  # smallest size
-    la = (n_shifts - 1) // 2  # autocorrelation length scale
-    le = min((s - 1) // 2, la)  # making sure it fits at that scale
-    ch = h // 2  # center pixel
-    cw = w // 2
-
-    return x[:, :, ch-le:ch+le+1, cw-le:cw+le+1]
-
-
 def autocorr(x, n_shifts=7):
     """
     Compute the autocorrelation of `x` up to `n_shifts` shifts in Fourier space
@@ -170,7 +155,7 @@ def autocorr(x, n_shifts=7):
     aka. auto-corr is convolution with self, which is squaring in Fourier space
     This approach is computationally more efficient than brute force
     (n log(n) vs n^2).
-    - By Cauchy Swartz, the autocorrelation attains it is maximum
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum
     at the center location - that maximum value is the signal's variance
     (assuming that the input signal is mean centered).
 
@@ -180,7 +165,8 @@ def autocorr(x, n_shifts=7):
         input signal of shape [b, c, h, w]
 
     n_shifts: integer
-        length scale
+        Sets the length scale of the auto-correlation
+        (ie. maximum offset or lag)
 
     Returns
     -------
@@ -205,7 +191,7 @@ def autocorr(x, n_shifts=7):
     autocorr = fftshift(autocorr, dims=(2, 3)) / (h*w)
 
     if n_shifts is not None:
-        autocorr = center_crop(autocorr, n_shifts=n_shifts)
+        autocorr = center_crop(autocorr, output_size=(n_shifts, n_shifts))
 
     return autocorr
 

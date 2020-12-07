@@ -17,7 +17,7 @@ class Polar_Pyramid(nn.Module):
        downsample=True
     """
 
-    def __init__(self, image_size, n_ori=4, n_scale=4):
+    def __init__(self, image_size, n_ori=4, n_scale='auto'):
         super().__init__()
 
         self.n_scale = n_scale

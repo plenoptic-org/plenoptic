@@ -25,10 +25,13 @@ class Texture_Statistics(nn.Module):
 
     TODO
     ----
-    - phase harmonics
-    - optimize pyr coeff directly
+    - generalize phase harmonics
+    - also include non phase corrected cross scale correlations
+    - optimize in pyr coeff space
     - auto_corr should operate on different scales with corresponding
     length scale (to downsample, or not to downsample? that is the question)
+    - explore cross orientation phase correction, with multiscale orientation
+    ie. derivative order as ori bandwidth
 
     """
 
@@ -94,7 +97,7 @@ class Texture_Statistics(nn.Module):
         # which is not yet supported for complex, so for now:
         energy, phase = rectangular_to_polar(y[:, 1:-1:2],
                                              y[:, 2:-1:2])
-        real_pyr_coeff = y[:, ::2]
+        # real_pyr_coeff = y[:, ::2]
         abs_pyr_coeff = torch.cat([torch.sqrt(y[:, 0:1]**2),
                                    energy,
                                    torch.sqrt(y[:, -1:]**2)],
@@ -119,11 +122,12 @@ class Texture_Statistics(nn.Module):
         # TODO: useless?
         # low_pass = correlate_downsample(y[:, -1], 'lo0filt')
 
-        # auto_corr_real[:, l-e:l+e+1, l-e:l+e+1, n_scale+1] = autocorr(low_pass,
-        #                                                             n_shifts)
+        # auto_corr_real[:,
+        #               l-e:l+e+1,
+        #               l-e:l+e+1,
+        #               n_scale+1] = autocorr(low_pass, n_shifts)
 
         # Compute autoCorr of the combined (non-oriented) real band
-
 
         skew_scale = torch.zeros(n_batch, n_scale+1)
         kurt_scale = torch.zeros(n_batch, n_scale+1)
@@ -138,7 +142,6 @@ class Texture_Statistics(nn.Module):
         # parentMagCorr
         # cousinRealCorr
         # parentRealCorr
-
 
         # 5) Cross-Scale Phase Statistics.
         # rearrange

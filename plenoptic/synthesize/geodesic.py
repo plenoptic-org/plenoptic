@@ -1,13 +1,14 @@
-from tqdm import tqdm
 from collections import OrderedDict
 
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-
 import torch.optim as optim
-from ..tools.straightness import sample_brownian_bridge, make_straight_line
-from ..tools.fit import penalize_range
+from tqdm import tqdm
+
 from ..tools.data import to_numpy
+from ..tools.fit import penalize_range
+from ..tools.straightness import make_straight_line, sample_brownian_bridge
 
 
 class Geodesic(nn.Module):
@@ -41,10 +42,11 @@ class Geodesic(nn.Module):
 
     pixelfade:
         straight interpolation between the two anchor points for reference
-        
+
     reference_length:
-        step length of representation strainght line, used as a reference
-        when computing loss
+        step length of representation strainght line. It is the shortest
+        distance that could possibly be achieved and is used as a floor
+        relative to which loss is calculated.
 
     step_lengths:
         step lengths in representation space, stored along the optimization
@@ -66,17 +68,25 @@ class Geodesic(nn.Module):
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
+    TODO
+    ----
+    OFF BY ONE ERROR IN n_steps
+    should be 10 vertices for 11 edges
+
+    fix animate
+
+    compare stability relative loss
+
+    projected version for surjective transform (eg unercomplete, low rank) 
     '''
 
-    def __init__(self, imgA, imgB, model, n_steps=11, init='straight',
-                 lmbda=.1):
+    def __init__(self, imgA, imgB, model, n_steps=11, init='straight'):
         super().__init__()
 
         self.xA = imgA.clone().detach()
         self.xB = imgB.clone().detach()
         self.model = model
         self.n_steps = n_steps
-        self.lmbda = lmbda
         self.image_size = imgA.shape
 
         self.pixelfade = self.initialize(init='straight')
@@ -85,15 +95,17 @@ class Geodesic(nn.Module):
 
         self.loss = []
         self.dist_from_line = []
-        self.step_lengths = []
+        self.step_energy = []
 
         with torch.no_grad():
             self.yA = self.model(self.xA)
             self.yB = self.model(self.xB)
 
         n = self.n_steps - 1
-        step = (n-1)/n * self.yB + 1/n * self.yA
-        self.reference_length = self.metric(self.yB - step) * n
+        # step = (n-1)/n * self.yB + 1/n * self.yA
+        # self.reference_length = self.metric(self.yB - step) * n
+        self.repres_unit = self.metric(self.yB - self.yA) / n ** 2
+        self.signal_unit = self.metric(self.xB - self.xA) / n ** 2
 
     def initialize(self, init):
         if init == 'straight':
@@ -109,50 +121,66 @@ class Geodesic(nn.Module):
     def metric(self, x, p=2):
         return torch.norm(x, p=p) ** p
 
-    def objective_function(self, y):
-        """relative to straight interpolation
+    def path_energy(self, z, zA, zB, unit=None):
+        """
+        step_energy: sqaured length of each step
         """
 
-        step_lengths = torch.empty(1, self.n_steps - 1)
+        step_energy = torch.empty(1, self.n_steps - 1)
 
-        step_lengths[:, 0] = self.metric(self.yA - y[0])
+        step_energy[:, 0] = self.metric(zA - z[0])
         for i in range(1, self.n_steps-2):
-            step_lengths[:, i] = self.metric(y[i] - y[i-1])
-        step_lengths[:, -1] = self.metric(self.yB - y[-1])
+            step_energy[:, i] = self.metric(z[i] - z[i-1])
+        step_energy[:, -1] = self.metric(zB - z[-1])
+        self.step_energy.append(step_energy.detach())
 
-        loss = torch.sum(step_lengths)
-        self.step_lengths.append(step_lengths.detach())
-
-        return loss / self.reference_length - 1
+        total_energy = torch.sum(step_energy)
+        if unit is None:
+            return total_energy
+        else:
+            return (total_energy / unit) - 1
 
     def _optimizer_step(self, i, pbar, noise):
 
         self.optimizer.zero_grad()
         y = self.analyze()
-        loss = self.objective_function(y)
+        repres_path_energy = self.path_energy(y, self.yA, self.yB)
         if self.lmbda >= 0:
-            loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
+            loss = repres_path_energy \
+                   + self.lmbda * penalize_range(self.x, (0, 1))
+
         if loss.item() != loss.item():
+            self.step_energy.pop()
             raise Exception('found a NaN in the loss during optimization')
 
         loss.backward()
+        # repres_grad = x.grad
+
+        # self.optimizer.zero_grad()
+        # signal_path_energy = self.path_energy(self.x, self.xA, self.xB)
+        # signal_grad = x.grad
+        # x.grad = signal_grad - (
+        #           signal_grad @ repres_grad
+        #                         ) / torch.norm(repres_grad) * repres_grad
+
         self.optimizer.step()
         grad_norm = torch.norm(self.x.grad.data)
         pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
-                        ('gradient norm', f'{grad_norm:.4e}'),
-                        ('lr', self.optimizer.param_groups[0]['lr'])]))
+                         ('gradient norm', f'{grad_norm:.4e}'),
+                         ('lr', self.optimizer.param_groups[0]['lr'])]))
         if grad_norm.item() != grad_norm.item():
             raise Exception('found a NaN in the gradients during optimization')
 
         return loss
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam',
-                   objective='multiscale', noise=None, seed=0):
+                   lmbda=.1, objective='multiscale', noise=None, seed=0):
         """
         objective:
 
         noise:
         """
+        self.lmbda = lmbda
 
         torch.manual_seed(seed)
         if optimizer == 'adam':
@@ -171,33 +199,78 @@ class Geodesic(nn.Module):
             # storing some information
             self.loss.append(loss.item())
             self.geodesic = torch.cat((self.xA, self.x.data, self.xB), 0)
-            self.dist_from_line.append(self.distance_from_line(self.geodesic).unsqueeze(0))
+            # TODO flag to store progress or not
+            self.dist_from_line.append(self.distance_from_line(
+                                        self.geodesic).unsqueeze(0))
 
             if loss.item() < 1e-6:
-                raise Exception("""the geodesic matches the representation straight line up to floating point precision""")
+                raise Exception("""the geodesic matches the representation
+                                straight line up to floating point
+                                precision""")
+
+    def plot_loss(self):
+        plt.semilogy(self.loss)
+        plt.xlabel('iter step')
+        plt.ylabel('loss value')
+        plt.show()
 
     def distance_from_line(self, x):
-        """l2 distance of x's representation to its projection onto the representation line
+        """l2 distance of x's representation to its projection onto the
+        representation line
 
         x: torch.FloatTensor
             a sequence of images, preferably with anchor images as endpoints
         """
 
         y = self.model(x)
-        l = (self.yB - self.yA).flatten()
-        l /= torch.norm(l)
-        y_ = (y - self.yA).view(self.n_steps, -1)
+        line = (self.yB - self.yA).flatten()
+        u = line / torch.norm(line)
+        # center
+        y = (y - self.yA).view(self.n_steps, -1)
 
-        return torch.norm(y_ - (y_ @ l)[:, None]*l[None, :], dim=1)
+        return torch.norm(y - (y @ u)[:, None]*u[None, :], dim=1)
 
     def plot_distance_from_line(self, vid=None):
-        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+
         if vid is not None:
-            plt.plot(to_numpy(self.distance_from_line(vid)), 'b-o', label='video')
-        plt.plot(to_numpy(self.distance_from_line(self.pixelfade)), 'g-o', label='pixelfade')
-        plt.plot(to_numpy(self.distance_from_line(self.geodesic)), 'r-o', label='geodesic')
+            ax.plot(to_numpy(self.distance_from_line(vid)),
+                    'b-o', label='video')
+        ax.plot(to_numpy(self.distance_from_line(self.pixelfade)),
+                'g-o', label='pixelfade')
+        ax.plot(to_numpy(self.distance_from_line(self.geodesic)),
+                'r-o', label='geodesic')
         plt.legend(loc=1)
         plt.ylabel('distance from representation line')
         plt.xlabel('projection on representation line')
         # plt.yscale('log')
-        plt.show()
+
+        return fig, ax
+
+    def animate_distance_from_line(self, vid):
+        """
+        TODO remove from gedesic from figure initialization
+        """
+        from IPython.display import HTML
+        from matplotlib import animation
+
+        fig, ax = self.plot_distance_from_line(vid=vid)
+
+        artist, = ax.plot(to_numpy(self.distance_from_line(self.geodesic)),
+                          'r-o', label='geodesic')
+
+        def animate(i):
+
+            artist.set_data(range(11), to_numpy(self.dist_from_line[i],
+                                                squeeze=True))
+        #     artist.
+            return (artist,)
+
+        anim = animation.FuncAnimation(fig, animate,
+                                       frames=100, interval=20, blit=True,
+                                       repeat=False)
+        anim = HTML(anim.to_html5_video())
+        plt.close()
+
+        return anim

@@ -8,15 +8,15 @@ def make_straight_line(start, stop, n_step):
 
     Parameters
     ----------
-    start:
-        [1, C, H, W]
-    stop:
-        [1, C, H, W]
-    n_step:
+    start: torch.Tensor
+        image of shape [1, C, H, W]
+    stop: torch.Tensor
+        image of shape [1, C, H, W]
+    n_step: int
 
     Returns
     -------
-
+    sequence: torch.Tensor
     """
     assert start.shape == stop.shape
     tt = torch.linspace(0, 1, n_step).view(n_step, 1, 1, 1)
@@ -30,11 +30,11 @@ def make_straight_line(start, stop, n_step):
 
 def sample_brownian_bridge(start, stop, n_step):
     """
-    start:
+    start: torch.Tensor
         [1, C, H, W]
-    stop:
+    stop:torch.Tensor
         [1, C, H, W]
-    n_step:
+    n_step: int
 
     example
     ```
@@ -132,3 +132,27 @@ def Haar_1d(x, n_scales=None):
         x = blur(x)
 
     return y
+
+
+def translation_sequence(image, n_steps=11):
+    """horizontal translation
+
+    Parameters
+    ---------
+    image: torch.Tensor
+        Base image of shape, [B, C, H, W]
+    n_steps: int, optional
+        Length of the sequence. Defaults to 11.
+
+    Returns
+    -------
+    sequence: torch.Tensor
+
+    """
+    sequence = torch.empty(n_steps, *image.shape)
+
+    sequence[0] = image
+    for shift in range(1, n_steps):
+        sequence[shift] = torch.roll(image, shift, [2])
+
+    return sequence
