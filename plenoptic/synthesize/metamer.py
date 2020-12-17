@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from .Synthesis import Synthesis
+from .synthesis import Synthesis
 from ..tools.metamer_utils import RangeClamper
 
 

@@ -6,6 +6,7 @@ import pytest
 import torch
 from torch import nn
 from plenoptic.simulate.models.frontend import Front_End
+import plenoptic as po
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
@@ -14,28 +15,50 @@ SMALL_DIM = 20
 LARGE_DIM = 100
 
 
-def get_synthesis_object(im_dim=20):
+class ColorModel(nn.Module):
+    """Simple model that takes color image as input and outputs 2d conv."""
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(3, 4, 3, 1)
+
+    def forward(self, x):
+        return self.conv(x)
+
+
+def get_synthesis_object(im_dim=20, color=False):
     r""" Helper for Pytests. Instantiates Eigendistortion object for FrontEnd model.
 
     Parameters
     ----------
     im_dim : int
         number of pixels of one side of small square image to be used with Jacobian explicit solver.
+    color: bool
+        Whether or not img and model are color.
     Returns
     -------
     ed: Eigendistortion
         Eigendistortion object to be used in tests.
     """
     torch.manual_seed(0)
-    mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
 
-    img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
-    img_np = img[:im_dim, :im_dim] / np.max(img)
-    img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
+    if not color:
+        mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
+        img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img_np = img[:im_dim, :im_dim] / np.max(img)
+        img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
 
-    ed = Eigendistortion(img, mdl, dtype=DTYPE)
+    else:
+        img0 = plt.imread(op.join(DATA_DIR, 'color_wheel.jpg'))
+        n = img0.shape[0]
+        skip = n//im_dim
+        img_np = img0[::skip, ::skip].copy()/np.max(img0)
+        img = torch.as_tensor(img_np, device=DEVICE, dtype=torch.float).permute((2,0,1)).unsqueeze(0)
+        mdl = ColorModel()
+
+    ed = Eigendistortion(img, mdl)
 
     return ed
+
 
 
 class TestEigendistortionSynthesis:
@@ -53,37 +76,43 @@ class TestEigendistortionSynthesis:
         with pytest.raises(AssertionError) as e_info:
             ed.synthesize(method='asdfsdfasf')
 
-    def test_method_jacobian(self):
+    @pytest.mark.parametrize('color', [False, True])
+    def test_method_exact(self, color):
         # invert matrix explicitly
-        ed = get_synthesis_object(im_dim=SMALL_DIM)
-        ed.synthesize(method='jacobian')
+        n_chans = 3 if color else 1
+        ed = get_synthesis_object(im_dim=SMALL_DIM, color=color)
+        ed.synthesize(method='exact')
 
-        assert len(ed.distortions['eigenvalues']) == SMALL_DIM**2
-        assert len(ed.distortions['eigenvectors']) == SMALL_DIM**2
-        assert len(ed.distortions['eigenvector_index']) == SMALL_DIM**2
+        assert len(ed.synthesized_eigenvalues) == n_chans*SMALL_DIM**2
+        assert len(ed.synthesized_signal) == n_chans*SMALL_DIM**2
+        assert len(ed.synthesized_eigenindex) == n_chans*SMALL_DIM**2
 
         # test that each eigenvector returned is original img shape
-        assert ed.distortions['eigenvectors'][0].shape == (SMALL_DIM, SMALL_DIM)
+        assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
-    def test_method_power(self):
+    @pytest.mark.parametrize('color', [False, True])
+    def test_method_power(self, color):
+        n_chans = 3 if color else 1
         n_steps = 3
-        ed = get_synthesis_object(im_dim=LARGE_DIM)
+        ed = get_synthesis_object(im_dim=LARGE_DIM, color=color)
         ed.synthesize(method='power', n_steps=n_steps)
 
         # test it should only return two eigenvectors and values
-        assert len(ed.distortions['eigenvalues']) == 2
-        assert len(ed.distortions['eigenvectors']) == 2
-        assert len(ed.distortions['eigenvector_index']) == 2
+        assert len(ed.synthesized_eigenvalues) == 2
+        assert len(ed.synthesized_signal) == 2
+        assert len(ed.synthesized_eigenindex) == 2
 
-        assert ed.distortions['eigenvectors'][0].shape == (LARGE_DIM, LARGE_DIM)
+        assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
     @pytest.mark.parametrize("e_vecs", [[0, 1, -2, -1], []])
-    def test_method_lanczos(self, e_vecs):
+    @pytest.mark.parametrize("color", [False, True])
+    def test_method_lanczos(self, e_vecs, color):
         # return first and last two eigenvectors
         n_steps = 5
+        n_chans = 3 if color else 1
 
         # run once with e_vecs specified
-        ed = get_synthesis_object(im_dim=LARGE_DIM)
+        ed = get_synthesis_object(im_dim=LARGE_DIM, color=color)
 
         if n_steps < len(e_vecs) * 2:
             with pytest.warns(RuntimeWarning) as not_enough_iter_warning:
@@ -93,15 +122,15 @@ class TestEigendistortionSynthesis:
                 ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
 
         if len(e_vecs) > 0:
-            assert len(ed.distortions['eigenvalues']) == len(e_vecs)
+            assert len(ed.synthesized_eigenvalues) == len(e_vecs)
         else:
-            assert len(ed.distortions['eigenvalues']) == n_steps
+            assert len(ed.synthesized_eigenvalues) == n_steps
 
-        assert len(ed.distortions['eigenvectors']) == len(e_vecs)
-        assert len(ed.distortions['eigenvector_index']) == len(e_vecs)
+        assert len(ed.synthesized_signal) == len(e_vecs)
+        assert len(ed.synthesized_eigenindex) == len(e_vecs)
 
         if len(e_vecs) > 0:
-            assert ed.distortions['eigenvectors'][0].shape == (LARGE_DIM, LARGE_DIM)
+            assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
     def test_lanczos_accuracy(self):
         n = 30
@@ -111,22 +140,36 @@ class TestEigendistortionSynthesis:
         with pytest.warns(UserWarning) as lanczos_experimental_warning:
             ed.synthesize(method='lanczos', n_steps=eigen_test_matrix.shape[-1], debug_A=eigen_test_matrix)
 
-        assert (e_vals[0]-ed.distortions['eigenvalues'][0]) < 1e-2
+        assert (e_vals[0]-ed.synthesized_eigenvalues[0]) < 1e-2
 
     def test_method_equivalence(self):
 
         e_jac = get_synthesis_object(im_dim=SMALL_DIM)
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
 
-        e_jac.synthesize(method='jacobian')
-        e_pow.synthesize(method='power', n_steps=500, verbose=False)
+        e_jac.synthesize(method='exact', store_progress=True)
+        e_pow.synthesize(method='power', n_steps=500, store_progress=True)
 
-        print(e_pow.distortions['eigenvalues'].shape)
-        print(e_pow.distortions['eigenvalues'][0], e_pow.distortions['eigenvalues'][1])
-        print(e_jac.distortions['eigenvalues'][0], e_jac.distortions['eigenvalues'][-1])
+        print(e_pow.synthesized_eigenvalues.shape)
+        print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[1])
+        print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
 
-        assert e_pow.distortions['eigenvalues'][0].isclose(e_jac.distortions['eigenvalues'][0], atol=1e-3)
-        assert e_pow.distortions['eigenvalues'][1].isclose(e_jac.distortions['eigenvalues'][-1], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
+
+        fig_max = e_pow.plot_loss(0)
+        fig_max.show()
+
+        fig_min = e_pow.plot_loss(-1)
+        fig_min.show()
+
+    @pytest.mark.parametrize("color", [False, True])
+    def test_display(self, color):
+        e_pow = get_synthesis_object(im_dim=SMALL_DIM, color=color)
+        e_pow.synthesize(method='power', n_steps=50, store_progress=True)
+
+        e_pow.display_first_and_last()
+        e_pow.plot_synthesized_image(0)
 
 
 class TestAutodiffFunctions:
@@ -140,7 +183,7 @@ class TestAutodiffFunctions:
 
         ed = get_synthesis_object(im_dim=SMALL_DIM)  # eigendistortion object
 
-        x, y = ed.image_flattensor, ed.out_flattensor
+        x, y = ed._input_flat, ed._representation_flat
 
         x_dim = x.flatten().shape[0]
         y_dim = y.flatten().shape[0]
@@ -214,8 +257,16 @@ class TestAutodiffFunctions:
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
-        x, y = e.image_flattensor, e.out_flattensor
+        x, y = e._input_flat, e._representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
+
+
+if __name__ == '__main__':
+    tmp = TestEigendistortionSynthesis()
+    tmp.test_method_equivalence()
+    ed = get_synthesis_object(20, True)
+    ed.synthesize('power', n_steps=3)
+    print(ed.synthesized_signal.shape)
