@@ -83,7 +83,7 @@ class Portilla_Simoncelli(nn.Module):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
 
-        pyr_coeffs = self.pyr.forward(image)
+        self.pyr_coeffs = self.pyr.forward(image)
         
         stats = OrderedDict() 
 
@@ -107,28 +107,10 @@ class Portilla_Simoncelli(nn.Module):
         # pyramid coefficients and the real part of the pyramid
         # coefficients respectively.
 
-        # subtract mean from lowest scale band
-        pyr_coeffs['residual_lowpass'] = pyr_coeffs['residual_lowpass'] - torch.mean(pyr_coeffs['residual_lowpass'])
-        
-
-        # create two sets of coefficients: 1) magnitude of the pyramid coefficients, 2) real part of the pyramid coefficients
-        magnitude_pyr_coeffs = OrderedDict();
-        real_pyr_coeffs = OrderedDict();
-        for key,val in pyr_coeffs.items():
-            if key in ['residual_lowpass','residual_highpass']: # not complex
-                magnitude_pyr_coeffs[key] = torch.abs(val).squeeze()
-                real_pyr_coeffs[key] = val.squeeze()
-            else: # complex
-                tmp = torch.unbind(val,-1)
-                magnitude_pyr_coeffs[key] = ((tmp[0]**2+tmp[1]**2)**.5).squeeze()
-                real_pyr_coeffs[key] = tmp[0].squeeze()
-
         # STATISTIC: magnitude_means or the mean magnitude of each pyramid band
-        stats['magnitude_means'] = OrderedDict()
-        for (key, val) in magnitude_pyr_coeffs.items():
-            stats['magnitude_means'][key] = torch.mean(val)
-            magnitude_pyr_coeffs[key] = magnitude_pyr_coeffs[key] - stats['magnitude_means'][key]   # subtract mean of magnitude
+        stats['magnitude_means'] = self.calculate_magnitude_means()
 
+       
         ### SECTION 3 (STATISTICS: auto_correlation_magnitude, 
         #                          skew_reconstructed, 
         #                          kurtosis_reconstructed,
@@ -157,7 +139,7 @@ class Portilla_Simoncelli(nn.Module):
         stats['auto_correlation_reconstructed'] = torch.zeros([self.Na, self.Na, self.n_scales+1])
         
         # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
-        lowpass = pyr_coeffs['residual_lowpass']
+        lowpass = self.pyr_coeffs['residual_lowpass']
         filterPyr = Steerable_Pyramid_Freq(lowpass.shape[-2:], height=0, order=1, tight_frame=False)
         _ = filterPyr.forward(lowpass)
         reconstructed_image = filterPyr.pyr_coeffs['residual_lowpass'].squeeze()
@@ -179,7 +161,7 @@ class Portilla_Simoncelli(nn.Module):
         
         for this_scale in range(self.n_scales-1, -1, -1):
             for nor in range(0, self.n_orientations):
-                ch = magnitude_pyr_coeffs[(this_scale,nor)]
+                ch = self.magnitude_pyr_coeffs[(this_scale,nor)]
                 Sch = np.min((ch.shape[-1], ch.shape[-2]))
                 le = int(np.min((Sch/2.0-1, la)))
                 # Find the auto-correlation of the magnitude band
@@ -192,7 +174,7 @@ class Portilla_Simoncelli(nn.Module):
             unoriented_band_pyr = Steerable_Pyramid_Freq(reconstructed_image.shape[-2:],height=1, order=self.n_orientations-1, is_complex=False,tight_frame=False);
             _ = unoriented_band_pyr.forward(reconstructed_image)
             for ii in range(0,self.n_orientations):
-                unoriented_band_pyr.pyr_coeffs[(0,ii)] = real_pyr_coeffs[(this_scale,ii)].unsqueeze(0).unsqueeze(0)
+                unoriented_band_pyr.pyr_coeffs[(0,ii)] = self.real_pyr_coeffs[(this_scale,ii)].unsqueeze(0).unsqueeze(0)
             unoriented_band = unoriented_band_pyr.recon_pyr(levels=[0])
             
             # Add the unoriented band to the image reconstruction
@@ -231,13 +213,13 @@ class Portilla_Simoncelli(nn.Module):
         stats['cross_scale_correlation_real'] = torch.zeros(2*self.n_orientations, max(2*self.n_orientations,5), self.n_scales)
 
         for this_scale in range(0, self.n_scales):
-            band_num_el = real_pyr_coeffs[(this_scale,0)].numel()
+            band_num_el = self.real_pyr_coeffs[(this_scale,0)].numel()
             if this_scale < self.n_scales-1:
                 next_scale_mag = torch.empty((band_num_el, self.n_orientations))
                 next_scale_real = torch.empty((band_num_el, self.n_orientations*2))
                 
                 for nor in range(0, self.n_orientations):
-                    upsampled = Portilla_Simoncelli.expand(pyr_coeffs[(this_scale+1,nor)].squeeze(),2)/4.0
+                    upsampled = Portilla_Simoncelli.expand(self.pyr_coeffs[(this_scale+1,nor)].squeeze(),2)/4.0
 
                     # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
                     X = (upsampled[:,:,0]**2 + upsampled[:,:,1]**2)**.5 * torch.cos(2*torch.atan2(upsampled[:,:,0], upsampled[:,:,1]))
@@ -252,7 +234,7 @@ class Portilla_Simoncelli(nn.Module):
                     next_scale_mag[:,nor] = (mag - mag.mean()).t().flatten()
 
             else:
-                upsampled = Portilla_Simoncelli.expand(real_pyr_coeffs['residual_lowpass'].squeeze(),2)/4.0
+                upsampled = Portilla_Simoncelli.expand(self.real_pyr_coeffs['residual_lowpass'].squeeze(),2)/4.0
                 upsampled = upsampled.t()
                 next_scale_real= torch.stack((upsampled.flatten(), 
                     upsampled.roll(1,0).flatten(),
@@ -261,7 +243,7 @@ class Portilla_Simoncelli(nn.Module):
                     upsampled.roll(-1,1).flatten()),1)
                 next_scale_mag=torch.empty((0))
 
-            orientation_bands_mag = torch.stack(tuple([aa.t() for aa in [magnitude_pyr_coeffs[(this_scale,ii)] for ii in range(0,self.n_orientations)]])).view((self.n_orientations, band_num_el)).t()
+            orientation_bands_mag = torch.stack(tuple([aa.t() for aa in [self.magnitude_pyr_coeffs[(this_scale,ii)] for ii in range(0,self.n_orientations)]])).view((self.n_orientations, band_num_el)).t()
             
             if next_scale_mag.shape[0] > 0:
                 np0 = next_scale_mag.shape[1]
@@ -274,7 +256,7 @@ class Portilla_Simoncelli(nn.Module):
                     stats['cross_orientation_correlation_magnitude'][0:np0, 0:np0, this_scale+1] = (next_scale_mag.t()@next_scale_mag)/(band_num_el/4.0)
             
 
-            orientation_bands_real = torch.stack(tuple([aa.t() for aa in [real_pyr_coeffs[(this_scale,ii)].squeeze() for ii in range(0,self.n_orientations)]])).view((self.n_orientations,band_num_el)).t()
+            orientation_bands_real = torch.stack(tuple([aa.t() for aa in [self.real_pyr_coeffs[(this_scale,ii)].squeeze() for ii in range(0,self.n_orientations)]])).view((self.n_orientations,band_num_el)).t()
             
             if next_scale_real.shape[0]>0:
                 nrp = next_scale_real.shape[1]
@@ -287,7 +269,7 @@ class Portilla_Simoncelli(nn.Module):
                     stats['cross_orientation_correlation_real'][0:nrp,0:nrp,this_scale+1]=(next_scale_real.t()@next_scale_real)/(band_num_el/4.0)
 
         # STATISTIC: var_highpass_residual or the variance of the high-pass residual
-        stats['var_highpass_residual'] = pyr_coeffs['residual_highpass'].pow(2).mean().unsqueeze(0)
+        stats['var_highpass_residual'] = self.pyr_coeffs['residual_highpass'].pow(2).mean().unsqueeze(0)
 
         representation = Portilla_Simoncelli._convert_to_vector(stats) 
 
@@ -341,6 +323,32 @@ class Portilla_Simoncelli(nn.Module):
         cross_scale_correlation_real + var_highpass_residual
         
         return scales
+
+    def calculate_magnitude_means(self):
+
+        # subtract mean from lowest scale band
+        self.pyr_coeffs['residual_lowpass'] = self.pyr_coeffs['residual_lowpass'] - torch.mean(self.pyr_coeffs['residual_lowpass'])
+        
+
+        # calculate two new sets of coefficients: 1) magnitude of the pyramid coefficients, 2) real part of the pyramid coefficients
+        self.magnitude_pyr_coeffs = OrderedDict();
+        self.real_pyr_coeffs = OrderedDict();
+        for key,val in self.pyr_coeffs.items():
+            if key in ['residual_lowpass','residual_highpass']: # not complex
+                self.magnitude_pyr_coeffs[key] = torch.abs(val).squeeze()
+                self.real_pyr_coeffs[key] = val.squeeze()
+            else: # complex
+                tmp = torch.unbind(val,-1)
+                self.magnitude_pyr_coeffs[key] = ((tmp[0]**2+tmp[1]**2)**.5).squeeze()
+                self.real_pyr_coeffs[key] = tmp[0].squeeze()
+
+        # STATISTIC: magnitude_means or the mean magnitude of each pyramid band
+        magnitude_means = OrderedDict()
+        for (key, val) in self.magnitude_pyr_coeffs.items():
+            magnitude_means[key] = torch.mean(val)
+            self.magnitude_pyr_coeffs[key] = self.magnitude_pyr_coeffs[key] - magnitude_means[key]   # subtract mean of magnitude
+
+        return magnitude_means
 
 
     def expand(t,f):
