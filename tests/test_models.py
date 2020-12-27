@@ -485,26 +485,27 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_orientations", [2,3,4]) 
     @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    def test_portilla_simoncelli(self, n_scales, n_orientations, spatial_corr_width, im_shape):
+    @pytest.mark.parametrize("use_true_correlations",[True,False])
+    def test_portilla_simoncelli(self, n_scales, n_orientations, spatial_corr_width, im_shape,use_true_correlations):
         x = po.make_basic_stimuli()
         if im_shape is not None:
             x = x[0,0, :im_shape[0], :im_shape[1]]
-        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width,use_true_correlations=use_true_correlations)
         ps(x)
 
     ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
-    @pytest.mark.parametrize("n_scales", [1,2,3,4])
-    @pytest.mark.parametrize("n_orientations", [2,3,4])
-    @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
+    @pytest.mark.parametrize("n_scales", [1])
+    @pytest.mark.parametrize("n_orientations", [2])
+    @pytest.mark.parametrize("spatial_corr_width", [3])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    @pytest.mark.parametrize("im",['curie','einstein','checkerboard','metal','nuts','sawtooth'])
+    @pytest.mark.parametrize("im",['curie'])
     def test_torch_v_matlab(self, n_scales, n_orientations, spatial_corr_width, im_shape,im):
         path = osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
-        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width, use_true_correlations=False)
         python_vector = ps(im0)
         
 
@@ -524,7 +525,7 @@ class TestPortillaSimoncelli(object):
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
-        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width,use_true_correlations=False)
         output = ps(im0)
         
 
