@@ -1,5 +1,5 @@
 import torch
-from ..tools.signal import rescale
+from torch import Tensor
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 import numpy as np
 import pyrtools as pt
@@ -7,7 +7,8 @@ import warnings
 from .synthesis import Synthesis
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-import plenoptic as po
+from typing import Tuple
+
 
 def fisher_info_matrix_vector_product(y, x, v):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
@@ -45,6 +46,9 @@ def fisher_info_matrix_eigenvalue(y, x, v):
     """
     Fv = fisher_info_matrix_vector_product(y, x, v)
     lmbda = Fv.T @ v
+    if v.shape[1] > 1:
+        lmbda = torch.diag(lmbda)
+
     return lmbda
 
 
@@ -99,7 +103,6 @@ class Eigendistortion(Synthesis):
     """
 
     def __init__(self, base_signal, model):
-        # TODO: make note about rescaling
         assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
 
         self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
@@ -115,7 +118,8 @@ class Eigendistortion(Synthesis):
         else:
             self._representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
 
-        print(f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
+        print(f"\n Initializing Eigendistortion -- "
+              f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
 
         self.jacobian = None
         self.synthesized_eigenvalues = None
@@ -161,30 +165,24 @@ class Eigendistortion(Synthesis):
         """Send attrs to specified device. See docstring of Synthesis.to()"""
         super().to(*args, attrs, **kwargs)
 
-    def synthesize(self, method='power', e_vecs=None, tol=1e-10, n_steps=1000, seed=0, debug_A=None,
-                   store_progress=False):
+    def synthesize(self, k=1, method='power', tol=1e-8, max_steps=1000, seed=0, store_progress=False):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
         Parameters
         ----------
-        method: {'exact', 'power', 'lanczos'}, optional
+        method: {'exact', 'power', 'svd'}, optional
             Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large matrices). 'power' (default) uses the power method to compute first and
-            last eigendistortions, with maximum number of iterations dictated by n_steps. 'lanczos' uses the Arnoldi
-            iteration algorithm to estimate the _entire_ eigenspectrum and thus more than just two eigendistortions,
-            as opposed to the power method. Note: 'lanczos' method is experimental and may be numerically unstable.
-            We recommend using the power method.
-        e_vecs: iterable, optional
-            Integer list of which eigenvectors to return for ``method='lanczos'``.
+            last eigendistortions, with maximum number of iterations dictated by n_steps. 'svd' uses randomized SVD
+            to approximate the top k eigendistortions and their corresponding eigenvalues.
+        k: int
+            How many vectors to return using block power method or svd.
         tol: float, optional
             Tolerance for error criterion in power iteration.
-        n_steps: int, optional
-            Total steps to run for ``method='power'`` or ``method='lanczos'`` in eigenvalue computation.
+        max_steps: int, optional
+            Total steps to run for ``method='power'`` in eigenvalue computation.
         seed: int, optional
             Control the random seed for reproducibility.
-        debug_A: torch.Tensor, optional
-            Explicit Fisher Information Matrix in the form of 2D tensor. Used to debug lanczos algorithm.
-            Dimensionality must be torch.Size([N, N]) where N is the flattened input size.
         store_progress: bool
             Store loss after each iteration. Change in approximated eigenvalue is used as a proxy for loss and a
             measure of convergence. Can be displayed with `plot_loss()`.
@@ -206,10 +204,7 @@ class Eigendistortion(Synthesis):
         self._set_seed(seed)
         self.store_progress = store_progress
 
-        if e_vecs is None:
-            e_vecs = []
-
-        assert method in ['power', 'exact', 'lanczos'], "method must be in {'power', 'exact', 'lanczos'}"
+        assert method in ['power', 'exact', 'svd'], "method must be in {'power', 'exact', 'svd'}"
 
         if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
@@ -217,21 +212,25 @@ class Eigendistortion(Synthesis):
         if method == 'exact':  # compute exact Jacobian
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
-            eig_vecs_ind = np.arange(len(eig_vecs))
+            eig_vecs_ind = torch.arange(len(eig_vecs))
 
         elif method == 'power':
-            print('\nComputing max and min eigendistortion.\n')
-            lmbda_max, v_max = self._synthesize_power(l=0., tol=tol, n_steps=n_steps)
-            lmbda_min, v_min = self._synthesize_power(l=lmbda_max, tol=tol, n_steps=n_steps)
+
+            lmbda_max, v_max = self._synthesize_power(k=k, l=0., tol=tol, max_steps=max_steps)
+            lmbda_min, v_min = self._synthesize_power(k=k, l=lmbda_max[0], tol=tol, max_steps=max_steps)
+            n = v_max.shape[0]
 
             eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
-            eig_vecs_ind = [0, len(self._input_flat) - 1]
+            eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n-k, n)))
 
-        elif method == 'lanczos' and n_steps is not None:
-            eig_vals, eig_vecs, eig_vecs_ind = self._synthesize_lanczos(n_steps=n_steps, e_vecs=e_vecs, debug_A=debug_A)
-            if len(e_vecs) > 0:  # reshape to image if we returned eigenvectors
-                eig_vecs = self._vector_to_image(eig_vecs.detach())
+        elif method == 'svd':
+
+            lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(k=k, p=5, q=2)
+            eig_vecs = self._vector_to_image(v_new.detach())
+            eig_vals = lmbda_new.squeeze()
+            eig_vecs_ind = torch.arange(k)
+            print(f'FIM range approximation error: {error_approx:.2f}')
 
         # reshape to (n x num_chans x h x w)
         self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
@@ -309,10 +308,17 @@ class Eigendistortion(Synthesis):
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def _synthesize_power(self, l=0, tol=1e-10, n_steps=1000):
+    def _clamp_and_store(self, idx, v, d_lambda):
+        """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
+        if self.store_progress:
+            v = self._vector_to_image(v)[0]
+            # self._all_saved_signals[idx].append(v)
+            self._all_losses[idx].append(d_lambda.item())
+
+    def _synthesize_power(self, k=1, l=0, tol=1e-10, max_steps=1000):
         r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
-        Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher Information
-        Matrix, without explicitly representing that matrix.
+        Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher
+        Information Matrix, without explicitly representing that matrix.
 
         Parameters
         ----------
@@ -321,7 +327,7 @@ class Eigendistortion(Synthesis):
             estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
         tol: float, optional
             Tolerance value
-        n_steps: int, optional
+        max_steps: int, optional
             Maximum number of steps
 
         Returns
@@ -330,6 +336,10 @@ class Eigendistortion(Synthesis):
             Eigenvalue corresponding to final vector of power iteration.
         v: torch.Tensor
             Final eigenvector (i.e. eigendistortion) of power iteration procedure.
+
+        References
+        ----------
+        [1] Algorithm 8.2.8 Golub and Van Loan, Matrix Computations, 3rd Ed.
         """
 
         idx = len(self._all_losses)
@@ -340,6 +350,7 @@ class Eigendistortion(Synthesis):
         x, y = self._input_flat, self._representation_flat
 
         v = torch.randn_like(x)
+        v = torch.randn(len(x), k)
         v = v / v.norm()
 
         Fv = fisher_info_matrix_vector_product(y, x, v)
@@ -348,10 +359,10 @@ class Eigendistortion(Synthesis):
 
         d_lambda = torch.tensor(1)
         lmbda_new, v_new = None, None
-        pbar = tqdm(range(n_steps))
+        pbar = tqdm(range(max_steps))
         postfix_dict = {'step': None, 'delta_eigenval': None}
         for i in pbar:
-            postfix_dict.update(dict(step=f"{i+1:d}/{n_steps:d}", delta_eigenval=f"{d_lambda.item():04.4f}"))
+            postfix_dict.update(dict(step=f"{i+1:d}/{max_steps:d}", delta_eigenval=f"{d_lambda.item():04.4f}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
@@ -360,11 +371,12 @@ class Eigendistortion(Synthesis):
 
             Fv = fisher_info_matrix_vector_product(y, x, v)
             Fv = Fv - l * v  # minor component
-            v_new = Fv / torch.norm(Fv)
+
+            v_new, _ = torch.qr(Fv)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new)
 
-            d_lambda = torch.sqrt((lmbda - lmbda_new) ** 2)
+            d_lambda = torch.sqrt((lmbda.sum() - lmbda_new.sum()) ** 2)
             v = v_new
             lmbda = lmbda_new
 
@@ -374,170 +386,54 @@ class Eigendistortion(Synthesis):
 
         return lmbda_new, v_new
 
-    def _clamp_and_store(self, idx, v, d_lambda):
-        """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
-        if self.store_progress:
-            v = self._vector_to_image(v)[0]
-            # self._all_saved_signals[idx].append(v)
-            self._all_losses[idx].append(d_lambda.item())
-
-    def _synthesize_lanczos(self, n_steps=1000, e_vecs=None, debug_A=None):
-        r""" Lanczos Algorithm with full reorthogonalization after each iteration.
-
-        Computes approximate eigenvalues/vectors of FIM (i.e. the Ritz values and vectors). Each vector returned from
-        power iteration is saved (i.e. :math:`v, Av, Avv, Avvv`, etc.). These vectors span the Krylov subspace which is a good
-        approximation of the matrix. Each Lanczos iteration orthogonalizes the current vector against all previously
-        obtained vectors. Matrix :math:`A` is the FIM which is computed implicitly. This orthogonalization is done via
-        Gram-Schmidt orthogonalization of the current vector against all previous vectors at each iteration. Since this
-        procedure is done by projecting the current vector onto all previous vectors (via matrix-vector multiplication),
-        then removing the projected component at each iteration, later iterations to take longer than early iterations.
-
-        This method simultaneously approximates both ends of the eigenspectrum. This is analyzed in depth in the below
-        references [1] and [2].
-
-        We want to estimate :math:`k` eigenvalues and eigenvectors of our Fisher information matrix, :math:`A`. This is done
-        by decomposing :math:`A` as
-
-        .. math::
-            \begin{align}
-            A &\approx  Q_kT_kQ_K^T\\
-            \text{where } T_{k}&=\left[\begin{array}{cccc}{\alpha_{1}} & {\beta_{2}} & {} & {} \\ {\beta_{2}} & {\ddots} & {\ddots} & {} \\ {} & {\ddots} & {\ddots} & {\beta_{k}} \\ {} & {} & {\beta_{k}} & {\alpha_{k}}\end{array}\right]\\
-            Q_k &= [\bf{q_1}, \bf{q_2}, ..., \bf{q_k}].
-            \end{align}
-
-        Here :math:`T_k` is a :math:`(k \times k)` tri-diagonal matrix, and :math:`Q_k` is an :math:`(n\times k)` matrix of
-        orthogonal vectors spanning the k-dimensional Krylov subspace of :math:`A`. The matrix :math:`T_k` is easier to
-        diagonalize due to its reduced size and tridiagonal structure, :math:`T_k=V\Lambda V^T`. By subbing this into our
-        earlier approximation for :math:`A`, we find
-
-        .. math::
-            \begin{align}
-            A &\approx Q_kT_kQ_k^T\\
-              &= Q_kV\Lambda V^T Q_k^T
-            \end{align}
-
-        Thus, :math:`Q_kV` are our estimates of :math:`k` eigenvectors of :math:`A` and :math:`\text{diag}(\Lambda )` are
-        their associated eigenvalues.
-
+    def _synthesize_randomized_svd(self,
+                                   k: int,
+                                   p: int = 0,
+                                   q: int = 0) -> Tuple[Tensor, Tensor]:
+        r"""  Synthesize eigendistortions using randomized truncated SVD.
         Parameters
         ----------
-        n_steps: int
-            number of power iteration steps (i.e. eigenvalues/eigenvectors to compute and/or return). Recommended to do many
-            more than amount of requested eigenvalue/eigenvectors, N. Some say 2N steps but as many as possible is preferred.
-        e_vecs: int or iterable, optional
-           Eigenvectors to return. If num_evecs is an int, it will return all eigenvectors in range(num_evecs).
-           If an iterable, then it will return all vectors selected.
-        debug_A: torch.Tensor
-            For debugging purposes. Explicit FIM for matrix vector multiplication. Bypasses matrix-vector product with
-            implicitly stored FIM of model.
+        k: int
+            Rank of factorization to be returned.
+        p: int, Optional
+            Oversampling parameter.
+        q: int, Optional
+            Matrix power iteration. Used to squeeze the eigen spectrum for more accurate approximation.
 
         Returns
         -------
-        eig_vals: torch.Tensor
-            Tensor of eigenvalues, sorted in descending order. torch.Size(n_steps,) if e_vecs is None.
-            torch.Size(len(e_vecs),) if e_vecs is not None. eigenvalues corresponding to the eigenvectors at that index.
-        eig_vecs: toch.Tensor
-            Tensor of n_steps eigenvectors with torch.Size(n, len(e_vecs)) . If ``return_evecs=False``,
-            then returned  eig_vecs is an empty tensor.
-        eig_vecs_ind: torch.Tensor
-            Indices of each returned eigenvector
+        S: torch.Tensor
+            Eigenvalues, Size((n, )).
+        V: torch.Tensor
+            Eigendistortions, Size((n, k)).
 
         References
-        ----------
-        [1] Algorithm 7.2, Applied Numerical Linear Algebra - James W. Demmel
-        [2] https://scicomp.stackexchange.com/questions/23536/quality-of-eigenvalue-approximation-in-lanczos-method
-
-        Examples
-        --------
-        Run Lanczos algorithm 5000 times, retain top and last 4 eigenvectors.
-            >>> ee = Eigendistortion(img, model)
-            >>> ee.synthesize(method='lanczos', n_steps=5000, e_vecs=[0,1,2,3,-4,-3,-2,-1], verbose=True)
+        -----
+        [1] Halko, Martinsson, Tropp, Finding structure with randomness: Probabilistic algorithms for constructing
+        approximate matrix decompositions, SIAM Rev. 53:2, pp. 217-288 https://arxiv.org/abs/0909.4061 (2011)
         """
 
-        warnings.warn("Lanczos algo is currently experimental. It may be numerically unstable and give inaccurate results.")
         x, y = self._input_flat, self._representation_flat
+        n = len(x)
 
-        n = x.shape[0]
-        dtype = x.dtype
-        device = x.device
+        P = torch.randn(n, k + p)
+        P, _ = torch.qr(P)  # numerical stability
+        Z = fisher_info_matrix_vector_product(y, x, P)
 
-        if e_vecs is None:
-            e_vecs = []
+        for _ in range(q):  # optional power iteration to squeeze the spectrum for more accurate estimate
+            Z = fisher_info_matrix_vector_product(y, x, Z)
 
-        if len(e_vecs) > n_steps:
-            raise Exception("Lanczos method requires at least n_steps=len(e_vecs) (but should preferably be much more).")
+        Q, _ = torch.qr(Z)
+        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q)  # B = Q.T @ A @ Q
+        _, S, V = torch.svd(B, some=True)  # eigendecomp of small matrix
+        V = Q @ V  # lift up to original dimensionality
 
-        if n_steps > n:
-            warnings.warn("Dim of Fisher matrix, n, is < n_steps. Setting n_steps = n")
-            n_steps = n
-        if n_steps < 2*len(e_vecs):
-            warnings.warn("n_steps should be at least 2*len(e_vecs) but preferably even more for accuracy.", RuntimeWarning)
+        # estimate error in Q estimate of range space
+        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20))
+        error_approx = omega - (Q @ Q.T @ omega)
+        error_approx = error_approx.norm(dim=0).mean()
 
-        # T tridiagonal matrix, V orthogonalized Krylov vectors
-        T = torch.zeros((n_steps, n_steps), device=device, dtype=dtype)
-        Q = torch.zeros((n, n_steps), device=device, dtype=dtype)
-
-        q = torch.randn(n, device=device, dtype=dtype)
-        q /= torch.norm(q)
-        pbar = tqdm(range(n_steps))
-        postfix_dict = {}
-
-        for i in pbar:
-            postfix_dict.update(dict(step=f"{i+1:d}/{n_steps:d}"))
-            pbar.set_postfix(**postfix_dict)
-
-            # v = Aq where A is implicitly stored FIM operator
-            if debug_A is None:
-                v = fisher_info_matrix_vector_product(y, x, q.view(n, 1)).view(n)
-            else:
-                v = torch.mv(debug_A, q)
-
-            alpha = q.dot(v)  # alpha = q'Aq
-
-            if i > 0:  # orthogonalize using Gram-Schmidt TWICE to ensure orthogonality
-                v -= Q[:, :i+1].mv(Q[:, :i + 1].t().mv(v))
-                v -= Q[:, :i+1].mv(Q[:, :i + 1].t().mv(v))
-
-            beta = torch.norm(v)
-            if beta == 0:
-                print(f'Vector norm beta=0; Premature stoppage at step {i:d}/{n_steps:d}')
-                break
-
-            # normalize
-            q = v / beta
-
-            # diagonal is alpha
-            T[i, i] = alpha
-
-            # off diagonals are beta
-            if i < n_steps - 1:
-                T[i, i + 1] = beta
-                T[i + 1, i] = beta
-
-            # assign new vector to matrix
-            Q[:, i] = q
-
-        pbar.close()
-        # only use T and Q that were successfully computed
-        T = T[:i + 1, :i + 1]
-        Q = Q[:, :i + 1]
-
-        if len(e_vecs) > 0:
-            # expensive final step - diagonalize Tridiag matrix
-            eig_vals, V = T.symeig(eigenvectors=True)
-
-            vecs_to_return = e_vecs
-            eig_vecs_ind = torch.as_tensor(e_vecs)
-
-            eig_vecs = Q.mm(V).flip(dims=(1,))[:, vecs_to_return]
-            eig_vals = eig_vals[vecs_to_return]
-        else:
-            print("Returning all computed eigenvals and 0 eigenvectors. Set e_vecs if you want eigvectors returned.")
-            eig_vecs = []
-            eig_vals, _ = T.symeig(eigenvectors=False)  # expensive final step
-            eig_vecs_ind = torch.zeros(0)
-
-        return eig_vals.flip(dims=(0,)), eig_vecs, eig_vecs_ind
+        return S[:k], V[:, :k], error_approx  # truncate
 
     def _indexer(self, idx):
         """Maps eigenindex to arg index (0-indexed)"""
@@ -614,11 +510,3 @@ class Eigendistortion(Synthesis):
         batch_idx = self._indexer(eigenindex)
         fig = super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize, ax, imshow_zoom, vrange)
         return fig
-
-    def animate(self, eigenindex, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_error=False, imshow_zoom=None, plot_data_attr=['loss'],
-                rep_error_kwargs={}):
-        """Wraps Synthesis.animate"""
-        raise(NotImplementedError, "This function does not work yet")
-
-
