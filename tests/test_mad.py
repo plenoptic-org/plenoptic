@@ -123,7 +123,7 @@ class TestMAD(object):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'V1':
-            model1 = po.simul.PrimaryVisualCortex(1, img.shape[-2:]).to(DEVICE)
+            model1 = po.simul.PooledV1(1, img.shape[-2:]).to(DEVICE)
         elif model_name == 'NLP':
             model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':

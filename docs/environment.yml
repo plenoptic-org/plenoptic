@@ -14,3 +14,4 @@ dependencies:
   - pip:
     - nbsphinx
     - nbsphinx_link
+    - sphinxcontrib-apidoc

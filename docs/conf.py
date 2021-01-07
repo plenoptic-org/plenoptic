@@ -44,6 +44,7 @@ extensions = [
     'numpydoc',
     'nbsphinx',
     'nbsphinx_link',
+    'sphinxcontrib.apidoc',
     'matplotlib.sphinxext.plot_directive',
     'matplotlib.sphinxext.mathmpl',
 ]
@@ -181,4 +182,4 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
-
+apidoc_module_dir = "../plenoptic"
