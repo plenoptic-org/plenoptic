@@ -5,6 +5,9 @@ from ...tools.signal import batch_fftshift
 from ...tools.conv import blur_downsample
 import numpy as np
 from collections import OrderedDict 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from ...tools.display import clean_stem_plot
 
 
 class Portilla_Simoncelli(nn.Module):
@@ -62,7 +65,7 @@ class Portilla_Simoncelli(nn.Module):
     
     """
     def __init__(self, im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9, use_true_correlations=True):
-        super(Portilla_Simoncelli, self).__init__()
+        super().__init__()
 
         self.image_shape = im_shape
         self.spatial_corr_width = spatial_corr_width
@@ -83,22 +86,26 @@ class Portilla_Simoncelli(nn.Module):
         pixel_statistics = ['pixel_statistics']*6
 
         # magnitude_means
-        magnitude_means = ['residual_lowpass'] + [s for s in self.scales[2:-1] for i in range(0,self.n_orientations)] \
-                            + ['residual_highpass']
+        magnitude_means = ['residual_highpass'] + [s for s in range(0,self.n_scales) for i in range(0,self.n_orientations)] \
+                            + ['residual_lowpass']
         
+        sc = [s for s in range(0,self.n_scales)]
+        sc_lowpass =  sc + ['residual_lowpass']
+
         # skew_reconstructed
-        skew_reconstructed = self.scales[1:-1]
+        skew_reconstructed = sc_lowpass
 
         # kurtosis_reconstructed
-        kurtosis_reconstructed = self.scales[1:-1]
+        kurtosis_reconstructed = sc_lowpass
         
-        auto_correlation = (self.spatial_corr_width*self.spatial_corr_width)*self.scales[1:-1]
-        cross_orientation_correlation_magnitude = (self.n_orientations*self.n_orientations) * self.scales[1:-1]
-        cross_orientation_correlation_real = (4*self.n_orientations*self.n_orientations) * self.scales[1:-1]
+        auto_correlation = (self.spatial_corr_width*self.spatial_corr_width) * sc_lowpass
+        auto_correlation_magnitude = (self.spatial_corr_width*self.spatial_corr_width)*[s for s in sc for i in range(0,self.n_orientations)]
         
-        auto_correlation_magnitude = (self.spatial_corr_width*self.spatial_corr_width)*[s for s in self.scales[2:-1] for i in range(0,self.n_orientations)]
-        cross_scale_correlation_magnitude = (self.n_orientations*self.n_orientations) * self.scales[2:-1]
-        cross_scale_correlation_real = (2*self.n_orientations*max(2*self.n_orientations,5)) * self.scales[2:-1]
+        cross_orientation_correlation_magnitude = (self.n_orientations*self.n_orientations) * sc_lowpass
+        cross_orientation_correlation_real = (4*self.n_orientations*self.n_orientations) * sc_lowpass
+        
+        cross_scale_correlation_magnitude = (self.n_orientations*self.n_orientations) * sc
+        cross_scale_correlation_real = (2*self.n_orientations*max(2*self.n_orientations,5)) * sc
         var_highpass_residual = [self.scales[-1]]
 
         scales = pixel_statistics + magnitude_means + auto_correlation_magnitude + skew_reconstructed + \
@@ -227,6 +234,22 @@ class Portilla_Simoncelli(nn.Module):
                         else val.flatten() \
                         for (key,val) in self.representation.items()]
         return torch.cat(list_of_stats)
+
+    # def convert_to_dict(self,vec):
+    #     rep = OrderedDict()
+    #     rep['pixel_statistics'] = OrderedDict()
+    #     rep['pixel_statistics']['mean'] = vec[0]
+    #     rep['pixel_statistics']['var'] = vec[1]
+    #     rep['pixel_statistics']['skew'] = vec[2]
+    #     rep['pixel_statistics']['kurtosis'] = vec[3]
+    #     rep['pixel_statistics']['min'] = vec[4]
+    #     rep['pixel_statistics']['max'] = vec[5]
+        
+
+    #     tmp = ['residual_lowpass'] + [(s,i) for s in range(0,self.n_scales) for i in range(0,self.n_orientations)] \
+    #                         + ['residual_highpass']
+    #     print(tmp)
+    #     # print(self.representation['magnitude_means'])
 
 
 
@@ -600,4 +623,58 @@ class Portilla_Simoncelli(nn.Module):
         if var is None:
             var=X.var()
         return torch.mean(torch.abs(X-mu).pow(4))/(var.pow(2))
+    
+    # def plot_representation(self,figsize=(15, 15), ylim=None, ax=None, title=None, batch_idx=0, data=None):
+    #     n_rows = 3
+    #     n_cols = 3
+
+    #     if data is None:
+    #         rep = self.representation
+    #         data = OrderedDict()
+    #         data['pixels+var_highpass'] = rep['pixel_statistics']
+    #         data['pixels+var_highpass']['var_highpass_residual'] = rep['var_highpass_residual']
+    #         data['skew+kurtosis'] = torch.stack((rep['skew_reconstructed'],rep['kurtosis_reconstructed']))
+
+    #         for (k,v) in rep.items():
+    #             if k not in ['pixel_statistics','var_highpass_residual','kurtosis_reconstructed','skew_reconstructed']:
+    #                 data[k] = v
+    #         # data = self.representation
+
+    #     # Set up grid spec
+    #     if ax is None:
+    #         # we add 2 to order because we're adding one to get the
+    #         # number of orientations and then another one to add an
+    #         # extra column for the mean luminance plot
+    #         fig = plt.figure(figsize=figsize)
+    #         gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
+    #     else:
+    #         warnings.warn("ax is not None, so we're ignoring figsize...")
+    #         # want to make sure the axis we're taking over is basically invisible.
+    #         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+    #         gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
+    #         fig = ax.figure
+        
+    #     # if isinstance(title, str):
+    #     #     # then this is a single str, so we'll make it the same on
+    #     #     # every subplot
+    #     #     title = (n_rows * n_cols) * [title]
+
+    #     # plot data
+    #     axes = []
+    #     for i, (k, v) in enumerate(data.items()):
+
+    #         if isinstance(v,OrderedDict):
+    #             ax = fig.add_subplot(gs[i//3,i%3])
+    #             ax = clean_stem_plot(list(v.values()),ax,k,False)
+    #             if k == 'pixels+var_highpass':
+    #                 print('here')
+    #         else:
+    #             ax = fig.add_subplot(gs[i//3,i%3])
+    #             ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,False)
+            
+    #         axes.append(ax)
+
+
+    #     return fig, axes
+
 
