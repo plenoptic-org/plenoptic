@@ -386,10 +386,7 @@ class Eigendistortion(Synthesis):
 
         return lmbda_new, v_new
 
-    def _synthesize_randomized_svd(self,
-                                   k: int,
-                                   p: int = 0,
-                                   q: int = 0) -> Tuple[Tensor, Tensor]:
+    def _synthesize_randomized_svd(self, k, p=0, q=0):
         r"""  Synthesize eigendistortions using randomized truncated SVD.
         Parameters
         ----------
