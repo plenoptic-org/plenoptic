@@ -7,38 +7,47 @@ from ...tools.conv import blur_downsample
 
 
 class Spectral(nn.Module):
-    """This model computes the local energy in each pyramid band,
-    that is to say the local spectral amplitude of the signal.
+    """Compute the local spectral amplitude of the input.
+
+    This is done by representing the input in a pyramid,
+    and computing the local energy in each band.
+
+    TODO
+    ----
+    - add a parameter to control local / global pooling
+    - extra statistic (mean) on highpass / lowpass
     """
 
-    def __init__(self, image_size, n_ori=6, n_scale=4):
+    def __init__(self, image_size, n_ori=6, n_scale=4, is_complex=True):
         super().__init__()
 
-        self.complex_pyr = Steerable_Pyramid_Freq(image_size,
-                                                  height=n_scale,
-                                                  is_complex=True,
-                                                  order=n_ori-1,
-                                                  downsample=False)
+        self.pyr = Steerable_Pyramid_Freq(image_size,
+                                          height=n_scale,
+                                          is_complex=is_complex,
+                                          order=n_ori-1,
+                                          downsample=False)
 
     def forward(self, x, vectorize=False):
         assert x.ndim == 4
 
-        y = self.complex_pyr(x)
-        energy, phase = rectangular_to_polar(y[:, 1:-1:2], y[:, 2:-1:2])
+        y = self.pyr(x)
+        energy, _ = rectangular_to_polar(y[:, 1:-1:2], y[:, 2:-1:2])
 
+
+        y = torch.cat([blur_downsample(torch.sqrt(y[:, 0:1]**2)),
+                       blur_downsample(energy),
+                       blur_downsample(torch.sqrt(y[:, -1:]**2))],
+                      dim=1)
+
+        # TODO ready to go complex when pyr is
+        # if torch.is_complex(y):
+        #     y = torch.abs(y)
+        # else:
+        #     y = torch.sqrt(y**2)
         # local spatial averaging
-        stats = torch.cat([blur_downsample(torch.sqrt(y[:, 0:1]**2)),
-                           blur_downsample(energy),
-                           blur_downsample(torch.sqrt(y[:, -1:]**2))],
-                          dim=1)
-          
+        # y = blur_downsample(y)
+
         if vectorize:
-            stats  = stats.view(x.shape[0], -1)
+            y = y.view(x.shape[0], -1)
 
-        # global spatial averaging
-        # stats = torch.cat([torch.sqrt(y[:, 0:1]**2).mean(dim=(2, 3)),
-        #                    energy.mean(dim=(2, 3)),
-        #                    torch.sqrt(y[:, -1:]**2).mean(dim=(2, 3))],
-        #                   dim=1).view(x.shape[0], -1)
-
-        return stats
+        return y

@@ -288,6 +288,8 @@ def rectangular_to_polar(real, imaginary):
     containing the imaginary component. This means that if complex numbers are
     represented as an extra dimension in the tensor of interest, the user
     needs to index through that dimension.
+
+    TODO: torch.abs(cmplx) torch.angle(cmplx)
     """
 
     amplitude = torch.sqrt(real ** 2 + imaginary ** 2)
@@ -311,12 +313,14 @@ def polar_to_rectangular(amplitude, phase):
         tensor containing the real component
     imaginary: torch.Tensor
         tensor containing the imaginary component
-    Note
 
+    Note
     ----
     Since complex numbers are not supported by pytorch, this function returns
     two tensors of the same shape. One containing the real component, one
     containing the imaginary component.
+
+    TODO: torch.complex(abs, angle)
     """
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be strictly positive.")

@@ -10,7 +10,9 @@ from ..canonical_computations.steerable_pyramid_freq import \
 
 
 class Texture_Statistics(nn.Module):
-    """ Developping a texture analysis model inspired by [1]_ and [2]_
+    """ UNDER CONSTRUCTION
+    Statistical model for Texture analysis and synthesis,
+    inspired by [1]_ and [2]_
 
     References
     ----------
@@ -32,7 +34,11 @@ class Texture_Statistics(nn.Module):
     length scale (to downsample, or not to downsample? that is the question)
     - explore cross orientation phase correction, with multiscale orientation
     ie. derivative order as ori bandwidth
-
+    - boundary handling currently limited to circular because of pyramid
+    implementation in frequency, intruduces spurious content - a general
+    brute force solution is a signal domain implemetation of complex pyr,
+    a simpler solution for textures is to reflect the input image (L/R, U/D),
+    and make it four times as large, which makes circular bounaries smooth.
     """
 
     def __init__(self, image_size, n_ori=4, n_scale=4, n_shifts=7):
