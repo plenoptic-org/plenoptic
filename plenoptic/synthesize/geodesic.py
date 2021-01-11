@@ -8,7 +8,8 @@ from tqdm import tqdm
 
 from ..tools.data import to_numpy
 from ..tools.fit import penalize_range
-from ..tools.straightness import make_straight_line, sample_brownian_bridge
+from ..tools.straightness import (distance_from_line, make_straight_line,
+                                  sample_brownian_bridge)
 
 
 class Geodesic(nn.Module):
@@ -77,10 +78,10 @@ class Geodesic(nn.Module):
 
     compare stability relative loss
 
-    projected version for surjective transform (eg unercomplete, low rank) 
+    projected version for surjective transform (eg unercomplete, low rank)`
     '''
 
-    def __init__(self, imgA, imgB, model, n_steps=11, init='straight'):
+    def __init__(self, imgA, imgB, model, n_steps=10, init='straight'):
         super().__init__()
 
         self.xA = imgA.clone().detach()
@@ -93,25 +94,31 @@ class Geodesic(nn.Module):
         self.x = self.initialize(init=init)[1:-1]
         self.x = nn.Parameter(self.x)
 
-        self.loss = []
-        self.dist_from_line = []
-        self.step_energy = []
-
+        self.geodesic = torch.cat((self.xA, self.x.data, self.xB), 0)
         with torch.no_grad():
             self.yA = self.model(self.xA)
             self.yB = self.model(self.xB)
 
-        n = self.n_steps - 1
+        self.loss = []
+        self.dist_from_line = [distance_from_line(
+                               self.geodesic).unsqueeze(0)]
+        self.step_energy = []
+
+        n = self.n_steps
         # step = (n-1)/n * self.yB + 1/n * self.yA
         # self.reference_length = self.metric(self.yB - step) * n
         self.repres_unit = self.metric(self.yB - self.yA) / n ** 2
         self.signal_unit = self.metric(self.xB - self.xA) / n ** 2
 
     def initialize(self, init):
-        if init == 'straight':
-            x = make_straight_line(self.xA, self.xB, self.n_steps)
-        elif init == 'bridge':
+        if init == 'bridge':
             x = sample_brownian_bridge(self.xA, self.xB, self.n_steps)
+        elif init == 'straight':
+            x = make_straight_line(self.xA, self.xB, self.n_steps)
+        else:
+            assert init.shape == (self.n_steps, *self.xA.shape[1:])
+            x = init
+
         return x
 
     def analyze(self):
@@ -126,10 +133,10 @@ class Geodesic(nn.Module):
         step_energy: sqaured length of each step
         """
 
-        step_energy = torch.empty(1, self.n_steps - 1)
+        step_energy = torch.empty(1, self.n_steps)
 
         step_energy[:, 0] = self.metric(zA - z[0])
-        for i in range(1, self.n_steps-2):
+        for i in range(1, self.n_steps-1):
             step_energy[:, i] = self.metric(z[i] - z[i-1])
         step_energy[:, -1] = self.metric(zB - z[-1])
         self.step_energy.append(step_energy.detach())
@@ -145,9 +152,9 @@ class Geodesic(nn.Module):
         self.optimizer.zero_grad()
         y = self.analyze()
         repres_path_energy = self.path_energy(y, self.yA, self.yB)
+        loss = repres_path_energy
         if self.lmbda >= 0:
-            loss = repres_path_energy \
-                   + self.lmbda * penalize_range(self.x, (0, 1))
+            loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
 
         if loss.item() != loss.item():
             self.step_energy.pop()
@@ -200,7 +207,7 @@ class Geodesic(nn.Module):
             self.loss.append(loss.item())
             self.geodesic = torch.cat((self.xA, self.x.data, self.xB), 0)
             # TODO flag to store progress or not
-            self.dist_from_line.append(self.distance_from_line(
+            self.dist_from_line.append(distance_from_line(
                                         self.geodesic).unsqueeze(0))
 
             if loss.item() < 1e-6:
@@ -214,63 +221,55 @@ class Geodesic(nn.Module):
         plt.ylabel('loss value')
         plt.show()
 
-    def distance_from_line(self, x):
-        """l2 distance of x's representation to its projection onto the
-        representation line
-
-        x: torch.FloatTensor
-            a sequence of images, preferably with anchor images as endpoints
-        """
-
-        y = self.model(x)
-        line = (self.yB - self.yA).flatten()
-        u = line / torch.norm(line)
-        # center
-        y = (y - self.yA).view(self.n_steps, -1)
-
-        return torch.norm(y - (y @ u)[:, None]*u[None, :], dim=1)
-
-    def plot_distance_from_line(self, vid=None):
+    def plot_distance_from_line(self, vid=None, anim=False):
 
         fig, ax = plt.subplots()
 
         if vid is not None:
-            ax.plot(to_numpy(self.distance_from_line(vid)),
+            ax.plot(to_numpy(distance_from_line(vid)),
                     'b-o', label='video')
-        ax.plot(to_numpy(self.distance_from_line(self.pixelfade)),
+        ax.plot(to_numpy(distance_from_line(self.pixelfade)),
                 'g-o', label='pixelfade')
-        ax.plot(to_numpy(self.distance_from_line(self.geodesic)),
-                'r-o', label='geodesic')
+
+        # if anim:
+        #     ax.plot(to_numpy(self.dist_from_line[0]),
+        #             'r-o', label='geodesic')
+        if not anim:
+            ax.plot(to_numpy(distance_from_line(self.geodesic)),
+                    'r-o', label='geodesic')
         plt.legend(loc=1)
         plt.ylabel('distance from representation line')
         plt.xlabel('projection on representation line')
-        # plt.yscale('log')
 
-        return fig, ax
+        if anim:
+            return fig, ax
+        else:
+            plt.show()
 
-    def animate_distance_from_line(self, vid):
+    def animate_distance_from_line(self, vid=None, location=''):
         """
         TODO remove from gedesic from figure initialization
         """
-        from IPython.display import HTML
         from matplotlib import animation
 
-        fig, ax = self.plot_distance_from_line(vid=vid)
+        fig, ax = self.plot_distance_from_line(vid=vid, anim=True)
 
-        artist, = ax.plot(to_numpy(self.distance_from_line(self.geodesic)),
+        artist, = ax.plot(to_numpy(self.dist_from_line[0]),
                           'r-o', label='geodesic')
 
         def animate(i):
 
-            artist.set_data(range(11), to_numpy(self.dist_from_line[i],
-                                                squeeze=True))
-        #     artist.
+            artist.set_data(range(11), to_numpy(self.dist_from_line[i]))
+            artist.set_label('geodesic')
+            # TODO set legend
             return (artist,)
 
         anim = animation.FuncAnimation(fig, animate,
                                        frames=100, interval=20, blit=True,
                                        repeat=False)
-        anim = HTML(anim.to_html5_video())
+        plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
+        anim.save(location + 'distance_from_line.mp4', writer='ffmpeg')
         plt.close()
-
-        return anim
+        # from IPython.display import HTML
+        # anim = HTML(anim.to_html5_video())
+        # return anim
