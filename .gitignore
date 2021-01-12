@@ -7,7 +7,6 @@ __pycache__/
 *.xml
 *.pt
 .ftpconfig
-.idea/
 .vscode
 
 docs/_build
@@ -19,6 +18,8 @@ data/ssim_analysis.mat
 data/cat7*
 data/elep*
 data/cifar*
+
+logs/
 
 train
 
