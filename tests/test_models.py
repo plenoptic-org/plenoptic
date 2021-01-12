@@ -2,6 +2,7 @@
 import os.path as op
 import torch
 import plenoptic as po
+from plenoptic.tools import to_numpy
 import matplotlib.pyplot as plt
 import pytest
 import numpy as np
@@ -13,7 +14,7 @@ class TestLinear(object):
 
     def test_linear(self):
         model = po.simul.Linear()
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         assert model(x).requires_grad
 
     def test_linear_metamer(self):
@@ -30,7 +31,7 @@ class TestLinearNonlinear(object):
 
     def test_linear_nonlinear(self):
         model = po.simul.Linear_Nonlinear()
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         assert model(x).requires_grad
 
     def test_linear_nonlinear_metamer(self):
@@ -51,7 +52,7 @@ class TestLaplacianPyramid(object):
 
     def test_grad(self):
         L = po.simul.Laplacian_Pyramid()
-        y = L.analysis(po.make_basic_stimuli())
+        y = L.analysis(po.tools.make_basic_stimuli())
         assert y[0].requires_grad
 
 
@@ -79,7 +80,7 @@ class TestSpectral(object):
 class TestPolarPyramid(object):
 
     def test_polar_pyramid(self):
-        x = po.make_basic_stimuli(128)
+        x = po.tools.make_basic_stimuli(128)
         b, c, h, w = x.shape
 
         PP = po.simul.Polar_Pyramid((h, w))
@@ -195,7 +196,7 @@ class TestPooling(object):
         for i in range(2):
             pw.plot_window_areas('pixels', i)
             pw.plot_window_widths('pixels', i)
-        fig = pt.imshow(po.to_numpy(im))
+        fig = pt.imshow(to_numpy(im))
         pw.plot_windows(fig.axes[0])
 
     def test_PoolingWindows_caching(self, tmp_path):
@@ -234,7 +235,7 @@ class TestPooling(object):
             for i in range(2):
                 pw.plot_window_areas('pixels', i)
                 pw.plot_window_widths('pixels', i)
-            fig = pt.imshow(po.to_numpy(im).squeeze())
+            fig = pt.imshow(to_numpy(im).squeeze())
             pw.plot_windows(fig.axes[0])
             pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
             pw = pw.parallel(devices)
@@ -266,7 +267,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = pt.imshow(to_numpy(im).squeeze())
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
@@ -286,7 +287,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = pt.imshow(to_numpy(im).squeeze())
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
@@ -347,19 +348,19 @@ class TestPooledVentralStream(object):
             metamer.plot_representation_error()
 
     def test_frontend(self):
-        im = po.make_basic_stimuli()
+        im = po.tools.make_basic_stimuli()
         frontend = po.simul.Front_End()
         frontend(im)
 
-    def test_frontend_plot(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.Front_End()
-        po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
-        metamer = po.synth.Metamer(im, frontend)
-        metamer.synthesize(max_iter=3, store_progress=1)
-        metamer.plot_synthesis_status(figsize=(35, 5))
-        metamer.animate(figsize=(35, 5))
+    # def test_frontend_plot(self):
+    #     im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+    #     im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+    #     frontend = po.simul.Front_End()
+    #     po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
+    #     metamer = po.synth.Metamer(im, frontend)
+    #     metamer.synthesize(max_iter=3, store_progress=1)
+    #     metamer.plot_synthesis_status(figsize=(35, 5))
+    #     metamer.animate(figsize=(35, 5))
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -390,7 +391,7 @@ class TestPooledVentralStream(object):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
-        stats = po.optim.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
+        stats = po.tools.generate_norm_stats(v1, DATA_DIR, img_shape=(256, 256))
         v1 = po.simul.PooledV1(.5, im.shape[2:], normalize_dict=stats)
         v1 = v1.to(DEVICE)
         v1(im)

@@ -73,11 +73,12 @@ class TestGeodesic(object):
 
     # def test_geodesic_polarpyr(self):
     #     image_size = 64
-    #     einstein = po.make_basic_stimuli(image_size, requires_grad=False)[-1]
+    #     einstein = po.tools.make_basic_stimuli(image_size,
+    #                                            requires_grad=False)[-1]
     #     vid = po.translation_sequence(einstein)
     #     from torchvision.transforms.functional import center_crop
     #     vid = center_crop(vid, image_size // 2)
-    #     vid = po.rescale(vid, 0, 1)
+    #     vid = po.tools.rescale(vid, 0, 1)
 
     #     imgA = vid[0:1]
     #     imgB = vid[-1:]

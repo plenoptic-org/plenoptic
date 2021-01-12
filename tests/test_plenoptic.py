@@ -88,17 +88,17 @@ class TestNonLinearities(object):
 
     def test_polar_amplitude_zero(self):
         a = torch.rand(10)*-1
-        b = po.rescale(torch.randn(10), -np.pi / 2, np.pi / 2)
+        b = po.tools.rescale(torch.randn(10), -np.pi / 2, np.pi / 2)
 
         with pytest.raises(ValueError) as _:
-            _, _ = po.polar_to_rectangular(a, b)
+            _, _ = po.tools.polar_to_rectangular(a, b)
 
     def test_coordinate_identity_transform_rectangular(self):
         dims = (10, 5, 256, 256)
         x = torch.randn(dims)
         y = torch.randn(dims)
 
-        X, Y = po.polar_to_rectangular(*po.rectangular_to_polar(x, y))
+        X, Y = po.tools.polar_to_rectangular(*po.rectangular_to_polar(x, y))
 
         assert torch.norm(x - X) < 1e-3
         assert torch.norm(y - Y) < 1e-3
@@ -109,15 +109,15 @@ class TestNonLinearities(object):
         # ensure vec len a is non-zero by adding .1 and then re-normalizing
         a = torch.rand(dims) + 0.1
         a = a / a.max()
-        b = po.rescale(torch.randn(dims), -np.pi / 2, np.pi / 2)
+        b = po.tools.rescale(torch.randn(dims), -np.pi / 2, np.pi / 2)
 
-        A, B = po.rectangular_to_polar(*po.polar_to_rectangular(a, b))
+        A, B = po.rectangular_to_polar(*po.tools.polar_to_rectangular(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
     def test_rectangular_to_polar_dict(self):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
                                               is_complex=True)
         y = spc(x)
@@ -128,14 +128,14 @@ class TestNonLinearities(object):
         po.simul.non_linearities.rectangular_to_polar_real(x)
 
     def test_local_gain_control(self):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
                                               is_complex=False)
         y = spc(x)
         energy, state = po.simul.non_linearities.local_gain_control(y)
 
     def test_normalize(self):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         # should operate on both of these, though it will do different
         # things
         po.simul.non_linearities.normalize(x[0].flatten())
@@ -145,7 +145,7 @@ class TestNonLinearities(object):
         po.simul.non_linearities.normalize(x[0], sum_dim=1)
 
     def test_normalize_dict(self):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         v1 = po.simul.PooledV1(1, x.shape[-2:])
         v1(x[0])
         po.simul.non_linearities.normalize_dict(v1.representation)
@@ -158,9 +158,9 @@ def test_find_files(test_files_dir):
 class TestSignalTools(object):
 
     def test_autocorr(self):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_basic_stimuli()
         x_centered = x - x.mean((2, 3), keepdim=True)
-        a = po.autocorr(x_centered, n_shifts=7)
+        a = po.tools.autocorr(x_centered, n_shifts=7)
 
         # autocorr with zero delay is variance
         assert (torch.abs(
@@ -178,7 +178,7 @@ class TestPerceptualMetrics(object):
 
     @pytest.mark.parametrize('weighted', [True, False])
     def test_ssim(self, weighted):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.ssim(im1, im2).requires_grad
 
@@ -186,7 +186,7 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, func_name, size_A, size_B):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1)
         if func_name == 'noise':
             func = po.add_noise
@@ -214,7 +214,7 @@ class TestPerceptualMetrics(object):
     def test_noise_independence(self, mode):
         # this makes sure that we are drawing the noise independently in the
         # two cases here
-        img = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        img = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         if mode == 'many-to-one':
             img = img.repeat(2, 1, 1, 1)
             noise_lvl = 1
@@ -226,7 +226,7 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('noise_lvl', [[1], [128], [2, 4], [2, 4, 8], [0]])
     @pytest.mark.parametrize('noise_as_tensor', [True, False])
     def test_add_noise(self, noise_lvl, noise_as_tensor):
-        img = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        img = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         if noise_as_tensor:
             noise_lvl = torch.tensor(noise_lvl,
                                      dtype=torch.float32).unsqueeze(1)
@@ -244,9 +244,9 @@ class TestPerceptualMetrics(object):
         analysis = sio.loadmat(ssim_analysis, squeeze_me=True)
         print(ssim_analysis)
         mat_type = {True: 'weighted', False: 'standard'}[weighted]
-        base_img = po.load_images(op.join(ssim_images, analysis['base_img']))
-        other = po.load_images(op.join(ssim_images, f"samp{other_img}.tif"))
-        # dynamic range is 1 for these images, because po.load_images
+        base_img = po.tools.load_images(op.join(ssim_images, analysis['base_img']))
+        other = po.tools.load_images(op.join(ssim_images, f"samp{other_img}.tif"))
+        # dynamic range is 1 for these images, because po.tools.load_images
         # automatically re-ranges them. They were comptued with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
         # that should be corrected for
@@ -259,27 +259,27 @@ class TestPerceptualMetrics(object):
         assert torch.allclose(plen_val, mat_val.view_as(plen_val), atol=1e-5)
 
     def test_nlpd(self):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nlpd(im1, im2).requires_grad
 
     def test_nspd(self):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2).requires_grad
 
     def test_nspd2(self):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=3, S=5, complex=True).requires_grad
 
     def test_nspd3(self):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=1, S=5, complex=False).requires_grad
 
     def test_model_metric(self):
-        im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         model = po.simul.Front_End(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad
@@ -293,7 +293,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
@@ -312,7 +312,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
@@ -342,7 +342,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.lines) == 2, "Too many lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
@@ -362,7 +362,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
@@ -381,7 +381,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.stem(x, y1, label='hi', use_line_collection=True)
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
@@ -411,7 +411,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=i, use_line_collection=True)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.containers) == 2, "Too many lines were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
@@ -430,7 +430,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.update_plot(ax, torch.tensor(y2))
+        po.tools.update_plot(ax, torch.tensor(y2))
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
@@ -446,7 +446,7 @@ class TestDisplay(object):
         elif how == 'dict':
             y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
         fig = pt.imshow([y for y in y1.squeeze()])
-        po.update_plot(fig.axes, y2)
+        po.tools.update_plot(fig.axes, y2)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
