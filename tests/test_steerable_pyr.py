@@ -3,7 +3,6 @@ import os.path as op
 import imageio
 import torch
 import plenoptic as po
-from plenoptic.tools import to_numpy
 import matplotlib.pyplot as plt
 import pytest
 import pyrtools as pt
@@ -220,7 +219,7 @@ class TestSteerablePyramid(object):
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = tight_frame)
         pyr.forward(im)
         recon = to_numpy(pyr.recon_pyr())
-        np.testing.assert_allclose(recon, im.data.cpu().numpy()[0, 0], rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(recon, im.data.cpu().numpy(), rtol=1e-4, atol=1e-4)
 
 
     @pytest.mark.parametrize("im", ['einstein','curie'])

@@ -352,15 +352,15 @@ class TestPooledVentralStream(object):
         frontend = po.simul.Front_End()
         frontend(im)
 
-    # def test_frontend_plot(self):
-    #     im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-    #     im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-    #     frontend = po.simul.Front_End()
-    #     po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
-    #     metamer = po.synth.Metamer(im, frontend)
-    #     metamer.synthesize(max_iter=3, store_progress=1)
-    #     metamer.plot_synthesis_status(figsize=(35, 5))
-    #     metamer.animate(figsize=(35, 5))
+    def test_frontend_plot(self):
+        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        frontend = po.simul.Front_End()
+        po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
+        metamer = po.synth.Metamer(im, frontend)
+        metamer.synthesize(max_iter=3, store_progress=1)
+        metamer.plot_synthesis_status(figsize=(35, 5))
+        metamer.animate(figsize=(35, 5))
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
