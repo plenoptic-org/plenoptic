@@ -132,7 +132,12 @@ class TestNonLinearities(object):
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
                                               is_complex=False)
         y = spc(x)
-        energy, state = po.simul.non_linearities.local_gain_control(y)
+        energy, state = po.simul.local_gain_control(y, residuals=True)
+        y_hat = po.simul.local_gain_release(energy, state, residuals=True)
+        error = 0
+        for k in y.keys():
+            error += (y[k] - y_hat[k]).pow(2).mean()
+        assert (error < 1e-6)
 
     def test_normalize(self):
         x = po.tools.make_basic_stimuli()

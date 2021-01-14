@@ -55,6 +55,13 @@ class TestLaplacianPyramid(object):
         y = L.analysis(po.tools.make_basic_stimuli())
         assert y[0].requires_grad
 
+    def test_recon(self):
+        L = po.simul.Laplacian_Pyramid()
+        x = po.tools.make_basic_stimuli()
+        y = L.analysis(x)
+        x_hat = L.synthesis(y)
+        assert (x - x_hat).pow(2).mean() < 1e-10
+
 
 class TestSpectral(object):
 
@@ -86,6 +93,7 @@ class TestPolarPyramid(object):
         PP = po.simul.Polar_Pyramid((h, w))
         x_hat = PP.synthesis(PP.analysis(x))
         assert (x - x_hat).pow(2).mean() < 1e-10
+
 
 # class TestTextureStatistics(object):
 

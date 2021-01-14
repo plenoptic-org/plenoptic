@@ -330,32 +330,31 @@ def polar_to_rectangular(amplitude, phase):
     return real, imaginary
 
 
-def power_spectrum(x, log=True):
-    """ Returns the fft shifted power spectrum or log power spectrum of a signal.
+# def power_spectrum(x, log=True):
+#     """ Compute the power spectrum of a spatial signal.
 
-    Parameters
-    ----------
-    x: torch.Tensor
-        Signal tensor
-    log: bool
-        Whether or not to take the log of the power. A small epsilon=1e-5 is
-        added to avoid log(0) errors.
-    Returns
-    -------
-    sp_power: torch.Tensor
-        Power spectrum of signal
+#     Parameters
+#     ----------
+#     x: torch.Tensor
+#         Signal tensor [B, C, H, W]
+#     log: bool
+#         Apply the non-linear contrast function `log(1 + power)`.
+#     Returns
+#     -------
+#     power: torch.Tensor
+#         Power spectrum of signal along H and W
 
-    """
-
-    sp = torch.rfft(x, signal_ndim=2, onesided=False)
-    sp = batch_fftshift(sp)
-    amplitude, phase = rectangular_to_polar(sp[..., 0], sp[..., 1])
-    sp_power = amplitude ** 2
-    if log:
-        sp_power[sp_power < 1e-5] += 1e-5
-        sp_power = torch.log(sp_power)
-
-    return sp_power
+#     TODO: with torch 1.8
+#     """
+#     import torch.fft
+#     spectrum = torch.fft.rfftn(x, dim=(2, 3), norm='ortho')
+#     spectrum = torch.fft.fftshift(spectrum, dim=(2, 3))
+#     amplitude = torch.abs(spectrum)
+#     power = amplitude ** 2
+#     if log:
+#         return torch.log(1 + power)
+#     else:
+#         return power
 
 
 def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,

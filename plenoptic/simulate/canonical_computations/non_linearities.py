@@ -174,6 +174,7 @@ def polar_to_rectangular_real(norm, direction, epsilon=1e-12):
 def local_gain_control(coeff_dict, residuals=False):
     """Spatially local gain control.
 
+    The inverse operation is achieved by `local_gain_release`.
     This function is an analogue to rectangular_to_polar_dict for real
     valued signals.
 
@@ -218,35 +219,33 @@ def local_gain_control(coeff_dict, residuals=False):
     return energy, state
 
 
-def local_gain_uncontrol(energy, state, residuals=False):
+def local_gain_release(energy, state, residuals=False):
     """Spatially local gain release.
 
-    This function is an analogue to polar_to_rectangular_dict for real
+    The inverse operation to `local_gain_control`.
+    This function is  an analogue to polar_to_rectangular_dict for real
     valued signals.
 
     Parameters
     ----------
-    coeff_dict : dictionary
-        A dictionary containing tensors of shape (B,C,H,W)
-    residuals: boolean, optional
-        An option to carry around residuals in the energy dict.
-
-    Returns
-    -------
     energy : dictionary
         The dictionary of torch.Tensors containing the local energy of
         ``x``.
     state: dictionary
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
+    residuals: boolean, optional
+        An option to carry around residuals in the energy dict.
 
-    Note
-    ----
-    Note that energy and state is not computed on the residuals.
+    Returns
+    -------
+    coeff_dict : dictionary
+        A dictionary containing tensors of shape (B,C,H,W)
+
 
     See Also
     --------
-    :meth:`rectangular_to_polar_real`
+    :meth:`polar_to_rectangular_real`
 
     """
     coeff_dict = {}
