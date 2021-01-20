@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from plenoptic.tools.display import update_plot
 
 import matplotlib.pyplot as plt
 import torch
@@ -68,17 +69,6 @@ class Geodesic(nn.Module):
         O J Hénaff and E P Simoncelli
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
-
-    TODO
-    ----
-    OFF BY ONE ERROR IN n_steps
-    should be 10 vertices for 11 edges
-
-    fix animate
-
-    compare stability relative loss
-
-    projected version for surjective transform (eg unercomplete, low rank)`
     '''
 
     def __init__(self, imgA, imgB, model, n_steps=10, init='straight'):
@@ -101,7 +91,7 @@ class Geodesic(nn.Module):
 
         self.loss = []
         self.dist_from_line = [distance_from_line(
-                               self.geodesic).unsqueeze(0)]
+                               self.geodesic)]
         self.step_energy = []
 
         n = self.n_steps
@@ -208,7 +198,7 @@ class Geodesic(nn.Module):
             self.geodesic = torch.cat((self.xA, self.x.data, self.xB), 0)
             # TODO flag to store progress or not
             self.dist_from_line.append(distance_from_line(
-                                        self.geodesic).unsqueeze(0))
+                                        self.geodesic))
 
             if loss.item() < 1e-6:
                 raise Exception("""the geodesic matches the representation
@@ -221,51 +211,45 @@ class Geodesic(nn.Module):
         plt.ylabel('loss value')
         plt.show()
 
-    def plot_distance_from_line(self, vid=None, anim=False):
+    def plot_distance_from_line(self, vid=None, plot_geodesic=True):
 
         fig, ax = plt.subplots()
-
+        ax.plot(to_numpy(distance_from_line(self.pixelfade)),
+                'g-o', label='pixelfade')
+        if plot_geodesic:
+            ax.plot(to_numpy(distance_from_line(self.geodesic)),
+                    'r-o', label='geodesic')
         if vid is not None:
             ax.plot(to_numpy(distance_from_line(vid)),
                     'b-o', label='video')
-        ax.plot(to_numpy(distance_from_line(self.pixelfade)),
-                'g-o', label='pixelfade')
+        ax.set(xlabel='projection on representation line',
+               ylabel='distance from representation line')
+        ax.legend(loc=1)
 
-        # if anim:
-        #     ax.plot(to_numpy(self.dist_from_line[0]),
-        #             'r-o', label='geodesic')
-        if not anim:
-            ax.plot(to_numpy(distance_from_line(self.geodesic)),
-                    'r-o', label='geodesic')
-        plt.legend(loc=1)
-        plt.ylabel('distance from representation line')
-        plt.xlabel('projection on representation line')
-
-        if anim:
-            return fig, ax
-        else:
-            plt.show()
+        return fig
 
     def animate_distance_from_line(self, vid=None, location=''):
-        """
-        TODO remove from gedesic from figure initialization
-        """
         from matplotlib import animation
 
-        fig, ax = self.plot_distance_from_line(vid=vid, anim=True)
+        fig = self.plot_distance_from_line(vid=vid, plot_geodesic=False)
+        ax = fig.axes[0]
 
         artist, = ax.plot(to_numpy(self.dist_from_line[0]),
                           'r-o', label='geodesic')
+        ax.legend(loc=1)
 
         def animate(i):
-
-            artist.set_data(range(11), to_numpy(self.dist_from_line[i]))
-            artist.set_label('geodesic')
+            artist = update_plot(ax, {'geodesic': self.dist_from_line[i]})
+            # print(self.dist_from_line[i])
+            # artist.set_data(range(self.n_steps),
+            #                 to_numpy(self.dist_from_line[i]))
+            # artist.set_label('geodesic')
             # TODO set legend
-            return (artist,)
+            return artist
 
         anim = animation.FuncAnimation(fig, animate,
-                                       frames=100, interval=20, blit=True,
+                                       frames=len(self.dist_from_line),
+                                       interval=20, blit=True,
                                        repeat=False)
         plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
         anim.save(location + 'distance_from_line.mp4', writer='ffmpeg')

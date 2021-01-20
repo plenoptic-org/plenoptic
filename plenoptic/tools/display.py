@@ -300,7 +300,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
                        plot_complex=plot_complex, **kwargs)
 
 
-def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
+def convert_pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
     r"""Wrapper that makes outputs of the steerable pyramids compatible
     with the display functions of pyrtools.
     Selects pyramid coefficients corresponding to 'image_index' out of
