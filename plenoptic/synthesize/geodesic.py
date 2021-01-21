@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+from matplotlib import animation
 
 from ..tools.data import to_numpy
 from ..tools.fit import penalize_range
@@ -211,14 +212,18 @@ class Geodesic(nn.Module):
         plt.ylabel('loss value')
         plt.show()
 
-    def plot_distance_from_line(self, vid=None, plot_geodesic=True):
+    def plot_distance_from_line(self, vid=None, plot_geodesic=True, iteration=None,
+                                figsize=(7, 5)):
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(to_numpy(distance_from_line(self.pixelfade)),
                 'g-o', label='pixelfade')
         if plot_geodesic:
-            ax.plot(to_numpy(distance_from_line(self.geodesic)),
-                    'r-o', label='geodesic')
+            if iteration is None:
+                distance = distance_from_line(self.geodesic)
+            else:
+                distance = self.dist_from_line[iteration]
+            ax.plot(to_numpy(distance), 'r-o', label='geodesic')
         if vid is not None:
             ax.plot(to_numpy(distance_from_line(vid)),
                     'b-o', label='video')
@@ -228,32 +233,19 @@ class Geodesic(nn.Module):
 
         return fig
 
-    def animate_distance_from_line(self, vid=None, location=''):
-        from matplotlib import animation
+    def animate_distance_from_line(self, vid=None, framerate=50):
 
-        fig = self.plot_distance_from_line(vid=vid, plot_geodesic=False)
-        ax = fig.axes[0]
-
-        artist, = ax.plot(to_numpy(self.dist_from_line[0]),
-                          'r-o', label='geodesic')
-        ax.legend(loc=1)
+        fig = self.plot_distance_from_line(vid=vid, plot_geodesic=True,
+                                           iteration=0)
 
         def animate(i):
-            artist = update_plot(ax, {'geodesic': self.dist_from_line[i]})
-            # print(self.dist_from_line[i])
-            # artist.set_data(range(self.n_steps),
-            #                 to_numpy(self.dist_from_line[i]))
-            # artist.set_label('geodesic')
-            # TODO set legend
+            # update_plot requires 3d data for lines
+            data = self.dist_from_line[i].unsqueeze(0).unsqueeze(0)
+            artist = update_plot(fig.axes[0], {'geodesic': data})
             return artist
 
         anim = animation.FuncAnimation(fig, animate,
                                        frames=len(self.dist_from_line),
-                                       interval=20, blit=True,
-                                       repeat=False)
-        plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
-        anim.save(location + 'distance_from_line.mp4', writer='ffmpeg')
-        plt.close()
-        # from IPython.display import HTML
-        # anim = HTML(anim.to_html5_video())
-        # return anim
+                                       interval=1000./framerate, blit=True, repeat=False)
+        plt.close(fig)
+        return anim
