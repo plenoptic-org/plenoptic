@@ -349,8 +349,7 @@ class Eigendistortion(Synthesis):
 
         x, y = self._input_flat, self._representation_flat
 
-        v = torch.randn_like(x)
-        v = torch.randn(len(x), k)
+        v = torch.randn(len(x), k).to(x.device)
         v = v / v.norm()
 
         Fv = fisher_info_matrix_vector_product(y, x, v)
@@ -413,7 +412,7 @@ class Eigendistortion(Synthesis):
         x, y = self._input_flat, self._representation_flat
         n = len(x)
 
-        P = torch.randn(n, k + p)
+        P = torch.randn(n, k + p).to(x.device)
         P, _ = torch.qr(P)  # numerical stability
         Z = fisher_info_matrix_vector_product(y, x, P)
 
@@ -426,7 +425,7 @@ class Eigendistortion(Synthesis):
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
-        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20))
+        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20).to(x.device))
         error_approx = omega - (Q @ Q.T @ omega)
         error_approx = error_approx.norm(dim=0).mean()
 
