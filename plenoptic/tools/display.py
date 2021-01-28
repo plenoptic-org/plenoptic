@@ -638,6 +638,7 @@ def _get_artists_from_axes(axes, data):
                 data_check = 1
                 artists.extend(ax.containers)
             elif len(ax.images) == 1:
+                # images are weird, so don't check them like this
                 data_check = None
                 artists.extend(ax.images)
             elif len(ax.lines) == 1:
@@ -676,7 +677,7 @@ def update_plot(axes, data, model=None, batch_idx=0):
     initializes all the artists.
 
     We can update stem plots, lines (as returned by ``plt.plot``), scatter
-    plots, or images.
+    plots, or images (RGB, RGBA, or grayscale).
 
     There are two modes for this:
 
@@ -690,6 +691,10 @@ def update_plot(axes, data, model=None, batch_idx=0):
       Tensor with multiple channels (one per axis in the same order) or a
       dictionary with the same number of keys as axes, which we can iterate
       through in order.
+
+    RGB(A) images are special, since we store that info along the channel
+    dimension, so they only work with single-axis mode (which will only have a
+    single artist, because that's how imshow works).
 
     If you have multiple axes, each with multiple artists you want to update,
     that's too complicated for us, and so you should write a
@@ -728,11 +733,20 @@ def update_plot(axes, data, model=None, batch_idx=0):
         artists = []
         if not isinstance(data, dict):
             data_dict = {}
-            for i, d in enumerate(data.unbind(1)):
-                # need to keep the shape the same because of how we
-                # check for shape below (unbinding removes a dimension,
-                # so we add it back)
-                data_dict[f'{i:02d}'] = d.unsqueeze(1)
+            # check for RGBA images
+            if len(ax_artists) == 1 and data.shape[1] > 1:
+                # can't index into dict.values(), so use this work around
+                # instead, as suggested
+                # https://stackoverflow.com/questions/43629270/how-to-get-single-value-from-dict-with-single-entry
+                if next(iter(ax_artists.values())).get_array().data.ndim > 1:
+                    # then this is an RGBA image
+                    data_dict = {'00': data}
+            else:
+                for i, d in enumerate(data.unbind(1)):
+                    # need to keep the shape the same because of how we
+                    # check for shape below (unbinding removes a dimension,
+                    # so we add it back)
+                    data_dict[f'{i:02d}'] = d.unsqueeze(1)
             data = data_dict
         for k, d in data.items():
             try:
@@ -755,13 +769,18 @@ def update_plot(axes, data, model=None, batch_idx=0):
                     artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
                 try:
-                    # then it's an image
+                    # then it's a grayscale image
                     art.set_data(d)
                     artists.append(art)
                 except AttributeError:
                     # then it's a scatterplot
                     art.set_offsets(d)
                     artists.append(art)
+            else:
+                # then it's an RGB(A) image. for tensors, we put that dimension
+                # in channel, but for images, it should be at the end
+                art.set_data(np.moveaxis(d, 0, -1))
+                artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]
