@@ -1400,7 +1400,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             raise Exception("batch_idx must be an integer!")
         # we're only plotting one image here, so if the user wants multiple
         # channels, they must be RGB
-        if channel_idx is None:
+        if channel_idx is None and image.shape[1] > 1:
             as_rgb = True
         else:
             as_rgb = False
