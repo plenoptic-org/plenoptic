@@ -142,7 +142,7 @@ class PooledVentralStream(nn.Module):
         eccentricity (in pixels) where the area of the window at
         half-max exceeds one pixel (based on the scaling, size of the
         image in pixels and in degrees).
-    central_eccentricity_degrees : np.array
+    central_eccentricity_degrees : np.ndarray
         A 1d array with shape ``(self.n_eccentricity_bands,)``, each
         value gives the eccentricity of the center of each eccentricity
         band of windows (in degrees).
@@ -500,7 +500,7 @@ class PooledVentralStream(nn.Module):
 
         Parameters
         ----------
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to convert. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation`` or the output, with the exact same
@@ -582,7 +582,7 @@ class PooledVentralStream(nn.Module):
         ----------
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to get in shape. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -591,7 +591,7 @@ class PooledVentralStream(nn.Module):
 
         Returns
         -------
-        representation_copy : np.array
+        representation_copy : np.ndarray
             The expanded copy of the representation, which is either a
             1d tensor (if ``data``/``self.representation`` was a tensor)
             or a dict full of 1d tensors
@@ -630,7 +630,7 @@ class PooledVentralStream(nn.Module):
 
         Parameters
         ----------
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to convert. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -663,7 +663,7 @@ class PooledVentralStream(nn.Module):
 
         Parameters
         ----------
-        data : torch.Tensor, np.array, dict, optional
+        data : torch.Tensor, np.ndarray, dict, optional
             The data to convert. Should look like the value returned by
             this model's forward call (i.e., a 3d tensor).
 
@@ -759,7 +759,7 @@ class PooledVentralStream(nn.Module):
             in the correct order.
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -920,7 +920,7 @@ class PooledRGC(PooledVentralStream):
         eccentricity (in pixels) where the area of the window at
         half-max exceeds one pixel (based on the scaling, size of the
         image in pixels and in degrees).
-    central_eccentricity_degrees : np.array
+    central_eccentricity_degrees : np.ndarray
         A 1d array with shape ``(self.n_eccentricity_bands,)``, each
         value gives the eccentricity of the center of each eccentricity
         band of windows (in degrees).
@@ -1027,7 +1027,7 @@ class PooledRGC(PooledVentralStream):
             'Mean pixel intensity in each window'
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -1038,7 +1038,7 @@ class PooledRGC(PooledVentralStream):
         -------
         ax : matplotlib.pyplot.axis
             The axis we've set up
-        data : np.array
+        data : np.ndarray
             The output of self._representation_for_plotting(batch_idx, data)
         title : str
             The title to use
@@ -1085,7 +1085,7 @@ class PooledRGC(PooledVentralStream):
             we'll append the default to the other side of the pipe.
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use ``self.representation`` . Else,
             should look like ``self.representation``, with the exact same
             structure (e.g., as returned by ``metamer.representation_error()``
@@ -1135,7 +1135,7 @@ class PooledRGC(PooledVentralStream):
             we'll append the default to the other side of the pipe.
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -1349,7 +1349,7 @@ class PooledV1(PooledVentralStream):
         eccentricity (in pixels) where the area of the window at
         half-max exceeds one pixel (based on the scaling, size of the
         image in pixels and in degrees).
-    central_eccentricity_degrees : np.array
+    central_eccentricity_degrees : np.ndarray
         A 1d array with shape ``(self.n_eccentricity_bands,)``, each
         value gives the eccentricity of the center of each eccentricity
         band of windows (in degrees).
@@ -1566,7 +1566,7 @@ class PooledV1(PooledVentralStream):
         ----------
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should be a dictionary of 4d
             tensors like ``self.representation``, or a 3d tensor, like
@@ -1575,7 +1575,7 @@ class PooledV1(PooledVentralStream):
 
         Returns
         -------
-        representation_copy : np.array
+        representation_copy : np.ndarray
             The expanded copy of the representation, which is a dict
             full of 1d tensors, with np.nan inserted between each
             eccentricity band
@@ -1614,7 +1614,7 @@ class PooledV1(PooledVentralStream):
             title
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or
@@ -1630,7 +1630,7 @@ class PooledV1(PooledVentralStream):
             The GridSpec object to use for creating subplots. You should
             use it with ``fig`` to add subplots by indexing into it,
             like so: ``fig.add_subplot(gs[0, 1])``
-        data : np.array
+        data : np.ndarray
             The output of self._representation_for_plotting(batch_idx, data)
         title : list or None
             If title was None or a list, we did nothing to it. If it was
@@ -1697,7 +1697,7 @@ class PooledV1(PooledVentralStream):
             append the default to the other side of the pipe.
         batch_idx : int, optional Which
             index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or
@@ -1782,7 +1782,7 @@ class PooledV1(PooledVentralStream):
             append the default to the other side of the pipe.
         batch_idx : int, optional Which
             index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure, or

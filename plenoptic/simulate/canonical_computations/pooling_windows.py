@@ -167,7 +167,7 @@ class PoolingWindows(nn.Module):
         eccentricity (in pixels) where the area of the window at
         half-max exceeds one pixel (based on the scaling, size of the
         image in pixels and in degrees).
-    central_eccentricity_degrees : np.array
+    central_eccentricity_degrees : np.ndarray
         A 1d array with shape ``(self.n_eccentricity_bands,)``, each
         value gives the eccentricity of the center of each eccentricity
         band of windows (in degrees).

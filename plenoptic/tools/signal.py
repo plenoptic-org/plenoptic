@@ -67,7 +67,7 @@ def crop_image_centered(img, size):
 
     Parameters
     ----------
-    img : torch.Tensor or np.array
+    img : torch.Tensor or np.ndarray
         the image to crop.
     size : array_like
         a list or similar with 2 elements, the target size
@@ -331,9 +331,9 @@ def rcosFn(width=1, position=0, values=(0, 1)):
 
     Returns
     -------
-    X : `np.array`
+    X : `np.ndarray`
         the x valuesof this raised cosine
-    Y : `np.array`
+    Y : `np.ndarray`
         the y valuesof this raised cosine
     """
 

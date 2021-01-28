@@ -349,7 +349,7 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
 
     Returns
     -------
-    eccentricity : np.array
+    eccentricity : np.ndarray
         A list of length ``n_windows``, containing the minimum, central,
         or maximum eccentricities of each window.
 
@@ -466,19 +466,19 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing,
 
     Returns
     -------
-    radial_top_width : np.array
+    radial_top_width : np.ndarray
         The width of the flat-top region of the windows in the radial
         direction (each value corresponds to a different ring of
         windows, from the fovea to the periphery).
-    radial_full_width : np.array
+    radial_full_width : np.ndarray
         The full width of the windows in the radial direction (each
         value corresponds to a different ring of windows, from the fovea
         to the periphery).
-    angular_top_width : np.array
+    angular_top_width : np.ndarray
         The width of the flat-top region of the windows in the angular
         direction (each value corresponds to a different ring of
         windows, from the fovea to the periphery).
-    angular_full_width : np.array
+    angular_full_width : np.ndarray
         The full width of the windows in the angular direction (each
         value corresponds to a different ring of windows, from the fovea
         to the periphery).
