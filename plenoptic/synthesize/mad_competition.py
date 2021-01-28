@@ -3,7 +3,7 @@ import warnings
 from tqdm import tqdm
 import numpy as np
 import pyrtools as pt
-from .Synthesis import Synthesis
+from .synthesis import Synthesis
 import matplotlib.pyplot as plt
 from ..tools.signal import add_noise
 from ..tools.display import plot_representation, clean_up_axes

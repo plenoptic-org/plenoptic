@@ -2022,7 +2022,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         if not self.store_progress:
             raise Exception("synthesize() was run with store_progress=False,"
                             " cannot animate!")
-        if len(self.saved_signal) != len(self.saved_representation):
+        if self.saved_representation is not None and len(self.saved_signal) != len(self.saved_representation):
             raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
         # every time we call synthesize(), store_progress gets one extra
@@ -2036,6 +2036,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         # don't know how to figure that out and the difference shouldn't
         # be noticeable except in extreme circumstances, e.g., you
         # called synthesize(max_iter=5) 100 times).
+
         plot_data = [getattr(self, d) + self.store_progress*times_called*[getattr(self, d)[-1]]
                      for d in plot_data_attr]
         if self.base_representation.ndimension() == 4:
