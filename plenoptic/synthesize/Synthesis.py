@@ -962,7 +962,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             1-element tensor containing the gradient on this step
         learning_rate : torch.Tensor
             1-element tensor containing the learning rate on this step
-        pixel_change : torch.tensor
+        pixel_change : torch.Tensor
             1-element tensor containing the max pixel change in
             synthesized_signal between this step and the last
 
@@ -1491,7 +1491,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        plot_vals : torch.tensor
+        plot_vals : torch.Tensor
             2d tensor containing the base and synthesized value (indexed along
             last dimension)
 

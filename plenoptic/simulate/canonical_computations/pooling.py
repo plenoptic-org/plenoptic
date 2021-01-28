@@ -819,7 +819,7 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
 
     Returns
     -------
-    windows : torch.tensor
+    windows : torch.Tensor
         A 3d tensor containing the (2d) polar angle windows. Windows
         will be indexed along the first dimension. If resolution was an
         int, then this will be a 2d arra containing the 1d polar angle
@@ -924,7 +924,7 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 
     Returns
     -------
-    windows : torch.tensor
+    windows : torch.Tensor
         A 3d tensor containing the (2d) log-eccentricity
         windows. Windows will be indexed along the first dimension. If
         resolution was an int, then this will be a 2d array containing
@@ -1134,7 +1134,7 @@ def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0):
     -------
     ecc_windows : dict
         the normalized ecc_windows. only ``scale`` is modified
-    scale_factor : torch.tensor
+    scale_factor : torch.Tensor
         the scale_factor used to normalize eccentricity windows at this
         scale (as a 3d tensor, number of eccentricity windows by 1 by
         1). stored by ``PoolingWindows`` object so we can undo it for

@@ -192,13 +192,13 @@ def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), 
 
     Parameters
     ----------
-    synth_rep : torch.tensor
+    synth_rep : torch.Tensor
         The first tensor to compare, model representation of the
         synthesized image
-    ref_rep : torch.tensor
+    ref_rep : torch.Tensor
         The second tensor to compare, model representation of the
         reference image. must be same size as ``synth_rep``,
-    synth_img : torch.tensor
+    synth_img : torch.Tensor
         the tensor to penalize. the synthesized image.
     allowed_range : tuple, optional
         2-tuple of values giving the (min, max) allowed values

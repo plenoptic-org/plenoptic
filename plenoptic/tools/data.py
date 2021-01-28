@@ -59,7 +59,7 @@ def load_images(paths, as_gray=True):
 
     Returns
     -------
-    images : torch.tensor
+    images : torch.Tensor
         4d tensor containing the images
     """
     if isinstance(paths, str):
@@ -253,7 +253,7 @@ def polar_radius(size, exponent=1, origin=None, device=None):
 
     Returns
     -------
-    res : torch.tensor
+    res : torch.Tensor
         the polar radius matrix
 
     '''
@@ -305,7 +305,7 @@ def polar_angle(size, phase=0, origin=None, device=None):
 
     Returns
     -------
-    res : torch.tensor
+    res : torch.Tensor
         the polar angle matrix
 
     '''

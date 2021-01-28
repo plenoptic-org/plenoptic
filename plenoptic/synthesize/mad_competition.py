@@ -1723,7 +1723,7 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        plot_vals : torch.tensor
+        plot_vals : torch.Tensor
             2d tensor containing the base and synthesized value (indexed along
             last dimension)
 
