@@ -30,6 +30,7 @@ class Polar_Pyramid(nn.Module):
     def analysis(self, x):
         b, c, h, w = x.shape
         assert c == 1
+        # TODO handle multichannel
 
         y = self.pyr(x)
         self.low_pass = y[:, 0:1]

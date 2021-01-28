@@ -12,9 +12,10 @@ from test_plenoptic import DATA_DIR, DEVICE, DTYPE
 class TestGeodesic(object):
 
     def test_brownian_bridge(self):
-        s = 64
+        """Note: this is a stochastic test that will be true with high proba"""
+        s = 128
         n_steps = 100
-        max_norm = 4
+        max_norm = 2
 
         x0 = torch.randn(1, 1, s, s)
         x1 = torch.randn(1, 1, s, s)

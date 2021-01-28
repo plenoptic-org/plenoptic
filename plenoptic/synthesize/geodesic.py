@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-from matplotlib import animation
+from matplotlib.animation import FuncAnimation
 
 from ..tools.data import to_numpy
 from ..tools.fit import penalize_range
@@ -28,10 +28,6 @@ class Geodesic(nn.Module):
 
     n_steps: int
         the number of steps in the trajectory between the two anchor points
-
-    lmbda: float, optional
-        strength of the regularizer that enforces the image range,
-        default value is .1
 
     init: string in ['straight', 'bridge'], optional
         initialize the geodesic with pixel linear interpolation (default),
@@ -102,6 +98,14 @@ class Geodesic(nn.Module):
         self.signal_unit = self.metric(self.xB - self.xA) / n ** 2
 
     def initialize(self, init):
+        """initialize the geodesic
+
+        Parameters
+        ----------
+        init : 'bridge', 'straight' or Tensor
+            if a tensor is passed it must match the shape of the
+            desired geodesic.
+        """
         if init == 'bridge':
             x = sample_brownian_bridge(self.xA, self.xB, self.n_steps)
         elif init == 'straight':
@@ -113,10 +117,13 @@ class Geodesic(nn.Module):
         return x
 
     def analyze(self):
+        """run the model on the current iterate of the geodesic
+        """
         y = self.model(self.x)
         return y
 
     def metric(self, x, p=2):
+        """distance function"""
         return torch.norm(x, p=p) ** p
 
     def path_energy(self, z, zA, zB, unit=None):
@@ -133,12 +140,11 @@ class Geodesic(nn.Module):
         self.step_energy.append(step_energy.detach())
 
         total_energy = torch.sum(step_energy)
-        if unit is None:
-            return total_energy
-        else:
-            return (total_energy / unit) - 1
+        if unit is not None:
+            total_energy = (total_energy / unit) - 1
+        return total_energy
 
-    def _optimizer_step(self, i, pbar, noise):
+    def _optimizer_step(self, i, pbar):
 
         self.optimizer.zero_grad()
         y = self.analyze()
@@ -152,6 +158,8 @@ class Geodesic(nn.Module):
             raise Exception('found a NaN in the loss during optimization')
 
         loss.backward()
+
+        # TODO undercomplete case
         # repres_grad = x.grad
 
         # self.optimizer.zero_grad()
@@ -172,11 +180,29 @@ class Geodesic(nn.Module):
         return loss
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam',
-                   lmbda=.1, objective='multiscale', noise=None, seed=0):
-        """
-        objective:
+                   lmbda=.1, objective='multiscale', seed=0):
+        """ synthesize a geodesic
 
-        noise:
+        Parameters
+        ----------
+        max_iter: int, optional
+            maximum number of steps taken by the optimization a
+
+        learning_rate: float, optional
+            controls the step sizes of the search algorithm
+
+        optimizer: str or torch.optim.Optimizer, optional
+            algorithm that will perform the search
+
+        lmbda: float, optional
+            strength of the regularizer that enforces the image range in [0, 1]
+
+        objective: str, optional
+            'default'
+            'multiscale'
+
+        seed: int
+            set the random number generator
         """
         self.lmbda = lmbda
 
@@ -187,12 +213,12 @@ class Geodesic(nn.Module):
         elif optimizer == 'sgd':
             self.optimizer = optim.SGD([self.x],
                                        lr=learning_rate, momentum=0.9)
-        elif isinstance(optimizer, torch.optim.Optimizer):
+        elif isinstance(optimizer, optim.Optimizer):
             self.optimizer = optimizer
 
         pbar = tqdm(range(max_iter))
         for i in pbar:
-            loss = self._optimizer_step(i, pbar, noise)
+            loss = self._optimizer_step(i, pbar)
 
             # storing some information
             self.loss.append(loss.item())
@@ -212,18 +238,33 @@ class Geodesic(nn.Module):
         plt.ylabel('loss value')
         plt.show()
 
-    def plot_distance_from_line(self, vid=None, plot_geodesic=True, iteration=None,
+    def plot_distance_from_line(self, vid=None, iteration=None,
                                 figsize=(7, 5)):
+        """visual diagnostic of geodesic linearity in representation space.
 
+        Parameters
+        ----------
+        vid : torch.Tensor, optional
+            natural video that bridges the anchor points
+        iteration : int, optional
+            plot the geodesic at a given step number of the optimization
+        figsize : tuple, optional
+            set the dimension of the figure
+
+        Returns
+        -------
+        fig: matplotilb figure object
+        """
         fig, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(to_numpy(distance_from_line(self.pixelfade)),
                 'g-o', label='pixelfade')
-        if plot_geodesic:
-            if iteration is None:
-                distance = distance_from_line(self.geodesic)
-            else:
-                distance = self.dist_from_line[iteration]
-            ax.plot(to_numpy(distance), 'r-o', label='geodesic')
+
+        if iteration is None:
+            distance = distance_from_line(self.geodesic)
+        else:
+            distance = self.dist_from_line[iteration]
+        ax.plot(to_numpy(distance), 'r-o', label='geodesic')
+
         if vid is not None:
             ax.plot(to_numpy(distance_from_line(vid)),
                     'b-o', label='video')
@@ -233,10 +274,22 @@ class Geodesic(nn.Module):
 
         return fig
 
-    def animate_distance_from_line(self, vid=None, framerate=50):
+    def animate_distance_from_line(self, vid=None, framerate=25):
+        """dynamic visualisation of geodesic linearity along the optimization process
 
-        fig = self.plot_distance_from_line(vid=vid, plot_geodesic=True,
-                                           iteration=0)
+        Parameters
+        ----------
+        vid : torch.Tensor, optional
+            natural video that bridges the anchor points
+        framerate : int, optional
+            set the number of frames per second in the animation
+
+        Returns
+        -------
+        anim: matplotlib animation object (can call anim.save(target_location.mp4))
+        """
+
+        fig = self.plot_distance_from_line(vid=vid, iteration=0)
 
         def animate(i):
             # update_plot requires 3d data for lines
@@ -244,8 +297,8 @@ class Geodesic(nn.Module):
             artist = update_plot(fig.axes[0], {'geodesic': data})
             return artist
 
-        anim = animation.FuncAnimation(fig, animate,
-                                       frames=len(self.dist_from_line),
-                                       interval=1000./framerate, blit=True, repeat=False)
+        anim = FuncAnimation(fig, animate,
+                             frames=len(self.dist_from_line),
+                             interval=1000./framerate, blit=True, repeat=False)
         plt.close(fig)
         return anim
