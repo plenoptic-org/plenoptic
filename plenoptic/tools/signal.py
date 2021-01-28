@@ -4,7 +4,7 @@ from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
 def rotate_image(img, angle, X=None, Y=None):
-    """rotate an image by 0, 90, 180, or 270 degrees
+    """Rotate an image by 0, 90, 180, or 270 degrees.
 
     the reason we can only accept those 4 angles is because we just use
     re-indexing to rotate.
@@ -37,6 +37,9 @@ def rotate_image(img, angle, X=None, Y=None):
         the rotated image
 
     """
+    # clone the tensor so we return a different pointer -- otherwise changes to
+    # the original image will influence changes to the new one, and vice versa
+    img = img.clone()
     if img.shape[-2] != img.shape[-1]:
         raise Exception("We can only rotate square images!")
     if X is None or Y is None:
@@ -60,7 +63,7 @@ def rotate_image(img, angle, X=None, Y=None):
 
 
 def crop_image_centered(img, size):
-    """crop an image in a centered-manner
+    """Crop an image in a centered-manner.
 
     note that img can be more than 2d -- we will only crop along the
     final two dimensions
@@ -78,6 +81,9 @@ def crop_image_centered(img, size):
         same type as original img, the cropped image
 
     """
+    # clone the tensor so we return a different pointer -- otherwise changes to
+    # the original image will influence changes to the new one, and vice versa
+    img = img.clone()
     crop_amt = np.array(img.shape[-2:]) - np.array(size)
     crop_lims = [(c//2, -c//2) for c in crop_amt]
     # need a bit of a workaround if we're not actually cutting something
@@ -90,7 +96,7 @@ def crop_image_centered(img, size):
 
 
 def flip_image(img, horizontal=False, vertical=False, X=None, Y=None):
-    """flip an image horizontally, vertically, or both
+    """Flip an image horizontally, vertically, or both.
 
     For speed, you can pre-generate X, Y and pass them to us here.
 
@@ -114,6 +120,9 @@ def flip_image(img, horizontal=False, vertical=False, X=None, Y=None):
         the flipped image
 
     """
+    # clone the tensor so we return a different pointer -- otherwise changes to
+    # the original image will influence changes to the new one, and vice versa
+    img = img.clone()
     if X is None or Y is None:
         X, Y = torch.meshgrid(torch.arange(img.shape[-2]), torch.arange(img.shape[-1]))
     # when we flip the axes (using -X or -Y), we need to subtract 1 in
