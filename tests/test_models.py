@@ -10,11 +10,13 @@ import pyrtools as pt
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 
+x = po.tools.make_basic_stimuli()
+
+
 class TestLinear(object):
 
     def test_linear(self):
         model = po.simul.Linear()
-        x = po.tools.make_basic_stimuli()
         assert model(x).requires_grad
 
     def test_linear_metamer(self):
@@ -31,7 +33,6 @@ class TestLinearNonlinear(object):
 
     def test_linear_nonlinear(self):
         model = po.simul.Linear_Nonlinear()
-        x = po.tools.make_basic_stimuli()
         assert model(x).requires_grad
 
     def test_linear_nonlinear_metamer(self):
@@ -52,12 +53,11 @@ class TestLaplacianPyramid(object):
 
     def test_grad(self):
         L = po.simul.Laplacian_Pyramid()
-        y = L.analysis(po.tools.make_basic_stimuli())
+        y = L.analysis(x)
         assert y[0].requires_grad
 
     def test_recon(self):
         L = po.simul.Laplacian_Pyramid()
-        x = po.tools.make_basic_stimuli()
         y = L.analysis(x)
         x_hat = L.synthesis(y)
         assert (x - x_hat).pow(2).mean() < 1e-10
@@ -87,12 +87,21 @@ class TestSpectral(object):
 class TestPolarPyramid(object):
 
     def test_polar_pyramid(self):
-        x = po.tools.make_basic_stimuli(128)
         b, c, h, w = x.shape
 
         PP = po.simul.Polar_Pyramid((h, w))
         x_hat = PP.synthesis(PP.analysis(x))
         assert (x - x_hat).pow(2).mean() < 1e-10
+
+    # def test_polarPpyr_multichannel(self):
+    # TODO
+    #     b, c, h, w = x.shape
+    #     y = po.simul.Front_End()(x)
+    #     PP = po.simul.Polar_Pyramid((h, w))
+    #     y_hat = PP.synthesis(PP.analysis(y))
+    #     assert (y - y_hat).pow(2).mean() < 1e-10
+
+
 
 
 # class TestTextureStatistics(object):
@@ -356,9 +365,8 @@ class TestPooledVentralStream(object):
             metamer.plot_representation_error()
 
     def test_frontend(self):
-        im = po.tools.make_basic_stimuli()
         frontend = po.simul.Front_End()
-        frontend(im)
+        frontend(x)
 
     def test_frontend_plot(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))

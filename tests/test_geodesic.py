@@ -41,8 +41,8 @@ class TestGeodesic(object):
 
     def test_distance_from_line(self):
 
-        s = 64
-        n_steps = 100
+        s = 128
+        n_steps = 10
         max_norm = 3
         y0 = torch.randn(1, 1, s, s)
         y1 = torch.randn(1, 1, s, s)
