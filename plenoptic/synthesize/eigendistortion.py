@@ -53,7 +53,7 @@ def fisher_info_matrix_eigenvalue(y, x, v, dummy_vec=None):
     return lmbda
 
 
-class Eigendistortion(Synthesis):
+class Eigendistortion:
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
 
     Attributes
@@ -105,14 +105,16 @@ class Eigendistortion(Synthesis):
 
     def __init__(self, base_signal, model):
         assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
+        assert base_signal.shape[0] == 1, "Batch dim must be 1. Image batch synthesis is not available."
 
         self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
-        assert self.batch_size == 1, "Batch dim must be 1. Image batch synthesis is not available."
 
+        self.model = model
         # flatten and attach gradient and reshape to image
         self._input_flat = base_signal.flatten().unsqueeze(1).requires_grad_(True)
 
-        super().__init__(self._input_flat.view(*base_signal.shape), model, loss_function=None)
+        self.base_signal = self._input_flat.view(*base_signal.shape)
+        self.base_representation = self.model(self.base_signal)
 
         if len(self.base_representation) > 1:
             self._representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
@@ -123,44 +125,24 @@ class Eigendistortion(Synthesis):
               f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
 
         self.jacobian = None
+
+        self.synthesized_signal = None  # eigendistortion
         self.synthesized_eigenvalues = None
         self.synthesized_eigenindex = None
-
-    @staticmethod
-    def _hidden_attrs():
-        """Inherited attributes from parent `Synthesis` class that aren't necessary for `Eigendistortion`."""
-        hidden_attrs = ['coarse_to_fine', 'gradient', 'loss_function', 'learning_rate',
-                        'objective_function', 'plot_representation_error',
-                         'representation_error', 'saved_representation', 'saved_representation_gradient',
-                        'saved_signal_gradient', 'scales', 'scales_finished', 'scales_loss', 'scales_timing',
-                        'synthesized_representation']
-        return hidden_attrs
-
-    def __dir__(self):
-        """Hide unused parent attributes from user"""
-        attrs = set(dir(super()) + list(self.__dict__.keys()) + list(Eigendistortion.__dict__.keys()))
-        hidden_attrs = set(self._hidden_attrs())
-        to_keep = list(attrs.difference(hidden_attrs))
-        return to_keep
-
-    def __getattribute__(self, attr):
-        """Prevent access to certain attributes from parent class"""
-        if hasattr(Synthesis, attr) and attr in self._hidden_attrs():
-            raise AttributeError(f"`Eigendistortion` does not require `{attr}`, so it's restricted.")
-        return Synthesis.__getattribute__(self, attr)
 
     @classmethod
     def load(file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
         # TODO attribute name *****
-        super().load(file_path, 'model', model_constructor, map_location, **state_dict_kwargs)
+        pass
 
     def save(self, file_path, save_model_reduced=False, attrs=['model'], model_attr_names=['model']):
         # TODO
-        super().save(file_path, save_model_reduced, attrs, model_attr_names)
+        pass
 
     def to(self, *args, attrs=[], **kwargs):
         """Send attrs to specified device. See docstring of Synthesis.to()"""
-        super().to(*args, attrs, **kwargs)
+        # TODO
+        pass
 
     def synthesize(self, k=1, method='power', tol=1e-8, max_steps=1000, seed=None, store_progress=False):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
@@ -199,36 +181,33 @@ class Eigendistortion(Synthesis):
             object.
         """
         seed = np.random.randint(0, 2**32-1) if seed is None else seed
-        self._set_seed(seed)
-        self.store_progress = store_progress
+        torch.manual_seed(seed)
 
-        assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'svd'}"
+        assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'randomized_svd'}"
 
         if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
-            warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
+            warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'randomized_svd'}.")
 
         if method == 'exact':  # compute exact Jacobian
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = torch.arange(len(eig_vecs))
 
-        elif method == 'power':
+        elif method == 'randomized_svd':
+            lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(k=k, p=5, q=2)
+            eig_vecs = self._vector_to_image(v_new.detach())
+            eig_vals = lmbda_new.squeeze()
+            eig_vecs_ind = torch.arange(k)
+            print(f'Randomized SVD complete | Fisher Info Mtx range-space approximation error: {error_approx:.2f}')
 
+        else:  # method == 'power'
             lmbda_max, v_max = self._synthesize_power(k=k, l=0., tol=tol, max_steps=max_steps)
             lmbda_min, v_min = self._synthesize_power(k=k, l=lmbda_max[0], tol=tol, max_steps=max_steps)
             n = v_max.shape[0]
 
             eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
-            eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n-k, n)))
-
-        elif method == 'randomized_svd':
-
-            lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(k=k, p=5, q=2)
-            eig_vecs = self._vector_to_image(v_new.detach())
-            eig_vals = lmbda_new.squeeze()
-            eig_vecs_ind = torch.arange(k)
-            print(f'Randomized SVD complete | Fisher Info Mtx range-space approximation error: {error_approx:.2f}')
+            eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n - k, n)))
 
         # reshape to (n x num_chans x h x w)
         self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
@@ -236,7 +215,6 @@ class Eigendistortion(Synthesis):
         self.synthesized_eigenvalues = eig_vals.detach()
         self.synthesized_eigenindex = eig_vecs_ind
 
-        # return self.distortions
         return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
 
     def _vector_to_image(self, vecs):
@@ -386,7 +364,7 @@ class Eigendistortion(Synthesis):
         n = len(x)
 
         P = torch.randn(n, k + p).to(x.device)
-        P, _ = torch.qr(P)  # numerical stability
+        P, _ = torch.qr(P)  # orthogonalize first for numerical stability
         _dummy_vec = torch.ones_like(y, requires_grad=True)
         Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
@@ -413,23 +391,7 @@ class Eigendistortion(Synthesis):
             all_idx = self.synthesized_eigenindex
             assert idx in all_idx, "eigenindex must be the index of one of the vectors"
             assert all_idx is not None and len(all_idx) != 0, "No eigendistortions have been synthesized."
-            return int(np.where(all_idx==idx))
-
-    def plot_loss(self, eigenindex, iteration=None, figsize=(5, 5), ax=None,  **kwargs):
-        """Wraps plot_loss of base class. Plots change in eigenvalue after each iteration."""
-        idx = self._indexer(eigenindex)
-        self.loss = self._all_losses[idx]
-        # call super plot_loss
-        title = f"Change in eigenval {eigenindex:d}"
-        fig = super().plot_loss(iteration, figsize, ax, title, **kwargs)
-        plt.show()
-        return fig
-
-    @staticmethod
-    def _color_to_grayscale(img):
-        """Takes weighted sum of RGB channels to return a grayscale image"""
-        gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
-        return gray
+            return int(np.where(all_idx == idx))
 
     def plot_distorted_image(self, eigen_index=0, alpha=5., **kwargs):
         r""" Displays specified eigendistortions alone, and added to the image.
@@ -450,16 +412,15 @@ class Eigendistortion(Synthesis):
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
         image = self.base_signal.detach().view(im_shape).permute((1, 2, 0)).squeeze()
-        dist = self.synthesized_signal[eigen_index].permute((1, 2, 0)).squeeze()
+        dist = self.synthesized_signal[self._indexer(eigen_index)].permute((1, 2, 0)).squeeze()
 
         def _preprocess(img):
             x = torch.clamp(img, 0, 1)
             return x.numpy()
-        min_val, max_val = dist.min(), dist.max()
 
         fig, ax = plt.subplots(1, 3, sharex='all', sharey='all', figsize=(10, 20))
         ax[0].imshow(image)
         ax[1].imshow(image + alpha*dist)
-        ax[2].imshow(dist)
+        ax[2].imshow(dist, vmin= dist.min(), vmax=dist.max())
 
         return fig
