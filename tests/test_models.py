@@ -494,11 +494,11 @@ class TestPortillaSimoncelli(object):
         ps(x)
 
     ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
-    @pytest.mark.parametrize("n_scales", [1])
-    @pytest.mark.parametrize("n_orientations", [2])
-    @pytest.mark.parametrize("spatial_corr_width", [3])
+    @pytest.mark.parametrize("n_scales", [1,2,3,4])
+    @pytest.mark.parametrize("n_orientations", [2,3,4])
+    @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    @pytest.mark.parametrize("im",['curie'])
+    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts','sawtooth','checkerboard'])
     def test_torch_v_matlab(self, n_scales, n_orientations, spatial_corr_width, im_shape,im):
         path = osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
@@ -531,5 +531,5 @@ class TestPortillaSimoncelli(object):
 
         saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}.npy')
         
-        np.testing.assert_allclose(output[:], saved[:])
+        np.testing.assert_allclose(output[:], saved[:],rtol=1e-9, atol=1e-9)
 
