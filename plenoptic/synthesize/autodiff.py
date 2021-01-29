@@ -86,7 +86,7 @@ def vector_jacobian_product(y, x, U, retain_graph=True, create_graph=True, detac
         return vJ
 
 
-def jacobian_vector_product(y, x, V):
+def jacobian_vector_product(y, x, V, dummy_vec=None):
     r"""Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`
 
     Forward Mode Auto-Differentiation (``Rop`` in Theano). PyTorch does not natively support this operation; this
@@ -117,8 +117,8 @@ def jacobian_vector_product(y, x, V):
     assert y.shape[-1] == 1
     assert V.shape[0] == x.shape[0]
 
-    device = x.device
-    dummy_vec = torch.ones_like(y, device=device).requires_grad_(True)
+    if dummy_vec is None:
+        dummy_vec = torch.ones_like(y, requires_grad=True)
 
     # do vjp twice to get jvp; set detach = False first; dummy_vec must be non-zero and is only there as a helper
     g = vector_jacobian_product(y, x, dummy_vec, retain_graph=True, create_graph=True, detach=False)

@@ -7,10 +7,9 @@ import warnings
 from .synthesis import Synthesis
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from typing import Tuple
 
 
-def fisher_info_matrix_vector_product(y, x, v):
+def fisher_info_matrix_vector_product(y, x, v, dummy_vec):
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
 
     Parameters
@@ -33,18 +32,20 @@ def fisher_info_matrix_vector_product(y, x, v):
     :math:`F = J^T J`. Hence:
     :math:`Fv = J^T (Jv)`
     """
-
-    Jv = jacobian_vector_product(y, x, v)
+    Jv = jacobian_vector_product(y, x, v, dummy_vec)
     Fv = vector_jacobian_product(y, x, Jv, detach=True)
 
     return Fv
 
 
-def fisher_info_matrix_eigenvalue(y, x, v):
+def fisher_info_matrix_eigenvalue(y, x, v, dummy_vec=None):
     r"""Implicitly compute the eigenvalue of the Fisher Information Matrix corresponding to eigenvector v
     :math:`\lambda= v^T F v`
     """
-    Fv = fisher_info_matrix_vector_product(y, x, v)
+    if dummy_vec is None:
+        dummy_vec = torch.ones_like(y, requires_grad=True)
+
+    Fv = fisher_info_matrix_vector_product(y, x, v, dummy_vec)
     lmbda = Fv.T @ v
     if v.shape[1] > 1:
         lmbda = torch.diag(lmbda)
@@ -345,21 +346,22 @@ class Eigendistortion(Synthesis):
         idx = len(self._all_losses)
         if self.store_progress:
             self._all_losses.append([])
-            # self._all_saved_signals.append([])
 
         x, y = self._input_flat, self._representation_flat
 
         v = torch.randn(len(x), k).to(x.device)
         v = v / v.norm()
 
-        Fv = fisher_info_matrix_vector_product(y, x, v)
+        _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
+        Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.norm(Fv)
-        lmbda = fisher_info_matrix_eigenvalue(y, x, v)
+        lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
         d_lambda = torch.tensor(1)
         lmbda_new, v_new = None, None
         pbar = tqdm(range(max_steps))
         postfix_dict = {'step': None, 'delta_eigenval': None}
+
         for i in pbar:
             postfix_dict.update(dict(step=f"{i+1:d}/{max_steps:d}", delta_eigenval=f"{d_lambda.item():04.4f}"))
             pbar.set_postfix(**postfix_dict)
@@ -368,14 +370,14 @@ class Eigendistortion(Synthesis):
                 print(f"Tolerance {tol:.2E} reached. Stopping early.")
                 break
 
-            Fv = fisher_info_matrix_vector_product(y, x, v)
+            Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - l * v  # minor component
 
             v_new, _ = torch.qr(Fv)
 
-            lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new)
+            lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
-            d_lambda = torch.sqrt((lmbda.sum() - lmbda_new.sum()) ** 2)
+            d_lambda = (lmbda.sum() - lmbda_new.sum()).norm()  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
 
@@ -414,18 +416,19 @@ class Eigendistortion(Synthesis):
 
         P = torch.randn(n, k + p).to(x.device)
         P, _ = torch.qr(P)  # numerical stability
-        Z = fisher_info_matrix_vector_product(y, x, P)
+        _dummy_vec = torch.ones_like(y, requires_grad=True)
+        Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
         for _ in range(q):  # optional power iteration to squeeze the spectrum for more accurate estimate
-            Z = fisher_info_matrix_vector_product(y, x, Z)
+            Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
         Q, _ = torch.qr(Z)
-        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q)  # B = Q.T @ A @ Q
+        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)  # B = Q.T @ A @ Q
         _, S, V = torch.svd(B, some=True)  # eigendecomp of small matrix
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
-        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20).to(x.device))
+        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20).to(x.device), _dummy_vec)
         error_approx = omega - (Q @ Q.T @ omega)
         error_approx = error_approx.norm(dim=0).mean()
 
