@@ -729,6 +729,15 @@ def update_plot(axes, data, model=None, batch_idx=0):
         plots
 
     """
+    if isinstance(data, dict):
+        for v in data.values():
+            if v.ndim not in [3, 4]:
+                raise Exception("update_plot expects 3 or 4 dimensional data"
+                                "; unexpected behavior will result otherwise!")
+    else:
+        if data.ndim not in [3, 4]:
+            raise Exception("update_plot expects 3 or 4 dimensional data"
+                            "; unexpected behavior will result otherwise!")
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
@@ -741,9 +750,14 @@ def update_plot(axes, data, model=None, batch_idx=0):
                 # can't index into dict.values(), so use this work around
                 # instead, as suggested
                 # https://stackoverflow.com/questions/43629270/how-to-get-single-value-from-dict-with-single-entry
-                if next(iter(ax_artists.values())).get_array().data.ndim > 1:
-                    # then this is an RGBA image
-                    data_dict = {'00': data}
+                try:
+                    if next(iter(ax_artists.values())).get_array().data.ndim > 1:
+                        # then this is an RGBA image
+                        data_dict = {'00': data}
+                except Exception as e:
+                    raise Exception("Thought this was an RGB(A) image based on the number of "
+                                    "artists and data shape, but something is off! "
+                                    f"Original exception: {e}")
             else:
                 for i, d in enumerate(data.unbind(1)):
                     # need to keep the shape the same because of how we

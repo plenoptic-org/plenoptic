@@ -423,6 +423,44 @@ class TestDisplay(object):
                 po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
                             batch_idx=batch_idx, plot_complex=is_complex)
 
+    def test_update_plot_shape_fail(self):
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        fig = po.imshow(im)
+        # update_plot expects 3 or 4d data -- this checks that it fails
+        # (because im.squeeze() is 2d) and raises the proper exception
+        with pytest.raises(Exception):
+            try:
+                po.update_plot(fig.axes[0], im.squeeze())
+            except Exception as e:
+                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
+                raise e
+
+    def test_synthesis_plot_shape_fail(self):
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+
+        class DumbModel(po.simul.PooledRGC):
+            def forward(self, *args, **kwargs):
+                output = super().forward(*args, **kwargs)
+                return output.reshape(output.numel())
+        model = DumbModel(.5, im.shape[2:]).to(DEVICE)
+        met = po.synth.Metamer(im, model)
+        met.synthesize(max_iter=3, store_progress=True)
+        # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
+        # this checks that it fails (because im.squeeze() is 2d) and raises the
+        # proper exception
+        with pytest.raises(Exception):
+            try:
+                met.plot_synthesis_status()
+            except Exception as e:
+                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
+                raise e
+        with pytest.raises(Exception):
+            try:
+                met.animate()
+            except Exception as e:
+                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
+                raise e
+
 
 class TestMADDisplay(object):
 
@@ -435,11 +473,15 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize('plot_rep_comparison', [True, False])
     @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
     @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
+    @pytest.mark.parametrize('rgb', [True, False])
     def test_all_plot_animate(self, func, iteration, plot_synthesized_image,
                               plot_loss, plot_representation_error,
                               plot_image_hist, plot_rep_comparison,
-                              plot_signal_comparison, fig_creation):
-        img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+                              plot_signal_comparison, fig_creation, rgb):
+        if rgb:
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+        else:
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.nlpd
         func = 'scatter'
@@ -528,12 +570,16 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('plot_rep_comparison', [True, False])
     @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
     @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
+    @pytest.mark.parametrize('rgb', [True, False])
     def test_all_plot_animate(self, func, model, iteration,
                               plot_synthesized_image, plot_loss,
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
-                              fig_creation):
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+                              fig_creation, rgb):
+        if rgb:
+            im = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+        else:
+            im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         if model == 'class':
             model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
         else:

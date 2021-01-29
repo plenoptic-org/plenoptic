@@ -1425,7 +1425,7 @@ class MADCompetition(Synthesis):
         return fig
 
     def plot_synthesized_image(self, synthesis_target=None, batch_idx=0,
-                               channel_idx=0, iteration=None, title=None,
+                               channel_idx=None, iteration=None, title=None,
                                figsize=(5, 5), ax=None, imshow_zoom=None,
                                vrange=(0, 1)):
         """Show the synthesized image.
@@ -1457,8 +1457,9 @@ class MADCompetition(Synthesis):
             ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1497,7 +1498,7 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return fig
 
-    def plot_synthesized_image_all(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
+    def plot_synthesized_image_all(self, batch_idx=0, channel_idx=None, iteration=None, title=None,
                                    figsize=(10, 10), ax=None, imshow_zoom=None, vrange=(0, 1)):
         """show all synthesized images
 
@@ -1522,8 +1523,9 @@ class MADCompetition(Synthesis):
         ----------
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1682,9 +1684,9 @@ class MADCompetition(Synthesis):
             self.plot_loss(iteration=iteration, ax=ax, synthesis_target=target)
         return fig
 
-    def _grab_value_for_comparison(self, value, iteration=None,
-                                   scatter_subsample=1, synthesis_target=None,
-                                   model=None, **kwargs):
+    def _grab_value_for_comparison(self, value, batch_idx=0, channel_idx=None,
+                                   iteration=None, scatter_subsample=1,
+                                   synthesis_target=None, model=None, **kwargs):
         """Grab and shape values for comparison plot.
 
         This grabs the appropriate batch_idx, channel_idx, and iteration from
@@ -1697,6 +1699,11 @@ class MADCompetition(Synthesis):
         ----------
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1732,11 +1739,16 @@ class MADCompetition(Synthesis):
             last_state = self._check_state(synthesis_target, None)
             plot_vals = {}
             plot_vals['model_1'] = self._grab_value_for_comparison(value=value,
+                                                                   batch_idx=batch_idx,
+                                                                   channel_idx=channel_idx,
                                                                    iteration=iteration,
                                                                    synthesis_target=synthesis_target,
                                                                    scatter_subsample=scatter_subsample,
-                                                                   model='model_1', **kwargs)
+                                                                   model='model_1',
+                                                                   **kwargs)
             plot_vals['model_2'] = self._grab_value_for_comparison(value=value,
+                                                                   batch_idx=batch_idx,
+                                                                   channel_idx=channel_idx,
                                                                    iteration=iteration,
                                                                    synthesis_target=synthesis_target,
                                                                    scatter_subsample=scatter_subsample,
@@ -1744,6 +1756,8 @@ class MADCompetition(Synthesis):
         else:
             last_state = self._check_state(synthesis_target, model)
             plot_vals = super()._grab_value_for_comparison(value=value,
+                                                           batch_idx=batch_idx,
+                                                           channel_idx=channel_idx,
                                                            iteration=iteration,
                                                            scatter_subsample=scatter_subsample,
                                                            **kwargs)
@@ -1754,7 +1768,7 @@ class MADCompetition(Synthesis):
 
     def plot_value_comparison(self, synthesis_target=None,
                               value='representation', batch_idx=0,
-                              channel_idx=0, iteration=None, figsize=(10, 5),
+                              channel_idx=None, iteration=None, figsize=(10, 5),
                               ax=None, func='scatter', hist2d_nbins=21,
                               hist2d_cmap='Blues', scatter_subsample=1,
                               **kwargs):
@@ -1775,8 +1789,9 @@ class MADCompetition(Synthesis):
             Whether to compare the representations or signals
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1844,7 +1859,7 @@ class MADCompetition(Synthesis):
         return fig
 
     def plot_synthesis_status(self, synthesis_target=None, batch_idx=0,
-                              channel_idx=0, iteration=None, figsize=None,
+                              channel_idx=None, iteration=None, figsize=None,
                               ylim=None, plot_synthesized_image=True,
                               plot_loss=True, plot_representation_error=True,
                               imshow_zoom=None, vrange=(0, 1), fig=None,
@@ -1905,8 +1920,9 @@ class MADCompetition(Synthesis):
             ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1965,7 +1981,7 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return fig
 
-    def animate(self, synthesis_target=None, batch_idx=0, channel_idx=0,
+    def animate(self, synthesis_target=None, batch_idx=0, channel_idx=None,
                 figsize=None, framerate=10, ylim=None,
                 plot_synthesized_image=True, plot_loss=True,
                 plot_representation_error=True, imshow_zoom=None,
@@ -2003,8 +2019,9 @@ class MADCompetition(Synthesis):
         ----------
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         figsize : tuple or None, optional
             The size of the figure to create. It may take a little bit of
             playing around to find a reasonable value. If None, we attempt to

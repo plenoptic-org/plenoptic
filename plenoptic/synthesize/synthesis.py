@@ -1477,8 +1477,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         ax.set_title("Histogram of pixel values")
         return fig
 
-    def _grab_value_for_comparison(self, value, iteration=None,
-                                   scatter_subsample=1, **kwargs):
+    def _grab_value_for_comparison(self, value, batch_idx=0, channel_idx=None,
+                                   iteration=None, scatter_subsample=1,
+                                   **kwargs):
         """Grab and shape values for comparison plot.
 
         This grabs the appropriate batch_idx, channel_idx, and iteration from
@@ -1491,6 +1492,11 @@ class Synthesis(metaclass=abc.ABCMeta):
         ----------
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension (the second one). If
+            None, we use all channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1530,6 +1536,11 @@ class Synthesis(metaclass=abc.ABCMeta):
         plot_vals = torch.stack((base_val, synthesized_val), -1)
         if scatter_subsample < 1:
             plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]
+        plot_vals = plot_vals[batch_idx]
+        if channel_idx is not None:
+            plot_vals = plot_vals[channel_idx]
+        else:
+            plot_vals = plot_vals.flatten(0, 1)
         return plot_vals
 
 
@@ -1593,15 +1604,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig, ax = plt.subplots(1, 1, figsize=figsize, subplot_kw={'aspect': 1})
         else:
             fig = ax.figure
-        plot_vals = self._grab_value_for_comparison(value,
-                                                    iteration,
-                                                    scatter_subsample,
-                                                    **kwargs)
-        plot_vals = to_numpy(plot_vals[batch_idx])
-        if channel_idx is not None:
-            plot_vals = plot_vals[channel_idx]
+        plot_vals = to_numpy(self._grab_value_for_comparison(value, batch_idx,
+                                                             channel_idx, iteration,
+                                                             scatter_subsample,
+                                                             **kwargs))
         if func == 'scatter':
-            ax.scatter(plot_vals[..., 0].flatten(), plot_vals[..., 1].flatten())
+            ax.scatter(plot_vals[..., 0], plot_vals[..., 1])
             ax.set(xlim=ax.get_ylim())
         elif func == 'hist2d':
             ax.hist2d(plot_vals[..., 0].flatten(), plot_vals[..., 1].flatten(),
@@ -1856,6 +1864,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             raise Exception("synthesis() was run with store_progress=False, "
                             "cannot specify which iteration to plot (only"
                             " last one, with iteration=None)")
+        if self.synthesized_signal.ndim not in [3, 4]:
+            raise Exception("plot_synthesis_status() expects 3 or 4d data;"
+                            "unexpected behavior will result otherwise!")
         fig, axes, axes_idx = self._setup_synthesis_fig(fig, axes_idx, figsize,
                                                         plot_synthesized_image,
                                                         plot_loss,
@@ -2043,6 +2054,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         if self.saved_representation is not None and len(self.saved_signal) != len(self.saved_representation):
             raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
+        if self.synthesized_signal.ndim not in [3, 4]:
+            raise Exception("animate() expects 3 or 4d data; unexpected"
+                            " behavior will result otherwise!")
         # every time we call synthesize(), store_progress gets one extra
         # element compared to loss. this uses that fact to figure out
         # how many times we've called sythesize())
@@ -2171,8 +2185,12 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                ax=fig.axes[axes_idx['signal_comp']],
                                                func=signal_comp_func)
                 else:
-                    plot_vals = self._grab_value_for_comparison('signal', i,
+                    plot_vals = self._grab_value_for_comparison('signal',
+                                                                batch_idx,
+                                                                channel_idx, i,
                                                                 signal_comp_subsample)
+                    # need these to be 4d for update_plot
+                    plot_vals = plot_vals.unsqueeze(0).unsqueeze(0)
                     artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
                                                plot_vals))
             if plot_loss:
@@ -2182,8 +2200,11 @@ class Synthesis(metaclass=abc.ABCMeta):
                     s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
                 artists.extend(scat)
             if plot_rep_comparison:
-                plot_vals = self._grab_value_for_comparison('representation', i,
-                                                            **rep_func_kwargs)
+                plot_vals = self._grab_value_for_comparison('representation',
+                                                            batch_idx, channel_idx,
+                                                            i, **rep_func_kwargs)
+                # need these to be 4d for update_plot
+                plot_vals = plot_vals.unsqueeze(0).unsqueeze(0)
                 artists.extend(update_plot(rep_comp_axes, plot_vals))
             # as long as blitting is True, need to return a sequence of artists
             return artists
