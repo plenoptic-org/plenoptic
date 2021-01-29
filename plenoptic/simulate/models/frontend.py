@@ -17,12 +17,12 @@ class Front_End(nn.Module):
     disk_mask: boolean, optional
         crop the result to a disk at the center of the image
 
-    x: torch tensor
+    x: torch.Tensor
         greyscale image (B, 1, H, W), requires H and W to be equal and greater than 31
 
     Returns
     -------
-    y: torch tensor
+    y: torch.Tensor
         representation (B, 2, H, W)
 
     Notes

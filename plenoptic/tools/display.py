@@ -481,7 +481,7 @@ def convert_anim_to_html(anim):
         return HTML(anim.to_html5_video())
 
 
-def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
+def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     r"""convenience wrapper for plotting stem plots
 
     This plots the data, baseline, cleans up the axis, and sets the
@@ -503,15 +503,19 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     ax : `matplotlib.pyplot.axis` or `None`, optional
         The axis to plot the data on. If None, we plot on the current
         axis
-    title : `str`, optional
-        The title to put on the axis.
-    ylim : `tuple` or `None`, optional
+    title : str or None, optional
+        The title to put on the axis if not None. If None, we don't call
+        ``ax.set_title`` (useful if you want to avoid changing the title
+        on an existing plot)
+    ylim : tuple or None, optional
         If not None, the y-limits to use for this plot. If None, we
         use the default, slightly adjusted so that the minimum is 0
     xvals : `tuple` or `None`, optional
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
         (``xvals[1]``) x values for plotting. If None, we use the
         default stem plot behavior.
+    kwargs :
+        passed to ax.stem
 
     Returns
     -------
@@ -565,9 +569,10 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None):
     else:
         # this is the default basefmt value
         basefmt = None
-    ax.stem(data, basefmt=basefmt, use_line_collection=True)
+    ax.stem(data, basefmt=basefmt, use_line_collection=True, **kwargs)
     ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
-    ax.set_title(title)
+    if title is not None:
+        ax.set_title(title)
     return ax
 
 
@@ -597,16 +602,29 @@ def _get_artists_from_axes(axes, data):
         # then we only have one axis, so we may be able to update more than one
         # data element.
         if len(axes.containers) > 0:
+            data_check = 1
             artists = axes.containers
         elif len(axes.images) > 0:
+            # images are weird, so don't check them like this
+            data_check = None
             artists = axes.images
         elif len(axes.lines) > 0:
+            data_check = 1
             artists = axes.lines
+        elif len(axes.collections) > 0:
+            data_check = 2
+            artists = axes.collections
         if isinstance(data, dict):
             artists = {ax.get_label(): ax for ax in artists}
         else:
-            if data.shape[1] != len(artists):
+            if data_check == 1 and data.shape[1] != len(artists):
                 raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"your axis contains {len(artists)} plotting artists, "
+                                "so unsure how to continue! Pass data as a dictionary"
+                                " with keys corresponding to the labels of the artists"
+                                " to update to resolve this.")
+            elif data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
+                raise Exception(f"data has {data.shape[-3]} things to plot, but "
                                 f"your axis contains {len(artists)} plotting artists, "
                                 "so unsure how to continue! Pass data as a dictionary"
                                 " with keys corresponding to the labels of the artists"
@@ -617,21 +635,30 @@ def _get_artists_from_axes(axes, data):
         artists = []
         for ax in axes:
             if len(ax.containers) == 1:
+                data_check = 1
                 artists.extend(ax.containers)
             elif len(ax.images) == 1:
+                data_check = None
                 artists.extend(ax.images)
             elif len(ax.lines) == 1:
                 artists.extend(ax.lines)
+                data_check = 1
+            elif len(ax.collections) == 1:
+                artists.extend(ax.collections)
+                data_check = 2
         if isinstance(data, dict):
             if len(data.keys()) != len(artists):
                 raise Exception(f"data has {len(data.keys())} things to plot, but "
                                 f"you passed {len(axes)} axes , so unsure how "
                                 "to continue!")
             artists = {k: a for k, a in zip(data.keys(), artists)}
-            print(artists.keys())
         else:
-            if data.shape[1] != len(artists):
+            if data_check == 1 and data.shape[1] != len(artists):
                 raise Exception(f"data has {data.shape[1]} things to plot, but "
+                                f"you passed {len(axes)} axes , so unsure how "
+                                "to continue!")
+            if data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
+                raise Exception(f"data has {data.shape[-3]} things to plot, but "
                                 f"you passed {len(axes)} axes , so unsure how "
                                 "to continue!")
     if not isinstance(artists, dict):
@@ -648,20 +675,21 @@ def update_plot(axes, data, model=None, batch_idx=0):
     has been created by something like ``plot_representation``, which
     initializes all the artists.
 
-    We can update stem plots, lines (as returned by ``plt.plot``), or images.
-    All artists-to-update do not need to be of the same type.
+    We can update stem plots, lines (as returned by ``plt.plot``), scatter
+    plots, or images.
 
     There are two modes for this:
 
-    - single axis: axes is a single axis, which may contain multiple artists to
-      update. data should be a Tensor with multiple channels (one per artist in
-      the same order) or be a dictionary whose keys give the label(s) of the
-      corresponding artist(s).
+    - single axis: axes is a single axis, which may contain multiple artists
+      (all of the same type) to update. data should be a Tensor with multiple
+      channels (one per artist in the same order) or be a dictionary whose keys
+      give the label(s) of the corresponding artist(s).
 
     - multiple axes: axes is a list of axes, each of which contains a single
-      artist to update. data should be a Tensor with multiple channels (one per
-      axis in the same order) or a dictionary with the same number of keys as
-      axes, which we can iterate through in order.
+      artist to update (artists can be different types). data should be a
+      Tensor with multiple channels (one per axis in the same order) or a
+      dictionary with the same number of keys as axes, which we can iterate
+      through in order.
 
     If you have multiple axes, each with multiple artists you want to update,
     that's too complicated for us, and so you should write a
@@ -722,12 +750,18 @@ def update_plot(axes, data, model=None, batch_idx=0):
                     art.set_data(x, d)
                     artists.append(art)
                 except AttributeError:
-                    # then it's a scatterplot
+                    # then it's a stemplot
                     sc = update_stem(art, d)
                     artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
-                art.set_data(d)
-                artists.append(art)
+                try:
+                    # then it's an image
+                    art.set_data(d)
+                    artists.append(art)
+                except AttributeError:
+                    # then it's a scatterplot
+                    art.set_offsets(d)
+                    artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]

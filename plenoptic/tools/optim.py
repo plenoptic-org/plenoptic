@@ -179,6 +179,46 @@ def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1),
     return mse_loss + lmbda * range_penalty
 
 
+def mse_and_penalize_range(synth_rep, ref_rep, synth_img, allowed_range=(0, 1), beta=.5, **kwargs):
+    """loss that combines MSE of the difference and range penalty
+
+    this function returns a weighted average of the MSE of the
+    difference between ``ref_rep`` and ``synth_rep`` (as calculated by
+    ``mse()``) and the range penalty of ``synth_img`` (as calculated by
+    ``penalize_range()``).
+
+    The loss is: ``beta * mse(ref_rep, synth_rep) + (1-beta) *
+    penalize_range(synth_img, allowed_range)``
+
+    Parameters
+    ----------
+    synth_rep : torch.Tensor
+        The first tensor to compare, model representation of the
+        synthesized image
+    ref_rep : torch.Tensor
+        The second tensor to compare, model representation of the
+        reference image. must be same size as ``synth_rep``,
+    synth_img : torch.Tensor
+        the tensor to penalize. the synthesized image.
+    allowed_range : tuple, optional
+        2-tuple of values giving the (min, max) allowed values
+    beta : float, optional
+        parameter that gives the tradeoff between MSE of the difference
+        and the range penalty
+    kwargs :
+        ignored, only present to absorb extra arguments
+
+    Returns
+    -------
+    loss : torch.float
+        the loss
+
+    """
+    mse_loss = mse(ref_rep, synth_rep)
+    range_penalty = penalize_range(synth_img, allowed_range)
+    return beta * mse_loss + (1-beta) * range_penalty
+
+
 def generate_norm_stats(model, input_dir, save_path=None, img_shape=None, as_gray=True,
                         index=None):
     r"""Generate the statistics we want to use for normalization in models

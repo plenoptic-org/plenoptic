@@ -10,34 +10,29 @@ metamer synthesis, visible as ringing, with the PooledV1
 model, because of the interactions between the windows and the steerable
 pyramid filters.
 
-The Gaussian windows don't have these problems, but require more windows
-to evenly tile the image in the radial direction (and thus
-PoolingWindows.forward will take more memory and more time). Note as
-well that, whereas the max amplitude of the raised-cosine windows is
-always 1 (for all transition region widths), the Gaussian windows will
-have their max amplitude scaled down as their standard deviation
-increases; as the standard deviation increases, the windows overlap
-more, so that the number of windows a given pixel lies in increases and
-thus the weighting in each of them needs to decrease in order to make
-sure the sum across all windows is still 1 for every pixel. For now, we
-only allow that standard deviation = 1, which gives us windows that
-intersect at half a standard deviation away. I am fairly certain that,
-if we want windows that evenly tile the space, have the aspect ratios we
-want, have scaling = FWHM * eccentricity, and intersect at a relative
-point (e.g., half a standard deviation rather than always at x=.5), then
-we have no more degrees of freedom to play with.
+The Gaussian windows don't have these problems, but require more windows to
+evenly tile the image in the radial direction (and thus PoolingWindows.forward
+will take more memory and more time). Note as well that, whereas the max
+amplitude of the raised-cosine windows is always 1 (for all transition region
+widths), the Gaussian windows will have their max amplitude scaled down as
+their standard deviation increases; as the standard deviation increases, the
+windows overlap more, so that the number of windows a given pixel lies in
+increases and thus the weighting in each of them needs to decrease in order to
+make sure the sum across all windows is still 1 for every pixel. The Gaussian
+windows will always intersect at x=.5, but the interpretation of this depends
+on its standard deviation. For Gaussian windows, we recommend (and only
+support) a standard deviation of 1, so that each window intersects at half a
+standard deviation.
+
+pooling_windows.py contains the PoolingWindows class, which uses most of these
+functions
 
 """
 import math
-import itertools
+import re
 import torch
-import warnings
 import numpy as np
-import pyrtools as pt
-import matplotlib.pyplot as plt
-import os.path as op
-from torch import nn
-from ...tools.data import to_numpy
+from ...tools.data import polar_angle, polar_radius
 
 # see docstring of gaussian function for explanation of this constant
 GAUSSIAN_SUM = 2 * 1.753314144021452772415339526931980189073725635759454989253 - 1
@@ -101,10 +96,9 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
     the radial spacing. Note that we take exactly one of ``n_windows``
     or ``scaling`` in order to determine this value.
 
-    If scaling is set, ``min_ecc`` and ``max_ecc`` are ignored (the
-    window width only depends on scaling, not also on the range of
-    eccentricities; they only matter when determining the width using
-    ``n_windows``)
+    If scaling is set, ``min_ecc`` and ``max_ecc`` are ignored (the window
+    width only depends on scaling, not also on the range of eccentricities;
+    they only matter when determining the width using ``n_windows``)
 
     For both cosine and gaussian windows, this is the distance between
     the peaks of the windows. For cosine windows, this is also the same
@@ -116,7 +110,7 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
 
     Parameters
     ----------
-    min_ecc : `float`, optional
+    min_ecc : float, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
         equation 11 of the online methods.
@@ -132,7 +126,7 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
         half-maximum to eccentricity (see the ``calc_scaling``
         function). ``n_windows`` xor ``scaling`` must be set.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. If this is set,
+        The standard deviation of the Gaussian window. If this is set,
         we compute the scaling value for the Gaussian windows instead of
         for the cosine ones.
 
@@ -150,14 +144,15 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
 
     .. math::
 
-        s &= \exp(w_e x_h) -  \exp(w_e x_h) \\
+        s &= \exp(w_e x_h) - \exp(-w_e x_h) \\
+        s &= \exp(w_e x_h) - \frac{1}{\exp(w_e x_h)} \\
 
     We then substitute :math:`t=\exp(w_e x_h)`
 
     .. math::
 
-        s &= t + \frac{1}{t}
-        0 &= t^2 - st + 1
+        s &= t - \frac{1}{t}
+        0 &= t^2 - st - 1
 
     Then using the quadratic formula:
 
@@ -184,8 +179,6 @@ def calc_eccentricity_window_spacing(min_ecc=.5, max_ecc=15, n_windows=None, sca
         spacing = (np.log(max_ecc) - np.log(min_ecc)) / n_windows
     else:
         raise Exception("Exactly one of n_windows or scaling must be set!")
-    if std_dev is not None:
-        spacing *= std_dev
     return spacing
 
 
@@ -199,7 +192,7 @@ def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=
     ----------
     window_spacing : `float`
         The spacing of the log-eccentricity windows.
-    min_ecc : `float`, optional
+    min_ecc : float, optional
         The minimum eccentricity, the eccentricity below which we do not
         compute pooling windows (in degrees). Parameter :math:`e_0` in
         equation 11 of the online methods.
@@ -222,10 +215,11 @@ def calc_eccentricity_n_windows(window_spacing, min_ecc=.5, max_ecc=15, std_dev=
     # the Gaussians need extra windows in order to make sure that we're
     # summing to 1 across the whole image (because they're wider and
     # shorter). to make sure of this, we want to get all the windows
-    # past it up til the one who is 3 standard deviations away from the
-    # outermost window calculated above.
+    # past it up til the one who is 5 standard deviations away from the
+    # outermost window calculated above (this matters more for larger
+    # values of std_dev / larger windows).
     if std_dev is not None:
-        n_windows += 3 * std_dev
+        n_windows += 5 * std_dev
     return n_windows
 
 
@@ -305,7 +299,7 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None):
         s &= \exp(x_h\cdot w_e) -  \exp(-x_h\cdot w_e)
 
     Note that we don't actually use the value returned by
-    ``calc_windows_central_eccentricity`` for :math:`e_c`; we simplify
+    ``calc_windows_eccentricity`` for :math:`e_c`; we simplify
     it away in the calculation above.
 
     """
@@ -313,7 +307,8 @@ def calc_scaling(n_windows, min_ecc=.5, max_ecc=15, std_dev=None):
         x_half_max = std_dev * np.sqrt(2 * np.log(2))
     else:
         x_half_max = .5
-    window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
+    window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc,
+                                                      n_windows)
     return np.exp(x_half_max*window_spacing) - np.exp(-x_half_max*window_spacing)
 
 
@@ -326,10 +321,13 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
 
     Parameters
     ----------
-    ecc_type : {'min', 'central', 'max'}
+    ecc_type : {'min', 'central', 'max', '{n}std'}
         Which eccentricity you want to calculate: the minimum one where
         x=-(1+t)/2, the central one where x=0, or the maximum one where
-        x=(1+t)/2
+        x=(1+t)/2. if std_dev is set, minimum and maximum are +/- 3
+        std_dev. if '{n}std' (where n is a positive or negative
+        integer), then we return the eccentricity at that many std_dev
+        away from center (only std_dev is set).
     n_windows : `float`
         The number of log-eccentricity windows we create. n_windows can
         be a non-integer, in which case we round it up (thus one of our
@@ -351,7 +349,7 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
 
     Returns
     -------
-    eccentricity : np.array
+    eccentricity : np.ndarray
         A list of length ``n_windows``, containing the minimum, central,
         or maximum eccentricities of each window.
 
@@ -397,6 +395,8 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
         e_{min} &= \exp{-3\sigma w_e + \log(e_0) + w_e(n+1)}
 
     """
+    if ecc_type not in ['min', 'max', 'central'] and not ecc_type.endswith('std'):
+        raise Exception(f"Don't know how to handle ecc_type {ecc_type}")
     if ecc_type == 'central':
         ecc = [min_ecc * np.exp(window_spacing * (i+1)) for i in np.arange(np.ceil(n_windows))]
     elif ecc_type == 'min':
@@ -413,14 +413,19 @@ def calc_windows_eccentricity(ecc_type, n_windows, window_spacing, min_ecc=.5,
         else:
             ecc = [(np.exp(3*std_dev*window_spacing) * min_ecc *
                     np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
-    else:
-        raise Exception("Don't know how to handle ecc_type %s" % ecc_type)
+    elif ecc_type.endswith('std'):
+        if std_dev is None:
+            raise Exception(f"std_dev must be set if ecc_type == {ecc_type}")
+        else:
+            n = int(re.findall('([-0-9]+)std', ecc_type)[0])
+            ecc = [(np.exp(n*std_dev*window_spacing) * min_ecc *
+                    np.exp(window_spacing * (i+1))) for i in np.arange(np.ceil(n_windows))]
     return np.array(ecc)
 
 
-def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min_ecc=.5,
-                              max_ecc=15, window_type='cosine', transition_region_width=.5,
-                              std_dev=None):
+def calc_window_widths_actual(angular_window_spacing, radial_window_spacing,
+                              min_ecc=.5, max_ecc=15, window_type='cosine',
+                              transition_region_width=.5, std_dev=None):
     r"""calculate and return the actual widths of the windows, in angular and radial directions
 
     whereas ``calc_angular_window_spacing`` returns a term used in the
@@ -457,27 +462,23 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
         The width of the cosine windows' transition region, parameter
         :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation of the Gaussian window. WARNING -- For
-        now, we only support ``std_dev=1`` (in order to ensure that the
-        windows tile correctly, intersect at the proper point, follow
-        scaling, and have proper aspect ratio; not sure we can make that
-        happen for other values).
+        The standard deviation of the Gaussian window.
 
     Returns
     -------
-    radial_top_width : np.array
+    radial_top_width : np.ndarray
         The width of the flat-top region of the windows in the radial
         direction (each value corresponds to a different ring of
         windows, from the fovea to the periphery).
-    radial_full_width : np.array
+    radial_full_width : np.ndarray
         The full width of the windows in the radial direction (each
         value corresponds to a different ring of windows, from the fovea
         to the periphery).
-    angular_top_width : np.array
+    angular_top_width : np.ndarray
         The width of the flat-top region of the windows in the angular
         direction (each value corresponds to a different ring of
         windows, from the fovea to the periphery).
-    angular_full_width : np.array
+    angular_full_width : np.ndarray
         The full width of the windows in the angular direction (each
         value corresponds to a different ring of windows, from the fovea
         to the periphery).
@@ -532,8 +533,8 @@ def calc_window_widths_actual(angular_window_spacing, radial_window_spacing, min
     function.
 
     """
-    n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc, max_ecc,
-                                                           std_dev))
+    n_radial_windows = np.ceil(calc_eccentricity_n_windows(radial_window_spacing, min_ecc,
+                                                           max_ecc, std_dev))
     window_central_eccentricities = calc_windows_eccentricity('central', n_radial_windows,
                                                               radial_window_spacing, min_ecc)
     if window_type == 'cosine':
@@ -622,7 +623,7 @@ def calc_min_eccentricity(scaling, img_res, max_eccentricity=15, pixel_area_thre
 
     Note that, since we're using the scaling to figure this out, we're
     computing the area at approximately the windows' full-max
-    half-width, and this is what we're for both gaussian and
+    half-width, and this is what we're doing for both gaussian and
     raised-cosine windows (though gaussian windows technically extend
     further beyond the FWHM than raised-cosine windows, the difference
     is not large for small windows).
@@ -693,10 +694,7 @@ def gaussian(x, std_dev=1):
     x : float or array_like
         The distance in a direction
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- For
-        now we only support ``std_dev=1``, but this is left in here (and
-        several other places throughout these functions in case adding
-        support for other values becomes desired).
+        The standard deviation of the Gaussian window.
 
     Returns
     -------
@@ -706,17 +704,22 @@ def gaussian(x, std_dev=1):
     Notes
     -----
     We normalize in here in order to make sure that the windows sum to
-    1. In order to do that, we note that with std_dev=1 at x=0, the
-    first window is at ``x=0``, the two on either side of it are at
-    ``x=1=std_dev``, the two on either side of them are at
-    ``x=2=2*std_dev``, etc.
+    1. In order to do that, we note that each Gaussian is centered at
+    integer x values: 0, 1, 2, 3, etc. If we're summing at ``x=0``, we
+    then note that the first window will be centered there and so have
+    its max amplitude, its two nearest neighbors will be 1 away from
+    their center (these Gaussians are symmetric), their two nearest
+    neighbors will be 2 away from their center, etc. Therefore, we'll
+    have one Gaussian at max value (1), two at
+    :math:`\exp(\frac{-1^2}{2\sigma^2})`, two at
+    :math:`\exp(\frac{-2^2}{2\sigma^2})`, etc.
 
     Summing at this location will give us the value we need to normalize
-    by, :math:`S`. We see:
+    by, :math:`S`. We work through this with :math:`\sigma=1`:
 
     ..math::
 
-        S &= 1 + 2 * \exp(\frac{-(\sigma)^2}{2\sigma^2}) + 2 * \exp(\frac{-(2\sigma)^2}{2\sigma^2}) + ...
+        S &= 1 + 2 * \exp(\frac{-(1)^2}{2\sigma^2}) + 2 * \exp(\frac{-(2)^2}{2\sigma^2}) + ...
         S &= 1 + 2 * \sum_{n=1}^{\inf} \exp({-n^2}{2})
         S &= -1 + 2 * \sum_{n=0}^{\inf} \exp({-n^2}{2})
 
@@ -724,21 +727,14 @@ def gaussian(x, std_dev=1):
     infinite sum computed in the equation above was using Wolfram Alpha,
     https://www.wolframalpha.com/input/?i=sum+0+to+inf+e%5E%28-n%5E2%2F2%29+)
 
-    When ``std_dev>1``, the windows overlap more. I have not been able
-    to work through the proof, but it looks like you can just multiply
-    this GAUSSIAN_SUM by ``std_dev`` and everything will work out. For
-    now, we only support ``std_dev=1``, so this is not a problem.
+    When ``std_dev>1``, the windows overlap more. As with the
+    probability density function of a normal distribution, we divide by
+    ``std_dev`` to keep the integral constant for different values of
+    ``std_dev`` (though the integral is not 1). This means that summing
+    across multiple windows will still give us a value of 1.
 
     """
-    if std_dev != 1:
-        raise Exception("For now, only std_dev=1 is supported. I do not think we can make sure "
-                        "the windows tile correctly, intersect at the proper point, follow "
-                        "scaling, and have proper aspect ratio with other std_dev values")
-    if std_dev < 1:
-        warnings.warn("if std_dev much smaller than 1, the windows won't tile correctly!")
-    if std_dev > 3:
-        warnings.warn("if std_dev too large, the windows won't tile correctly!")
-    return np.exp(-(x**2 / (2 * std_dev**2))) / (std_dev * GAUSSIAN_SUM)
+    return torch.exp(-(x**2 / (2 * std_dev**2))) / (std_dev * GAUSSIAN_SUM)
 
 
 def mother_window(x, transition_region_width=.5):
@@ -774,27 +770,25 @@ def mother_window(x, transition_region_width=.5):
     """
     if transition_region_width > 1 or transition_region_width < 0:
         raise Exception("transition_region_width must lie between 0 and 1!")
-    if not isinstance(x, np.ndarray):
-        x = np.array(x)
     # doing it in this array-ized fashion is much faster
-    y = np.zeros_like(x)
+    y = torch.zeros_like(x)
     # this creates a bunch of masks
     masks = [(-(1 + transition_region_width) / 2 < x) & (x <= (transition_region_width - 1) / 2),
              ((transition_region_width - 1) / 2 < x) & (x <= (1 - transition_region_width) / 2),
              ((1 - transition_region_width) / 2 < x) & (x <= (1 + transition_region_width) / 2)]
     # and this creates the values where those masks are
-    vals = [np.cos(np.pi/2 * ((x - (transition_region_width-1)/2) / transition_region_width))**2,
-            np.ones_like(x),
-            (-np.cos(np.pi/2 * ((x - (1+transition_region_width)/2) /
-                                transition_region_width))**2 + 1)]
+    vals = [torch.cos(np.pi/2 * ((x - (transition_region_width-1)/2) / transition_region_width))**2,
+            torch.ones_like(x),
+            (-torch.cos(np.pi/2 * ((x - (1+transition_region_width)/2) /
+                                   transition_region_width))**2 + 1)]
     for m, v in zip(masks, vals):
         y[m] = v[m]
     return y
 
 
 def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_region_width=.5,
-                        std_dev=None):
-    r"""Create polar angle windows in 2d
+                        std_dev=None, device=None):
+    r"""Create polar angle windows
 
     We require an integer number of windows placed between 0 and 2 pi.
 
@@ -819,17 +813,17 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         The width of the cosine windows' transition region, parameter
         :math:`t` in equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation of the Gaussian window. WARNING -- For
-        now, we only support ``std_dev=1`` (in order to ensure that the
-        windows tile correctly, intersect at the proper point, follow
-        scaling, and have proper aspect ratio; not sure we can make that
-        happen for other values).
+        The standard deviation of the Gaussian window.
+    device : str or torch.device
+        the device to create this tensor on
 
     Returns
     -------
-    windows : np.array
-        A 3d array containing the (2d) polar angle windows. Windows will
-        be indexed along the first dimension.
+    windows : torch.Tensor
+        A 3d tensor containing the (2d) polar angle windows. Windows
+        will be indexed along the first dimension. If resolution was an
+        int, then this will be a 2d arra containing the 1d polar angle
+        windows
 
     References
     ----------
@@ -844,34 +838,27 @@ def polar_angle_windows(n_windows, resolution, window_type='cosine', transition_
         raise Exception("We cannot handle one window correctly!")
     # this is `w_\theta` in the paper
     window_spacing = calc_angular_window_spacing(n_windows)
-    windows = []
-    for n in range(int(n_windows)):
-        if window_type == 'cosine':
-            window_center = (window_spacing * n + (window_spacing * (1-transition_region_width)) / 2)
-        else:
-            window_center = window_spacing * n
-        # equivalent to building the windows from 0 to 2 pi with
-        # different centers, we can build all of our windows centered at
-        # 0, rotating the underlying theta. this helps us avoid
-        # discontinuities, at the cost of slowing it down.  otherwise,
-        # we would pass this as the argument: ((theta - window_center) /
-        # window_spacing)
-        if hasattr(resolution, '__iter__') and len(resolution) == 2:
-            theta = pt.synthetic_images.polar_angle(resolution, window_center)
-        else:
-            theta = np.linspace(0, 2 * np.pi, resolution)
-            theta = ((theta+(np.pi-window_center)) % (2*np.pi)) - np.pi
-        if window_type == 'gaussian':
-            windows.append(gaussian(theta / window_spacing, std_dev))
-        elif window_type == 'cosine':
-            windows.append(mother_window(theta / window_spacing, transition_region_width))
-    windows = [i for i in windows if not (i == 0).all()]
-    return np.array(windows)
+    max_angle = 2*np.pi - window_spacing
+    if window_type == 'gaussian' and (std_dev * 8) > n_windows:
+        raise Exception(f"In order for windows to tile the circle correctly, n_windows ({n_windows}"
+                        f") must be greater than 8*std_dev ({8*std_dev})!")
+    if hasattr(resolution, '__iter__') and len(resolution) == 2:
+        theta = polar_angle(resolution, device=device).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows, device=device).unsqueeze(-1).unsqueeze(-1))
+    else:
+        theta = torch.linspace(0, 2 * np.pi, resolution, device=device).unsqueeze(0)
+        theta = theta + (np.pi - torch.linspace(0, max_angle, n_windows, device=device).unsqueeze(-1))
+    theta = ((theta % (2 * np.pi)) - np.pi) / window_spacing
+    if window_type == 'gaussian':
+        windows = gaussian(theta, std_dev)
+    elif window_type == 'cosine':
+        windows = mother_window(theta, transition_region_width)
+    return torch.stack([w for w in windows if (w != 0).any()])
 
 
 def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, min_ecc=.5,
                              max_ecc=15, window_type='cosine', transition_region_width=.5,
-                             std_dev=None):
+                             std_dev=None, device=None, linear=False):
     r"""Create log eccentricity windows in 2d
 
     Note that exactly one of ``n_windows`` or ``window_width`` must be
@@ -879,19 +866,19 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
 
     In order to convert the polar radius array we create from pixels to
     degrees, we assume that ``max_ecc`` is the maximum eccentricity in
-    the horizontal direction (i.e., to convert from pixels to degrees,
-    we multiply by ``max_ecc / (resolution[1]/2)``)
+    the whichever is the larger dimension (i.e., to convert from pixels
+    to degrees, we multiply by ``max_ecc / (max(resolution)/2)``)
 
     NOTE: if ``n_windows`` (rater than ``window_width``) is set, this is
     not necessarily the number of arrays we'll return. In order to get
     the full set of windows, we want to consider those that would show
     up in the corners as well, so it's probable that this function
     returns one more window there; we determine if this is necessary by
-    calling ``calc_eccentricity_n_windows`` with ``np.sqrt(2)*max_ecc``
+    calling ``calc_eccentricity_n_windows`` with
+    ``np.sqrt(2)*max_ecc``.
 
     Notes
     -----
-    Equation 11 from the online methods of [1]_.
 
     Parameters
     ----------
@@ -927,12 +914,25 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
         windows tile correctly, intersect at the proper point, follow
         scaling, and have proper aspect ratio; not sure we can make that
         happen for other values).
+    device : str or torch.device
+        the device to create this tensor on
+    linear : bool, optional
+        if True, create linear windows instead of log-spaced. NOTE This is only
+        for playing around with, it really is not supported or a good idea
+        because the angular windows still grow in size as a function of
+        eccentricity and none of the calculations will work.
 
     Returns
     -------
-    windows : `np.array`
-        A 3d array containing the (2d) log-eccentricity windows. Windows
-        will be indexed along the first dimension.
+    windows : torch.Tensor
+        A 3d tensor containing the (2d) log-eccentricity
+        windows. Windows will be indexed along the first dimension. If
+        resolution was an int, then this will be a 2d array containing
+        the 1d polar angle windows
+
+    Notes
+    -----
+    Equation 11 from the online methods of [1]_.
 
     References
     ----------
@@ -941,28 +941,36 @@ def log_eccentricity_windows(resolution, n_windows=None, window_spacing=None, mi
        1195–1201. http://dx.doi.org/10.1038/nn.2889
 
     """
-    if hasattr(resolution, '__iter__') and len(resolution) == 2:
-        ecc = pt.synthetic_images.polar_radius(resolution) * (max_ecc / (resolution[1]/2))
+    if not linear:
+        log_func = torch.log
     else:
-        ecc = np.linspace(0, max_ecc, resolution)
+        log_func = lambda x: x
+    if std_dev is not None and std_dev != 1:
+        raise Exception("Only std_dev=1 is supported (not sure if Gaussian "
+                        "windows will uniformly tile image otherwise!)")
     if window_spacing is None:
-        window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows)
+        window_spacing = calc_eccentricity_window_spacing(min_ecc, max_ecc, n_windows,
+                                                          std_dev=std_dev)
     n_windows = calc_eccentricity_n_windows(window_spacing, min_ecc, max_ecc*np.sqrt(2), std_dev)
-    windows = []
-    for n in range(math.ceil(n_windows)):
-        mother_window_arg = ((np.log(ecc) - (np.log(min_ecc) + window_spacing * (n+1))) /
-                             window_spacing)
-        if window_type == 'gaussian':
-            windows.append(gaussian(mother_window_arg, std_dev))
-        elif window_type == 'cosine':
-            windows.append(mother_window(mother_window_arg, transition_region_width))
-    windows = [i for i in windows if not (i == 0).all()]
-    return np.array(windows)
+    shift_arg = (log_func(torch.tensor(min_ecc, dtype=torch.float32)) + window_spacing * torch.arange(1, math.ceil(n_windows)+1, device=device)).unsqueeze(-1)
+    if hasattr(resolution, '__iter__') and len(resolution) == 2:
+        ecc = log_func(polar_radius(resolution, device=device) / calc_deg_to_pix(resolution, max_ecc)).unsqueeze(0)
+        shift_arg = shift_arg.unsqueeze(-1)
+    else:
+        ecc = log_func(torch.linspace(0, max_ecc, resolution, device=device)).unsqueeze(0)
+    ecc = (ecc - shift_arg) / window_spacing
+    if window_type == 'gaussian':
+        windows = gaussian(ecc, std_dev)
+    elif window_type == 'cosine':
+        windows = mother_window(ecc, transition_region_width)
+    return torch.stack([w for w in windows if (w != 0).any()])
 
 
-def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentricity=15,
-                           radial_to_circumferential_ratio=2, window_type='cosine',
-                           transition_region_width=.5, std_dev=None):
+def create_pooling_windows(scaling, resolution, min_eccentricity=.5,
+                           max_eccentricity=15,
+                           radial_to_circumferential_ratio=2,
+                           window_type='cosine', transition_region_width=.5,
+                           std_dev=None, device=None):
     r"""Create two sets of 2d pooling windows (log-eccentricity and polar angle) that span the visual field
 
     This creates the pooling windows that we use to average image
@@ -1002,26 +1010,28 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
         generated windows approximate this. 2 (the default) is the value
         used in the paper [1]_.
     window_type : {'cosine', 'gaussian'}
-        Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If cosine,
-        ``transition_region_width`` must be set; if gaussian, then
-        ``std_dev`` must be set
+        Whether to use the raised cosine function from [1]_ or a Gaussian that
+        has approximately the same structure. If cosine,
+        ``transition_region_width`` must be set; if gaussian, then ``std_dev``
+        must be set.
     transition_region_width : `float` or None, optional
         The width of the transition region, parameter :math:`t` in
         equation 9 from the online methods.
     std_dev : float or None, optional
-        The standard deviation fo the Gaussian window. WARNING -- if
+        The standard deviation of the Gaussian window. WARNING -- if
         this is too small (say < 3/4), then the windows won't tile
-        correctly
+        correctly. So we only support std_dev=1 for now.
+    device : str or torch.device
+        the device to create these tensors on
 
     Returns
     -------
-    angle_windows : `torch.Tensor`
+    angle_windows : torch.Tensor or dict
         The 3d tensor of 2d polar angle windows. Its shape will be
         ``(n_angle_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``
         and ``radial_to_circumferential_width``.
-    ecc_windows : `torch.Tensor`
+    ecc_windows : torch.Tensor or dict
         The 3d tensor of 2d log-eccentricity windows. Its shape will be
         ``(n_eccen_windows, *resolution)``, where the number of windows
         is inferred in this function based on the values of ``scaling``,
@@ -1070,1235 +1080,88 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5, max_eccentr
     ecc_window_spacing = calc_eccentricity_window_spacing(min_eccentricity, max_eccentricity,
                                                           scaling=scaling, std_dev=std_dev)
     n_polar_windows = calc_angular_n_windows(ecc_window_spacing / radial_to_circumferential_ratio)
-    # we want to set the number of polar windows where the ratio of widths is approximately what
-    # the user specified. the constraint that it's an integer is more important
-    angle_tensor = polar_angle_windows(round(n_polar_windows), resolution, window_type,
+    # we want to set the number of polar windows where the ratio of
+    # widths is approximately what the user specified. the constraint
+    # that it's an integer is more important
+    n_polar_windows = int(round(n_polar_windows))
+    angle_tensor = polar_angle_windows(n_polar_windows, resolution,
+                                       window_type,
                                        transition_region_width=transition_region_width,
-                                       std_dev=std_dev)
-    angle_tensor = torch.tensor(angle_tensor, dtype=torch.float32)
-    ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing, min_eccentricity,
-                                          max_eccentricity, window_type, std_dev=std_dev,
-                                          transition_region_width=transition_region_width)
-    ecc_tensor = torch.tensor(ecc_tensor, dtype=torch.float32)
+                                       std_dev=std_dev, device=device)
+    ecc_tensor = log_eccentricity_windows(resolution, None, ecc_window_spacing,
+                                          min_eccentricity,
+                                          max_eccentricity,
+                                          window_type,
+                                          std_dev=std_dev,
+                                          transition_region_width=transition_region_width,
+                                          device=device)
     return angle_tensor, ecc_tensor
 
 
-class PoolingWindows(nn.Module):
-    r"""Generic class to set up scaling windows for use with other models
+def normalize_windows(angle_windows, ecc_windows, window_eccentricity, scale=0):
+    r"""normalize windows to have L1-norm of 1
 
-    Note that we will calculate the minimum eccentricity at which the
-    area of the windows at half-max exceeds one pixel (based on
-    ``scaling``, ``img_res`` and ``max_eccentricity``) and, if
-    ``min_eccentricity`` is below that, will throw an Exception.
+    we calculate the L1-norm of single windows (that is, product of
+    eccentricity and angular windows) for all angles, one middling
+    eccentricity (third of the way thorugh), then average across angles
+    (because of alignment with pixel grid, L1-norm will vary somewhat
+    across angles).
 
-    This just generates the pooling windows given a small number of
-    parameters. One tricky thing we do is generate a set of scaling
-    windows for each scale (appropriately) sized. For example, the V1
-    model will have 4 scales, so for a 256 x 256 image, the coefficients
-    will have shape (256, 256), (128, 128), (64, 64), and (32,
-    32). Therefore, we need windows of the same size (could also
-    up-sample the coefficient tensors, but since that would need to
-    happen each iteration of the metamer synthesis, pre-generating
-    appropriately sized windows is more efficient).
-
-    We will calculate the minimum eccentricity at which the area of the
-    windows at half-max exceeds one pixel at each scale. For scales
-    beyond the first however, we will not throw an Exception if this
-    value is below ``min_eccentricity``. We instead print a warning to
-    alert the user and use this value as ``min_eccentricity`` when
-    creating the plots. In order to see what this value was, see
-    ``self.calculated_min_eccentricity_degrees``
-
-    We can optionally cache the windows tensor we create, if
-    ``cache_dir`` is not None. In that case, we'll also check to see if
-    appropriate cached windows exist before creating them and load them
-    if they do. The path we'll use is
-    ``{cache_dir}/scaling-{scaling}_size-{img_res}_e0-{min_eccentricity}_
-    em-{max_eccentricity}_w-{window_width}_{window_type}.pt``, where
-    {window_width} is ``transition_region_width`` if
-    ``window_type='cosine'``, and ``std_dev`` if it's
-    ``'gaussian'``. We'll cache each scale separately, changing the
-    img_res (and potentially min_eccentricity) values in that save path
-    appropriately.
+    L1-norm scales linearly with area, which is proportional to the width in
+    the angular direction times the width in the radial direction. The angular
+    width grows linearly with eccentricity, while the radial width grows with
+    the reciprocal of the derivative of our scaling function (that's log(ecc)
+    for gaussian windows). so we use that product to scale it for the different
+    windows. only eccentricity windows is normalized (don't need to divide
+    both).
 
     Parameters
     ----------
-    scaling : float
-        Scaling parameter that governs the size of the pooling
-        windows. Other pooling windows parameters
-        (``radial_to_circumferential_ratio``,
-        ``transition_region_width``) cannot be set here. If that ends up
-        being of interest, will change that.
-    img_res : tuple
-        The resolution of our image (should therefore contains
-        integers). Will use this to generate appropriately sized pooling
-        windows.
-    min_eccentricity : float, optional
-        The eccentricity at which the pooling windows start.
-    max_eccentricity : float, optional
-        The eccentricity at which the pooling windows end.
-    num_scales : int, optional
-        The number of scales to generate masks for. For the RGC model,
-        this should be 1, otherwise should match the number of scales in
-        the steerable pyramid.
-    cache_dir : str or None, optional
-        The directory to cache the windows tensor in. If set, we'll look
-        there for cached versions of the windows we create, load them if
-        they exist and create and cache them if they don't. If None, we
-        don't check for or cache the windows.
-    window_type : {'cosine', 'gaussian'}
-        Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure. If Gaussian,
-        ``transition_region_width`` is now the standard deviation of
-        that Gaussian
-    transition_region_width : float or None, optional
-        The width of the transition region, parameter :math:`t` in
-        equation 9 from the online methods. 0.5 (the default) is the
-        value used in the paper [1]_.
-    std_dev : float or None, optional
-        The standard deviation of the Gaussian window. WARNING -- For
-        now, we only support ``std_dev=1`` (in order to ensure that the
-        windows tile correctly, intersect at the proper point, follow
-        scaling, and have proper aspect ratio; not sure we can make that
-        happen for other values).
+    angle_windows : dict
+        dictionary containing the angular windows
+    ecc_windows : dict
+        dictionary containing the eccentricity windows
+    window_eccentricity : array_like
+        array containing the eccentricity for each window that defines
+        their location relative to each other (and so can be in either
+        pixels or degrees). this is used to determine how to scale the
+        L1-norm. It should probably be the central eccentricity, but it
+        should not contain any zeros.
+    scale : int, optional
+        which scale to calculate norm for and modify
 
-    Attributes
-    ----------
-    scaling : float
-        Scaling parameter that governs the size of the pooling windows.
-    min_eccentricity : float
-        The eccentricity at which the pooling windows start.
-    max_eccentricity : float
-        The eccentricity at which the pooling windows end.
-    img_res : tuple
-        The resolution of our image in pixels.
-    transition_region_width : float or None
-        The width of the cosine windows' transition region, parameter
-        :math:`t` in equation 9 from the online methods.
-    std_dev : float or None
-        The standard deviation of the Gaussian windows.
-    angle_windows : list or dict
-        A list of 3d tensors containing the angular pooling windows in
-        which the model parameters are averaged. Each entry in the list
-        corresponds to a different scale and thus is a different
-        size. If you have called ``parallel()``, this will be a
-        dictionary instead (see that method for details)
-    ecc_windows : list or dict
-        A list of 3d tensors containing the log-eccentricity pooling
-        windows in which the model parameters are averaged. Each entry
-        in the list corresponds to a different scale and thus is a
-        different size. If you have called ``parallel()``, this will be
-        a dictionary instead (see that method for details)
-    window_sizes : list or dict
-        A list of 1d tensors giving the size of the combined pooling
-        windows, that is, the output of ``torch.einsum('ahw,ehw->ea',
-        [a, e])``, where a and e are the angle and eccentricity windows
-        at the corresponding scale.
-    state_dict_reduced : dict
-        A dictionary containing those attributes necessary to initialize
-        the model, plus a 'model_name' field which the ``load_reduced``
-        method uses to determine which model constructor to call. This
-        is used for saving/loading the models, since we don't want to
-        keep the (very large) representation and intermediate steps
-        around. To save, use ``self.save_reduced(filename)``, and then
-        load from that same file using the class method
-        ``po.simul.PooledVentralStream.load_reduced(filename)``
-    window_width_degrees : dict
-        Dictionary containing the widths of the windows in
-        degrees. There are six keys, corresponding to a 2x2 for the
-        widths in the radial and angular directions by the 'top',
-        'half', and 'full' widths (top is the width of the flat-top
-        region of each window, where the window's value is 1; full is
-        the width of the entire window; half is the width at
-        half-max). Each value is a list containing the widths for the
-        windows in different eccentricity bands. To visualize these, see
-        the ``plot_window_widths`` method.
-    window_width_pixels : list
-        List of dictionaries containing the widths of the windows in
-        pixels; each entry in the list corresponds to the widths for a
-        different scale, as in ``windows``. See above for explanation of
-        the dictionaries. To visualize these, see the
-        ``plot_window_widths`` method.
-    n_polar_windows : int
-        The number of windows we have in the polar angle dimension
-        (within each eccentricity band)
-    n_eccentricity_bands : int
-        The number of eccentricity bands in our model
-    calculated_min_eccentricity_degrees : list
-        List of floats (one for each scale) that contain
-        ``calc_min_eccentricity()[0]``, that is, the minimum
-        eccentricity (in degrees) where the area of the window at
-        half-max exceeds one pixel (based on the scaling, size of the
-        image in pixels and in degrees).
-    calculated_min_eccentricity_pixels : list
-        List of floats (one for each scale) that contain
-        ``calc_min_eccentricity()[1]``, that is, the minimum
-        eccentricity (in pixels) where the area of the window at
-        half-max exceeds one pixel (based on the scaling, size of the
-        image in pixels and in degrees).
-    central_eccentricity_degrees : np.array
-        A 1d array with shape ``(self.n_eccentricity_bands,)``, each
-        value gives the eccentricity of the center of each eccentricity
-        band of windows (in degrees).
-    central_eccentricity_pixels : list
-        List of 1d arrays (one for each scale), each with shape
-        ``(self.n_eccentricity_bands,)``, each value gives the
-        eccentricity of the center of each eccentricity band of windows
-        (in degrees).
-    window_approx_area_degrees : dict
-        Dictionary containing the approximate areas of the windows, in
-        degrees. There are three keys: 'top', 'half', and 'full',
-        corresponding to which width we used to calculate the area (top
-        is the width of the flat-top region of each window, where the
-        window's value is 1; full is the width of the entire window;
-        half is the width at half-max). To get this approximate area, we
-        multiply the radial and angular widths against each other and
-        then by pi/4 to get the area of the regular ellipse that has
-        those widths (our windows are elongated, so this is probably an
-        under-estimate). To visualize these, see the
-        ``plot_window_areas`` method
-    window_approx_area_pixels : list
-        List of dictionaries containing the approximate areasof the
-        windows in pixels; each entry in the list corresponds to the
-        areas for a different scale, as in ``windows``. See above for
-        explanation of the dictionaries. To visualize these, see the
-        ``plot_window_areas`` method.
-    deg_to_pix : list
-        List of floats containing the degree-to-pixel conversion factor
-        at each scale
-    cache_dir : str or None
-        If str, this is the directory where we cached / looked for
-        cached windows tensors
-    cached_paths : list
-        List of strings, one per scale, taht we either saved or loaded
-        the cached windows tensors from
-    num_scales : int
-        Number of scales this object has windows for
-    num_devices : int
-        Number of devices this object is split across
-    window_type : {'cosine', 'gaussian'}
-        Whether to use the raised cosine function from [1]_ or a
-        Gaussian that has approximately the same structure.
-    window_max_amplitude : float
-        The max amplitude of an individual window. This will always be 1
-        for raised-cosine windows, but will depend on ``std_dev`` for
-        gaussian ones (for ``std_dev=1``, the only value we support for
-        now, it's approximately .16).
-    window_intersecting_amplitude : float
-        The amplitude at which two neighboring windows intersect. This
-        will always be .5 for raised-cosine windows, but will depend on
-        ``std_dev`` for gaussian ones (for ``std_dev=1``, the only value
-        we support for now, it's half a standard deviation away from the
-        center, approximately .14)
+    Returns
+    -------
+    ecc_windows : dict
+        the normalized ecc_windows. only ``scale`` is modified
+    scale_factor : torch.Tensor
+        the scale_factor used to normalize eccentricity windows at this
+        scale (as a 3d tensor, number of eccentricity windows by 1 by
+        1). stored by ``PoolingWindows`` object so we can undo it for
+        ``project()`` or plotting purposes
 
     """
-    def __init__(self, scaling, img_res, min_eccentricity=.5, max_eccentricity=15, num_scales=1,
-                 cache_dir=None, window_type='cosine', transition_region_width=.5, std_dev=None):
-        super().__init__()
-        if len(img_res) != 2:
-            raise Exception("img_res must be 2d!")
-        self.scaling = scaling
-        self.min_eccentricity = float(min_eccentricity)
-        self.max_eccentricity = float(max_eccentricity)
-        self.img_res = img_res
-        self.num_scales = num_scales
-        self.window_type = window_type
-        if window_type == 'cosine':
-            assert transition_region_width is not None, "cosine windows need transition region widths!"
-            self.transition_region_width = float(transition_region_width)
-            self.std_dev = None
-            window_width_for_saving = self.transition_region_width
-            self.window_max_amplitude = 1
-            self.window_intersecting_amplitude = .5
-        elif window_type == 'gaussian':
-            assert std_dev is not None, "gaussian windows need standard deviations!"
-            self.std_dev = float(std_dev)
-            self.transition_region_width = None
-            window_width_for_saving = self.std_dev
-            # 1 / (std_dev * GAUSSIAN_SUM) is the max in a single
-            # direction (radial or angular), so the max for a single
-            # window is its square
-            self.window_max_amplitude = (1 / (std_dev * GAUSSIAN_SUM)) ** 2
-            self.window_intersecting_amplitude = self.window_max_amplitude * np.exp(-.25/2)
-        self.num_devices = 1
-        self.angle_windows = {}
-        self.ecc_windows = {}
-        self.window_sizes = {}
-        if cache_dir is not None:
-            self.cache_dir = op.expanduser(cache_dir)
-            cache_path_template = op.join(self.cache_dir, "scaling-{scaling}_size-{img_res}_"
-                                          "e0-{min_eccentricity:.03f}_em-{max_eccentricity:.01f}_w"
-                                          "-{window_width}_{window_type}.pt")
-        else:
-            self.cache_dir = cache_dir
-        self.cache_paths = []
-        self.calculated_min_eccentricity_degrees = []
-        self.calculated_min_eccentricity_pixels = []
-        self._window_sizes()
-        self.state_dict_reduced = {'scaling': scaling, 'img_res': img_res,
-                                   'min_eccentricity': self.min_eccentricity,
-                                   'max_eccentricity': self.max_eccentricity,
-                                   'transition_region_width': self.transition_region_width,
-                                   'cache_dir': self.cache_dir, 'window_type': window_type,
-                                   'std_dev': self.std_dev}
-        for i in range(self.num_scales):
-            scaled_img_res = [np.ceil(j / 2**i) for j in img_res]
-            min_ecc, min_ecc_pix = calc_min_eccentricity(scaling, scaled_img_res, max_eccentricity)
-            self.calculated_min_eccentricity_degrees.append(min_ecc)
-            self.calculated_min_eccentricity_pixels.append(min_ecc_pix)
-            if min_ecc > self.min_eccentricity:
-                if i == 0:
-                    raise Exception("Cannot create windows with scaling %s, resolution %s, and min"
-                                    "_eccentricity %s, it will contain windows smaller than a "
-                                    "pixel. min_eccentricity must be at least %s!" %
-                                    (scaling, img_res, min_eccentricity, min_ecc))
-                else:
-                    warnings.warn("For scale %s, min_eccentricity set to %.2f in order to avoid "
-                                  "windows smaller than 1 pixel in area" % (i, min_ecc))
-                    # this makes sure that whatever that third decimal
-                    # place is, we're always one above it. e.g., if
-                    # min_ecc was 1.3442, we want to use 1.345, and this
-                    # will ensure that. (and we care about third decimal
-                    # place because that's we're using in the save
-                    # string)
-                    min_ecc *= 1e3
-                    min_ecc -= min_ecc % 1
-                    min_ecc = (min_ecc+1) / 1e3
-            else:
-                min_ecc = self.min_eccentricity
-            angle_windows = None
-            ecc_windows = None
-            if cache_dir is not None:
-                format_kwargs = dict(scaling=scaling, min_eccentricity=float(min_ecc),
-                                     max_eccentricity=self.max_eccentricity,
-                                     img_res=','.join([str(int(i)) for i in scaled_img_res]),
-                                     window_width=window_width_for_saving,
-                                     window_type=window_type)
-                self.cache_paths.append(cache_path_template.format(**format_kwargs))
-                if op.exists(self.cache_paths[-1]):
-                    warnings.warn("Loading windows from cache: %s" % self.cache_paths[-1])
-                    windows = torch.load(self.cache_paths[-1])
-                    angle_windows = windows['angle']
-                    ecc_windows = windows['ecc']
-            if angle_windows is None or ecc_windows is None:
-                angle_windows, ecc_windows = create_pooling_windows(
-                    scaling, scaled_img_res, min_ecc, max_eccentricity, std_dev=self.std_dev,
-                    transition_region_width=self.transition_region_width, window_type=window_type)
-
-                if cache_dir is not None:
-                    warnings.warn("Saving windows to cache: %s" % self.cache_paths[-1])
-                    torch.save({'angle': angle_windows, 'ecc': ecc_windows}, self.cache_paths[-1])
-            self.angle_windows[i] = angle_windows
-            self.ecc_windows[i] = ecc_windows
-            window_sizes = torch.einsum('ahw,ehw->ea', [angle_windows, ecc_windows])
-            self.window_sizes[i] = torch.clamp(window_sizes.flatten(), min=1)
-
-    def _window_sizes(self):
-        r"""Calculate the various window size metrics
-
-        helper function that gets called during construction, should not
-        be used by user. Sets the following attribute: n_polar_windows,
-        n_eccentricity_bands, window_width_degrees, central_eccentricity_degrees,
-        window_approx_area_degrees, window_width_pixels, central_eccentricity_pixels,
-        window_approx_area_pixels, deg_to_pix
-
-        all of these are based on calling various helper functions (all
-        of which start with ``calc_``) and doing simple calculations
-        based on the attributes already set (largely min_eccentricity,
-        max_eccentricity, scaling, and transition_region_width)
-
-        """
-        ecc_window_width = calc_eccentricity_window_spacing(scaling=self.scaling,
-                                                            std_dev=self.std_dev)
-        self.n_polar_windows = int(round(calc_angular_n_windows(ecc_window_width / 2)))
-        angular_window_width = calc_angular_window_spacing(self.n_polar_windows)
-        # we multiply max_eccentricity by sqrt(2) here because we want
-        # to go out to the corner of the image
-        window_widths = calc_window_widths_actual(angular_window_width, ecc_window_width,
-                                                  self.min_eccentricity,
-                                                  self.max_eccentricity*np.sqrt(2),
-                                                  self.window_type, self.transition_region_width,
-                                                  self.std_dev)
-        self.window_width_degrees = dict(zip(['radial_top', 'radial_full', 'angular_top',
-                                              'angular_full'], window_widths))
-        self.n_eccentricity_bands = len(self.window_width_degrees['radial_top'])
-        # transition width and std dev don't matter for central
-        # eccentricity, just min and max
-        self.central_eccentricity_degrees = calc_windows_eccentricity(
-            'central', self.n_eccentricity_bands, ecc_window_width, self.min_eccentricity)
-        self.window_width_degrees['radial_half'] = self.scaling * self.central_eccentricity_degrees
-        # the 2 we divide by here is the
-        # radial_to_circumferential_ratio; if we ever allow that to be
-        # set by the user will need to update
-        self.window_width_degrees['angular_half'] = self.window_width_degrees['radial_half'] / 2
-        self.window_approx_area_degrees = {}
-        for k in ['full', 'top', 'half']:
-            self.window_approx_area_degrees[k] = (self.window_width_degrees['radial_%s' % k] *
-                                                  self.window_width_degrees['angular_%s' % k] *
-                                                  (np.pi/4))
-        self.window_width_pixels = []
-        self.window_approx_area_pixels = []
-        self.central_eccentricity_pixels = []
-        self.deg_to_pix = []
-        for i in range(self.num_scales):
-            deg_to_pix = calc_deg_to_pix([j**(i+1) for j in self.img_res], self.max_eccentricity)
-            self.deg_to_pix.append(deg_to_pix)
-            self.window_width_pixels.append(dict((k, v*deg_to_pix) for k, v in
-                                                 self.window_width_degrees.copy().items()))
-            self.window_approx_area_pixels.append({})
-            for k in ['full', 'top', 'half']:
-                self.window_approx_area_pixels[-1][k] = (self.window_width_pixels[-1]['radial_%s' % k] *
-                                                         self.window_width_pixels[-1]['angular_%s' % k] *
-                                                         (np.pi/4))
-            self.central_eccentricity_pixels.append(self.deg_to_pix[-1] *
-                                                    self.central_eccentricity_degrees)
-
-    def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
-
-        This can be called as
-
-        .. function:: to(device=None, dtype=None, non_blocking=False)
-
-        .. function:: to(dtype, non_blocking=False)
-
-        .. function:: to(tensor, non_blocking=False)
-
-        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
-        (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
-        with respect to the host if possible, e.g., moving CPU Tensors with
-        pinned memory to CUDA devices.
-
-        See below for examples.
-
-        .. note::
-            This method modifies the module in-place.
-
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-
-        Returns:
-            Module: self
-        """
-        for k, v in self.angle_windows.items():
-            self.angle_windows[k] = v.to(*args, **kwargs)
-        for k, v in self.ecc_windows.items():
-            self.ecc_windows[k] = v.to(*args, **kwargs)
-        for k, v in self.window_sizes.items():
-            self.window_sizes[k] = v.to(*args, **kwargs)
-        return self
-
-    def merge(self, other_PoolingWindows, scale_offset=.5):
-        """Merge with a second PoolingWindows object
-
-        This combines the angle_windows, ecc_windows, and window_size
-        dictionaries of two PoolingWindows objects. Since they will both
-        have similarly-indexed keys (0, 1, 2,... based on
-        self.num_scales), we need some offset to keep them separate,
-        which scale_offset provides. We thus merge the dictionaries like
-        so:
-
-        ```
-        for k, v  in other_PoolingWindows.angle_windows.items():
-            self.angle_windows[k+scale_offset] = v
-        ```
-
-        and similarly for ecc_windows and window_size
-
-        The intended use case for this is to create one PoolingWindows
-        object for a steerable pyramid with some number of scales, and
-        then a second one for a corresponding "half-octave" steerable
-        pyramid, which is built on the original image down-sampled by a
-        factor of sqrt(2) in order to sample the frequencies half-way
-        between the scales of the original pyramid. You might want to
-        slightly adjust the shape of the down-sampled image (e.g., to
-        make its size even), so we don't provide support to
-        automatically create the windows for the half-scales; instead
-        you should create a new PoolingWindows object based on your
-        intended size and merge it into the original.
-
-        Note that we don't return anything, we modify in-place.
-
-        Parameters
-        ----------
-        other_PoolingWindows : plenoptic.simulate.PoolingWindows
-            A second instantiated PoolingWindows object
-        scale_offset : float, optional
-            The amount to offset all the keys of the second
-            PoolingWindows object by (see above for greater explanation)
-
-        """
-        for k, v in other_PoolingWindows.angle_windows.items():
-            self.angle_windows[k+scale_offset] = v
-        for k, v in other_PoolingWindows.ecc_windows.items():
-            self.ecc_windows[k+scale_offset] = v
-        for k, v in other_PoolingWindows.window_sizes.items():
-            self.window_sizes[k+scale_offset] = v
-
-    @staticmethod
-    def _get_slice_vals(scaled_window_res, scaled_img_res):
-        r"""Helper function to find the values to use when slicing windows down to size
-
-        If we have a non-square image, we must create the windows as a
-        square array and then slice it down to the size of the image,
-        retaining the center of the windows array.
-
-        The one wrinkle on this is that we also sometimes need to do
-        this for different scales, so we need to make sure that
-        'down-sampled' windows we create have the same shape as those
-        created by our pyramid methods. It looks like that's always the
-        ceiling of shape/2**scale. NOTE: This means it will probably not
-        work if you're using something else that has multiple scales
-        that doesn't use our pyramid methods and thus ends up with
-        slightly differently sized down-sampled components. On images
-        that are a power of 2, this shouldn't be an issue regardless
-
-        This will only be for one dimension; because of how we've
-        constructed the windows, we know they only need to be cut down
-        in a single dimension
-
-        Parameters
-        ----------
-        scaled_window_res : float
-            The size of the square 'down-sampled'/scaled window we
-            created (in one dimension; this should not be a tuple).
-        scaled_img_res : float
-            The size of the 'down-sampled'/scaled image we want to match
-            (in one dimension; this should not be a tuple).
-
-        Returns
-        -------
-        slice_vals : list
-            A list of ints, use this to slice the window down correctly, e.g.,
-            ``window[..., slice_vals[0]:slice_vals[1]]``
-
-        """
-        slice_vals = (scaled_window_res - scaled_img_res) / 2
-        return [int(np.floor(slice_vals)), -int(np.ceil(slice_vals))]
-
-    def parallel(self, devices, num_batches=1):
-        r"""Parallelize the pooling windows across multiple GPUs
-
-        PoolingWindows objects can get very large -- so large, that it's
-        impossible to put them all on one GPU during a forward call. In
-        order to solve that issue, we can spread them across multiple
-        GPUs (CPU will still work, but then things get very slow for
-        synthesis). Unfortunately we can't use ``torch.nn.DataParallel``
-        for this because that only spreads the input/output across
-        multiple devices, not components of a module. Because each
-        window acts independently, we can split the different windows
-        across devices.
-
-        For the user, they should notice no difference between the
-        parallelized and normal versions of PoolingWindows *EXCEPT* if
-        they try to access ``PoolingWindows.windows`` directly: in the
-        normal version, this is a dictionary with keys for each scale;
-        in the parallelized version, this is a dictionary with keys (i,
-        j), where i is the scale and j is the device index. Otherwise,
-        all functions should work as before except that the input's
-        device no longer needs to match PoolingWindows's device; we pass
-        it to the correct device.
-
-        We attempt to split the windows roughly evenly. So if you have 3
-        devices and 100 windows, we'll put 34 on the first, 34 on the
-        second, and the final 32 on the last. If you have multiple
-        scales, each scale will be split in the same manner (though,
-        since scales can have different numbers of windows, there's no
-        guarantee they'll all be the same).
-
-        Parameters
-        ----------
-        devices : list
-            List of torch.devices or ints (corresponding to cuda
-            numbers) to spread windows across
-        num_batches : int
-            The number of batches to further split the windows up
-            into. The larger this number, the less memory the forward
-            call will take but the slower it will be. So therefore, it's
-            recommended you first try this with num_batches=1 and only
-            gradually increase it as necessary
-
-        Returns
-        -------
-        self
-
-        See also
-        --------
-        unparallel : undo this parallelization
-
-        """
-        angle_windows_gpu = {}
-        for k, v in self.angle_windows.items():
-            num = int(np.ceil(len(v) / len(devices)))
-            for j, d in enumerate(devices):
-                if j*num > len(v):
-                    break
-                angle_windows_gpu[(k, j)] = v[j*num:(j+1)*num].to(d)
-        self.angle_windows = angle_windows_gpu
-        ecc_windows_gpu = {}
-        for k, v in self.ecc_windows.items():
-            for j, d in enumerate(devices):
-                ecc_windows_gpu[(k, j)] = v.to(d)
-        self.ecc_windows = ecc_windows_gpu
-        self.num_devices = len(devices)
-        self.num_batches = num_batches
-        return self
-
-    def unparallel(self, device=torch.device('cpu')):
-        r"""Unparallelize this object, bringing everything onto one device
-
-        If you no longer want this object parallelized and spread across
-        multiple devices, this method will collect all the windows back
-        onto ``device``
-
-        Parameters
-        ----------
-        device : torch.device or int
-            The torch device to put every window on (if an int, this is
-            the index of the gpu)
-
-        Returns
-        -------
-        self
-
-        See also
-        --------
-        parallel : parallelize PoolingWindows across multiple devices
-
-        """
-        angle_windows = {}
-        keys = set([k[0] for k in self.angle_windows.keys()])
-        for i in keys:
-            tmp = []
-            for j in range(self.num_devices):
-                tmp.append(self.angle_windows[(i, j)].to(device))
-            angle_windows[i] = torch.cat(tmp, 0)
-        self.angle_windows = angle_windows
-        ecc_windows = {}
-        keys = set([k[0] for k in self.ecc_windows.keys()])
-        for i in keys:
-            tmp = []
-            ecc_windows[i] = self.ecc_windows[(i, 0)].to(device)
-        self.ecc_windows = ecc_windows
-        self.num_devices = 1
-        self.num_batches = 1
-        return self
-
-    def forward(self, x, idx=0):
-        r"""Window and pool the input
-
-        We take an input, either a 4d tensor or a dictionary of 4d
-        tensors, and return a windowed version of it. If it's a 4d
-        tensor, we return a 5d tensor, with windows indexed along the
-        3rd dimension. If it's a dictionary, we return a dictionary with
-        the same keys and have changed all the values to 5d tensors,
-        with windows indexed along the 3rd dimension.
-
-        If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
-        list. If it's a dictionary, we assume it's keys are ``(scale,
-        orientation)`` tuples and so use ``windows[key[0]]`` to find the
-        appropriately-sized window (this is the case for, e.g., the
-        steerable pyramid). If we want to use differently-structured
-        dictionaries, we'll need to restructure this
-
-        This is equivalent to calling ``self.pool(self.window(x, idx),
-        idx)``, however, we don't produce the intermediate products and
-        so this is more efficient.
-
-        Parameters
-        ----------
-        x : dict or torch.Tensor
-            Either a 4d tensor or a dictionary of 4d tensors.
-        idx : int, optional
-            Which entry in the ``windows`` list to use. Only used if
-            ``x`` is a tensor
-
-        Returns
-        -------
-        pooled_x : dict or torch.Tensor
-            Same type as ``x``, see above for how it's created.
-
-        See also
-        --------
-        window : window the input
-        pool : pool the windowed input (get the weighted average)
-        project : the opposite of this, going from pooled values to
-            image
-
-        """
-        try:
-            output_device = x.device
-        except AttributeError:
-            output_device = list(x.values())[0].device
-        if isinstance(x, dict):
-            if self.num_devices == 1:
-                pooled_x = dict((k, torch.einsum('bchw,ahw,ehw->bcea',
-                                                 [v.to(self.angle_windows[0].device),
-                                                  self.angle_windows[k[0]],
-                                                  self.ecc_windows[k[0]]]).flatten(2, 3))
-                                for k, v in x.items())
-                pooled_x = dict((k, v / self.window_sizes[k[0]]) for k, v in pooled_x.items())
-            else:
-                pooled_x = {}
-                for k, v in x.items():
-                    tmp = []
-                    sizes = self.window_sizes[k[0]]
-                    if sizes.device != output_device:
-                        sizes = sizes.to(output_device)
-                    for i in range(self.num_devices):
-                        angles = self.angle_windows[(k[0], i)]
-                        e = self.ecc_windows[(k[0], i)]
-                        v = v.to(angles.device)
-                        t = []
-                        for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
-                            t.append(torch.einsum('bchw,ahw,ehw->bcea', [v, a, e]).flatten(2, 3))
-                        tmp.append(torch.cat(t, -1).to(output_device))
-                    pooled_x[k] = torch.cat(tmp, -1) / sizes
-        else:
-            if self.num_devices == 1:
-                pooled_x = torch.einsum('bchw,ahw,ehw->bcea', [x.to(self.angle_windows[0].device),
-                                                               self.angle_windows[idx],
-                                                               self.ecc_windows[idx]]).flatten(2, 3)
-                pooled_x = pooled_x / self.window_sizes[idx]
-            else:
-                pooled_x = []
-                sizes = self.window_sizes[idx]
-                if sizes.device != output_device:
-                    sizes = sizes.to(output_device)
-                for i in range(self.num_devices):
-                    angles = self.angle_windows[(idx, i)]
-                    e = self.ecc_windows[(idx, i)]
-                    x = x.to(angles.device)
-                    tmp = []
-                    for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
-                        tmp.append(torch.einsum('bchw,ahw,ehw->bcea', [x, a, e]).flatten(2, 3))
-                    pooled_x.append(torch.cat(tmp, -1).to(output_device))
-                pooled_x = torch.cat(pooled_x, -1) / sizes
-        return pooled_x
-
-    def window(self, x, idx=0):
-        r"""Window the input
-
-        We take an input, either a 4d tensor or a dictionary of 4d
-        tensors, and return a windowed version of it. If it's a 4d
-        tensor, we return a 5d tensor, with windows indexed along the
-        3rd dimension. If it's a dictionary, we return a dictionary with
-        the same keys and have changed all the values to 5d tensors,
-        with windows indexed along the 3rd dimension
-
-        If it's a 4d tensor, we use the ``idx`` entry in the ``windows``
-        list. If it's a dictionary, we assume it's keys are ``(scale,
-        orientation)`` tuples and so use ``windows[key[0]]`` to find the
-        appropriately-sized window (this is the case for, e.g., the
-        steerable pyramid). If we want to use differently-structured
-        dictionaries, we'll need to restructure this
-
-        If you've called ``parallel()`` and this object has been spread
-        across multiple devices, then the ``windowed_x`` value we return
-        will look a little different:
-
-        - if ``x`` was a dictionary, ``windowed_x`` will still be a
-          dictionary but instead of having the same keys as ``x``, its
-          keys will be ``(k, i)``, where ``k`` is the keys from ``x``
-          and ``i`` is the indices of the devices
-
-        - if ``x`` was a tensor, ``windowed_x`` will be a list of length
-          ``self.num_devices``.
-
-        In both cases, the different entries are on different devices,
-        as specified by key[1] / the index and may be different
-        shapes. ``pool`` will correctly bring them back together,
-        concatenating them and bringing them onto the same device.
-
-        Parameters
-        ----------
-        x : dict or torch.Tensor
-            Either a 4d tensor or a dictionary of 4d tensors.
-        idx : int, optional
-            Which entry in the ``windows`` list to use. Only used if
-            ``x`` is a tensor
-
-        Returns
-        -------
-        windowed_x : dict or torch.Tensor
-            Same type as ``x``, see above for how it's created.
-
-        See also
-        --------
-        pool : pool the windowed input (get the weighted average)
-        forward : perform the windowing and pooling simultaneously
-
-        """
-        if isinstance(x, dict):
-            if list(x.values())[0].ndimension() != 4:
-                raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
-                                " Unsqueeze until this is true!")
-            if self.num_devices == 1:
-                # one way to make this more general: figure out the size of
-                # the tensors in x and in self.windows, and intelligently
-                # lookup which should be used.
-                return dict((k, torch.einsum('bchw,ahw,ehw->bceahw',
-                                             [v.to(self.angle_windows[0].device),
-                                              self.angle_windows[k[0]],
-                                              self.ecc_windows[k[0]]]).flatten(2, 3))
-                            for k, v in x.items())
-            else:
-                # then this is a dict and we're splitting it over multiple devices
-                windowed_x = {}
-                for k, v in x.items():
-                    for i in range(self.num_devices):
-                        e = self.ecc_windows[(k[0], i)]
-                        angles = self.angle_windows[(k[0], i)]
-                        x = x.to(angles.device)
-                        tmp = []
-                        for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
-                            tmp.append(torch.einsum('bchw,ahw,ehw->bcea', [v, a, e]).flatten(2, 3))
-                        windowed_x[(k, i)] = torch.cat(tmp, -1)
-                return windowed_x
-        else:
-            if x.ndimension() != 4:
-                raise Exception("PoolingWindows input must be 4d tensors or a dict of 4d tensors!"
-                                " Unsqueeze until this is true!")
-            if self.num_devices == 1:
-                return torch.einsum('bchw,ahw,ehw->bceahw', [x.to(self.angle_windows[0].device),
-                                                             self.angle_windows[idx],
-                                                             self.ecc_windows[idx]]).flatten(2, 3)
-            else:
-                windowed_x = []
-                for i in range(self.num_devices):
-                    e = self.ecc_windows[(idx, i)]
-                    angles = self.angle_windows[(idx, i)]
-                    x = x.to(angles.device)
-                    tmp = []
-                    for j, a in enumerate(torch.split(angles, angles.shape[0] // self.num_batches)):
-                        tmp.append(torch.einsum('bchw,ahw,ehw->bceahw', [x, a, e]).flatten(2, 3))
-                    windowed_x.append(torch.cat(tmp, -1))
-                return tmp
-
-    def pool(self, windowed_x, idx=0, output_device=torch.device('cpu')):
-        r"""Pool the windowed input
-
-        We take the windowed input (as returned by ``self.window()``)
-        and perform a weighted average, dividing each windowed statistic
-        by the sum of the window that generated it.
-
-        The input must either be a 5d tensor or a dictionary of 5d
-        tensors and we collapse across the spatial dimensions, returning
-        a 3d tensor or a dictionary of 3d tensors.
-
-        Similar to ``self.window()``, if it's a tensor, we use the
-        ``idx`` entry in the ``windows`` list. If it's a dictionary, we
-        assume it's keys are ``(scale, orientation)`` tuples and so use
-        ``windows[key[0]]`` to find the appropriately-sized window (this
-        is the case for, e.g., the steerable pyramid). If we want to use
-        differently-structured dictionaries, we'll need to restructure
-        this
-
-        Parameters
-        ----------
-        windowed_x : dict or torch.Tensor
-            Either a 5d tensor or a dictionary of 5d tensors
-        idx : int, optional
-            Which entry in the ``windows`` list to use. Only used if
-            ``windowed_x`` is a tensor
-        output_device : torch.device, optional
-            If parallel was called before this, all the windows and
-            windowed_x will be spread across multiple devices, so we
-            need to know what device to place the output on. If parallel
-            has not been called (i.e., PoolingWindows is only on one
-            device, this is ignored)
-
-        Returns
-        -------
-        pooled_x : dict or torch.Tensor
-            Same type as ``windowed_x``, see above for how it's created.
-
-        See also
-        --------
-        window : window the input
-        forward : perform the windowing and pooling simultaneously
-
-        """
-        if isinstance(windowed_x, dict):
-            if self.num_devices == 1:
-                # one way to make this more general: figure out the size
-                # of the tensors in x and in self.angle_windows, and
-                # intelligently lookup which should be used.
-                return dict((k, v.sum((-1, -2)) / self.window_sizes[k[0]])
-                            for k, v in windowed_x.items())
-            else:
-                tmp = {}
-                orig_keys = set([k[0] for k in windowed_x])
-                for k in orig_keys:
-                    t = []
-                    sizes = self.window_sizes[k[0]]
-                    if sizes.device != output_device:
-                        sizes = sizes.to(output_device)
-                    for i in range(self.num_devices):
-                        t.append(windowed_x[(k, i)].sum((-1, -2)).to(output_device))
-                    tmp[k] = torch.cat(t, -1) / sizes
-                return tmp
-        else:
-            if self.num_devices == 1:
-                return windowed_x.sum((-1, -2)) / self.window_sizes[idx]
-            else:
-                tmp = []
-                sizes = self.window_sizes[idx]
-                if sizes.device != output_device:
-                    sizes = sizes.to(output_device)
-                for i, v in enumerate(windowed_x):
-                    tmp.append(v.sum((-1, -2)).to(output_device))
-                return torch.cat(tmp, -1) / sizes
-
-    def project(self, pooled_x, idx=0, output_device=torch.device('cpu')):
-        r"""Project pooled values back onto an image
-
-        For visualization purposes, you may want to project the pooled
-        values (or values that have been pooled and then transformed in
-        other ways) back onto an image. This method will do that for
-        you.
-
-        It takes a 3d tensor or dictionary of 3d tensors (like the
-        output of ``forward()`` / ``pool()``; the final dimension must
-        have a value for each window) and returns a 4d tensor or
-        dictionary of 4d tensors (like the input of ``forward()`` /
-        ``window()``).
-
-        For example, if we have 100 windows, you must pass a i x j x 100
-        tensor. For each of the i batches and j channels, we'll then
-        multiply each of the 100 values by the corresponding window to
-        end up with an i x j x 100 x height x width tensor. We then sum
-        across windows to get i x j x heigth x width and return that.
-
-        Parameters
-        ----------
-        pooled_x : dict or torch.Tensor
-            3d Tensor or a dictionary of 3d tensors
-        idx : int, optional
-            Which entry in the ``windows`` list to use. Only used if
-            ``pooled_x`` is a tensor
-        output_device : torch.device, optional
-            If parallel was called before this, all the windows and
-            windowed_x will be spread across multiple devices, so we
-            need to know what device to place the output on. If parallel
-            has not been called (i.e., PoolingWindows is only on one
-            device, this is ignored)
-
-        Returns
-        -------
-        x : dict or torch.Tensor
-            4d tensor or dictionary of 4d tensors
-
-        See also
-        --------
-        forward : the opposite of this, going from image to pooled
-            values
-
-        """
-        if isinstance(pooled_x, dict):
-            if list(pooled_x.values())[0].ndimension() != 3:
-                raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
-                                " Squeeze until this is true!")
-            if self.num_devices == 1:
-                tmp = {}
-                for k, v in pooled_x.items():
-                    if isinstance(k, tuple):
-                        # in this case our keys are (scale, orientation)
-                        # tuples, so we want the scale index
-                        window_key = k[0]
-                    else:
-                        # in this case, the key is a string, probably
-                        # "mean_luminance" and this corresponds to the
-                        # lowest/largest scale
-                        window_key = 0
-                    v = v.reshape((*v.shape[:2], self.ecc_windows[window_key].shape[0],
-                                   self.angle_windows[window_key].shape[0]))
-                    tmp[k] = torch.einsum('bcea,ahw,ehw->bchw',
-                                          [v.to(self.angle_windows[0].device),
-                                           self.angle_windows[window_key],
-                                           self.ecc_windows[window_key]])
-                return tmp
-            else:
-                tmp = {}
-                for k, v in pooled_x.items():
-                    num = int(np.ceil(self.n_polar_windows / self.num_devices))
-                    t = []
-                    if isinstance(k, tuple):
-                        # in this case our keys are (scale, orientation)
-                        # tuples, so we want the scale index
-                        window_key = k[0]
-                    else:
-                        # in this case, the key is a string, probably
-                        # "mean_luminance" and this corresponds to the
-                        # lowest/largest scale
-                        window_key = 0
-                    v = v.reshape((*v.shape[:2], self.ecc_windows[(window_key, 0)].shape[0],
-                                   self.n_polar_windows))
-                    for i in range(self.num_devices):
-                        e = self.ecc_windows[(window_key, i)]
-                        a = self.angle_windows[(window_key, i)]
-                        d = v[..., i*num:(i+1)*num].to(a.device)
-                        t.append(torch.einsum('bcea,ahw,ehw->bchw', [d, a, e]).to(output_device))
-                    tmp[k] = torch.cat(t, 0).sum(0)
-                return tmp
-        else:
-            if pooled_x.ndimension() != 3:
-                raise Exception("PoolingWindows input must be 3d tensors or a dict of 3d tensors!"
-                                " Squeeze until this is true!")
-            if self.num_devices == 1:
-                pooled_x = pooled_x.reshape((*pooled_x.shape[:2], self.ecc_windows[idx].shape[0],
-                                             self.n_polar_windows))
-                return torch.einsum('bcea,ahw,ehw->bchw', [pooled_x.to(self.angle_windows[0].device),
-                                                           self.angle_windows[idx],
-                                                           self.ecc_windows[idx]])
-            else:
-                pooled_x = pooled_x.reshape((*pooled_x.shape[:2], self.ecc_windows[(idx, 0)].shape[0],
-                                             self.n_polar_windows))
-                tmp = []
-                num = int(np.ceil(self.n_polar_windows / self.num_devices))
-                for i in range(self.num_devices):
-                    a = self.angle_windows[(idx, i)]
-                    e = self.ecc_windows[(idx, i)]
-                    d = pooled_x[..., i*num:(i+1)*num].to(a.device)
-                    tmp.append(torch.einsum('bcea,ahw,ehw->bchw', [d, a, e]).to(output_device))
-                return torch.cat(tmp, 0).sum(0)
-
-    def plot_windows(self, ax=None, contour_levels=None, colors='r',
-                     subset=True, windows_scale=0, **kwargs):
-        r"""plot the pooling windows on an image.
-
-        This is just a simple little helper to plot the pooling windows
-        on an axis. The intended use case is overlaying this on top of
-        the image we're pooling (as returned by ``pyrtools.imshow``).
-
-        Any additional kwargs get passed to ``ax.contour``
-
-        Parameters
-        ----------
-        ax : matplotlib.pyplot.axis or None, optional
-            The axis to plot the windows on. If None, will create a new
-            figure with 1 axis
-        contour_levels : None, array-like, or int, optional
-            The ``levels`` argument to pass to ``ax.contour``. From that
-            documentation: "Determines the number and positions of the
-            contour lines / regions. If an int ``n``, use ``n`` data
-            intervals; i.e. draw ``n+1`` contour lines. The level
-            heights are automatically chosen. If array-like, draw
-            contour lines at the specified levels. The values must be in
-            increasing order". If None, will plot the contour that gives
-            the first intersection (.5 for raised-cosine windows,
-            self.window_max_amplitude * np.exp(-.25/2) (half a standard
-            deviation away from max) for gaussian windows), as this is
-            the easiest to see.
-        colors : color string or sequence of colors, optional
-            The ``colors`` argument to pass to ``ax.contour``. If a
-            single character, all will have the same color; if a
-            sequence, will cycle through the colors in ascending order
-            (repeating if necessary)
-        subset : bool, optional
-            If True, will only plot four of the angle window
-            slices. This is to save time and memory. If False, will plot
-            all of them
-        windows_scale : int, optional
-            Which scale of the windows to use. windows is a list with
-            different scales, so this specifies which one to use
-
-        Returns
-        -------
-        ax : matplotlib.pyplot.axis
-            The axis with the windows
-
-        """
-        if ax is None:
-            dummy_data = np.ones(self.img_res)
-            fig = pt.imshow(dummy_data, cmap='gray_r', title=None)
-            ax = fig.axes[0]
-        if contour_levels is None:
-            contour_levels = [self.window_intersecting_amplitude]
-        if self.num_devices == 1:
-            # attempt to not have all the windows in memory at once...
-            if subset:
-                angle_windows = self.angle_windows[windows_scale][:4]
-            else:
-                angle_windows = self.angle_windows[windows_scale]
-            for a in angle_windows:
-                windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[windows_scale]])
-                for w in windows:
-                    try:
-                        # if this isn't true, then this window will be
-                        # plotted weird
-                        if not (w > contour_levels[0]).any():
-                            continue
-                    except TypeError:
-                        # in this case, it's an int
-                        pass
-                    ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
-        else:
-            counter = 0
-            for device in range(self.num_devices):
-                for a in self.angle_windows[(windows_scale, device)]:
-                    if subset and counter >= 4:
-                        break
-                    # we have a version of the eccentricity windows on
-                    # each device that the angle windows are on, in
-                    # order to avoid a .to() call (which is slow)
-                    windows = torch.einsum('hw,ehw->ehw', [a, self.ecc_windows[(windows_scale, device)]])
-                    for w in windows:
-                        try:
-                            # if this isn't true, then this window will be
-                            # plotted weird
-                            if not (w > contour_levels[0]).any():
-                                continue
-                        except TypeError:
-                            # in this case, it's an int
-                            pass
-                        ax.contour(to_numpy(w), contour_levels, colors=colors, **kwargs)
-                    counter += 1
-        return ax
-
-    def plot_window_widths(self, units='degrees', scale_num=0, figsize=(5, 5), jitter=.25,
-                           ax=None):
-        r"""plot the widths of the windows, in degrees or pixels
-
-        We plot the width of the window in both angular and radial
-        direction, as well as showing the 'top', 'half', and 'full'
-        widths (top is the width of the flat-top region of each window,
-        where the window's value is 1; full is the width of the entire
-        window; half is the width at the half-max value, which is what
-        corresponds to the scaling value)
-
-        We plot this as a stem plot against eccentricity, showing the
-        windows at their central eccentricity
-
-        If the unit is 'pixels', then we also need to know which
-        ``scale_num`` to plot (the windows are created at different
-        scales, and so come in different pixel sizes)
-
-        Parameters
-        ----------
-        units : {'degrees', 'pixels'}, optional
-            Whether to show the information in degrees or pixels (both
-            the width and the window location will be presented in the
-            same unit).
-        scale_num : int, optional
-            Which scale window we should plot
-        figsize : tuple, optional
-            The size of the figure to create
-        jitter : float or None, optional
-            Whether to add a little bit of jitter to the x-axis to
-            separate the radial and angular widths. There are only two
-            values we separate, so we don't add actual jitter, just move
-            one up by the value specified by jitter, the other down by
-            that much (we use the same value at each eccentricity)
-        ax : matplotlib.pyplot.axis or None, optional
-            The axis to plot the windows on. If None, will create a new
-            figure with 1 axis
-
-        Returns
-        -------
-        fig : matplotlib.figure.Figure
-            The figure containing the plot
-
-        """
-        if units == 'degrees':
-            data = self.window_width_degrees
-            central_ecc = self.central_eccentricity_degrees
-        elif units == 'pixels':
-            data = self.window_width_pixels[scale_num]
-            central_ecc = self.central_eccentricity_pixels[scale_num]
-        else:
-            raise Exception("units must be one of {'pixels', 'degrees'}, not %s!" % units)
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-        else:
-            fig = ax.figure
-        if jitter is not None:
-            jitter_vals = {'radial': -jitter, 'angular': jitter}
-        else:
-            jitter_vals = {'radial': 0, 'angular': 0}
-        colors = {'radial': 'C0', 'angular': 'C1'}
-        sizes = {'full': 5, 'half': 10, 'top': 15}
-        for direc, height in itertools.product(['radial', 'angular'], ['top', 'half', 'full']):
-            m, s, b = ax.stem(central_ecc+jitter_vals[direc], data[direc+"_"+height],
-                              colors[direc], colors[direc]+'.', label=direc+"_"+height,
-                              use_line_collection=True)
-            m.set(markersize=sizes[height])
-        ax.set_ylabel('Window width (%s)' % units)
-        ax.set_xlabel('Window central eccentricity (%s)' % units)
-        ax.legend(loc='upper left')
-        return fig
-
-    def plot_window_areas(self, units='degrees', scale_num=0, figsize=(5, 5), ax=None):
-        r"""plot the approximate areas of the windows, in degrees or pixels
-
-        We plot the approximate area of the window, calculated using
-        'top', 'half', and 'full' widths (top is the width of the
-        flat-top region of each window, where the window's value is 1;
-        full is the width of the entire window; half is the width at the
-        half-max value, which is what corresponds to the scaling
-        value). To get the approximate area, we multiply the radial
-        width against the corresponding angular width, then divide by pi
-        / 4.
-
-        The half area shown here is what we use to compare against a
-        threshold value in the ``calc_min_eccentricity()`` in order to
-        determine what the minimum eccentricity where the windows
-        contain more than 1 pixel.
-
-        We plot this as a stem plot against eccentricity, showing the
-        windows at their central eccentricity
-
-        If the unit is 'pixels', then we also need to know which
-        ``scale_num`` to plot (the windows are created at different
-        scales, and so come in different pixel sizes)
-
-        Parameters
-        ----------
-        units : {'degrees', 'pixels'}, optional
-            Whether to show the information in degrees or pixels (both
-            the area and the window location will be presented in the
-            same unit).
-        scale_num : int, optional
-            Which scale window we should plot
-        figsize : tuple, optional
-            The size of the figure to create
-        ax : matplotlib.pyplot.axis or None, optional
-            The axis to plot the windows on. If None, will create a new
-            figure with 1 axis
-
-        Returns
-        -------
-        fig : matplotlib.figure.Figure
-            The figure containing the plot
-
-        """
-        if units == 'degrees':
-            data = self.window_approx_area_degrees
-            central_ecc = self.central_eccentricity_degrees
-        elif units == 'pixels':
-            data = self.window_approx_area_pixels[scale_num]
-            central_ecc = self.central_eccentricity_pixels[scale_num]
-        else:
-            raise Exception("units must be one of {'pixels', 'degrees'}, not %s!" % units)
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-        else:
-            fig = ax.figure
-        sizes = {'full': 5, 'half': 10, 'top': 15}
-        for height in ['top', 'half', 'full']:
-            m, s, b = ax.stem(central_ecc, data[height], 'C0', 'C0.', label=height,
-                              use_line_collection=True)
-            m.set(markersize=sizes[height])
-        ax.set_ylabel('Window area (%s)' % units)
-        ax.set_xlabel('Window central eccentricity (%s)' % units)
-        ax.legend(loc='upper left')
-        return fig
+    # pick some window with a middling eccentricity
+    n = ecc_windows[scale].shape[0] // 3
+    # get the l1 norm of a single window
+    w = torch.einsum('ahw,hw->ahw', angle_windows[scale], ecc_windows[scale][n])
+    l1 = torch.norm(w, 1, (-1, -2))
+    l1 = l1.mean(0)
+    # the l1 norm grows with the area of the windows; the radial
+    # direction width grows with the reciprocal of the derivative of
+    # log(ecc), which is ecc, and the angular direction width grows
+    # with the eccentricity as well. so l1 norm grows with the
+    # eccentricity squared
+    deriv = torch.tensor(window_eccentricity**2, dtype=torch.float32)
+    deriv_scaled = deriv / deriv[n]
+    scale_factor = 1 / (deriv_scaled * l1).to(torch.float32)
+    while scale_factor.ndim < 3:
+        scale_factor = scale_factor.unsqueeze(-1)
+    # there's a chance we'll have more windows accounted for in
+    # scale factor then we actually made (because we calculate
+    # details for windows that go out farther, just in case). if
+    # that's so, drop the extra scale factor
+    if len(scale_factor) > len(ecc_windows[scale]):
+        scale_factor = scale_factor[:len(ecc_windows[scale])]
+    ecc_windows[scale] = ecc_windows[scale] * scale_factor
+    return ecc_windows, scale_factor

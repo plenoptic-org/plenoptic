@@ -18,3 +18,5 @@ data/cat7*
 data/elep*
 docs/_build
 docs/api
+
+*.mypy_cache

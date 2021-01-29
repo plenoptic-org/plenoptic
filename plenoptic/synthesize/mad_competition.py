@@ -1,6 +1,7 @@
 import torch
 import warnings
 from tqdm import tqdm
+import numpy as np
 import pyrtools as pt
 from .synthesis import Synthesis
 import matplotlib.pyplot as plt
@@ -30,7 +31,7 @@ class MADCompetition(Synthesis):
     args (allowing you to parallelize however you see fit), or by
     calling ``synthesize_all()``.
 
-    Note that for many attributes (e.g., `loss`, `matched_image`), there are
+    Note that for many attributes (e.g., `loss`, `synthesized_signal`), there are
     two versions, on with `_1` as a suffix and one with `_2`. This is because
     we need to store those attributes for each model: the version that ends in
     `_1` corresponds to `model_1` and the one that ends in `_2` corresponds to
@@ -110,6 +111,12 @@ class MADCompetition(Synthesis):
         list containing the learning_rate over iterations. We use a
         scheduler that gradually reduces this over time, so it won't be
         constant.
+    pixel_change : list
+        A list containing the max pixel change over iterations
+        (``pixel_change[i]`` is the max pixel change in
+        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
+        this is calculated before any clamping, so may have some very
+        large numbers in the beginning
     nu : list
         list containing the nu parameter over iterations. Nu is the
         parameter used to correct the image so that the other model's
@@ -211,7 +218,7 @@ class MADCompetition(Synthesis):
                            'saved_signal_gradient', 'loss_1', 'loss_2', 'gradient', 'learning_rate',
                            'nu', 'initial_image', 'synthesized_signal', 'initial_representation_1',
                            'initial_representation_2', 'synthesized_representation_1',
-                           'synthesized_representation_2']
+                           'synthesized_representation_2', 'pixel_change']
 
         def _init_dict(none_flag=False):
             if none_flag:
@@ -292,6 +299,14 @@ class MADCompetition(Synthesis):
         except AttributeError:
             model_name = getattr(self, model).__class__.__name__
         return model_name
+
+    def _get_formatted_synthesis_target(self, synthesis_target=None):
+        """Format synthesis_target for use as title."""
+        if synthesis_target is None:
+            synthesis_target = self.synthesis_target
+        verb = synthesis_target.split('_')[-1].capitalize()
+        model_name = self._get_model_name('_'.join(synthesis_target.split('_')[:-1]))
+        return f"{verb}imize {model_name}"
 
     def update_target(self, synthesis_target, step):
         """Update attributes to target for synthesis
@@ -764,10 +779,11 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=5, norm_loss=True,
                    seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='SGD',
-                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
                    fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                   coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
+                   coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize one maximally-differentiating image
 
         This synthesizes a single image, minimizing or maximizing either
@@ -811,6 +827,15 @@ class MADCompetition(Synthesis):
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent.
+        optimizer_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object. See
+            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -872,10 +897,6 @@ class MADCompetition(Synthesis):
             Clip the gradient norm to avoid issues with numerical overflow.
             Gradient norm will be clipped to the specified value (True is
             equivalent to 1).
-        optimizer_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the optimizer (in
-            addition to learning_rate). What these should be depend on
-            the specific optimizer you're using
 
         Returns
         -------
@@ -902,7 +923,7 @@ class MADCompetition(Synthesis):
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             **optimizer_kwargs)
+                             optimizer_kwargs, swa, swa_kwargs)
 
         self._init_store_progress(store_progress, save_progress, save_path)
 
@@ -919,9 +940,10 @@ class MADCompetition(Synthesis):
             # on synthesis_target) the targeted model
             self.update_target(self.synthesis_target, 'main')
             self._step = 'main'
-            loss, g, lr = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
+            loss, g, lr, pixel_change = self._optimizer_step(pbar, stable_loss="%.4e" % loss_2)
             self.loss.append(abs(loss.item()))
             self.gradient.append(g.item())
+            self.pixel_change.append(pixel_change.item())
             self.learning_rate.append(lr)
             # finally, update synthesized_signal to try and keep the stable
             # model's loss constant
@@ -944,6 +966,9 @@ class MADCompetition(Synthesis):
             self._clamp_and_store(i)
 
         pbar.close()
+
+        if self._swa:
+            self._optimizer.swap_swa_sgd()
 
         self._finalize_stored_progress()
 
@@ -1045,7 +1070,7 @@ class MADCompetition(Synthesis):
         # add the attributes not included above
         attrs += ['seed', 'scales', 'scales_timing', 'scales_loss', 'scales_finished',
                   'store_progress', 'save_progress', 'save_path', 'synthesis_target',
-                  'coarse_to_fine']
+                  'coarse_to_fine', '_swa']
         super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
 
     @classmethod
@@ -1244,7 +1269,8 @@ class MADCompetition(Synthesis):
             self.update_target(synthesis_target, step)
         return last_state
 
-    def representation_error(self, iteration=None, synthesis_target=None, model=None, **kwargs):
+    def representation_error(self, synthesis_target=None, iteration=None,
+                             model=None, **kwargs):
         r"""Get the representation error
 
         This is (synthesized_representation - base_representation). If
@@ -1270,13 +1296,13 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
-        iteration: int or None, optional
-            Which iteration to create the representation ratio for. If
-            None, we use the current ``synthesized_representation``
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
             ``self.synthesis_target``).
+        iteration: int or None, optional
+            Which iteration to create the representation ratio for. If
+            None, we use the current ``synthesized_representation``
         model : {None, 'model_1', 'model_2', 'both'}, optional
             which model's representation to get the error for. If None
             and ``synthesis_targe`` is not None, we use the model that's
@@ -1297,10 +1323,12 @@ class MADCompetition(Synthesis):
         if model == 'both':
             last_state = self._check_state(synthesis_target, None)
             rep_error = {}
-            rep_error['model_1'] = self.representation_error(iteration, synthesis_target,
-                                                             'model_1')
-            rep_error['model_2'] = self.representation_error(iteration, synthesis_target,
-                                                             'model_2')
+            rep_error['model_1'] = self.representation_error(iteration=iteration,
+                                                             synthesis_target=synthesis_target,
+                                                             model='model_1')
+            rep_error['model_2'] = self.representation_error(iteration=iteration,
+                                                             synthesis_target=synthesis_target,
+                                                             model='model_2')
         else:
             last_state = self._check_state(synthesis_target, model)
             rep_error = super().representation_error(iteration, **kwargs)
@@ -1309,8 +1337,9 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return rep_error
 
-    def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(12, 5), ylim=None,
-                                  ax=None, title='', synthesis_target=None):
+    def plot_representation_error(self,synthesis_target=None, batch_idx=0,
+                                  iteration=None, figsize=(12, 5), ylim=None,
+                                  ax=None, title=''):
         r"""Plot distance ratio showing how close we are to convergence
 
         We plot ``self.representation_error(iteration)``
@@ -1347,6 +1376,10 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         iteration: int or None, optional
@@ -1360,15 +1393,10 @@ class MADCompetition(Synthesis):
             limit of ``np.abs(representation_error).max()``
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
-            None, we create our own 1 subplot figure to hold it
+            None, we create our own 2 subplot figure to hold it
         title : str, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``)
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
-
 
         Returns
         -------
@@ -1377,7 +1405,9 @@ class MADCompetition(Synthesis):
 
         """
         last_state = self._check_state(synthesis_target, None)
-        rep_error = self.representation_error(iteration, synthesis_target, 'both')
+        rep_error = self.representation_error(iteration=iteration,
+                                              synthesis_target=synthesis_target,
+                                              model='both')
         if ax is None:
             fig, axes = plt.subplots(1, 2, figsize=figsize)
         else:
@@ -1394,10 +1424,11 @@ class MADCompetition(Synthesis):
             self.update_target(*last_state)
         return fig
 
-    def plot_synthesized_image(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
-                               figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1),
-                               synthesis_target=None):
-        """show the synthesized image
+    def plot_synthesized_image(self, synthesis_target=None, batch_idx=0,
+                               channel_idx=0, iteration=None, title=None,
+                               figsize=(5, 5), ax=None, imshow_zoom=None,
+                               vrange=(0, 1)):
+        """Show the synthesized image.
 
         You can specify what iteration to view by using the
         ``iteration`` arg. The default, ``None``, shows the final one.
@@ -1420,6 +1451,10 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
@@ -1445,10 +1480,6 @@ class MADCompetition(Synthesis):
         vrange : tuple or str, optional
             The vrange option to pass to ``pyrtools.imshow``. See that
             function for details
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
 
         Returns
         -------
@@ -1458,7 +1489,7 @@ class MADCompetition(Synthesis):
         """
         last_state = self._check_state(synthesis_target, None)
         if title is None:
-            title = self.synthesis_target
+            title = self._get_formatted_synthesis_target(synthesis_target)
         fig = super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize,
                                              ax, imshow_zoom, vrange)
         # reset to state before calling this function
@@ -1537,12 +1568,13 @@ class MADCompetition(Synthesis):
                     fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
         for ax, target in zip(axes, ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']):
             if self.synthesized_signal_all[target] is not None:
-                self.plot_synthesized_image(batch_idx, channel_idx, iteration, title, None, ax,
-                                            imshow_zoom, vrange, target)
+                self.plot_synthesized_image(target, batch_idx, channel_idx,
+                                            iteration, title, None, ax,
+                                            imshow_zoom, vrange)
         return fig
 
-    def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, synthesis_target=None, **kwargs):
-        """Plot the synthesis loss
+    def plot_loss(self, synthesis_target=None, iteration=None, figsize=(5, 5), ax=None, **kwargs):
+        """Plot the synthesis loss.
 
         We plot ``self.loss`` over all iterations. We also plot a red
         dot at ``iteration``, to highlight the loss there. If
@@ -1561,6 +1593,10 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1569,10 +1605,6 @@ class MADCompetition(Synthesis):
         ax : matplotlib.pyplot.axis or None, optional
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
         kwargs :
             passed to plt.semilogy
 
@@ -1589,11 +1621,12 @@ class MADCompetition(Synthesis):
         last_state = self._check_state(synthesis_target, 'model_1')
         model_1_name = self._get_model_name('model_1')
         super().plot_loss(iteration, ax=ax, label=f'Model 1: {model_1_name}',
-                          title=f'{self.synthesis_target} loss', **kwargs)
+                          title=f'{self._get_formatted_synthesis_target()} loss',
+                          **kwargs)
         self._check_state(synthesis_target, 'model_2')
         model_2_name = self._get_model_name('model_2')
         super().plot_loss(iteration, ax=ax, label=f'Model 2: {model_2_name}',
-                          title=f'{self.synthesis_target} loss', **kwargs)
+                          title=f'{self._get_formatted_synthesis_target()} loss', **kwargs)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
@@ -1601,7 +1634,7 @@ class MADCompetition(Synthesis):
         return fig
 
     def plot_loss_all(self, iteration=None, figsize=(10, 10), ax=None, **kwargs):
-        """Plot loss for all synthesis calls
+        """Plot loss for all synthesis calls.
 
         We plot ``self.loss`` over all iterations. We also plot a red
         dot at ``iteration``, to highlight the loss there. If
@@ -1646,26 +1679,202 @@ class MADCompetition(Synthesis):
             axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]),
                     fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])]
         for ax, target in zip(axes, ['model_1_min', 'model_1_max', 'model_2_min', 'model_2_max']):
-            self.plot_loss(iteration, ax=ax, synthesis_target=target)
+            self.plot_loss(iteration=iteration, ax=ax, synthesis_target=target)
         return fig
 
-    def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(23, 5),
-                              ylim=None, plot_representation_error=True, imshow_zoom=None,
-                              vrange=(0, 1), fig=None, synthesis_target=None):
-        r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
+    def _grab_value_for_comparison(self, value, iteration=None,
+                                   scatter_subsample=1, synthesis_target=None,
+                                   model=None, **kwargs):
+        """Grab and shape values for comparison plot.
 
-        We create two or three subplots on a new figure. The first one
-        contains the synthesized image, the second contains the loss,
-        and the (optional) third contains the representation ratio, as
-        plotted by ``self.plot_representation_error``.
+        This grabs the appropriate batch_idx, channel_idx, and iteration from
+        the saved representation or signal, respectively, and subsamples it if
+        necessary.
 
-        You can specify what iteration to view by using the
-        ``iteration`` arg. The default, ``None``, shows the final one.
+        We then concatenate thema long the last dimension.
 
-        The loss plot shows the loss as a function of iteration for all
-        iterations (even if we didn't save the representation or
-        synthesized image at each iteration), with a red dot showing the
-        location of the iteration.
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        model : {None, 'model_1', 'model_2', 'both'}, optional
+            which model's representation to get the error for. If None
+            and ``synthesis_targe`` is not None, we use the model that's
+            the main target for synthesis_target (so if
+            synthesis_target=='model_1_min', then we'd use
+            'model_1'). If both are None, we use the current target. If
+            'both', we return a dictionary of tensors (with keys
+            'model_1' and 'model_2'), which contain both representation
+            errors
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        plot_vals : torch.Tensor
+            2d tensor containing the base and synthesized value (indexed along
+            last dimension)
+
+        """
+        if model == 'both':
+            last_state = self._check_state(synthesis_target, None)
+            plot_vals = {}
+            plot_vals['model_1'] = self._grab_value_for_comparison(value=value,
+                                                                   iteration=iteration,
+                                                                   synthesis_target=synthesis_target,
+                                                                   scatter_subsample=scatter_subsample,
+                                                                   model='model_1', **kwargs)
+            plot_vals['model_2'] = self._grab_value_for_comparison(value=value,
+                                                                   iteration=iteration,
+                                                                   synthesis_target=synthesis_target,
+                                                                   scatter_subsample=scatter_subsample,
+                                                                   model='model_2', **kwargs)
+        else:
+            last_state = self._check_state(synthesis_target, model)
+            plot_vals = super()._grab_value_for_comparison(value=value,
+                                                           iteration=iteration,
+                                                           scatter_subsample=scatter_subsample,
+                                                           **kwargs)
+            # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return plot_vals
+
+    def plot_value_comparison(self, synthesis_target=None,
+                              value='representation', batch_idx=0,
+                              channel_idx=0, iteration=None, figsize=(10, 5),
+                              ax=None, func='scatter', hist2d_nbins=21,
+                              hist2d_cmap='Blues', scatter_subsample=1,
+                              **kwargs):
+        """Plot comparison of base vs. synthesized representation or signal.
+
+        Plotting representation is another way of visualizing the
+        representation error, while plotting signal is similar to
+        plot_image_hist, but allows you to see whether there's any pattern of
+        individual correspondence.
+
+        Parameters
+        ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If None, we
+            create our own 1 (if value='signal') or 2 (if
+            value='representatin') subplot figure to hold it
+        func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this
+            comparison. When there are many values (as often happens when
+            plotting signal), then hist2d will be clearer
+        hist2d_nbins: int, optional
+            Number of bins between 0 and 1 to use for hist2d
+        hist2d_cmap : str or matplotlib colormap, optional
+            Colormap to use for hist2d
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        last_state = self._check_state(synthesis_target, None)
+        if ax is None:
+            if value == 'representation':
+                fig, axes = plt.subplots(1, 2, figsize=figsize)
+            else:
+                fig, axes = plt.subplots(1, 1, figsize=figsize)
+                axes = [axes]
+        else:
+            if value == 'representation':
+                warnings.warn("ax is not None, so we're ignoring figsize...")
+                ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+                fig = ax.figure
+                gs = ax.get_subplotspec().subgridspec(1, 2)
+                axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
+            else:
+                fig = ax.figure
+                axes = [ax]
+        for ax, model in zip(axes, ['model_1', 'model_2']):
+            super().plot_value_comparison(value, batch_idx, channel_idx,
+                                          iteration, ax=ax, func=func,
+                                          hist2d_nbins=hist2d_nbins,
+                                          hist2d_cmap=hist2d_cmap,
+                                          scatter_subsample=scatter_subsample,
+                                          synthesis_target=synthesis_target,
+                                          model=model,
+                                          **kwargs)
+            model_name = self._get_model_name(model)
+            if value == 'representation':
+                ax.set(ylabel=f'{model_name} synthesized {value}',
+                       xlabel=f'{model_name} base {value}')
+        # reset to state before calling this function
+        if last_state is not None:
+            self.update_target(*last_state)
+        return fig
+
+    def plot_synthesis_status(self, synthesis_target=None, batch_idx=0,
+                              channel_idx=0, iteration=None, figsize=None,
+                              ylim=None, plot_synthesized_image=True,
+                              plot_loss=True, plot_representation_error=True,
+                              imshow_zoom=None, vrange=(0, 1), fig=None,
+                              plot_image_hist=False, plot_rep_comparison=False,
+                              plot_signal_comparison=False,
+                              signal_comp_func='scatter',
+                              signal_comp_subsample=.01, axes_idx={}):
+        r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio.
+
+        We create several subplots to analyze this. By default, we create three
+        subplots on a new figure: the first one contains the synthesized image,
+        the second contains the loss, and the third contains the representation
+        error.
+
+        There are several optional additional plots: image_hist, rep_comparison, and
+        signal_comparison:
+
+        - image_hist contains a histogram of pixel values of the synthesized
+          and base images.
+
+        - rep_comparison is a scatter plot comparing the representation of the
+          synthesized and base images.
+
+        - signal_comparison is a scatter plot (by default) or 2d histogram (if
+          signal_comp_func='hist2d') of the pixel values in the synthesized and
+          base images.
+
+        All of these (including the default plots) can be toggled using their
+        corresponding boolean flags, and can be created separately using the
+        method with the same name as the flag.
 
         We use ``pyrtools.imshow`` to display the synthesized image and
         attempt to automatically find the most reasonable zoom
@@ -1680,15 +1889,20 @@ class MADCompetition(Synthesis):
         synthesizing multiple targets, you can specify the target as
         well. If None, we use the current target of the synthesis.
 
-        MADCompetition also has two models, and we will plot the loss
-        for both of them, on the same subplot (labelling them
-        appropriately).
-
         Regardless, we always reset the target state to what it was
-        before this was called
+        before this was called.
+
+        MADCompetition also has two models, and we will plot the loss for both
+        of them, on the same subplot (labelling them appropriately). The
+        rep_comparison and representation_error plots will take up 2 subplots
+        (one for each model), if created.
 
         Parameters
         ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
@@ -1696,9 +1910,10 @@ class MADCompetition(Synthesis):
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value.
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
@@ -1717,10 +1932,9 @@ class MADCompetition(Synthesis):
             if None, we create a new figure. otherwise we assume this is
             an empty figure that has the appropriate size and number of
             subplots
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not.
 
         Returns
         -------
@@ -1730,34 +1944,40 @@ class MADCompetition(Synthesis):
         """
         last_state = self._check_state(synthesis_target, None)
         if fig is None:
-            if plot_representation_error:
-                n_subplots = 3
-                width_ratios = [.25, .25, .5]
-            else:
-                n_subplots = 2
-                width_ratios = [.5, .5]
-            fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
-                                     gridspec_kw={'width_ratios': width_ratios})
-        super().plot_synthesis_status(batch_idx, channel_idx, iteration, figsize, ylim,
-                                      plot_representation_error, imshow_zoom, vrange, fig)
+            fig = self._setup_synthesis_fig(fig, axes_idx, figsize,
+                                            plot_synthesized_image,
+                                            plot_loss,
+                                            plot_representation_error,
+                                            plot_image_hist,
+                                            plot_rep_comparison,
+                                            plot_signal_comparison,
+                                            representation_error_width=2,
+                                            rep_comparison_width=2)[0]
+        super().plot_synthesis_status(batch_idx, channel_idx, iteration,
+                                      figsize, ylim, plot_synthesized_image,
+                                      plot_loss, plot_representation_error,
+                                      imshow_zoom, vrange, fig,
+                                      plot_image_hist, plot_rep_comparison,
+                                      plot_signal_comparison, signal_comp_func,
+                                      signal_comp_subsample, axes_idx)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
         return fig
 
-    def animate(self, batch_idx=0, channel_idx=0, figsize=(23, 5), framerate=10, ylim=None,
-                plot_representation_error=True, imshow_zoom=None, synthesis_target=None):
-        r"""Animate synthesis progress!
+    def animate(self, synthesis_target=None, batch_idx=0, channel_idx=0,
+                figsize=None, framerate=10, ylim=None,
+                plot_synthesized_image=True, plot_loss=True,
+                plot_representation_error=True, imshow_zoom=None,
+                plot_image_hist=False, plot_rep_comparison=False,
+                plot_signal_comparison=False,
+                fig=None, signal_comp_func='scatter', signal_comp_subsample=.01,
+                axes_idx={}, init_figure=True):
+        r"""Animate synthesis progress.
 
         This is essentially the figure produced by
         ``self.plot_synthesis_status`` animated over time, for each stored
         iteration.
-
-        It's difficult to determine a reasonable figsize, because we
-        don't know how much information is in the plot showing the
-        representation ratio. Therefore, it's recommended you play
-        around with ``plot_synthesis_status`` until you find a
-        good-looking value for figsize.
 
         We return the matplotlib FuncAnimation object. In order to view
         it in a Jupyter notebook, use the
@@ -1771,12 +1991,13 @@ class MADCompetition(Synthesis):
         synthesizing multiple targets, you can specify the target as
         well. If None, we use the current target of the synthesis.
 
-        MADCompetition also has two models, and we will plot the loss
-        for both of them, on the same subplot (labelling them
-        appropriately).
-
         Regardless, we always reset the target state to what it was
-        before this was called
+        before this was called.
+
+        MADCompetition also has two models, and we will plot the loss for both
+        of them, on the same subplot (labelling them appropriately). The
+        rep_comparison and representation_error plots will each take up 2
+        subplots (one for each model), if created.
 
         Parameters
         ----------
@@ -1784,15 +2005,10 @@ class MADCompetition(Synthesis):
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
             Which index to take from the channel dimension (the second one)
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional
@@ -1818,6 +2034,11 @@ class MADCompetition(Synthesis):
             Either an int or an inverse power of 2, how much to zoom the
             images by in the plots we'll create. If None (the default), we
             attempt to find the best value ourselves.
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not. Note that we update this in the most naive way possible
+            (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
         synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
             which synthesis target to grab the representation for. If
             None, we use the most recent synthesis_target (i.e.,
@@ -1837,9 +2058,13 @@ class MADCompetition(Synthesis):
                           "models) and, because of the way we handle having two models, the "
                           "animate() method is not as able to determine whether rescaling is "
                           "appropriate.")
-        anim = super().animate(batch_idx, channel_idx, figsize, framerate, ylim,
-                               plot_representation_error, imshow_zoom, ['loss_1', 'loss_2'],
-                               {'model': 'both'})
+        anim = super().animate(batch_idx, channel_idx, figsize, framerate,
+                               ylim, plot_synthesized_image, plot_loss,
+                               plot_representation_error, imshow_zoom,
+                               ['loss_1', 'loss_2'], {'model': 'both'},
+                               plot_image_hist, plot_rep_comparison,
+                               plot_signal_comparison, fig, signal_comp_func,
+                               signal_comp_subsample, axes_idx, init_figure)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
