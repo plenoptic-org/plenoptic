@@ -231,7 +231,7 @@ class Eigendistortion(Synthesis):
             eig_vecs = self._vector_to_image(v_new.detach())
             eig_vals = lmbda_new.squeeze()
             eig_vecs_ind = torch.arange(k)
-            print(f'FIM range approximation error: {error_approx:.2f}')
+            print(f'Randomized SVD complete | Fisher Info Mtx range-space approximation error: {error_approx:.2f}')
 
         # reshape to (n x num_chans x h x w)
         self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
