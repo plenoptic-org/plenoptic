@@ -47,32 +47,30 @@ class Front_End(nn.Module):
         parasol on   fine time coarse space
         parasol off
     """
-    def __init__(self, disk_mask=False):
+    def __init__(self, disk_mask=False, requires_grad=False, dtype=torch.float32, device=torch.device('cpu')):
         super().__init__()
-
+        self.device = device
         filts = np.load(dirname + '/front_end_filters.npy')
         scals = np.load(dirname + '/front_end_scalars.npy')
 
         linear = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
-        linear.weight = nn.Parameter(torch.tensor((filts[0], filts[3]),
-                                     dtype=torch.float32).unsqueeze(1))
+        linear.weight = nn.Parameter(torch.tensor((filts[0], filts[3]), dtype=dtype, device=device).unsqueeze(1),
+                                     requires_grad=requires_grad)
 
-        luminance = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31,
-                              bias=False)
-        luminance.weight = nn.Parameter(torch.tensor((filts[1], filts[4]),
-                                        dtype=torch.float32).unsqueeze(1))
+        luminance = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
+        luminance.weight = nn.Parameter(torch.tensor((filts[1], filts[4]), dtype=dtype, device=device).unsqueeze(1),
+                                        requires_grad=requires_grad)
 
-        contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31,
-                             groups=2, bias=False)
-        contrast.weight = nn.Parameter(torch.tensor((filts[2], filts[5]),
-                                       dtype=torch.float32).unsqueeze(1))
+        contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False)
+        contrast.weight = nn.Parameter(torch.tensor((filts[2], filts[5]), dtype=dtype, device=device).unsqueeze(1),
+                                       requires_grad=requires_grad)
 
         pad = nn.ReflectionPad2d(filts.shape[-1]//2)
 
-        self.luminance_scals = torch.tensor((scals[0], scals[2]), dtype=torch.float32)
+        self.luminance_scals = torch.tensor((scals[0], scals[2]), dtype=dtype, device=device)
         self.luminance_scals = self.luminance_scals.view((1, 2, 1, 1))
 
-        self.contrast_scals = torch.tensor((scals[1], scals[3]), dtype=torch.float32)
+        self.contrast_scals = torch.tensor((scals[1], scals[3]), dtype=dtype, device=device)
         self.contrast_scals = self.luminance_scals.view((1, 2, 1, 1))
 
         del filts, scals
@@ -102,7 +100,7 @@ class Front_End(nn.Module):
         x = self.softplus(x)
 
         if self.disk_mask:
-            self.disk = make_disk(image_size)
+            self.disk = make_disk(image_size).to(self.device)
 
             x = self.disk * x
 
