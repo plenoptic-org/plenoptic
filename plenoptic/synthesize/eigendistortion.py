@@ -126,10 +126,6 @@ class Eigendistortion(Synthesis):
         self.synthesized_eigenvalues = None
         self.synthesized_eigenindex = None
 
-        self._all_losses = []
-        self._all_saved_signals = []
-        self.saved_representation = None
-
     @staticmethod
     def _hidden_attrs():
         """Inherited attributes from parent `Synthesis` class that aren't necessary for `Eigendistortion`."""
@@ -166,7 +162,7 @@ class Eigendistortion(Synthesis):
         """Send attrs to specified device. See docstring of Synthesis.to()"""
         super().to(*args, attrs, **kwargs)
 
-    def synthesize(self, k=1, method='power', tol=1e-8, max_steps=1000, seed=0, store_progress=False):
+    def synthesize(self, k=1, method='power', tol=1e-8, max_steps=1000, seed=None, store_progress=False):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
         Parameters
@@ -202,6 +198,7 @@ class Eigendistortion(Synthesis):
             Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
+        seed = np.random.randint(0, 2**32-1) if seed is None else seed
         self._set_seed(seed)
         self.store_progress = store_progress
 
@@ -260,19 +257,6 @@ class Eigendistortion(Synthesis):
         imgs = [vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width)) for i in range(vecs.shape[1])]
         return imgs
 
-    def _check_for_stabilization(self, i):
-        r"""Check whether the loss has stabilized and, if so, return True, else return False.
-
-        Parameters
-        ----------
-        i : int
-            the current iteration (0-indexed)
-        """
-        if len(self.loss) > self.loss_change_iter:
-            if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
-                return True
-        return False
-
     def compute_jacobian(self):
         r"""Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
 
@@ -309,13 +293,6 @@ class Eigendistortion(Synthesis):
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
-    def _clamp_and_store(self, idx, v, d_lambda):
-        """Overwrite base class _clamp_and_store. We don't actually need to clamp the signal."""
-        if self.store_progress:
-            v = self._vector_to_image(v)[0]
-            # self._all_saved_signals[idx].append(v)
-            self._all_losses[idx].append(d_lambda.item())
-
     def _synthesize_power(self, k=1, l=0, tol=1e-10, max_steps=1000):
         r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
         Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher
@@ -342,10 +319,6 @@ class Eigendistortion(Synthesis):
         ----------
         [1] Algorithm 8.2.8 Golub and Van Loan, Matrix Computations, 3rd Ed.
         """
-
-        idx = len(self._all_losses)
-        if self.store_progress:
-            self._all_losses.append([])
 
         x, y = self._input_flat, self._representation_flat
 
@@ -380,8 +353,6 @@ class Eigendistortion(Synthesis):
             d_lambda = (lmbda.sum() - lmbda_new.sum()).norm()  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
-
-            self._clamp_and_store(idx, v.clone(), d_lambda.clone())
 
         pbar.close()
 
@@ -460,8 +431,8 @@ class Eigendistortion(Synthesis):
         gray = torch.einsum('xy,...abc->...xbc', torch.tensor([.2989, .587, .114]).unsqueeze(0), img)
         return gray
 
-    def display_first_and_last(self, alpha=5., beta=10., **kwargs):
-        r""" Displays the first and last synthesized eigendistortions alone, and added to the image.
+    def plot_distorted_image(self, eigen_index=0, alpha=5., **kwargs):
+        r""" Displays specified eigendistortions alone, and added to the image.
 
         If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
         grayscale. This is merely for display convenience and may change in the future.
@@ -470,8 +441,6 @@ class Eigendistortion(Synthesis):
         ----------
         alpha: float, optional
             Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
-        beta: float, optional
-            Amount by which to scale eigendistortion to be displayed alone.
         kwargs:
             Additional arguments for :meth:`pt.imshow()`.
         """
@@ -481,31 +450,16 @@ class Eigendistortion(Synthesis):
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
         image = self.base_signal.detach().view(im_shape).permute((1, 2, 0)).squeeze()
-        max_dist = self.synthesized_signal[0].permute((1, 2, 0)).squeeze()
-        min_dist = self.synthesized_signal[-1].permute((1, 2, 0)).squeeze()
+        dist = self.synthesized_signal[eigen_index].permute((1, 2, 0)).squeeze()
 
         def _preprocess(img):
             x = torch.clamp(img, 0, 1)
             return x.numpy()
+        min_val, max_val = dist.min(), dist.max()
 
-        fig_max = pt.imshow([_preprocess(image), _preprocess(image + alpha * max_dist), alpha * max_dist.numpy()],
-                  title=['original', f'original + {alpha:.0f} * maxdist', f'{alpha:.0f} * maxdist'], **kwargs);
+        fig, ax = plt.subplots(1, 3, sharex='all', sharey='all', figsize=(10, 20))
+        ax[0].imshow(image)
+        ax[1].imshow(image + alpha*dist)
+        ax[2].imshow(dist)
 
-        fig_min = pt.imshow([_preprocess(image), _preprocess(image + beta * min_dist), beta * min_dist.numpy()],
-                  title=['original', f'original + {beta:.0f} * mindist', f'{beta:.0f} * mindist'], **kwargs);
-
-        return fig_max, fig_min
-
-    def plot_synthesized_image(self, eigenindex, add_base_image=True, scale=1., channel_idx=0, iteration=None,
-                               title=None, figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
-        """Wraps Synthesis.plot_synthesized_image.
-        Parameters
-        ---------
-        eigenindex: int
-            Index of eigendistortion to display. Must be an element of `synthesized_eigenindex` attribute of object,
-            or 0 for first, and -1 for last. This is converted to an index with which to index the batch dim of tensor.
-        """
-
-        batch_idx = self._indexer(eigenindex)
-        fig = super().plot_synthesized_image(batch_idx, channel_idx, iteration, title, figsize, ax, imshow_zoom, vrange)
         return fig
