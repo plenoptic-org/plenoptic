@@ -1,3 +1,7 @@
+# necessary to avoid issues with animate:
+# https://github.com/matplotlib/matplotlib/issues/10287/
+import matplotlib
+matplotlib.use('agg')
 import pytest
 import matplotlib.pyplot as plt
 import plenoptic as po
@@ -25,16 +29,16 @@ class TestMAD(object):
         elif model2 == 'function':
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+        mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+            mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
         mad.plot_synthesis_status()
         if store_progress:
-            mad.animate()
+            mad.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
@@ -65,10 +69,10 @@ class TestMAD(object):
             loss_kwargs['lmbda'] = .1
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
-        mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+        mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
         if resume and store_progress:
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=store_progress,
+            mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
@@ -79,7 +83,7 @@ class TestMAD(object):
         # we'll get rid of it?
         mad.plot_synthesis_status()
         if store_progress:
-            mad.animate()
+            mad.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
@@ -97,11 +101,11 @@ class TestMAD(object):
         else:
             model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize_all(max_iter=10, loss_change_iter=5, store_progress=store_progress,
+        mad.synthesize_all(max_iter=5, loss_change_iter=3, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad_{}.pt'))
         if resume and store_progress:
-            mad.synthesize_all(resume, max_iter=10, loss_change_iter=5,
+            mad.synthesize_all(resume, max_iter=5, loss_change_iter=3,
                                store_progress=store_progress,
                                save_progress=store_progress, learning_rate=None,
                                initial_noise=None, save_path=op.join(tmp_path, 'test_mad_{}.pt'))
@@ -109,7 +113,7 @@ class TestMAD(object):
         mad.plot_loss_all()
         if store_progress:
             for t in ['model_1_min', 'model_2_min', 'model_1_max', 'model_2_max']:
-                mad.animate(synthesis_target=t)
+                mad.animate(synthesis_target=t).to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
@@ -130,7 +134,7 @@ class TestMAD(object):
             model1 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
         if model_name == 'V1' and 'model_1' in target:
-            mad.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+            mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                            loss_change_fraction=loss_change_fraction)
             mad.plot_synthesis_status()
@@ -143,7 +147,7 @@ class TestMAD(object):
                 if not getattr(mad, k) == (getattr(mad_copy, k)):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
-            mad_copy.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+            mad_copy.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
                                 coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                                 loss_change_fraction=loss_change_fraction)
         else:
@@ -156,7 +160,7 @@ class TestMAD(object):
             else:
                 exc = AttributeError
             with pytest.raises(exc):
-                mad.synthesize(target, max_iter=10, loss_change_iter=1, loss_change_thresh=10,
+                mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                                loss_change_fraction=loss_change_fraction)
         plt.close('all')
@@ -184,7 +188,7 @@ class TestMAD(object):
             loss_kwargs['lmbda'] = .1
         mad = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
-        mad.synthesize('model_1_max', max_iter=10, loss_change_iter=5, store_progress=True)
+        mad.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_save_load.pt"),
                                                 map_location=DEVICE)
@@ -242,11 +246,11 @@ class TestMAD(object):
             raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
                             f"after loading was {mad_copy_loss}")
         # check that can resume
-        mad_copy.synthesize('model_1_max', max_iter=10, loss_change_iter=5, store_progress=True,
+        mad_copy.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True,
                             learning_rate=None, initial_noise=None)
         # and run another synthesis target (note neither learning_rate nor
         # initial_noise can be None in this case)
-        mad_copy.synthesize('model_1_min', max_iter=10, loss_change_iter=5, store_progress=True)
+        mad_copy.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=True)
 
     @pytest.mark.parametrize('model_name', ['class', 'function'])
     @pytest.mark.parametrize('fraction_removed', [0, .1])
@@ -261,11 +265,11 @@ class TestMAD(object):
         mad = po.synth.MADCompetition(img, model1, model2)
         if model_name == 'function' and (fraction_removed > 0 or loss_change_fraction < 1):
             with pytest.raises(Exception):
-                mad.synthesize('model_1_min', max_iter=10, loss_change_iter=1,
+                mad.synthesize('model_1_min', max_iter=5, loss_change_iter=1,
                                loss_change_thresh=10, fraction_removed=fraction_removed,
                                loss_change_fraction=loss_change_fraction)
         else:
-            mad.synthesize('model_1_min', max_iter=10, loss_change_iter=1,
+            mad.synthesize('model_1_min', max_iter=5, loss_change_iter=1,
                            fraction_removed=fraction_removed, loss_change_thresh=10,
                            loss_change_fraction=loss_change_fraction)
             mad.plot_synthesis_status()
@@ -299,16 +303,38 @@ class TestMAD(object):
         # with store_progress!=False
         if none_place == 'before':
             with pytest.raises(IndexError):
-                mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                mad.synthesize(target, max_iter=5, loss_change_iter=3,
                                learning_rate=learning_rate, initial_noise=initial_noise)
         else:
-            mad.synthesize(target, max_iter=10, loss_change_iter=5, store_progress=False)
+            mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=False)
             if none_arg != 'lr':
                 with pytest.raises(IndexError):
-                    mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                    mad.synthesize(target, max_iter=5, loss_change_iter=3,
                                    learning_rate=learning_rate, initial_noise=initial_noise)
             else:
                 # this actually will not raise an exception, because the
                 # learning_rate has been initialized
-                mad.synthesize(target, max_iter=10, loss_change_iter=5,
+                mad.synthesize(target, max_iter=5, loss_change_iter=3,
                                learning_rate=learning_rate, initial_noise=initial_noise)
+
+    @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
+    @pytest.mark.parametrize('swa', [True, False])
+    @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
+                                        'model_2_max'])
+    def test_optimizer_opts(self, optimizer, swa, target, tmp_path):
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        model1 = po.simul.models.naive.Identity().to(DEVICE)
+        model2 = po.metric.NLP().to(DEVICE)
+        if '-' in optimizer:
+            optimizer = optimizer.split('-')[0]
+            optimizer_kwargs = {'weight_decay': .1}
+        else:
+            optimizer_kwargs = {}
+        if swa:
+            swa_kwargs = {'swa_start': 1, 'swa_freq': 1, 'swa_lr': .05}
+        else:
+            swa_kwargs = {}
+        mad = po.synth.MADCompetition(img, model1, model2)
+        mad.synthesize(target, max_iter=5, loss_change_iter=3, swa=swa, swa_kwargs=swa_kwargs,
+                       optimizer=optimizer, optimizer_kwargs=optimizer_kwargs)
+

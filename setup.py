@@ -26,7 +26,7 @@ setup(
     packages=['plenoptic', 'plenoptic.simulate', 'plenoptic.synthesize',
               'plenoptic.tools'],
     install_requires=['numpy>=1.1',
-                      'torch>=1.1',
+                      'torch>=1.4',
                       'pyrtools>=1.0.0',
                       'scipy>=1.0',
                       'matplotlib>=3.1',
@@ -36,6 +36,8 @@ setup(
                       'imageio>=2.5',
                       'pytest',
                       'scikit-image>=0.15.0',
-                      'dill'],
+                      'dill',
+                      'torchcontrib',
+                      'seaborn'],
     tests='tests',
      )

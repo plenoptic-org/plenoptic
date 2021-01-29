@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7]
-        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad']
+        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad', 'display']
       fail-fast: false
     name: CI
     steps:
@@ -24,6 +24,8 @@ jobs:
         run: |
           pip install -e .
           pip install pytest-cov
+          sudo apt update
+          sudo apt install ffmpeg
       - name: Run tests with pytest
         run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov
