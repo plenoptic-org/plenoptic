@@ -21,7 +21,7 @@ def jacobian(y, x):
 
     if x.numel() > 1E4:
         warnings.warn("Calculation of Jacobian with input dimensionality greater than 1E4 may take too long; consider"
-                      "an iterative method (e.g. power method, Lanczos) instead.")
+                      "an iterative method (e.g. power method, randomized svd) instead.")
 
     J = torch.stack([torch.autograd.grad([y[i].sum()], [x], retain_graph=True, create_graph=True)[0] for i in range(
         y.size(0))], dim=-1).squeeze().t()
