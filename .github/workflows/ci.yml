@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad', 'display']
       fail-fast: false
     name: CI
