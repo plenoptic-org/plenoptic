@@ -113,11 +113,11 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
         assert len(ed.synthesized_eigenvalues) == 2*k
 
-    def test_method_svd(self):
+    def test_method_randomized_svd(self):
         n, k = 30, 10
         n_chans = 1  # TODO color
         ed = get_synthesis_object(im_dim=n)
-        ed.synthesize(k=k, method='svd')
+        ed.synthesize(k=k, method='randomized_svd')
         assert ed.synthesized_signal.shape == (k, n_chans, n, n)
         assert ed.synthesized_eigenindex.allclose(torch.arange(k))
         assert len(ed.synthesized_eigenvalues) == k
@@ -131,7 +131,7 @@ class TestEigendistortionSynthesis:
         k_pow, k_svd = 10, 75
         e_jac.synthesize(method='exact')
         e_pow.synthesize(k=k_pow, method='power', max_steps=300)
-        e_svd.synthesize(k=k_svd, method='svd')
+        e_svd.synthesize(k=k_svd, method='randomized_svd')
 
         assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
