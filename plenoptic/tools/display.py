@@ -143,7 +143,10 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         # because of how we've handled everything above, we know that im will
         # be (b,c,h,w) or (b,c,h,w,r) where r is the RGB(A) values
         for i in im:
-            images_to_plot.extend([i_.squeeze() for i_ in i])
+            # at this point, i_ are all shape (h,w) or (h,w,r) and so we don't
+            # squeeze, which could accidentally drop a dimension if h or w is a
+            # singleton dimension
+            images_to_plot.extend([i_ for i_ in i])
     return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
                      col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
                      **kwargs)

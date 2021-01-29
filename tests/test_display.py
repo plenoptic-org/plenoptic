@@ -293,24 +293,34 @@ class TestDisplay(object):
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('is_complex', [False, 'logpolar', 'rectangular', 'polar'])
     @pytest.mark.parametrize('mini_im', [True, False])
-    def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im):
+    # test the edge cases where we try to plot a tensor that's (b, c, 1, w) or
+    # (b, c, h, 1)
+    @pytest.mark.parametrize('one_dim', [False, 'h', 'w'])
+    def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im,
+                    one_dim):
         fails = False
+        if one_dim == 'h':
+            im_shape = [2, 4, 1, 5]
+        elif one_dim == 'w':
+            im_shape = [2, 4, 5, 1]
+        else:
+            im_shape = [2, 4, 5, 5]
         if is_complex:
-            im = torch.rand((2, 4, 10, 10, 2))
+            im = torch.rand((*im_shape, 2))
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
             n_axes = 16
         else:
-            im = torch.rand((2, 4, 10, 10))
+            im = torch.rand(im_shape)
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
         if mini_im:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = [2, 4, 5, 5, 2]
+                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]] + [2]
                 n_axes += 16
             else:
-                shape = [2, 4, 5, 5]
+                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
                 n_axes += 8
             im = [im, torch.rand(shape)]
         if not is_complex:
