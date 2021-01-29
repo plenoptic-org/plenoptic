@@ -171,7 +171,7 @@ class Eigendistortion(Synthesis):
 
         Parameters
         ----------
-        method: {'exact', 'power', 'svd'}, optional
+        method: {'exact', 'power', 'randomized_svd'}, optional
             Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large matrices). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'svd' uses randomized SVD
@@ -205,7 +205,7 @@ class Eigendistortion(Synthesis):
         self._set_seed(seed)
         self.store_progress = store_progress
 
-        assert method in ['power', 'exact', 'svd'], "method must be in {'power', 'exact', 'svd'}"
+        assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'svd'}"
 
         if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
             warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'lanczos'}.")
@@ -225,7 +225,7 @@ class Eigendistortion(Synthesis):
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
             eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n-k, n)))
 
-        elif method == 'svd':
+        elif method == 'randomized_svd':
 
             lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(k=k, p=5, q=2)
             eig_vecs = self._vector_to_image(v_new.detach())
