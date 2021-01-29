@@ -25,8 +25,8 @@ class TestLinear(object):
         im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE
                            ).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
-        m_image, m_representation = M.synthesize(max_iter=3, learning_rate=1,
-                                                 seed=1)
+        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3,
+         learning_rate=1, seed=1)
 
 
 class TestLinearNonlinear(object):
@@ -43,7 +43,6 @@ class TestLinearNonlinear(object):
         M = po.synth.Metamer(im0, model)
         m_image, m_representation = M.synthesize(max_iter=3, learning_rate=1,
                                                  seed=0)
-
 
 # class TestConv(object):
 # TODO expand, arbitrary shapes, dim
@@ -116,8 +115,12 @@ class TestPooling(object):
         ang_windows, ecc_windows = po.simul.pooling.create_pooling_windows(.87, (256, 256))
 
     def test_creation_args(self):
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .7)
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2, .5)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           transition_region_width=.7)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           transition_region_width=.5)
+        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
+                                                           'gaussian', std_dev=1)
 
     def test_ecc_windows(self):
         windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
@@ -154,38 +157,36 @@ class TestPooling(object):
     def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                             transition_region_width=transition_region_width,
-                                             window_type='cosine',)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                     transition_region_width=transition_region_width,
+                                     window_type='cosine',)
         pw = pw.to(DEVICE)
         pw(im)
-        with pytest.raises(Exception):
-            po.simul.PoolingWindows(.2, (64, 64), .5)
 
     @pytest.mark.parametrize('num_scales', [1, 3])
     def test_PoolingWindows(self, num_scales):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                             window_type='gaussian', std_dev=1)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                     window_type='gaussian', std_dev=1)
         pw = pw.to(DEVICE)
         pw(im)
         # we only support std_dev=1
         with pytest.raises(Exception):
-            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                            window_type='gaussian', std_dev=2)
+            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                    window_type='gaussian', std_dev=2)
         with pytest.raises(Exception):
-            po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                            window_type='gaussian', std_dev=.5)
+            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
+                                    window_type='gaussian', std_dev=.5)
 
     def test_PoolingWindows_project(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+        pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
+        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
         pw = pw.to(DEVICE)
         pooled = pw(im)
         pw.project(pooled)
@@ -215,6 +216,7 @@ class TestPooling(object):
             pw.plot_window_widths('pixels', i)
         fig = pt.imshow(to_numpy(im))
         pw.plot_windows(fig.axes[0])
+        plt.close('all')
 
     def test_PoolingWindows_caching(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -223,52 +225,13 @@ class TestPooling(object):
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
         pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
 
-    def test_PoolingWindows_parallel(self, tmp_path):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
-            pw = pw.parallel(devices)
-            pw(im)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
-            pw = pw.parallel(devices)
-            pw(im)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], transition_region_width=1)
-            pw = pw.parallel(devices)
-            pw(im)
-            for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
-                tmp = im[:sh[0], :sh[1]]
-                rgc = po.simul.PooledRGC(.9, tmp.shape[2:])
-                rgc = rgc.parallel(devices)
-                rgc(tmp)
-                v1 = po.simul.PooledRGC(.9, tmp.shape[2:])
-                v1 = v1.parallel(devices)
-                v1(tmp)
-            pw = po.simul.PoolingWindows(.8, im.shape[2:], num_scales=2)
-            pw = pw.parallel(devices)
-            pw.plot_window_areas()
-            pw.plot_window_widths()
-            for i in range(2):
-                pw.plot_window_areas('pixels', i)
-                pw.plot_window_widths('pixels', i)
-            fig = pt.imshow(to_numpy(im).squeeze())
-            pw.plot_windows(fig.axes[0])
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
-            pw = pw.parallel(devices)
-            pooled = pw(im)
-            pw.project(pooled)
-            pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:], num_scales=3)
-            pw = pw.parallel(devices)
-            pooled = pw(im)
-            pw.project(pooled)
-
     def test_PoolingWindows_sep(self):
         # test the window and pool function separate of the forward function
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.pooling.PoolingWindows(.5, im.shape[2:])
+        pw = po.simul.PoolingWindows(.5, im.shape[2:])
         pw.pool(pw.window(im))
+
 
 class TestPooledVentralStream(object):
 
@@ -291,6 +254,7 @@ class TestPooledVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -311,6 +275,7 @@ class TestPooledVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(5, 12))
         rgc.plot_representation(ax=axes[1])
         rgc.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_rgc_metamer(self):
         # literally just testing that it runs
@@ -351,19 +316,6 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         rgc = po.simul.PooledRGC(.5, im.shape[2:], cache_dir=tmp_path)
 
-    def test_rgc_parallel(self):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            rgc = po.simul.PooledRGC(.5, im.shape[2:])
-            rgc = rgc.parallel(devices)
-            metamer = po.synth.Metamer(im, rgc)
-            metamer.synthesize(max_iter=3)
-            rgc.plot_representation()
-            rgc.plot_representation_image()
-            metamer.plot_representation_error()
-
     def test_frontend(self):
         frontend = po.simul.Front_End()
         frontend(x)
@@ -377,6 +329,7 @@ class TestPooledVentralStream(object):
         metamer.synthesize(max_iter=3, store_progress=1)
         metamer.plot_synthesis_status(figsize=(35, 5))
         metamer.animate(figsize=(35, 5))
+        plt.close('all')
 
     def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -385,6 +338,7 @@ class TestPooledVentralStream(object):
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
+        plt.close('all')
 
     def test_v1(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -402,6 +356,7 @@ class TestPooledVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_norm(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -421,19 +376,7 @@ class TestPooledVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
-
-    def test_v1_parallel(self):
-        if torch.cuda.device_count() > 1:
-            devices = list(range(torch.cuda.device_count()))
-            im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-            im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-            v1 = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-            v1 = v1.parallel(devices)
-            metamer = po.synth.Metamer(im, v1)
-            metamer.synthesize(max_iter=3)
-            v1.plot_representation()
-            v1.plot_representation_image()
-            metamer.plot_representation_error()
+        plt.close('all')
 
     def test_v1_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -451,6 +394,7 @@ class TestPooledVentralStream(object):
         fig, axes = plt.subplots(2, 1, figsize=(27, 12))
         v1.plot_representation(ax=axes[1])
         v1.plot_representation_image(ax=axes[0])
+        plt.close('all')
 
     def test_v1_mean_luminance(self):
         for fname in ['nuts', 'einstein']:
@@ -462,7 +406,7 @@ class TestPooledVentralStream(object):
             rgc = po.simul.PooledRGC(.5, im.shape[2:])
             rgc = rgc.to(DEVICE)
             rgc_rep = rgc(im)
-            if not torch.allclose(rgc.representation, v1.mean_luminance):
+            if not torch.allclose(rgc.representation['mean_luminance'], v1.mean_luminance):
                 raise Exception("Somehow RGC and V1 mean luminance representations are not the "
                                 "same for image %s!" % fname)
             if not torch.allclose(rgc_rep, v1_rep[..., -rgc_rep.shape[-1]:]):
@@ -498,6 +442,19 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         v1 = po.simul.PooledV1(.5, im.shape[2:], cache_dir=tmp_path)
 
+    @pytest.mark.parametrize('window', ['cosine', 'gaussian'])
+    def test_v1_scales(self, window):
+        im = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        v1 = po.simul.PooledV1(1, im.shape[-2:], std_dev=1, window_type=window)
+        lum_rep = v1(im, ['mean_luminance'])
+        more_rep = v1(im, ['mean_luminance', 0])
+        if lum_rep.numel() >= more_rep.numel():
+            raise Exception("V1 not properly restricting output!")
+        if any([(i, 0) in v1.representation.keys() for i in [1, 2, 3]]):
+            raise Exception("Extra keys are showing up in v1.representation!")
+        if lum_rep.numel() != v1(im, ['mean_luminance']).numel():
+            raise Exception("V1 is not dropping unnecessary output!")
+
     def test_v1_metamer(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
@@ -505,25 +462,3 @@ class TestPooledVentralStream(object):
         v1 = v1.to(DEVICE)
         metamer = po.synth.Metamer(im, v1)
         metamer.synthesize(max_iter=3)
-
-    def test_cone_nonlinear(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1_lin = po.simul.PooledV1(1, im.shape[2:], cone_power=1)
-        v1 = po.simul.PooledV1(1, im.shape[2:], cone_power=1/3)
-        rgc_lin = po.simul.PooledRGC(1, im.shape[2:], cone_power=1)
-        rgc = po.simul.PooledRGC(1, im.shape[2:], cone_power=1/3)
-        for model in [v1, v1_lin, rgc, rgc_lin]:
-            model(im)
-        # v1 mean luminance and rgc representation, for same cone power
-        # and scaling, should be identical
-        (v1.representation['mean_luminance'] == rgc.representation).all()
-        # v1 mean luminance and rgc representation, for same cone power
-        # and scaling, should be identical
-        (v1_lin.representation['mean_luminance'] == rgc_lin.representation).all()
-        # similarly, the representations should be different if cone
-        # power is different
-        (v1_lin.representation['mean_luminance'] != v1.representation['mean_luminance']).all()
-        # similarly, the representations should be different if cone
-        # power is different
-        (rgc_lin.representation != rgc.representation).all()

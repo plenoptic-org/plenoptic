@@ -7,10 +7,8 @@ __pycache__/
 *.xml
 *.pt
 .ftpconfig
-.vscode
-
-docs/_build
-docs/api
+.idea/
+.vscode/
 
 data/plenoptic-test-files
 data/ssim_images
@@ -24,3 +22,7 @@ logs/
 train
 
 examples/geodesics_development.ipynb
+docs/_build
+docs/api
+
+*.mypy_cache
