@@ -5,7 +5,7 @@ import plenoptic.synthesize.autodiff as autodiff
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate.models.frontend import Front_End
+from plenoptic.simulate.models.frontend import FrontEnd
 import plenoptic as po
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
@@ -42,7 +42,7 @@ def get_synthesis_object(im_dim=20, color=False):
     torch.manual_seed(0)
 
     if not color:
-        mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
+        mdl = FrontEnd().to(DEVICE)  # initialize simple model with which to compute eigendistortions
         img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
         img_np = img[:im_dim, :im_dim] / np.max(img)
         img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
@@ -63,7 +63,7 @@ def get_synthesis_object(im_dim=20, color=False):
 class TestEigendistortionSynthesis:
 
     def test_input_dimensionality(self):
-        mdl = Front_End().to(DEVICE)
+        mdl = FrontEnd().to(DEVICE)
         with pytest.raises(AssertionError) as e_info:
             e = Eigendistortion(torch.zeros(1, 1, 1), mdl)  # should be 4D
 

@@ -342,7 +342,8 @@ class Eigendistortion:
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
-                print(f"Tolerance {tol:.2E} reached. Stopping early.")
+                print(("Top" if shift == 0 else "Bottom")
+                      + f" k={k} eigendists computed" + f" | Tolerance {tol:.2E} reached.")
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)

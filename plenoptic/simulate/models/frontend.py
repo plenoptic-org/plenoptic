@@ -9,7 +9,7 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-class Front_End(nn.Module):
+class FrontEnd(nn.Module):
     """Luminance and contrast gain control, modeling retina and LGN
 
     Parameters
@@ -47,61 +47,53 @@ class Front_End(nn.Module):
         parasol on   fine time coarse space
         parasol off
     """
-    def __init__(self, disk_mask=False, requires_grad=False, dtype=torch.float32, device=torch.device('cpu')):
+    def __init__(self, disk_mask=False, requires_grad=False, dtype=torch.float32):
         super().__init__()
-        self.device = device
         filts = np.load(dirname + '/front_end_filters.npy')
         scals = np.load(dirname + '/front_end_scalars.npy')
 
-        linear = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
-        linear.weight = nn.Parameter(torch.tensor((filts[0], filts[3]), dtype=dtype, device=device).unsqueeze(1),
-                                     requires_grad=requires_grad)
+        self.linear = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
+        self.linear.weight = nn.Parameter(torch.tensor((filts[0], filts[3]), dtype=dtype).unsqueeze(1))
 
-        luminance = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
-        luminance.weight = nn.Parameter(torch.tensor((filts[1], filts[4]), dtype=dtype, device=device).unsqueeze(1),
-                                        requires_grad=requires_grad)
+        self.luminance = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
+        self.luminance.weight.data = torch.tensor((filts[1], filts[4]), dtype=dtype).unsqueeze(1)
 
-        contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False)
-        contrast.weight = nn.Parameter(torch.tensor((filts[2], filts[5]), dtype=dtype, device=device).unsqueeze(1),
-                                       requires_grad=requires_grad)
+        self.contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False)
+        self.contrast.weight.data = torch.tensor((filts[2], filts[5]), dtype=dtype).unsqueeze(1)
 
+        # contrast and luminance scaling
+        self.luminance_scale = nn.Parameter(torch.rand((1,2,1,1), dtype=dtype))
+        self.luminance_scale.data = torch.tensor((scals[0], scals[2]), dtype=dtype).view((1,2,1,1))
+
+        self.contrast_scale = nn.Parameter(torch.rand((1, 2, 1, 1), dtype=dtype))
+        self.contrast_scale.data = torch.tensor((scals[1], scals[3]), dtype=dtype).view((1, 2, 1, 1))
+        # self.contrast_scale = nn.Parameter(torch.tensor((scals[1], scals[3]))).view((1, 2, 1, 1))
+
+        # pad all transforms for convolution
         pad = nn.ReflectionPad2d(filts.shape[-1]//2)
-
-        self.luminance_scals = torch.tensor((scals[0], scals[2]), dtype=dtype, device=device)
-        self.luminance_scals = self.luminance_scals.view((1, 2, 1, 1))
-
-        self.contrast_scals = torch.tensor((scals[1], scals[3]), dtype=dtype, device=device)
-        self.contrast_scals = self.luminance_scals.view((1, 2, 1, 1))
-
-        del filts, scals
-
-        self.linear = transforms.Compose([pad, linear])
-        self.luminance = transforms.Compose([pad, luminance])
-        self.contrast = transforms.Compose([pad, contrast])
+        self.linear_pad = transforms.Compose([pad, self.linear])
+        self.luminance_pad = transforms.Compose([pad, self.luminance])
+        self.contrast_pad = transforms.Compose([pad, self.contrast])
         self.softplus = nn.Softplus()
 
         self.disk_mask = disk_mask
+        self.disk = None
 
     def luminance_normalization(self, x):
-
-        s = self.luminance_scals
-        return torch.div(self.linear(x), (1 + s * self.luminance(x)))
+        s = self.luminance_scale
+        return torch.div(self.linear_pad(x), (1 + s * self.luminance_pad(x)))
 
     def contrast_normalization(self, x):
-
-        s = self.contrast_scals
-        return torch.div(x, 1 + s * torch.sqrt(1e-10 + self.contrast(x ** 2)))
+        s = self.contrast_scale
+        return torch.div(x, 1 + s * torch.sqrt(1e-10 + self.contrast_pad(x**2)))
 
     def forward(self, x):
-
-        image_size = x.shape[-1]
         x = self.luminance_normalization(x)
         x = self.contrast_normalization(x)
         x = self.softplus(x)
 
         if self.disk_mask:
-            self.disk = make_disk(image_size).to(self.device)
-
+            self.disk = make_disk(x.shape[-1]).to(x.device)
             x = self.disk * x
 
         return x
