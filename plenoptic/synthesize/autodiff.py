@@ -105,6 +105,9 @@ def jacobian_vector_product(y: Tensor, x: Tensor, V: Tensor, dummy_vec: Tensor =
         Model input with gradient attached, shape is torch.Size([n, 1]), i.e. same dim as input tensor
     V: Tensor
         Directions in which to compute product, shape is torch.Size([n, k]) where k is number of vectors to compute
+    dummy_vec: Tensor
+        Vector with which to do jvp trick [1]. If argument exists, then use some pre-allocated, cached vector,
+        otherwise create a new one and move to device in this method.
 
     Returns
     -------
