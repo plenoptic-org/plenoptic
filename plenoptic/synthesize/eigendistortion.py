@@ -338,7 +338,7 @@ class Eigendistortion:
         postfix_dict = {'step': None, 'delta_eigenval': None}
 
         for i in pbar:
-            postfix_dict.update(dict(step=f"{i+1:d}/{max_steps:d}", delta_eigenval=f"{d_lambda.item():04.4f}"))
+            postfix_dict.update(dict(step=f"{i+1:d}/{max_steps:d}", delta_eigenval=f"{d_lambda.item():.4E}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
@@ -451,8 +451,8 @@ class Eigendistortion:
 
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
-        image = self.base_signal.detach().view(1, * im_shape)
-        dist = self.synthesized_signal[self._indexer(eigen_index)].unsqueeze(0)
+        image = self.base_signal.detach().view(1, * im_shape).cpu()
+        dist = self.synthesized_signal[self._indexer(eigen_index)].unsqueeze(0).cpu()
 
         img_processed = process_image(image + alpha * dist)
         to_plot = torch.clamp(img_processed, 0, 1)
