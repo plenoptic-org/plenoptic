@@ -133,9 +133,9 @@ class TestEigendistortionSynthesis:
         e_pow.synthesize(k=k_pow, method='power', max_steps=300)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
+        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
-        assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
+        assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
 
     @pytest.mark.parametrize("color", [False, True])
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
