@@ -37,19 +37,11 @@ bibliography: paper.bib
 # Summary
 
 
-twofold: 1) probe the internal representation of an arbitrary model, 2) provide a computational neuroscience.
-generate new predictions about the human visual system.
-
-At its core, ``Plenoptic`` enables researchers to understand how a model views the world by means of image _synthesis_. 
-Take a deep convolutional neural network, for example; an input image ellicits a pattern of activations within each layer of the network.
-Given an image and its associated pattern of model activations, a researcher might ask the following questions: 1) are there different images that can evoke an identical response, and thus be perceived as identical to the model [@metamers]; 2)[@]
-Using modern operimization tools (e.g. automatic differentiation), ``Plenoptic`` enables researchers to answer each of these questions.
-
-``Plenoptic`` builds primarily off of ``PyTorch`` [@pytorch], a Python machine learning library popular in the research community due to its rapid prototyping capability. With ``Plenoptic``, users can build and train models in ``PyTorch``, then use ``Plenoptic`` synthesis methods to assess their internal representations.
+``Plenoptic`` builds primarily off of ``PyTorch`` [@paszke_pytorch_2019], a Python machine learning library popular in the research community due to its rapid prototyping capability. With ``Plenoptic``, users can build and train models in ``PyTorch``, then use ``Plenoptic`` synthesis methods to assess their internal representations.
 Our library is easily extensible, and allows for great flexibility to those who wish to develop or test their own synthesis methods.
 Within the library, we also provide an extensive suite of ``PyTorch``-implemented models and activation functions canonical to computational neuroscience.
 
-Many of the methods in ``Plenoptic`` have been developed and used across several studies [@]; however, analyses in these studies used disparate languages and frameworks, and some have yet to be made publicly available.
+Many of the methods in ``Plenoptic`` have been developed and used across several studies; however, analyses in these studies used disparate languages and frameworks, and some have yet to be made publicly available.
 Here, we have reimplemented the methods central to each of these studies, and unified them under a single, fully-documented API.
 Our library includes several Jupyter notebook tutorials designed to be accessible to researchers in the fields of machine learning, and computational neuroscience, and perceptual science.
 ``Plenoptic`` provides an exciting avenue for researchers to probe their models to gain a deeper understanding of their internal representations.
@@ -66,11 +58,11 @@ For a quick reference, the following citation commands can be used:
 
 # References
 
-@eigendistortions
-@geodesics
-@pyramid
-@metamers
-@madcompetition
-@pytorch
-@portillasimoncelli
+@berardino_eigen-distortions_2017
+@henaff_geodesics_2015
+@simoncelli_steerable_1995
+@freeman_metamers_2011
+@wang_maximum_2008
+@paszke_pytorch_2019
+@portilla_parametric_2000
 
