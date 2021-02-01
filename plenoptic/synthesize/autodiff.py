@@ -3,7 +3,7 @@ from torch import Tensor
 import warnings
 
 
-def jacobian(y: Tensor, x: Tensor) -> Tensor:
+def jacobian(y: torch.Tensor, x: Tensor) -> Tensor:
     """Explicitly compute the full Jacobian matrix.
     N.B. This is only recommended for small input sizes (e.g. <100x100 image)
 

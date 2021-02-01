@@ -312,7 +312,7 @@ class Eigendistortion:
 
         Returns
         -------
-        lmbda: float
+        lmbda: Tensor
             Eigenvalue corresponding to final vector of power iteration.
         v: Tensor
             Final eigenvector (i.e. eigendistortion) of power iteration procedure.
@@ -335,10 +335,10 @@ class Eigendistortion:
         d_lambda = torch.tensor(float('inf'))
         lmbda_new, v_new = None, None
         pbar = tqdm(range(max_steps), desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists")
-        postfix_dict = {'step': None, 'delta_eigenval': None}
+        postfix_dict = {'delta_eigenval': None}
 
         for i in pbar:
-            postfix_dict.update(dict(step=f"{i+1:d}/{max_steps:d}", delta_eigenval=f"{d_lambda.item():.4E}"))
+            postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.4E}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:

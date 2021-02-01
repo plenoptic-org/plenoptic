@@ -170,7 +170,7 @@ class TestAutodiffFunctions:
 
         jac = autodiff.jacobian(y, x)
         assert jac.shape == (y_dim, x_dim)
-        assert jac.requires_grad == False
+        assert jac.requires_grad is False
 
     @pytest.mark.parametrize('detach', [False, True])
     def test_vec_jac_prod(self, detach):
@@ -191,7 +191,7 @@ class TestAutodiffFunctions:
         jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
         assert x.requires_grad and y.requires_grad
-        assert jvp.requires_grad == False
+        assert jvp.requires_grad is False
 
     def test_fisher_vec_prod(self):
         x, y, x_dim, y_dim, k = self._state()
@@ -238,10 +238,3 @@ class TestAutodiffFunctions:
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
 
-
-if __name__ == '__main__':
-    tmp = TestEigendistortionSynthesis()
-    tmp.test_method_equivalence()
-    ed = get_synthesis_object(20, True)
-    ed.synthesize('power', max_steps=3)
-    print(ed.synthesized_signal.shape)

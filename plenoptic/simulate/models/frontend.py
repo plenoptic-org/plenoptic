@@ -47,37 +47,47 @@ class FrontEnd(nn.Module):
         parasol on   fine time coarse space
         parasol off
     """
-    def __init__(self, disk_mask=False, requires_grad=False, dtype=torch.float32):
+    def __init__(self, disk_mask=False, pretrained=False, requires_grad=True, dtype=torch.float32):
         super().__init__()
-        filts = np.load(dirname + '/front_end_filters.npy')
-        scals = np.load(dirname + '/front_end_scalars.npy')
 
+        # convolutional weights
         self.linear = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
-        self.linear.weight = nn.Parameter(torch.tensor((filts[0], filts[3]), dtype=dtype).unsqueeze(1))
-
         self.luminance = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=31, bias=False)
-        self.luminance.weight.data = torch.tensor((filts[1], filts[4]), dtype=dtype).unsqueeze(1)
-
         self.contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False)
-        self.contrast.weight.data = torch.tensor((filts[2], filts[5]), dtype=dtype).unsqueeze(1)
 
-        # contrast and luminance scaling
-        self.luminance_scale = nn.Parameter(torch.rand((1,2,1,1), dtype=dtype))
-        self.luminance_scale.data = torch.tensor((scals[0], scals[2]), dtype=dtype).view((1,2,1,1))
-
+        # contrast and luminance normalization scaling
+        self.luminance_scale = nn.Parameter(torch.rand((1, 2, 1, 1), dtype=dtype))
         self.contrast_scale = nn.Parameter(torch.rand((1, 2, 1, 1), dtype=dtype))
-        self.contrast_scale.data = torch.tensor((scals[1], scals[3]), dtype=dtype).view((1, 2, 1, 1))
-        # self.contrast_scale = nn.Parameter(torch.tensor((scals[1], scals[3]))).view((1, 2, 1, 1))
 
         # pad all transforms for convolution
-        pad = nn.ReflectionPad2d(filts.shape[-1]//2)
+        pad = nn.ReflectionPad2d(self.linear.weight.shape[-1]//2)
         self.linear_pad = transforms.Compose([pad, self.linear])
         self.luminance_pad = transforms.Compose([pad, self.luminance])
         self.contrast_pad = transforms.Compose([pad, self.contrast])
         self.softplus = nn.Softplus()
 
         self.disk_mask = disk_mask
-        self.disk = None
+        self._disk = None  # cached disk to apply to image
+
+        if pretrained:
+            self._load_pretrained(dtype)
+
+        if not requires_grad:  # turn off gradient
+            [p.requires_grad_(False) for p in self.parameters()]
+
+    def _load_pretrained(self, dtype):
+        """Load FrontEnd model weights used from Berardino et al (2017)"""
+        filts = np.load(dirname + '/front_end_filters.npy')
+        scals = np.load(dirname + '/front_end_scalars.npy')
+
+        # conv kernels
+        self.linear.weight.data = torch.tensor((filts[0], filts[3]), dtype=dtype).unsqueeze(1)
+        self.luminance.weight.data = torch.tensor((filts[1], filts[4]), dtype=dtype).unsqueeze(1)
+        self.contrast.weight.data = torch.tensor((filts[2], filts[5]), dtype=dtype).unsqueeze(1)
+
+        # normalization scale factors
+        self.luminance_scale.data = torch.tensor((scals[0], scals[2]), dtype=dtype).view((1, 2, 1, 1))
+        self.contrast_scale.data = torch.tensor((scals[1], scals[3]), dtype=dtype).view((1, 2, 1, 1))
 
     def luminance_normalization(self, x):
         s = self.luminance_scale
@@ -92,8 +102,13 @@ class FrontEnd(nn.Module):
         x = self.contrast_normalization(x)
         x = self.softplus(x)
 
-        if self.disk_mask:
-            self.disk = make_disk(x.shape[-1]).to(x.device)
-            x = self.disk * x
+        if self._disk is not None and self._disk.shape == x.shape[-2:]:  # uses cached disk_mask if size matches
+            x = self._disk * x
+
+        elif ((self._disk is not None and self._disk.shape != x.shape[-2:])  # create new disk if disk size mismatch
+                or (self._disk is None and self.disk_mask)):  # or if disk does not yet exist
+
+            self._disk = make_disk(x.shape[-1]).to(x.device)
+            x = self._disk * x
 
         return x
