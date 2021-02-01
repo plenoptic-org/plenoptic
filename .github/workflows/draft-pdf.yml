@@ -1,3 +1,4 @@
+name: joss
 on:
   push:
     branches: 
