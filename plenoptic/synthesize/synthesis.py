@@ -222,7 +222,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.scales_finished = []
                 self.scales_loss = []
             # else, we're continuing a previous version and want to continue
-        if loss_thresh >= loss_change_thresh:
+        if (loss_change_thresh is not None) and (loss_thresh >= loss_change_thresh):
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
 
@@ -425,11 +425,11 @@ class Synthesis(metaclass=abc.ABCMeta):
             the current iteration (0-indexed)
 
         """
-        if len(self.loss) > self.loss_change_iter:
-            if abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
+        if len(self.loss) >= self.loss_change_iter:
+            if self.loss_thresh is None or abs(self.loss[-self.loss_change_iter] - self.loss[-1]) < self.loss_thresh:
                 if self.coarse_to_fine:
                     # only break out if we've been doing for long enough
-                    if self.scales[0] == 'all' and i - self.scales_timing['all'][0] > self.loss_change_iter:
+                    if self.scales[0] == 'all' and i - self.scales_timing['all'][0] >= self.loss_change_iter:
                         return True
                 else:
                     return True
@@ -877,8 +877,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             # here we get a boolean mask (bunch of ones and zeroes) for all
             # the statistics we want to include. We only do this if the loss
             # appears to be roughly unchanging for some number of iterations
-            if (len(self.loss) > self.loss_change_iter and
-                self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
+            if (len(self.loss) >= self.loss_change_iter and
+                (self.loss_change_iter is None or self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh)):
                 error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
                 error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
             # else, we use all of the statistics
@@ -932,9 +932,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             # the last scale will be 'all', and we never remove
             # it. Otherwise, check to see if it looks like loss has
             # stopped declining and, if so, switch to the next scale
-            if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
-                abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
-                len(self.loss) - self.scales_timing[self.scales[0]][0] > self.loss_change_iter):
+            if (len(self.scales) > 1 and len(self.scales_loss) >= self.loss_change_iter and
+                ((self.loss_change_thresh is None) or abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh) and
+                len(self.loss) - self.scales_timing[self.scales[0]][0] >= self.loss_change_iter):
                 self.scales_timing[self.scales[0]].append(len(self.loss)-1)
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
