@@ -76,7 +76,7 @@ class Portilla_Simoncelli(nn.Module):
             order=self.n_orientations-1, is_complex=True,tight_frame=False)
 
         self.use_true_correlations = use_true_correlations
-        self.scales = ['residual_lowpass']+[ii for ii in range(n_scales-1,-1,-1)]+['residual_highpass','pixel_statistics']
+        self.scales = ['pixel_statistics','residual_lowpass']+[ii for ii in range(n_scales-1,-1,-1)]+['residual_highpass']
         self.representation_scales = self._get_representation_scales()
 
 
@@ -693,17 +693,18 @@ class Portilla_Simoncelli(nn.Module):
             var=X.var()
         return torch.mean(torch.abs(X-mu).pow(4))/(var.pow(2))
     
-    def plot_representation(self,data = None, ax = None, figsize=(15, 15), ylim=None, batch_idx=0, title=None):
-
-        n_sub = self.n_scales+1
-        n_rows = 3*n_sub
+    def plot_representation(self, data = None, ax = None, figsize=(15, 15), ylim=None, batch_idx=0, title=None):
+        n_rows = 3
         n_cols = 3
 
         if data is None:
             rep = self.representation
         else:
             rep = self.convert_to_dict(data)
+
         data = self._representation_for_plotting(rep)
+
+
 
         # Set up grid spec
         if ax is None:
@@ -718,41 +719,96 @@ class Portilla_Simoncelli(nn.Module):
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
             fig = ax.figure
-        
 
         # plot data
         axes = []
 
-        # for ii in range(0,n_rows,n_sub):
-        #     for jj in range(0,n_cols,n_sub):
-        #         ax = fig.add_subplot(gs[ii:ii+n_sub,jj:jj+n_sub])
-        #         ax = clean_stem_plot([0,1,2],ax,'',False)
-        #         axes.append(ax)
-
         for i, (k, v) in enumerate(data.items()):
+            
+            ax = fig.add_subplot(gs[i//3,i%3])
 
             if isinstance(v,OrderedDict):
-                ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
                 ax = clean_stem_plot(list(v.values()),ax,k,False)
-                axes.append(ax)
- 
 
 
             elif v.squeeze().dim() >=3:
+                vals={}
                 for ss in range(0,v.shape[2]):
-                    ax = fig.add_subplot(gs[(i//3)*n_sub+ss,i%3])
-                    ax = clean_stem_plot(v[:,:,ss,...].flatten().detach().numpy(),ax,'',False)
-                    if ss==0:
-                        ax.set_title(k)
-                    axes.append(ax)
-
-
+                    tmp = torch.norm(v[:,:,ss,...],p=2,dim=[0,1])
+                    if len(tmp.shape)==0:
+                        tmp = tmp.unsqueeze(0)
+                    vals[ss] = tmp.detach().numpy()
+                ax = clean_stem_plot(np.concatenate(list(vals.values()),0),ax,'',False)
             else:
-                ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
+
+
                 ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,False)
-                axes.append(ax)
+            
+            axes.append(ax)
 
         return fig, axes
+
+
+    # def plot_representation(self,data = None, ax = None, figsize=(15, 15), ylim=None, batch_idx=0, title=None):
+
+    #     n_sub = self.n_scales+1
+    #     n_rows = 3*n_sub
+    #     n_cols = 3
+
+    #     if data is None:
+    #         rep = self.representation
+    #     else:
+    #         rep = self.convert_to_dict(data)
+    #     data = self._representation_for_plotting(rep)
+
+    #     # Set up grid spec
+    #     if ax is None:
+    #         # we add 2 to order because we're adding one to get the
+    #         # number of orientations and then another one to add an
+    #         # extra column for the mean luminance plot
+    #         fig = plt.figure(figsize=figsize)
+    #         gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
+    #     else:
+    #         # warnings.warn("ax is not None, so we're ignoring figsize...")
+    #         # want to make sure the axis we're taking over is basically invisible.
+    #         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+    #         gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
+    #         fig = ax.figure
+        
+
+    #     # plot data
+    #     axes = []
+
+    #     # for ii in range(0,n_rows,n_sub):
+    #     #     for jj in range(0,n_cols,n_sub):
+    #     #         ax = fig.add_subplot(gs[ii:ii+n_sub,jj:jj+n_sub])
+    #     #         ax = clean_stem_plot([0,1,2],ax,'',False)
+    #     #         axes.append(ax)
+
+    #     for i, (k, v) in enumerate(data.items()):
+
+    #         if isinstance(v,OrderedDict):
+    #             ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
+    #             ax = clean_stem_plot(list(v.values()),ax,k,False)
+    #             axes.append(ax)
+ 
+
+
+    #         elif v.squeeze().dim() >=3:
+    #             for ss in range(0,v.shape[2]):
+    #                 ax = fig.add_subplot(gs[(i//3)*n_sub+ss,i%3])
+    #                 ax = clean_stem_plot(v[:,:,ss,...].flatten().detach().numpy(),ax,'',False)
+    #                 if ss==0:
+    #                     ax.set_title(k)
+    #                 axes.append(ax)
+
+
+    #         else:
+    #             ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
+    #             ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,False)
+    #             axes.append(ax)
+
+    #     return fig, axes
 
     def _representation_for_plotting(self,rep,batch_idx=0):
         data = OrderedDict()
