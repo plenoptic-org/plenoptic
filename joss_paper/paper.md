@@ -31,7 +31,7 @@ affiliations:
  - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
    index: 2
 date: April 2021
-bibliography: paper.bib
+bibliography: references.bib
 ---
 
 # Summary
@@ -46,9 +46,13 @@ Here, we have reimplemented the methods central to each of these studies, and un
 Our library includes several Jupyter notebook tutorials designed to be accessible to researchers in the fields of machine learning, and computational neuroscience, and perceptual science.
 ``Plenoptic`` provides an exciting avenue for researchers to probe their models to gain a deeper understanding of their internal representations.
 
+# Statement of Need
+
+# Overview
+
 # Acknowledgements
 
-KB, WB, LRD, PEF, and NP each contributed equally to this work.
+KB, WB, LRD, PEF, and NP each contributed equally to this work; and names are listed alphabetically.
 EPS was funded by the Howard Hughes Medical Institute. EPS and KB were funded by Simons Institute.
 
 For a quick reference, the following citation commands can be used:
