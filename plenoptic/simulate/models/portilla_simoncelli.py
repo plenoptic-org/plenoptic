@@ -749,67 +749,6 @@ class Portilla_Simoncelli(nn.Module):
         return fig, axes
 
 
-    # def plot_representation(self,data = None, ax = None, figsize=(15, 15), ylim=None, batch_idx=0, title=None):
-
-    #     n_sub = self.n_scales+1
-    #     n_rows = 3*n_sub
-    #     n_cols = 3
-
-    #     if data is None:
-    #         rep = self.representation
-    #     else:
-    #         rep = self.convert_to_dict(data)
-    #     data = self._representation_for_plotting(rep)
-
-    #     # Set up grid spec
-    #     if ax is None:
-    #         # we add 2 to order because we're adding one to get the
-    #         # number of orientations and then another one to add an
-    #         # extra column for the mean luminance plot
-    #         fig = plt.figure(figsize=figsize)
-    #         gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
-    #     else:
-    #         # warnings.warn("ax is not None, so we're ignoring figsize...")
-    #         # want to make sure the axis we're taking over is basically invisible.
-    #         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
-    #         gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
-    #         fig = ax.figure
-        
-
-    #     # plot data
-    #     axes = []
-
-    #     # for ii in range(0,n_rows,n_sub):
-    #     #     for jj in range(0,n_cols,n_sub):
-    #     #         ax = fig.add_subplot(gs[ii:ii+n_sub,jj:jj+n_sub])
-    #     #         ax = clean_stem_plot([0,1,2],ax,'',False)
-    #     #         axes.append(ax)
-
-    #     for i, (k, v) in enumerate(data.items()):
-
-    #         if isinstance(v,OrderedDict):
-    #             ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
-    #             ax = clean_stem_plot(list(v.values()),ax,k,False)
-    #             axes.append(ax)
- 
-
-
-    #         elif v.squeeze().dim() >=3:
-    #             for ss in range(0,v.shape[2]):
-    #                 ax = fig.add_subplot(gs[(i//3)*n_sub+ss,i%3])
-    #                 ax = clean_stem_plot(v[:,:,ss,...].flatten().detach().numpy(),ax,'',False)
-    #                 if ss==0:
-    #                     ax.set_title(k)
-    #                 axes.append(ax)
-
-
-    #         else:
-    #             ax = fig.add_subplot(gs[(i//3)*n_sub:(i//3+1)*n_sub - 1,i%3])
-    #             ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,False)
-    #             axes.append(ax)
-
-    #     return fig, axes
-
     def _representation_for_plotting(self,rep,batch_idx=0):
         data = OrderedDict()
         data['pixels+var_highpass'] = rep['pixel_statistics']
