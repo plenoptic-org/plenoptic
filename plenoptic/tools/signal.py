@@ -195,7 +195,7 @@ def rescale(x, a=0, b=1):
 
 
 def roll_n(X, axis, n):
-    r"""DEPRECATED
+    r"""
     Performs circular shift by ``n`` indices along given axis.
     Helper for ``fftshift``.
 
@@ -211,6 +211,7 @@ def roll_n(X, axis, n):
     -------
     rolled: torch.Tensor
 
+    TODO: DEPRECATED use torch.fft.fftshift
     """
     f_idx = tuple(slice(None, None, None) if i !=
                   axis else slice(0, n, None) for i in range(X.dim()))
@@ -223,10 +224,12 @@ def roll_n(X, axis, n):
 
 
 def batch_fftshift(x):
-    r"""DEPRECATED
+    r"""
     Shift the zero-frequency component to the center of the spectrum.
     The input x is expected to have real and imaginary parts along the
     last dimension.
+
+    TODO: DEPRECATED use torch.fft.fftshift
     """
     real, imag = torch.unbind(x, -1)
     for dim in range(1, len(real.size())):
@@ -243,10 +246,12 @@ def batch_fftshift(x):
 
 
 def batch_ifftshift(x):
-    r"""DEPRECATED
+    r"""
     The inverse of ``batch_fftshift``.
     The input x is expected to have real and imaginary parts along the last
     dimension.
+    
+    TODO: DEPRECATED use torch.fft.fftshift
     """
     real, imag = torch.unbind(x, -1)
     for dim in range(len(real.size()) - 1, 0, -1):
@@ -276,6 +281,7 @@ def fftshift(x, dims=None):
     x: torch.Tensor
         shifted spectrum
 
+    TODO: DEPRECATED use torch.fft.fftshift
     """
     if dims is None:
         dims = tuple(range(1, x.ndim))
@@ -315,6 +321,7 @@ def autocorr(x, n_shifts=7):
 
     TODO
     ----
+    use torch.fft.rfftn
     signal_ndim argument
     ESD PSD
     periodogram
@@ -336,7 +343,7 @@ def autocorr(x, n_shifts=7):
     return autocorr
 
 
-def rcosFn(width=1, position=0, values=(0, 1)):
+def raised_cosine(width=1, position=0, values=(0, 1)):
     """Return a lookup table containing a "raised cosine" soft threshold
     function
 
@@ -344,7 +351,7 @@ def rcosFn(width=1, position=0, values=(0, 1)):
         + (VALUES(2)-VALUES(1))
         * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
 
-    this lookup table is suitable for use by `pointOp`
+    this lookup table is suitable for use by `interpolate1d`
 
     Parameters
     ---------
@@ -358,51 +365,55 @@ def rcosFn(width=1, position=0, values=(0, 1)):
     Returns
     -------
     X : `np.ndarray`
-        the x valuesof this raised cosine
+        the x values of this raised cosine
     Y : `np.ndarray`
-        the y valuesof this raised cosine
+        the y values of this raised cosine
     """
 
     sz = 256   # arbitrary!
 
     X = np.pi * np.arange(-sz-1, 2) / (2*sz)
 
-    Y = values[0] + (values[1]-values[0]) * np.cos(X)**2
+    Y = values[0] + (values[1]-values[0]) * np.cos(X) ** 2
 
     # make sure end values are repeated, for extrapolation...
     Y[0] = Y[1]
     Y[sz+2] = Y[sz+1]
 
-    X = position + (2*width/np.pi) * (X + np.pi/4)
+    X = position + (2*width/np.pi) * (X + np.pi / 4)
 
     return X, Y
 
 
-def pointOp(im, Y, X):
+def interpolate1d(x_new, Y, X):
     r""" One-dimensional linear interpolation.
 
-    Wrapper function to ``np.interp()`` Returns piecewise linear
-    interpolant to function with given discrete datapoints (X, Y),
-    evaluated at image.
+    Returns the one-dimensional piecewise linear interpolant to a
+    function with given discrete data points (X, Y), evaluated at x_new.
+
+    Note: this function is just a wrapper around ``np.interp()``.
 
     Parameters
     ----------
-    im: torch.Tensor
+    x_new: torch.Tensor
+        The x-coordinates at which to evaluate the interpolated values.
     Y: array_like
+        The y-coordinates of the data points.
     X: array_like
+        The x-coordinates of the data points, same length as X.
 
     Returns
     -------
-    Interpolated image
+    Interpolated values of shape identical to `x_new`.
 
     TODO
     ----
     rename and reorder arguments, refactor corresponding use in SteerablePyr
     """
 
-    out = np.interp(x=im.flatten(), xp=X, fp=Y)
+    out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
 
-    return np.reshape(out, im.shape)
+    return np.reshape(out, x_new.shape)
 
 
 def rectangular_to_polar(real, imaginary):
