@@ -263,6 +263,11 @@ class TestPooledVentralStream(object):
         frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
         frontend(im)
 
+    def test_frontend_display_filters(self):
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
+        frontend.display_filters()
+        plt.close('all')
+
     def test_frontend_plot(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)

@@ -1,12 +1,9 @@
 import torch
 import torch.nn as nn
 from torchvision import transforms
-
-import numpy as np
 from ...tools.signal import make_disk
-
 import os
-dirname = os.path.dirname(__file__)
+import plenoptic as po
 
 
 class FrontEnd(nn.Module):
@@ -16,7 +13,6 @@ class FrontEnd(nn.Module):
     ----------
     disk_mask: boolean, optional
         crop the result to a disk at the center of the image
-
     x: torch.Tensor
         greyscale image (B, 1, H, W), requires H and W to be equal and greater than 31
 
@@ -34,9 +30,7 @@ class FrontEnd(nn.Module):
 
     TODO
     -----
-    rerange input in [0,1]
-    make 12 parameters explicitely learnable
-    adapt to image size
+    Parameterize Conv2D as Difference of Gaussians -- the model should have 13 params total
     videos
         optional argument for video
         (B, 1, T, X, Y)
@@ -47,7 +41,18 @@ class FrontEnd(nn.Module):
         parasol on   fine time coarse space
         parasol off
     """
-    def __init__(self, disk_mask=False, pretrained=False, requires_grad=True, dtype=torch.float32):
+
+    def __init__(self, disk_mask=False, pretrained=False, requires_grad=True):
+        """
+        Parameters
+        ----------
+        disk_mask: bool
+            Apply circular Gaussian mask to center of image. The mask itself is square.
+        pretrained: bool
+            Load weights from Berardino et al. 2017. These are 31x31 convolutional filters.
+        requires_grad: bool
+            Whether or not model is trainable.
+        """
         super().__init__()
 
         # convolutional weights
@@ -56,8 +61,8 @@ class FrontEnd(nn.Module):
         self.contrast = nn.Conv2d(in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False)
 
         # contrast and luminance normalization scaling
-        self.luminance_scale = nn.Parameter(torch.rand((1, 2, 1, 1), dtype=dtype))
-        self.contrast_scale = nn.Parameter(torch.rand((1, 2, 1, 1), dtype=dtype))
+        self.luminance_scalars = nn.Parameter(torch.rand((1, 2, 1, 1)))
+        self.contrast_scalars = nn.Parameter(torch.rand((1, 2, 1, 1)))
 
         # pad all transforms for convolution
         pad = nn.ReflectionPad2d(self.linear.weight.shape[-1]//2)
@@ -70,36 +75,27 @@ class FrontEnd(nn.Module):
         self._disk = None  # cached disk to apply to image
 
         if pretrained:
-            self._load_pretrained(dtype)
+            self._load_pretrained()
 
         if not requires_grad:  # turn off gradient
             [p.requires_grad_(False) for p in self.parameters()]
 
-    def _load_pretrained(self, dtype):
+    def _load_pretrained(self):
         """Load FrontEnd model weights used from Berardino et al (2017)"""
-        filts = np.load(dirname + '/front_end_filters.npy')
-        scals = np.load(dirname + '/front_end_scalars.npy')
+        state_dict = torch.load(os.path.join(os.path.dirname(__file__), 'weights/FrontEnd.pt'))
+        self.load_state_dict(state_dict)
 
-        # conv kernels
-        self.linear.weight.data = torch.tensor((filts[0], filts[3]), dtype=dtype).unsqueeze(1)
-        self.luminance.weight.data = torch.tensor((filts[1], filts[4]), dtype=dtype).unsqueeze(1)
-        self.contrast.weight.data = torch.tensor((filts[2], filts[5]), dtype=dtype).unsqueeze(1)
-
-        # normalization scale factors
-        self.luminance_scale.data = torch.tensor((scals[0], scals[2]), dtype=dtype).view((1, 2, 1, 1))
-        self.contrast_scale.data = torch.tensor((scals[1], scals[3]), dtype=dtype).view((1, 2, 1, 1))
-
-    def luminance_normalization(self, x):
-        s = self.luminance_scale
+    def _luminance_normalization(self, x):
+        s = self.luminance_scalars
         return torch.div(self.linear_pad(x), (1 + s * self.luminance_pad(x)))
 
-    def contrast_normalization(self, x):
-        s = self.contrast_scale
+    def _contrast_normalization(self, x):
+        s = self.contrast_scalars
         return torch.div(x, 1 + s * torch.sqrt(1e-10 + self.contrast_pad(x**2)))
 
     def forward(self, x):
-        x = self.luminance_normalization(x)
-        x = self.contrast_normalization(x)
+        x = self._luminance_normalization(x)
+        x = self._contrast_normalization(x)
         x = self.softplus(x)
 
         if self._disk is not None and self._disk.shape == x.shape[-2:]:  # uses cached disk_mask if size matches
@@ -112,3 +108,28 @@ class FrontEnd(nn.Module):
             x = self._disk * x
 
         return x
+
+    def display_filters(self, zoom=5., **kwargs):
+        """Displays convolutional filters of FrontEnd model
+        Parameters
+        ----------
+        zoom: float
+            Magnification factor for po.imshow()
+        **kwargs:
+            Keyword args for po.imshow
+        Returns
+        -------
+        fig: PyrFigure
+        """
+
+        weights = torch.cat([self.linear.weight.detach(),
+                             self.luminance.weight.detach(),
+                             self.contrast.weight.detach()], dim=0)
+
+        title = ['linear on', 'linear off',
+                'luminance norm on', 'luminance norm off',
+                'contrast norm on', 'contrast norm off']
+
+        fig = po.imshow(weights, title=title, col_wrap=2, zoom=zoom, **kwargs)
+
+        return fig

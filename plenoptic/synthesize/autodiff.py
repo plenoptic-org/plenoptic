@@ -117,7 +117,6 @@ def jacobian_vector_product(y: Tensor, x: Tensor, V: Tensor, dummy_vec: Tensor =
     Notes
     -----
     [1] https://j-towns.github.io/2017/06/12/A-new-trick.html
-    [2] https://pytorch.org/docs/stable/notes/faq.html ; First part talks about unintended out-of-memory errors.
     """
     assert y.shape[-1] == 1
     assert V.shape[0] == x.shape[0]

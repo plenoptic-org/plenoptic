@@ -6,6 +6,7 @@ import warnings
 from tqdm import tqdm
 import plenoptic as po
 from typing import Tuple, List, Callable, Union
+import matplotlib.pyplot
 from matplotlib.figure import Figure
 
 
@@ -84,13 +85,7 @@ class Eigendistortion:
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
     in humans. It estimates eigenvectors of the FIM. A model, :math:`y = f(x)`, is a deterministic (and differentiable)
     mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output response vector :math:`y\in \mathbb{
-    R}^m`, where we assume additive white
-    Gaussian noise in the response space:
-    .. math::
-        \begin{align}
-        f: \mathbb{R}^n &\rightarrow \mathbb{R}^m\\
-            x &\rightarrow y
-        \end{align}
+    R}^m`, where we assume additive white Gaussian noise in the response space.
     The Jacobian matrix at x is:
         :math:`J(x) = J = dydx`,       :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
     is the matrix of all first-order partial derivatives of the vector-valued function f.
@@ -134,16 +129,16 @@ class Eigendistortion:
     @classmethod
     def load(file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
         # TODO attribute name *****
-        pass
+        raise NotImplementedError
 
     def save(self, file_path, save_model_reduced=False, attrs=['model'], model_attr_names=['model']):
         # TODO
-        pass
+        raise NotImplementedError
 
     def to(self, *args, attrs=[], **kwargs):
         """Send attrs to specified device. See docstring of Synthesis.to()"""
         # TODO
-        pass
+        raise NotImplementedError
 
     def synthesize(self,
                    method: str = 'power',
@@ -180,10 +175,9 @@ class Eigendistortion:
 
         Returns
         -------
-        eigendistortions: Union([Tensor, List])
-            Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. For Lanczos method, it is possible
-            to not return any eigendistortions, in which case an empty list will be returned. This tensor points to
-            the `synthesized_signal` attribute of the object. If not an empty list, then Size((num_distortions,
+        eigendistortions: Tensor
+            Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. This tensor points to
+            the `synthesized_signal` attribute of the object. Tensor has Size((num_distortions,
             num_channels, img_height, img_width)).
         eigenvalues: Tensor
             Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
@@ -337,7 +331,7 @@ class Eigendistortion:
         pbar = tqdm(range(max_steps), desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists")
         postfix_dict = {'delta_eigenval': None}
 
-        for i in pbar:
+        for _ in pbar:
             postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.4E}"))
             pbar.set_postfix(**postfix_dict)
 
@@ -424,6 +418,7 @@ class Eigendistortion:
                              eigen_index: int = 0,
                              alpha: float = 5.,
                              process_image: Callable = None,
+                             ax: matplotlib.pyplot.axis = None,
                              **kwargs) -> Figure:
         r""" Displays specified eigendistortions alone, and added to the image.
 
@@ -439,8 +434,10 @@ class Eigendistortion:
         process_image: Callable
             A function to process the image+alpha*distortion before clamping between 0,1. E.g. multiplying by the
             stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
+        ax: matplotlib.pyplot.axis, optional
+            Axis handle on which to plot.
         kwargs:
-            Additional arguments for :meth:`pt.imshow()`.
+            Additional arguments for :meth:`po.imshow()`.
 
         Returns
         -------
@@ -457,6 +454,6 @@ class Eigendistortion:
 
         img_processed = process_image(image + alpha * dist)
         to_plot = torch.clamp(img_processed, 0, 1)
-        fig = po.imshow(to_plot, **kwargs)
+        fig = po.imshow(to_plot, ax=ax, **kwargs)
 
         return fig
