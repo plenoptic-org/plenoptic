@@ -9,19 +9,19 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
 
     Parameters
     ----------
-    coeff_dict : dictionary
+    coeff_dict : dict
        A dictionary containing complex tensors.
-    dim : int
+    dim : int, optional
        The dimension that contains the real and imaginary components.
-    residuals: boolean, optional
+    residuals: bool, optional
         An option to carry around residuals in the energy branch.
 
     Returns
     -------
-    energy : dictionary
+    energy : dict
         The dictionary of torch.Tensors containing the local complex
         modulus of ``coeff_dict``.
-    state: dictionary
+    state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``coeff_dict``.
 
@@ -62,19 +62,19 @@ def polar_to_rectangular_dict(energy, state, dim=-1, residuals=False):
 
     Parameters
     ----------
-    energy : dictionary
+    energy : dict
         The dictionary of torch.Tensors containing the local complex
         modulus.
-    state: dictionary
+    state : dict
         The dictionary of torch.Tensors containing the local phase.
-    dim : int
+    dim : int, optional
        The dimension that contains the real and imaginary components.
-    residuals: boolean, optional
+    residuals: bool, optional
         An option to carry around residuals in the energy branch.
 
     Returns
     -------
-    coeff_dict : dictionary
+    coeff_dict : dict
        A dictionary containing complex tensors of coefficients.
     """
 
@@ -111,7 +111,7 @@ def rectangular_to_polar_real(x, epsilon=1e-12):
     ----------
     x : torch.Tensor
         Tensor of shape (B,C,H,W)
-    epsilon: float
+    epsilon: float, optional
         Small constant to avoid division by zero.
 
     Returns
@@ -157,7 +157,7 @@ def polar_to_rectangular_real(norm, direction, epsilon=1e-12):
     direction: torch.Tensor
         The local phase of ``x`` (aka. local unit vector, or local
         state)
-    epsilon: float
+    epsilon: float, optional
         Small constant to avoid division by zero.
 
     Returns
@@ -180,17 +180,17 @@ def local_gain_control(coeff_dict, residuals=False):
 
     Parameters
     ----------
-    coeff_dict : dictionary
+    coeff_dict : dict
         A dictionary containing tensors of shape (B,C,H,W)
-    residuals: boolean, optional
+    residuals: bool, optional
         An option to carry around residuals in the energy dict.
 
     Returns
     -------
-    energy : dictionary
+    energy : dict
         The dictionary of torch.Tensors containing the local energy of
         ``x``.
-    state: dictionary
+    state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
 
@@ -228,18 +228,18 @@ def local_gain_release(energy, state, residuals=False):
 
     Parameters
     ----------
-    energy : dictionary
+    energy : dict
         The dictionary of torch.Tensors containing the local energy of
         ``x``.
-    state: dictionary
+    state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
-    residuals: boolean, optional
+    residuals: bool, optional
         An option to carry around residuals in the energy dict.
 
     Returns
     -------
-    coeff_dict : dictionary
+    coeff_dict : dict
         A dictionary containing tensors of shape (B,C,H,W)
 
 
@@ -333,7 +333,7 @@ def normalize_dict(coeff_dict, power=2, sum_dim=-1):
 
     Parameters
     ----------
-    coeff_dict : dictionary
+    coeff_dict : dict
         A dictionary containing tensors
     power : float, optional
         What power to use when computing the norm. The default, 2, means
@@ -343,10 +343,10 @@ def normalize_dict(coeff_dict, power=2, sum_dim=-1):
 
     Returns
     -------
-    energy : dictionary
+    energy : dict
         The dictionary of torch.Tensors containing the energy/norm of
         each entry in ``coeff_dict``.
-    state: dictionary
+    state: dict
         The dictionary of torch.Tensors containing the phase/magnitude of
         each entry in ``coeff_dict``.
 

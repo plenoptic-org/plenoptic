@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 from scipy.special import factorial
 
-from ...tools.signal import (batch_fftshift, batch_ifftshift, pointOp, rcosFn,
-                             steer)
+from ...tools.signal import (batch_fftshift, batch_ifftshift, interpolate1d,
+                             raised_cosine, steer)
 
 
 class Steerable_Pyramid_Freq(nn.Module):
@@ -144,14 +144,14 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.log_rad = np.log2(log_rad)
 
         # radial transition function (a raised cosine in log-frequency):
-        self.Xrcos, Yrcos = rcosFn(twidth, (-twidth/2.0), np.array([0, 1]))
+        self.Xrcos, Yrcos = raised_cosine(twidth, (-twidth/2.0), np.array([0, 1]))
         self.Yrcos = np.sqrt(Yrcos)
 
         self.YIrcos = np.sqrt(1.0 - self.Yrcos**2)
 
         # create low and high masks
-        lo0mask = pointOp(self.log_rad, self.YIrcos, self.Xrcos)
-        hi0mask = pointOp(self.log_rad, self.Yrcos, self.Xrcos)
+        lo0mask = interpolate1d(self.log_rad, self.YIrcos, self.Xrcos)
+        hi0mask = interpolate1d(self.log_rad, self.Yrcos, self.Xrcos)
         self.lo0mask = torch.tensor(lo0mask).unsqueeze(0).unsqueeze(-1)
         self.hi0mask = torch.tensor(hi0mask).unsqueeze(0).unsqueeze(-1)
 
@@ -194,16 +194,16 @@ class Steerable_Pyramid_Freq(nn.Module):
                     const) * (np.cos(self.Xcosn))**self.order
                 Ycosn_recon = Ycosn_forward
 
-            himask = pointOp(log_rad, self.Yrcos, Xrcos)
+            himask = interpolate1d(log_rad, self.Yrcos, Xrcos)
             self._himasks.append(torch.tensor(
                 himask).unsqueeze(0).unsqueeze(-1))
 
             anglemasks = []
             anglemasks_recon = []
             for b in range(self.num_orientations):
-                anglemask = pointOp(angle, Ycosn_forward,
+                anglemask = interpolate1d(angle, Ycosn_forward,
                                     self.Xcosn + np.pi*b/self.num_orientations)
-                anglemask_recon = pointOp(
+                anglemask_recon = interpolate1d(
                     angle, Ycosn_recon, self.Xcosn + np.pi*b/self.num_orientations)
                 anglemasks.append(torch.tensor(
                     anglemask).unsqueeze(0).unsqueeze(-1))
@@ -213,7 +213,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             self._anglemasks.append(anglemasks)
             self._anglemasks_recon.append(anglemasks_recon)
             if not self.downsample:
-                lomask = pointOp(log_rad, self.YIrcos, Xrcos)
+                lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
                 self._lomasks.append(torch.tensor(
                     lomask).unsqueeze(0).unsqueeze(-1))
                 self._loindices.append([np.array([0, 0]), dims])
@@ -233,7 +233,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                 log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
                 angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
-                lomask = pointOp(log_rad, self.YIrcos, Xrcos)
+                lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
                 self._lomasks.append(torch.tensor(
                     lomask).unsqueeze(0).unsqueeze(-1))
                 # subsampling

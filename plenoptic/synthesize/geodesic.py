@@ -9,7 +9,7 @@ from tqdm import tqdm
 from matplotlib.animation import FuncAnimation
 
 from ..tools.data import to_numpy
-from ..tools.fit import penalize_range
+from ..tools.optim import penalize_range
 from ..tools.straightness import (distance_from_line, make_straight_line,
                                   sample_brownian_bridge)
 
@@ -191,7 +191,7 @@ class Geodesic(nn.Module):
         learning_rate: float, optional
             controls the step sizes of the search algorithm
 
-        optimizer: str or torch.optim.Optimizer, optional
+        optimizer: str ('adam' or 'sgd') or torch.optim.Optimizer, optional
             algorithm that will perform the search
 
         lmbda: float, optional

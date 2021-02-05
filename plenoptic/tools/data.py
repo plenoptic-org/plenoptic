@@ -20,6 +20,9 @@ def to_numpy(x, squeeze=False):
     ----------------
     x: `torch.Tensor`
        Tensor to be converted to `numpy.ndarray` on CPU.
+
+    squeeze: bool, optional
+        removes all dummy dimensions of the tensor
     """
 
     try:
