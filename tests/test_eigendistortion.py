@@ -158,10 +158,10 @@ class TestEigendistortionSynthesis:
         assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
 
         fig_max = e_pow.plot_loss(0)
-        fig_max.show()
+        # fig_max.show()
 
         fig_min = e_pow.plot_loss(-1)
-        fig_min.show()
+        # fig_min.show()
 
     @pytest.mark.parametrize("color", [False, True])
     def test_display(self, color):
