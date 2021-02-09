@@ -5,7 +5,7 @@ import torch.nn as nn
 class Linear_Nonlinear(nn.Module):
     """Canonical functional model of early visual processing.
 
-    The idea of "Threshold Logic Unit" goes at least as far back as: 
+    The idea of "Threshold Logic Unit" goes at least as far back as:
     McCulloch, W.S. and Pitts, W., 1943. A logical calculus of the ideas
     immanent in nervous activity. The bulletin of mathematical biophysics
 
@@ -36,6 +36,7 @@ class Linear_Nonlinear(nn.Module):
                               bias=False)
 
         if default_filters and n_channels >= 3:
+            # Gaussian (low pass) filter
             variance = 3
             xs = torch.linspace(-2, 2, kernel_size[0])
 
@@ -43,6 +44,7 @@ class Linear_Nonlinear(nn.Module):
             f1 = torch.outer(g1, g1)
             f1 = f1 / f1.sum()
 
+            # difference of Gaussian (high pass) filter
             g2 = torch.exp(-xs**2 / (variance / 3))
             f2 = torch.outer(g2, g2)
             f2 = f2 / f2.sum() - f1
@@ -51,9 +53,9 @@ class Linear_Nonlinear(nn.Module):
             f1 = torch.tensor(f1, dtype=torch.float32)
             f2 = torch.tensor(f2, dtype=torch.float32)
 
-            self.conv.weight.data[0, 0] = nn.Parameter(f1)
-            self.conv.weight.data[1, 0] = nn.Parameter(f2)
-            self.conv.weight.data[2, 0] = nn.Parameter(-f2)
+            self.conv.weight.data[0, 0] = f1
+            self.conv.weight.data[1, 0] = f2
+            self.conv.weight.data[2, 0] = -f2
 
         self.relu = nn.ReLU()
 

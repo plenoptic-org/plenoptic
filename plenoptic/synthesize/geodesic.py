@@ -17,6 +17,9 @@ from ..tools.straightness import (distance_from_line, make_straight_line,
 class Geodesic(nn.Module):
     r'''Synthesize a geodesic between two images according to a model [1]_.
 
+    This method can be used to visualize and refine the invariances of a
+    model's representation.
+
     Parameters
     ----------
     imgA (resp. imgB): 'torch.FloatTensor'
@@ -43,7 +46,7 @@ class Geodesic(nn.Module):
         straight interpolation between the two anchor points for reference
 
     reference_length:
-        step length of representation strainght line. It is the shortest
+        step length of representation straight line. It is the shortest
         distance that could possibly be achieved and is used as a floor
         relative to which loss is calculated.
 
@@ -54,11 +57,6 @@ class Geodesic(nn.Module):
     dist_from_line:
         l2 distance of the geodesic's representation to the straight line in
         representation space, stored along the optimization process
-
-    Notes
-    -----
-    Method for visualizing and refining the invariances of a model's
-    representations
 
     References
     ----------
@@ -145,6 +143,8 @@ class Geodesic(nn.Module):
         return total_energy
 
     def _optimizer_step(self, i, pbar):
+        """TODO summary
+        """
 
         self.optimizer.zero_grad()
         y = self.analyze()

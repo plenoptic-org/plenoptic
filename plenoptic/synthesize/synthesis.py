@@ -1016,10 +1016,10 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         pixel_change = torch.max(torch.abs(self.synthesized_signal - self._last_iter_synthesized_signal))
         # for display purposes, always want loss to be positive
-        postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
-                                 gradient_norm="%.4e" % grad_norm.item(),
-                                 learning_rate=self._optimizer.param_groups[0]['lr'], 
-                                 pixel_change=f"{pixel_change:.04e}", 
+        postfix_dict.update(dict(loss=f"{abs(loss.item()):.04e}",
+                                 gradient_norm=f"{grad_norm.item():.04e}",
+                                 learning_rate=self._optimizer.param_groups[0]['lr'],
+                                 pixel_change=f"{pixel_change:.04e}",
                                  **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:

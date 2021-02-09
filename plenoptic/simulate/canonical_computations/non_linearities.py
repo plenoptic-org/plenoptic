@@ -93,7 +93,7 @@ def polar_to_rectangular_dict(energy, state, dim=-1, residuals=False):
     return coeff_dict
 
 
-def rectangular_to_polar_real(x, epsilon=1e-12):
+def rectangular_to_polar_real(x, epsilon=1e-8):
     """This function is an analogue to rectangular_to_polar for
     real valued signals.
 
@@ -135,7 +135,7 @@ def rectangular_to_polar_real(x, epsilon=1e-12):
     return norm, direction
 
 
-def polar_to_rectangular_real(norm, direction, epsilon=1e-12):
+def polar_to_rectangular_real(norm, direction, epsilon=1e-8):
     """This function is an analogue to polar_to_rectangular for
     real valued signals.
 

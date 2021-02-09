@@ -231,10 +231,6 @@ def make_basic_stimuli(size=256, requires_grad=True):
     image = image.astype(float)[:, :, 0]
     image = blurDn(image, n_lev, 'qmf9')
 
-    # image = plt.imread('/Users/pe/Pictures/umbrella.jpg').astype(float)
-    # image = image[500:500+2**11,1000:1000+2**11,0]
-    # image = pt.blurDn(image, 4, 'qmf9')
-
     stim = [impulse, step_edge, ramp, bar, curv_edge,
             sine_grating, square_grating, polar_angle, angular_sine,
             zone_plate, fract, checkerboard, sawtooth, reptil_skin,
