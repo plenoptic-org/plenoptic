@@ -182,13 +182,13 @@ class Eigendistortion:
         eigenvalues: Tensor
             Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
             `synthesized_eigenvalue` attribute of the object.
-        eigen_index: Listlike
+        eigen_index: Tensor
             Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
 
-        seed = np.random.randint(0, 2**32-1) if seed is None else seed
-        torch.manual_seed(seed)
+        if isinstance(seed, int):
+            torch.manual_seed(seed)
 
         assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'randomized_svd'}"
 
@@ -419,6 +419,7 @@ class Eigendistortion:
                              alpha: float = 5.,
                              process_image: Callable = None,
                              ax: matplotlib.pyplot.axis = None,
+                             plot_complex: str = 'rectangular',
                              **kwargs) -> Figure:
         r""" Displays specified eigendistortions alone, and added to the image.
 
@@ -428,7 +429,8 @@ class Eigendistortion:
         Parameters
         ----------
         eigen_index: int
-
+            Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will index the first one, and
+            -1 or 9 will index the last one.
         alpha: float, optional
             Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
         process_image: Callable
@@ -436,6 +438,9 @@ class Eigendistortion:
             stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
         ax: matplotlib.pyplot.axis, optional
             Axis handle on which to plot.
+        plot_complex: str, optional
+            Parameter for ``plenoptic.imshow`` determining how to handle complex values. Defaults to 'rectangular', i.e.
+            not complex. Can also be 'polar' or 'logpolar'; see method for details.
         kwargs:
             Additional arguments for :meth:`po.imshow()`.
 
@@ -454,6 +459,6 @@ class Eigendistortion:
 
         img_processed = process_image(image + alpha * dist)
         to_plot = torch.clamp(img_processed, 0, 1)
-        fig = po.imshow(to_plot, ax=ax, **kwargs)
+        fig = po.imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
 
         return fig

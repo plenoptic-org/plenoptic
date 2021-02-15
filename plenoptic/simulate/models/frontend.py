@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 from ...tools.signal import make_disk
 import os
-import plenoptic as po
+from ...tools.display import imshow
 
 
 class FrontEnd(nn.Module):
@@ -12,10 +12,12 @@ class FrontEnd(nn.Module):
     Parameters
     ----------
     disk_mask: boolean, optional
-        crop the result to a disk at the center of the image
-    x: torch.Tensor
-        greyscale image (B, 1, H, W), requires H and W to be equal and greater than 31
-
+        Apply circular Gaussian mask to center of image. The mask itself is square.
+    pretrained: bool
+        Load weights from Berardino et al. 2017. These are 31x31 convolutional filters. When Pretrained is False,
+        filters will still be 31x31. Major changes in the future will allow users to specify kernel size.
+    requires_grad: bool
+        Whether or not model is trainable.
     Returns
     -------
     y: torch.Tensor
@@ -27,31 +29,11 @@ class FrontEnd(nn.Module):
     Eigen-Distortions of Hierarchical Representations
     Image Quality Assessment Models
     http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
-
-    TODO
-    -----
-    Parameterize Conv2D as Difference of Gaussians -- the model should have 13 params total
-    videos
-        optional argument for video
-        (B, 1, T, X, Y)
-        Conv3d
-        Four channels
-        midget on    fine space coarse time
-        midget off
-        parasol on   fine time coarse space
-        parasol off
     """
 
     def __init__(self, disk_mask=False, pretrained=False, requires_grad=True):
         """
-        Parameters
-        ----------
-        disk_mask: bool
-            Apply circular Gaussian mask to center of image. The mask itself is square.
-        pretrained: bool
-            Load weights from Berardino et al. 2017. These are 31x31 convolutional filters.
-        requires_grad: bool
-            Whether or not model is trainable.
+
         """
         super().__init__()
 
@@ -130,6 +112,6 @@ class FrontEnd(nn.Module):
                 'luminance norm on', 'luminance norm off',
                 'contrast norm on', 'contrast norm off']
 
-        fig = po.imshow(weights, title=title, col_wrap=2, zoom=zoom, **kwargs)
+        fig = imshow(weights, title=title, col_wrap=2, zoom=zoom, **kwargs)
 
         return fig

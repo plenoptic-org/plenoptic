@@ -258,20 +258,25 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         rgc = po.simul.PooledRGC(.5, im.shape[2:], cache_dir=tmp_path)
 
-    def test_frontend(self):
+    @pytest.mark.parametrize('pretrained', [True, False])
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend(self, pretrained, requires_grad):
         im = po.make_basic_stimuli()
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
+        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
         frontend(im)
 
-    def test_frontend_display_filters(self):
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
+    @pytest.mark.parametrize('pretrained', [True, False])
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_display_filters(self, pretrained, requires_grad):
+        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
         frontend.display_filters()
         plt.close('all')
 
-    def test_frontend_plot(self):
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_plot(self, requires_grad):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
@@ -279,10 +284,11 @@ class TestPooledVentralStream(object):
         metamer.animate(figsize=(35, 5))
         plt.close('all')
 
-    def test_frontend_PoolingWindows(self):
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_PoolingWindows(self, requires_grad):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=False)
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
