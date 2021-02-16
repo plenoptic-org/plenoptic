@@ -4,7 +4,7 @@ from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 import numpy as np
 import warnings
 from tqdm import tqdm
-import plenoptic as po
+from ..tools.display import imshow
 from typing import Tuple, List, Callable, Union
 import matplotlib.pyplot
 from matplotlib.figure import Figure
@@ -171,7 +171,7 @@ class Eigendistortion:
         tol: float, optional
             Tolerance for error criterion in power iteration.
         seed: int, optional
-            Control the random seed for reproducibility.
+            Control the random seed for reproducibility. Defaults to ``None``, with no seed being set.
 
         Returns
         -------
@@ -186,8 +186,8 @@ class Eigendistortion:
             Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
-
-        if isinstance(seed, int):
+        if seed is not None:
+            assert isinstance(seed, int), "random seed must be integer"
             torch.manual_seed(seed)
 
         assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'randomized_svd'}"
@@ -439,8 +439,9 @@ class Eigendistortion:
         ax: matplotlib.pyplot.axis, optional
             Axis handle on which to plot.
         plot_complex: str, optional
-            Parameter for ``plenoptic.imshow`` determining how to handle complex values. Defaults to 'rectangular', i.e.
-            not complex. Can also be 'polar' or 'logpolar'; see method for details.
+            Parameter for :meth:`plenoptic.imshow` determining how to handle complex values. Defaults to 'rectangular',
+            which plots real and complex components as separate images. Can also be 'polar' or 'logpolar'; see that
+            method's docstring for details.
         kwargs:
             Additional arguments for :meth:`po.imshow()`.
 
@@ -450,7 +451,7 @@ class Eigendistortion:
             matplotlib Figure handle returned by plenoptic.imshow()
         """
         if process_image is None:  # identity transform
-            process_image = lambda x: x
+            def process_image(x): return x
 
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
@@ -459,6 +460,6 @@ class Eigendistortion:
 
         img_processed = process_image(image + alpha * dist)
         to_plot = torch.clamp(img_processed, 0, 1)
-        fig = po.imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
+        fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
 
         return fig

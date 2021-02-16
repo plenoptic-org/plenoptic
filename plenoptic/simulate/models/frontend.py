@@ -25,9 +25,7 @@ class FrontEnd(nn.Module):
 
     Notes
     -----
-    based on code by Alex Berardino
-    Eigen-Distortions of Hierarchical Representations
-    Image Quality Assessment Models
+    Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
     http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
