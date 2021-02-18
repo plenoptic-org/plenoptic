@@ -58,6 +58,9 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         if not isinstance(base_signal, torch.Tensor):
             base_signal = torch.tensor(base_signal, dtype=torch.float32)
+        if base_signal.ndim != 4:
+            raise ValueError("Synthesis expect base_signal to be 4d, but it is of shape"
+                             f" {base_signal.shape} instead!")
         self.base_signal = base_signal
         self.seed = None
         self._rep_warning = False
