@@ -1,7 +1,6 @@
 """abstract synthesis super-class
 """
 import abc
-import seaborn as sns
 import re
 import torch
 from torch import optim
