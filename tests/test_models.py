@@ -531,5 +531,5 @@ class TestPortillaSimoncelli(object):
 
         saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}.npy')
         
-        np.testing.assert_allclose(output.squeeze(), saved.squeeze(),rtol=1e-9, atol=1e-9)
+        np.testing.assert_allclose(output.squeeze(), saved.squeeze(),rtol=1e-6, atol=1e-6)
 
