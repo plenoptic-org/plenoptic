@@ -687,13 +687,17 @@ def update_plot(axes, data, model=None, batch_idx=0):
     - single axis: axes is a single axis, which may contain multiple artists
       (all of the same type) to update. data should be a Tensor with multiple
       channels (one per artist in the same order) or be a dictionary whose keys
-      give the label(s) of the corresponding artist(s).
+      give the label(s) of the corresponding artist(s) and whose values are
+      Tensors.
 
     - multiple axes: axes is a list of axes, each of which contains a single
       artist to update (artists can be different types). data should be a
       Tensor with multiple channels (one per axis in the same order) or a
       dictionary with the same number of keys as axes, which we can iterate
-      through in order.
+      through in order, and whose values are Tensors.
+
+    In all cases, data Tensors should be 3d (if the plot we're updating is a
+    line or stem plot) or 4d (if it's an image or scatter plot).
 
     RGB(A) images are special, since we store that info along the channel
     dimension, so they only work with single-axis mode (which will only have a
@@ -710,10 +714,10 @@ def update_plot(axes, data, model=None, batch_idx=0):
 
     Parameters
     ----------
-    axes : `list`
-        A list of axes to update. We assume that these are the axes
-        created by ``plot_representation`` and so contain stem plots
-        in the correct order.
+    axes : `list` or `matplotlib.pyplot.axis`
+        The axis or list of axes to update. We assume that these are the axes
+        created by ``plot_representation`` and so contain stem plots in the
+        correct order.
     data : `torch.Tensor` or `dict`
         The new data to plot.
     model : `torch.nn.Module` or `None`, optional
