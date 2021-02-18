@@ -1452,7 +1452,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
         kwargs :
-            passed to sns.distplot
+            passed to plt.hist
 
         Returns
         -------
@@ -1460,6 +1460,21 @@ class Synthesis(metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
+        def _freedman_diaconis_bins(a):
+            """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn"""
+            # From https://stats.stackexchange.com/questions/798/
+            a = np.asarray(a)
+            iqr = np.diff(np.percentile(a, [.25, .75]))[0]
+            if len(a) < 2:
+                return 1
+            h = 2 * iqr / (len(a) ** (1 / 3))
+            # fall back to sqrt(a) bins if iqr is 0
+            if h == 0:
+                return int(np.sqrt(a.size))
+            else:
+                return int(np.ceil((a.max() - a.min()) / h))
+
+        kwargs.setdefault('alpha', .4)
         if iteration is None:
             image = self.synthesized_signal[batch_idx]
         else:
@@ -1472,8 +1487,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             fig = ax.figure
-        sns.distplot(to_numpy(image).flatten(), label='synthesized image', ax=ax, **kwargs)
-        sns.distplot(to_numpy(base_signal).flatten(), label='base image', ax=ax, **kwargs)
+        image = to_numpy(image).flatten()
+        base_signal = to_numpy(base_signal).flatten()
+        ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
+                label='synthesized image', **kwargs)
+        ax.hist(base_signal, bins=min(_freedman_diaconis_bins(image), 50),
+                label='base image', **kwargs)
         ax.legend()
         if ylim is not None:
             ax.set_ylim(ylim)
