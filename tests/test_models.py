@@ -512,7 +512,7 @@ class TestPortillaSimoncelli(object):
         matlab = sio.loadmat(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}.mat')
         matlab_vector = matlab['params_vector'].flatten()
         
-        np.testing.assert_allclose(python_vector[:], matlab_vector[:], rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(python_vector.squeeze(), matlab_vector.squeeze(), rtol=1e-4, atol=1e-4)
 
     ## tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
@@ -531,5 +531,5 @@ class TestPortillaSimoncelli(object):
 
         saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}.npy')
         
-        np.testing.assert_allclose(output[:], saved[:],rtol=1e-9, atol=1e-9)
+        np.testing.assert_allclose(output.squeeze(), saved.squeeze(),rtol=1e-9, atol=1e-9)
 
