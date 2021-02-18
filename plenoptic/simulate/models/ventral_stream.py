@@ -8,7 +8,7 @@ import pyrtools as pt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from torch import nn
-from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
+from ...tools.display import clean_up_axes, update_stem, clean_stem_plot, imshow
 from ..canonical_computations.pooling_windows import PoolingWindows
 from ...tools.optim import zscore_stats
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
@@ -1159,7 +1159,7 @@ class PooledRGC(PooledVentralStream):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         # project expects a 3d tensor
         data = self.PoolingWindows.project(torch.tensor(data['mean_luminance']).unsqueeze(0).unsqueeze(0))
-        pt.imshow(to_numpy(data.squeeze()), vrange=vrange, ax=ax, title=title, zoom=zoom)
+        imshow(data, vrange=vrange, ax=ax, title=title, zoom=zoom)
         return ax.figure, ax
 
 
@@ -1817,10 +1817,9 @@ class PooledV1(PooledVentralStream):
             if isinstance(i, str):
                 continue
             titles.append(self._get_title(title_list, i, "scale %s" % i))
-            img = np.zeros(data[(i, 0)].shape).squeeze()
+            img = torch.zeros_like(data[(i, 0)])
             for j in range(self.order+1):
-                d = data[(i, j)].squeeze()
-                img += to_numpy(d)
+                img += data[(i, j)]
             ax = fig.add_subplot(gs[int(i)])
             ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
             imgs.append(img)
@@ -1833,9 +1832,9 @@ class PooledV1(PooledVentralStream):
         ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
         axes.append(ax)
         titles.append(self._get_title(title_list, -1, "mean pixel intensity"))
-        imgs.append(to_numpy(data['mean_luminance'].squeeze()))
+        imgs.append(data['mean_luminance'])
         zooms.append(zoom)
         vrange, cmap = pt.tools.display.colormap_range(imgs, vrange)
         for ax, img, t, vr, z in zip(axes, imgs, titles, vrange, zooms):
-            pt.imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
+            imshow(img, ax=ax, vrange=vr, cmap=cmap, title=t, zoom=z)
         return fig, axes
