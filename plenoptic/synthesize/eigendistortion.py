@@ -365,6 +365,9 @@ class Eigendistortion:
 
     def _synthesize_randomized_svd(self, k: int, p: int, q: int) -> Tuple[Tensor, Tensor, Tensor]:
         r"""  Synthesize eigendistortions using randomized truncated SVD.
+        This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
+        then computes its SVD.
+
         Parameters
         ----------
         k: int
