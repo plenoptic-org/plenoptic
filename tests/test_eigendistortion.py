@@ -6,7 +6,6 @@ import pytest
 import torch
 from torch import nn
 from plenoptic.simulate.models.frontend import FrontEnd
-import plenoptic as po
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
