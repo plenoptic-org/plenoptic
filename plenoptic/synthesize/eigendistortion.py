@@ -286,22 +286,29 @@ class Eigendistortion:
         return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
 
     def _synthesize_power(self,
-                          k: int = 1,
-                          shift: Union[Tensor, float] = 0.,
-                          tol: float = 1e-10,
-                          max_steps: int = 1000) -> Tuple[Tensor, Tensor]:
-        r""" Use power method to obtain largest (smallest) eigenvalue/vector pair.
-        Apply the power method algorithm to approximate the extremal eigenvalue and eigenvector of the Fisher
+                          k: int,
+                          shift: Union[Tensor, float],
+                          tol: float,
+                          max_steps: int) -> Tuple[Tensor, Tensor]:
+        r""" Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
+        Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
+
+        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a single (when `k=1`), or multiple
+        (when `k>1`) vectors.
 
         Parameters
         ----------
-        shift: Union([float, Tensor]), optional
-            Optional argument. When l=0, this function estimates the leading eval evec pair. When l is set to the
-            estimated maximum eigenvalue, this function will estimate the smallest eval evec pair (minor component).
-        tol: float, optional
+        k: int
+            Number of top and bottom eigendistortions to synthesize; i.e. if k=2, then the top 2 and bottom 2 will
+            be returned. When `k>1`, multiple eigendistortions are synthesized, and each power iteration step is
+            followed by a QR orthogonalization step to ensure the vectors are orthonormal.
+        shift: Union([float, Tensor])
+            When `shift=0`, this function estimates the top `k` eigenvalue/vector pairs. When `shift` is set to the
+            estimated top eigenvalue this function will estimate the smallest eigenval/eigenvector pairs.
+        tol: float
             Tolerance value
-        max_steps: int, optional
+        max_steps: int
             Maximum number of steps
 
         Returns
@@ -309,7 +316,7 @@ class Eigendistortion:
         lmbda: Tensor
             Eigenvalue corresponding to final vector of power iteration.
         v: Tensor
-            Final eigenvector (i.e. eigendistortion) of power iteration procedure.
+            Final eigenvector(s) (i.e. eigendistortions) of power (orthogonal) iteration procedure.
 
         References
         ----------
@@ -318,6 +325,7 @@ class Eigendistortion:
 
         x, y = self._input_flat, self._representation_flat
 
+        # note: v is an n x k matrix where k is number of eigendists to be synthesized!
         v = torch.randn(len(x), k).to(x.device)
         v = v / v.norm()
 
@@ -343,7 +351,7 @@ class Eigendistortion:
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # minor component
 
-            v_new, _ = torch.qr(Fv)
+            v_new = torch.qr(Fv)[0] if k > 1 else Fv
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
@@ -355,16 +363,20 @@ class Eigendistortion:
 
         return lmbda_new, v_new
 
-    def _synthesize_randomized_svd(self, k: int, p: int = 0, q: int = 0) -> Tuple[Tensor, Tensor, Tensor]:
+    def _synthesize_randomized_svd(self, k: int, p: int, q: int) -> Tuple[Tensor, Tensor, Tensor]:
         r"""  Synthesize eigendistortions using randomized truncated SVD.
+        This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
+        then computes its SVD.
+
         Parameters
         ----------
         k: int
-            Rank of factorization to be returned.
-        p: int, Optional
-            Oversampling parameter.
-        q: int, Optional
+            Number of eigenvecs (rank of factorization) to be returned.
+        p: int
+            Oversampling parameter, recommended to be 5.
+        q: int
             Matrix power iteration. Used to squeeze the eigen spectrum for more accurate approximation.
+            Recommended to be 2.
 
         Returns
         -------
