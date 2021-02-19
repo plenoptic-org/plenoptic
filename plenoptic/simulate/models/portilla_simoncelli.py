@@ -726,23 +726,10 @@ class Portilla_Simoncelli(nn.Module):
         for i, (k, v) in enumerate(data.items()):
             
             ax = fig.add_subplot(gs[i//3,i%3])
-
             if isinstance(v,OrderedDict):
-                ax = clean_stem_plot(list(v.values()),ax,k,False)
-
-
-            elif v.squeeze().dim() >=3:
-                vals={}
-                for ss in range(0,v.shape[2]):
-                    tmp = torch.norm(v[:,:,ss,...],p=2,dim=[0,1])
-                    if len(tmp.shape)==0:
-                        tmp = tmp.unsqueeze(0)
-                    vals[ss] = tmp.detach().numpy()
-                ax = clean_stem_plot(np.concatenate(list(vals.values()),0),ax,'',False)
+                ax = clean_stem_plot(list(v.values()),ax,k,ylim=ylim)
             else:
-
-
-                ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,False)
+                ax = clean_stem_plot(v.flatten().detach().numpy(),ax,k,ylim=ylim)
             
             axes.append(ax)
 
@@ -762,7 +749,20 @@ class Portilla_Simoncelli(nn.Module):
 
         for (k,v) in rep.items():
             if k not in ['pixel_statistics','var_highpass_residual','kurtosis_reconstructed','skew_reconstructed','std_reconstructed']:
-                data[k] = v
+                
+                if not isinstance(v,dict) and v.squeeze().dim() >=3:
+                    vals = OrderedDict()
+                    for ss in range(0,v.shape[2]):
+                        tmp = torch.norm(v[:,:,ss,...],p=2,dim=[0,1])
+                        if len(tmp.shape)==0:
+                            tmp = tmp.unsqueeze(0)
+                        vals[ss] =  tmp
+                    dk = torch.cat(list(vals.values()))
+                    data[k] = dk
+
+                else:
+                    data[k] = v
+
         return data
 
     def update_plot(self, axes, batch_idx=0, data=None):
@@ -815,7 +815,8 @@ class Portilla_Simoncelli(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        data = self.convert_to_dict(data)
+        if not isinstance(data,dict):
+            data = self.convert_to_dict(data)
         rep = self._representation_for_plotting(data)
         for ax, d in zip(axes, rep.values()):
             if isinstance(d,dict):
