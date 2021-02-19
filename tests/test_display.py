@@ -483,7 +483,11 @@ class TestMADDisplay(object):
         else:
             img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         model1 = po.simul.models.naive.Identity().to(DEVICE)
-        model2 = po.metric.nlpd
+        # to serve as a metric, need to return a single value, but SSIM
+        # will return a separate value for each RGB channel
+        def rgb_ssim(*args, **kwargs):
+            return po.metric.ssim(*args, **kwargs).mean()
+        model2 = rgb_ssim
         func = 'scatter'
         if plot_signal_comparison:
             func = plot_signal_comparison
@@ -523,7 +527,7 @@ class TestMADDisplay(object):
     def test_custom_fig(self, func, fig_creation):
         img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         model1 = po.simul.models.naive.Identity().to(DEVICE)
-        model2 = po.metric.nlpd
+        model2 = po.metric.ssim
         mad = po.synth.MADCompetition(img, model1, model2)
         init_fig = True
         fig, axes = plt.subplots(3, 3, figsize=(25, 17))
@@ -583,7 +587,11 @@ class TestMetamerDisplay(object):
         if model == 'class':
             model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
         else:
-            model = po.metric.nlpd
+            # to serve as a metric, need to return a single value, but SSIM
+            # will return a separate value for each RGB channel
+            def rgb_ssim(*args, **kwargs):
+                return po.metric.ssim(*args, **kwargs).mean()
+            model = rgb_ssim
         func = 'scatter'
         if plot_signal_comparison:
             func = plot_signal_comparison
