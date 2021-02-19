@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
-from typing import Tuple, Union, Optional, Callable
+from typing import Tuple, Union, Optional
 import numpy as np
 import os
 from ...tools.signal import make_disk
@@ -143,25 +143,12 @@ class CenterSurround(nn.Module):
 
 
 class LN(nn.Module):
-    """Linear-Nonlinear model, applies a difference of Gaussians filter followed by a (optional) nonlinearity.
-
-    Parameters
-    ----------
-    center:
-        ['on', 'off']
-    activation:
-        Default nonlinearity is a softplus activation function.
-    """
-    def __init__(self, kernel_size,
-                 center: str = 'on',
-                 activation: Callable[[torch.Tensor], torch.Tensor] = F.softplus):
-
+    def __init__(self, kernel_size, center='on'):
         super().__init__()
         self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
-        self.activation = activation
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = self.activation(self.center_surround(x))
+    def forward(self, x):
+        y = F.softplus(self.center_surround(x))
         return y
 
 
