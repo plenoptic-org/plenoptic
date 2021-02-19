@@ -471,10 +471,10 @@ class Metamer(Synthesis):
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) image).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.

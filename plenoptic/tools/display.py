@@ -854,7 +854,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         If not None, the y-limits to use for this plot. See above for
         behavior if ``None``. If False, we do nothing.
     batch_idx : `int`, optional
-        Which index to take from the batch dimension (the first one)
+        Which index to take from the batch dimension
     title : `str`, optional
         The title to put above this axis. If you want no title, pass
         the empty string (``''``)

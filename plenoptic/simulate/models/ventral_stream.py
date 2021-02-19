@@ -581,7 +581,7 @@ class PooledVentralStream(nn.Module):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to get in shape. If None, we use
             ``self.representation``. Else, should look like
@@ -758,7 +758,7 @@ class PooledVentralStream(nn.Module):
             created by ``plot_representation`` and so contain stem plots
             in the correct order.
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1026,7 +1026,7 @@ class PooledRGC(PooledVentralStream):
             the empty string (``''``). If None, will use the default,
             'Mean pixel intensity in each window'
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1084,7 +1084,7 @@ class PooledRGC(PooledVentralStream):
             'mean pixel intensity'. If it includes a '|' (pipe), then
             we'll append the default to the other side of the pipe.
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use ``self.representation`` . Else,
             should look like ``self.representation``, with the exact same
@@ -1134,7 +1134,7 @@ class PooledRGC(PooledVentralStream):
             'mean pixel intensity'. If it includes a '|' (pipe), then
             we'll append the default to the other side of the pipe.
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1565,7 +1565,7 @@ class PooledV1(PooledVentralStream):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should be a dictionary of 4d
@@ -1613,7 +1613,7 @@ class PooledV1(PooledVentralStream):
             entries, all identical and the same as the user-pecified
             title
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1696,7 +1696,7 @@ class PooledV1(PooledVentralStream):
             mean intensity). If it includes a '|' (pipe), then we'll
             append the default to the other side of the pipe.
         batch_idx : int, optional Which
-            index to take from the batch dimension (the first one)
+            index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like
@@ -1781,7 +1781,7 @@ class PooledV1(PooledVentralStream):
             mean intensity). If it includes a '|' (pipe), then we'll
             append the default to the other side of the pipe.
         batch_idx : int, optional Which
-            index to take from the batch dimension (the first one)
+            index to take from the batch dimension
         data : torch.Tensor, np.ndarray, dict or None, optional
             The data to plot. If None, we use
             ``self.representation``. Else, should look like

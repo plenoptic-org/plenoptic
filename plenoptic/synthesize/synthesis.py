@@ -1270,7 +1270,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
             None, we use the current ``synthesized_representation``
@@ -1362,10 +1362,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one).
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we assume image is RGB(A) and show all channels.
+            Which index to take from the channel dimension. If None, we assume
+            image is RGB(A) and show all channels.
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1435,10 +1435,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) images).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) images).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1514,10 +1514,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) image).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1582,10 +1582,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) image).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1815,10 +1815,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) image).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1976,10 +1976,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         channel_idx : int or None, optional
-            Which index to take from the channel dimension (the second one). If
-            None, we use all channels (assumed use-case is RGB(A) image).
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         figsize : tuple or None, optional
             The size of the figure to create. It may take a little bit of
             playing around to find a reasonable value. If None, we attempt to
