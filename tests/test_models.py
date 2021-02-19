@@ -9,6 +9,17 @@ import pyrtools as pt
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 
+class TestFrontEnd:
+    def test_gaussian(self):
+        mdl = po.simul.Gaussian()
+        x = torch.zeros(1,1,10,10)
+        y = mdl(x)
+        print(y.shape)
+
+    def test_center_surround(self):
+        pass
+
+
 class TestLinear(object):
 
     def test_linear(self):
@@ -27,12 +38,12 @@ class TestLinear(object):
 class TestLinearNonlinear(object):
 
     def test_linear_nonlinear(self):
-        model = po.simul.Linear_Nonlinear()
+        model = po.simul.LinearNonlinear()
         x = po.make_basic_stimuli()
         assert model(x).requires_grad
 
     def test_linear_nonlinear_metamer(self):
-        model = po.simul.Linear_Nonlinear()
+        model = po.simul.LinearNonlinear()
         image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
         im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
         M = po.synth.Metamer(im0, model)
