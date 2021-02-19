@@ -1,4 +1,4 @@
-from .linearnonlinear import LinearNonlinear, Linear
+from .linear_nonlinear import LinearNonlinear, Linear
 from .laplacian_pyramid import Laplacian_Pyramid
 from .steerable_pyramid_freq import Steerable_Pyramid_Freq
 from .pooling_windows import PoolingWindows
