@@ -480,7 +480,6 @@ class TestPooledVentralStream(object):
 
 class TestPortillaSimoncelli(object):
 
-    ## still need to add tests for normalization factors
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
     @pytest.mark.parametrize("n_orientations", [2,3,4]) 
     @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
@@ -498,8 +497,8 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_orientations", [2,3,4])
     @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
     @pytest.mark.parametrize("im_shape", [(256,256)])
-    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts','sawtooth','checkerboard'])
-    def test_torch_v_matlab(self, n_scales, n_orientations, spatial_corr_width, im_shape,im):
+    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts'])
+    def test_ps_torch_v_matlab(self, n_scales, n_orientations, spatial_corr_width, im_shape,im):
         path = osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
         torch.set_default_dtype(torch.float64)
@@ -518,18 +517,27 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1,2,3,4])
     @pytest.mark.parametrize("n_orientations", [2,3,4])
     @pytest.mark.parametrize("spatial_corr_width", [3,5,7,9])
-    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts','sawtooth','checkerboard'])
-    def test_torch_output(self, n_scales, n_orientations, spatial_corr_width, im):
+    @pytest.mark.parametrize("use_true_correlations", [False,True])
+    @pytest.mark.parametrize("im",['curie','einstein','metal','nuts'])
+    def test_ps_torch_output(self, n_scales, n_orientations, spatial_corr_width, im, use_true_correlations):
         path = osf_download('portilla_simoncelli_test_vectors.tar.gz')
 
+        print(path)
+
         torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy()
+        x = plt.imread(op.join(DATA_DIR, f'{im}.pgm')).copy() / 255
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
-        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], n_scales = n_scales, n_orientations = n_orientations,spatial_corr_width=spatial_corr_width,use_true_correlations=False)
+        ps = po.simul.Portilla_Simoncelli(x.shape[-2:], 
+            n_scales = n_scales, 
+            n_orientations = n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations)
         output = ps(im0)
         
 
-        saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}.npy')
-        
-        np.testing.assert_allclose(output.squeeze(), saved.squeeze(),rtol=1e-6, atol=1e-6)
+        saved = np.load(f'{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}-corr{use_true_correlations}.npy')
+        print(saved)
+
+        np.testing.assert_allclose(output.squeeze(), saved.squeeze(),rtol=1e-5, atol=1e-5)
+
 
