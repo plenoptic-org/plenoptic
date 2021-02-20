@@ -9,15 +9,27 @@ import pyrtools as pt
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 
-class TestFrontEnd:
-    def test_gaussian(self):
-        mdl = po.simul.Gaussian()
-        x = torch.zeros(1,1,10,10)
-        y = mdl(x)
-        print(y.shape)
+@pytest.fixture()
+def image_input():
+    return torch.rand(1, 1, 100, 100)
 
-    def test_center_surround(self):
-        pass
+
+class TestFrontEnd:
+
+    def test_gaussian(self, image_input):
+        mdl = po.simul.Gaussian()
+        y = mdl(image_input)
+        assert y.shape == image_input.shape
+
+    def test_center_surround(self, image_input):
+        mdl = po.simul.CenterSurround()
+        y = mdl(image_input)
+        assert y.shape == image_input.shape
+
+    def test_center_surround_display_weights(self):
+        mdl = po.simul.CenterSurround()
+        fig = mdl.display_filters()
+        plt.close(fig)
 
 
 class TestLinear(object):

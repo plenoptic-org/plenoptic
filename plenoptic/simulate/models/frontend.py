@@ -11,7 +11,7 @@ from torchvision import transforms
 from ...tools.display import imshow
 from ...tools.signal import make_disk
 
-__all__ = ["Gaussian", "FrontEnd"]
+__all__ = ["Gaussian", "CenterSurround",  "FrontEnd"]
 
 
 def circular_gaussian(
@@ -54,7 +54,9 @@ def circular_gaussian(
 
 
 def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, int]:
-    """Returns padding for ``F.pad()`` given a conv kernel size"""
+    """Returns padding for ``F.pad()`` given a conv kernel size
+    Pads the last two dims (height and width) of image tensor.
+    """
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     h, w = kernel_size
