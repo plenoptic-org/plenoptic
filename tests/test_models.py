@@ -670,8 +670,49 @@ class TestPortillaSimoncelli(object):
         saved = np.load(
             f"{path}/{im}-scales{n_scales}-ori{n_orientations}-spat{spatial_corr_width}-corr{use_true_correlations}.npy"
         )
-        print(saved)
 
         np.testing.assert_allclose(
             output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
         )
+
+    def test_ps_synthesis(self):
+        path = osf_download("portilla_simoncelli_synthesize.npy")
+
+        torch.set_default_dtype(torch.float64)
+        with open(path, 'rb') as f:
+            im = np.load(f)
+            im_init = np.load(f)
+            im_synth = np.load(f)
+            loss = np.load(f)
+
+        n=256
+        im0 = torch.Tensor(im)
+        model = po.simul.Portilla_Simoncelli(
+            [n,n],
+            n_scales=4, 
+            n_orientations=4, 
+            spatial_corr_width=9,
+            use_true_correlations=True)
+
+        
+        met = po.synth.Metamer(im0, model)
+
+        output=met.synthesize(
+            learning_rate=.01,
+            seed=1,
+            loss_change_thresh=None,
+            loss_change_iter=7,
+            max_iter=100,
+            coarse_to_fine='together',
+            optimizer='Adam',
+            initial_image = im_init)       
+
+        np.testing.assert_allclose(
+            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-3, atol=1e-3
+        )
+
+        np.testing.assert_allclose(
+            output[1].squeeze().detach().numpy(), loss.squeeze(), rtol=1e-4, atol=1e-4
+        )
+
+        
