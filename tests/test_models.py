@@ -16,18 +16,23 @@ def image_input():
 
 class TestFrontEnd:
 
-    def test_gaussian(self, image_input):
-        mdl = po.simul.Gaussian()
-        y = mdl(image_input)
-        assert y.shape == image_input.shape
+    kernel_size = (7, 7)
+    all_models = [
+        po.simul.CenterSurround(kernel_size),
+        po.simul.Gaussian(kernel_size),
+        po.simul.LN(kernel_size),
+        po.simul.LG(kernel_size),
+        po.simul.LGG(kernel_size),
+    ]
 
-    def test_center_surround(self, image_input):
-        mdl = po.simul.CenterSurround()
-        y = mdl(image_input)
-        assert y.shape == image_input.shape
+    @pytest.mark.parametrize("model", all_models)
+    def test_output_shape(self, model):
+        img = torch.ones(1,1,100,100)
+
+        assert model(img).shape == img.shape
 
     def test_center_surround_display_weights(self):
-        mdl = po.simul.CenterSurround()
+        mdl = po.simul.CenterSurround(7)
         fig = mdl.display_filters()
         plt.close(fig)
 

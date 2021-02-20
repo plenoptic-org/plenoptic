@@ -11,7 +11,7 @@ from torchvision import transforms
 from ...tools.display import imshow
 from ...tools.signal import make_disk
 
-__all__ = ["Gaussian", "CenterSurround",  "FrontEnd"]
+__all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff", "FrontEnd"]
 
 
 def circular_gaussian(
@@ -60,7 +60,7 @@ def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, in
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     h, w = kernel_size
-    h_half, w_half = h//2, w//2
+    h_half, w_half = h // 2, w // 2
 
     return h_half, h_half, w_half, w_half
 
@@ -68,9 +68,9 @@ def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, in
 class Gaussian(nn.Module):
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]] = (7, 7),
+        kernel_size: Union[int, Tuple[int, int]],
         std: float = 3.0,
-        pad_mode: str = 'circular',
+        pad_mode: str = "circular",
     ):
         super().__init__()
         assert std > 0, "Gaussian standard deviation must be positive"
@@ -109,12 +109,12 @@ class CenterSurround(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]] = (7, 7),
+        kernel_size: Union[int, Tuple[int, int]],
         center: str = "on",
         ratio_limit: float = 4.0,
         center_std: float = 1.0,
         surround_std: float = 4.0,
-        pad_mode: str = 'circular',
+        pad_mode: str = "circular",
     ):
         super().__init__()
 
@@ -210,30 +210,40 @@ class LN(nn.Module):
 
 
 class LG(nn.Module):
-    def __init__(self, kernel_size, center="on"):
+    def __init__(self, kernel_size, center="on", pad_mode: str = "circular"):
         super().__init__()
         self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
         self.luminance = Gaussian(kernel_size=kernel_size)
+        self.luminance_scalar = nn.Parameter(torch.rand(1)*10)
 
     def forward(self, x):
         lum = self.luminance(x)
-        luminance_normalized = self.center_surround(x) / lum
+        luminance_normalized = self.center_surround(x) / (
+            1 + self.luminance_scalar * lum
+        )
         y = F.softplus(luminance_normalized)
         return y
 
 
 class LGG(nn.Module):
-    def __init__(self, kernel_size, center="on"):
+    def __init__(self, kernel_size, center: str = "on", pad_mode: str = "circular"):
         super().__init__()
         self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
         self.luminance = Gaussian(kernel_size=kernel_size)
         self.contrast = Gaussian(kernel_size=kernel_size)
 
+        self.luminance_scalar = nn.Parameter(torch.rand(1)*10)
+        self.contrast_scalar = nn.Parameter(torch.rand(1)*10)
+
     def forward(self, x):
         lum = self.luminance(x)
-        luminance_normalized = self.center_surround(x) / lum
+        luminance_normalized = self.center_surround(x) / (
+            1 + self.luminance_scalar * lum
+        )
         contrast = (self.contrast(luminance_normalized.pow(2)) + 1e-6).sqrt()
-        contrast_normalized = luminance_normalized / contrast
+        contrast_normalized = luminance_normalized / (
+            1 + self.contrast_scalar * contrast
+        )
         y = F.softplus(contrast_normalized)
         return y
 
