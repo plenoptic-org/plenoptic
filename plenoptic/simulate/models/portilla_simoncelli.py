@@ -10,7 +10,7 @@ import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 
 
-class Portilla_Simoncelli(nn.Module):
+class PortillaSimoncelli(nn.Module):
     r"""Model for measuring statistics originally proposed in [1] for synthesis.
 
     Currently we do not: support batch measurement of images.
@@ -206,12 +206,12 @@ class Portilla_Simoncelli(nn.Module):
         self.representation["pixel_statistics"] = OrderedDict()
         self.representation["pixel_statistics"]["mean"] = torch.mean(image)
         self.representation["pixel_statistics"]["var"] = torch.var(image)
-        self.representation["pixel_statistics"]["skew"] = Portilla_Simoncelli.skew(
+        self.representation["pixel_statistics"]["skew"] = PortillaSimoncelli.skew(
             image
         )
         self.representation["pixel_statistics"][
             "kurtosis"
-        ] = Portilla_Simoncelli.kurtosis(image)
+        ] = PortillaSimoncelli.kurtosis(image)
         self.representation["pixel_statistics"]["min"] = torch.min(image)
         self.representation["pixel_statistics"]["max"] = torch.max(image)
 
@@ -585,7 +585,7 @@ class Portilla_Simoncelli(nn.Module):
                 ) = self.compute_autocorrelation(ch)
 
             reconstructed_image = (
-                Portilla_Simoncelli.expand(reconstructed_image, 2) / 4.0
+                PortillaSimoncelli.expand(reconstructed_image, 2) / 4.0
             )
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
@@ -638,7 +638,7 @@ class Portilla_Simoncelli(nn.Module):
 
                 for nor in range(0, self.n_orientations):
                     upsampled = (
-                        Portilla_Simoncelli.expand(
+                        PortillaSimoncelli.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
                         )
                         / 4.0
@@ -666,7 +666,7 @@ class Portilla_Simoncelli(nn.Module):
 
             else:
                 upsampled = (
-                    Portilla_Simoncelli.expand(
+                    PortillaSimoncelli.expand(
                         self.real_pyr_coeffs["residual_lowpass"].squeeze(), 2
                     )
                     / 4.0
@@ -862,8 +862,8 @@ class Portilla_Simoncelli(nn.Module):
 
         # Find the skew and the kurtosis of the low-pass residual
         if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
-            skew = Portilla_Simoncelli.skew(ch, mu=0, var=vari)
-            kurtosis = Portilla_Simoncelli.kurtosis(ch, mu=0, var=vari)
+            skew = PortillaSimoncelli.skew(ch, mu=0, var=vari)
+            kurtosis = PortillaSimoncelli.kurtosis(ch, mu=0, var=vari)
 
         else:
             skew = 0

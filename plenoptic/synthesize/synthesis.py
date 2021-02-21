@@ -1,12 +1,14 @@
 """abstract synthesis super-class
 """
 import abc
+import seaborn as sns
 import re
 import torch
 from torch import optim
+import torchcontrib
 import numpy as np
 import warnings
-from ..tools.data import to_numpy
+from ..tools.data import to_numpy, _find_min_int
 from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
 import pyrtools as pt
@@ -91,6 +93,8 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.loss = []
         self.gradient = []
         self.learning_rate = []
+        self.pixel_change = []
+        self._last_iter_synthesized_signal = None
         self.saved_representation = []
         self.saved_signal = []
         self.saved_signal_gradient = []
@@ -207,9 +211,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.fraction_removed = fraction_removed
         self.loss_thresh = loss_thresh
         self.loss_change_thresh = loss_change_thresh
-        self.loss_change_iter = loss_change_iter
+        self.loss_change_iter = int(loss_change_iter)
         self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
+        if coarse_to_fine not in [False, 'separate', 'together']:
+            raise Exception(f"Don't know how to handle value {coarse_to_fine}! Must be one of: "
+                            "False, 'separate', 'together'")
         if coarse_to_fine:
             if self.scales is None:
                 # this creates a new object, so we don't modify model.scales
@@ -297,8 +304,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             # saved_representation) changes partway through and that's
             # annoying
             raise Exception("If you've already run synthesize() before, must re-run it with same"
-                            f" store_progress arg ({self.store_progress}; True is equivalent to "
-                            "1)")
+                            f" store_progress arg. You passed {store_progress} instead of"
+                            f" {self.store_progress} (True is equivalent to 1)")
         self.store_progress = store_progress
         self.save_progress = save_progress
         self.save_path = save_path
@@ -361,7 +368,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             True if we stored this iteration, False if not. Note that
             storing and saving can be separated (if both
             ``store_progress`` and ``save_progress`` are different
-            integers, for example). This only deals with *storing*, not
+            integers, for example). This only reflects *storing*, not
             saving
 
         """
@@ -377,6 +384,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
                 self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
+                # we do this instead of using
+                # self.synthesized_representation because its size might
+                # change over time (if we're doing coarse-to-fine), and
+                # we want to be able to stack this
                 self.saved_representation.append(self.analyze(self.synthesized_signal).to('cpu'))
                 self.saved_signal_gradient.append(self.synthesized_signal.grad.clone().to('cpu'))
                 self.saved_representation_gradient.append(self.synthesized_representation.grad.clone().to('cpu'))
@@ -479,11 +490,11 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   clamper=RangeClamper((0, 1)), clamp_each_iter=True, store_progress=False,
+                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
                    loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False,
-                   **optimizer_kwargs):
+                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False):
         r"""synthesize an image
 
         this is a skeleton of how synthesize() works, just to serve as a
@@ -514,6 +525,15 @@ class Synthesis(metaclass=abc.ABCMeta):
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent.
+        optimizer_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object. See
+            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -542,7 +562,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             If the loss over the past ``loss_change_iter`` has changed
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
-            How many iterations back to check in order to see if the
             loss has stopped decreasing in order to determine whether we
             should only calculate the gradient with respect to the
             ``loss_change_fraction`` fraction of statistics with
@@ -575,10 +594,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             Clip the gradient norm to avoid issues with numerical overflow.
             Gradient norm will be clipped to the specified value (True is
             equivalent to 1).
-        optimizer_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the optimizer (in
-            addition to learning_rate). What these should be depend on
-            the specific optimizer you're using
 
         Returns
         -------
@@ -599,7 +614,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                       loss_change_fraction, loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             **optimizer_kwargs)
+                             optimizer_kwargs, swa, swa_kwargs)
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress)
 
@@ -608,10 +623,11 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         # and start synthesizing.
         for i in pbar:
-            # this is an example, because this is
-            # the section that will vary the most amongst synthesis methods
-            loss, g, lr = self._optimizer_step(pbar)
+            # this is an example, because this is the section that will
+            # vary the most amongst synthesis methods
+            loss, g, lr, pixel_change = self._optimizer_step(pbar)
             self.loss.append(loss.item())
+            self.pixel_change.append(pixel_change.item())
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
 
@@ -732,7 +748,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
-                        **optimizer_kwargs):
+                        optimizer_kwargs={}, swa=False, swa_kwargs={}):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -755,6 +771,11 @@ class Synthesis(metaclass=abc.ABCMeta):
           max_iter=4)``
         - 'Adam': Adam, ``optim.Adam(amsgrad=True)``
         - 'AdamW': AdamW, ``optim.AdamW(amsgrad=True)``
+
+        Note that if you modify this function to take extra arguments, make
+        sure to modify the line that creates _init_optimizer_kwargs and add it
+        there. If you over-write this in a subclass, will also need to update
+        _init_optimizer_kwargs to include additional arguments
 
         Parameters
         ----------
@@ -779,8 +800,17 @@ class Synthesis(metaclass=abc.ABCMeta):
             here.
         optimizer_kwargs :
             passed to the optimizer's initializer
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object.
 
         """
+        # there's a weird scoping issue that happens if we don't copy the
+        # dictionary, where it can accidentally persist across instances of the
+        # object, which messes all sorts of things up
+        optimizer_kwargs = optimizer_kwargs.copy()
+        swa_kwargs = swa_kwargs.copy()
         # if lr is None, we're resuming synthesis from earlier, and we
         # want to start with the last learning rate. however, we also
         # want to keep track of the initial learning rate, since we use
@@ -819,20 +849,27 @@ class Synthesis(metaclass=abc.ABCMeta):
             self._optimizer = optim.AdamW([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-        if scheduler:
-            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
+        self._swa = swa
+        if swa:
+            self._optimizer = torchcontrib.optim.SWA(self._optimizer, **swa_kwargs)
+            warnings.warn("When using SWA, can't also use LR scheduler")
         else:
-            self._scheduler = None
-        if not hasattr(self, '_optimizer_kwargs'):
+            if scheduler:
+                self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
+            else:
+                self._scheduler = None
+        if not hasattr(self, '_init_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
             # optimizer to the same state (mainly used to make sure that
             # the learning rate gets reset when we change target during
             # coarse-to-fine optimization). note that we use the
             # initial_lr here
-            optimizer_kwargs.update({'optimizer': optimizer, 'lr': initial_lr,
-                                     'scheduler': scheduler})
-            self._optimizer_kwargs = optimizer_kwargs
+            init_optimizer_kwargs = {'optimizer': optimizer, 'lr': initial_lr,
+                                     'scheduler': scheduler, 'swa': swa,
+                                     'swa_kwargs': swa_kwargs,
+                                     'optimizer_kwargs': optimizer_kwargs}
+            self._init_optimizer_kwargs = init_optimizer_kwargs
         if clip_grad_norm is True:
             self.clip_grad_norm = 1
         else:
@@ -925,8 +962,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             1-element tensor containing the gradient on this step
         learning_rate : torch.Tensor
             1-element tensor containing the learning rate on this step
+        pixel_change : torch.Tensor
+            1-element tensor containing the max pixel change in
+            synthesized_signal between this step and the last
 
         """
+        self._last_iter_synthesized_signal = self.synthesized_signal.clone()
         postfix_dict = {}
         if self.coarse_to_fine:
             # the last scale will be 'all', and we never remove
@@ -938,8 +979,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.scales_timing[self.scales[0]].append(len(self.loss)-1)
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))
-                # reset scheduler and optimizer
-                self._init_optimizer(**self._optimizer_kwargs)
+                # reset scheduler and optimizer.
+                self._init_optimizer(**self._init_optimizer_kwargs)
             # we have some extra info to include in the progress bar if
             # we're doing coarse-to-fine
             postfix_dict['current_scale'] = self.scales[0]
@@ -960,15 +1001,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
                 tmp_im = self.synthesized_signal.detach().clone()
-                # if the model has a cone_power attribute, it's going to
-                # raise its input to some power and if that power is
-                # fractional, it won't handle negative values well. this
-                # should be generally handled by clamping, but clamping
-                # happens after this, which is just intended to give a
-                # sense of the overall loss, so we clamp with a min of 0
-                if hasattr(self.model, 'cone_power'):
-                    if self.model.cone_power != int(self.model.cone_power):
-                        tmp_im = torch.clamp(tmp_im, min=0)
                 full_synthesized_rep = self.analyze(tmp_im)
                 loss = self.objective_function(full_synthesized_rep, self.base_representation,
                                                self.synthesized_signal, self.base_signal)
@@ -976,14 +1008,16 @@ class Synthesis(metaclass=abc.ABCMeta):
             loss = self.objective_function(self.synthesized_representation, self.base_representation,
                                            self.synthesized_signal, self.base_signal)
 
+        pixel_change = torch.max(torch.abs(self.synthesized_signal - self._last_iter_synthesized_signal))
         # for display purposes, always want loss to be positive
         postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
                                  gradient_norm="%.4e" % g.norm().item(),
-                                 learning_rate=self._optimizer.param_groups[0]['lr'], **kwargs))
+                                 learning_rate=self._optimizer.param_groups[0]['lr'],
+                                 pixel_change=f"{pixel_change:.04e}", **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self._optimizer.param_groups[0]['lr']
+        return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
     def save(self, file_path, save_model_reduced=False, attrs=['model'],
@@ -1215,7 +1249,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
                                   ax=None, title=None):
-        r"""Plot distance ratio showing how close we are to convergence
+        r"""Plot distance ratio showing how close we are to convergence.
 
         We plot ``self.representation_error(iteration)``
 
@@ -1262,7 +1296,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                    batch_idx, title)
 
     def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, title='Loss', **kwargs):
-        """Plot the synthesis loss
+        """Plot the synthesis loss.
 
         We plot ``self.loss`` over all iterations. We also plot a red
         dot at ``iteration``, to highlight the loss there. If
@@ -1311,7 +1345,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     def plot_synthesized_image(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
                                figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
-        """show the synthesized image
+        """Show the synthesized image.
 
         You can specify what iteration to view by using the
         ``iteration`` arg. The default, ``None``, shows the final one.
@@ -1380,15 +1414,341 @@ class Synthesis(metaclass=abc.ABCMeta):
         ax.yaxis.set_visible(False)
         return fig
 
-    def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(17, 5),
-                              ylim=None, plot_representation_error=True, imshow_zoom=None,
-                              vrange=(0, 1), fig=None):
-        r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio
+    def plot_image_hist(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(5, 5),
+                        ylim=None, ax=None, **kwargs):
+        r"""Plot histogram of target and matched image.
 
-        We create two or three subplots on a new figure. The first one
-        contains the synthesized image, the second contains the loss,
-        and the (optional) third contains the representation ratio, as
-        plotted by ``self.plot_representation_error``.
+        As a way to check the distributions of pixel intensities and see
+        if there's any values outside the allowed range
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ylim : tuple or None, optional
+            if tuple, the ylimit to set for this axis. If None, we leave
+            it untouched
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        kwargs :
+            passed to sns.distplot
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if iteration is None:
+            image = self.synthesized_signal[batch_idx, channel_idx]
+        else:
+            image = self.saved_signal[iteration, batch_idx, channel_idx]
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        else:
+            fig = ax.figure
+        base_signal = self.base_signal[batch_idx, channel_idx]
+        sns.distplot(to_numpy(image).flatten(), label='synthesized image', ax=ax, **kwargs)
+        sns.distplot(to_numpy(base_signal).flatten(), label='base image', ax=ax, **kwargs)
+        ax.legend()
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        ax.set_title("Histogram of pixel values")
+        return fig
+
+    def _grab_value_for_comparison(self, value, iteration=None,
+                                   scatter_subsample=1, **kwargs):
+        """Grab and shape values for comparison plot.
+
+        This grabs the appropriate batch_idx, channel_idx, and iteration from
+        the saved representation or signal, respectively, and subsamples it if
+        necessary.
+
+        We then concatenate thema long the last dimension.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        plot_vals : torch.Tensor
+            2d tensor containing the base and synthesized value (indexed along
+            last dimension)
+
+        """
+        if value == 'representation':
+            if iteration is not None:
+                synthesized_val = self.saved_representation[iteration]
+            else:
+                synthesized_val = self.analyze(self.synthesized_signal, **kwargs)
+            base_val = self.base_representation
+        elif value == 'signal':
+            if iteration is not None:
+                synthesized_val = self.saved_signal[iteration]
+            else:
+                synthesized_val = self.synthesized_signal
+            base_val = self.base_signal
+        else:
+            raise Exception(f"Don't know how to handle value {value}!")
+        # if this is 4d, this will convert it to 3d (if it's 3d, nothing
+        # changes)
+        base_val = base_val.flatten(2, -1)
+        synthesized_val = synthesized_val.flatten(2, -1)
+        plot_vals = torch.stack((base_val, synthesized_val), -1)
+        if scatter_subsample < 1:
+            plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]
+        return plot_vals
+
+
+    def plot_value_comparison(self, value='representation', batch_idx=0,
+                              channel_idx=0, iteration=None, figsize=(5, 5),
+                              ax=None, func='scatter', hist2d_nbins=21,
+                              hist2d_cmap='Blues', scatter_subsample=1,
+                              **kwargs):
+        """Plot comparison of base vs. synthesized representation or signal.
+
+        Plotting representation is another way of visualizing the
+        representation error, while plotting signal is similar to
+        plot_image_hist, but allows you to see whether there's any pattern of
+        individual correspondence.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this
+            comparison. When there are many values (as often happens when
+            plotting signal), then hist2d will be clearer
+        hist2d_nbins: int, optional
+            Number of bins between 0 and 1 to use for hist2d
+        hist2d_cmap : str or matplotlib colormap, optional
+            Colormap to use for hist2d
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        if self._rep_warning and value=='representation':
+            warnings.warn("Since at least one of your models is a metric, its representation"
+                          " will be meaningless -- it will just show the pixel values"
+                          ". (Your loss is still meaningful, however, since it's the actual "
+                          "metric)")
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize, subplot_kw={'aspect': 1})
+        else:
+            fig = ax.figure
+        plot_vals = self._grab_value_for_comparison(value,
+                                                    iteration,
+                                                    scatter_subsample,
+                                                    **kwargs)
+        plot_vals = to_numpy(plot_vals[batch_idx, channel_idx])
+        if func == 'scatter':
+            ax.scatter(plot_vals[:, 0], plot_vals[:, 1])
+            ax.set(xlim=ax.get_ylim())
+        elif func == 'hist2d':
+            ax.hist2d(plot_vals[:, 0], plot_vals[:, 1],
+                      bins=np.linspace(0, 1, hist2d_nbins),
+                      cmap=hist2d_cmap, cmin=0)
+        ax.set(ylabel=f'Synthesized {value}', xlabel=f'Base {value}')
+        return fig
+
+    def _setup_synthesis_fig(self, fig, axes_idx, figsize,
+                             plot_synthesized_image=True, plot_loss=True,
+                             plot_representation_error=True,
+                             plot_image_hist=False, plot_rep_comparison=False,
+                             plot_signal_comparison=False,
+                             synthesized_image_width=1, loss_width=1,
+                             representation_error_width=1, image_hist_width=1,
+                             rep_comparison_width=1, signal_comparison_width=1):
+        """Set up figure for plot_synthesis_status.
+
+        Creates figure with enough axes for the all the plots you want. Will
+        also create index in axes_idx for them if you haven't done so already.
+
+        By default, all axes will be on the same row and have the same width.
+        If you want them to be on different rows, will need to initialize fig
+        yourself and pass that in. For changing width, change the corresponding
+        *_width arg, which gives width relative to other axes. So if you want
+        the axis for the representation_error plot to be twice as wide as the
+        others, set representation_error_width=2.
+
+        Parameters
+        ----------
+        fig : matplotlib.pyplot.Figure or None
+            The figure to plot on or None. If None, we create a new figure
+        axes_idx : dict
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this function to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have relative width=1 correspond to 5
+        plot_synthesized_image : bool, optional
+            Whether to include axis for plot of the synthesized image or not.
+        plot_loss : bool, optional
+            Whether to include axis for plot of the loss or not.
+        plot_representation_error : bool, optional
+            Whether to include axis for plot of the representation ratio or not.
+        plot_image_hist : bool, optional
+            Whether to include axis for plot of the histograms of image pixel
+            intensities or not.
+        plot_rep_comparison : bool, optional
+            Whether to include axis for plot of a scatter plot comparing the
+            synthesized and base representation.
+        plot_signal_comparison : bool, optional
+            Whether to include axis for plot of the comparison of the
+            synthesized and base signal.
+        synthesized_image_width : float, optional
+            Relative width of the axis for the synthesized image.
+        loss_width : float, optional
+            Relative width of the axis for loss plot.
+        representation_error_width : float, optional
+            Relative width of the axis for representation error plot.
+        image_hist_width : float, optional
+            Relative width of the axis for image pixel intensities histograms.
+        rep_comparison_width : float, optional
+            Relative width of the axis for representation comparison plot.
+        signal_comparison_width : float, optional
+            Relative width of the axis for signal comparison plot.
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure to plot on
+        axes : array_like
+            List or array of axes contained in fig
+        axes_idx : dict
+            Dictionary identifying the idx for each plot type
+
+        """
+        n_subplots = 0
+        axes_idx = axes_idx.copy()
+        width_ratios = []
+        if plot_synthesized_image:
+            n_subplots += 1
+            width_ratios.append(synthesized_image_width)
+            if 'image' not in axes_idx.keys():
+                axes_idx['image'] = _find_min_int(axes_idx.values())
+        if plot_loss:
+            n_subplots += 1
+            width_ratios.append(loss_width)
+            if 'loss' not in axes_idx.keys():
+                axes_idx['loss'] = _find_min_int(axes_idx.values())
+        if plot_representation_error:
+            n_subplots += 1
+            width_ratios.append(representation_error_width)
+            if 'rep_error' not in axes_idx.keys():
+                axes_idx['rep_error'] = _find_min_int(axes_idx.values())
+        if plot_image_hist:
+            n_subplots += 1
+            width_ratios.append(image_hist_width)
+            if 'hist' not in axes_idx.keys():
+                axes_idx['hist'] = _find_min_int(axes_idx.values())
+        if plot_rep_comparison:
+            n_subplots += 1
+            width_ratios.append(rep_comparison_width)
+            if 'rep_comp' not in axes_idx.keys():
+                axes_idx['rep_comp'] = _find_min_int(axes_idx.values())
+        if plot_signal_comparison:
+            n_subplots += 1
+            width_ratios.append(signal_comparison_width)
+            if 'signal_comp' not in axes_idx.keys():
+                axes_idx['signal_comp'] = _find_min_int(axes_idx.values())
+        if fig is None:
+            width_ratios = np.array(width_ratios)
+            if figsize is None:
+                # we want (5, 5) for each subplot, with a bit of room between
+                # each subplot
+                figsize = ((width_ratios*5).sum() + width_ratios.sum()-1, 5)
+            width_ratios = width_ratios / width_ratios.sum()
+            fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
+                                     gridspec_kw={'width_ratios': width_ratios})
+            if n_subplots == 1:
+                axes = [axes]
+        else:
+            axes = fig.axes
+        return fig, axes, axes_idx
+
+    def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None,
+                              figsize=None, ylim=None,
+                              plot_synthesized_image=True, plot_loss=True,
+                              plot_representation_error=True, imshow_zoom=None,
+                              vrange=(0, 1), fig=None, plot_image_hist=False,
+                              plot_rep_comparison=False,
+                              plot_signal_comparison=False,
+                              signal_comp_func='scatter',
+                              signal_comp_subsample=.01, axes_idx={}):
+        r"""Make a plot showing synthesis status.
+
+        We create several subplots to analyze this. By default, we create three
+        subplots on a new figure: the first one contains the synthesized image,
+        the second contains the loss, and the third contains the representation
+        error.
+
+        There are several optional additional plots: image_hist, rep_comparison, and
+        signal_comparison:
+
+        - image_hist contains a histogram of pixel values of the synthesized
+          and base images.
+
+        - rep_comparison is a scatter plot comparing the representation of the
+          synthesized and base images.
+
+        - signal_comparison is a scatter plot (by default) or 2d histogram (if
+          signal_comp_func='hist2d') of the pixel values in the synthesized and
+          base images.
+
+        All of these (including the default plots) can be toggled using their
+        corresponding boolean flags, and can be created separately using the
+        method with the same name as the flag.
 
         You can specify what iteration to view by using the
         ``iteration`` arg. The default, ``None``, shows the final one.
@@ -1416,18 +1776,17 @@ class Synthesis(metaclass=abc.ABCMeta):
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC`, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         ylim : tuple or None, optional
             The ylimit to use for the representation_error plot. We pass
             this value directly to ``self.plot_representation_error``
+        plot_synthesized_image : bool, optional
+            Whether to plot the synthesized image or not.
+        plot_loss : bool, optional
+            Whether to plot the loss or not.
         plot_representation_error : bool, optional
             Whether to plot the representation ratio or not.
         imshow_zoom : None or float, optional
@@ -1443,6 +1802,32 @@ class Synthesis(metaclass=abc.ABCMeta):
             if None, we create a new figure. otherwise we assume this is
             an empty figure that has the appropriate size and number of
             subplots
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not.
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot the comparison of the synthesized and base
+            signal.
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this function to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
 
         Returns
         -------
@@ -1450,35 +1835,86 @@ class Synthesis(metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
-        if fig is None:
-            if plot_representation_error:
-                n_subplots = 3
-            else:
-                n_subplots = 2
-            fig, axes = plt.subplots(1, n_subplots, figsize=figsize)
-        else:
-            axes = fig.axes
-        self.plot_synthesized_image(batch_idx, channel_idx, iteration, None, ax=axes[0],
-                                    imshow_zoom=imshow_zoom, vrange=vrange)
-        self.plot_loss(iteration, ax=axes[1])
+        if iteration is not None and not self.store_progress:
+            raise Exception("synthesis() was run with store_progress=False, "
+                            "cannot specify which iteration to plot (only"
+                            " last one, with iteration=None)")
+        fig, axes, axes_idx = self._setup_synthesis_fig(fig, axes_idx, figsize,
+                                                        plot_synthesized_image,
+                                                        plot_loss,
+                                                        plot_representation_error,
+                                                        plot_image_hist,
+                                                        plot_rep_comparison,
+                                                        plot_signal_comparison)
+
+        def check_iterables(i, vals):
+            for j in vals:
+                try:
+                    # then it's an iterable
+                    if i in j:
+                        return True
+                except TypeError:
+                    # then it's not an iterable
+                    if i == j:
+                        return True
+
+        if plot_synthesized_image:
+            self.plot_synthesized_image(batch_idx=batch_idx,
+                                        channel_idx=channel_idx,
+                                        iteration=iteration, title=None,
+                                        ax=axes[axes_idx['image']],
+                                        imshow_zoom=imshow_zoom, vrange=vrange)
+        if plot_loss:
+            self.plot_loss(iteration=iteration, ax=axes[axes_idx['loss']])
         if plot_representation_error:
-            fig = self.plot_representation_error(batch_idx, iteration, ax=axes[2], ylim=ylim)
+            fig = self.plot_representation_error(batch_idx=batch_idx,
+                                                 iteration=iteration,
+                                                 ax=axes[axes_idx['rep_error']],
+                                                 ylim=ylim)
+            # this can add a bunch of axes, so this will try and figure
+            # them out
+            new_axes = [i for i, _ in enumerate(fig.axes) if not
+                        check_iterables(i, axes_idx.values())] + [axes_idx['rep_error']]
+            axes_idx['rep_error'] = new_axes
+        if plot_image_hist:
+            fig = self.plot_image_hist(batch_idx=batch_idx,
+                                       channel_idx=channel_idx,
+                                       iteration=iteration,
+                                       ax=axes[axes_idx['hist']])
+        if plot_rep_comparison:
+            fig = self.plot_value_comparison(value='representation',
+                                             batch_idx=batch_idx,
+                                             channel_idx=channel_idx,
+                                             iteration=iteration,
+                                             ax=axes[axes_idx['rep_comp']])
+            # this can add some axes, so this will try and figure them out
+            new_axes = [i for i, _ in enumerate(fig.axes) if not
+                        check_iterables(i, axes_idx.values())] + [axes_idx['rep_comp']]
+            axes_idx['rep_comp'] = new_axes
+        if plot_signal_comparison:
+            fig = self.plot_value_comparison(value='signal',
+                                             batch_idx=batch_idx,
+                                             channel_idx=channel_idx,
+                                             iteration=iteration,
+                                             ax=axes[axes_idx['signal_comp']],
+                                             func=signal_comp_func,
+                                             scatter_subsample=signal_comp_subsample)
+        self._axes_idx = axes_idx
         return fig
 
-    def animate(self, batch_idx=0, channel_idx=0, figsize=(17, 5), framerate=10, ylim='rescale',
-                plot_representation_error=True, imshow_zoom=None, plot_data_attr=['loss'],
-                rep_error_kwargs={}):
-        r"""Animate synthesis progress!
+    def animate(self, batch_idx=0, channel_idx=0, figsize=None,
+                framerate=10, ylim='rescale', plot_synthesized_image=True,
+                plot_loss=True, plot_representation_error=True,
+                imshow_zoom=None, plot_data_attr=['loss'], rep_func_kwargs={},
+                plot_image_hist=False, plot_rep_comparison=False,
+                plot_signal_comparison=False, fig=None,
+                signal_comp_func='scatter', signal_comp_subsample=.01,
+                axes_idx={}, init_figure=True):
+        r"""Animate synthesis progress.
 
         This is essentially the figure produced by
         ``self.plot_synthesis_status`` animated over time, for each stored
         iteration.
-
-        It's difficult to determine a reasonable figsize, because we
-        don't know how much information is in the plot showing the
-        representation ratio. Therefore, it's recommended you play
-        around with ``plot_synthesis_status`` until you find a
-        good-looking value for figsize.
 
         We return the matplotlib FuncAnimation object. In order to view
         it in a Jupyter notebook, use the
@@ -1494,15 +1930,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             Which index to take from the batch dimension (the first one)
         channel_idx : int, optional
             Which index to take from the channel dimension (the second one)
-        figsize : tuple, optional
-            The size of the figure to create. It may take a little bit
-            of playing around to find a reasonable value. If you're not
-            showing the representation, (12, 5) probably makes sense. If
-            you are showing the representation, it depends on the level
-            of detail in that plot. If it only creates one set of axes,
-            like ``PooledRGC``, then (17,5) is probably fine,
-            but you may need much larger if it's more complicated; e.g.,
-            for ``PooledV1``, try (39, 11).
+        figsize : tuple or None, optional
+            The size of the figure to create. It may take a little bit of
+            playing around to find a reasonable value. If None, we attempt to
+            make our best guess, aiming to have each axis be of size (5, 5)
         framerate : int, optional
             How many frames a second to display.
         ylim : str, None, or tuple, optional
@@ -1534,9 +1965,52 @@ class Synthesis(metaclass=abc.ABCMeta):
             whatever is in there if your plot_synthesis_status() plots
             something other than loss or if you plotted more than one
             attribute (e.g., MADCompetition plots two losses)
-        rep_error_kwargs : dict, optional
-            a dictionary of kwargs to pass through to the repeated calls
-            to representation_error() (in addition to the iteration)
+        rep_func_kwargs : dict, optional
+            a dictionary of additional kwargs to pass through to the repeated
+            calls to representation_error() or _grab_value_for_comparison()
+            (for plotting representation error and representation comparison,
+            respectively)
+        plot_image_hist : bool, optional
+            Whether to plot the histograms of image pixel intensities or
+            not. Note that we update this in the most naive way possible
+            (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot a 2d histogram comparing the synthesized and base
+            representation. Note that we update this in the most naive way
+            possible (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
+        fig : plt.Figure or None, optional
+            If None, create the figure from scratch. Else, should be an empty
+            figure with enough axes (the expected use here is have same-size
+            movies with different plots).
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this function to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
+        init_figure : bool, optional
+            If True, we call plot_synthesis_status to initialize the figure. If
+            False, we assume fig has already been intialized with the proper
+            plots (e.g., you already called plot_synthesis_status and are
+            passing that figure as the fig argument). In this case, axes_idx
+            must also be set and include keys for each of the included plots,
+            since plot_synthesis_status normally sets it up for us
 
         Returns
         -------
@@ -1545,6 +2019,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             or save.
 
         """
+        if not self.store_progress:
+            raise Exception("synthesize() was run with store_progress=False,"
+                            " cannot animate!")
         if self.saved_representation is not None and len(self.saved_signal) != len(self.saved_representation):
             raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
@@ -1582,13 +2059,48 @@ class Synthesis(metaclass=abc.ABCMeta):
         except AttributeError:
             # this way we'll never rescale
             ylim_rescale_interval = len(self.saved_signal)+1
-        # initialize the figure
-        fig = self.plot_synthesis_status(batch_idx, channel_idx, 0, figsize, ylim,
-                                         plot_representation_error, imshow_zoom=imshow_zoom)
+        if init_figure:
+            # initialize the figure
+            fig = self.plot_synthesis_status(batch_idx=batch_idx, channel_idx=channel_idx,
+                                             iteration=0, figsize=figsize, ylim=ylim,
+                                             plot_loss=plot_loss,
+                                             plot_representation_error=plot_representation_error,
+                                             imshow_zoom=imshow_zoom, fig=fig,
+                                             plot_synthesized_image=plot_synthesized_image,
+                                             plot_image_hist=plot_image_hist,
+                                             plot_signal_comparison=plot_signal_comparison,
+                                             plot_rep_comparison=plot_rep_comparison,
+                                             signal_comp_func=signal_comp_func,
+                                             signal_comp_subsample=signal_comp_subsample,
+                                             axes_idx=axes_idx)
+            # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
+            # which tells us which axes contains which plot
+            axes_idx = self._axes_idx
         # grab the artists for the second plot (we don't need to do this
         # for the synthesized image or representation plot, because we
         # use the update_plot function for that)
-        scat = fig.axes[1].collections
+        if plot_loss:
+            scat = fig.axes[axes_idx['loss']].collections
+        # can have multiple plots
+        if plot_representation_error:
+            try:
+                rep_error_axes = [fig.axes[i] for i in axes_idx['rep_error']]
+            except TypeError:
+                # in this case, axes_idx['rep_error'] is not iterable and so is
+                # a single value
+                rep_error_axes = [fig.axes[axes_idx['rep_error']]]
+        else:
+            rep_error_axes = []
+        # can also have multiple plots
+        if plot_rep_comparison:
+            try:
+                rep_comp_axes = [fig.axes[i] for i in axes_idx['rep_comp']]
+            except TypeError:
+                # in this case, axes_idx['rep_comp'] is not iterable and so is
+                # a single value
+                rep_comp_axes = [fig.axes[axes_idx['rep_comp']]]
+        else:
+            rep_comp_axes = []
 
         if self.base_representation.ndimension() == 4:
             warnings.warn("Looks like representation is image-like, haven't fully thought out how"
@@ -1596,31 +2108,68 @@ class Synthesis(metaclass=abc.ABCMeta):
             # replace the bit of the title that specifies the range,
             # since we don't make any promises about that. we have to do
             # this here because we need the figure to have been created
-            for ax in fig.axes[2:]:
+            for ax in rep_error_axes:
                 ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
 
         def movie_plot(i):
             artists = []
-            artists.extend(update_plot([fig.axes[0]], data=self.saved_signal[i],
-                                       batch_idx=batch_idx))
+            if plot_synthesized_image:
+                artists.extend(update_plot(fig.axes[axes_idx['image']],
+                                           data=self.saved_signal[i],
+                                           batch_idx=batch_idx))
             if plot_representation_error:
-                representation_error = self.representation_error(iteration=i, **rep_error_kwargs)
-                # we know that the first two axes are the image and
-                # loss, so we pass everything after that to update
-                artists.extend(update_plot(fig.axes[2:], batch_idx=batch_idx, model=self.model,
+                representation_error = self.representation_error(iteration=i,
+                                                                 **rep_func_kwargs)
+                # we pass rep_error_axes to update, and we've grabbed
+                # the right things above
+                artists.extend(update_plot(rep_error_axes,
+                                           batch_idx=batch_idx,
+                                           model=self.model,
                                            data=representation_error))
-                # again, we know that fig.axes[2:] contains all the axes
+                # again, we know that rep_error_axes contains all the axes
                 # with the representation ratio info
                 if ((i+1) % ylim_rescale_interval) == 0:
                     if self.base_representation.ndimension() == 3:
-                        rescale_ylim(fig.axes[2:], representation_error)
-            # loss always contains values from every iteration, but
-            # everything else will be subsampled
-            for s, d in zip(scat, plot_data):
-                s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
-            artists.extend(scat)
+                        rescale_ylim(rep_error_axes,
+                                     representation_error)
+            if plot_image_hist:
+                # this is the dumbest way to do this, but it's simple --
+                # clearing the axes can cause problems if the user has, for
+                # example, changed the tick locator or formatter. not sure how
+                # to handle this best right now
+                fig.axes[axes_idx['hist']].clear()
+                self.plot_image_hist(batch_idx=batch_idx,
+                                     channel_idx=channel_idx, iteration=i,
+                                     ax=fig.axes[axes_idx['hist']])
+            if plot_signal_comparison:
+                if signal_comp_func == 'hist2d':
+                    # this is the dumbest way to do this, but it's simple --
+                    # clearing the axes can cause problems if the user has, for
+                    # example, changed the tick locator or formatter. not sure how
+                    # to handle this best right now
+                    fig.axes[axes_idx['signal_comp']].clear()
+                    self.plot_value_comparison('signal', batch_idx,
+                                               channel_idx, i,
+                                               ax=fig.axes[axes_idx['signal_comp']],
+                                               func=signal_comp_func)
+                else:
+                    plot_vals = self._grab_value_for_comparison('signal', i,
+                                                                signal_comp_subsample)
+                    artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
+                                               plot_vals))
+            if plot_loss:
+                # loss always contains values from every iteration, but
+                # everything else will be subsampled
+                for s, d in zip(scat, plot_data):
+                    s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
+                artists.extend(scat)
+            if plot_rep_comparison:
+                plot_vals = self._grab_value_for_comparison('representation', i,
+                                                            **rep_func_kwargs)
+                artists.extend(update_plot(rep_comp_axes, plot_vals))
             # as long as blitting is True, need to return a sequence of artists
             return artists
+
 
         # don't need an init_func, since we handle initialization ourselves
         anim = animation.FuncAnimation(fig, movie_plot, frames=len(self.saved_signal),

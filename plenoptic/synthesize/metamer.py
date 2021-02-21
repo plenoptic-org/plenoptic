@@ -68,6 +68,12 @@ class Metamer(Synthesis):
     learning_rate : list
         A list of the learning_rate over iterations. We use a scheduler
         that gradually reduces this over time, so it won't be constant.
+    pixel_change : list
+        A list containing the max pixel change over iterations
+        (``pixel_change[i]`` is the max pixel change in
+        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
+        this is calculated before any clamping, so may have some very
+        large numbers in the beginning
     saved_signal : torch.Tensor or list
         Saved ``self.synthesized_signal`` for later examination.
     saved_representation : torch.Tensor or list
@@ -141,11 +147,12 @@ class Metamer(Synthesis):
         super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
-                   scheduler=True, optimizer='SGD', clamper=RangeClamper((0, 1)),
+                   scheduler=True, optimizer='SGD', optimizer_kwargs={}, swa=False,
+                   swa_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False, save_progress=False,
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
                    fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                   coarse_to_fine=False, clip_grad_norm=False, **optimizer_kwargs):
+                   coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize a metamer
 
         This is the main method, which updates the ``initial_image`` until its
@@ -178,6 +185,15 @@ class Metamer(Synthesis):
         optimizer: {'GD', 'Adam', 'SGD', 'LBFGS', 'AdamW'}
             The choice of optimization algorithm. 'GD' is regular
             gradient descent.
+        optimizer_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the optimizer (in
+            addition to learning_rate). What these should be depend on
+            the specific optimizer you're using
+        swa : bool, optional
+            whether to use stochastic weight averaging or not
+        swa_kwargs : dict, optional
+            Dictionary of keyword arguments to pass to the SWA object. See
+            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -239,10 +255,6 @@ class Metamer(Synthesis):
             Clip the gradient norm to avoid issues with numerical overflow.
             Gradient norm will be clipped to the specified value (True is
             equivalent to 1).
-        optimizer_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the optimizer (in
-            addition to learning_rate). What these should be depend on
-            the specific optimizer you're using
 
         Returns
         -------
@@ -264,7 +276,7 @@ class Metamer(Synthesis):
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             **optimizer_kwargs)
+                             optimizer_kwargs, swa, swa_kwargs)
 
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress, save_path)
@@ -272,8 +284,9 @@ class Metamer(Synthesis):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss, g, lr = self._optimizer_step(pbar)
+            loss, g, lr, pixel_change = self._optimizer_step(pbar)
             self.loss.append(loss.item())
+            self.pixel_change.append(pixel_change.item())
             self.gradient.append(g.item())
             self.learning_rate.append(lr)
 
@@ -287,6 +300,9 @@ class Metamer(Synthesis):
                 break
 
         pbar.close()
+
+        if self._swa:
+            self._optimizer.swap_swa_sgd()
 
         # finally, stack the saved_* attributes
         self._finalize_stored_progress()
@@ -316,7 +332,7 @@ class Metamer(Synthesis):
                  'synthesized_representation', 'saved_representation', 'gradient', 'saved_signal',
                  'learning_rate', 'saved_representation_gradient', 'saved_signal_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
-                 'scales_finished', 'store_progress', 'save_progress', 'save_path']
+                 'scales_finished', 'store_progress', 'save_progress', 'save_path', 'pixel_change']
         super().save(file_path, save_model_reduced,  attrs)
 
     def to(self, *args, **kwargs):
@@ -437,3 +453,66 @@ class Metamer(Synthesis):
         """
         return super().load(file_path, 'model', model_constructor, map_location,
                             **state_dict_kwargs)
+
+    def plot_value_comparison(self, value='representation', batch_idx=0,
+                              channel_idx=0, iteration=None, figsize=(5, 5),
+                              ax=None, func='scatter', hist2d_nbins=21,
+                              hist2d_cmap='Blues', scatter_subsample=1,
+                              **kwargs):
+        """Plot comparison of base vs. synthesized representation or signal.
+
+        Plotting representation is another way of visualizing the
+        representation error, while plotting signal is similar to
+        plot_image_hist, but allows you to see whether there's any pattern of
+        individual correspondence.
+
+        Parameters
+        ----------
+        value : {'representation', 'signal'}
+            Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        channel_idx : int, optional
+            Which index to take from the channel dimension (the second one)
+        iteration : int or None, optional
+            Which iteration to display. If None, the default, we show
+            the most recent one. Negative values are also allowed.
+        figsize : tuple, optional
+            The size of the figure to create. Ignored if ax is not None
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+        func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this
+            comparison. When there are many values (as often happens when
+            plotting signal), then hist2d will be clearer
+        hist2d_nbins: int, optional
+            Number of bins between 0 and 1 to use for hist2d
+        hist2d_cmap : str or matplotlib colormap, optional
+            Colormap to use for hist2d
+        scatter_subsample : float, optional
+            What percentage of points to plot. If less than 1, will select that
+            proportion of the points to plot. Done to make visualization
+            clearer. Note we don't do this randomly (so that animate looks
+            reasonable).
+        kwargs :
+            passed to self.analyze
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            The figure containing this plot
+
+        """
+        fig = super().plot_value_comparison(value=value, batch_idx=batch_idx,
+                                            channel_idx=channel_idx,
+                                            iteration=iteration,
+                                            figsize=figsize, ax=ax, func=func,
+                                            hist2d_nbins=hist2d_nbins,
+                                            hist2d_cmap=hist2d_cmap,
+                                            scatter_subsample=scatter_subsample,
+                                            **kwargs)
+        if ax is None:
+            ax = fig.axes[0]
+        ax.set(xlabel=f'Target {value}')
+        return fig
