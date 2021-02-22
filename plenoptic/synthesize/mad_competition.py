@@ -1339,7 +1339,7 @@ class MADCompetition(Synthesis):
 
     def plot_representation_error(self,synthesis_target=None, batch_idx=0,
                                   iteration=None, figsize=(12, 5), ylim=None,
-                                  ax=None, title=''):
+                                  ax=None, title='', as_rgb=False):
         r"""Plot distance ratio showing how close we are to convergence
 
         We plot ``self.representation_error(iteration)``
@@ -1397,6 +1397,13 @@ class MADCompetition(Synthesis):
         title : str, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``)
+        as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1418,7 +1425,7 @@ class MADCompetition(Synthesis):
             axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
         for i, (model, error) in enumerate(rep_error.items()):
             plot_representation(getattr(self, model), error, axes[i], figsize, ylim, batch_idx,
-                                f'Model {i+1}: {self._get_model_name(model)} {title}')
+                                f'Model {i+1}: {self._get_model_name(model)} {title}', as_rgb)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
@@ -1866,7 +1873,8 @@ class MADCompetition(Synthesis):
                               plot_image_hist=False, plot_rep_comparison=False,
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
-                              signal_comp_subsample=.01, axes_idx={}):
+                              signal_comp_subsample=.01, axes_idx={},
+                              plot_representation_error_as_rgb=False):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio.
 
         We create several subplots to analyze this. By default, we create three
@@ -1951,6 +1959,36 @@ class MADCompetition(Synthesis):
         plot_image_hist : bool, optional
             Whether to plot the histograms of image pixel intensities or
             not.
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot the comparison of the synthesized and base
+            signal.
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this function to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1975,7 +2013,8 @@ class MADCompetition(Synthesis):
                                       imshow_zoom, vrange, fig,
                                       plot_image_hist, plot_rep_comparison,
                                       plot_signal_comparison, signal_comp_func,
-                                      signal_comp_subsample, axes_idx)
+                                      signal_comp_subsample, axes_idx,
+                                      plot_representation_error_as_rgb)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
@@ -1988,7 +2027,8 @@ class MADCompetition(Synthesis):
                 plot_image_hist=False, plot_rep_comparison=False,
                 plot_signal_comparison=False,
                 fig=None, signal_comp_func='scatter', signal_comp_subsample=.01,
-                axes_idx={}, init_figure=True):
+                axes_idx={}, init_figure=True,
+                plot_representation_error_as_rgb=False):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -2017,6 +2057,10 @@ class MADCompetition(Synthesis):
 
         Parameters
         ----------
+        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
+            which synthesis target to grab the representation for. If
+            None, we use the most recent synthesis_target (i.e.,
+            ``self.synthesis_target``).
         batch_idx : int, optional
             Which index to take from the batch dimension
         channel_idx : int or None, optional
@@ -2056,10 +2100,49 @@ class MADCompetition(Synthesis):
             not. Note that we update this in the most naive way possible
             (by clearing and replotting the values), so it might not
             look as good as the others and may take some time.
-        synthesis_target : {None, 'model_1_min', 'model_1_max', 'model_2_min', 'model_2_max'}
-            which synthesis target to grab the representation for. If
-            None, we use the most recent synthesis_target (i.e.,
-            ``self.synthesis_target``).
+        plot_rep_comparison : bool, optional
+            Whether to plot a scatter plot comparing the synthesized and base
+            representation.
+        plot_signal_comparison : bool, optional
+            Whether to plot a 2d histogram comparing the synthesized and base
+            representation. Note that we update this in the most naive way
+            possible (by clearing and replotting the values), so it might not
+            look as good as the others and may take some time.
+        fig : plt.Figure or None, optional
+            If None, create the figure from scratch. Else, should be an empty
+            figure with enough axes (the expected use here is have same-size
+            movies with different plots).
+        signal_comp_func : {'scatter', 'hist2d'}, optional
+            Whether to use a scatter plot or 2d histogram to plot this signal
+            comparison. When there are many values (as often happens), then
+            hist2d will be clearer
+        signal_comp_subsample : float, optional
+            What percentage of signal points to plot. If less than 1, will
+            randomly select that proportion of the points to plot. Done to make
+            visualization clearer.
+        axes_idx : dict, optional
+            Dictionary specifying which axes contains which type of plot,
+            allows for more fine-grained control of the resulting figure.
+            Probably only helpful if fig is also defined. Possible keys: image,
+            loss, rep_error, hist, rep_comp, signal_comp, misc. Values should
+            all be ints. If you tell this function to create a plot that doesn't
+            have a corresponding key, we find the lowest int that is not
+            already in the dict, so if you have axes that you want unchanged,
+            place their idx in misc.
+        init_figure : bool, optional
+            If True, we call plot_synthesis_status to initialize the figure. If
+            False, we assume fig has already been intialized with the proper
+            plots (e.g., you already called plot_synthesis_status and are
+            passing that figure as the fig argument). In this case, axes_idx
+            must also be set and include keys for each of the included plots,
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
+            since plot_synthesis_status normally sets it up for us
 
         Returns
         -------
@@ -2081,7 +2164,8 @@ class MADCompetition(Synthesis):
                                ['loss_1', 'loss_2'], {'model': 'both'},
                                plot_image_hist, plot_rep_comparison,
                                plot_signal_comparison, fig, signal_comp_func,
-                               signal_comp_subsample, axes_idx, init_figure)
+                               signal_comp_subsample, axes_idx, init_figure,
+                               plot_representation_error_as_rgb)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)

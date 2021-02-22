@@ -464,22 +464,11 @@ class TestDisplay(object):
 
 class TestMADDisplay(object):
 
-    @pytest.mark.parametrize('func', ['plot', 'animate'])
-    @pytest.mark.parametrize('iteration', [None, 1, -1])
-    @pytest.mark.parametrize('plot_synthesized_image', [True, False])
-    @pytest.mark.parametrize('plot_loss', [True, False])
-    @pytest.mark.parametrize('plot_representation_error', [True, False])
-    @pytest.mark.parametrize('plot_image_hist', [True, False])
-    @pytest.mark.parametrize('plot_rep_comparison', [True, False])
-    @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
-    @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
-    @pytest.mark.parametrize('rgb', [True, False])
-    def test_all_plot_animate(self, func, iteration, plot_synthesized_image,
-                              plot_loss, plot_representation_error,
-                              plot_image_hist, plot_rep_comparison,
-                              plot_signal_comparison, fig_creation, rgb):
-        if rgb:
+    @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
+    def synthesized_mad(self, request):
+        if request.param == 'rgb':
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = img[..., :256, :256]
         else:
             img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         model1 = po.simul.models.naive.Identity().to(DEVICE)
@@ -488,49 +477,74 @@ class TestMADDisplay(object):
         def rgb_ssim(*args, **kwargs):
             return po.metric.ssim(*args, **kwargs).mean()
         model2 = rgb_ssim
-        func = 'scatter'
-        if plot_signal_comparison:
-            func = plot_signal_comparison
-            plot_signal_comparison = True
         mad = po.synth.MADCompetition(img, model1, model2)
+        mad.synthesize('model_1_min', max_iter=3, store_progress=True)
+        return mad
+
+    # mix together func and iteration, because iteration doesn't make sense to
+    # pass to animate
+    @pytest.mark.parametrize('func', ['plot_None', 'plot_1', 'plot_-1', 'animate'])
+    @pytest.mark.parametrize('plot_synthesized_image', [True, False])
+    @pytest.mark.parametrize('plot_loss', [True, False])
+    @pytest.mark.parametrize('plot_representation_error', [True, False])
+    @pytest.mark.parametrize('plot_image_hist', [True, False])
+    @pytest.mark.parametrize('plot_rep_comparison', [True, False])
+    @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
+    @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
+    def test_all_plot_animate(self, synthesized_mad, func,
+                              plot_synthesized_image, plot_loss,
+                              plot_representation_error, plot_image_hist,
+                              plot_rep_comparison, plot_signal_comparison,
+                              fig_creation):
+        if sum([plot_synthesized_image, plot_loss, plot_representation_error,
+                plot_image_hist, plot_rep_comparison, plot_signal_comparison]) == 0:
+            # then there's nothing to plot here
+            return
+        as_rgb = synthesized_mad.base_signal.shape[1] > 1
+        plot_func = 'scatter'
+        if plot_signal_comparison:
+            plot_func = plot_signal_comparison
+            plot_signal_comparison = True
         if fig_creation == 'auto':
             fig = None
             axes_idx = {}
         elif fig_creation.startswith('pass'):
-            fig, axes, axes_idx = mad._setup_synthesis_fig(None, {}, None)
+            fig, axes, axes_idx = synthesized_mad._setup_synthesis_fig(None, {}, None)
             if fig_creation.endswith('without'):
                 axes_idx = {}
-        mad.synthesize('model_1_min', max_iter=3, store_progress=True)
-        if func == 'plot':
-            mad.plot_synthesis_status(iteration=iteration,
-                                      plot_synthesized_image=plot_synthesized_image,
-                                      plot_loss=plot_loss,
-                                      plot_representation_error=plot_representation_error,
-                                      plot_image_hist=plot_image_hist,
-                                      plot_rep_comparison=plot_rep_comparison,
-                                      plot_signal_comparison=plot_signal_comparison,
-                                      signal_comp_func=func, fig=fig,
-                                      axes_idx=axes_idx)
-        elif func == 'animate':
-            mad.animate(iteration=iteration,
-                        plot_synthesized_image=plot_synthesized_image,
-                        plot_loss=plot_loss,
-                        plot_representation_error=plot_representation_error,
-                        plot_image_hist=plot_image_hist,
-                        plot_rep_comparison=plot_rep_comparison,
-                        plot_signal_comparison=plot_signal_comparison,
-                        signal_comp_func=func, fig=fig, axes_idx=axes_idx).to_html5_video()
+        if func.startswith('plot'):
+            _, iteration = func.split('_')
+            try:
+                iteration = int(iteration)
+            except ValueError:
+                # then this is None
+                iteration = None
+            synthesized_mad.plot_synthesis_status(iteration=iteration,
+                                                  plot_synthesized_image=plot_synthesized_image,
+                                                  plot_loss=plot_loss,
+                                                  plot_representation_error=plot_representation_error,
+                                                  plot_image_hist=plot_image_hist,
+                                                  plot_rep_comparison=plot_rep_comparison,
+                                                  plot_signal_comparison=plot_signal_comparison,
+                                                  signal_comp_func=plot_func, fig=fig,
+                                                  axes_idx=axes_idx, plot_representation_error_as_rgb=as_rgb)
+        else:
+            synthesized_mad.animate(plot_synthesized_image=plot_synthesized_image,
+                                    plot_loss=plot_loss,
+                                    plot_representation_error=plot_representation_error,
+                                    plot_image_hist=plot_image_hist,
+                                    plot_rep_comparison=plot_rep_comparison,
+                                    plot_signal_comparison=plot_signal_comparison,
+                                    signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
+                                    plot_representation_error_as_rgb=as_rgb).to_html5_video()
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
-    def test_custom_fig(self, func, fig_creation):
-        img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-        model1 = po.simul.models.naive.Identity().to(DEVICE)
-        model2 = po.metric.ssim
-        mad = po.synth.MADCompetition(img, model1, model2)
+    def test_custom_fig(self, synthesized_mad, func, fig_creation):
+        as_rgb = synthesized_mad.base_signal.shape[1] > 1
         init_fig = True
-        fig, axes = plt.subplots(3, 3, figsize=(25, 17))
+        fig, axes = plt.subplots(3, 3, figsize=(35, 17))
         axes_idx = {'image': 0, 'signal_comp': 2, 'rep_comp': 3,
                     'rep_error': 8}
         if '-' in fig_creation:
@@ -543,30 +557,52 @@ class TestMADDisplay(object):
             plot_synthesized_image = True
         if fig_creation.endswith('preplot'):
             init_fig = False
-        mad.synthesize('model_1_min', max_iter=3, store_progress=True)
         if func == 'plot' or fig_creation.endswith('preplot'):
-            fig = mad.plot_synthesis_status(plot_synthesized_image=plot_synthesized_image,
-                                            plot_loss=True,
-                                            plot_representation_error=True,
-                                            plot_image_hist=True,
-                                            plot_rep_comparison=True,
-                                            plot_signal_comparison=True, fig=fig,
-                                            axes_idx=axes_idx)
+            fig = synthesized_mad.plot_synthesis_status(plot_synthesized_image=plot_synthesized_image,
+                                                        plot_loss=True,
+                                                        plot_representation_error=True,
+                                                        plot_image_hist=True,
+                                                        plot_rep_comparison=True,
+                                                        plot_signal_comparison=True, fig=fig,
+                                                        axes_idx=axes_idx,
+                                                        plot_representation_error_as_rgb=as_rgb)
             # axes_idx gets updated by plot_synthesis_status
-            axes_idx = mad._axes_idx
+            axes_idx = synthesized_mad._axes_idx
         if func == 'animate':
-            mad.animate(plot_synthesized_image=plot_synthesized_image,
-                        plot_loss=True, plot_representation_error=True,
-                        plot_image_hist=True, plot_rep_comparison=True,
-                        plot_signal_comparison=True, fig=fig,
-                        axes_idx=axes_idx, init_figure=init_fig).to_html5_video()
+            synthesized_mad.animate(plot_synthesized_image=plot_synthesized_image,
+                                    plot_loss=True, plot_representation_error=True,
+                                    plot_image_hist=True, plot_rep_comparison=True,
+                                    plot_signal_comparison=True, fig=fig,
+                                    axes_idx=axes_idx, init_figure=init_fig,
+                                    plot_representation_error_as_rgb=as_rgb).to_html5_video()
 
 
 class TestMetamerDisplay(object):
 
-    @pytest.mark.parametrize('func', ['plot', 'animate'])
-    @pytest.mark.parametrize('model', ['class', 'function'])
-    @pytest.mark.parametrize('iteration', [None, 1, -1])
+    @pytest.fixture(scope='class', params=['rgb-class', 'grayscale-class',
+                                           'rgb-func', 'grayscale-func'])
+    def synthesized_met(self, request):
+        img, model = request.param.split('-')
+        if img == 'rgb':
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = img[..., :256, :256]
+        else:
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        if model == 'class':
+            model = po.simul.PooledV1(.5, img.shape[2:]).to(DEVICE)
+        else:
+            # to serve as a metric, need to return a single value, but SSIM
+            # will return a separate value for each RGB channel
+            def rgb_ssim(*args, **kwargs):
+                return po.metric.ssim(*args, **kwargs).mean()
+            model = rgb_ssim
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=3, store_progress=True)
+        return met
+
+    # mix together func and iteration, because iteration doesn't make sense to
+    # pass to animate
+    @pytest.mark.parametrize('func', ['plot_None', 'plot_1', 'plot_-1', 'animate'])
     @pytest.mark.parametrize('plot_synthesized_image', [True, False])
     @pytest.mark.parametrize('plot_loss', [True, False])
     @pytest.mark.parametrize('plot_representation_error', [True, False])
@@ -574,65 +610,55 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('plot_rep_comparison', [True, False])
     @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
     @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
-    @pytest.mark.parametrize('rgb', [True, False])
-    def test_all_plot_animate(self, func, model, iteration,
-                              plot_synthesized_image, plot_loss,
+    def test_all_plot_animate(self, synthesized_met, func, plot_synthesized_image, plot_loss,
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
-                              fig_creation, rgb):
-        if rgb:
-            im = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
-        else:
-            im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-        if model == 'class':
-            model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-        else:
-            # to serve as a metric, need to return a single value, but SSIM
-            # will return a separate value for each RGB channel
-            def rgb_ssim(*args, **kwargs):
-                return po.metric.ssim(*args, **kwargs).mean()
-            model = rgb_ssim
-        func = 'scatter'
+                              fig_creation):
+        as_rgb = synthesized_met.base_signal.shape[1] > 1
+        plot_func = 'scatter'
         if plot_signal_comparison:
-            func = plot_signal_comparison
+            plot_func = plot_signal_comparison
             plot_signal_comparison = True
-        met = po.synth.Metamer(im, model)
         if fig_creation == 'auto':
             fig = None
             axes_idx = {}
         elif fig_creation.startswith('pass'):
-            fig, axes, axes_idx = met._setup_synthesis_fig(None, {}, None)
+            fig, axes, axes_idx = synthesized_met._setup_synthesis_fig(None, {}, None)
             if fig_creation.endswith('without'):
                 axes_idx = {}
-        met.synthesize(max_iter=3, store_progress=True)
-        if func == 'plot':
-            met.plot_synthesis_status(iteration=iteration,
-                                      plot_synthesized_image=plot_synthesized_image,
-                                      plot_loss=plot_loss,
-                                      plot_representation_error=plot_representation_error,
-                                      plot_image_hist=plot_image_hist,
-                                      plot_rep_comparison=plot_rep_comparison,
-                                      plot_signal_comparison=plot_signal_comparison,
-                                      signal_comp_func=func, fig=fig,
-                                      axes_idx=axes_idx)
-        elif func == 'animate':
-            met.animate(iteration=iteration,
-                        plot_synthesized_image=plot_synthesized_image,
-                        plot_loss=plot_loss,
-                        plot_representation_error=plot_representation_error,
-                        plot_image_hist=plot_image_hist,
-                        plot_rep_comparison=plot_rep_comparison,
-                        plot_signal_comparison=plot_signal_comparison,
-                        signal_comp_func=func, fig=fig, axes_idx=axes_idx).to_html5_video()
+        if func.startswith('plot'):
+            _, iteration = func.split('_')
+            try:
+                iteration = int(iteration)
+            except ValueError:
+                # then this is None
+                iteration = None
+                synthesized_met.plot_synthesis_status(iteration=iteration,
+                                                      plot_synthesized_image=plot_synthesized_image,
+                                                      plot_loss=plot_loss,
+                                                      plot_representation_error=plot_representation_error,
+                                                      plot_image_hist=plot_image_hist,
+                                                      plot_rep_comparison=plot_rep_comparison,
+                                                      plot_signal_comparison=plot_signal_comparison,
+                                                      signal_comp_func=plot_func, fig=fig,
+                                                      axes_idx=axes_idx,
+                                                      plot_representation_error_as_rgb=as_rgb)
+        else:
+            synthesized_met.animate(plot_synthesized_image=plot_synthesized_image,
+                                    plot_loss=plot_loss,
+                                    plot_representation_error=plot_representation_error,
+                                    plot_image_hist=plot_image_hist,
+                                    plot_rep_comparison=plot_rep_comparison,
+                                    plot_signal_comparison=plot_signal_comparison,
+                                    signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
+                                    plot_representation_error_as_rgb=as_rgb).to_html5_video()
 
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
-    def test_custom_fig(self, func, fig_creation):
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-        model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-        met = po.synth.Metamer(im, model)
+    def test_custom_fig(self, synthesized_met, func, fig_creation):
+        as_rgb = synthesized_met.base_signal.shape[1] > 1
         init_fig = True
         fig, axes = plt.subplots(3, 3, figsize=(17, 17))
         axes_idx = {'image': 0, 'signal_comp': 2, 'rep_comp': 3,
@@ -647,7 +673,6 @@ class TestMetamerDisplay(object):
             plot_synthesized_image = True
         if fig_creation.endswith('preplot'):
             init_fig = False
-        met.synthesize(max_iter=3, store_progress=True)
         if func == 'plot' or fig_creation.endswith('preplot'):
             fig = met.plot_synthesis_status(plot_synthesized_image=plot_synthesized_image,
                                             plot_loss=True,
@@ -655,7 +680,8 @@ class TestMetamerDisplay(object):
                                             plot_image_hist=True,
                                             plot_rep_comparison=True,
                                             plot_signal_comparison=True, fig=fig,
-                                            axes_idx=axes_idx)
+                                            axes_idx=axes_idx,
+                                            plot_representation_error_as_rgb=True)
             # axes_idx gets updated by plot_synthesis_status
             axes_idx = met._axes_idx
         if func == 'animate':
@@ -663,4 +689,5 @@ class TestMetamerDisplay(object):
                         plot_loss=True, plot_representation_error=True,
                         plot_image_hist=True, plot_rep_comparison=True,
                         plot_signal_comparison=True, fig=fig,
+                        plot_representation_error_as_rgb=True,
                         axes_idx=axes_idx, init_figure=init_fig).to_html5_video()

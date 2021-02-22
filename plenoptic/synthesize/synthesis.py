@@ -1250,7 +1250,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return self
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
-                                  ax=None, title=None):
+                                  ax=None, title=None, as_rgb=False):
         r"""Plot distance ratio showing how close we are to convergence.
 
         We plot ``self.representation_error(iteration)``
@@ -1286,6 +1286,13 @@ class Synthesis(metaclass=abc.ABCMeta):
         title : str, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``)
+        as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1295,7 +1302,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         """
         representation_error = self.representation_error(iteration=iteration)
         return plot_representation(self.model, representation_error, ax, figsize, ylim,
-                                   batch_idx, title)
+                                   batch_idx, title, as_rgb)
 
     def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, title='Loss', **kwargs):
         """Plot the synthesis loss.
@@ -1532,8 +1539,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         Returns
         -------
         plot_vals : torch.Tensor
-            2d tensor containing the base and synthesized value (indexed along
-            last dimension)
+            4d tensor containing the base and synthesized value (indexed along
+            last dimension). First two dims are dummy dimensions and will
+            always have value 1 (update_plot needs them)
 
         """
         if value == 'representation':
@@ -1562,7 +1570,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             plot_vals = plot_vals[channel_idx]
         else:
             plot_vals = plot_vals.flatten(0, 1)
-        return plot_vals
+        return plot_vals.unsqueeze(0).unsqueeze(0)
 
 
     def plot_value_comparison(self, value='representation', batch_idx=0,
@@ -1628,7 +1636,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         plot_vals = to_numpy(self._grab_value_for_comparison(value, batch_idx,
                                                              channel_idx, iteration,
                                                              scatter_subsample,
-                                                             **kwargs))
+                                                             **kwargs)).squeeze()
         if func == 'scatter':
             ax.scatter(plot_vals[..., 0], plot_vals[..., 1])
             ax.set(xlim=ax.get_ylim())
@@ -1770,7 +1778,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                               plot_rep_comparison=False,
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
-                              signal_comp_subsample=.01, axes_idx={}):
+                              signal_comp_subsample=.01, axes_idx={},
+                              plot_representation_error_as_rgb=False):
         r"""Make a plot showing synthesis status.
 
         We create several subplots to analyze this. By default, we create three
@@ -1874,6 +1883,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             have a corresponding key, we find the lowest int that is not
             already in the dict, so if you have axes that you want unchanged,
             place their idx in misc.
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1919,7 +1935,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig = self.plot_representation_error(batch_idx=batch_idx,
                                                  iteration=iteration,
                                                  ax=axes[axes_idx['rep_error']],
-                                                 ylim=ylim)
+                                                 ylim=ylim,
+                                                 as_rgb=plot_representation_error_as_rgb)
             # this can add a bunch of axes, so this will try and figure
             # them out
             new_axes = [i for i, _ in enumerate(fig.axes) if not
@@ -1958,7 +1975,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 plot_image_hist=False, plot_rep_comparison=False,
                 plot_signal_comparison=False, fig=None,
                 signal_comp_func='scatter', signal_comp_subsample=.01,
-                axes_idx={}, init_figure=True):
+                axes_idx={}, init_figure=True,
+                plot_representation_error_as_rgb=False):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -2060,6 +2078,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             plots (e.g., you already called plot_synthesis_status and are
             passing that figure as the fig argument). In this case, axes_idx
             must also be set and include keys for each of the included plots,
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
             since plot_synthesis_status normally sets it up for us
 
         Returns
@@ -2125,7 +2150,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                              plot_rep_comparison=plot_rep_comparison,
                                              signal_comp_func=signal_comp_func,
                                              signal_comp_subsample=signal_comp_subsample,
-                                             axes_idx=axes_idx)
+                                             axes_idx=axes_idx,
+                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb)
             # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
             # which tells us which axes contains which plot
             axes_idx = self._axes_idx
@@ -2210,8 +2236,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                                 batch_idx,
                                                                 channel_idx, i,
                                                                 signal_comp_subsample)
-                    # need these to be 4d for update_plot
-                    plot_vals = plot_vals.unsqueeze(0).unsqueeze(0)
                     artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
                                                plot_vals))
             if plot_loss:
@@ -2224,8 +2248,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                 plot_vals = self._grab_value_for_comparison('representation',
                                                             batch_idx, channel_idx,
                                                             i, **rep_func_kwargs)
-                # need these to be 4d for update_plot
-                plot_vals = plot_vals.unsqueeze(0).unsqueeze(0)
                 artists.extend(update_plot(rep_comp_axes, plot_vals))
             # as long as blitting is True, need to return a sequence of artists
             return artists

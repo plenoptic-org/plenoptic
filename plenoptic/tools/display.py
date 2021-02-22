@@ -737,11 +737,13 @@ def update_plot(axes, data, model=None, batch_idx=0):
         for v in data.values():
             if v.ndim not in [3, 4]:
                 raise Exception("update_plot expects 3 or 4 dimensional data"
-                                "; unexpected behavior will result otherwise!")
+                                "; unexpected behavior will result otherwise!"
+                                f" Got data of shape {v.shape}")
     else:
         if data.ndim not in [3, 4]:
             raise Exception("update_plot expects 3 or 4 dimensional data"
-                            "; unexpected behavior will result otherwise!")
+                            "; unexpected behavior will result otherwise!"
+                            f" Got data of shape {data.shape}")
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
@@ -808,8 +810,8 @@ def update_plot(axes, data, model=None, batch_idx=0):
     return artists
 
 
-def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=False, batch_idx=0,
-                        title=''):
+def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
+                        ylim=False, batch_idx=0, title='', as_rgb=False):
     r"""Helper function for plotting model representation
 
     We are trying to plot ``data`` on ``ax``, using
@@ -858,6 +860,13 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
     title : `str`, optional
         The title to put above this axis. If you want no title, pass
         the empty string (``''``)
+    as_rgb : bool, optional
+        The representation can be image-like with multiple channels, and we
+        have no way to determine whether it should be represented as an RGB
+        image or not, so the user must set this flag to tell us. It will be
+        ignored if the representation doesn't look image-like or if the
+        model has its own plot_representation_error() method. Else, it will
+        be passed to `po.imshow()`, see that methods docstring for details.
 
     Returns
     -------
@@ -883,11 +892,15 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
             if title is None:
                 title = 'Representation'
             data_dict = {}
-            for i, d in enumerate(data.unbind(1)):
-                # need to keep the shape the same because of how we
-                # check for shape below (unbinding removes a dimension,
-                # so we add it back)
-                data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+            if not as_rgb:
+                # then we peel apart the channels
+                for i, d in enumerate(data.unbind(1)):
+                    # need to keep the shape the same because of how we
+                    # check for shape below (unbinding removes a dimension,
+                    # so we add it back)
+                    data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+            else:
+                data_dict[title] = data
             data = data_dict
         else:
             warnings.warn("data has keys, so we're ignoring title!")
@@ -915,7 +928,8 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                 ax = fig.add_subplot(gs[i // 4, i % 4])
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 # only plot the specified batch
-                imshow(v, batch_idx=batch_idx, title=title, ax=ax, vrange='indep0')
+                imshow(v, batch_idx=batch_idx, title=title, ax=ax,
+                       vrange='indep0', as_rgb=as_rgb)
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all
