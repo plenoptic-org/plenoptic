@@ -502,6 +502,12 @@ class TestMADDisplay(object):
             return
         as_rgb = synthesized_mad.base_signal.shape[1] > 1
         plot_func = 'scatter'
+        plot_choices = {'plot_synthesized_image': plot_synthesized_image,
+                        'plot_loss': plot_loss,
+                        'plot_representation_error': plot_representation_error,
+                        'plot_image_hist': plot_image_hist,
+                        'plot_rep_comparison': plot_rep_comparison,
+                        'plot_signal_comparison': plot_signal_comparison}
         if plot_signal_comparison:
             plot_func = plot_signal_comparison
             plot_signal_comparison = True
@@ -509,7 +515,8 @@ class TestMADDisplay(object):
             fig = None
             axes_idx = {}
         elif fig_creation.startswith('pass'):
-            fig, axes, axes_idx = synthesized_mad._setup_synthesis_fig(None, {}, None)
+            fig, axes, axes_idx = synthesized_mad._setup_synthesis_fig(None, {}, None,
+                                                                       **plot_choices)
             if fig_creation.endswith('without'):
                 axes_idx = {}
         if func.startswith('plot'):
@@ -519,22 +526,11 @@ class TestMADDisplay(object):
             except ValueError:
                 # then this is None
                 iteration = None
-            synthesized_mad.plot_synthesis_status(iteration=iteration,
-                                                  plot_synthesized_image=plot_synthesized_image,
-                                                  plot_loss=plot_loss,
-                                                  plot_representation_error=plot_representation_error,
-                                                  plot_image_hist=plot_image_hist,
-                                                  plot_rep_comparison=plot_rep_comparison,
-                                                  plot_signal_comparison=plot_signal_comparison,
+            synthesized_mad.plot_synthesis_status(iteration=iteration, **plot_choices,
                                                   signal_comp_func=plot_func, fig=fig,
                                                   axes_idx=axes_idx, plot_representation_error_as_rgb=as_rgb)
         else:
-            synthesized_mad.animate(plot_synthesized_image=plot_synthesized_image,
-                                    plot_loss=plot_loss,
-                                    plot_representation_error=plot_representation_error,
-                                    plot_image_hist=plot_image_hist,
-                                    plot_rep_comparison=plot_rep_comparison,
-                                    plot_signal_comparison=plot_signal_comparison,
+            synthesized_mad.animate(**plot_choices,
                                     signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
                                     plot_representation_error_as_rgb=as_rgb).to_html5_video()
 
@@ -620,6 +616,12 @@ class TestMetamerDisplay(object):
             return
         as_rgb = synthesized_met.base_signal.shape[1] > 1
         plot_func = 'scatter'
+        plot_choices = {'plot_synthesized_image': plot_synthesized_image,
+                        'plot_loss': plot_loss,
+                        'plot_representation_error': plot_representation_error,
+                        'plot_image_hist': plot_image_hist,
+                        'plot_rep_comparison': plot_rep_comparison,
+                        'plot_signal_comparison': plot_signal_comparison}
         if plot_signal_comparison:
             plot_func = plot_signal_comparison
             plot_signal_comparison = True
@@ -627,7 +629,8 @@ class TestMetamerDisplay(object):
             fig = None
             axes_idx = {}
         elif fig_creation.startswith('pass'):
-            fig, axes, axes_idx = synthesized_met._setup_synthesis_fig(None, {}, None)
+            fig, axes, axes_idx = synthesized_met._setup_synthesis_fig(None, {}, None,
+                                                                       **plot_choices)
             if fig_creation.endswith('without'):
                 axes_idx = {}
         if func.startswith('plot'):
@@ -637,23 +640,12 @@ class TestMetamerDisplay(object):
             except ValueError:
                 # then this is None
                 iteration = None
-                synthesized_met.plot_synthesis_status(iteration=iteration,
-                                                      plot_synthesized_image=plot_synthesized_image,
-                                                      plot_loss=plot_loss,
-                                                      plot_representation_error=plot_representation_error,
-                                                      plot_image_hist=plot_image_hist,
-                                                      plot_rep_comparison=plot_rep_comparison,
-                                                      plot_signal_comparison=plot_signal_comparison,
+                synthesized_met.plot_synthesis_status(iteration=iteration, **plot_choices,
                                                       signal_comp_func=plot_func, fig=fig,
                                                       axes_idx=axes_idx,
                                                       plot_representation_error_as_rgb=as_rgb)
         else:
-            synthesized_met.animate(plot_synthesized_image=plot_synthesized_image,
-                                    plot_loss=plot_loss,
-                                    plot_representation_error=plot_representation_error,
-                                    plot_image_hist=plot_image_hist,
-                                    plot_rep_comparison=plot_rep_comparison,
-                                    plot_signal_comparison=plot_signal_comparison,
+            synthesized_met.animate(**plot_choices,
                                     signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
                                     plot_representation_error_as_rgb=as_rgb).to_html5_video()
 
