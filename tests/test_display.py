@@ -424,10 +424,10 @@ class TestDisplay(object):
                             batch_idx=batch_idx, plot_complex=is_complex)
 
     def test_update_plot_shape_fail(self):
+        # update_plot expects 3 or 4d data -- this checks that update_plot
+        # fails with 2d data and raises the proper exception
         im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         fig = po.imshow(im)
-        # update_plot expects 3 or 4d data -- this checks that it fails
-        # (because im.squeeze() is 2d) and raises the proper exception
         with pytest.raises(Exception):
             try:
                 po.update_plot(fig.axes[0], im.squeeze())
@@ -436,6 +436,9 @@ class TestDisplay(object):
                 raise e
 
     def test_synthesis_plot_shape_fail(self):
+        # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
+        # this checks that plot_synthesis_status() and animate() both fail with
+        # 2d data and raise the proper exception
         im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
 
         class DumbModel(po.simul.PooledRGC):
@@ -445,9 +448,6 @@ class TestDisplay(object):
         model = DumbModel(.5, im.shape[2:]).to(DEVICE)
         met = po.synth.Metamer(im, model)
         met.synthesize(max_iter=3, store_progress=True)
-        # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
-        # this checks that it fails (because im.squeeze() is 2d) and raises the
-        # proper exception
         with pytest.raises(Exception):
             try:
                 met.plot_synthesis_status()
