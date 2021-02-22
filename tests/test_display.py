@@ -478,7 +478,7 @@ class TestMADDisplay(object):
             return po.metric.ssim(*args, **kwargs).mean()
         model2 = rgb_ssim
         mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize('model_1_min', max_iter=3, store_progress=True)
+        mad.synthesize('model_1_min', max_iter=2, store_progress=True)
         return mad
 
     # mix together func and iteration, because iteration doesn't make sense to
@@ -597,7 +597,7 @@ class TestMetamerDisplay(object):
                 return po.metric.ssim(*args, **kwargs).mean()
             model = rgb_ssim
         met = po.synth.Metamer(img, model)
-        met.synthesize(max_iter=3, store_progress=True)
+        met.synthesize(max_iter=2, store_progress=True)
         return met
 
     # mix together func and iteration, because iteration doesn't make sense to
