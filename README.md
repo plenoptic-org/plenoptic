@@ -69,7 +69,7 @@ to examples that make use of them):
 # Status
 
 This project is currently under heavy development. Not all features
-have been implemented, and there will be significant changes.
+have been implemented, and there will be breaking changes.
 
 # Roadmap
 
