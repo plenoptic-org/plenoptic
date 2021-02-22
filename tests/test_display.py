@@ -497,7 +497,7 @@ class TestMADDisplay(object):
                               plot_rep_comparison, plot_signal_comparison,
                               fig_creation):
         if sum([plot_synthesized_image, plot_loss, plot_representation_error,
-                plot_image_hist, plot_rep_comparison, plot_signal_comparison]) == 0:
+                plot_image_hist, plot_rep_comparison, bool(plot_signal_comparison)]) == 0:
             # then there's nothing to plot here
             return
         as_rgb = synthesized_mad.base_signal.shape[1] > 1
@@ -614,6 +614,10 @@ class TestMetamerDisplay(object):
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
                               fig_creation):
+        if sum([plot_synthesized_image, plot_loss, plot_representation_error,
+                plot_image_hist, plot_rep_comparison, bool(plot_signal_comparison)]) == 0:
+            # then there's nothing to plot here
+            return
         as_rgb = synthesized_met.base_signal.shape[1] > 1
         plot_func = 'scatter'
         if plot_signal_comparison:
