@@ -2227,8 +2227,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                     # example, changed the tick locator or formatter. not sure how
                     # to handle this best right now
                     fig.axes[axes_idx['signal_comp']].clear()
-                    self.plot_value_comparison('signal', batch_idx,
-                                               channel_idx, i,
+                    self.plot_value_comparison(value='signal', batch_idx=batch_idx,
+                                               channel_idx=channel_idx, iteration=i,
                                                ax=fig.axes[axes_idx['signal_comp']],
                                                func=signal_comp_func)
                 else:
