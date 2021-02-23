@@ -496,6 +496,8 @@ class TestMADDisplay(object):
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
                               fig_creation):
+        # tests whether we can plot and animate all possible combinations of
+        # plots.
         if sum([plot_synthesized_image, plot_loss, plot_representation_error,
                 plot_image_hist, plot_rep_comparison, bool(plot_signal_comparison)]) == 0:
             # then there's nothing to plot here
@@ -538,6 +540,9 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
     def test_custom_fig(self, synthesized_mad, func, fig_creation):
+        # tests whether we can create our own figure and pass it to
+        # MADCompetition's plotting and animating functions, specifying some or
+        # all of the locations for the plots
         as_rgb = synthesized_mad.base_signal.shape[1] > 1
         init_fig = True
         fig, axes = plt.subplots(3, 3, figsize=(35, 17))
@@ -610,6 +615,8 @@ class TestMetamerDisplay(object):
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
                               fig_creation):
+        # tests whether we can plot and animate all possible combinations of
+        # plots.
         if sum([plot_synthesized_image, plot_loss, plot_representation_error,
                 plot_image_hist, plot_rep_comparison, bool(plot_signal_comparison)]) == 0:
             # then there's nothing to plot here
@@ -654,6 +661,9 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
     def test_custom_fig(self, synthesized_met, func, fig_creation):
+        # tests whether we can create our own figure and pass it to Metamer's
+        # plotting and animating functions, specifying some or all of the
+        # locations for the plots
         as_rgb = synthesized_met.base_signal.shape[1] > 1
         init_fig = True
         fig, axes = plt.subplots(3, 3, figsize=(17, 17))
