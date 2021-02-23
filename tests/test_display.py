@@ -518,6 +518,8 @@ class TestMADDisplay(object):
             axes_idx = {}
         elif fig_creation.startswith('pass'):
             fig, axes, axes_idx = synthesized_mad._setup_synthesis_fig(None, {}, None,
+                                                                       representation_error_width=2,
+                                                                       rep_comparison_width=2,
                                                                        **plot_choices)
             if fig_creation.endswith('without'):
                 axes_idx = {}
