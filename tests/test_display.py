@@ -535,6 +535,7 @@ class TestMADDisplay(object):
             synthesized_mad.animate(**plot_choices,
                                     signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
                                     plot_representation_error_as_rgb=as_rgb).to_html5_video()
+        plt.close('all')
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
@@ -576,6 +577,7 @@ class TestMADDisplay(object):
                                     plot_signal_comparison=True, fig=fig,
                                     axes_idx=axes_idx, init_figure=init_fig,
                                     plot_representation_error_as_rgb=as_rgb).to_html5_video()
+        plt.close('all')
 
 
 class TestMetamerDisplay(object):
@@ -655,6 +657,7 @@ class TestMetamerDisplay(object):
             synthesized_met.animate(**plot_choices,
                                     signal_comp_func=plot_func, fig=fig, axes_idx=axes_idx,
                                     plot_representation_error_as_rgb=as_rgb).to_html5_video()
+        plt.close('all')
 
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
@@ -697,3 +700,4 @@ class TestMetamerDisplay(object):
                         plot_signal_comparison=True, fig=fig,
                         plot_representation_error_as_rgb=True,
                         axes_idx=axes_idx, init_figure=init_fig).to_html5_video()
+        plt.close('all')
