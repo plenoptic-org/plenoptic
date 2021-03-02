@@ -143,7 +143,10 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         # because of how we've handled everything above, we know that im will
         # be (b,c,h,w) or (b,c,h,w,r) where r is the RGB(A) values
         for i in im:
-            images_to_plot.extend([i_.squeeze() for i_ in i])
+            # at this point, i_ are all shape (h,w) or (h,w,r) and so we don't
+            # squeeze, which could accidentally drop a dimension if h or w is a
+            # singleton dimension
+            images_to_plot.extend([i_ for i_ in i])
     return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
                      col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
                      **kwargs)
@@ -638,6 +641,7 @@ def _get_artists_from_axes(axes, data):
                 data_check = 1
                 artists.extend(ax.containers)
             elif len(ax.images) == 1:
+                # images are weird, so don't check them like this
                 data_check = None
                 artists.extend(ax.images)
             elif len(ax.lines) == 1:
@@ -676,20 +680,28 @@ def update_plot(axes, data, model=None, batch_idx=0):
     initializes all the artists.
 
     We can update stem plots, lines (as returned by ``plt.plot``), scatter
-    plots, or images.
+    plots, or images (RGB, RGBA, or grayscale).
 
     There are two modes for this:
 
     - single axis: axes is a single axis, which may contain multiple artists
       (all of the same type) to update. data should be a Tensor with multiple
       channels (one per artist in the same order) or be a dictionary whose keys
-      give the label(s) of the corresponding artist(s).
+      give the label(s) of the corresponding artist(s) and whose values are
+      Tensors.
 
     - multiple axes: axes is a list of axes, each of which contains a single
       artist to update (artists can be different types). data should be a
       Tensor with multiple channels (one per axis in the same order) or a
       dictionary with the same number of keys as axes, which we can iterate
-      through in order.
+      through in order, and whose values are Tensors.
+
+    In all cases, data Tensors should be 3d (if the plot we're updating is a
+    line or stem plot) or 4d (if it's an image or scatter plot).
+
+    RGB(A) images are special, since we store that info along the channel
+    dimension, so they only work with single-axis mode (which will only have a
+    single artist, because that's how imshow works).
 
     If you have multiple axes, each with multiple artists you want to update,
     that's too complicated for us, and so you should write a
@@ -702,10 +714,10 @@ def update_plot(axes, data, model=None, batch_idx=0):
 
     Parameters
     ----------
-    axes : `list`
-        A list of axes to update. We assume that these are the axes
-        created by ``plot_representation`` and so contain stem plots
-        in the correct order.
+    axes : `list` or `matplotlib.pyplot.axis`
+        The axis or list of axes to update. We assume that these are the axes
+        created by ``plot_representation`` and so contain stem plots in the
+        correct order.
     data : `torch.Tensor` or `dict`
         The new data to plot.
     model : `torch.nn.Module` or `None`, optional
@@ -721,6 +733,17 @@ def update_plot(axes, data, model=None, batch_idx=0):
         plots
 
     """
+    if isinstance(data, dict):
+        for v in data.values():
+            if v.ndim not in [3, 4]:
+                raise Exception("update_plot expects 3 or 4 dimensional data"
+                                "; unexpected behavior will result otherwise!"
+                                f" Got data of shape {v.shape}")
+    else:
+        if data.ndim not in [3, 4]:
+            raise Exception("update_plot expects 3 or 4 dimensional data"
+                            "; unexpected behavior will result otherwise!"
+                            f" Got data of shape {data.shape}")
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
@@ -728,11 +751,25 @@ def update_plot(axes, data, model=None, batch_idx=0):
         artists = []
         if not isinstance(data, dict):
             data_dict = {}
-            for i, d in enumerate(data.unbind(1)):
-                # need to keep the shape the same because of how we
-                # check for shape below (unbinding removes a dimension,
-                # so we add it back)
-                data_dict[f'{i:02d}'] = d.unsqueeze(1)
+            # check for RGBA images
+            if len(ax_artists) == 1 and data.shape[1] > 1:
+                # can't index into dict.values(), so use this work around
+                # instead, as suggested
+                # https://stackoverflow.com/questions/43629270/how-to-get-single-value-from-dict-with-single-entry
+                try:
+                    if next(iter(ax_artists.values())).get_array().data.ndim > 1:
+                        # then this is an RGBA image
+                        data_dict = {'00': data}
+                except Exception as e:
+                    raise Exception("Thought this was an RGB(A) image based on the number of "
+                                    "artists and data shape, but something is off! "
+                                    f"Original exception: {e}")
+            else:
+                for i, d in enumerate(data.unbind(1)):
+                    # need to keep the shape the same because of how we
+                    # check for shape below (unbinding removes a dimension,
+                    # so we add it back)
+                    data_dict[f'{i:02d}'] = d.unsqueeze(1)
             data = data_dict
         for k, d in data.items():
             try:
@@ -755,21 +792,26 @@ def update_plot(axes, data, model=None, batch_idx=0):
                     artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
                 try:
-                    # then it's an image
+                    # then it's a grayscale image
                     art.set_data(d)
                     artists.append(art)
                 except AttributeError:
                     # then it's a scatterplot
                     art.set_offsets(d)
                     artists.append(art)
+            else:
+                # then it's an RGB(A) image. for tensors, we put that dimension
+                # in channel, but for images, it should be at the end
+                art.set_data(np.moveaxis(d, 0, -1))
+                artists.append(art)
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]
     return artists
 
 
-def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=False, batch_idx=0,
-                        title=''):
+def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
+                        ylim=False, batch_idx=0, title='', as_rgb=False):
     r"""Helper function for plotting model representation
 
     We are trying to plot ``data`` on ``ax``, using
@@ -814,10 +856,17 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
         If not None, the y-limits to use for this plot. See above for
         behavior if ``None``. If False, we do nothing.
     batch_idx : `int`, optional
-        Which index to take from the batch dimension (the first one)
+        Which index to take from the batch dimension
     title : `str`, optional
         The title to put above this axis. If you want no title, pass
         the empty string (``''``)
+    as_rgb : bool, optional
+        The representation can be image-like with multiple channels, and we
+        have no way to determine whether it should be represented as an RGB
+        image or not, so the user must set this flag to tell us. It will be
+        ignored if the representation doesn't look image-like or if the
+        model has its own plot_representation_error() method. Else, it will
+        be passed to `po.imshow()`, see that methods docstring for details.
 
     Returns
     -------
@@ -843,11 +892,15 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
             if title is None:
                 title = 'Representation'
             data_dict = {}
-            for i, d in enumerate(data.unbind(1)):
-                # need to keep the shape the same because of how we
-                # check for shape below (unbinding removes a dimension,
-                # so we add it back)
-                data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+            if not as_rgb:
+                # then we peel apart the channels
+                for i, d in enumerate(data.unbind(1)):
+                    # need to keep the shape the same because of how we
+                    # check for shape below (unbinding removes a dimension,
+                    # so we add it back)
+                    data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+            else:
+                data_dict[title] = data
             data = data_dict
         else:
             warnings.warn("data has keys, so we're ignoring title!")
@@ -875,7 +928,8 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5), ylim=Fal
                 ax = fig.add_subplot(gs[i // 4, i % 4])
                 ax = clean_up_axes(ax, False, ['top', 'right', 'bottom', 'left'], ['x', 'y'])
                 # only plot the specified batch
-                imshow(v, batch_idx=batch_idx, title=title, ax=ax, vrange='indep0')
+                imshow(v, batch_idx=batch_idx, title=title, ax=ax,
+                       vrange='indep0', as_rgb=as_rgb)
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all

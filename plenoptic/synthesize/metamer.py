@@ -455,7 +455,7 @@ class Metamer(Synthesis):
                             **state_dict_kwargs)
 
     def plot_value_comparison(self, value='representation', batch_idx=0,
-                              channel_idx=0, iteration=None, figsize=(5, 5),
+                              channel_idx=None, iteration=None, figsize=(5, 5),
                               ax=None, func='scatter', hist2d_nbins=21,
                               hist2d_cmap='Blues', scatter_subsample=1,
                               **kwargs):
@@ -471,9 +471,10 @@ class Metamer(Synthesis):
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.

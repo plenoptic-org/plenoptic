@@ -62,7 +62,9 @@ def create_window(window_size=11, n_channels=1):
     _1D_window = _gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
     window = _2D_window.expand(n_channels, 1, window_size, window_size).contiguous()
-    return window / window.sum((-1, -2))
+    # need to keepdim to handle RGB images (broadcasting gets made when trying
+    # to divide something of shape (3, 1, h, w) by something of shape (3, 1))
+    return window / window.sum((-1, -2), keepdim=True)
 
 def _ssim_parts(img1, img2, dynamic_range):
     """Calcluates the various components used to compute SSIM

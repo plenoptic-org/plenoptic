@@ -175,16 +175,15 @@ class TestPooling(object):
             v1(tmp)
 
     def test_PoolingWindows_plotting(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
-        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        pw = po.simul.PoolingWindows(.8, im.shape[-2:], num_scales=2)
         pw = pw.to(DEVICE)
         pw.plot_window_areas()
         pw.plot_window_widths()
         for i in range(2):
             pw.plot_window_areas('pixels', i)
             pw.plot_window_widths('pixels', i)
-        fig = pt.imshow(po.to_numpy(im))
+        fig = po.imshow(im)
         pw.plot_windows(fig.axes[0])
         plt.close('all')
 
@@ -206,8 +205,7 @@ class TestPooling(object):
 class TestPooledVentralStream(object):
 
     def test_rgc(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
         rgc(im)
@@ -217,7 +215,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = po.imshow(im)
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
@@ -227,8 +225,7 @@ class TestPooledVentralStream(object):
         plt.close('all')
 
     def test_rgc_2(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         rgc = po.simul.PooledRGC(.5, im.shape[2:], transition_region_width=1)
         rgc = rgc.to(DEVICE)
         rgc(im)
@@ -238,7 +235,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = po.imshow(im)
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
