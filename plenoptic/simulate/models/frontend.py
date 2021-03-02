@@ -14,6 +14,18 @@ from ...tools.signal import make_disk
 __all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff", "FrontEnd"]
 
 
+def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, int]:
+    """Returns padding for ``F.pad()`` given a conv kernel size
+    Pads the last two dims (height and width) of image tensor.
+    """
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+    h, w = kernel_size
+    h_half, w_half = h // 2, w // 2
+
+    return h_half, h_half, w_half, w_half
+
+
 def circular_gaussian(
     size: Union[int, Tuple[int, int]],
     std: Tensor,
@@ -51,18 +63,6 @@ def circular_gaussian(
     filt = amp * torch.exp(log_filt)
 
     return filt
-
-
-def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, int]:
-    """Returns padding for ``F.pad()`` given a conv kernel size
-    Pads the last two dims (height and width) of image tensor.
-    """
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size, kernel_size)
-    h, w = kernel_size
-    h_half, w_half = h // 2, w // 2
-
-    return h_half, h_half, w_half, w_half
 
 
 class Gaussian(nn.Module):
@@ -146,7 +146,7 @@ class CenterSurround(nn.Module):
         return self.surround_std.clamp(
             min=self.ratio_limit * float(self.center_std), max=None
         )
-
+    # TODO: clamp center
     def forward(self, x: Tensor) -> Tensor:
         x = F.pad(x, self.pad, self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
@@ -197,7 +197,7 @@ class LN(nn.Module):
     def __init__(
         self,
         kernel_size,
-        center: str = "on",
+        center: str = "on",  # TODO: multiple channels?
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -215,7 +215,7 @@ class LG(nn.Module):
         self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
         self.luminance = Gaussian(kernel_size=kernel_size)
         self.luminance_scalar = nn.Parameter(torch.rand(1)*10)
-
+    # TODO: activation
     def forward(self, x):
         lum = self.luminance(x)
         luminance_normalized = self.center_surround(x) / (
@@ -226,6 +226,7 @@ class LG(nn.Module):
 
 
 class LGG(nn.Module):
+    # TODO: activation
     def __init__(self, kernel_size, center: str = "on", pad_mode: str = "circular"):
         super().__init__()
         self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
