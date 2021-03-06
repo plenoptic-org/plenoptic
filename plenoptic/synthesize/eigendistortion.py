@@ -146,7 +146,7 @@ class Eigendistortion:
                    max_steps: int = 1000,
                    p: int = 5,
                    q: int = 2,
-                   tol: float = 1e-8,
+                   tol: float = 1e-7,
                    seed: int = None) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
@@ -329,7 +329,7 @@ class Eigendistortion:
         v = torch.randn(len(x), k).to(x.device)
         v = v / v.norm()
 
-        _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
+        _dummy_vec = torch.randn_like(y, requires_grad=True)  # cache a vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.norm(Fv)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
@@ -340,7 +340,7 @@ class Eigendistortion:
         postfix_dict = {'delta_eigenval': None}
 
         for _ in pbar:
-            postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.4E}"))
+            postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.2E}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
@@ -351,11 +351,11 @@ class Eigendistortion:
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # minor component
 
-            v_new = torch.qr(Fv)[0] if k > 1 else Fv
+            v_new = torch.qr(Fv)[0]  # (ortho)normalize vector(s)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
-            d_lambda = (lmbda.sum() - lmbda_new.sum()).norm()  # stability of eigenspace
+            d_lambda = (lmbda - lmbda_new).norm()  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
 
