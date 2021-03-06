@@ -37,7 +37,7 @@ setup(
         "plenoptic.tools",
     ],
     package_dir={
-        "plenoptic": "plenoptic/plenoptic"
+        "plenoptic": "plenoptic/"
     },
     package_data={
         "plenoptic": ["simulate/models/weights/*.pt"]
