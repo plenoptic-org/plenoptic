@@ -30,6 +30,7 @@ setup(
               ],
     packages=[
         "plenoptic",
+        "plenoptic.metric",
         "plenoptic.simulate",
         "plenoptic.simulate.models",
         "plenoptic.simulate.canonical_computations",
@@ -40,7 +41,9 @@ setup(
         "plenoptic": "plenoptic/"
     },
     package_data={
-        "plenoptic": ["simulate/models/weights/*.pt"]
+        "plenoptic": [
+            "simulate/models/weights/*.pt",
+        ]
     },
     install_requires=[
         "numpy>=1.1",
