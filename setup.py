@@ -31,8 +31,8 @@ setup(
     packages=[
         "plenoptic",
         "plenoptic.simulate",
-        "plenoptic.simulate.models"
-        "plenoptic.simulate.canonical_computations"
+        "plenoptic.simulate.models",
+        "plenoptic.simulate.canonical_computations",
         "plenoptic.synthesize",
         "plenoptic.tools",
     ],
