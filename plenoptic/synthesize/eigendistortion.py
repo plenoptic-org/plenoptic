@@ -3,7 +3,7 @@ from torch import Tensor
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 import numpy as np
 import warnings
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from ..tools.display import imshow
 from typing import Tuple, List, Callable, Union
 import matplotlib.pyplot
