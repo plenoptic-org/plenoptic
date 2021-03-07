@@ -329,7 +329,7 @@ class Eigendistortion:
         v = torch.randn(len(x), k).to(x.device)
         v = v / v.norm()
 
-        _dummy_vec = torch.randn_like(y, requires_grad=True)  # cache a vec for jvp
+        _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.norm(Fv)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
