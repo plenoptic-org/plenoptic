@@ -918,8 +918,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             # appears to be roughly unchanging for some number of iterations
             if (len(self.loss) > self.loss_change_iter and
                 self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
-                error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
-                error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
+                # we want to preserve the batch and channel dimensions (i.e.,
+                # operate along them independently), so we flatten anything
+                # after the channel.
+                error_idx = self.representation_error(**analyze_kwargs).flatten(2, -1).abs().argsort(descending=True)
+                # similar to above, want to preserve the batch and channel
+                # dimensions.
+                error_idx = error_idx[..., :int(self.loss_change_fraction * np.prod(error_idx.shape[2:]))]
             # else, we use all of the statistics
             else:
                 error_idx = torch.nonzero(torch.ones_like(self.synthesized_representation.flatten()))
@@ -927,8 +932,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             # np.random.permutation, something that returns a shuffled copy
             # of a tensor, so we use numpy's version
             idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
-            # then we optionally randomly select some subset of those.
-            idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
+            # then we optionally randomly select some subset of those. the
+            # np.prod(shape[2:]) gets the number of elements in all dimensions
+            # after the channel.
+            idx_sub = idx_shuffled[..., :int((1 - self.fraction_removed) * np.prod(idx_shuffled.shape[2:]))]
             synthesized_rep = self.synthesized_representation.flatten()[idx_sub]
             base_rep = base_rep.flatten()[idx_sub]
         else:
