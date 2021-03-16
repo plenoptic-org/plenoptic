@@ -4,8 +4,6 @@ import torch
 import plenoptic as po
 import matplotlib.pyplot as plt
 import pytest
-import numpy as np
-import pyrtools as pt
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 
@@ -49,129 +47,6 @@ class TestLaplacianPyramid(object):
         L = po.simul.Laplacian_Pyramid()
         y = L.analysis(po.make_basic_stimuli())
         assert y[0].requires_grad
-
-
-class TestPooling(object):
-
-    def test_creation(self):
-        ang_windows, ecc_windows = po.simul.pooling.create_pooling_windows(.87, (256, 256))
-
-    def test_creation_args(self):
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
-                                                           transition_region_width=.7)
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
-                                                           transition_region_width=.5)
-        ang, ecc = po.simul.pooling.create_pooling_windows(.87, (100, 100), .2, 30, 1.2,
-                                                           'gaussian', std_dev=1)
-
-    def test_ecc_windows(self):
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), n_windows=4.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=.5)
-        windows = po.simul.pooling.log_eccentricity_windows((256, 256), window_spacing=1)
-
-    def test_angle_windows(self):
-        windows = po.simul.pooling.polar_angle_windows(4, (256, 256))
-        windows = po.simul.pooling.polar_angle_windows(4, (1000, 1000))
-        with pytest.raises(Exception):
-            windows = po.simul.pooling.polar_angle_windows(1.5, (256, 256))
-        with pytest.raises(Exception):
-            windows = po.simul.pooling.polar_angle_windows(1, (256, 256))
-
-    def test_calculations(self):
-        # these really shouldn't change, but just in case...
-        assert po.simul.pooling.calc_angular_window_spacing(2) == np.pi
-        assert po.simul.pooling.calc_angular_n_windows(2) == np.pi
-        with pytest.raises(Exception):
-            po.simul.pooling.calc_eccentricity_window_spacing()
-        assert po.simul.pooling.calc_eccentricity_window_spacing(n_windows=4) == 0.8502993454155389
-        assert po.simul.pooling.calc_eccentricity_window_spacing(scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, scaling=.87) == 0.8446653390527211
-        assert po.simul.pooling.calc_eccentricity_window_spacing(5, 10, n_windows=4) == 0.1732867951399864
-        assert po.simul.pooling.calc_eccentricity_n_windows(0.8502993454155389) == 4
-        assert po.simul.pooling.calc_eccentricity_n_windows(0.1732867951399864, 5, 10) == 4
-        assert po.simul.pooling.calc_scaling(4) == 0.8761474337786708
-        assert po.simul.pooling.calc_scaling(4, 5, 10) == 0.17350368946058647
-        assert np.isinf(po.simul.pooling.calc_scaling(4, 0))
-
-    @pytest.mark.parametrize('num_scales', [1, 3])
-    @pytest.mark.parametrize('transition_region_width', [.5, 1])
-    def test_PoolingWindows_cosine(self, num_scales, transition_region_width):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                     transition_region_width=transition_region_width,
-                                     window_type='cosine',)
-        pw = pw.to(DEVICE)
-        pw(im)
-
-    @pytest.mark.parametrize('num_scales', [1, 3])
-    def test_PoolingWindows(self, num_scales):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                     window_type='gaussian', std_dev=1)
-        pw = pw.to(DEVICE)
-        pw(im)
-        # we only support std_dev=1
-        with pytest.raises(Exception):
-            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                    window_type='gaussian', std_dev=2)
-        with pytest.raises(Exception):
-            po.simul.PoolingWindows(.5, im.shape[2:], num_scales=num_scales,
-                                    window_type='gaussian', std_dev=.5)
-
-    def test_PoolingWindows_project(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:])
-        pw = pw.to(DEVICE)
-        pooled = pw(im)
-        pw.project(pooled)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:], num_scales=3)
-        pw = pw.to(DEVICE)
-        pooled = pw(im)
-        pw.project(pooled)
-
-    def test_PoolingWindows_nonsquare(self):
-        # test PoolingWindows with weirdly-shaped iamges
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
-        for sh in [(256, 128), (256, 127), (256, 125), (125, 125), (127, 125)]:
-            tmp = im[:sh[0], :sh[1]].unsqueeze(0).unsqueeze(0)
-            rgc = po.simul.PooledRGC(.9, tmp.shape[2:])
-            rgc = rgc.to(DEVICE)
-            rgc(tmp)
-            v1 = po.simul.PooledRGC(.9, tmp.shape[2:])
-            v1 = v1.to(DEVICE)
-            v1(tmp)
-
-    def test_PoolingWindows_plotting(self):
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-        pw = po.simul.PoolingWindows(.8, im.shape[-2:], num_scales=2)
-        pw = pw.to(DEVICE)
-        pw.plot_window_areas()
-        pw.plot_window_widths()
-        for i in range(2):
-            pw.plot_window_areas('pixels', i)
-            pw.plot_window_widths('pixels', i)
-        fig = po.imshow(im)
-        pw.plot_windows(fig.axes[0])
-        plt.close('all')
-
-    def test_PoolingWindows_caching(self, tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
-        # first time we save, second we load
-        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
-        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2, cache_dir=tmp_path)
-
-    def test_PoolingWindows_sep(self):
-        # test the window and pool function separate of the forward function
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        pw = po.simul.PoolingWindows(.5, im.shape[2:])
-        pw.pool(pw.window(im))
 
 
 class TestPooledVentralStream(object):
