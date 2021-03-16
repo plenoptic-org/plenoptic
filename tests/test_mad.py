@@ -118,7 +118,7 @@ class TestMAD(object):
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
-    @pytest.mark.parametrize('model_name', ['V1', 'NLP', 'function'])
+    @pytest.mark.parametrize('model_name', ['LNL', 'NLP', 'function'])
     @pytest.mark.parametrize('fraction_removed', [0, .1])
     @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
@@ -126,14 +126,14 @@ class TestMAD(object):
                             coarse_to_fine, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
-        if model_name == 'V1':
-            model1 = po.simul.PooledV1(1, img.shape[-2:]).to(DEVICE)
+        if model_name == 'LNL':
+            model1 = po.simul.Linear_Nonlinear().to(DEVICE)
         elif model_name == 'NLP':
             model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':
             model1 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
-        if model_name == 'V1' and 'model_1' in target:
+        if model_name == 'LNL' and 'model_1' in target:
             mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                            loss_change_fraction=loss_change_fraction)

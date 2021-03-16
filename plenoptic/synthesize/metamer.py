@@ -397,8 +397,7 @@ class Metamer(Synthesis):
             again and, not knowing its class or anything, this object
             doesn't know how. Therefore, a user must pass a constructor
             for the model that takes in the ``state_dict_reduced``
-            dictionary and returns the initialized model. See the
-            PooledVentralStream class for an example of this.
+            dictionary and returns the initialized model.
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a

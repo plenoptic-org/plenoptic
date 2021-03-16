@@ -14,7 +14,7 @@ from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 class TestMetamers(object):
 
-    @pytest.mark.parametrize('model', ['class', 'class_reduced', 'function'])
+    @pytest.mark.parametrize('model', ['class', 'function'])
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
     def test_metamer_save_load(self, model, loss_func, tmp_path):
 
@@ -23,12 +23,8 @@ class TestMetamers(object):
         save_reduced = False
         model_constructor = None
         if model == 'class':
-            model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-        elif model == 'class_reduced':
-            model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
-            save_reduced = True
-            model_constructor = po.simul.PooledV1.from_state_dict_reduced
-        else:
+            model = po.simul.Linear_Nonlinear().to(DEVICE)
+        elif model == 'function':
             model = po.metric.nlpd
         loss_kwargs = {}
         if loss_func is None:
@@ -66,104 +62,57 @@ class TestMetamers(object):
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=2)
 
     def test_metamer_store_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_store_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=6, store_progress=3)
 
     def test_metamer_store_rep_4(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         with pytest.raises(Exception):
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
-
-    def test_metamer_plotting_v1(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
-        metamer.synthesize(max_iter=6, store_progress=True)
-        metamer.plot_representation_error()
-        metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_synthesis_status()
-        metamer.plot_synthesis_status(iteration=1)
-        plt.close('all')
-
-    def test_metamer_plotting_rgc(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
-        metamer.synthesize(max_iter=6, store_progress=True)
-        metamer.plot_representation_error()
-        metamer.model.plot_representation_image(data=metamer.representation_error())
-        metamer.plot_synthesis_status()
-        metamer.plot_synthesis_status(iteration=1)
-        plt.close('all')
 
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True, learning_rate=None,
                            seed=None)
 
-    def test_metamer_animate(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
-        metamer.synthesize(max_iter=3, store_progress=True)
-        # this will test several related functions for us:
-        # plot_synthesis_status, plot_representation_error,
-        # representation_error
-        metamer.animate(figsize=(17, 5), plot_representation_error=True, ylim='rescale100',
-                        framerate=40).to_html5_video()
-        plt.close('all')
-
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
         im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        metamer = po.synth.Metamer(im, lnl)
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
                            save_path=save_path)
-        po.synth.Metamer.load(save_path, po.simul.PooledV1.from_state_dict_reduced)
+        po.synth.Metamer.load(save_path)
 
     def test_metamer_loss_change(self):
         # literally just testing that it runs
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
                            loss_change_fraction=.5)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
@@ -176,9 +125,11 @@ class TestMetamers(object):
                                     tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        v1 = po.simul.PooledV1(.5, im.shape[2:])
-        v1 = v1.to(DEVICE)
-        metamer = po.synth.Metamer(im, v1)
+        # with downsample=False, we get a tensor back. setting height=1 and
+        # order=1 limits the size
+        spyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], downsample=False,
+                                               height=1, order=1).to(DEVICE)
+        metamer = po.synth.Metamer(im, spyr)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
                            loss_change_fraction=loss_change_fraction)
@@ -201,17 +152,15 @@ class TestMetamers(object):
         clamper = po.RangeClamper((0, 1))
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
     def test_metamer_no_clamper(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        rgc = po.simul.PooledRGC(.5, im.shape[2:])
-        rgc = rgc.to(DEVICE)
-        metamer = po.synth.Metamer(im, rgc)
+        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, clamper=None)
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
@@ -241,8 +190,6 @@ class TestMetamers(object):
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None)
         met.plot_synthesis_status()
-        if store_progress:
-            met.animate().to_html5_video()
         plt.close('all')
 
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])

@@ -441,11 +441,11 @@ class TestDisplay(object):
         # 2d data and raise the proper exception
         im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
 
-        class DumbModel(po.simul.PooledRGC):
+        class DumbModel(po.simul.Linear_Nonlinear):
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)
                 return output.reshape(output.numel())
-        model = DumbModel(.5, im.shape[2:]).to(DEVICE)
+        model = DumbModel().to(DEVICE)
         met = po.synth.Metamer(im, model)
         met.synthesize(max_iter=3, store_progress=True)
         with pytest.raises(Exception):
@@ -493,10 +493,10 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
                                                                     **plot_choices)
         if fig_creation.endswith('without'):
             axes_idx = {}
-            synthesis_object.plot_synthesis_status(iteration=iteration, **plot_choices,
-                                                   signal_comp_func=plot_func, fig=fig,
-                                                   axes_idx=axes_idx,
-                                                   plot_representation_error_as_rgb=as_rgb)
+    synthesis_object.plot_synthesis_status(iteration=iteration, **plot_choices,
+                                           signal_comp_func=plot_func, fig=fig,
+                                           axes_idx=axes_idx,
+                                           plot_representation_error_as_rgb=as_rgb)
     plt.close('all')
 
 
@@ -602,7 +602,18 @@ class TestMetamerDisplay(object):
         else:
             img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         if model == 'class':
-            model = po.simul.PooledV1(.5, img.shape[2:]).to(DEVICE)
+            #  height=1 and order=0 to limit the time this takes, and then we
+            #  only return one of the tensors so that everything is easy for
+            #  plotting code to figure out (if we downsampled and were on an
+            #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+            #  we'd have the residuals and one filter output for each channel,
+            #  and our code doesn't know how to handle that)
+            class SPyr(po.simul.Steerable_Pyramid_Freq):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                def forward(self, *args, **kwargs):
+                    return super().forward(*args, **kwargs)[(0, 0)]
+            model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)
         else:
             # to serve as a metric, need to return a single value, but SSIM
             # will return a separate value for each RGB channel
