@@ -1807,7 +1807,8 @@ class MADCompetition(Synthesis):
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
                               signal_comp_subsample=.01, axes_idx={},
-                              plot_representation_error_as_rgb=False):
+                              plot_representation_error_as_rgb=False,
+                              width_ratios={}):
         r"""Make a plot showing synthesized image, loss, and (optionally) representation ratio.
 
         We create several subplots to analyze this. By default, we create three
@@ -1922,6 +1923,12 @@ class MADCompetition(Synthesis):
             ignored if the representation doesn't look image-like or if the
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -1947,7 +1954,8 @@ class MADCompetition(Synthesis):
                                       plot_image_hist, plot_rep_comparison,
                                       plot_signal_comparison, signal_comp_func,
                                       signal_comp_subsample, axes_idx,
-                                      plot_representation_error_as_rgb)
+                                      plot_representation_error_as_rgb,
+                                      width_ratios)
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)
@@ -1961,7 +1969,8 @@ class MADCompetition(Synthesis):
                 plot_signal_comparison=False,
                 fig=None, signal_comp_func='scatter', signal_comp_subsample=.01,
                 axes_idx={}, init_figure=True,
-                plot_representation_error_as_rgb=False):
+                plot_representation_error_as_rgb=False,
+                width_ratios={}):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -2076,6 +2085,12 @@ class MADCompetition(Synthesis):
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
             since plot_synthesis_status normally sets it up for us
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -2098,7 +2113,8 @@ class MADCompetition(Synthesis):
                                plot_image_hist, plot_rep_comparison,
                                plot_signal_comparison, fig, signal_comp_func,
                                signal_comp_subsample, axes_idx, init_figure,
-                               plot_representation_error_as_rgb)
+                               plot_representation_error_as_rgb,
+                               width_ratios={})
         # reset to state before calling this function
         if last_state is not None:
             self.update_target(*last_state)

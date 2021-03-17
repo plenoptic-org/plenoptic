@@ -1650,7 +1650,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
                               signal_comp_subsample=.01, axes_idx={},
-                              plot_representation_error_as_rgb=False):
+                              plot_representation_error_as_rgb=False,
+                              width_ratios={}):
         r"""Make a plot showing synthesis status.
 
         We create several subplots to analyze this. By default, we create three
@@ -1761,6 +1762,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             ignored if the representation doesn't look image-like or if the
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -1781,7 +1788,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                         plot_representation_error,
                                                         plot_image_hist,
                                                         plot_rep_comparison,
-                                                        plot_signal_comparison)
+                                                        plot_signal_comparison,
+                                                        **width_ratios)
 
         def check_iterables(i, vals):
             for j in vals:
@@ -1847,7 +1855,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 plot_signal_comparison=False, fig=None,
                 signal_comp_func='scatter', signal_comp_subsample=.01,
                 axes_idx={}, init_figure=True,
-                plot_representation_error_as_rgb=False):
+                plot_representation_error_as_rgb=False,
+                width_ratios={}):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -1957,6 +1966,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
             since plot_synthesis_status normally sets it up for us
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -2022,7 +2037,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                              signal_comp_func=signal_comp_func,
                                              signal_comp_subsample=signal_comp_subsample,
                                              axes_idx=axes_idx,
-                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb)
+                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb,
+                                             width_ratios=width_ratios)
             # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
             # which tells us which axes contains which plot
             axes_idx = self._axes_idx

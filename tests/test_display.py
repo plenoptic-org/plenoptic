@@ -463,8 +463,11 @@ class TestDisplay(object):
 
 
 def template_test_synthesis_all_plot(synthesis_object, iteration,
-                                     plot_synthesized_image, plot_loss, plot_representation_error, plot_image_hist,
-                                     plot_rep_comparison, plot_signal_comparison, fig_creation):
+                                     plot_synthesized_image, plot_loss,
+                                     plot_representation_error,
+                                     plot_image_hist, plot_rep_comparison,
+                                     plot_signal_comparison, fig_creation,
+                                     width_ratios={}):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
@@ -483,9 +486,15 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
     if plot_signal_comparison:
         plot_func = plot_signal_comparison
         plot_signal_comparison = True
-    if fig_creation == 'auto':
+    width_ratios = {}
+    if fig_creation.startswith('auto'):
         fig = None
         axes_idx = {}
+        if fig_creation.endswith('ratios'):
+            if plot_loss:
+                width_ratios['loss_width'] = 2
+            elif plot_synthesized_image:
+                width_ratios['synthesized_image_width'] = 2
     elif fig_creation.startswith('pass'):
         fig, axes, axes_idx = synthesis_object._setup_synthesis_fig(None, {}, None,
                                                                     representation_error_width=2,
@@ -567,7 +576,8 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize('plot_image_hist', [True, False])
     @pytest.mark.parametrize('plot_rep_comparison', [True, False])
     @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
-    @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
+    @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
+                                              'pass-with', 'pass-without'])
     def test_all_plot(self, synthesized_mad, iteration,
                       plot_synthesized_image, plot_loss,
                       plot_representation_error, plot_image_hist,
@@ -633,7 +643,8 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('plot_image_hist', [True, False])
     @pytest.mark.parametrize('plot_rep_comparison', [True, False])
     @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
-    @pytest.mark.parametrize('fig_creation', ['auto', 'pass-with', 'pass-without'])
+    @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
+                                              'pass-with', 'pass-without'])
     def test_all_plot(self, synthesized_met, iteration, plot_synthesized_image, plot_loss,
                       plot_representation_error, plot_image_hist,
                       plot_rep_comparison, plot_signal_comparison,
