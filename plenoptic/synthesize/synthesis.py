@@ -4,13 +4,11 @@ import abc
 import re
 import torch
 from torch import optim
-import torchcontrib
 import numpy as np
 import warnings
 from ..tools.data import to_numpy, _find_min_int
 from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
-import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
 from ..simulate.models.naive import Identity
