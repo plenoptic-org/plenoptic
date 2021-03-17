@@ -151,8 +151,7 @@ class Metamer(Synthesis):
                    swa_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False, save_progress=False,
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
-                   fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                   coarse_to_fine=False, clip_grad_norm=False):
+                   loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize a metamer
 
         This is the main method, which updates the ``initial_image`` until its
@@ -223,25 +222,11 @@ class Metamer(Synthesis):
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
+            loss has stopped decreasing (for loss_change_thresh).
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -271,8 +256,8 @@ class Metamer(Synthesis):
         self._init_synthesized_signal(initial_image, clamper, clamp_each_iter)
 
         # initialize stuff related to coarse-to-fine and randomization
-        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+        self._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                      loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,

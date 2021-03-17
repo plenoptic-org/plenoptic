@@ -53,7 +53,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
         # necessary
-        self._use_subset_for_gradient = False
 
         if not isinstance(base_signal, torch.Tensor):
             base_signal = torch.tensor(base_signal, dtype=torch.float32)
@@ -157,9 +156,8 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.synthesized_representation = self.analyze(self.synthesized_signal)
         self.clamp_each_iter = clamp_each_iter
 
-    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
-                                 loss_change_fraction=1, loss_change_thresh=1e-2,
-                                 loss_change_iter=50):
+    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, coarse_to_fine=False,
+                                 loss_change_thresh=1e-2, loss_change_iter=50):
         """initialize stuff related to randomization and coarse-to-fine
 
         Parameters
@@ -167,12 +165,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         loss_thresh : float, optional
             If the loss over the past ``loss_change_iter`` is less than
             ``loss_thresh``, we stop.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -185,36 +177,18 @@ class Synthesis(metaclass=abc.ABCMeta):
               to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            loss has stopped decreasing (for loss_change_thresh).
 
         """
-        if fraction_removed > 0 or loss_change_fraction < 1:
-            self._use_subset_for_gradient = True
-            if isinstance(self.model, Identity):
-                raise Exception("Can't use fraction_removed or loss_change_fraction with metrics!"
-                                " Since most of the metrics rely on the image being correctly "
-                                "structured (and thus not randomized) when passed to them")
-        self.fraction_removed = fraction_removed
         self.loss_thresh = loss_thresh
         self.loss_change_thresh = loss_change_thresh
         self.loss_change_iter = int(loss_change_iter)
-        self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
         if coarse_to_fine not in [False, 'separate', 'together']:
             raise Exception(f"Don't know how to handle value {coarse_to_fine}! Must be one of: "
@@ -495,8 +469,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                    optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
-                   loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False):
+                   loss_change_iter=50, loss_change_thresh=1e-2,
+                   coarse_to_fine=False, clip_grad_norm=False):
         r"""synthesize an image
 
         this is a skeleton of how synthesize() works, just to serve as a
@@ -564,25 +538,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             If the loss over the past ``loss_change_iter`` has changed
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for loss_change_thresh).
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -612,8 +573,8 @@ class Synthesis(metaclass=abc.ABCMeta):
         # depend on the synthesis method
         self._init_synthesized_signal(synthesized_signal_data, clamper, clamp_each_iter)
         # initialize stuff related to coarse-to-fine and randomization
-        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+        self._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                      loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
                              optimizer_kwargs, swa, swa_kwargs)
@@ -838,9 +799,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                     optimizer_kwargs[k] = v
             self._optimizer = optim.LBFGS([self.synthesized_signal], lr=lr, **optimizer_kwargs)
             warnings.warn('This second order optimization method is more intensive')
-            if hasattr(self, 'fraction_removed') and self.fraction_removed > 0:
-                warnings.warn('For now the code is not designed to handle LBFGS and random'
-                              ' subsampling of coeffs')
         elif optimizer == 'Adam':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
@@ -884,15 +842,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         evaluations of the gradient before taking a step (ie. second
         order methods like LBFGS).
 
-        Note that the fraction removed also happens here, and for now a
-        fresh sample of noise is drawn at each iteration.
-            1) that means for now we do not support LBFGS with a random
-               fraction removed.
-            2) beyond removing random fraction of the coefficients, one
-               could schedule the optimization (eg. coarse to fine)
-
         Additionally, this is where:
-        - ``synthesized_representation`` is updated
+
+        - ``synthesized_representation`` is updated, and thus any modifications
+          to the analyze call (e.g., specifying `scale` kwarg for
+          coarse-to-fine) should happen
+
         - ``loss.backward()`` is called
 
         """
@@ -912,34 +867,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         if self.store_progress:
             self.synthesized_representation.retain_grad()
 
-        if self._use_subset_for_gradient:
-            # here we get a boolean mask (bunch of ones and zeroes) for all
-            # the statistics we want to include. We only do this if the loss
-            # appears to be roughly unchanging for some number of iterations
-            if (len(self.loss) > self.loss_change_iter and
-                self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
-                # we want to preserve the batch and channel dimensions (i.e.,
-                # operate along them independently), so we flatten anything
-                # after the channel.
-                error_idx = self.representation_error(**analyze_kwargs).flatten(2, -1).abs().argsort(descending=True)
-                # similar to above, want to preserve the batch and channel
-                # dimensions.
-                error_idx = error_idx[..., :int(self.loss_change_fraction * np.prod(error_idx.shape[2:]))]
-            # else, we use all of the statistics
-            else:
-                error_idx = torch.nonzero(torch.ones_like(self.synthesized_representation.flatten()))
-            # for some reason, pytorch doesn't have the equivalent of
-            # np.random.permutation, something that returns a shuffled copy
-            # of a tensor, so we use numpy's version
-            idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
-            # then we optionally randomly select some subset of those. the
-            # np.prod(shape[2:]) gets the number of elements in all dimensions
-            # after the channel.
-            idx_sub = idx_shuffled[..., :int((1 - self.fraction_removed) * np.prod(idx_shuffled.shape[2:]))]
-            synthesized_rep = self.synthesized_representation.flatten()[idx_sub]
-            base_rep = base_rep.flatten()[idx_sub]
-        else:
-            synthesized_rep = self.synthesized_representation
+        synthesized_rep = self.synthesized_representation
 
         loss = self.objective_function(synthesized_rep, base_rep, self.synthesized_signal,
                                        self.base_signal)

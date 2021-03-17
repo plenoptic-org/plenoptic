@@ -107,22 +107,8 @@ class TestMetamers(object):
                            save_path=save_path)
         po.synth.Metamer.load(save_path)
 
-    def test_metamer_loss_change(self):
-        # literally just testing that it runs
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
-                           loss_change_fraction=.5)
-        metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=1,
-                           loss_change_fraction=.5, fraction_removed=.1)
-
-    @pytest.mark.parametrize('fraction_removed', [0, .1])
-    @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
-    def test_metamer_coarse_to_fine(self, fraction_removed, loss_change_fraction, coarse_to_fine,
-                                    tmp_path):
+    def test_coarse_to_fine(self, coarse_to_fine, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         # with downsample=False, we get a tensor back. setting height=1 and
@@ -131,8 +117,9 @@ class TestMetamers(object):
                                                height=1, order=1).to(DEVICE)
         metamer = po.synth.Metamer(im, spyr)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
-                           loss_change_fraction=loss_change_fraction)
+                           coarse_to_fine=coarse_to_fine)
+        assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
+
         metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
         metamer_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_ctf.pt"),
                                              map_location=DEVICE)
@@ -144,8 +131,7 @@ class TestMetamers(object):
                                 % k)
         # check we can resume
         metamer_copy.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
-                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
-                                loss_change_fraction=loss_change_fraction)
+                                coarse_to_fine=coarse_to_fine)
 
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     def test_metamer_clamper(self, clamp_each_iter):

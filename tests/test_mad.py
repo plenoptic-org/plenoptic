@@ -118,26 +118,25 @@ class TestMAD(object):
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
-    @pytest.mark.parametrize('model_name', ['LNL', 'NLP', 'function'])
-    @pytest.mark.parametrize('fraction_removed', [0, .1])
-    @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
+    @pytest.mark.parametrize('model_name', ['SPyr', 'NLP', 'function'])
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
-    def test_coarse_to_fine(self, target, model_name, fraction_removed, loss_change_fraction,
-                            coarse_to_fine, tmp_path):
+    def test_coarse_to_fine(self, target, model_name, coarse_to_fine, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
-        if model_name == 'LNL':
-            model1 = po.simul.Linear_Nonlinear().to(DEVICE)
+        if model_name == 'SPyr':
+            # with downsample=False, we get a tensor back. setting height=1 and
+            # order=1 limits the size
+            model1 = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], downsample=False,
+                                                     height=1, order=1).to(DEVICE)
         elif model_name == 'NLP':
             model1 = po.metric.NLP().to(DEVICE)
         elif model_name == 'function':
             model1 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
-        if model_name == 'LNL' and 'model_1' in target:
+        if model_name == 'SPyr' and 'model_1' in target:
             mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
-                           coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
-                           loss_change_fraction=loss_change_fraction)
-            mad.plot_synthesis_status()
+                           coarse_to_fine=coarse_to_fine)
+            assert len(mad.scales_finished) > 0, "Didn't actually switch scales!"
             mad.save(op.join(tmp_path, 'test_mad_ctf.pt'))
             mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_ctf.pt"),
                                                     map_location=DEVICE)
@@ -148,22 +147,11 @@ class TestMAD(object):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             mad_copy.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
-                                coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
-                                loss_change_fraction=loss_change_fraction)
+                                coarse_to_fine=coarse_to_fine)
         else:
-            # in this case, they'll first raise the exception that
-            # metrics don't work with either of these
-            if fraction_removed > 0 or loss_change_fraction < 1:
-                exc = Exception
-            # NLP and Identity have no scales attribute, and this
-            # doesn't work with metrics either.
-            else:
-                exc = AttributeError
-            with pytest.raises(exc):
+            with pytest.raises(AttributeError):
                 mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
-                               coarse_to_fine=coarse_to_fine, fraction_removed=fraction_removed,
-                               loss_change_fraction=loss_change_fraction)
-        plt.close('all')
+                               coarse_to_fine=coarse_to_fine)
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
@@ -251,29 +239,6 @@ class TestMAD(object):
         # and run another synthesis target (note neither learning_rate nor
         # initial_noise can be None in this case)
         mad_copy.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=True)
-
-    @pytest.mark.parametrize('model_name', ['class', 'function'])
-    @pytest.mark.parametrize('fraction_removed', [0, .1])
-    @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
-    def test_randomizers(self, model_name, fraction_removed, loss_change_fraction):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
-        model2 = po.simul.models.naive.Identity()
-        if model_name == 'class':
-            model1 = po.metric.NLP().to(DEVICE)
-        elif model_name == 'function':
-            model1 = po.metric.nlpd
-        mad = po.synth.MADCompetition(img, model1, model2)
-        if model_name == 'function' and (fraction_removed > 0 or loss_change_fraction < 1):
-            with pytest.raises(Exception):
-                mad.synthesize('model_1_min', max_iter=5, loss_change_iter=1,
-                               loss_change_thresh=10, fraction_removed=fraction_removed,
-                               loss_change_fraction=loss_change_fraction)
-        else:
-            mad.synthesize('model_1_min', max_iter=5, loss_change_iter=1,
-                           fraction_removed=fraction_removed, loss_change_thresh=10,
-                           loss_change_fraction=loss_change_fraction)
-            mad.plot_synthesis_status()
-        plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])

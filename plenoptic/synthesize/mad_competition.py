@@ -625,9 +625,8 @@ class MADCompetition(Synthesis):
         else:
             self.loss_norm = 1
 
-    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
-                                 loss_change_fraction=1, loss_change_thresh=1e-2,
-                                 loss_change_iter=50):
+    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, coarse_to_fine=False,
+                                 loss_change_thresh=1e-2, loss_change_iter=50):
         """initialize stuff related to randomization and coarse-to-fine
 
         we always make the stable model's coarse to fine False
@@ -637,12 +636,6 @@ class MADCompetition(Synthesis):
         loss_thresh : float, optional
             If the loss over the past ``loss_change_iter`` is less than
             ``loss_thresh``, we stop.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -655,29 +648,18 @@ class MADCompetition(Synthesis):
               to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            loss has stopped decreasing (for loss_change_thresh).
 
         """
         self.update_target(self.synthesis_target, 'main')
-        super()._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                         loss_change_fraction, loss_change_thresh,
-                                         loss_change_iter)
+        super()._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                         loss_change_thresh, loss_change_iter)
         # always want the stable model's coarse to fine to be False
         self.update_target(self.synthesis_target, 'fix')
         self.coarse_to_fine = False
@@ -782,8 +764,7 @@ class MADCompetition(Synthesis):
                    optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
-                   fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                   coarse_to_fine=False, clip_grad_norm=False):
+                   loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize one maximally-differentiating image
 
         This synthesizes a single image, minimizing or maximizing either
@@ -865,25 +846,11 @@ class MADCompetition(Synthesis):
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
+            loss has stopped decreasing (for loss_change_thresh).
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -918,8 +885,8 @@ class MADCompetition(Synthesis):
 
         self.update_target(synthesis_target, 'main')
         # initialize stuff related to coarse-to-fine and randomization
-        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+        self._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                      loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
