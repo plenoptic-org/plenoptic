@@ -466,7 +466,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   optimizer_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
                    loss_change_iter=50, loss_change_thresh=1e-2,
@@ -505,11 +505,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object. See
-            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -577,7 +572,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                       loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             optimizer_kwargs, swa, swa_kwargs)
+                             optimizer_kwargs)
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress)
 
@@ -711,7 +706,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
-                        optimizer_kwargs={}, swa=False, swa_kwargs={}):
+                        optimizer_kwargs={})
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -763,17 +758,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             here.
         optimizer_kwargs :
             passed to the optimizer's initializer
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object.
 
         """
         # there's a weird scoping issue that happens if we don't copy the
         # dictionary, where it can accidentally persist across instances of the
         # object, which messes all sorts of things up
         optimizer_kwargs = optimizer_kwargs.copy()
-        swa_kwargs = swa_kwargs.copy()
         # if lr is None, we're resuming synthesis from earlier, and we
         # want to start with the last learning rate. however, we also
         # want to keep track of the initial learning rate, since we use
@@ -809,15 +799,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             self._optimizer = optim.AdamW([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-        self._swa = swa
-        if swa:
-            self._optimizer = torchcontrib.optim.SWA(self._optimizer, **swa_kwargs)
-            warnings.warn("When using SWA, can't also use LR scheduler")
+        if scheduler:
+            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
         else:
-            if scheduler:
-                self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
-            else:
-                self._scheduler = None
+            self._scheduler = None
         if not hasattr(self, '_init_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
@@ -826,8 +811,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             # coarse-to-fine optimization). note that we use the
             # initial_lr here
             init_optimizer_kwargs = {'optimizer': optimizer, 'lr': initial_lr,
-                                     'scheduler': scheduler, 'swa': swa,
-                                     'swa_kwargs': swa_kwargs,
+                                     'scheduler': scheduler,
                                      'optimizer_kwargs': optimizer_kwargs}
             self._init_optimizer_kwargs = init_optimizer_kwargs
         if clip_grad_norm is True:

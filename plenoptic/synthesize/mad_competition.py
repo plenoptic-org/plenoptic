@@ -762,7 +762,7 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=5, norm_loss=True,
                    seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='SGD',
-                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   optimizer_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
                    loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
@@ -813,11 +813,6 @@ class MADCompetition(Synthesis):
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object. See
-            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -891,7 +886,7 @@ class MADCompetition(Synthesis):
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             optimizer_kwargs, swa, swa_kwargs)
+                             optimizer_kwargs)
 
         self._init_store_progress(store_progress, save_progress, save_path)
 
@@ -934,9 +929,6 @@ class MADCompetition(Synthesis):
             self._clamp_and_store(i)
 
         pbar.close()
-
-        if self._swa:
-            self._optimizer.swap_swa_sgd()
 
         self._finalize_stored_progress()
 
@@ -1037,7 +1029,7 @@ class MADCompetition(Synthesis):
         # add the attributes not included above
         attrs += ['seed', 'scales', 'scales_timing', 'scales_loss', 'scales_finished',
                   'store_progress', 'save_progress', 'save_path', 'synthesis_target',
-                  'coarse_to_fine', '_swa']
+                  'coarse_to_fine']
         super().save(file_path, attrs)
 
     def load(self, file_path, map_location='cpu', **pickle_load_args):

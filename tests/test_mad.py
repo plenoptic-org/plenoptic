@@ -293,10 +293,9 @@ class TestMAD(object):
                                learning_rate=learning_rate, initial_noise=initial_noise)
 
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
-    @pytest.mark.parametrize('swa', [True, False])
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
-    def test_optimizer_opts(self, optimizer, swa, target, tmp_path):
+    def test_optimizer_opts(self, optimizer,target, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.NLP().to(DEVICE)
@@ -305,11 +304,6 @@ class TestMAD(object):
             optimizer_kwargs = {'weight_decay': .1}
         else:
             optimizer_kwargs = {}
-        if swa:
-            swa_kwargs = {'swa_start': 1, 'swa_freq': 1, 'swa_lr': .05}
-        else:
-            swa_kwargs = {}
         mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize(target, max_iter=5, loss_change_iter=3, swa=swa, swa_kwargs=swa_kwargs,
+        mad.synthesize(target, max_iter=5, loss_change_iter=3,
                        optimizer=optimizer, optimizer_kwargs=optimizer_kwargs)
-

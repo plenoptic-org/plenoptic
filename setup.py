@@ -44,7 +44,6 @@ setup(
                       'pytest',
                       'scikit-image>=0.15.0',
                       'dill',
-                      'torchcontrib',
                       ],
     tests='tests',
      )

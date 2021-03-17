@@ -147,9 +147,9 @@ class Metamer(Synthesis):
         super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
-                   scheduler=True, optimizer='SGD', optimizer_kwargs={}, swa=False,
-                   swa_kwargs={}, clamper=RangeClamper((0, 1)),
-                   clamp_each_iter=True, store_progress=False, save_progress=False,
+                   scheduler=True, optimizer='SGD', optimizer_kwargs={},
+                   clamper=RangeClamper((0, 1)), clamp_each_iter=True,
+                   store_progress=False, save_progress=False,
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
                    loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize a metamer
@@ -188,11 +188,6 @@ class Metamer(Synthesis):
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object. See
-            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -261,7 +256,7 @@ class Metamer(Synthesis):
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             optimizer_kwargs, swa, swa_kwargs)
+                             optimizer_kwargs)
 
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress, save_path)
@@ -285,9 +280,6 @@ class Metamer(Synthesis):
                 break
 
         pbar.close()
-
-        if self._swa:
-            self._optimizer.swap_swa_sgd()
 
         # finally, stack the saved_* attributes
         self._finalize_stored_progress()
