@@ -1,11 +1,10 @@
 import torch
 import warnings
 from tqdm import tqdm
-import numpy as np
+import dill
 import pyrtools as pt
 from .synthesis import Synthesis
 import matplotlib.pyplot as plt
-from ..tools.signal import add_noise
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
 from ..tools.metamer_utils import RangeClamper
@@ -176,6 +175,8 @@ class MADCompetition(Synthesis):
         self._step = 'main'
         self.nu = []
         self.initial_image = None
+        self.loss_1_norm = 1
+        self.loss_2_norm = 1
 
         # we initialize all the model 1 versions of these in the
         # super().__init__() call above, so we just need to do the model
@@ -1009,22 +1010,18 @@ class MADCompetition(Synthesis):
                                 save_progress=save_progress,
                                 **synthesize_kwargs)
 
-    def save(self, file_path, save_model_reduced=False):
-        r"""save all relevant variables in .pt file
+    def save(self, file_path):
+        r"""Save all relevant variables in .pt file.
 
         Note that if store_progress is True, this will probably be very
-        large
+        large.
+
+        See ``load`` docstring for an example of use.
 
         Parameters
         ----------
         file_path : str
             The path to save the metamer object to
-        save_model_reduced : bool
-            Whether we save the full model or just its attribute
-            ``state_dict_reduced`` (this is a custom attribute of ours,
-            the basic idea being that it only contains the attributes
-            necessary to initialize the model, none of the (probably
-            much larger) ones it gets during run-time).
 
         """
         # the first two lines here make sure that we have both the _1 and _2
@@ -1034,105 +1031,82 @@ class MADCompetition(Synthesis):
                  [k + '_all' for k in self._attrs_all])
         # Removes duplicates
         attrs = list(set(attrs))
+        # Remove the models, don't want to save those.
+        attrs.remove('model_1')
+        attrs.remove('model_2')
         # add the attributes not included above
         attrs += ['seed', 'scales', 'scales_timing', 'scales_loss', 'scales_finished',
                   'store_progress', 'save_progress', 'save_path', 'synthesis_target',
                   'coarse_to_fine', '_swa']
-        super().save(file_path, save_model_reduced, attrs, ['model_1', 'model_2'])
+        super().save(file_path, attrs)
 
-    @classmethod
-    def load(cls, file_path, model_constructor=[None, None], map_location='cpu',
-             **state_dict_kwargs):
-        r"""load all relevant stuff from a .pt file
+    def load(self, file_path, map_location='cpu', **pickle_load_args):
+        r"""Load all relevant stuff from a .pt file.
 
-        We will iterate through any additional key word arguments
-        provided and, if the model in the saved representation is a
-        dictionary, add them to the state_dict of the model. In this
-        way, you can replace, e.g., paths that have changed between
-        where you ran the model and where you are now.
+        This should be called by an initialized ``MADComptetion`` object -- we
+        will ensure that ``base_signal``, ``base_representation_1`` (and thus
+        ``model_1``), ``base_representation_2`` (and thus ``model_2``), and
+        ``loss_function`` are all identical.
+
+        Note this operates in place and so doesn't return anything.
 
         Parameters
         ----------
         file_path : str
             The path to load the synthesis object from
-        model_constructor : list, optional
-            When saving the synthesis object, we have the option to only
-            save the ``state_dict_reduced`` (in order to save space). If
-            we do that, then we need some way to construct that model
-            again and, not knowing its class or anything, this object
-            doesn't know how. Therefore, a user must pass a constructor
-            for the model that takes in the ``state_dict_reduced``
-            dictionary and returns the initialized model. See the
-            VentralModel class for an example of this. Since
-            MADCompetition has two models, this must be a list with two
-            elements, the first corresponding to model_1, the second to
-            model_2
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        state_dict_kwargs :
-            any additional kwargs will be added to the model's
-            state_dict before construction (this only applies if the
-            model is a dict, see above for more description of that)
-
-        Returns
-        -------
-        mad : plenoptic.synth.MADCompetition
-            The loaded MADCompetition object
-
+        pickle_load_args :
+            any additional kwargs will be added to ``pickle_module.load`` via
+            ``torch.load``, see that function's docstring for details.
 
         Examples
         --------
         >>> mad = po.synth.MADCompetition(img, model1, model2)
         >>> mad.synthesize(max_iter=10, store_progress=True)
         >>> mad.save('mad.pt')
-        >>> mad_copy = po.synth.MADCompetition.load('mad.pt')
-
-        Things are slightly more complicated if you saved a reduced
-        representation of the model by setting the
-        ``save_model_reduced`` flag to ``True``. In that case, you also
-        need to pass a model constructor argument, like so:
-
-        >>> model1 = po.simul.PooledRGC(1)
-        >>> model2 = po.metric.nlpd
-        >>> mad = po.synth.MADCompetition(img, model1, model2)
-        >>> mad.synthesize(max_iter=10, store_progress=True)
-        >>> mad.save('mad.pt', save_model_reduced=True)
-        >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
-                                                    [po.simul.PooledRGC.from_state_dict_reduced,
-                                                     None])
-
-        You may want to update one or more of the arguments used to
-        initialize the model. The example I have in mind is where you
-        run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
-        attribute which you will want to change so it finds the
-        appropriate location:
-
-        >>> model1 = po.simul.PooledRGC(1)
-        >>> model2 = po.metric.nlpd
-        >>> mad = po.synth.MADCompetition(img, model1, model2)
-        >>> mad.synthesize(max_iter=10, store_progress=True)
-        >>> mad.save('mad.pt', save_model_reduced=True)
-        >>> mad_copy = po.synth.MADCompetition.load('mad.pt',
-                                                    [po.simul.PooledRGC.from_state_dict_reduced,
-                                                     None],
-                                                    cache_dir="/home/user/Desktop/metamers/windows_cache")
+        >>> mad_copy = po.synth.MADCompetition(img, model1, model2)
+        >>> mad_copy = mad_copy.load('mad.pt')
 
         """
-        tmp = super().load(file_path, ['model_1', 'model_2'], model_constructor, map_location,
-                           **state_dict_kwargs)
-        synth_target = tmp.synthesis_target
+        # we have to check the loss functions ourself, because they're a bit
+        # finicky
+        tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
+        img = torch.rand_like(self.base_signal)
+        rep = torch.rand_like(self.base_representation_1)
+        saved_loss = tmp_dict['loss_function_1'](rep, self.base_representation_1, img,
+                                                 self.base_signal)
+        init_loss = self.loss_function_1(rep, self.base_representation_1, img,
+                                         self.base_signal)
+        if not torch.allclose(saved_loss, init_loss):
+            raise Exception("Saved and initialized loss_function_1 are different! On base and random "
+                            f"representation got: Initialized: {init_loss}"
+                            f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
+        rep = torch.rand_like(self.base_representation_2)
+        saved_loss = tmp_dict['loss_function_2'](rep, self.base_representation_2, img,
+                                                 self.base_signal)
+        init_loss = self.loss_function_2(rep, self.base_representation_2, img,
+                                         self.base_signal)
+        if not torch.allclose(saved_loss, init_loss):
+            raise Exception("Saved and initialized loss_function_2 are different! On base and random "
+                            f"representation got: Initialized: {init_loss}"
+                            f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
+        super().load(file_path, map_location,
+                     ['base_signal', 'base_representation_1',
+                      'base_representation_2'],
+                     objective_function_kwargs={'norm_loss': False},
+                     **pickle_load_args)
+        synth_target = self.synthesis_target
         if '1' in synth_target:
             tmp_target = synth_target.replace('1', '2')
         else:
             tmp_target = synth_target.replace('2', '1')
-        tmp.update_target(tmp_target, 'main')
-        tmp.update_target(synth_target, 'main')
-        return tmp
+        self.update_target(tmp_target, 'main')
+        self.update_target(synth_target, 'main')
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.

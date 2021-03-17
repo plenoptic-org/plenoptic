@@ -368,10 +368,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.saved_signal_gradient.append(self.synthesized_signal.grad.clone().to('cpu'))
                 self.saved_representation_gradient.append(self.synthesized_representation.grad.clone().to('cpu'))
                 if self.save_progress is True:
-                    self.save(self.save_path, True)
+                    self.save(self.save_path)
                 stored = True
             if type(self.save_progress) == int and ((i+1) % self.save_progress == 0):
-                self.save(self.save_path, True)
+                self.save(self.save_path)
         return stored
 
     def _check_for_stabilization(self, i):
@@ -957,50 +957,30 @@ class Synthesis(metaclass=abc.ABCMeta):
         return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
-    def save(self, file_path, save_model_reduced=False, attrs=['model'],
-             model_attr_names=['model']):
-        r"""save all relevant variables in .pt file
+    def save(self, file_path,
+             attrs=['base_signal', 'base_representation',
+                    'synthesized_signal', 'synthesized_representation']):
+        r"""Save all relevant (non-model) variables in .pt file.
 
         This is an abstractmethod only because you need to specify which
         attributes to save. See ``metamer.save`` as an example, but the
         save method in your synthesis object should probably should have
         a line defining the attributes to save and then a call to
-        ``super().save(file_path, save_model_reduced, attrs)``
+        ``super().save(file_path, attrs)``
 
         Note that if store_progress is True, this will probably be very
-        large
+        large.
 
         Parameters
         ----------
         file_path : str
             The path to save the synthesis object to
-        save_model_reduced : bool
-            Whether we save the full model or just its attribute
-            ``state_dict_reduced`` (this is a custom attribute of ours,
-            the basic idea being that it only contains the attributes
-            necessary to initialize the model, none of the (probably
-            much larger) ones it gets during run-time).
         attrs : list
             List of strs containing the names of the attributes of this
             object to save.
-        model_attr_names : list, optional
-            The attribute that gives the model(s) names. Must be a list
-            of strs. These are the attributes we try to save in reduced
-            form if ``save_model_reduced`` is True.
 
         """
         save_dict = {}
-        for name in model_attr_names:
-            if name in attrs:
-                model = getattr(self, name)
-                try:
-                    if save_model_reduced:
-                        model = model.state_dict_reduced
-                except AttributeError:
-                    warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
-                                  "the whole model object")
-                save_dict[name] = model
-                attrs.remove(name)
         for k in attrs:
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
@@ -1010,117 +990,89 @@ class Synthesis(metaclass=abc.ABCMeta):
             save_dict[k] = attr
         torch.save(save_dict, file_path, pickle_module=dill)
 
-    @classmethod
     @abc.abstractmethod
-    def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
-             **state_dict_kwargs):
-        r"""load all relevant stuff from a .pt file
+    def load(self, file_path, map_location='cpu',
+             check_attributes=['base_signal', 'base_representation',
+                               'loss_function'],
+             objective_function_kwargs={},
+             **pickle_load_args):
+        r"""Load all relevant attributes from a .pt file.
 
-        We will iterate through any additional key word arguments
-        provided and, if the model in the saved representation is a
-        dictionary, add them to the state_dict of the model. In this
-        way, you can replace, e.g., paths that have changed between
-        where you ran the model and where you are now.
+        This should be called by an initialized ``Synthesis`` object -- we will
+        ensure that the attributes in the ``check_attributes`` arg all match in
+        the current and loaded object.
+
+        Note that we check a ``loss_function`` in a special way (because
+        comparing two python callables if very difficult): we compare the
+        outputs on some random images.
+
+        Note this operates in place and so doesn't return anything.
 
         Parameters
         ----------
         file_path : str
             The path to load the synthesis object from
-        model_attr_name : str or list, optional
-            The attribute that gives the model(s) names. Can be a str or
-            a list of strs. If a list and the reduced version of the
-            model was saved, ``model_constructor`` should be a list of
-            the same length.
-        model_constructor : callable, list, or None, optional
-            When saving the synthesis object, we have the option to only
-            save the ``state_dict_reduced`` (in order to save space). If
-            we do that, then we need some way to construct that model
-            again and, not knowing its class or anything, this object
-            doesn't know how. Therefore, a user must pass a constructor
-            for the model that takes in the ``state_dict_reduced``
-            dictionary and returns the initialized model. See the
-            VentralModel class for an example of this. If a list, should
-            be a list of the above and the same length as
-            ``model_attr_name``
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        state_dict_kwargs :
-            any additional kwargs will be added to the model's
-            state_dict before construction (this only applies if the
-            model is a dict, see above for more description of that)
-
-        Returns
-        -------
-        synthesis : plenoptic.synth.Synthesis
-            The loaded synthesis object
-
+        check_attributes : list, optional
+            List of strings we ensure are identical in the current
+            ``Synthesis`` object and the loaded one. Checking the model is
+            generally not recommended, since it can be hard to do (checking
+            callable objects is hard in Python) -- instead, checking the
+            ``base_representation`` should ensure the model hasn't functinoally
+            changed.
+        objective_function_kwargs : dict, optional
+            Additional arguments to pass to the objective function call.
+        pickle_load_args :
+            any additional kwargs will be added to ``pickle_module.load`` via
+            ``torch.load``, see that function's docstring for details.
 
         Examples
         --------
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer(img, model)
+        >>> metamer_copy.load('metamers.pt')
 
-        Things are slightly more complicated if you saved a reduced
-        representation of the model by setting the
-        ``save_model_reduced`` flag to ``True``. In that case, you also
-        need to pass a model constructor argument, like so:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
-
-        You may want to update one or more of the arguments used to
-        initialize the model. The example I have in mind is where you
-        run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
-        attribute which you will want to change so it finds the
-        appropriate location:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
-                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+        Note that you must create a new instance of the Synthesis object and
+        *then* load.
 
         """
         tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
-        device = torch.device(map_location)
-        if not isinstance(model_attr_name, list):
-            model_attr_name = [model_attr_name]
-        if not isinstance(model_constructor, list):
-            model_constructor = [model_constructor]
-        base_signal = tmp_dict.pop('base_signal').to(device)
-        models = {}
-        for attr, constructor in zip(model_attr_name, model_constructor):
-            model = tmp_dict.pop(attr)
-            if isinstance(model, dict):
-                for k, v in state_dict_kwargs.items():
-                    warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
-                                  (k, model.pop(k, None), v))
-                    model[k] = v
-                # then we've got a state_dict_reduced and we need the model_constructor
-                model = constructor(model)
-                # want to make sure the dtypes match up as well
-                model = model.to(device, base_signal.dtype)
-            models[attr] = model
-        loss_function = tmp_dict.pop('loss_function', None)
-        loss_function_kwargs = tmp_dict.pop('loss_function_kwargs', {})
-        synth = cls(base_signal, loss_function=loss_function,
-                    loss_function_kwargs=loss_function_kwargs, **models)
+        for k in check_attributes:
+            if not hasattr(self, k):
+                raise Exception("All values of `check_attributes` should be attributes set at"
+                                f" initialization, but got attr {k}!")
+            if isinstance(getattr(self, k), torch.Tensor):
+                try:
+                    if not torch.allclose(getattr(self, k), tmp_dict[k]):
+                        raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
+                                        f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
+                except RuntimeError:
+                    raise Exception(f"Attribute {k} is a different shape in saved and initialized versions!"
+                                    f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
+            elif k == 'loss_function':
+                img = torch.rand_like(self.base_signal)
+                rep = torch.rand_like(self.base_representation)
+                saved_loss = tmp_dict[k](rep, self.base_representation, img,
+                                         self.base_signal)
+                init_loss = self.loss_function(rep, self.base_representation,
+                                               img, self.base_signal)
+                if not torch.allclose(saved_loss, init_loss):
+                    raise Exception("Saved and initialized loss_function are different! On base and random "
+                                    f"representation got: Initialized: {init_loss}"
+                                    f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
+            else:
+                if getattr(self, k) != tmp_dict[k]:
+                    raise Exception(f"Saved and initialized {k} are different! Self: {getattr(self, k)}"
+                                    f", Saved: {tmp_dict[k]}")
         for k, v in tmp_dict.items():
-            setattr(synth, k, v)
-        return synth
+            setattr(self, k, v)
 
     @abc.abstractmethod
     def to(self, *args, attrs=[], **kwargs):

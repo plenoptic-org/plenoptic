@@ -16,12 +16,11 @@ class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['class', 'function'])
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
-    def test_metamer_save_load(self, model, loss_func, tmp_path):
+    @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss'])
+    def test_metamer_save_load(self, model, loss_func, fail, tmp_path):
 
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        save_reduced = False
-        model_constructor = None
         if model == 'class':
             model = po.simul.Linear_Nonlinear().to(DEVICE)
         elif model == 'function':
@@ -36,28 +35,44 @@ class TestMetamers(object):
             loss_kwargs['beta'] = .9
         met = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, store_progress=True)
-        met.save(op.join(tmp_path, 'test_metamer_save_load.pt'), save_reduced)
-        met_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_save_load.pt"),
-                                         map_location=DEVICE,
-                                         model_constructor=model_constructor)
-        for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
-                  'synthesized_signal', 'base_representation']:
-            if not getattr(met, k).allclose(getattr(met_copy, k)):
-                raise Exception("Something went wrong with saving and loading! %s not the same"
-                                % k)
-        assert not isinstance(met_copy.synthesized_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
-        # check loss functions correctly saved
-        met_loss = met.loss_function(met.synthesized_representation, met.base_representation,
-                                     met.synthesized_signal, met.base_signal)
-        met_copy_loss = met_copy.loss_function(met_copy.synthesized_representation,
-                                               met_copy.base_representation,
-                                               met_copy.synthesized_signal, met_copy.base_signal)
-        if met_loss != met_copy_loss:
-            raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
-                            f"after loading was {met_copy_loss}")
-        # check that can resume
-        met_copy.synthesize(max_iter=10, loss_change_iter=5, store_progress=True,
-                            learning_rate=None)
+        met.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
+        # when the model is a function, the loss_function is ignored and thus
+        # we won't actually fail to load here (we check against the specific
+        # callable because we've overwritten the model input arg)
+        if fail and not (fail == 'loss' and model == po.metric.nlpd):
+            if fail == 'img':
+                im = torch.rand_like(im)
+            elif fail == 'model':
+                model = po.metric.mse
+            elif fail == 'loss':
+                loss = lambda *args, **kwargs: 1
+                loss_kwargs = {}
+            met_copy = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+            with pytest.raises(Exception):
+                met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
+                              map_location=DEVICE)
+        else:
+            met_copy = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+            met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
+                          map_location=DEVICE)
+            for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
+                      'synthesized_signal', 'base_representation']:
+                if not getattr(met, k).allclose(getattr(met_copy, k)):
+                    raise Exception("Something went wrong with saving and loading! %s not the same"
+                                    % k)
+            assert not isinstance(met_copy.synthesized_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
+            # check loss functions correctly saved
+            met_loss = met.loss_function(met.synthesized_representation, met.base_representation,
+                                         met.synthesized_signal, met.base_signal)
+            met_copy_loss = met_copy.loss_function(met_copy.synthesized_representation,
+                                                   met_copy.base_representation,
+                                                   met_copy.synthesized_signal, met_copy.base_signal)
+            if met_loss != met_copy_loss:
+                raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
+                                f"after loading was {met_copy_loss}")
+            # check that can resume
+            met_copy.synthesize(max_iter=10, loss_change_iter=5, store_progress=True,
+                                learning_rate=None)
 
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
@@ -105,7 +120,8 @@ class TestMetamers(object):
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
         metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
                            save_path=save_path)
-        po.synth.Metamer.load(save_path)
+        metamer_copy = po.synth.Metamer(im, lnl)
+        metamer_copy.load(save_path)
 
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
     def test_coarse_to_fine(self, coarse_to_fine, tmp_path):
@@ -121,8 +137,9 @@ class TestMetamers(object):
         assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
 
         metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
-        metamer_copy = po.synth.Metamer.load(op.join(tmp_path, "test_metamer_ctf.pt"),
-                                             map_location=DEVICE)
+        metamer_copy = po.synth.Metamer(im, spyr)
+        metamer_copy.load(op.join(tmp_path, "test_metamer_ctf.pt"),
+                          map_location=DEVICE)
         # check the ctf-related attributes all saved correctly
         for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
                   'scales_finished']:

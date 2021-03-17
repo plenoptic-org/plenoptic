@@ -36,10 +36,6 @@ class TestMAD(object):
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
-        mad.plot_synthesis_status()
-        if store_progress:
-            mad.animate().to_html5_video()
-        plt.close('all')
 
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
                                            'range_penalty_w_lmbda',
@@ -76,15 +72,6 @@ class TestMAD(object):
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
-        # for some reason, this causes the test to stall occasionally (I
-        # think only with loss_func=range_penalty, target=model_1_max,
-        # store_progress=False, resume=True). and trying to use
-        # pytest-timeout doesn't work. it's not all that crucial, so
-        # we'll get rid of it?
-        mad.plot_synthesis_status()
-        if store_progress:
-            mad.animate().to_html5_video()
-        plt.close('all')
 
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
@@ -138,8 +125,9 @@ class TestMAD(object):
                            coarse_to_fine=coarse_to_fine)
             assert len(mad.scales_finished) > 0, "Didn't actually switch scales!"
             mad.save(op.join(tmp_path, 'test_mad_ctf.pt'))
-            mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_ctf.pt"),
-                                                    map_location=DEVICE)
+            mad_copy = po.synth.MADCompetition(img, model1, model2)
+            mad_copy = mad_copy.load(op.join(tmp_path, "test_mad_ctf.pt"),
+                                     map_location=DEVICE)
             # check the ctf-related attributes all saved correctly
             for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
                       'scales_finished']:
@@ -156,7 +144,8 @@ class TestMAD(object):
     @pytest.mark.parametrize('model1', ['class', 'function'])
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_lmbda'])
-    def test_save_load(self, model1, model2, loss_func, tmp_path):
+    @pytest.mark.parametrize('fail', [False, 'img', 'model1', 'model2', 'loss'])
+    def test_save_load(self, model1, model2, loss_func, fail, tmp_path):
         img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
@@ -178,67 +167,88 @@ class TestMAD(object):
                                       loss_function_kwargs=loss_kwargs)
         mad.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
-        mad_copy = po.synth.MADCompetition.load(op.join(tmp_path, "test_mad_save_load.pt"),
-                                                map_location=DEVICE)
-        if mad.synthesis_target != mad_copy.synthesis_target:
-            raise Exception("Something went wrong with saving and loading! synthesis_"
-                            "target not the same!")
-        for k in mad_copy._attrs_all:
-            orig = getattr(mad, k+"_all")
-            saved = getattr(mad_copy, k+"_all")
-            for ki, v in orig.items():
+        # when the model is a function, the loss_function is ignored and thus
+        # we won't actually fail to load here (we check against the specific
+        # callable because we've overwritten the model input arg)
+        if fail and not (fail == 'loss' and model1 == po.metric.mse and model2 == po.metric.nlpd):
+            if fail == 'img':
+                img = torch.rand_like(img)
+            elif fail == 'model1':
+                model1 = po.metric.nlpd
+            elif fail == 'model2':
+                model2 = po.metric.mse
+            elif fail == 'loss':
+                loss = lambda *args, **kwargs: 1
+                loss_kwargs = {}
+            mad_copy = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
+                                               loss_function_kwargs=loss_kwargs)
+            with pytest.raises(Exception):
+                mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
+                              map_location=DEVICE)
+        else:
+            mad_copy = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
+                                               loss_function_kwargs=loss_kwargs)
+            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
+                          map_location=DEVICE)
+            if mad.synthesis_target != mad_copy.synthesis_target:
+                raise Exception("Something went wrong with saving and loading! synthesis_"
+                                "target not the same!")
+            for k in mad_copy._attrs_all:
+                orig = getattr(mad, k+"_all")
+                saved = getattr(mad_copy, k+"_all")
+                for ki, v in orig.items():
+                    eql = False
+                    try:
+                        if v == saved[ki]:
+                            eql = True
+                    except RuntimeError:
+                        # then it's a tensor
+                        if v.allclose(saved[ki]):
+                            eql = True
+                    if not eql:
+                        raise Exception(f"Something went wrong with saving and loading! {k, ki} not the same!")
                 eql = False
                 try:
-                    if v == saved[ki]:
+                    if saved[mad.synthesis_target] == getattr(mad_copy, k):
                         eql = True
                 except RuntimeError:
                     # then it's a tensor
-                    if v.allclose(saved[ki]):
+                    if saved[mad.synthesis_target].allclose(getattr(mad_copy, k)):
                         eql = True
                 if not eql:
-                    raise Exception(f"Something went wrong with saving and loading! {k, ki} not the same!")
-            eql = False
-            try:
-                if saved[mad.synthesis_target] == getattr(mad_copy, k):
-                    eql = True
-            except RuntimeError:
-                # then it's a tensor
-                if saved[mad.synthesis_target].allclose(getattr(mad_copy, k)):
-                    eql = True
-            if not eql:
-                raise Exception(f"Something went wrong with saving and loading! {k} and its _all"
-                                "version not properly synced")
-        # check these attributes all saved correctly
-        for k in ['base_signal', 'saved_representation_1', 'saved_signal',
-                  'synthesized_representation_1', 'synthesized_signal', 'base_representation_1',
-                  'saved_representation_2', 'synthesized_representation_2', 'base_representation_2']:
-            if not getattr(mad, k).allclose(getattr(mad_copy, k)):
-                raise Exception("Something went wrong with saving and loading! %s not the same"
-                                % k)
-        assert not isinstance(mad_copy.synthesized_representation, torch.nn.Parameter), "synthesized_rep shouldn't be a parameter!"
-        # check loss functions correctly saved
-        mad_loss = mad.loss_function_1(mad.synthesized_representation_1, mad.base_representation_1,
-                                       mad.synthesized_signal, mad.base_signal)
-        mad_copy_loss = mad_copy.loss_function_1(mad_copy.synthesized_representation_1,
-                                                 mad_copy.base_representation_1,
-                                                 mad_copy.synthesized_signal, mad_copy.base_signal)
-        if mad_loss != mad_copy_loss:
-            raise Exception(f"Loss function 1 not properly saved! Before saving was {mad_loss}, "
-                            f"after loading was {mad_copy_loss}")
-        mad_loss = mad.loss_function_2(mad.synthesized_representation_2, mad.base_representation_2,
-                                       mad.synthesized_signal, mad.base_signal)
-        mad_copy_loss = mad_copy.loss_function_2(mad_copy.synthesized_representation_2,
-                                                 mad_copy.base_representation_2,
-                                                 mad_copy.synthesized_signal, mad_copy.base_signal)
-        if mad_loss != mad_copy_loss:
-            raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
-                            f"after loading was {mad_copy_loss}")
-        # check that can resume
-        mad_copy.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True,
-                            learning_rate=None, initial_noise=None)
-        # and run another synthesis target (note neither learning_rate nor
-        # initial_noise can be None in this case)
-        mad_copy.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=True)
+                    raise Exception(f"Something went wrong with saving and loading! {k} and its _all"
+                                    "version not properly synced")
+            # check these attributes all saved correctly
+            for k in ['base_signal', 'saved_representation_1', 'saved_signal',
+                      'synthesized_representation_1', 'synthesized_signal', 'base_representation_1',
+                      'saved_representation_2', 'synthesized_representation_2', 'base_representation_2']:
+                if not getattr(mad, k).allclose(getattr(mad_copy, k)):
+                    raise Exception("Something went wrong with saving and loading! %s not the same"
+                                    % k)
+            assert not isinstance(mad_copy.synthesized_representation, torch.nn.Parameter), "synthesized_rep shouldn't be a parameter!"
+            # check loss functions correctly saved
+            mad_loss = mad.loss_function_1(mad.synthesized_representation_1, mad.base_representation_1,
+                                           mad.synthesized_signal, mad.base_signal)
+            mad_copy_loss = mad_copy.loss_function_1(mad_copy.synthesized_representation_1,
+                                                     mad_copy.base_representation_1,
+                                                     mad_copy.synthesized_signal, mad_copy.base_signal)
+            if mad_loss != mad_copy_loss:
+                raise Exception(f"Loss function 1 not properly saved! Before saving was {mad_loss}, "
+                                f"after loading was {mad_copy_loss}")
+            mad_loss = mad.loss_function_2(mad.synthesized_representation_2, mad.base_representation_2,
+                                           mad.synthesized_signal, mad.base_signal)
+            mad_copy_loss = mad_copy.loss_function_2(mad_copy.synthesized_representation_2,
+                                                     mad_copy.base_representation_2,
+                                                     mad_copy.synthesized_signal, mad_copy.base_signal)
+            if mad_loss != mad_copy_loss:
+                raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
+                                f"after loading was {mad_copy_loss}")
+            # check that can resume
+            mad_copy.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True,
+                                learning_rate=None, initial_noise=None)
+            # and run another synthesis target (note neither learning_rate nor
+            # initial_noise can be None in this case)
+            mad_copy.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=True)
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
