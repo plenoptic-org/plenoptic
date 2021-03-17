@@ -325,7 +325,7 @@ def normalized_laplacian_pyramid(im):
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
-        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32, device=im.device).unsqueeze(0).unsqueeze(0)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
@@ -395,6 +395,7 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
         non_linear = local_gain_control
 
+    linear.to(IM_1.device)
     pyr = linear(torch.cat((IM_1, IM_2), 0))
 
     norm, state = non_linear(pyr)
