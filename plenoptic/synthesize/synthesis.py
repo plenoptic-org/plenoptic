@@ -706,7 +706,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
-                        optimizer_kwargs={})
+                        optimizer_kwargs={}):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
