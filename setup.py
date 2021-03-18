@@ -23,8 +23,15 @@ setup(
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3.7'],
     keywords='Visual Information Processing',
-    packages=['plenoptic', 'plenoptic.simulate', 'plenoptic.synthesize',
-              'plenoptic.tools'],
+    packages=[
+        'plenoptic',
+        'plenoptic.metric',
+        'plenoptic.simulate',
+        'plenoptic.simulate.models',
+        'plenoptic.simulate.canonical_computations',
+        'plenoptic.synthesize',
+        'plenoptic.tools'
+    ],
     install_requires=['numpy>=1.1',
                       'torch<1.8',
                       'pyrtools>=1.0.0',
@@ -37,7 +44,6 @@ setup(
                       'pytest',
                       'scikit-image>=0.15.0',
                       'dill',
-                      'torchcontrib',
                       ],
     tests='tests',
      )
