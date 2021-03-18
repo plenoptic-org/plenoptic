@@ -22,7 +22,7 @@ class Geodesic(nn.Module):
 
     Parameters
     ----------
-    imgA (resp. imgB): 'torch.FloatTensor'
+    imgA (resp. imgB): torch.FloatTensor
         Start (resp. stop) anchor of the geodesic,
         of shape [1, C, H, W] in range [0, 1].
 
@@ -32,7 +32,7 @@ class Geodesic(nn.Module):
     n_steps: int
         the number of steps in the trajectory between the two anchor points
 
-    init: string in ['straight', 'bridge'], optional
+    init: {'straight', 'bridge'}, optional
         initialize the geodesic with pixel linear interpolation (default),
         or with a brownian bridge between the two anchors
 
@@ -100,7 +100,7 @@ class Geodesic(nn.Module):
 
         Parameters
         ----------
-        init : 'bridge', 'straight' or Tensor
+        init : {'bridge', 'straight', or torch.Tensor}
             if a tensor is passed it must match the shape of the
             desired geodesic.
         """
@@ -179,10 +179,9 @@ class Geodesic(nn.Module):
 
         return loss
 
-    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='adam',
-                   lmbda=.1, objective='multiscale', seed=0):
+    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
+                   lmbda=.1, seed=0):
         """ synthesize a geodesic
-
         Parameters
         ----------
         max_iter: int, optional
@@ -191,15 +190,11 @@ class Geodesic(nn.Module):
         learning_rate: float, optional
             controls the step sizes of the search algorithm
 
-        optimizer: str ('adam' or 'sgd') or torch.optim.Optimizer, optional
+        optimizer: {'Adam', 'SGD', torch.optim.Optimizer}, optional
             algorithm that will perform the search
 
         lmbda: float, optional
             strength of the regularizer that enforces the image range in [0, 1]
-
-        objective: str, optional
-            'default'
-            'multiscale'
 
         seed: int
             set the random number generator
@@ -207,12 +202,12 @@ class Geodesic(nn.Module):
         self.lmbda = lmbda
 
         torch.manual_seed(seed)
-        if optimizer == 'adam':
+        if optimizer == 'Adam':
             self.optimizer = optim.Adam([self.x],
                                         lr=learning_rate, amsgrad=True)
-        elif optimizer == 'sgd':
+        elif optimizer == 'SGD':
             self.optimizer = optim.SGD([self.x],
-                                       lr=learning_rate, momentum=0.9)
+                                     lr=learning_rate, momentum=0.9)
         elif isinstance(optimizer, optim.Optimizer):
             self.optimizer = optimizer
 
@@ -253,7 +248,7 @@ class Geodesic(nn.Module):
 
         Returns
         -------
-        fig: matplotilb figure object
+        fig: matplotlib.figure.Figure
         """
         fig, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(to_numpy(distance_from_line(self.pixelfade)),
@@ -277,6 +272,8 @@ class Geodesic(nn.Module):
     def animate_distance_from_line(self, vid=None, framerate=25):
         """dynamic visualisation of geodesic linearity along the optimization process
 
+        This animates `plot_distance_from_line` over the steps of the algorithm
+
         Parameters
         ----------
         vid : torch.Tensor, optional
@@ -286,7 +283,9 @@ class Geodesic(nn.Module):
 
         Returns
         -------
-        anim: matplotlib animation object (can call anim.save(target_location.mp4))
+        anim : matplotlib.animation.FuncAnimation
+            The animation object. It can be saved (can call anim.save(target_location.mp4)),
+            or viewed in a jupyter notebook (needs to be converted to HTML). 
         """
 
         fig = self.plot_distance_from_line(vid=vid, iteration=0)
