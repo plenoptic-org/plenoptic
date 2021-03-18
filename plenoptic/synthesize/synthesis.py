@@ -973,7 +973,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path, pickle_module=dill)
 
     @abc.abstractmethod
-    def load(self, file_path, map_location='cpu',
+    def load(self, file_path, map_location=None,
              check_attributes=['base_signal', 'base_representation',
                                'loss_function'],
              objective_function_kwargs={},

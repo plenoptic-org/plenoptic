@@ -136,7 +136,7 @@ class Metamer(Synthesis):
         if initial_image is None:
             try:
                 # then we have a previous run to resume
-                synthesized_signal_data = self.saved_signal[-1]
+                synthesized_signal_data = self.saved_signal[-1].to(self.base_signal.device)
             except IndexError:
                 # else we're starting over
                 synthesized_signal_data = torch.rand_like(self.base_signal, dtype=torch.float32,
@@ -349,7 +349,7 @@ class Metamer(Synthesis):
                  'saved_signal_gradient', 'saved_representation_gradient']
         return super().to(*args, attrs=attrs, **kwargs)
 
-    def load(self, file_path, map_location='cpu', **pickle_load_args):
+    def load(self, file_path, map_location=None, **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Metamer`` object -- we will
