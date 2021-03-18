@@ -265,61 +265,6 @@ def rescale(x, a=0, b=1):
     return a + g * (b-a)
 
 
-def roll_n(X, axis, n):
-    r""" Helper for ``fftshift``. Performs circular shift by n indices along given axis.
-    shifts by ``n_shift``
-    Parameters
-    ----------
-    X: torch.Tensor
-        Signal or frequency domain
-    axis: int
-        Axis along which to roll
-    n: int
-        How many indices to circularly shift
-    Returns
-    -------
-    rolled: torch.Tensor
-
-    """
-    f_idx = tuple(slice(None, None, None) if i != axis else slice(0, n, None) for i in range(X.dim()))
-    b_idx = tuple(slice(None, None, None) if i != axis else slice(n, None, None) for i in range(X.dim()))
-    front = X[f_idx]
-    back = X[b_idx]
-    rolled = torch.cat([back, front], axis)
-    return rolled
-
-
-def batch_fftshift(x):
-    r"""Shift the zero-frequency component to the center of the spectrum.
-    The input x is expected to have real and imaginary parts along the last dimension.
-    """
-    real, imag = torch.unbind(x, -1)
-    for dim in range(1, len(real.size())):
-        n_shift = real.size(dim)//2
-        if real.size(dim) % 2 != 0:
-            n_shift += 1  # for odd-sized images
-        real = roll_n(real, axis=dim, n=n_shift)
-        imag = roll_n(imag, axis=dim, n=n_shift)
-    # preallocation is much faster than using stack
-    shifted = torch.empty((*real.shape, 2), device=real.device)
-    shifted[..., 0] = real
-    shifted[..., 1] = imag
-    return shifted  # last dim=2 (real&imag)
-
-
-def batch_ifftshift(x):
-    r"""The inverse of ``batch_fftshift``.
-    The input x is expected to have real and imaginary parts along the last dimension.
-    """
-    real, imag = torch.unbind(x, -1)
-    for dim in range(len(real.size()) - 1, 0, -1):
-        real = roll_n(real, axis=dim, n=real.size(dim)//2)
-        imag = roll_n(imag, axis=dim, n=imag.size(dim)//2)
-    # preallocation is much faster than using stack
-    shifted = torch.empty((*real.shape, 2), device=real.device)
-    shifted[..., 0] = real
-    shifted[..., 1] = imag
-    return shifted  # last dim=2 (real&imag)
 
 
 def rcosFn(width=1, position=0, values=(0, 1)):

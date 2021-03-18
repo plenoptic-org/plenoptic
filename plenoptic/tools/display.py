@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
-from .data import to_numpy, torch_complex_to_numpy
+from .data import to_numpy
 try:
     from IPython.display import HTML
 except ImportError:
@@ -330,12 +330,7 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
 
     pyr_coeffvis = pyr_coeffs.copy()
     for k in pyr_coeffvis.keys():
-        im = pyr_coeffvis[k]
-        # imag and real component exist
-        if im.shape[-1] == 2:
-            im = torch_complex_to_numpy(im)
-        else:
-            im = to_numpy(im)
+        im = to_numpy(pyr_coeffvis[k])
         pyr_coeffvis[k] = im[image_index, channel, ...]
 
     return pyr_coeffvis

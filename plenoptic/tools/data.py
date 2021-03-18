@@ -12,6 +12,21 @@ from glob import glob
 
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
 
+NUMPY_TO_TORCH_TYPES = {
+        np.bool       : torch.bool,
+        np.uint8      : torch.uint8,
+        np.int8       : torch.int8,
+        np.int16      : torch.int16,
+        np.int32      : torch.int32,
+        np.int64      : torch.int64,
+        np.float16    : torch.float16,
+        np.float32    : torch.float32,
+        np.float64    : torch.float64,
+        np.complex64  : torch.complex64,
+        np.complex128 : torch.complex128
+    }
+
+TORCH_TO_NUMPY_TYPES = {value : key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
 def to_numpy(x):
     r"""cast tensor to numpy in the most conservative way possible
@@ -23,7 +38,7 @@ def to_numpy(x):
     """
 
     try:
-        x = x.detach().cpu().numpy().astype(np.float32)
+        x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
     except AttributeError:
         # in this case, it's already a numpy array
         pass
@@ -133,25 +148,6 @@ def convert_float_to_int(im, dtype=np.uint8):
     if im.max() > 1:
         raise Exception(f"all values of im must lie between 0 and 1, but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
-
-
-def torch_complex_to_numpy(x):
-    r""" convert a torch complex tensor (written as two stacked real and imaginary tensors)
-    to a numpy complex array
-
-    Parameters
-    ----------------------
-    x: `torch.Tensor`
-        Tensor whose last dimension is size 2 where first component is the real component and the second is the
-        imaginary component.
-    """
-
-    x_np = to_numpy(x)
-    if x.ndim not in [5, 6]:
-        raise Exception(f"x has {x.ndim} dimensions, but a complex tensor should have 5 "
-                        "(real and imaginary stacked along the final dim) or 6 if it's a video!")
-    x_np = x_np[..., 0] + 1j * x_np[..., 1]
-    return x_np
 
 
 
