@@ -2,9 +2,12 @@
 # Run all notebooks on every push and weekly
 name: tutorials
 on:
-  push:
   schedule:
     - cron: "0 0 * * 0" # weekly
+  pull_request:
+    branches:
+      - master
+
 jobs:
   run:
     runs-on: ubuntu-latest
