@@ -43,7 +43,7 @@ def get_synthesis_object(im_dim=20, color=False):
 
     if not color:
         mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
-        img = plt.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img = plt.imread(op.join(DATA_DIR, '256/einstein.pgm'))
         img_np = img[:im_dim, :im_dim] / np.max(img)
         img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
 

@@ -18,7 +18,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
     def test_metamer_save_load(self, model, loss_func, tmp_path):
 
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         save_reduced = False
         model_constructor = None
@@ -64,7 +64,7 @@ class TestMetamers(object):
                             learning_rate=None)
 
     def test_metamer_store_rep(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -72,7 +72,7 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=3, store_progress=2)
 
     def test_metamer_store_rep_2(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -80,7 +80,7 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_store_rep_3(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -88,7 +88,7 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=6, store_progress=3)
 
     def test_metamer_store_rep_4(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -97,7 +97,7 @@ class TestMetamers(object):
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
 
     def test_metamer_plotting_v1(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -110,7 +110,7 @@ class TestMetamers(object):
         plt.close('all')
 
     def test_metamer_plotting_rgc(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -123,7 +123,7 @@ class TestMetamers(object):
         plt.close('all')
 
     def test_metamer_continue(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -133,7 +133,7 @@ class TestMetamers(object):
                            seed=None)
 
     def test_metamer_animate(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -147,7 +147,7 @@ class TestMetamers(object):
         plt.close('all')
 
     def test_metamer_save_progress(self, tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -159,7 +159,7 @@ class TestMetamers(object):
 
     def test_metamer_loss_change(self):
         # literally just testing that it runs
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -174,7 +174,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
     def test_metamer_coarse_to_fine(self, fraction_removed, loss_change_fraction, coarse_to_fine,
                                     tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         v1 = po.simul.PooledV1(.5, im.shape[2:])
         v1 = v1.to(DEVICE)
@@ -199,7 +199,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     def test_metamer_clamper(self, clamp_each_iter):
         clamper = po.RangeClamper((0, 1))
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -207,7 +207,7 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
     def test_metamer_no_clamper(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
@@ -219,7 +219,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     @pytest.mark.parametrize('resume', [False, True])
     def test_loss_func(self, loss_func, store_progress, resume, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model = po.metric.NLP().to(DEVICE)
         loss_kwargs = {}
         if loss_func is None:
@@ -248,7 +248,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
     @pytest.mark.parametrize('swa', [True, False])
     def test_optimizer_opts(self, optimizer, swa):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model = po.metric.NLP().to(DEVICE)
         if '-' in optimizer:
             optimizer = optimizer.split('-')[0]

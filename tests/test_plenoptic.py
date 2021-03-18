@@ -117,7 +117,7 @@ class TestNonLinearities(object):
         assert torch.norm(b - B) < 1e-3
 
     def test_rectangular_to_polar_dict(self):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
                                               is_complex=True)
         y = spc(x)
@@ -128,7 +128,7 @@ class TestNonLinearities(object):
         po.simul.non_linearities.rectangular_to_polar_real(x)
 
     def test_local_gain_control(self):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
                                               is_complex=False)
         y = spc(x)
@@ -140,7 +140,7 @@ class TestNonLinearities(object):
         assert (error < 1e-6)
 
     def test_normalize(self):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         # should operate on both of these, though it will do different
         # things
         po.simul.non_linearities.normalize(x[0].flatten())
@@ -150,7 +150,7 @@ class TestNonLinearities(object):
         po.simul.non_linearities.normalize(x[0], sum_dim=1)
 
     def test_normalize_dict(self):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         v1 = po.simul.PooledV1(1, x.shape[-2:])
         v1(x[0])
         po.simul.non_linearities.normalize_dict(v1.representation)
@@ -163,7 +163,7 @@ def test_find_files(test_files_dir):
 class TestSignalTools(object):
 
     def test_autocorr(self):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         x_centered = x - x.mean((2, 3), keepdim=True)
         a = po.tools.autocorr(x_centered, n_shifts=7)
 
@@ -179,27 +179,26 @@ class TestSignalTools(object):
                 < 1e-5).all()
 
 
-@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, 'einstein.png'),
-                                   op.join(DATA_DIR, '256x256'),
-                                   [op.join(DATA_DIR, 'einstein.png'),
-                                    op.join(DATA_DIR, 'curie.pgm')]])
+@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, '256/einstein.png'),
+                                   op.join(DATA_DIR, '256'),
+                                   [op.join(DATA_DIR, '256/einstein.png'),
+                                    op.join(DATA_DIR, '256/curie.pgm')]])
 @pytest.mark.parametrize('as_gray', [True, False])
 def test_load_images(paths, as_gray):
-    if paths == DATA_DIR:
-        # there's a 512 by 512 image here, which means we should raise
-        # an Exception
-        with pytest.raises(Exception):
-            images = po.tools.data.load_images(paths, as_gray)
-    else:
-        images = po.tools.data.load_images(paths, as_gray)
-        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
-
+    # if paths == DATA_DIR:
+    #     # there's a 512 by 512 image here, which means we should raise
+    #     # an Exception
+    #     with pytest.raises(Exception):
+    #         images = po.tools.data.load_images(paths, as_gray)
+    # else:
+    images = po.tools.data.load_images(paths, as_gray)
+    assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
 class TestPerceptualMetrics(object):
 
     @pytest.mark.parametrize('weighted', [True, False])
     def test_ssim(self, weighted):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.ssim(im1, im2).requires_grad
 
@@ -207,7 +206,7 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, func_name, size_A, size_B):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1)
         if func_name == 'noise':
             func = po.add_noise
@@ -235,7 +234,7 @@ class TestPerceptualMetrics(object):
     def test_noise_independence(self, mode):
         # this makes sure that we are drawing the noise independently in the
         # two cases here
-        img = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        img = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         if mode == 'many-to-one':
             img = img.repeat(2, 1, 1, 1)
             noise_lvl = 1
@@ -247,7 +246,7 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('noise_lvl', [[1], [128], [2, 4], [2, 4, 8], [0]])
     @pytest.mark.parametrize('noise_as_tensor', [True, False])
     def test_add_noise(self, noise_lvl, noise_as_tensor):
-        img = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        img = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         if noise_as_tensor:
             noise_lvl = torch.tensor(noise_lvl,
                                      dtype=torch.float32).unsqueeze(1)
@@ -280,27 +279,27 @@ class TestPerceptualMetrics(object):
         assert torch.allclose(plen_val, mat_val.view_as(plen_val), atol=1e-5)
 
     def test_nlpd(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nlpd(im1, im2).requires_grad
 
     def test_nspd(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2).requires_grad
 
     def test_nspd2(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=3, S=5, complex=True).requires_grad
 
     def test_nspd3(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         assert po.metric.nspd(im1, im2, O=1, S=5, complex=False).requires_grad
 
     def test_model_metric(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, 'einstein.pgm'))
+        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
         model = po.simul.Front_End(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad

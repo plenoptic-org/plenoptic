@@ -10,7 +10,7 @@ import warnings
 from glob import glob
 
 
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
+DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 
 def to_numpy(x, squeeze=False):
@@ -166,24 +166,25 @@ def torch_complex_to_numpy(x):
     return x_np
 
 
-def make_basic_stimuli(size=256, requires_grad=True):
+def make_synthetic_stimuli(size=256, requires_grad=True):
     r""" Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
     ----------
-    size: `int` in [8, 16, 32, 64, 128, 256]
+    size: `int`
         the stimuli will have `torch.Size([size, size])`
     requires_grad: `bool`
         weather to initialize the simuli with gradients
 
     Returns
     -------
-    stimuli: `torch.FloatTensor` of shape [15, 1, size, size]
+    stimuli: `torch.FloatTensor` of shape [B, 1, size, size]
         the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
                 sine_grating, square_grating, polar_angle, angular_sine,
-                zone_plate, fract, checkerboard, sawtooth, reptil_skin, image]
+                zone_plate, fractal]
     """
 
+    assert size in [8, 16, 32, 64, 128, 256]
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
@@ -214,27 +215,9 @@ def make_basic_stimuli(size=256, requires_grad=True):
 
     fract = synthetic_images.pink_noise(size, fract_dim=.8)
 
-    checkerboard = plt.imread(op.join(DATA_PATH, 'checkerboard.pgm'))
-    checkerboard = checkerboard.astype(float)
-    # adjusting form 256 to desired size
-    n_lev = int(np.log2(checkerboard.shape[0] // size))
-    checkerboard = blurDn(checkerboard, n_lev, 'qmf9')
-
-    sawtooth = plt.imread(op.join(DATA_PATH, 'sawtooth.pgm')).astype(float)
-    sawtooth = blurDn(sawtooth, n_lev, 'qmf9')
-
-    reptil_skin = plt.imread(op.join(DATA_PATH, 'reptil_skin.pgm'))
-    reptil_skin = reptil_skin.astype(float)
-    reptil_skin = blurDn(reptil_skin, n_lev, 'qmf9')
-
-    image = plt.imread(op.join(DATA_PATH, 'einstein.png'))
-    image = image.astype(float)[:, :, 0]
-    image = blurDn(image, n_lev, 'qmf9')
-
     stim = [impulse, step_edge, ramp, bar, curv_edge,
             sine_grating, square_grating, polar_angle, angular_sine,
-            zone_plate, fract, checkerboard, sawtooth, reptil_skin,
-            image]
+            zone_plate, fract]
     stim = [rescale(s) for s in stim]
 
     stimuli = torch.cat(
@@ -384,4 +367,4 @@ def _find_min_int(vals):
 
 
 if __name__ == '__main__':
-    make_basic_stimuli()
+    make_synthetic_stimuli()

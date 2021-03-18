@@ -8,6 +8,11 @@ import torch
 
 from test_plenoptic import DATA_DIR, DEVICE, DTYPE
 
+imageA = po.load_images(DATA_DIR + '/256/reptil_skin.pgm')
+imageB = po.load_images(DATA_DIR + '/256/metal.pgm')
+c = 64 + 32
+imgA = imageA[..., c:-c, c:-c]
+imgB = imageB[..., c:-c, c:-c]
 
 class TestGeodesic(object):
 
@@ -57,15 +62,6 @@ class TestGeodesic(object):
         assert (dist - d).pow(2).mean() < 1e-6
 
     def test_geodesic_spectral(self):
-        imageA = plt.imread(op.join(DATA_DIR, 'reptil_skin.pgm')) / 255.
-        imageB = plt.imread(op.join(DATA_DIR, 'metal.pgm')) / 255.
-        c = 64 + 32
-        imageA = imageA[c:-c, c:-c]
-        imageB = imageB[c:-c, c:-c]
-        imgA = torch.tensor(imageA, dtype=DTYPE, device=DEVICE
-                            ).unsqueeze(0).unsqueeze(0)
-        imgB = torch.tensor(imageB, dtype=DTYPE, device=DEVICE
-                            ).unsqueeze(0).unsqueeze(0)
 
         model = po.simul.Spectral(imgA.shape[-2:])
         n_steps = 11
@@ -74,7 +70,7 @@ class TestGeodesic(object):
 
     # def test_geodesic_polarpyr(self):
     #     image_size = 64
-    #     einstein = po.tools.make_basic_stimuli(image_size,
+    #     einstein = po.tools.make_synthetic_stimuli(image_size,
     #                                            requires_grad=False)[-1]
     #     vid = po.translation_sequence(einstein)
     #     from torchvision.transforms.functional import center_crop
@@ -92,15 +88,6 @@ class TestGeodesic(object):
 
     @pytest.mark.parametrize('n_shifts', [3, 7, 9])
     def test_geodesic_texture(self, n_shifts):
-        imageA = plt.imread(op.join(DATA_DIR, 'reptil_skin.pgm')) / 255.
-        imageB = plt.imread(op.join(DATA_DIR, 'metal.pgm')) / 255.
-        c = 64 + 32
-        imageA = imageA[c:-c, c:-c]
-        imageB = imageB[c:-c, c:-c]
-        imgA = torch.tensor(imageA, dtype=DTYPE, device=DEVICE
-                            ).unsqueeze(0).unsqueeze(0)
-        imgB = torch.tensor(imageB, dtype=DTYPE, device=DEVICE
-                            ).unsqueeze(0).unsqueeze(0)
 
         model = po.simul.Texture_Statistics(imgA.shape[-2:],
                                             n_ori=4, n_scale=3,

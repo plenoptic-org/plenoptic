@@ -350,6 +350,11 @@ class TestDisplay(object):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
 
+    def test_display_test_signals(self):
+        po.imshow(po.make_synthetic_stimuli(128));
+        po.imshow(po.load_images(DATA_DIR + '/512'));
+        po.imshow(po.load_images(DATA_DIR + '/256'));
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
@@ -429,7 +434,8 @@ class TestMADDisplay(object):
                               plot_loss, plot_representation_error,
                               plot_image_hist, plot_rep_comparison,
                               plot_signal_comparison, fig_creation):
-        img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        img = po.load_images(DATA_DIR + '/256/nuts.pgm')
+        print()
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.nlpd
         func = 'scatter'
@@ -469,7 +475,7 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
     def test_custom_fig(self, func, fig_creation):
-        img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        img = po.load_images(op.join(DATA_DIR, '/256/nuts.pgm'))
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.nlpd
         mad = po.synth.MADCompetition(img, model1, model2)
@@ -523,7 +529,7 @@ class TestMetamerDisplay(object):
                               plot_representation_error, plot_image_hist,
                               plot_rep_comparison, plot_signal_comparison,
                               fig_creation):
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        im = po.load_images(op.join(DATA_DIR, '/256/nuts.pgm'))
         if model == 'class':
             model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
         else:
@@ -566,7 +572,7 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
     def test_custom_fig(self, func, fig_creation):
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        im = po.load_images(op.join(DATA_DIR, '/256/nuts.pgm'))
         model = po.simul.PooledV1(.5, im.shape[2:]).to(DEVICE)
         met = po.synth.Metamer(im, model)
         init_fig = True

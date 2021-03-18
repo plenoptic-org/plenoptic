@@ -90,7 +90,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (128, 256), (255, 256),
                                           (256, 255)])
     def test_pyramid(self, height, order, is_complex, im_shape):
-        x = po.tools.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         if im_shape is not None:
             x = x[..., :im_shape[0], :im_shape[1]]
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=height, order=order,
@@ -104,7 +104,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize('is_complex', [True, False])
     @pytest.mark.parametrize("im_shape", [None, (224,224),(256, 128), (128, 256)])
     def test_tight_frame(self, im, height, order, is_complex, downsample, im_shape):
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
 
@@ -121,7 +121,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("is_complex", [False, True])
     @pytest.mark.parametrize("im_shape", [None, (224,224),(256, 128), (128, 256)])
     def test_not_downsample(self, im, height, order, is_complex, im_shape):
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
 
@@ -147,7 +147,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("scales", [[0], [1], [0, 1, 2], [2], [], ['residual_highpass', 'residual_lowpass'],
                                         ['residual_highpass', 0, 1, 'residual_lowpass']])
     def test_pyr_to_tensor(self, im, height, order, is_complex, im_shape, scales, rtol=1e-12, atol=1e-12):
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
 
@@ -168,7 +168,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("order", [1,2,3])
     @pytest.mark.parametrize("is_complex", [False, True])
     def test_torch_vs_numpy_pyr(self, height, order, is_complex):
-        x = plt.imread(op.join(DATA_DIR, 'curie.pgm'))
+        x = plt.imread(op.join(DATA_DIR, '256/curie.pgm'))
         x_shape = x.shape
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(x,height=height, order = order, is_complex=is_complex)
         x_t = torch.tensor(x, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
@@ -211,7 +211,7 @@ class TestSteerablePyramid(object):
     def test_complete_recon(self, im, is_complex, tight_frame, downsample, height, order, im_shape):
         print(im,is_complex, tight_frame, downsample, height, order, im_shape)
 
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
@@ -230,7 +230,7 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("order", [3])
     @pytest.mark.parametrize("im_shape", [None, (224,224), (256, 128), (128,256)])
     def test_partial_recon(self, im, is_complex, tight_frame, downsample, height, order, im_shape):
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
@@ -258,7 +258,7 @@ class TestSteerablePyramid(object):
     def test_recon_match_pyrtools(self, im, is_complex, height, order, im_shape, rtol=1e-6, atol=1e-6):
         # this should fail if and only if test_complete_recon does, but
         # may as well include it just in case
-        im = plt.imread(op.join(DATA_DIR, '%s.pgm' % im))
+        im = plt.imread(op.join(DATA_DIR, '256/%s.pgm' % im))
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
@@ -276,7 +276,7 @@ class TestSteerablePyramid(object):
                                         ['residual_highpass', 'residual_lowpass'],
                                         ['residual_highpass', 0, 1, 'residual_lowpass']])
     def test_scales_arg(self, is_complex, downsample, scales):
-        img = imageio.imread(op.join(DATA_DIR, 'einstein.pgm'))
+        img = imageio.imread(op.join(DATA_DIR, '256/einstein.pgm'))
         img = torch.tensor(img / 255, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex, downsample=downsample)
         pyr.forward(img)

@@ -19,7 +19,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     @pytest.mark.parametrize('resume', [False, True])
     def test_basic(self, target, model1, model2, store_progress, resume, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         elif model1 == 'function':
@@ -49,7 +49,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     @pytest.mark.parametrize('resume', [False, True])
     def test_loss_func(self, loss_func, target, store_progress, resume, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.NLP().to(DEVICE)
         loss_kwargs = {}
@@ -91,7 +91,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     @pytest.mark.parametrize('resume', [False, 'skip', 're-run', 'continue'])
     def test_all(self, model1, model2, store_progress, resume, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         else:
@@ -124,7 +124,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
     def test_coarse_to_fine(self, target, model_name, fraction_removed, loss_change_fraction,
                             coarse_to_fine, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'V1':
             model1 = po.simul.PooledV1(1, img.shape[-2:]).to(DEVICE)
@@ -169,7 +169,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('model2', ['class', 'function'])
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_lmbda'])
     def test_save_load(self, model1, model2, loss_func, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm'))
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         else:
@@ -256,7 +256,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('fraction_removed', [0, .1])
     @pytest.mark.parametrize('loss_change_fraction', [.5, 1])
     def test_randomizers(self, model_name, fraction_removed, loss_change_fraction):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model2 = po.simul.models.naive.Identity()
         if model_name == 'class':
             model1 = po.metric.NLP().to(DEVICE)
@@ -282,7 +282,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('none_arg', ['lr', 'initial_noise', 'both'])
     @pytest.mark.parametrize('none_place', ['before', 'after'])
     def test_resume_exceptions(self, target, model1, model2, none_arg, none_place):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         elif model1 == 'function':
@@ -322,7 +322,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
                                         'model_2_max'])
     def test_optimizer_opts(self, optimizer, swa, target, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+        img = po.tools.data.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         model2 = po.metric.NLP().to(DEVICE)
         if '-' in optimizer:
