@@ -1,14 +1,13 @@
 #! /usr/bin/env python
 
 from setuptools import setup
-import importlib
 from importlib import util
 
 # specify plenoptic.__version__
-plenoptic_version_spec = importlib.util.spec_from_file_location(
+plenoptic_version_spec = util.spec_from_file_location(
     "plenoptic_version", "plenoptic/version.py"
 )
-plenoptic_version_module = importlib.util.module_from_spec(plenoptic_version_spec)
+plenoptic_version_module = util.module_from_spec(plenoptic_version_spec)
 plenoptic_version_spec.loader.exec_module(plenoptic_version_module)
 VERSION = plenoptic_version_module.version
 
