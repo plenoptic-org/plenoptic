@@ -147,12 +147,11 @@ class Metamer(Synthesis):
         super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 
     def synthesize(self, initial_image=None, seed=0, max_iter=100, learning_rate=.01,
-                   scheduler=True, optimizer='SGD', optimizer_kwargs={}, swa=False,
-                   swa_kwargs={}, clamper=RangeClamper((0, 1)),
-                   clamp_each_iter=True, store_progress=False, save_progress=False,
+                   scheduler=True, optimizer='SGD', optimizer_kwargs={},
+                   clamper=RangeClamper((0, 1)), clamp_each_iter=True,
+                   store_progress=False, save_progress=False,
                    save_path='metamer.pt', loss_thresh=1e-4, loss_change_iter=50,
-                   fraction_removed=0., loss_change_thresh=1e-2, loss_change_fraction=1.,
-                   coarse_to_fine=False, clip_grad_norm=False):
+                   loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
         r"""Synthesize a metamer
 
         This is the main method, which updates the ``initial_image`` until its
@@ -189,11 +188,6 @@ class Metamer(Synthesis):
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object. See
-            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -223,25 +217,11 @@ class Metamer(Synthesis):
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
+            loss has stopped decreasing (for loss_change_thresh).
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -271,12 +251,12 @@ class Metamer(Synthesis):
         self._init_synthesized_signal(initial_image, clamper, clamp_each_iter)
 
         # initialize stuff related to coarse-to-fine and randomization
-        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+        self._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                      loss_change_thresh, loss_change_iter)
 
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             optimizer_kwargs, swa, swa_kwargs)
+                             optimizer_kwargs)
 
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress, save_path)
@@ -301,39 +281,32 @@ class Metamer(Synthesis):
 
         pbar.close()
 
-        if self._swa:
-            self._optimizer.swap_swa_sgd()
-
         # finally, stack the saved_* attributes
         self._finalize_stored_progress()
 
         # return data
         return self.synthesized_signal.data, self.synthesized_representation.data
 
-    def save(self, file_path, save_model_reduced=False):
-        r"""save all relevant variables in .pt file
+    def save(self, file_path):
+        r"""Save all relevant variables in .pt file.
 
         Note that if store_progress is True, this will probably be very
-        large
+        large.
+
+        See ``load`` docstring for an example of use.
 
         Parameters
         ----------
         file_path : str
             The path to save the metamer object to
-        save_model_reduced : bool
-            Whether we save the full model or just its attribute
-            ``state_dict_reduced`` (this is a custom attribute of ours,
-            the basic idea being that it only contains the attributes
-            necessary to initialize the model, none of the (probably
-            much larger) ones it gets during run-time).
 
         """
-        attrs = ['model', 'synthesized_signal', 'base_signal', 'seed', 'loss', 'base_representation',
+        attrs = ['synthesized_signal', 'base_signal', 'seed', 'loss', 'base_representation',
                  'synthesized_representation', 'saved_representation', 'gradient', 'saved_signal',
                  'learning_rate', 'saved_representation_gradient', 'saved_signal_gradient',
                  'coarse_to_fine', 'scales', 'scales_timing', 'scales_loss', 'loss_function',
                  'scales_finished', 'store_progress', 'save_progress', 'save_path', 'pixel_change']
-        super().save(file_path, save_model_reduced,  attrs)
+        super().save(file_path, attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -376,83 +349,49 @@ class Metamer(Synthesis):
                  'saved_signal_gradient', 'saved_representation_gradient']
         return super().to(*args, attrs=attrs, **kwargs)
 
-    @classmethod
-    def load(cls, file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
-        r"""load all relevant stuff from a .pt file
+    def load(self, file_path, map_location='cpu', **pickle_load_args):
+        r"""Load all relevant stuff from a .pt file.
 
-        We will iterate through any additional key word arguments
-        provided and, if the model in the saved representation is a
-        dictionary, add them to the state_dict of the model. In this
-        way, you can replace, e.g., paths that have changed between
-        where you ran the model and where you are now.
+        This should be called by an initialized ``Metamer`` object -- we will
+        ensure that ``base_signal``, ``base_representation`` (and thus
+        ``model``), and ``loss_function`` are all identical.
+
+        Note this operates in place and so doesn't return anything.
 
         Parameters
         ----------
         file_path : str
-            The path to load the Metamer object from
-        model_constructor : callable or None, optional
-            When saving the synthesis object, we have the option to only
-            save the ``state_dict_reduced`` (in order to save space). If
-            we do that, then we need some way to construct that model
-            again and, not knowing its class or anything, this object
-            doesn't know how. Therefore, a user must pass a constructor
-            for the model that takes in the ``state_dict_reduced``
-            dictionary and returns the initialized model. See the
-            PooledVentralStream class for an example of this.
+            The path to load the synthesis object from
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        state_dict_kwargs :
-            any additional kwargs will be added to the model's
-            state_dict before construction (this only applies if the
-            model is a dict, see above for more description of that)
-
-        Returns
-        -------
-        metamer : plenoptic.synth.Metamer
-            The loaded Metamer object
-
+        pickle_load_args :
+            any additional kwargs will be added to ``pickle_module.load`` via
+            ``torch.load``, see that function's docstring for details.
 
         Examples
         --------
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer(img, model)
+        >>> metamer_copy.load('metamers.pt')
 
-        Things are slightly more complicated if you saved a reduced
-        representation of the model by setting the
-        ``save_model_reduced`` flag to ``True``. In that case, you also
-        need to pass a model constructor argument, like so:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
-
-        You may want to update one or more of the arguments used to
-        initialize the model. The example I have in mind is where you
-        run the metamer synthesis on a cluster but then load it on your
-        local machine. The PooledVentralStream classes have a ``cache_dir``
-        attribute which you will want to change so it finds the
-        appropriate location:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
-                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+        Note that you must create a new instance of the Synthesis object and
+        *then* load.
+        We will iterate through any additional key word arguments
+        provided and, if the model in the saved representation is a
+        dictionary, add them to the state_dict of the model. In this
+        way, you can replace, e.g., paths that have changed between
+        where you ran the model and where you are now.
 
         """
-        return super().load(file_path, 'model', model_constructor, map_location,
-                            **state_dict_kwargs)
+        super().load(file_path, map_location,
+                     ['base_signal', 'base_representation', 'loss_function'],
+                     **pickle_load_args)
 
     def plot_value_comparison(self, value='representation', batch_idx=0,
                               channel_idx=None, iteration=None, figsize=(5, 5),
