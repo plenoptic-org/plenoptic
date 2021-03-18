@@ -96,6 +96,9 @@ def load_images(paths, as_gray=True):
         im = im / np.iinfo(im.dtype).max
         if as_gray:
             im = color.rgb2gray(im)
+        else:
+            # RGB dimension ends up on the last one, so we rearrange
+            im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)

@@ -1050,8 +1050,8 @@ def create_pooling_windows(scaling, resolution, min_eccentricity=.5,
        import plenoptic as po
        import pyrtools as pt
        angle_w, ecc_w = po.simul.pooling.create_pooling_windows(.87, (256, 256))
-       fig = pt.imshow(ecc_w)
-       fig = pt.imshow(angle_w)
+       fig = po.imshow(ecc_w.unsqueeze(0))
+       fig = po.imshow(angle_w.unsqueeze(0))
        plt.show()
 
     If you wish to get the windows as shown in Supplementary Figure 1C

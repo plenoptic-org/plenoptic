@@ -1,7 +1,7 @@
 # plenoptic
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
-![Python version](https://img.shields.io/badge/python-3.6%7C3.7-blue.svg)
+![Python version](https://img.shields.io/badge/python-3.6|3.7|3.8-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
@@ -46,37 +46,29 @@ Here's a table summarizing this:
 | synthesize 	| {y, θ} 	|   {x}  	|
 
 `plenoptic` contains the following four synthesis methods (with links
-to the papers describing them):
+to examples that make use of them):
 
-- [metamers](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf):
-  given a model and an image, synthesize a new image which is admits
-  a model representation identical to that of the original image.
+- [Metamers](http://www.cns.nyu.edu/~lcv/texture/):
+  given a model and a reference image, stochastically generate a new image whose
+  model representation is identical to that of the reference image.
+- [Eigendistortions](https://www.cns.nyu.edu/~lcv/eigendistortions/):
+  given a model and a reference image, compute the image perturbation that produces
+  the smallest and largest changes in the model response space.  These correspond to the
+  minimal/maximal eigenvectors of the Fisher Information matrix of the representation (for deterministic models, 
+  the minimal/maximal singular vectors of the Jacobian).
 - [Maximal differentiation (MAD)
-  competition](https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf):
-  given two models and an image, synthesize two pairs of images: two
-  that the first model represents identically, while the second model
-  represents as differently as possible; and two that the first model
-  represents as differently as possible while the second model represents
-  identically.
+  competition](https://ece.uwaterloo.ca/~z70wang/research/mad/):
+  given two models that measure distance between images and a reference image, generate pairs of 
+  images that optimally differentiate the models.  Specifically, synthesize a pair of images 
+  that the first model says are equi-distant from the reference while the second model says they 
+  are maximally/minimally distant from the reference. Synthesize a second pair with the roles of the two models reversed.
 - [Geodesics](https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf):
-  given a model and two images, synthesize a sequence of images that form
-  a short path in the model's representation space. That is, a sequence of 
-  images that are represented to as close as possible to a straight interpolation 
-  line between the two anchor images.
-- [Eigendistortions](https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf):
-  given a model and an image, synthesize the most and least noticeable
-  distortion on the image (with a constant mean-squared error in
-  pixels). That is, if you can change all pixel values by a total of
-  100, how does the model think you should do it to make it as obvious
-  as possible, and how does the model think you should do it to make
-  it unnoticeable.
+  given a model and two images, synthesize a sequence of images that lie on 
+  the shortest ("geodesic") path in the model's representation space. 
   
-(where for all of these, "identical (resp. different) representation",
-stands for small (resp. large) l2-distance in a model's representation space)
-
 # Status
 
-This project is currently in alpha, under heavy development. Not all features
+This project is currently under heavy development. Not all features
 have been implemented, and there will be breaking changes.
 
 # Roadmap
@@ -86,7 +78,7 @@ project](https://github.com/LabForComputationalVision/plenoptic/projects/1)
 for a more detailed roadmap, but at the high level:
 
 - Short term:
-  1. Finalize Portilla-Simoncelli texture statistics
+  1. Finalize Portilla-Simoncelli texture model
   2. Recreate existing `MADCompetition` examples.
 - Medium term:
   1. Finalize geodesics
@@ -95,13 +87,14 @@ for a more detailed roadmap, but at the high level:
   4. Finalize model API, create superclass
   5. Add more models
 - Long term:
-  1. Present poster at conference to advertise to users
-  2. Submit paper to Journal of Open Source Software to get something
-     for people to cite
+  1. Present at conference to advertise to users
+  2. Submit paper to Journal of Open Source Software
 
 # NOTE
 
-We only support python 3.6 and 3.7
+We currently support python 3.6, 3.7, and 3.8. See [this
+issue](https://github.com/LabForComputationalVision/plenoptic/issues/74) for 3.9
+status
 
 # Setup
 

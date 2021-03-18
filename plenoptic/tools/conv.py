@@ -70,7 +70,7 @@ def upsample_convolve(image, filt, edges="reflect1", step=(2, 2), start=(0, 0), 
     n_channels = image.shape[1]
 
     if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
-        filt = torch.tensor(filt, dtype=torch.float32).repeat(n_channels,  1, 1, 1).to(image.device)
+        filt = torch.tensor(filt, dtype=torch.float32, device=image.device).repeat(n_channels,  1, 1, 1)
 
     if edges == 'zero':
         upsample_convolve = nn.functional.conv_transpose2d(image, filt, bias=None, stride=step, padding=(filt.shape[-2] // 2, filt.shape[-1] // 2), output_padding=1, groups=n_channels, dilation=1)
