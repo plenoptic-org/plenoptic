@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 
-from setuptools import setup, Extension
+from setuptools import setup
 import importlib
-import os
+from importlib import util
 
-# copied from kymatio's setup.py: https://github.com/kymatio/kymatio/blob/master/setup.py
+# specify plenoptic.__version__
 plenoptic_version_spec = importlib.util.spec_from_file_location(
     "plenoptic_version", "plenoptic/version.py"
 )
@@ -14,12 +14,11 @@ VERSION = plenoptic_version_module.version
 
 setup(
     name="plenoptic",
-    version="0.1",
+    version=VERSION,
     description="Visual Information Processing",
     license="MIT",
     url="https://github.com/LabForComputationalVision/plenoptic",
     author="LabForComputationalVision",
-    author_email="pef246@nyu.edu",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3.7",
@@ -37,14 +36,6 @@ setup(
         "plenoptic.synthesize",
         "plenoptic.tools",
     ],
-    package_dir={
-        "plenoptic": "plenoptic/"
-    },
-    package_data={
-        "plenoptic": [
-            "simulate/models/weights/*.pt",
-        ]
-    },
     install_requires=[
         "numpy>=1.1",
         "torch<1.8",
