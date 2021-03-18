@@ -36,8 +36,6 @@ jobs:
           # dependencies, to make sure the cache doesn't go stale
           pip install --upgrade --upgrade-strategy eager -e .
           pip install --upgrade --upgrade-strategy eager pytest-cov
-          sudo apt update
-          sudo apt install ffmpeg
       - name: Run tests with pytest
         run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov

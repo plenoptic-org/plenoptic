@@ -1,7 +1,9 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
-import matplotlib
-matplotlib.use('agg')
+import matplotlib as mpl
+# use the html backend, so we don't need to have ffmpeg
+mpl.rcParams['animation.writer'] = 'html'
+mpl.use('agg')
 import pytest
 import matplotlib.pyplot as plt
 import plenoptic as po
@@ -100,7 +102,7 @@ class TestMAD(object):
         mad.plot_loss_all()
         if store_progress:
             for t in ['model_1_min', 'model_2_min', 'model_1_max', 'model_2_max']:
-                mad.animate(synthesis_target=t).to_html5_video()
+                mad.animate(synthesis_target=t).save(op.join(tmp_path, 'test_mad.html'))
         plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',

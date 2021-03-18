@@ -2,8 +2,10 @@
 
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
-import matplotlib
-matplotlib.use('agg')
+import matplotlib as mpl
+# use the html backend, so we don't need to have ffmpeg
+mpl.rcParams['animation.writer'] = 'html'
+mpl.use('agg')
 import pytest
 import matplotlib.pyplot as plt
 import plenoptic as po
@@ -509,7 +511,7 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
     plt.close('all')
 
 
-def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation):
+def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
     # template function to test whether we can create our own figure and pass
     # it to the plotting and animating functions, specifying some or all of the
     # locations for the plots. Any synthesis object that has had synthesis()
@@ -541,12 +543,13 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation):
         # axes_idx gets updated by plot_synthesis_status
         axes_idx = synthesis_object._axes_idx
     if func == 'animate':
+        path = op.join(tmp_path, 'test_anim.html')
         synthesis_object.animate(plot_synthesized_image=plot_synthesized_image,
                                  plot_loss=True, plot_representation_error=True,
                                  plot_image_hist=True, plot_rep_comparison=True,
                                  plot_signal_comparison=True, fig=fig,
                                  axes_idx=axes_idx, init_figure=init_fig,
-                                 plot_representation_error_as_rgb=as_rgb).to_html5_video()
+                                 plot_representation_error_as_rgb=as_rgb).save(path)
     plt.close('all')
 
 
@@ -593,11 +596,11 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
-    def test_custom_fig(self, synthesized_mad, func, fig_creation):
+    def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
         # all of the locations for the plots
-        template_test_synthesis_custom_fig(synthesized_mad, func, fig_creation)
+        template_test_synthesis_custom_fig(synthesized_mad, func, fig_creation, tmp_path)
 
 
 class TestMetamerDisplay(object):
@@ -659,8 +662,8 @@ class TestMetamerDisplay(object):
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
                                               'custom-extra', 'custom-preplot'])
-    def test_custom_fig(self, synthesized_met, func, fig_creation):
+    def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
         # locations for the plots
-        template_test_synthesis_custom_fig(synthesized_met, func, fig_creation)
+        template_test_synthesis_custom_fig(synthesized_met, func, fig_creation, tmp_path)

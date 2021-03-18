@@ -30,11 +30,11 @@ jobs:
         with:
           path: ${{ env.pythonLocation }}
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v1
       - name: Install dependencies
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
-          sudo apt update
-          sudo apt install ffmpeg
           pip install jupyter
           pip install ipywidgets
       - uses: treebeardtech/treebeard@master
