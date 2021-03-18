@@ -126,8 +126,8 @@ class TestMAD(object):
             assert len(mad.scales_finished) > 0, "Didn't actually switch scales!"
             mad.save(op.join(tmp_path, 'test_mad_ctf.pt'))
             mad_copy = po.synth.MADCompetition(img, model1, model2)
-            mad_copy = mad_copy.load(op.join(tmp_path, "test_mad_ctf.pt"),
-                                     map_location=DEVICE)
+            mad_copy.load(op.join(tmp_path, "test_mad_ctf.pt"),
+                          map_location=DEVICE)
             # check the ctf-related attributes all saved correctly
             for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
                       'scales_finished']:
