@@ -1031,6 +1031,9 @@ class Synthesis(metaclass=abc.ABCMeta):
                 raise Exception("All values of `check_attributes` should be attributes set at"
                                 f" initialization, but got attr {k}!")
             if isinstance(getattr(self, k), torch.Tensor):
+                # there are two ways this can fail -- the first is if they're
+                # the same shape but different values and the second (in the
+                # except block) are if they're different shapes.
                 try:
                     if not torch.allclose(getattr(self, k), tmp_dict[k]):
                         raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
@@ -1039,6 +1042,15 @@ class Synthesis(metaclass=abc.ABCMeta):
                     raise Exception(f"Attribute {k} is a different shape in saved and initialized versions!"
                                     f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
             elif k == 'loss_function':
+                # it is very difficult to check python callables for equality
+                # so, to get around that, we instead call the two loss
+                # functions on the same set of representations and images, and
+                # compare the outputs. loss functions, as we've defined them,
+                # take the base and synthesized representation and image (the
+                # image is present in case you want to e.g., penalize pixel
+                # values outside some range); we have the base signal and
+                # representation and generate random tensors to use as the
+                # "synthesized one"
                 img = torch.rand_like(self.base_signal)
                 rep = torch.rand_like(self.base_representation)
                 saved_loss = tmp_dict[k](rep, self.base_representation, img,
