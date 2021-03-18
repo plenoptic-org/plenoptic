@@ -147,16 +147,15 @@ class TestPooling(object):
             v1(tmp)
 
     def test_PoolingWindows_plotting(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE)
-        pw = po.simul.PoolingWindows(.8, im.shape, num_scales=2)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        pw = po.simul.PoolingWindows(.8, im.shape[-2:], num_scales=2)
         pw = pw.to(DEVICE)
         pw.plot_window_areas()
         pw.plot_window_widths()
         for i in range(2):
             pw.plot_window_areas('pixels', i)
             pw.plot_window_widths('pixels', i)
-        fig = pt.imshow(po.to_numpy(im))
+        fig = po.imshow(im)
         pw.plot_windows(fig.axes[0])
         plt.close('all')
 
@@ -178,8 +177,7 @@ class TestPooling(object):
 class TestPooledVentralStream(object):
 
     def test_rgc(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         rgc = po.simul.PooledRGC(.5, im.shape[2:])
         rgc = rgc.to(DEVICE)
         rgc(im)
@@ -189,7 +187,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = po.imshow(im)
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
@@ -199,8 +197,7 @@ class TestPooledVentralStream(object):
         plt.close('all')
 
     def test_rgc_2(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
         rgc = po.simul.PooledRGC(.5, im.shape[2:], transition_region_width=1)
         rgc = rgc.to(DEVICE)
         rgc(im)
@@ -210,7 +207,7 @@ class TestPooledVentralStream(object):
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('degrees')
         _ = rgc.plot_window_areas('pixels')
-        fig = pt.imshow(po.to_numpy(im).squeeze())
+        fig = po.imshow(im)
         _ = rgc.plot_windows(fig.axes[0])
         rgc.plot_representation()
         rgc.plot_representation_image()
@@ -258,15 +255,25 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         rgc = po.simul.PooledRGC(.5, im.shape[2:], cache_dir=tmp_path)
 
-    def test_frontend(self):
+    @pytest.mark.parametrize('pretrained', [True, False])
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend(self, pretrained, requires_grad):
         im = po.make_basic_stimuli()
-        frontend = po.simul.Front_End()
+        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
         frontend(im)
 
-    def test_frontend_plot(self):
+    @pytest.mark.parametrize('pretrained', [True, False])
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_display_filters(self, pretrained, requires_grad):
+        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
+        frontend.display_filters()
+        plt.close('all')
+
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_plot(self, requires_grad):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.Front_End()
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
@@ -274,10 +281,11 @@ class TestPooledVentralStream(object):
         metamer.animate(figsize=(35, 5))
         plt.close('all')
 
-    def test_frontend_PoolingWindows(self):
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_PoolingWindows(self, requires_grad):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.Front_End()
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))
