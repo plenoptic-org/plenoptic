@@ -16,6 +16,7 @@ LARGE_DIM = 100
 
 class ColorModel(nn.Module):
     """Simple model that takes color image as input and outputs 2d conv."""
+
     def __init__(self):
         super().__init__()
         self.conv = nn.Conv2d(3, 4, 3, 1)
@@ -51,8 +52,8 @@ def get_synthesis_object(im_dim=20, color=False):
         n = img0.shape[0]
         skip = n//im_dim
         img_np = img0[::skip, ::skip].copy()/np.max(img0)
-        img = torch.as_tensor(img_np, device=DEVICE, dtype=torch.float).permute((2,0,1)).unsqueeze(0)
-        mdl = ColorModel()
+        img = torch.as_tensor(img_np, device=DEVICE, dtype=torch.float).permute((2, 0, 1)).unsqueeze(0)
+        mdl = ColorModel().to(DEVICE)
 
     ed = Eigendistortion(img, mdl)
 
@@ -64,10 +65,10 @@ class TestEigendistortionSynthesis:
     def test_input_dimensionality(self):
         mdl = FrontEnd().to(DEVICE)
         with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros(1, 1, 1), mdl)  # should be 4D
+            e = Eigendistortion(torch.zeros((1, 1, 1), device=DEVICE), mdl)  # should be 4D
 
         with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros(2, 1, 1, 1), mdl)  # batch dim must be 1
+            e = Eigendistortion(torch.zeros((2, 1, 1, 1), device=DEVICE), mdl)  # batch dim must be 1
 
     def test_method_assertion(self):
         ed = get_synthesis_object(im_dim=SMALL_DIM)
@@ -175,7 +176,7 @@ class TestAutodiffFunctions:
     def test_vec_jac_prod(self, detach):
         x, y, x_dim, y_dim, k = self._state()
 
-        U = torch.randn(y_dim, k)
+        U = torch.randn((y_dim, k), device=DEVICE)
         U = U / U.norm(dim=0, p=2)
 
         vjp = autodiff.vector_jacobian_product(y, x, U, detach=detach)
@@ -185,7 +186,7 @@ class TestAutodiffFunctions:
     def test_jac_vec_prod(self):
         x, y, x_dim, y_dim, k = self._state()
 
-        V = torch.randn(x_dim, k)
+        V = torch.randn((x_dim, k), device=DEVICE)
         V = V / V.norm(dim=0, p=2)
         jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
@@ -195,7 +196,7 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self):
         x, y, x_dim, y_dim, k = self._state()
 
-        V = torch.randn(x_dim, k)
+        V = torch.randn((x_dim, k), device=DEVICE)
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
@@ -208,10 +209,11 @@ class TestAutodiffFunctions:
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
-        singular_value = torch.ones(1)*3.
+        singular_value = torch.ones(1, device=DEVICE) * 3.
 
         class LM(nn.Module):
             """Simple y = Mx where M=3"""
+
             def __init__(self):
                 super().__init__()
                 self.M = nn.Linear(1, 1, bias=False)
@@ -221,13 +223,13 @@ class TestAutodiffFunctions:
                 y = self.M(x)
                 return y
 
-        x0 = torch.randn((1, 1, 5, 1), requires_grad=True)
+        x0 = torch.randn((1, 1, 5, 1), requires_grad=True, device=DEVICE)
         x0 = x0 / x0.norm()
-        mdl = LM()
+        mdl = LM().to(DEVICE)
 
         k = 10
         x_dim = x0.numel()
-        V = torch.randn(x_dim, k)  # random directions
+        V = torch.randn((x_dim, k), device=DEVICE)  # random directions
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
@@ -236,4 +238,3 @@ class TestAutodiffFunctions:
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
-
