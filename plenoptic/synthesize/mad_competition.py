@@ -1,6 +1,6 @@
 import torch
 import warnings
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import dill
 import pyrtools as pt
 from .synthesis import Synthesis
@@ -1090,7 +1090,6 @@ class MADCompetition(Synthesis):
         super().load(file_path, map_location,
                      ['base_signal', 'base_representation_1',
                       'base_representation_2'],
-                     objective_function_kwargs={'norm_loss': False},
                      **pickle_load_args)
         synth_target = self.synthesis_target
         if '1' in synth_target:

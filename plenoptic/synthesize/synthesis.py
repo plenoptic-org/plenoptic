@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
 from ..simulate.models.naive import Identity
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import dill
 from ..tools.metamer_utils import RangeClamper
 
@@ -976,7 +976,6 @@ class Synthesis(metaclass=abc.ABCMeta):
     def load(self, file_path, map_location='cpu',
              check_attributes=['base_signal', 'base_representation',
                                'loss_function'],
-             objective_function_kwargs={},
              **pickle_load_args):
         r"""Load all relevant attributes from a .pt file.
 
@@ -1007,8 +1006,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             callable objects is hard in Python) -- instead, checking the
             ``base_representation`` should ensure the model hasn't functinoally
             changed.
-        objective_function_kwargs : dict, optional
-            Additional arguments to pass to the objective function call.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -1025,7 +1022,8 @@ class Synthesis(metaclass=abc.ABCMeta):
         *then* load.
 
         """
-        tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
+        tmp_dict = torch.load(file_path, map_location=map_location,
+                              pickle_module=dill, **pickle_load_args)
         for k in check_attributes:
             if not hasattr(self, k):
                 raise Exception("All values of `check_attributes` should be attributes set at"

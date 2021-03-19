@@ -443,11 +443,11 @@ class TestDisplay(object):
         # 2d data and raise the proper exception
         im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
 
-        class DumbModel(po.simul.Linear_Nonlinear):
+        class TestModel(po.simul.Linear_Nonlinear):
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)
                 return output.reshape(output.numel())
-        model = DumbModel().to(DEVICE)
+        model = TestModel().to(DEVICE)
         met = po.synth.Metamer(im, model)
         met.synthesize(max_iter=3, store_progress=True)
         with pytest.raises(Exception):
@@ -468,8 +468,7 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
                                      plot_synthesized_image, plot_loss,
                                      plot_representation_error,
                                      plot_image_hist, plot_rep_comparison,
-                                     plot_signal_comparison, fig_creation,
-                                     width_ratios={}):
+                                     plot_signal_comparison, fig_creation):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
@@ -507,7 +506,8 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
     synthesis_object.plot_synthesis_status(iteration=iteration, **plot_choices,
                                            signal_comp_func=plot_func, fig=fig,
                                            axes_idx=axes_idx,
-                                           plot_representation_error_as_rgb=as_rgb)
+                                           plot_representation_error_as_rgb=as_rgb,
+                                           width_ratios=width_ratios)
     plt.close('all')
 
 
