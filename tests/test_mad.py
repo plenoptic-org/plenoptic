@@ -224,14 +224,11 @@ class TestMAD(object):
             # initial_noise can be None in this case)
             mad_copy.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=True)
 
-    @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
-                                        'model_2_max'])
     @pytest.mark.parametrize('model', ['Identity', 'mse'], indirect=True)
     @pytest.mark.parametrize('model2', ['NLP', 'nlpd'], indirect=True)
     @pytest.mark.parametrize('none_arg', ['lr', 'initial_noise', 'both'])
     @pytest.mark.parametrize('none_place', ['before', 'after'])
-    def test_resume_exceptions(self, curie_img, target, model, model2, none_arg, none_place):
-        mad = po.synth.MADCompetition(curie_img, model, model2)
+    def test_resume_exceptions(self, curie_img, model, model2, none_arg, none_place):
         learning_rate = 1
         initial_noise = .1
         if none_arg == 'lr' or none_arg == 'both':
@@ -243,18 +240,18 @@ class TestMAD(object):
         # with store_progress!=False
         if none_place == 'before':
             with pytest.raises(IndexError):
-                mad.synthesize(target, max_iter=5, loss_change_iter=3,
+                mad.synthesize('model_1_min', max_iter=5, loss_change_iter=3,
                                learning_rate=learning_rate, initial_noise=initial_noise)
         else:
-            mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=False)
+            mad.synthesize('model_1_min', max_iter=5, loss_change_iter=3, store_progress=False)
             if none_arg != 'lr':
                 with pytest.raises(IndexError):
-                    mad.synthesize(target, max_iter=5, loss_change_iter=3,
+                    mad.synthesize('model_1_min', max_iter=5, loss_change_iter=3,
                                    learning_rate=learning_rate, initial_noise=initial_noise)
             else:
                 # this actually will not raise an exception, because the
                 # learning_rate has been initialized
-                mad.synthesize(target, max_iter=5, loss_change_iter=3,
+                mad.synthesize('model_1_min', max_iter=5, loss_change_iter=3,
                                learning_rate=learning_rate, initial_noise=initial_noise)
 
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
