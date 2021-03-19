@@ -69,11 +69,11 @@ class TestMAD(object):
     def test_all(self, request, curie_img):
         # can parametrize within a fixture unfortunately, so we'll have to do
         # some extra instnatiation here
-        model, model2 = request.param.split('-')
-        model = get_model(model)
-        model2 = get_model(model2)
+        model, model2 = [get_model(m) for m in request.param.split('-')]
         mad = po.synth.MADCompetition(curie_img, model, model2)
+        print(model2,  mad.model_1, mad.model_2, mad.loss_function_1, mad.loss_function_2)
         mad.synthesize_all(max_iter=5, loss_change_iter=3, store_progress=True,)
+        print(model2,  mad.model_1, mad.model_2, mad.loss_function_1, mad.loss_function_2)
         return mad
 
     @pytest.mark.parametrize('resume', ['skip', 're-run', 'continue'])
@@ -116,27 +116,39 @@ class TestMAD(object):
                 mad.synthesize(target, max_iter=5, loss_change_iter=1, loss_change_thresh=10,
                                coarse_to_fine=coarse_to_fine)
 
-    @pytest.mark.parametrize('model', ['Identity', 'mse'], indirect=True)
-    @pytest.mark.parametrize('model2', ['NLP', 'nlpd'], indirect=True)
-    @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_lmbda'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model1', 'model2', 'loss'])
-    def test_save_load(self, curie_img, model, model2, loss_func, fail, tmp_path):
-        loss_kwargs = {}
-        if loss_func is None:
-            loss = None
-        elif loss_func == 'l2':
-            loss = po.optim.l2_norm
-        elif loss_func == 'range_penalty_w_lmbda':
-            loss = po.optim.l2_and_penalize_range
-            loss_kwargs['lmbda'] = .1
-        mad = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss,
-                                      loss_function_kwargs=loss_kwargs)
-        mad.synthesize('model_1_max', max_iter=5, loss_change_iter=3, store_progress=True)
+    def test_save_load(self, curie_img, test_all, fail, tmp_path):
+        # for ease of use
+        mad = test_all
+        # we need to know what model_1 and model_2 were instantiated as in
+        # order to load the saved version in. if model_1 or model_2 were
+        # metrics, then that object will just be an Identity class, so we need
+        # to be slightly more clever about grabbing them correctly. if they're
+        # metrics, they'll have a name attribute that tells us what function
+        # they were. If they're models, then they won't have that attribute and
+        # we just grab the object.
+        try:
+            model = mad.model_1.name
+            if model == 'mse':
+                model = po.metric.mse
+            elif model == 'nlpd':
+                model = po.metric.nlpd
+        except AttributeError:
+            model = mad.model_1
+        try:
+            model2 = mad.model_2.name
+            if model2 == 'mse':
+                model2 = po.metric.mse
+            elif model2 == 'nlpd':
+                model2 = po.metric.nlpd
+        except AttributeError:
+            model2 = mad.model_2
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         # when the model is a function, the loss_function is ignored and thus
         # we won't actually fail to load here (we check against the specific
         # callable because we've overwritten the model input arg)
         if fail and not (fail == 'loss' and model == po.metric.mse and model2 == po.metric.nlpd):
+            loss = None
             if fail == 'img':
                 curie_img = torch.rand_like(curie_img)
             elif fail == 'model1':
@@ -145,17 +157,13 @@ class TestMAD(object):
                 model2 = po.metric.mse
             elif fail == 'loss':
                 loss = lambda *args, **kwargs: 1
-                loss_kwargs = {}
-            mad_copy = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss,
-                                               loss_function_kwargs=loss_kwargs)
+            mad_copy = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss)
             with pytest.raises(Exception):
                 mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
                               map_location=DEVICE)
         else:
-            mad_copy = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss,
-                                               loss_function_kwargs=loss_kwargs)
-            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
-                          map_location=DEVICE)
+            mad_copy = po.synth.MADCompetition(curie_img, model, model2)
+            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE)
             if mad.synthesis_target != mad_copy.synthesis_target:
                 raise Exception("Something went wrong with saving and loading! synthesis_"
                                 "target not the same!")
