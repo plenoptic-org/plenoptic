@@ -19,12 +19,11 @@ class TestMAD(object):
     @pytest.mark.parametrize('model', ['Identity', 'mse'], indirect=True)
     @pytest.mark.parametrize('model2', ['NLP', 'nlpd'], indirect=True)
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    @pytest.mark.parametrize('resume', [False, True])
-    def test_basic(self, curie_img, target, model, model2, store_progress, resume, tmp_path):
+    def test_basic(self, curie_img, target, model, model2, store_progress, tmp_path):
         mad = po.synth.MADCompetition(curie_img, model, model2)
         mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
-        if resume and store_progress:
+        if store_progress:
             mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
@@ -40,8 +39,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
     @pytest.mark.parametrize('model2', ['NLP'], indirect=True)
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    @pytest.mark.parametrize('resume', [False, True])
-    def test_loss_func(self, curie_img, model, model2, loss_func, target, store_progress, resume, tmp_path):
+    def test_loss_func(self, curie_img, model, model2, loss_func, target, store_progress, tmp_path):
         loss_kwargs = {}
         if loss_func is None:
             loss = None
@@ -61,7 +59,7 @@ class TestMAD(object):
                                       loss_function_kwargs=loss_kwargs)
         mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
-        if resume and store_progress:
+        if store_progress:
             mad.synthesize(target, max_iter=5, loss_change_iter=3, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
