@@ -23,16 +23,28 @@ class TestFrontEnd:
         po.simul.LN(kernel_size),
         po.simul.LG(kernel_size),
         po.simul.LGG(kernel_size),
+        po.simul.OnOff(kernel_size)
     ]
 
-    @pytest.mark.parametrize("model", all_models)
+    @pytest.mark.parametrize("model", all_models[:-1])  # shape of onoff is different
     def test_output_shape(self, model):
-        img = torch.ones(1,1,100,100)
-
+        img = torch.ones(1, 1, 100, 100)
         assert model(img).shape == img.shape
 
-    def test_center_surround_display_weights(self):
-        mdl = po.simul.CenterSurround(7)
+    @pytest.mark.parametrize("model", all_models)
+    def test_gradient_flow(self, model):
+        img = torch.ones(1, 1, 100, 100)
+        y = model(img)
+        y.sum().backward()
+
+    def test_onoff(self):
+        mdl = po.simul.OnOff(7, pretrained=False)
+
+    def test_pretrained_onoff(self):
+        mdl = po.simul.OnOff(7, pretrained=True)
+
+    def test_frontend_display_filters(self):
+        mdl = po.simul.OnOff((31, 31), pretrained=True)
         fig = mdl.display_filters()
         plt.close(fig)
 
@@ -283,25 +295,12 @@ class TestPooledVentralStream(object):
         # ...second time we load them
         rgc = po.simul.PooledRGC(.5, im.shape[2:], cache_dir=tmp_path)
 
-    @pytest.mark.parametrize('pretrained', [True, False])
-    @pytest.mark.parametrize('requires_grad', [True, False])
-    def test_frontend(self, pretrained, requires_grad):
-        im = po.make_basic_stimuli()
-        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
-        frontend(im)
-
-    @pytest.mark.parametrize('pretrained', [True, False])
-    @pytest.mark.parametrize('requires_grad', [True, False])
-    def test_frontend_display_filters(self, pretrained, requires_grad):
-        frontend = po.simul.FrontEnd(pretrained=pretrained, requires_grad=requires_grad)
-        frontend.display_filters()
-        plt.close('all')
-
-    @pytest.mark.parametrize('requires_grad', [True, False])
-    def test_frontend_plot(self, requires_grad):
+    def test_frontend_plot(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
+        frontend = po.simul.OnOff((31, 31), pretrained=True)
+        for p in frontend.parameters():
+            p.detach_()
         po.tools.display.plot_representation(data=frontend(im), figsize=(11, 5))
         metamer = po.synth.Metamer(im, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
@@ -309,11 +308,12 @@ class TestPooledVentralStream(object):
         metamer.animate(figsize=(35, 5))
         plt.close('all')
 
-    @pytest.mark.parametrize('requires_grad', [True, False])
-    def test_frontend_PoolingWindows(self, requires_grad):
+    def test_frontend_PoolingWindows(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
+        frontend = po.simul.OnOff((31, 31), pretrained=True)
+        for p in frontend.parameters():
+            p.detach_()
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im))
         po.tools.display.plot_representation(data=pw(frontend(im)))

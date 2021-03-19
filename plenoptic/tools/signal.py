@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
+from typing import Union, Tuple
 
 
 def rotate_image(img, angle, X=None, Y=None):
@@ -467,47 +468,56 @@ def power_spectrum(x, log=True):
     return sp_power
 
 
-def make_disk(img_size, outer_radius=None, inner_radius=None):
-    r""" Create a circularr mask with softened edges to element-wise multiply with an image.
-    All values within ``inner_radius`` will be 1, and all values from ``inner_radius`` to ``outer_radius`` will decay
-    smoothly to 0.
+def make_disk(img_size: Union[int, Tuple[int, int]],
+              outer_radius: float = None,
+              inner_radius: float = None) -> torch.Tensor:
+    r""" Create a circular mask with softened edges to  an image.
+    All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
+    to ``outer_radius`` will decay smoothly to 0.
 
     Parameters
     ----------
-    img_size: int
-        Size of square image in pixels.
-    outer_radius: float, optional
-        Total radius of disk. Values from ``inner_radius`` to ``outer_radius`` will decay smoothly to zero.
-    inner_radius: float, optional
-        Radius of inner disk. All elements from the origin to ``inner_radius`` will be set to 1.
+    img_size:
+        Size of image in pixels.
+    outer_radius:
+        Total radius of disk. Values from ``inner_radius`` to ``outer_radius`` will
+        decay smoothly to zero.
+    inner_radius:
+        Radius of inner disk. All elements from the origin to ``inner_radius`` will be
+        set to 1.
 
     Returns
     -------
-    mask: torch.Tensor
-        Mask with torch.Size([img_size, img_size]).
+    mask:
+        Tensor mask with torch.Size(img_size).
 
     """
 
+    if isinstance(img_size, int):
+        img_size = (img_size, img_size)
+    assert len(img_size) == 2
+
     if outer_radius is None:
-        outer_radius = (img_size-1) / 2
+        outer_radius = (min(img_size)-1) / 2
 
     if inner_radius is None:
         inner_radius = outer_radius / 2
 
-    mask = torch.Tensor(img_size, img_size)
-    img_center = (img_size - 1) / 2
+    mask = torch.empty(*img_size)
+    i0, j0 = (img_size[0] - 1) / 2, (img_size[1] - 1) / 2  # image center
 
-    for i in range(img_size):
-        for j in range(img_size):
+    for i in range(img_size[0]):  # height
+        for j in range(img_size[1]):  # width
 
-            r = np.sqrt((i-img_center)**2 + (j-img_center)**2)
+            r = np.sqrt((i-i0)**2 + (j-j0)**2)
 
             if r > outer_radius:
                 mask[i][j] = 0
             elif r < inner_radius:
                 mask[i][j] = 1
             else:
-                mask[i][j] = (1 + np.cos(np.pi * (r - inner_radius) / (outer_radius - inner_radius))) / 2
+                radial_decay = (r - inner_radius) / (outer_radius - inner_radius)
+                mask[i][j] = (1 + np.cos(np.pi * radial_decay)) / 2
 
     return mask
 

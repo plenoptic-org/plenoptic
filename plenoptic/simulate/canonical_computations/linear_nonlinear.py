@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+__all__ = ["Linear", "LinearNonlinear"]
+
 
 class Linear(nn.Module):
     """Simplistic linear convolutional model:
@@ -25,9 +27,6 @@ class Linear(nn.Module):
         f2 = torch.outer(g2, g2)
         f2 = f2 / f2.sum() - f1
         f2 = f2 - f2.sum()
-
-        f1 = torch.tensor(f1, dtype=torch.float32)
-        f2 = torch.tensor(f2, dtype=torch.float32)
 
         self.conv.weight.data[0, 0] = nn.Parameter(f1)
         self.conv.weight.data[1, 0] = nn.Parameter(f2)
@@ -89,9 +88,6 @@ class LinearNonlinear(nn.Module):
             f2 = torch.outer(g2, g2)
             f2 = f2 / f2.sum() - f1
             f2 = f2 - f2.sum()
-
-            f1 = torch.tensor(f1, dtype=torch.float32)
-            f2 = torch.tensor(f2, dtype=torch.float32)
 
             self.conv.weight.data[0, 0] = nn.Parameter(f1)
             self.conv.weight.data[1, 0] = nn.Parameter(f2)

@@ -1,17 +1,16 @@
-import os
 from typing import Tuple, Union, Callable
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torchvision import transforms
 
 from ...tools.display import imshow
 from ...tools.signal import make_disk
 
-__all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff", "FrontEnd"]
+from collections import OrderedDict
+
+__all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff"]
 
 
 def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, int]:
@@ -42,7 +41,7 @@ def circular_gaussian(
     -------
     filt: Tensor
     """
-    assert std > 0, "stdev must be positive"
+    assert std > 0.0, "stdev must be positive"
 
     device = std.device
 
@@ -56,16 +55,28 @@ def circular_gaussian(
 
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 
-    amp = 1 / (2 * np.pi * std)  # normalized amplitude
-
     log_filt = ((xramp ** 2) + (yramp ** 2)) / (-2.0 * std ** 2)
 
-    filt = amp * torch.exp(log_filt)
+    filt = torch.exp(log_filt)
+    filt = filt / filt.sum()  # normalize
 
     return filt
 
 
 class Gaussian(nn.Module):
+    """Isotropic Gaussian single-channel convolutional filter.
+    Kernel elements are normalized and sum to one.
+
+    Parameters
+    ----------
+    kernel_size:
+        Size of convolutional kernel.
+    std:
+        Standard deviation of circularly symmtric Gaussian kernel.
+    pad_mode:
+        Padding mode argument to pass to `torch.nn.functional.pad`.
+    """
+
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
@@ -79,39 +90,58 @@ class Gaussian(nn.Module):
         self.pad_mode = pad_mode
         self.pad = get_pad(kernel_size)
 
-    def forward(self, x: Tensor) -> Tensor:
-        self.std.data = self.std.data.abs()
+    def get_filter(self):
         filt = circular_gaussian(self.kernel_size, self.std)
+        return filt.view(1, 1, *filt.shape)
+
+    def forward(self, x: Tensor) -> Tensor:
+        self.std.data = self.std.data.abs()  # ensure stdev is positive
+        filt = self.get_filter()
 
         x = F.pad(x, pad=self.pad, mode=self.pad_mode)
-        y = F.conv2d(x, filt.view(1, 1, *filt.shape))
+        y = F.conv2d(x, filt)
         return y
 
 
 class CenterSurround(nn.Module):
     """Center-Surround, Difference of Gaussians (DoG) filter model. Can be either
     on-center/off-surround, or vice versa.
+
+    Filter is constructed as:
+    .. math::
+        f &= amplitude_ratio * center - surround \\
+        f &= f/f.sum()
+
+    The signs of center and surround are determined by `center` argument. The standard
+    deviation of the surround Gaussian is constrained to be at least `width_ratio_limit`
+    times that of the center Gaussian.
+
     Parameters
     ----------
     center:
         Dictates whether center is on or off. The surround always will be the opposite
         of the center. Must be either ['on', 'off']; default is 'on' center.
     kernel_size: Union[int, Tuple[int, int]], optional
-    ratio_limit:
+    width_ratio_limit:
         Ratio of surround stdev over center stdev. Surround stdev will be clamped to
         ratio_limit times center_std.
+    amplitude_ratio:
+        Ratio of center/surround amplitude. Applied before filter normalization.
     center_std:
         Standard deviation of circular Gaussian for center.
     surround_std:
         Standard deviation of circular Gaussian for surround. Must be at least
         ratio_limit times center_std.
+    pad_mode:
+        Padding for convolution, defaults to "circular".
     """
 
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
         center: str = "on",
-        ratio_limit: float = 4.0,
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
         center_std: float = 1.0,
         surround_std: float = 4.0,
         pad_mode: str = "circular",
@@ -119,10 +149,13 @@ class CenterSurround(nn.Module):
         super().__init__()
 
         assert center in ["on", "off"], "center must be 'on' or 'off'"
+        assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
+        assert amplitude_ratio >= 1.0, "amplitudes must"
 
         self.center = center
         self.kernel_size = kernel_size
-        self.ratio_limit = ratio_limit
+        self.width_ratio_limit = width_ratio_limit
+        self.register_buffer("amplitude_ratio", torch.tensor(amplitude_ratio))
 
         self.center_std = nn.Parameter(torch.tensor(center_std))
         self.surround_std = nn.Parameter(torch.tensor(surround_std))
@@ -130,56 +163,33 @@ class CenterSurround(nn.Module):
         self.pad_mode = pad_mode
         self.pad = get_pad(kernel_size)
 
-    def _center_surround(self) -> Tensor:
+    def get_filter(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
         filt_center = circular_gaussian(self.kernel_size, self.center_std)
         filt_surround = circular_gaussian(self.kernel_size, self.surround_std)
-        filt = filt_center - filt_surround  # on center, off surround
+        on_amp = self.amplitude_ratio
 
-        if self.center == "off":  # off center, on surround
-            filt = filt * -1
+        if self.center == "on":  # on center, off surround
+            filt = on_amp * filt_center - filt_surround  # on center, off surround
+        else:  # off center, on surround
+            filt = on_amp * filt_surround - filt_center
+
+        filt = filt / filt.sum()
 
         return filt.view(1, 1, *filt.shape)
 
     def _clamp_surround_std(self) -> Tensor:
         """Clamps surround standard deviation to ratio_limit times center_std"""
         return self.surround_std.clamp(
-            min=self.ratio_limit * float(self.center_std), max=None
+            min=self.width_ratio_limit * float(self.center_std), max=None
         )
-    # TODO: clamp center
+
     def forward(self, x: Tensor) -> Tensor:
         x = F.pad(x, self.pad, self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
-        filt = self._center_surround()
+        filt = self.get_filter()
         y = F.conv2d(x, filt, bias=None)
         return y
-
-    def display_filters(self, zoom: float = 5.0, **kwargs):
-        """Displays convolutional filter
-
-        Parameters
-        ----------
-        zoom: float
-            Magnification factor for po.imshow()
-        **kwargs:
-            Keyword args for po.imshow
-
-        Returns
-        -------
-        fig: PyrFigure
-        """
-
-        weights = self._center_surround()
-        weights = weights
-        title = (
-            "on center, off surround"
-            if self.center == "on"
-            else "off center, on surround"
-        )
-
-        fig = imshow(weights, title=title, zoom=zoom, **kwargs)
-
-        return fig
 
 
 class LN(nn.Module):
@@ -188,20 +198,37 @@ class LN(nn.Module):
 
     Parameters
     ----------
-    center:
-        ['on', 'off']
     activation:
-        Default nonlinearity is a softplus activation function.
+        Activation function following linear convolution.
+
+    Attributes
+    ----------
+    center_surround: nn.Module
+        `CenterSurround` difference of Gaussians filter.
+
+    Notes
+    -----
+    See `CenterSurround` class for full Parameter docstring.
+
     """
 
     def __init__(
         self,
-        kernel_size,
-        center: str = "on",  # TODO: multiple channels?
+        kernel_size: Union[int, Tuple[int, int]],
+        center: str = "on",
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        pad_mode: str = "circular",
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
-        self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
+        self.center_surround = CenterSurround(
+            kernel_size,
+            center,
+            width_ratio_limit,
+            amplitude_ratio,
+            pad_mode=pad_mode,
+        )
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
@@ -210,158 +237,185 @@ class LN(nn.Module):
 
 
 class LG(nn.Module):
-    def __init__(self, kernel_size, center="on", pad_mode: str = "circular"):
+    """ Linear center-surround followed by luminance gain control and activation.
+    Parameters
+    ----------
+    See `CenterSurround` class for full Parameter docstring.
+
+    Attributes
+    ----------
+    center_surround: nn.Module
+        Difference of Gaussians linear filter.
+    luminance: nn.Module
+        Gaussian convolutional kernel used to normalize signal by local luminance.
+    luminance_scalar: nn.Parameter
+        Scale factor for luminance normalization.
+    """
+    def __init__(
+        self,
+        kernel_size: Union[int, Tuple[int, int]],
+        center: str = "on",
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        pad_mode: str = "circular",
+        activation: Callable[[Tensor], Tensor] = F.softplus,
+    ):
         super().__init__()
-        self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
-        self.luminance = Gaussian(kernel_size=kernel_size)
-        self.luminance_scalar = nn.Parameter(torch.rand(1)*10)
-    # TODO: activation
-    def forward(self, x):
-        lum = self.luminance(x)
-        luminance_normalized = self.center_surround(x) / (
-            1 + self.luminance_scalar * lum
+        self.center_surround = CenterSurround(
+            kernel_size,
+            center,
+            width_ratio_limit,
+            amplitude_ratio,
+            pad_mode=pad_mode,
         )
-        y = F.softplus(luminance_normalized)
+        self.luminance = Gaussian(kernel_size=kernel_size)
+        self.luminance_scalar = nn.Parameter(torch.rand(1) * 10)
+        self.activation = activation
+
+    def forward(self, x: Tensor) -> Tensor:
+        linear = self.center_surround(x)
+        lum = self.luminance(x)
+        lum_normed = linear / (1 + self.luminance_scalar * lum)
+        y = self.activation(lum_normed)
         return y
 
 
 class LGG(nn.Module):
-    # TODO: activation
-    def __init__(self, kernel_size, center: str = "on", pad_mode: str = "circular"):
+    """ Linear center-surround followed by luminance and contrast gain control,
+    and activation function.
+
+    Parameters
+    ----------
+    See `CenterSurround` class for full Parameter docstring.
+
+    Attributes
+    ----------
+    center_surround: nn.Module
+        Difference of Gaussians linear filter.
+    luminance: nn.Module
+        Gaussian convolutional kernel used to normalize signal by local luminance.
+    contrast: nn.Module
+        Gaussian convolutional kernel used to normalize signal by local contrast.
+    luminance_scalar: nn.Parameter
+        Scale factor for luminance normalization.
+    contrast_scalar: nn.Parameter
+        Scale factor for contrast normalization.
+
+    Notes
+    -----
+    See `CenterSurround` class for full Parameter docstring.
+
+    """
+
+    def __init__(
+        self,
+        kernel_size: Union[int, Tuple[int, int]],
+        center: str = "on",
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        pad_mode: str = "circular",
+        activation: Callable[[Tensor], Tensor] = F.softplus,
+    ):
         super().__init__()
-        self.center_surround = CenterSurround(kernel_size=kernel_size, center=center)
-        self.luminance = Gaussian(kernel_size=kernel_size)
-        self.contrast = Gaussian(kernel_size=kernel_size)
 
-        self.luminance_scalar = nn.Parameter(torch.rand(1)*10)
-        self.contrast_scalar = nn.Parameter(torch.rand(1)*10)
+        self.center_surround = CenterSurround(
+            kernel_size,
+            center,
+            width_ratio_limit,
+            amplitude_ratio,
+            pad_mode=pad_mode,
+        )
+        self.luminance = Gaussian(kernel_size)
+        self.contrast = Gaussian(kernel_size)
 
-    def forward(self, x):
+        self.luminance_scalar = nn.Parameter(torch.rand(1) * 10)
+        self.contrast_scalar = nn.Parameter(torch.rand(1) * 10)
+
+        self.activation = activation
+
+    def forward(self, x: Tensor) -> Tensor:
+        linear = self.center_surround(x)
         lum = self.luminance(x)
-        luminance_normalized = self.center_surround(x) / (
-            1 + self.luminance_scalar * lum
-        )
-        contrast = (self.contrast(luminance_normalized.pow(2)) + 1e-6).sqrt()
-        contrast_normalized = luminance_normalized / (
-            1 + self.contrast_scalar * contrast
-        )
-        y = F.softplus(contrast_normalized)
+        lum_normed = linear / (1 + self.luminance_scalar * lum)
+
+        con = self.contrast(lum_normed.pow(2)).sqrt() + 1E-6  # avoid div by zero
+        con_normed = lum_normed / (1 + self.contrast_scalar * con)
+        y = self.activation(con_normed)
         return y
 
 
 class OnOff(nn.Module):
-    def __init__(self, kernel_size, pretrained=False):
-        super().__init__()
-        kernel_size = (31, 31) if pretrained else kernel_size
-        self.on = LGG(kernel_size, "on")
-        self.off = LGG(kernel_size, "off")
+    """Two-channel on-off and off-on center-surround model with local contrast and
+    luminance gain control.
 
-    def forward(self, x):
-        y = torch.cat((self.on(x), self.off(x)), dim=1)
-        return y
-
-
-class FrontEnd(nn.Module):
-    """Luminance and contrast gain control, modeling retina and LGN
+    This model is called OnOff in Berardino et al 2017.
 
     Parameters
     ----------
-    disk_mask: boolean, optional
-        Apply circular Gaussian mask to center of image. The mask itself is square.
-    pretrained: bool
-        Load weights from Berardino et al. 2017. These are 31x31 convolutional filters.
-        When Pretrained is False, filters will still be 31x31. Major changes in the
-        future will allow users to specify kernel size.
-    requires_grad: bool
-        Whether or not model is trainable.
-    Returns
-    -------
-    y: Tensor
-        representation (B, 2, H, W)
+    apply_mask:
+    activation:
+        Activation function following linear and gain control operations.
 
     Notes
     -----
+    See `CenterSurround` class for full Parameter docstring.
+
     Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
     http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
     def __init__(
         self,
-        disk_mask: bool = False,
-        pretrained: bool = False,
-        requires_grad: bool = True,
+        kernel_size: Union[int, Tuple[int, int]],
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        pad_mode: str = "circular",
+        pretrained=False,
+        activation: Callable[[Tensor], Tensor] = F.softplus,
+        apply_mask: bool = False,
     ):
         super().__init__()
+        kernel_size = (31, 31) if pretrained else kernel_size
 
-        # convolutional weights
-        self.linear = nn.Conv2d(
-            in_channels=1, out_channels=2, kernel_size=31, bias=False
+        self.on = LGG(
+            kernel_size,
+            "on",
+            width_ratio_limit,
+            amplitude_ratio,
+            pad_mode,
+            activation
         )
-        self.luminance = nn.Conv2d(
-            in_channels=1, out_channels=2, kernel_size=31, bias=False
+
+        self.off = LGG(
+            kernel_size,
+            "off",
+            width_ratio_limit,
+            amplitude_ratio,
+            pad_mode,
+            activation
         )
-        self.contrast = nn.Conv2d(
-            in_channels=2, out_channels=2, kernel_size=31, groups=2, bias=False
-        )
-
-        # contrast and luminance normalization scaling
-        self.luminance_scalars = nn.Parameter(torch.rand((1, 2, 1, 1)))
-        self.contrast_scalars = nn.Parameter(torch.rand((1, 2, 1, 1)))
-
-        # pad all transforms for convolution
-        pad = nn.ReflectionPad2d(self.linear.weight.shape[-1] // 2)
-        self.linear_pad = transforms.Compose([pad, self.linear])
-        self.luminance_pad = transforms.Compose([pad, self.luminance])
-        self.contrast_pad = transforms.Compose([pad, self.contrast])
-        self.softplus = nn.Softplus()
-
-        self.disk_mask = disk_mask
-        self._disk = None  # cached disk to apply to image
 
         if pretrained:
-            self._load_pretrained()
+            self.load_state_dict(self._pretrained_state_dict())
 
-        if not requires_grad:  # turn off gradient
-            [p.requires_grad_(False) for p in self.parameters()]
+        self.apply_mask = apply_mask
+        self._disk = None  # cached disk to apply to image
 
-    def _load_pretrained(self):
-        """Load FrontEnd model weights used from Berardino et al (2017)"""
-        state_dict = torch.load(
-            os.path.join(os.path.dirname(__file__), "weights/FrontEnd.pt")
-        )
-        self.load_state_dict(state_dict)
+    def forward(self, x: Tensor) -> Tensor:
+        y = torch.cat((self.on(x), self.off(x)), dim=1)
 
-    def _luminance_normalization(self, x):
-        s = self.luminance_scalars
-        return torch.div(self.linear_pad(x), (1 + s * self.luminance_pad(x)))
+        if self.apply_mask:
+            im_shape = x.shape[-2:]
+            if self._disk is None or self._disk.shape != im_shape:  # cache new mask
+                self._disk = make_disk(im_shape).to(x.device)
 
-    def _contrast_normalization(self, x):
-        s = self.contrast_scalars
-        return torch.div(x, 1 + s * torch.sqrt(1e-10 + self.contrast_pad(x ** 2)))
+            y = self._disk * y  # apply the mask
 
-    def forward(self, x):
-        x = self._luminance_normalization(x)
-        x = self._contrast_normalization(x)
-        x = self.softplus(x)
-
-        if (
-            self._disk is not None and self._disk.shape == x.shape[-2:]
-        ):  # uses cached disk_mask if size matches
-            x = self._disk * x
-
-        elif (
-            self._disk is not None and self._disk.shape != x.shape[-2:]
-        ) or (  # create new disk if disk size mismatch
-            self._disk is None and self.disk_mask
-        ):  # or if disk does not yet exist
-
-            self._disk = make_disk(x.shape[-1]).to(x.device)
-            x = self._disk * x
-
-        return x
+        return y
 
     def display_filters(self, zoom=5.0, **kwargs):
-        """Displays convolutional filters of FrontEnd model
+        """Displays convolutional filters of OnOff model
+
         Parameters
         ----------
         zoom: float
@@ -375,12 +429,15 @@ class FrontEnd(nn.Module):
 
         weights = torch.cat(
             [
-                self.linear.weight.detach(),
-                self.luminance.weight.detach(),
-                self.contrast.weight.detach(),
+                self.on.center_surround.get_filter(),
+                self.off.center_surround.get_filter(),
+                self.on.luminance.get_filter(),
+                self.off.luminance.get_filter(),
+                self.on.contrast.get_filter(),
+                self.off.contrast.get_filter(),
             ],
             dim=0,
-        )
+        ).detach()
 
         title = [
             "linear on",
@@ -391,6 +448,31 @@ class FrontEnd(nn.Module):
             "contrast norm off",
         ]
 
-        fig = imshow(weights, title=title, col_wrap=2, zoom=zoom, **kwargs)
+        fig = imshow(
+            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+        )
 
         return fig
+
+    @staticmethod
+    def _pretrained_state_dict() -> OrderedDict:
+        """Roughly interpreted from trained weights in Berardino et al 2017"""
+        state_dict = OrderedDict(
+            [
+                ("on.luminance_scalar", torch.tensor([3.2637])),
+                ("on.contrast_scalar", torch.tensor([7.3405])),
+                ("on.center_surround.center_std", torch.tensor([1.15])),
+                ("on.center_surround.surround_std", torch.tensor([5.0])),
+                ("on.center_surround.amplitude_ratio", torch.tensor([1.25])),
+                ("on.luminance.std", torch.tensor([8.7366])),
+                ("on.contrast.std", torch.tensor([2.7353])),
+                ("off.luminance_scalar", torch.tensor([14.3961])),
+                ("off.contrast_scalar", torch.tensor([16.7423])),
+                ("off.center_surround.center_std", torch.tensor([0.56])),
+                ("off.center_surround.surround_std", torch.tensor([1.6])),
+                ("off.center_surround.amplitude_ratio", torch.tensor([1.25])),
+                ("off.luminance.std", torch.tensor([1.4751])),
+                ("off.contrast.std", torch.tensor([1.5583])),
+            ]
+        )
+        return state_dict

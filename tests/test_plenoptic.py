@@ -272,5 +272,7 @@ class TestPerceptualMetrics(object):
     def test_model_metric(self):
         im1 = po.load_images(op.join(DATA_DIR, 'einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
-        model = po.simul.FrontEnd(disk_mask=True)
+        model = po.simul.OnOff((31, 31), apply_mask=True)
+        for p in model.parameters():
+            p.detach_()
         assert po.metric.model_metric(im1, im2, model).requires_grad
