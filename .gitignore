@@ -9,7 +9,7 @@ __pycache__/
 .ftpconfig
 .idea/
 
-examples/data/cifar*
+examples/data
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
