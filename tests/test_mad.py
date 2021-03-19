@@ -146,7 +146,7 @@ class TestMAD(object):
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_lmbda'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model1', 'model2', 'loss'])
     def test_save_load(self, model1, model2, loss_func, fail, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm'))
+        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
         if model1 == 'class':
             model1 = po.simul.models.naive.Identity().to(DEVICE)
         else:
@@ -183,13 +183,11 @@ class TestMAD(object):
             mad_copy = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                                loss_function_kwargs=loss_kwargs)
             with pytest.raises(Exception):
-                mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
-                              map_location=DEVICE)
+                mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"))
         else:
             mad_copy = po.synth.MADCompetition(img, model1, model2, loss_function=loss,
                                                loss_function_kwargs=loss_kwargs)
-            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
-                          map_location=DEVICE)
+            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"))
             if mad.synthesis_target != mad_copy.synthesis_target:
                 raise Exception("Something went wrong with saving and loading! synthesis_"
                                 "target not the same!")

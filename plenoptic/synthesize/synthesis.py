@@ -1039,7 +1039,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                         raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
                                         f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
-                    raise Exception(f"Attribute {k} is a different shape in saved and initialized versions!"
+                    if getattr(self, k).device != tmp_dict[k].device:
+                        raise Exception(f"Attribute {k} are on different devices in saved and initialized versions!"
+                                        f" Initialized: {getattr(self, k).device}, Saved: {tmp_dict[k].device}")
+                    raise Exception(f"Attribute {k} have different shapes in saved and initialized versions!"
                                     f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
             elif k == 'loss_function':
                 # it is very difficult to check python callables for equality

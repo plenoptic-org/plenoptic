@@ -365,7 +365,7 @@ class MADCompetition(Synthesis):
                     setattr(self, attr, torch.nn.Parameter(getattr(self, attr+'_all')[synthesis_target]))
                 else:
                     try:
-                        setattr(self, attr, getattr(self, attr+'_all')[synthesis_target].clone().to('cpu'))
+                        setattr(self, attr, getattr(self, attr+'_all')[synthesis_target].clone())
                     except AttributeError:
                         # then this isn't a tensor, it's a list
                         setattr(self, attr, getattr(self, attr+'_all')[synthesis_target].copy())
@@ -387,7 +387,7 @@ class MADCompetition(Synthesis):
         for attr in self._attrs_all:
             attr_all = getattr(self, attr+'_all')
             try:
-                attr_all[self.synthesis_target] = getattr(self, attr).clone().to('cpu')
+                attr_all[self.synthesis_target] = getattr(self, attr).clone()
             except AttributeError:
                 # then this isn't a tensor, it's a list
                 attr_all[self.synthesis_target] = getattr(self, attr).copy()
@@ -595,7 +595,7 @@ class MADCompetition(Synthesis):
         # representation), but we want to make synthesized_signal the last
         # saved_signal
         else:
-            init_image = self.saved_signal[-1]
+            init_image = self.saved_signal[-1].to(self.base_signal.device)
         self.update_target(self.synthesis_target, 'main')
         super()._init_synthesized_signal(init_image.clone(), clamper, clamp_each_iter)
         if clamper is not None:
@@ -1032,7 +1032,7 @@ class MADCompetition(Synthesis):
                   'coarse_to_fine']
         super().save(file_path, attrs)
 
-    def load(self, file_path, map_location='cpu', **pickle_load_args):
+    def load(self, file_path, map_location=None, **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``MADComptetion`` object -- we
