@@ -1441,8 +1441,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             raise Exception(f"Don't know how to handle value {value}!")
         # if this is 4d, this will convert it to 3d (if it's 3d, nothing
         # changes)
-        base_val = base_val.flatten(2, -1)
-        synthesized_val = synthesized_val.flatten(2, -1)
+        base_val = base_val.flatten(2, -1).cpu()
+        synthesized_val = synthesized_val.flatten(2, -1).cpu()
         plot_vals = torch.stack((base_val, synthesized_val), -1)
         if scatter_subsample < 1:
             plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]

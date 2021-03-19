@@ -439,7 +439,7 @@ class TestDisplay(object):
         # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
         # this checks that plot_synthesis_status() and animate() both fail with
         # 2d data and raise the proper exception
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
 
         class DumbModel(po.simul.Linear_Nonlinear):
             def forward(self, *args, **kwargs):
@@ -555,10 +555,10 @@ class TestMADDisplay(object):
     @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
     def synthesized_mad(self, request):
         if request.param == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :256, :256]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
         # will return a separate value for each RGB channel
@@ -607,10 +607,10 @@ class TestMetamerDisplay(object):
     def synthesized_met(self, request):
         img, model = request.param.split('-')
         if img == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :256, :256]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
         if model == 'class':
             #  height=1 and order=0 to limit the time this takes, and then we
             #  only return one of the tensors so that everything is easy for
