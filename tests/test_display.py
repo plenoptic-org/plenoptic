@@ -13,7 +13,7 @@ import torch
 import os.path as op
 import numpy as np
 import pyrtools as pt
-from test_plenoptic import DEVICE, DATA_DIR
+from conftest import DEVICE, DATA_DIR
 
 
 class TestDisplay(object):

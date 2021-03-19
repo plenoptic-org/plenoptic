@@ -4,7 +4,7 @@ import torch
 import plenoptic as po
 import matplotlib.pyplot as plt
 import pytest
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
+from conftest import DATA_DIR, DTYPE
 
 
 class TestLinear(object):

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
 import os.path as op
-from test_plenoptic import DEVICE, DATA_DIR
+from conftest import DEVICE, DATA_DIR
 
 
 class TestMAD(object):

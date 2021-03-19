@@ -13,9 +13,6 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DTYPE = torch.float32
-DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
            'ssim_analysis.mat': 'ndtc7', 'MAD_results.tar.gz': 'jwcsr'}

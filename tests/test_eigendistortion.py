@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from plenoptic.simulate.models.frontend import FrontEnd
 from plenoptic.synthesize.eigendistortion import Eigendistortion
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
+from conftest import DEVICE, DATA_DIR, DTYPE
 
 # to be used for default model instantiation
 SMALL_DIM = 20

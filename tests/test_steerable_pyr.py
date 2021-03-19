@@ -9,7 +9,7 @@ import pyrtools as pt
 import numpy as np
 import itertools
 from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
+from conftest import DEVICE, DATA_DIR, DTYPE
 
 
 def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
