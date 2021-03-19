@@ -8,6 +8,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
+[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
@@ -188,27 +189,47 @@ will install all the requirements necessary for plenoptic to run.
 
 ## Jupyter
 
-The one additional thing you will want is to install
-[JupyterLab](https://jupyterlab.readthedocs.io/en/stable/),
-which we use for tutorial and example notebooks:
+If you wish to locally run the notebooks, you will need to install `jupyter` and
+`ipywidgets` (you can also run them in the cloud using
+[Binder](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)).
+There are two main ways of getting a local `jupyter` install` working with this
+package:
 
+1. Install jupyter in the same environment as `plenoptic`. If you followed the
+   [instructions above](#plenoptic) to create a `conda` environment named
+   `plenoptic`, do the following:
+
+``` sh
+conda activate plenoptic
+conda install -c conda-forge jupyterlab ipywidgets
 ```
-conda install -c conda-forge jupyterlab
+
+   This is easy but, if you have multiple conda environments and want to use
+   Jupyter notebooks in each of them, it will take up a lot of space.
+   
+2. Use
+   [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels).
+   Again, if you followed the instructions above:
+
+``` sh
+# activate your 'base' environment, the default one created by miniconda
+conda activate 
+# install jupyter lab and nb_conda_kernels in your base environment
+conda install -c conda-forge jupyterlab ipywidgets
+conda install nb_conda_kernels
+# install ipykernel in the calibration environment
+conda install -n plenoptic ipykernel
 ```
 
-Note we want to do this within our `plenoptic` environment. If you're
-running this section straight through, you won't need to do anything
-extra, but if you closed your terminal session after the last section
-(for example), you'll need to make sure to activate the correct
-environment first: `conda activate plenoptic`.
-
-Note that you may also run into an error in the `02_Eigendistortions` notebook
-when creating the `NthLayer` class -- we download the trained VGG model using
-`torchvision`, which requires `ipywidgets`. See [official
-page](https://ipywidgets.readthedocs.io/en/stable/user_install.html) for help;
-in our experience, installing `jupyter` (instead of `jupyterlab`) seems to fix
-the problem, but is probably overkill. Installing `ipywidgets` directly (either
-via `conda` or `pip`) also seems to work.
+   This is a bit more complicated, but means you only have one installation of
+   jupyter lab on your machine.
+   
+In either case, to open the notebooks, navigate to the `examples/` directory
+under this one on your terminal and activate the environment you install jupyter
+into (`plenoptic` for 1, `base` for 2), then run `jupyter` and open up the
+notebooks. If you followed the second method, you should be prompted to select
+your kernel the first time you open a notebook: select the one named
+"plenoptic".
 
 ## Keeping up-to-date
 
