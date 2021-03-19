@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
 import os.path as op
-from conftest import DEVICE, DATA_DIR
+from conftest import DEVICE, DATA_DIR, get_model
 
 
 class TestMAD(object):
@@ -65,25 +65,26 @@ class TestMAD(object):
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None,
                            initial_noise=None)
 
-    @pytest.mark.parametrize('model', ['Identity', 'mse'], indirect=True)
-    @pytest.mark.parametrize('model2', ['NLP', 'nlpd'], indirect=True)
-    @pytest.mark.parametrize('store_progress', [False, True, 2])
-    @pytest.mark.parametrize('resume', [False, 'skip', 're-run', 'continue'])
-    def test_all(self, curie_img, model, model2, store_progress, resume, tmp_path):
+    @pytest.fixture(scope='class', params=['Identity-NLP', 'Identity-nlpd', 'mse-NLP', 'mse-nlpd'])
+    def test_all(self, request, curie_img):
+        # can parametrize within a fixture unfortunately, so we'll have to do
+        # some extra instnatiation here
+        model, model2 = request.param.split('-')
+        model = get_model(model)
+        model2 = get_model(model2)
         mad = po.synth.MADCompetition(curie_img, model, model2)
-        mad.synthesize_all(max_iter=5, loss_change_iter=3, store_progress=store_progress,
-                           save_progress=store_progress,
-                           save_path=op.join(tmp_path, 'test_mad_{}.pt'))
-        if resume and store_progress:
-            mad.synthesize_all(resume, max_iter=5, loss_change_iter=3,
-                               store_progress=store_progress,
-                               save_progress=store_progress, learning_rate=None,
-                               initial_noise=None, save_path=op.join(tmp_path, 'test_mad_{}.pt'))
-        mad.plot_synthesized_image_all()
-        mad.plot_loss_all()
-        if store_progress:
-            for t in ['model_1_min', 'model_2_min', 'model_1_max', 'model_2_max']:
-                mad.animate(synthesis_target=t).save(op.join(tmp_path, 'test_mad.html'))
+        mad.synthesize_all(max_iter=5, loss_change_iter=3, store_progress=True,)
+        return mad
+
+    @pytest.mark.parametrize('resume', ['skip', 're-run', 'continue'])
+    def test_all_resume(self, test_all, resume):
+        test_all.synthesize_all(resume, max_iter=5, loss_change_iter=3,
+                                store_progress=True, learning_rate=None,
+                                initial_noise=None)
+
+    def test_all_plot(self, test_all, tmp_path):
+        test_all.plot_synthesized_image_all()
+        test_all.plot_loss_all()
         plt.close('all')
 
     @pytest.mark.parametrize('target', ['model_1_min', 'model_2_min', 'model_1_max',
