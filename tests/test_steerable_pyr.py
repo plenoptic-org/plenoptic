@@ -90,11 +90,11 @@ class TestSteerablePyramid(object):
     @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (128, 256), (255, 256),
                                           (256, 255)])
     def test_pyramid(self, height, order, is_complex, im_shape):
-        x = po.make_basic_stimuli()
+        x = po.make_basic_stimuli().to(DEVICE)
         if im_shape is not None:
             x = x[..., :im_shape[0], :im_shape[1]]
         spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=height, order=order,
-                                              is_complex=is_complex)
+                                              is_complex=is_complex).to(DEVICE)
         spc(x)
 
     @pytest.mark.parametrize("im", ['einstein', 'curie'])
@@ -109,9 +109,10 @@ class TestSteerablePyramid(object):
             im = im[:im_shape[0], :im_shape[1]]
 
         im = im / 255
-        im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
 
-        pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = True)
+        pyr = po.simul.Steerable_Pyramid_Freq(
+            im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame=True).to(DEVICE)
         pyr.forward(im)
         check_parseval(im, pyr.pyr_coeffs)
 
@@ -215,8 +216,9 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = tight_frame)
+        pyr.to(DEVICE)
         pyr.forward(im)
         recon = to_numpy(pyr.recon_pyr())
         np.testing.assert_allclose(recon, im.data.cpu().numpy(), rtol=1e-4, atol=1e-4)
@@ -234,8 +236,9 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
+        im_tensor = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, downsample=downsample, tight_frame=tight_frame)
+        po_pyr.to(DEVICE)
         po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
 
@@ -262,8 +265,8 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             im = im[:im_shape[0], :im_shape[1]]
         im = im / 255
-        im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
-        po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, tight_frame=False)
+        im_tensor = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, tight_frame=False).to(DEVICE)
         po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
         po_recon = po.to_numpy(po_pyr.recon_pyr().squeeze())
@@ -277,8 +280,8 @@ class TestSteerablePyramid(object):
                                         ['residual_highpass', 0, 1, 'residual_lowpass']])
     def test_scales_arg(self, is_complex, downsample, scales):
         img = imageio.imread(op.join(DATA_DIR, 'einstein.pgm'))
-        img = torch.tensor(img / 255, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex, downsample=downsample)
+        img = torch.tensor(img / 255, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex, downsample=downsample).to(DEVICE)
         pyr.forward(img)
         pyr_coeffs = pyr.pyr_coeffs.copy()
         pyr.forward(img, scales)
