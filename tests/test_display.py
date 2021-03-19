@@ -466,8 +466,7 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
                                      plot_synthesized_image, plot_loss,
                                      plot_representation_error,
                                      plot_image_hist, plot_rep_comparison,
-                                     plot_signal_comparison, fig_creation,
-                                     width_ratios={}):
+                                     plot_signal_comparison, fig_creation):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
@@ -505,7 +504,8 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
     synthesis_object.plot_synthesis_status(iteration=iteration, **plot_choices,
                                            signal_comp_func=plot_func, fig=fig,
                                            axes_idx=axes_idx,
-                                           plot_representation_error_as_rgb=as_rgb)
+                                           plot_representation_error_as_rgb=as_rgb,
+                                           width_ratios=width_ratios)
     plt.close('all')
 
 
