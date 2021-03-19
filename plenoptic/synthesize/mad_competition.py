@@ -1,6 +1,6 @@
 import torch
 import warnings
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import dill
 import pyrtools as pt
 from .synthesis import Synthesis

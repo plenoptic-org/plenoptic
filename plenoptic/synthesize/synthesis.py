@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
 from ..simulate.models.naive import Identity
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import dill
 from ..tools.metamer_utils import RangeClamper
 
