@@ -143,7 +143,7 @@ class TestEigendistortionSynthesis:
         e_pow = get_synthesis_object(im_dim=SMALL_DIM, color=color)
         e_pow.synthesize(k=k, method=method, max_steps=10)
         e_pow.plot_distorted_image(eigen_index=0)
-        e_pow.plot_distorted_image(eigen_index=-1)
+        e_pow.plot_distorted_image(eigen_index=1)
 
 
 class TestAutodiffFunctions:
