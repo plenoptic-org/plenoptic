@@ -22,7 +22,7 @@ class TestMetamers(object):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
         if model == 'class':
-            model = po.simul.Linear_Nonlinear().to(DEVICE)
+            model = po.simul.LinearNonlinear().to(DEVICE)
         elif model == 'function':
             model = po.metric.nlpd
         loss_kwargs = {}
@@ -77,28 +77,28 @@ class TestMetamers(object):
     def test_metamer_store_rep(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=2)
 
     def test_metamer_store_rep_2(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=True)
 
     def test_metamer_store_rep_3(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=6, store_progress=3)
 
     def test_metamer_store_rep_4(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         with pytest.raises(Exception):
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
@@ -106,7 +106,7 @@ class TestMetamers(object):
     def test_metamer_continue(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True, learning_rate=None,
@@ -114,7 +114,7 @@ class TestMetamers(object):
 
     def test_metamer_save_progress(self, tmp_path):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
         metamer = po.synth.Metamer(im, lnl)
         save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
@@ -155,14 +155,14 @@ class TestMetamers(object):
         clamper = po.RangeClamper((0, 1))
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
     def test_metamer_no_clamper(self):
         im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
         im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.Linear_Nonlinear().to(DEVICE)
+        lnl = po.simul.LinearNonlinear().to(DEVICE)
         metamer = po.synth.Metamer(im, lnl)
         metamer.synthesize(max_iter=3, clamper=None)
 

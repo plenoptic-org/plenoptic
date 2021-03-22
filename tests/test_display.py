@@ -441,7 +441,7 @@ class TestDisplay(object):
         # 2d data and raise the proper exception
         im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
 
-        class TestModel(po.simul.Linear_Nonlinear):
+        class TestModel(po.simul.LinearNonlinear):
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)
                 return output.reshape(output.numel())
