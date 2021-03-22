@@ -98,8 +98,8 @@ class TestSteerablePyramid(object):
         im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
 
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = True)
-        pyr.forward(im)
-        check_parseval(im, pyr.pyr_coeffs)
+        pyr_coeffs = pyr.forward(im)
+        check_parseval(im, pyr_coeffs)
 
     @pytest.mark.parametrize("im", ['einstein', 'curie'])
     @pytest.mark.parametrize("height", [3,4,5])
@@ -120,10 +120,10 @@ class TestSteerablePyramid(object):
         sp_notdownsample.to(DEVICE)
 
         im_t = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
-        sp_downsample.forward(im_t)
-        sp_notdownsample.forward(im_t)
+        pyr_coeffs_downsample = sp_downsample.forward(im_t)
+        pyr_coeffs_notdownsample = sp_notdownsample.forward(im_t)
 
-        check_band_energies(sp_notdownsample.pyr_coeffs, sp_downsample.pyr_coeffs)
+        check_band_energies(pyr_coeffs_notdownsample, pyr_coeffs_downsample)
 
     @pytest.mark.parametrize("im", ['einstein', 'curie'])
     @pytest.mark.parametrize("height", [3,4,5])
@@ -143,12 +143,12 @@ class TestSteerablePyramid(object):
         sp_notdownsample.to(DEVICE)
         im_t = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0).to(DEVICE)
 
-        pyr_tensor = sp_notdownsample.forward(im_t, scales = scales)
-        pyr_coeff_dict = sp_notdownsample.convert_tensor_to_pyr(pyr_tensor)
+        pyr_coeff_dict = sp_notdownsample.forward(im_t, scales = scales)
+        pyr_coeff_tensor = sp_notdownsample.convert_pyr_to_tensor(pyr_coeff_dict)
+        pyr_coeff_dict2 = sp_notdownsample.convert_tensor_to_pyr(pyr_coeff_tensor)
         for i in range(len(pyr_coeff_dict.keys())):
-            k1 = list(pyr_coeff_dict.keys())[i]
-            k2 = list(sp_notdownsample.pyr_coeffs.keys())[i]
-            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k1]), to_numpy(sp_notdownsample.pyr_coeffs[k2]), rtol=rtol, atol=atol)
+            k = list(pyr_coeff_dict.keys())[i]
+            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k]), to_numpy(pyr_coeff_dict2[k]), rtol=rtol, atol=atol)
 
     @pytest.mark.parametrize("height", [3,4,5])
     @pytest.mark.parametrize("order", [1,2,3])
@@ -203,8 +203,8 @@ class TestSteerablePyramid(object):
         im = im / 255
         im = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], height, order, is_complex=is_complex, downsample=downsample, tight_frame = tight_frame)
-        pyr.forward(im)
-        recon = to_numpy(pyr.recon_pyr())
+        po_pyr_coeffs = pyr.forward(im)
+        recon = to_numpy(pyr.recon_pyr(po_pyr_coeffs))
         np.testing.assert_allclose(recon, im.data.cpu().numpy(), rtol=1e-4, atol=1e-4)
 
 
@@ -222,7 +222,7 @@ class TestSteerablePyramid(object):
         im = im / 255
         im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, downsample=downsample, tight_frame=tight_frame)
-        po_pyr.forward(im_tensor)
+        po_pyr_coeffs = po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
 
         recon_levels = [[0], [1,3], [1,3,4]]
@@ -232,7 +232,7 @@ class TestSteerablePyramid(object):
         #for i in range(po_pyr.num_orientations):
         #    recon_bands.extend(list(itertools.combinations(range(po_pyr.num_orientations), i)))
         for levels, bands in itertools.product(['all'] + recon_levels, ['all'] + recon_bands):
-            po_recon = po.to_numpy(po_pyr.recon_pyr(levels, bands).squeeze())
+            po_recon = po.to_numpy(po_pyr.recon_pyr(po_pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_pyr.recon_pyr(levels, bands)
             np.testing.assert_allclose(po_recon, pt_recon,rtol=1e-4, atol=1e-4)
 
@@ -250,9 +250,9 @@ class TestSteerablePyramid(object):
         im = im / 255
         im_tensor = torch.tensor(im, dtype=DTYPE).unsqueeze(0).unsqueeze(0)
         po_pyr = po.simul.Steerable_Pyramid_Freq(im.shape, height, order, is_complex=is_complex, tight_frame=False)
-        po_pyr.forward(im_tensor)
+        po_pyr_coeffs = po_pyr.forward(im_tensor)
         pt_pyr = pt.pyramids.SteerablePyramidFreq(im, height, order, is_complex=is_complex)
-        po_recon = po.to_numpy(po_pyr.recon_pyr().squeeze())
+        po_recon = po.to_numpy(po_pyr.recon_pyr(po_pyr_coeffs).squeeze())
         pt_recon = pt_pyr.recon_pyr()
         np.testing.assert_allclose(po_recon, pt_recon, rtol=rtol, atol=atol)
 
@@ -265,10 +265,8 @@ class TestSteerablePyramid(object):
         img = imageio.imread(op.join(DATA_DIR, 'einstein.pgm'))
         img = torch.tensor(img / 255, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], is_complex=is_complex, downsample=downsample)
-        pyr.forward(img)
-        pyr_coeffs = pyr.pyr_coeffs.copy()
-        pyr.forward(img, scales)
-        reduced_pyr_coeffs = pyr.pyr_coeffs.copy()
+        pyr_coeffs = pyr.forward(img)
+        reduced_pyr_coeffs = pyr.forward(img, scales)
         for k, v in reduced_pyr_coeffs.items():
             if (v != pyr_coeffs[k]).any():
                 raise Exception("Reduced pyr_coeffs should be same as original, but at least key "
