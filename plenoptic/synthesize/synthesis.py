@@ -4,17 +4,15 @@ import abc
 import re
 import torch
 from torch import optim
-import torchcontrib
 import numpy as np
 import warnings
 from ..tools.data import to_numpy, _find_min_int
 from ..tools.optim import l2_norm
 import matplotlib.pyplot as plt
-import pyrtools as pt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
 from ..simulate.models.naive import Identity
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import dill
 from ..tools.metamer_utils import RangeClamper
 
@@ -53,7 +51,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         # this initializes all the attributes that are shared, though
         # they can be overwritten in the individual __init__() if
         # necessary
-        self._use_subset_for_gradient = False
 
         if not isinstance(base_signal, torch.Tensor):
             base_signal = torch.tensor(base_signal, dtype=torch.float32)
@@ -157,9 +154,8 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.synthesized_representation = self.analyze(self.synthesized_signal)
         self.clamp_each_iter = clamp_each_iter
 
-    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, fraction_removed=0, coarse_to_fine=False,
-                                 loss_change_fraction=1, loss_change_thresh=1e-2,
-                                 loss_change_iter=50):
+    def _init_ctf_and_randomizer(self, loss_thresh=1e-4, coarse_to_fine=False,
+                                 loss_change_thresh=1e-2, loss_change_iter=50):
         """initialize stuff related to randomization and coarse-to-fine
 
         Parameters
@@ -167,12 +163,6 @@ class Synthesis(metaclass=abc.ABCMeta):
         loss_thresh : float, optional
             If the loss over the past ``loss_change_iter`` is less than
             ``loss_thresh``, we stop.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
-            A new sample is drawn a every step. This gives a stochastic
-            estimate of the gradient and might help optimization.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -185,36 +175,18 @@ class Synthesis(metaclass=abc.ABCMeta):
               to all of them at the end.
             (see above for more details on what's required of the model
             for this to work).
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         loss_change_iter : int, optional
             How many iterations back to check in order to see if the
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
+            loss has stopped decreasing (for loss_change_thresh).
 
         """
-        if fraction_removed > 0 or loss_change_fraction < 1:
-            self._use_subset_for_gradient = True
-            if isinstance(self.model, Identity):
-                raise Exception("Can't use fraction_removed or loss_change_fraction with metrics!"
-                                " Since most of the metrics rely on the image being correctly "
-                                "structured (and thus not randomized) when passed to them")
-        self.fraction_removed = fraction_removed
         self.loss_thresh = loss_thresh
         self.loss_change_thresh = loss_change_thresh
         self.loss_change_iter = int(loss_change_iter)
-        self.loss_change_fraction = loss_change_fraction
         self.coarse_to_fine = coarse_to_fine
         if coarse_to_fine not in [False, 'separate', 'together']:
             raise Exception(f"Don't know how to handle value {coarse_to_fine}! Must be one of: "
@@ -394,10 +366,10 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.saved_signal_gradient.append(self.synthesized_signal.grad.clone().to('cpu'))
                 self.saved_representation_gradient.append(self.synthesized_representation.grad.clone().to('cpu'))
                 if self.save_progress is True:
-                    self.save(self.save_path, True)
+                    self.save(self.save_path)
                 stored = True
             if type(self.save_progress) == int and ((i+1) % self.save_progress == 0):
-                self.save(self.save_path, True)
+                self.save(self.save_path)
         return stored
 
     def _check_for_stabilization(self, i):
@@ -492,11 +464,11 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def synthesize(self, seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='Adam',
-                   optimizer_kwargs={}, swa=False, swa_kwargs={}, clamper=RangeClamper((0, 1)),
+                   optimizer_kwargs={}, clamper=RangeClamper((0, 1)),
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='synthesis.pt', loss_thresh=1e-4,
-                   loss_change_iter=50, fraction_removed=0., loss_change_thresh=1e-2,
-                   loss_change_fraction=1., coarse_to_fine=False, clip_grad_norm=False):
+                   loss_change_iter=50, loss_change_thresh=1e-2,
+                   coarse_to_fine=False, clip_grad_norm=False):
         r"""synthesize an image
 
         this is a skeleton of how synthesize() works, just to serve as a
@@ -531,11 +503,6 @@ class Synthesis(metaclass=abc.ABCMeta):
             Dictionary of keyword arguments to pass to the optimizer (in
             addition to learning_rate). What these should be depend on
             the specific optimizer you're using
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object. See
-            torchcontrib.optim.SWA docs for more info.
         clamper : plenoptic.Clamper or None, optional
             Clamper makes a change to the image in order to ensure that
             it stays reasonable. The classic example (and default
@@ -564,25 +531,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             If the loss over the past ``loss_change_iter`` has changed
             less than ``loss_thresh``, we stop.
         loss_change_iter : int, optional
-            loss has stopped decreasing in order to determine whether we
-            should only calculate the gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        fraction_removed: float, optional
-            The fraction of the representation that will be ignored
-            when computing the loss. At every step the loss is computed
-            using the remaining fraction of the representation only.
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for loss_change_thresh).
         loss_change_thresh : float, optional
-            The threshold below which we consider the loss as unchanging
-            in order to determine whether we should only calculate the
-            gradient with respect to the
-            ``loss_change_fraction`` fraction of statistics with
-            the highest error.
-        loss_change_fraction : float, optional
-            If we think the loss has stopped decreasing (based on
-            ``loss_change_iter`` and ``loss_change_thresh``), the
-            fraction of the representation with the highest loss that we
-            use to calculate the gradients
+            The threshold below which we consider the loss as unchanging and so
+            should switch scales if `coarse_to_fine is not False`. Ignored
+            otherwise.
         coarse_to_fine : { 'together', 'separate', False}, optional
             If False, don't do coarse-to-fine optimization. Else, there
             are two options for how to do it:
@@ -612,11 +566,11 @@ class Synthesis(metaclass=abc.ABCMeta):
         # depend on the synthesis method
         self._init_synthesized_signal(synthesized_signal_data, clamper, clamp_each_iter)
         # initialize stuff related to coarse-to-fine and randomization
-        self._init_ctf_and_randomizer(loss_thresh, fraction_removed, coarse_to_fine,
-                                      loss_change_fraction, loss_change_thresh, loss_change_iter)
+        self._init_ctf_and_randomizer(loss_thresh, coarse_to_fine,
+                                      loss_change_thresh, loss_change_iter)
         # initialize the optimizer
         self._init_optimizer(optimizer, learning_rate, scheduler, clip_grad_norm,
-                             optimizer_kwargs, swa, swa_kwargs)
+                             optimizer_kwargs)
         # get ready to store progress
         self._init_store_progress(store_progress, save_progress)
 
@@ -750,7 +704,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return rep_error
 
     def _init_optimizer(self, optimizer, lr, scheduler=True, clip_grad_norm=False,
-                        optimizer_kwargs={}, swa=False, swa_kwargs={}):
+                        optimizer_kwargs={}):
         """Initialize the optimzer and learning rate scheduler
 
         This gets called at the beginning of synthesize() and can also
@@ -802,17 +756,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             here.
         optimizer_kwargs :
             passed to the optimizer's initializer
-        swa : bool, optional
-            whether to use stochastic weight averaging or not
-        swa_kwargs : dict, optional
-            Dictionary of keyword arguments to pass to the SWA object.
 
         """
         # there's a weird scoping issue that happens if we don't copy the
         # dictionary, where it can accidentally persist across instances of the
         # object, which messes all sorts of things up
         optimizer_kwargs = optimizer_kwargs.copy()
-        swa_kwargs = swa_kwargs.copy()
         # if lr is None, we're resuming synthesis from earlier, and we
         # want to start with the last learning rate. however, we also
         # want to keep track of the initial learning rate, since we use
@@ -838,9 +787,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                     optimizer_kwargs[k] = v
             self._optimizer = optim.LBFGS([self.synthesized_signal], lr=lr, **optimizer_kwargs)
             warnings.warn('This second order optimization method is more intensive')
-            if hasattr(self, 'fraction_removed') and self.fraction_removed > 0:
-                warnings.warn('For now the code is not designed to handle LBFGS and random'
-                              ' subsampling of coeffs')
         elif optimizer == 'Adam':
             if 'amsgrad' not in optimizer_kwargs:
                 optimizer_kwargs['amsgrad'] = True
@@ -851,15 +797,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             self._optimizer = optim.AdamW([self.synthesized_signal], lr=lr, **optimizer_kwargs)
         else:
             raise Exception("Don't know how to handle optimizer %s!" % optimizer)
-        self._swa = swa
-        if swa:
-            self._optimizer = torchcontrib.optim.SWA(self._optimizer, **swa_kwargs)
-            warnings.warn("When using SWA, can't also use LR scheduler")
+        if scheduler:
+            self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
         else:
-            if scheduler:
-                self._scheduler = optim.lr_scheduler.ReduceLROnPlateau(self._optimizer, 'min', factor=.5)
-            else:
-                self._scheduler = None
+            self._scheduler = None
         if not hasattr(self, '_init_optimizer_kwargs'):
             # this will only happen the first time _init_optimizer gets
             # called, and ensures that we can always re-initilize the
@@ -868,8 +809,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             # coarse-to-fine optimization). note that we use the
             # initial_lr here
             init_optimizer_kwargs = {'optimizer': optimizer, 'lr': initial_lr,
-                                     'scheduler': scheduler, 'swa': swa,
-                                     'swa_kwargs': swa_kwargs,
+                                     'scheduler': scheduler,
                                      'optimizer_kwargs': optimizer_kwargs}
             self._init_optimizer_kwargs = init_optimizer_kwargs
         if clip_grad_norm is True:
@@ -884,15 +824,12 @@ class Synthesis(metaclass=abc.ABCMeta):
         evaluations of the gradient before taking a step (ie. second
         order methods like LBFGS).
 
-        Note that the fraction removed also happens here, and for now a
-        fresh sample of noise is drawn at each iteration.
-            1) that means for now we do not support LBFGS with a random
-               fraction removed.
-            2) beyond removing random fraction of the coefficients, one
-               could schedule the optimization (eg. coarse to fine)
-
         Additionally, this is where:
-        - ``synthesized_representation`` is updated
+
+        - ``synthesized_representation`` is updated, and thus any modifications
+          to the analyze call (e.g., specifying `scale` kwarg for
+          coarse-to-fine) should happen
+
         - ``loss.backward()`` is called
 
         """
@@ -912,27 +849,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         if self.store_progress:
             self.synthesized_representation.retain_grad()
 
-        if self._use_subset_for_gradient:
-            # here we get a boolean mask (bunch of ones and zeroes) for all
-            # the statistics we want to include. We only do this if the loss
-            # appears to be roughly unchanging for some number of iterations
-            if (len(self.loss) > self.loss_change_iter and
-                self.loss[-self.loss_change_iter] - self.loss[-1] < self.loss_change_thresh):
-                error_idx = self.representation_error(**analyze_kwargs).flatten().abs().argsort(descending=True)
-                error_idx = error_idx[:int(self.loss_change_fraction * error_idx.numel())]
-            # else, we use all of the statistics
-            else:
-                error_idx = torch.nonzero(torch.ones_like(self.synthesized_representation.flatten()))
-            # for some reason, pytorch doesn't have the equivalent of
-            # np.random.permutation, something that returns a shuffled copy
-            # of a tensor, so we use numpy's version
-            idx_shuffled = torch.LongTensor(np.random.permutation(to_numpy(error_idx)))
-            # then we optionally randomly select some subset of those.
-            idx_sub = idx_shuffled[:int((1 - self.fraction_removed) * idx_shuffled.numel())]
-            synthesized_rep = self.synthesized_representation.flatten()[idx_sub]
-            base_rep = base_rep.flatten()[idx_sub]
-        else:
-            synthesized_rep = self.synthesized_representation
+        synthesized_rep = self.synthesized_representation
 
         loss = self.objective_function(synthesized_rep, base_rep, self.synthesized_signal,
                                        self.base_signal)
@@ -1022,50 +939,30 @@ class Synthesis(metaclass=abc.ABCMeta):
         return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
-    def save(self, file_path, save_model_reduced=False, attrs=['model'],
-             model_attr_names=['model']):
-        r"""save all relevant variables in .pt file
+    def save(self, file_path,
+             attrs=['base_signal', 'base_representation',
+                    'synthesized_signal', 'synthesized_representation']):
+        r"""Save all relevant (non-model) variables in .pt file.
 
         This is an abstractmethod only because you need to specify which
         attributes to save. See ``metamer.save`` as an example, but the
         save method in your synthesis object should probably should have
         a line defining the attributes to save and then a call to
-        ``super().save(file_path, save_model_reduced, attrs)``
+        ``super().save(file_path, attrs)``
 
         Note that if store_progress is True, this will probably be very
-        large
+        large.
 
         Parameters
         ----------
         file_path : str
             The path to save the synthesis object to
-        save_model_reduced : bool
-            Whether we save the full model or just its attribute
-            ``state_dict_reduced`` (this is a custom attribute of ours,
-            the basic idea being that it only contains the attributes
-            necessary to initialize the model, none of the (probably
-            much larger) ones it gets during run-time).
         attrs : list
             List of strs containing the names of the attributes of this
             object to save.
-        model_attr_names : list, optional
-            The attribute that gives the model(s) names. Must be a list
-            of strs. These are the attributes we try to save in reduced
-            form if ``save_model_reduced`` is True.
 
         """
         save_dict = {}
-        for name in model_attr_names:
-            if name in attrs:
-                model = getattr(self, name)
-                try:
-                    if save_model_reduced:
-                        model = model.state_dict_reduced
-                except AttributeError:
-                    warnings.warn("self.model doesn't have a state_dict_reduced attribute, will pickle "
-                                  "the whole model object")
-                save_dict[name] = model
-                attrs.remove(name)
         for k in attrs:
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
@@ -1075,117 +972,99 @@ class Synthesis(metaclass=abc.ABCMeta):
             save_dict[k] = attr
         torch.save(save_dict, file_path, pickle_module=dill)
 
-    @classmethod
     @abc.abstractmethod
-    def load(cls, file_path, model_attr_name='model', model_constructor=None, map_location='cpu',
-             **state_dict_kwargs):
-        r"""load all relevant stuff from a .pt file
+    def load(self, file_path, map_location='cpu',
+             check_attributes=['base_signal', 'base_representation',
+                               'loss_function'],
+             **pickle_load_args):
+        r"""Load all relevant attributes from a .pt file.
 
-        We will iterate through any additional key word arguments
-        provided and, if the model in the saved representation is a
-        dictionary, add them to the state_dict of the model. In this
-        way, you can replace, e.g., paths that have changed between
-        where you ran the model and where you are now.
+        This should be called by an initialized ``Synthesis`` object -- we will
+        ensure that the attributes in the ``check_attributes`` arg all match in
+        the current and loaded object.
+
+        Note that we check a ``loss_function`` in a special way (because
+        comparing two python callables if very difficult): we compare the
+        outputs on some random images.
+
+        Note this operates in place and so doesn't return anything.
 
         Parameters
         ----------
         file_path : str
             The path to load the synthesis object from
-        model_attr_name : str or list, optional
-            The attribute that gives the model(s) names. Can be a str or
-            a list of strs. If a list and the reduced version of the
-            model was saved, ``model_constructor`` should be a list of
-            the same length.
-        model_constructor : callable, list, or None, optional
-            When saving the synthesis object, we have the option to only
-            save the ``state_dict_reduced`` (in order to save space). If
-            we do that, then we need some way to construct that model
-            again and, not knowing its class or anything, this object
-            doesn't know how. Therefore, a user must pass a constructor
-            for the model that takes in the ``state_dict_reduced``
-            dictionary and returns the initialized model. See the
-            VentralModel class for an example of this. If a list, should
-            be a list of the above and the same length as
-            ``model_attr_name``
         map_location : str, optional
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        state_dict_kwargs :
-            any additional kwargs will be added to the model's
-            state_dict before construction (this only applies if the
-            model is a dict, see above for more description of that)
-
-        Returns
-        -------
-        synthesis : plenoptic.synth.Synthesis
-            The loaded synthesis object
-
+        check_attributes : list, optional
+            List of strings we ensure are identical in the current
+            ``Synthesis`` object and the loaded one. Checking the model is
+            generally not recommended, since it can be hard to do (checking
+            callable objects is hard in Python) -- instead, checking the
+            ``base_representation`` should ensure the model hasn't functinoally
+            changed.
+        pickle_load_args :
+            any additional kwargs will be added to ``pickle_module.load`` via
+            ``torch.load``, see that function's docstring for details.
 
         Examples
         --------
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=10, store_progress=True)
         >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer(img, model)
+        >>> metamer_copy.load('metamers.pt')
 
-        Things are slightly more complicated if you saved a reduced
-        representation of the model by setting the
-        ``save_model_reduced`` flag to ``True``. In that case, you also
-        need to pass a model constructor argument, like so:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced)
-
-        You may want to update one or more of the arguments used to
-        initialize the model. The example I have in mind is where you
-        run the metamer synthesis on a cluster but then load it on your
-        local machine. The VentralModel classes have a ``cache_dir``
-        attribute which you will want to change so it finds the
-        appropriate location:
-
-        >>> model = po.simul.PooledRGC(1)
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt', save_model_reduced=True)
-        >>> metamer_copy = po.synth.Metamer.load('metamers.pt',
-                                                 model_constructor=po.simul.PooledRGC.from_state_dict_reduced,
-                                                 cache_dir="/home/user/Desktop/metamers/windows_cache")
+        Note that you must create a new instance of the Synthesis object and
+        *then* load.
 
         """
-        tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
-        device = torch.device(map_location)
-        if not isinstance(model_attr_name, list):
-            model_attr_name = [model_attr_name]
-        if not isinstance(model_constructor, list):
-            model_constructor = [model_constructor]
-        base_signal = tmp_dict.pop('base_signal').to(device)
-        models = {}
-        for attr, constructor in zip(model_attr_name, model_constructor):
-            model = tmp_dict.pop(attr)
-            if isinstance(model, dict):
-                for k, v in state_dict_kwargs.items():
-                    warnings.warn("Replacing state_dict key %s, value %s with kwarg value %s" %
-                                  (k, model.pop(k, None), v))
-                    model[k] = v
-                # then we've got a state_dict_reduced and we need the model_constructor
-                model = constructor(model)
-                # want to make sure the dtypes match up as well
-                model = model.to(device, base_signal.dtype)
-            models[attr] = model
-        loss_function = tmp_dict.pop('loss_function', None)
-        loss_function_kwargs = tmp_dict.pop('loss_function_kwargs', {})
-        synth = cls(base_signal, loss_function=loss_function,
-                    loss_function_kwargs=loss_function_kwargs, **models)
+        tmp_dict = torch.load(file_path, map_location=map_location,
+                              pickle_module=dill, **pickle_load_args)
+        for k in check_attributes:
+            if not hasattr(self, k):
+                raise Exception("All values of `check_attributes` should be attributes set at"
+                                f" initialization, but got attr {k}!")
+            if isinstance(getattr(self, k), torch.Tensor):
+                # there are two ways this can fail -- the first is if they're
+                # the same shape but different values and the second (in the
+                # except block) are if they're different shapes.
+                try:
+                    if not torch.allclose(getattr(self, k), tmp_dict[k]):
+                        raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
+                                        f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
+                except RuntimeError:
+                    raise Exception(f"Attribute {k} is a different shape in saved and initialized versions!"
+                                    f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
+            elif k == 'loss_function':
+                # it is very difficult to check python callables for equality
+                # so, to get around that, we instead call the two loss
+                # functions on the same set of representations and images, and
+                # compare the outputs. loss functions, as we've defined them,
+                # take the base and synthesized representation and image (the
+                # image is present in case you want to e.g., penalize pixel
+                # values outside some range); we have the base signal and
+                # representation and generate random tensors to use as the
+                # "synthesized one"
+                img = torch.rand_like(self.base_signal)
+                rep = torch.rand_like(self.base_representation)
+                saved_loss = tmp_dict[k](rep, self.base_representation, img,
+                                         self.base_signal)
+                init_loss = self.loss_function(rep, self.base_representation,
+                                               img, self.base_signal)
+                if not torch.allclose(saved_loss, init_loss):
+                    raise Exception("Saved and initialized loss_function are different! On base and random "
+                                    f"representation got: Initialized: {init_loss}"
+                                    f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
+            else:
+                if getattr(self, k) != tmp_dict[k]:
+                    raise Exception(f"Saved and initialized {k} are different! Self: {getattr(self, k)}"
+                                    f", Saved: {tmp_dict[k]}")
         for k, v in tmp_dict.items():
-            setattr(synth, k, v)
-        return synth
+            setattr(self, k, v)
 
     @abc.abstractmethod
     def to(self, *args, attrs=[], **kwargs):
@@ -1779,7 +1658,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
                               signal_comp_subsample=.01, axes_idx={},
-                              plot_representation_error_as_rgb=False):
+                              plot_representation_error_as_rgb=False,
+                              width_ratios={}):
         r"""Make a plot showing synthesis status.
 
         We create several subplots to analyze this. By default, we create three
@@ -1890,6 +1770,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             ignored if the representation doesn't look image-like or if the
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -1910,7 +1796,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                                         plot_representation_error,
                                                         plot_image_hist,
                                                         plot_rep_comparison,
-                                                        plot_signal_comparison)
+                                                        plot_signal_comparison,
+                                                        **width_ratios)
 
         def check_iterables(i, vals):
             for j in vals:
@@ -1976,7 +1863,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                 plot_signal_comparison=False, fig=None,
                 signal_comp_func='scatter', signal_comp_subsample=.01,
                 axes_idx={}, init_figure=True,
-                plot_representation_error_as_rgb=False):
+                plot_representation_error_as_rgb=False,
+                width_ratios={}):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -2086,6 +1974,12 @@ class Synthesis(metaclass=abc.ABCMeta):
             model has its own plot_representation_error() method. Else, it will
             be passed to `po.imshow()`, see that methods docstring for details.
             since plot_synthesis_status normally sets it up for us
+        width_ratios : dict, optional
+            By defualt, all plots axes will have the same width. To change
+            that, specify their relative widths using keys of the format
+            "{x}_width", where `x` in ['synthesized_image', 'loss',
+            'representation_error', 'image_hist', 'rep_comparison',
+            'signal_comparison']
 
         Returns
         -------
@@ -2151,7 +2045,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                              signal_comp_func=signal_comp_func,
                                              signal_comp_subsample=signal_comp_subsample,
                                              axes_idx=axes_idx,
-                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb)
+                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb,
+                                             width_ratios=width_ratios)
             # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
             # which tells us which axes contains which plot
             axes_idx = self._axes_idx
