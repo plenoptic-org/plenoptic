@@ -67,8 +67,8 @@ class TestMAD(object):
 
     @pytest.fixture(scope='class', params=['Identity-NLP', 'Identity-nlpd', 'mse-NLP', 'mse-nlpd'])
     def test_all(self, request, curie_img):
-        # can parametrize within a fixture unfortunately, so we'll have to do
-        # some extra instnatiation here
+        # cannot parametrize within a fixture unfortunately, so we'll have to do
+        # some extra instantiation here
         model, model2 = [get_model(m) for m in request.param.split('-')]
         mad = po.synth.MADCompetition(curie_img, model, model2)
         print(model2,  mad.model_1, mad.model_2, mad.loss_function_1, mad.loss_function_2)
@@ -235,7 +235,7 @@ class TestMAD(object):
             learning_rate = None
         if none_arg == 'initial_noise' or none_arg == 'both':
             initial_noise = None
-        mad = po.synth.MADCompetition(img, model, model2)
+        mad = po.synth.MADCompetition(curie_img, model, model2)
         # can't call synthesize() with initial_noise=None or
         # learning_rate=None unless synthesize() has been called before
         # with store_progress!=False
