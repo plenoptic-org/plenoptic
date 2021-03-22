@@ -8,6 +8,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
+[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
@@ -46,37 +47,29 @@ Here's a table summarizing this:
 | synthesize 	| {y, θ} 	|   {x}  	|
 
 `plenoptic` contains the following four synthesis methods (with links
-to the papers describing them):
+to examples that make use of them):
 
-- [metamers](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf):
-  given a model and an image, synthesize a new image which is admits
-  a model representation identical to that of the original image.
+- [Metamers](http://www.cns.nyu.edu/~lcv/texture/):
+  given a model and a reference image, stochastically generate a new image whose
+  model representation is identical to that of the reference image.
+- [Eigendistortions](https://www.cns.nyu.edu/~lcv/eigendistortions/):
+  given a model and a reference image, compute the image perturbation that produces
+  the smallest and largest changes in the model response space.  These correspond to the
+  minimal/maximal eigenvectors of the Fisher Information matrix of the representation (for deterministic models, 
+  the minimal/maximal singular vectors of the Jacobian).
 - [Maximal differentiation (MAD)
-  competition](https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf):
-  given two models and an image, synthesize two pairs of images: two
-  that the first model represents identically, while the second model
-  represents as differently as possible; and two that the first model
-  represents as differently as possible while the second model represents
-  identically.
+  competition](https://ece.uwaterloo.ca/~z70wang/research/mad/):
+  given two models that measure distance between images and a reference image, generate pairs of 
+  images that optimally differentiate the models.  Specifically, synthesize a pair of images 
+  that the first model says are equi-distant from the reference while the second model says they 
+  are maximally/minimally distant from the reference. Synthesize a second pair with the roles of the two models reversed.
 - [Geodesics](https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf):
-  given a model and two images, synthesize a sequence of images that form
-  a short path in the model's representation space. That is, a sequence of 
-  images that are represented to as close as possible to a straight interpolation 
-  line between the two anchor images.
-- [Eigendistortions](https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf):
-  given a model and an image, synthesize the most and least noticeable
-  distortion on the image (with a constant mean-squared error in
-  pixels). That is, if you can change all pixel values by a total of
-  100, how does the model think you should do it to make it as obvious
-  as possible, and how does the model think you should do it to make
-  it unnoticeable.
+  given a model and two images, synthesize a sequence of images that lie on 
+  the shortest ("geodesic") path in the model's representation space. 
   
-(where for all of these, "identical (resp. different) representation",
-stands for small (resp. large) l2-distance in a model's representation space)
-
 # Status
 
-This project is currently in alpha, under heavy development. Not all features
+This project is currently under heavy development. Not all features
 have been implemented, and there will be breaking changes.
 
 # Roadmap
@@ -86,7 +79,7 @@ project](https://github.com/LabForComputationalVision/plenoptic/projects/1)
 for a more detailed roadmap, but at the high level:
 
 - Short term:
-  1. Finalize Portilla-Simoncelli texture statistics
+  1. Finalize Portilla-Simoncelli texture model
   2. Recreate existing `MADCompetition` examples.
 - Medium term:
   1. Finalize geodesics
@@ -95,9 +88,8 @@ for a more detailed roadmap, but at the high level:
   4. Finalize model API, create superclass
   5. Add more models
 - Long term:
-  1. Present poster at conference to advertise to users
-  2. Submit paper to Journal of Open Source Software to get something
-     for people to cite
+  1. Present at conference to advertise to users
+  2. Submit paper to Journal of Open Source Software
 
 # NOTE
 
@@ -190,27 +182,47 @@ will install all the requirements necessary for plenoptic to run.
 
 ## Jupyter
 
-The one additional thing you will want is to install
-[JupyterLab](https://jupyterlab.readthedocs.io/en/stable/),
-which we use for tutorial and example notebooks:
+If you wish to locally run the notebooks, you will need to install `jupyter` and
+`ipywidgets` (you can also run them in the cloud using
+[Binder](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)).
+There are two main ways of getting a local `jupyter` install` working with this
+package:
 
+1. Install jupyter in the same environment as `plenoptic`. If you followed the
+   [instructions above](#plenoptic) to create a `conda` environment named
+   `plenoptic`, do the following:
+
+``` sh
+conda activate plenoptic
+conda install -c conda-forge jupyterlab ipywidgets
 ```
-conda install -c conda-forge jupyterlab
+
+   This is easy but, if you have multiple conda environments and want to use
+   Jupyter notebooks in each of them, it will take up a lot of space.
+   
+2. Use
+   [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels).
+   Again, if you followed the instructions above:
+
+``` sh
+# activate your 'base' environment, the default one created by miniconda
+conda activate 
+# install jupyter lab and nb_conda_kernels in your base environment
+conda install -c conda-forge jupyterlab ipywidgets
+conda install nb_conda_kernels
+# install ipykernel in the calibration environment
+conda install -n plenoptic ipykernel
 ```
 
-Note we want to do this within our `plenoptic` environment. If you're
-running this section straight through, you won't need to do anything
-extra, but if you closed your terminal session after the last section
-(for example), you'll need to make sure to activate the correct
-environment first: `conda activate plenoptic`.
-
-Note that you may also run into an error in the `02_Eigendistortions` notebook
-when creating the `NthLayer` class -- we download the trained VGG model using
-`torchvision`, which requires `ipywidgets`. See [official
-page](https://ipywidgets.readthedocs.io/en/stable/user_install.html) for help;
-in our experience, installing `jupyter` (instead of `jupyterlab`) seems to fix
-the problem, but is probably overkill. Installing `ipywidgets` directly (either
-via `conda` or `pip`) also seems to work.
+   This is a bit more complicated, but means you only have one installation of
+   jupyter lab on your machine.
+   
+In either case, to open the notebooks, navigate to the `examples/` directory
+under this one on your terminal and activate the environment you install jupyter
+into (`plenoptic` for 1, `base` for 2), then run `jupyter` and open up the
+notebooks. If you followed the second method, you should be prompted to select
+your kernel the first time you open a notebook: select the one named
+"plenoptic".
 
 ## Keeping up-to-date
 

@@ -11,7 +11,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     r"""Steerable frequency pyramid in Torch
 
     Construct a steerable pyramid on matrix IM, in the Fourier domain.
-    Reconstruction is exact (within floating point errors). However, if the image ahs odd-shape, the reconstruction
+    Reconstruction is exact (within floating point errors). However, if the image has odd-shape, the reconstruction
     will not be exact due to boundary-handling issues that have not been resolved.
     Boundary-handling is circular.
 

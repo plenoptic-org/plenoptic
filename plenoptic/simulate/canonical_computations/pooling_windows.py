@@ -15,6 +15,7 @@ import pyrtools as pt
 import matplotlib.pyplot as plt
 import os.path as op
 from ...tools.data import to_numpy
+from ...tools.display import imshow
 from . import pooling
 
 
@@ -789,8 +790,8 @@ class PoolingWindows(nn.Module):
 
         """
         if ax is None:
-            dummy_data = np.ones(self.img_res)
-            fig = pt.imshow(dummy_data, cmap='gray_r', title=None)
+            dummy_data = torch.ones(1, 1, *self.img_res)
+            fig = imshow(dummy_data, cmap='gray_r', title=None)
             ax = fig.axes[0]
         if contour_levels is None:
             contour_levels = [self.window_intersecting_amplitude]
