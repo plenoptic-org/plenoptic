@@ -235,6 +235,7 @@ class TestMAD(object):
             learning_rate = None
         if none_arg == 'initial_noise' or none_arg == 'both':
             initial_noise = None
+        mad = po.synth.MADCompetition(img, model, model2)
         # can't call synthesize() with initial_noise=None or
         # learning_rate=None unless synthesize() has been called before
         # with store_progress!=False
