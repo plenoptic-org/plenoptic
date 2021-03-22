@@ -10,14 +10,30 @@ DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 
+class ColorModel(torch.nn.Module):
+    """Simple model that takes color image as input and outputs 2d conv."""
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Conv2d(3, 4, 3, 1)
+
+    def forward(self, x):
+        return self.conv(x)
+
+
 @pytest.fixture(scope='package')
 def curie_img():
-    return po.load_images(op.join(DATA_DIR, 'curie.pgm'))
+    return po.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+
+
+@pytest.fixture(scope='package')
+def einstein_img():
+    return po.load_images(op.join(DATA_DIR, 'einstein.pgm')).to(DEVICE)
 
 
 @pytest.fixture(scope='package')
 def color_img():
-    img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'))
+    img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'),
+                         as_gray=False).to(DEVICE)
     return img[..., :256, :256]
 
 
@@ -37,6 +53,10 @@ def get_model(name):
         return po.metric.nlpd
     elif name == 'mse':
         return po.metric.naive.mse
+    elif name == 'ColorModel':
+        return ColorModel().to(DEVICE)
+    elif name == 'FrontEnd':
+        return po.simul.FrontEnd(pretrained=True, requires_grad=False).to(DEVICE)
 
 
 @pytest.fixture(scope='package')
