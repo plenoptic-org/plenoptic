@@ -133,6 +133,7 @@ class TestAutodiffFunctions:
         torch.manual_seed(0)
 
         k = 2  # num vectors with which to compute vjp, jvp, Fv
+        einstein_img = einstein_img[..., :16, :16]  # reduce image size
 
         # eigendistortion object
         ed = Eigendistortion(einstein_img, get_model('FrontEnd'))
