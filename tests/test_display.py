@@ -425,30 +425,27 @@ class TestDisplay(object):
                 po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
                             batch_idx=batch_idx, plot_complex=is_complex)
 
-    def test_update_plot_shape_fail(self):
+    def test_update_plot_shape_fail(self, einstein_img):
         # update_plot expects 3 or 4d data -- this checks that update_plot
         # fails with 2d data and raises the proper exception
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-        fig = po.imshow(im)
+        fig = po.imshow(einstein_img)
         with pytest.raises(Exception):
             try:
-                po.update_plot(fig.axes[0], im.squeeze())
+                po.update_plot(fig.axes[0], einstein_img.squeeze())
             except Exception as e:
                 assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
                 raise e
 
-    def test_synthesis_plot_shape_fail(self):
+    def test_synthesis_plot_shape_fail(self, einstein_img):
         # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
         # this checks that plot_synthesis_status() and animate() both fail with
         # 2d data and raise the proper exception
-        im = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
-
         class TestModel(po.simul.Linear_Nonlinear):
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)
                 return output.reshape(output.numel())
         model = TestModel().to(DEVICE)
-        met = po.synth.Metamer(im, model)
+        met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
         with pytest.raises(Exception):
             try:
