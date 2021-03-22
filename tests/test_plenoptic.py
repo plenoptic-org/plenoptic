@@ -185,14 +185,14 @@ class TestSignalTools(object):
                                     op.join(DATA_DIR, '256/curie.pgm')]])
 @pytest.mark.parametrize('as_gray', [True, False])
 def test_load_images(paths, as_gray):
-    # if paths == DATA_DIR:
-    #     # there's a 512 by 512 image here, which means we should raise
-    #     # an Exception
-    #     with pytest.raises(Exception):
-    #         images = po.tools.data.load_images(paths, as_gray)
-    # else:
-    images = po.tools.data.load_images(paths, as_gray)
-    assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
+    if paths == DATA_DIR:
+        # there are images of different sizes in here, which means we should raise
+        # an Exception
+        with pytest.raises(Exception):
+            images = po.tools.data.load_images(paths, as_gray)
+    else:
+        images = po.tools.data.load_images(paths, as_gray)
+        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
 class TestPerceptualMetrics(object):
 
@@ -301,5 +301,5 @@ class TestPerceptualMetrics(object):
     def test_model_metric(self):
         im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         im2 = torch.randn_like(im1, requires_grad=True)
-        model = po.simul.Front_End(disk_mask=True)
+        model = po.simul.FrontEnd(disk_mask=True)
         assert po.metric.model_metric(im1, im2, model).requires_grad

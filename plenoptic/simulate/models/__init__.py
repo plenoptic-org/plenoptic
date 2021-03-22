@@ -1,4 +1,4 @@
-from .frontend import Front_End
+from .frontend import FrontEnd
 from .texture_statistics import Texture_Statistics
 from .spectral import Spectral
 from .cross_spectral import CrossSpectral

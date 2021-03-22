@@ -283,11 +283,11 @@ class TestPooledVentralStream(object):
         rgc = po.simul.PooledRGC(.5, im0.shape[2:], cache_dir=tmp_path)
 
     def test_frontend(self):
-        frontend = po.simul.Front_End()
+        frontend = po.simul.FrontEnd()
         frontend(x)
 
     def test_frontend_plot(self):
-        frontend = po.simul.Front_End()
+        frontend = po.simul.FrontEnd(pretrained=True)
         po.tools.display.plot_representation(data=frontend(im0), figsize=(11, 5))
         metamer = po.synth.Metamer(im0, frontend)
         metamer.synthesize(max_iter=3, store_progress=1)
@@ -295,8 +295,11 @@ class TestPooledVentralStream(object):
         metamer.animate(figsize=(35, 5))
         plt.close('all')
 
-    def test_frontend_PoolingWindows(self):
-        frontend = po.simul.Front_End()
+    @pytest.mark.parametrize('requires_grad', [True, False])
+    def test_frontend_PoolingWindows(self, requires_grad):
+        im = plt.imread(op.join(DATA_DIR, '256/nuts.pgm'))
+        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
+        frontend = po.simul.FrontEnd(pretrained=True, requires_grad=requires_grad)
         pw = po.simul.PoolingWindows(.5, (256, 256))
         pw(frontend(im0))
         po.tools.display.plot_representation(data=pw(frontend(im0)))

@@ -88,6 +88,9 @@ def load_images(paths, as_gray=True):
         im = im / np.iinfo(im.dtype).max
         if as_gray:
             im = color.rgb2gray(im)
+        else:
+            # RGB dimension ends up on the last one, so we rearrange
+            im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)
@@ -184,7 +187,6 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
                 zone_plate, fractal]
     """
 
-    assert size in [8, 16, 32, 64, 128, 256]
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 

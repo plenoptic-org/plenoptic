@@ -1,7 +1,6 @@
 """abstract synthesis super-class
 """
 import abc
-import seaborn as sns
 import re
 import torch
 from torch import optim
@@ -12,7 +11,7 @@ from ..tools.data import to_numpy, _find_min_int
 from ..tools.optim import l2_norm, relative_MSE
 import matplotlib.pyplot as plt
 import pyrtools as pt
-from ..tools.display import rescale_ylim, plot_representation, update_plot
+from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
 from ..simulate.models.naive import Identity
 from tqdm import tqdm
@@ -58,6 +57,9 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         if not isinstance(base_signal, torch.Tensor):
             base_signal = torch.tensor(base_signal, dtype=torch.float32)
+        if base_signal.ndim != 4:
+            raise ValueError("Synthesis expect base_signal to be 4d, but it is of shape"
+                             f" {base_signal.shape} instead!")
         self.base_signal = base_signal
         self.seed = None
         self._rep_warning = False
@@ -1255,7 +1257,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         return self
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
-                                  ax=None, title=None):
+                                  ax=None, title=None, as_rgb=False):
         r"""Plot distance ratio showing how close we are to convergence.
 
         We plot ``self.representation_error(iteration)``
@@ -1275,7 +1277,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
+            Which index to take from the batch dimension
         iteration: int or None, optional
             Which iteration to create the representation ratio for. If
             None, we use the current ``synthesized_representation``
@@ -1291,6 +1293,13 @@ class Synthesis(metaclass=abc.ABCMeta):
         title : str, optional
             The title to put above this axis. If you want no title, pass
             the empty string (``''``)
+        as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1300,7 +1309,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         """
         representation_error = self.representation_error(iteration=iteration)
         return plot_representation(self.model, representation_error, ax, figsize, ylim,
-                                   batch_idx, title)
+                                   batch_idx, title, as_rgb)
 
     def plot_loss(self, iteration=None, figsize=(5, 5), ax=None, title='Loss', **kwargs):
         """Plot the synthesis loss.
@@ -1350,28 +1359,27 @@ class Synthesis(metaclass=abc.ABCMeta):
         ax.set_title(title)
         return fig
 
-    def plot_synthesized_image(self, batch_idx=0, channel_idx=0, iteration=None, title=None,
+    def plot_synthesized_image(self, batch_idx=0, channel_idx=None, iteration=None, title=None,
                                figsize=(5, 5), ax=None, imshow_zoom=None, vrange=(0, 1)):
         """Show the synthesized image.
 
-        You can specify what iteration to view by using the
-        ``iteration`` arg. The default, ``None``, shows the final one.
+        You can specify what iteration to view by using the ``iteration`` arg.
+        The default, ``None``, shows the final one.
 
-        We use ``pyrtools.imshow`` to display the synthesized image and
-        attempt to automatically find the most reasonable zoom
-        value. You can override this value using the imshow_zoom arg,
-        but remember that ``pyrtools.imshow`` is opinionated about the
-        size of the resulting image and will throw an Exception if the
-        axis created is not big enough for the selected zoom. We
-        currently cannot shrink the image, so figsize must be big enough
-        to display the image
+        We use ``plenoptic.imshow`` to display the synthesized image and
+        attempt to automatically find the most reasonable zoom value. You can
+        override this value using the imshow_zoom arg, but remember that
+        ``plenoptic.imshow`` is opinionated about the size of the resulting
+        image and will throw an Exception if the axis created is not big enough
+        for the selected zoom.
 
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we assume
+            image is RGB(A) and show all channels.
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1387,9 +1395,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         imshow_zoom : None or float, optional
             How much to zoom in / enlarge the synthesized image, the ratio
             of display pixels to image pixels. If None (the default), we
-            attempt to find the best value ourselves. Else, if >1, must
-            be an integer.  If <1, must be 1/d where d is a a divisor of
-            the size of the largest image.
+            attempt to find the best value ourselves, but we cannot find a
+            value <1. Else, if >1, must be an integer. If <1, must be 1/d where
+            d is a a divisor of the size of the largest image.
         vrange : tuple or str, optional
             The vrange option to pass to ``pyrtools.imshow``. See that
             function for details
@@ -1401,27 +1409,37 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         """
         if iteration is None:
-            image = self.synthesized_signal[batch_idx, channel_idx]
+            image = self.synthesized_signal
         else:
-            image = self.saved_signal[iteration, batch_idx, channel_idx]
+            image = self.saved_signal[iteration]
+        if batch_idx is None:
+            raise Exception("batch_idx must be an integer!")
+        # we're only plotting one image here, so if the user wants multiple
+        # channels, they must be RGB
+        if channel_idx is None and image.shape[1] > 1:
+            as_rgb = True
+        else:
+            as_rgb = False
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             fig = ax.figure
         if imshow_zoom is None:
-            # image.shape[0] is the height of the image
-            imshow_zoom = ax.bbox.height // image.shape[0]
+            # image.shape[-2] is the height of the image
+            imshow_zoom = ax.bbox.height // image.shape[-2]
             if imshow_zoom == 0:
                 raise Exception("imshow_zoom would be 0, cannot display synthesized image! Enlarge"
                                 " your figure")
         if title is None:
             title = self.__class__.__name__
-        fig = pt.imshow(to_numpy(image), ax=ax, title=title, zoom=imshow_zoom, vrange=vrange)
+        fig = imshow(image, ax=ax, title=title, zoom=imshow_zoom,
+                     batch_idx=batch_idx, channel_idx=channel_idx,
+                     vrange=vrange, as_rgb=as_rgb)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
         return fig
 
-    def plot_image_hist(self, batch_idx=0, channel_idx=0, iteration=None, figsize=(5, 5),
+    def plot_image_hist(self, batch_idx=0, channel_idx=None, iteration=None, figsize=(5, 5),
                         ylim=None, ax=None, **kwargs):
         r"""Plot histogram of target and matched image.
 
@@ -1431,9 +1449,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) images).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1446,7 +1465,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             If not None, the axis to plot this representation on. If
             None, we create our own 1 subplot figure to hold it
         kwargs :
-            passed to sns.distplot
+            passed to plt.hist
 
         Returns
         -------
@@ -1454,25 +1473,48 @@ class Synthesis(metaclass=abc.ABCMeta):
             The figure containing this plot
 
         """
+        def _freedman_diaconis_bins(a):
+            """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn"""
+            # From https://stats.stackexchange.com/questions/798/
+            a = np.asarray(a)
+            iqr = np.diff(np.percentile(a, [.25, .75]))[0]
+            if len(a) < 2:
+                return 1
+            h = 2 * iqr / (len(a) ** (1 / 3))
+            # fall back to sqrt(a) bins if iqr is 0
+            if h == 0:
+                return int(np.sqrt(a.size))
+            else:
+                return int(np.ceil((a.max() - a.min()) / h))
+
+        kwargs.setdefault('alpha', .4)
         if iteration is None:
-            image = self.synthesized_signal[batch_idx, channel_idx]
+            image = self.synthesized_signal[batch_idx]
         else:
-            image = self.saved_signal[iteration, batch_idx, channel_idx]
+            image = self.saved_signal[iteration, batch_idx]
+        base_signal = self.base_signal[batch_idx]
+        if channel_idx is not None:
+            image = image[channel_idx]
+            base_signal = base_signal[channel_idx]
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
         else:
             fig = ax.figure
-        base_signal = self.base_signal[batch_idx, channel_idx]
-        sns.distplot(to_numpy(image).flatten(), label='synthesized image', ax=ax, **kwargs)
-        sns.distplot(to_numpy(base_signal).flatten(), label='base image', ax=ax, **kwargs)
+        image = to_numpy(image).flatten()
+        base_signal = to_numpy(base_signal).flatten()
+        ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
+                label='synthesized image', **kwargs)
+        ax.hist(base_signal, bins=min(_freedman_diaconis_bins(image), 50),
+                label='base image', **kwargs)
         ax.legend()
         if ylim is not None:
             ax.set_ylim(ylim)
         ax.set_title("Histogram of pixel values")
         return fig
 
-    def _grab_value_for_comparison(self, value, iteration=None,
-                                   scatter_subsample=1, **kwargs):
+    def _grab_value_for_comparison(self, value, batch_idx=0, channel_idx=None,
+                                   iteration=None, scatter_subsample=1,
+                                   **kwargs):
         """Grab and shape values for comparison plot.
 
         This grabs the appropriate batch_idx, channel_idx, and iteration from
@@ -1485,6 +1527,11 @@ class Synthesis(metaclass=abc.ABCMeta):
         ----------
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
+        batch_idx : int, optional
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1499,8 +1546,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         Returns
         -------
         plot_vals : torch.Tensor
-            2d tensor containing the base and synthesized value (indexed along
-            last dimension)
+            4d tensor containing the base and synthesized value (indexed along
+            last dimension). First two dims are dummy dimensions and will
+            always have value 1 (update_plot needs them)
 
         """
         if value == 'representation':
@@ -1524,11 +1572,16 @@ class Synthesis(metaclass=abc.ABCMeta):
         plot_vals = torch.stack((base_val, synthesized_val), -1)
         if scatter_subsample < 1:
             plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]
-        return plot_vals
+        plot_vals = plot_vals[batch_idx]
+        if channel_idx is not None:
+            plot_vals = plot_vals[channel_idx]
+        else:
+            plot_vals = plot_vals.flatten(0, 1)
+        return plot_vals.unsqueeze(0).unsqueeze(0)
 
 
     def plot_value_comparison(self, value='representation', batch_idx=0,
-                              channel_idx=0, iteration=None, figsize=(5, 5),
+                              channel_idx=None, iteration=None, figsize=(5, 5),
                               ax=None, func='scatter', hist2d_nbins=21,
                               hist2d_cmap='Blues', scatter_subsample=1,
                               **kwargs):
@@ -1544,9 +1597,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         value : {'representation', 'signal'}
             Whether to compare the representations or signals
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1586,16 +1640,15 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig, ax = plt.subplots(1, 1, figsize=figsize, subplot_kw={'aspect': 1})
         else:
             fig = ax.figure
-        plot_vals = self._grab_value_for_comparison(value,
-                                                    iteration,
-                                                    scatter_subsample,
-                                                    **kwargs)
-        plot_vals = to_numpy(plot_vals[batch_idx, channel_idx])
+        plot_vals = to_numpy(self._grab_value_for_comparison(value, batch_idx,
+                                                             channel_idx, iteration,
+                                                             scatter_subsample,
+                                                             **kwargs)).squeeze()
         if func == 'scatter':
-            ax.scatter(plot_vals[:, 0], plot_vals[:, 1])
+            ax.scatter(plot_vals[..., 0], plot_vals[..., 1])
             ax.set(xlim=ax.get_ylim())
         elif func == 'hist2d':
-            ax.hist2d(plot_vals[:, 0], plot_vals[:, 1],
+            ax.hist2d(plot_vals[..., 0].flatten(), plot_vals[..., 1].flatten(),
                       bins=np.linspace(0, 1, hist2d_nbins),
                       cmap=hist2d_cmap, cmin=0)
         ax.set(ylabel=f'Synthesized {value}', xlabel=f'Base {value}')
@@ -1724,7 +1777,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             axes = fig.axes
         return fig, axes, axes_idx
 
-    def plot_synthesis_status(self, batch_idx=0, channel_idx=0, iteration=None,
+    def plot_synthesis_status(self, batch_idx=0, channel_idx=None, iteration=None,
                               figsize=None, ylim=None,
                               plot_synthesized_image=True, plot_loss=True,
                               plot_representation_error=True, imshow_zoom=None,
@@ -1732,7 +1785,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                               plot_rep_comparison=False,
                               plot_signal_comparison=False,
                               signal_comp_func='scatter',
-                              signal_comp_subsample=.01, axes_idx={}):
+                              signal_comp_subsample=.01, axes_idx={},
+                              plot_representation_error_as_rgb=False):
         r"""Make a plot showing synthesis status.
 
         We create several subplots to analyze this. By default, we create three
@@ -1777,9 +1831,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         iteration : int or None, optional
             Which iteration to display. If None, the default, we show
             the most recent one. Negative values are also allowed.
@@ -1835,6 +1890,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             have a corresponding key, we find the lowest int that is not
             already in the dict, so if you have axes that you want unchanged,
             place their idx in misc.
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
 
         Returns
         -------
@@ -1846,6 +1908,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             raise Exception("synthesis() was run with store_progress=False, "
                             "cannot specify which iteration to plot (only"
                             " last one, with iteration=None)")
+        if self.synthesized_signal.ndim not in [3, 4]:
+            raise Exception("plot_synthesis_status() expects 3 or 4d data;"
+                            "unexpected behavior will result otherwise!")
         fig, axes, axes_idx = self._setup_synthesis_fig(fig, axes_idx, figsize,
                                                         plot_synthesized_image,
                                                         plot_loss,
@@ -1877,7 +1942,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             fig = self.plot_representation_error(batch_idx=batch_idx,
                                                  iteration=iteration,
                                                  ax=axes[axes_idx['rep_error']],
-                                                 ylim=ylim)
+                                                 ylim=ylim,
+                                                 as_rgb=plot_representation_error_as_rgb)
             # this can add a bunch of axes, so this will try and figure
             # them out
             new_axes = [i for i, _ in enumerate(fig.axes) if not
@@ -1909,14 +1975,15 @@ class Synthesis(metaclass=abc.ABCMeta):
         self._axes_idx = axes_idx
         return fig
 
-    def animate(self, batch_idx=0, channel_idx=0, figsize=None,
+    def animate(self, batch_idx=0, channel_idx=None, figsize=None,
                 framerate=10, ylim='rescale', plot_synthesized_image=True,
                 plot_loss=True, plot_representation_error=True,
                 imshow_zoom=None, plot_data_attr=['loss'], rep_func_kwargs={},
                 plot_image_hist=False, plot_rep_comparison=False,
                 plot_signal_comparison=False, fig=None,
                 signal_comp_func='scatter', signal_comp_subsample=.01,
-                axes_idx={}, init_figure=True):
+                axes_idx={}, init_figure=True,
+                plot_representation_error_as_rgb=False):
         r"""Animate synthesis progress.
 
         This is essentially the figure produced by
@@ -1934,9 +2001,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         Parameters
         ----------
         batch_idx : int, optional
-            Which index to take from the batch dimension (the first one)
-        channel_idx : int, optional
-            Which index to take from the channel dimension (the second one)
+            Which index to take from the batch dimension
+        channel_idx : int or None, optional
+            Which index to take from the channel dimension. If None, we use all
+            channels (assumed use-case is RGB(A) image).
         figsize : tuple or None, optional
             The size of the figure to create. It may take a little bit of
             playing around to find a reasonable value. If None, we attempt to
@@ -2017,6 +2085,13 @@ class Synthesis(metaclass=abc.ABCMeta):
             plots (e.g., you already called plot_synthesis_status and are
             passing that figure as the fig argument). In this case, axes_idx
             must also be set and include keys for each of the included plots,
+        plot_representation_error_as_rgb : bool, optional
+            The representation can be image-like with multiple channels, and we
+            have no way to determine whether it should be represented as an RGB
+            image or not, so the user must set this flag to tell us. It will be
+            ignored if the representation doesn't look image-like or if the
+            model has its own plot_representation_error() method. Else, it will
+            be passed to `po.imshow()`, see that methods docstring for details.
             since plot_synthesis_status normally sets it up for us
 
         Returns
@@ -2032,6 +2107,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         if self.saved_representation is not None and len(self.saved_signal) != len(self.saved_representation):
             raise Exception("saved_signal and saved_representation need to be the same length in "
                             "order for this to work!")
+        if self.synthesized_signal.ndim not in [3, 4]:
+            raise Exception("animate() expects 3 or 4d data; unexpected"
+                            " behavior will result otherwise!")
         # every time we call synthesize(), store_progress gets one extra
         # element compared to loss. this uses that fact to figure out
         # how many times we've called sythesize())
@@ -2079,7 +2157,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                              plot_rep_comparison=plot_rep_comparison,
                                              signal_comp_func=signal_comp_func,
                                              signal_comp_subsample=signal_comp_subsample,
-                                             axes_idx=axes_idx)
+                                             axes_idx=axes_idx,
+                                             plot_representation_error_as_rgb=plot_representation_error_as_rgb)
             # plot_synthesis_status creates a hidden attribute, _axes_idx, a dict
             # which tells us which axes contains which plot
             axes_idx = self._axes_idx
@@ -2155,12 +2234,14 @@ class Synthesis(metaclass=abc.ABCMeta):
                     # example, changed the tick locator or formatter. not sure how
                     # to handle this best right now
                     fig.axes[axes_idx['signal_comp']].clear()
-                    self.plot_value_comparison('signal', batch_idx,
-                                               channel_idx, i,
+                    self.plot_value_comparison(value='signal', batch_idx=batch_idx,
+                                               channel_idx=channel_idx, iteration=i,
                                                ax=fig.axes[axes_idx['signal_comp']],
                                                func=signal_comp_func)
                 else:
-                    plot_vals = self._grab_value_for_comparison('signal', i,
+                    plot_vals = self._grab_value_for_comparison('signal',
+                                                                batch_idx,
+                                                                channel_idx, i,
                                                                 signal_comp_subsample)
                     artists.extend(update_plot(fig.axes[axes_idx['signal_comp']],
                                                plot_vals))
@@ -2171,8 +2252,9 @@ class Synthesis(metaclass=abc.ABCMeta):
                     s.set_offsets((i*self.store_progress, d[i*self.store_progress]))
                 artists.extend(scat)
             if plot_rep_comparison:
-                plot_vals = self._grab_value_for_comparison('representation', i,
-                                                            **rep_func_kwargs)
+                plot_vals = self._grab_value_for_comparison('representation',
+                                                            batch_idx, channel_idx,
+                                                            i, **rep_func_kwargs)
                 artists.extend(update_plot(rep_comp_axes, plot_vals))
             # as long as blitting is True, need to return a sequence of artists
             return artists

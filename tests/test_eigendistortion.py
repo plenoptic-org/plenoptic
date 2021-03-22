@@ -5,8 +5,7 @@ import plenoptic.synthesize.autodiff as autodiff
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate.models.frontend import Front_End
-import plenoptic as po
+from plenoptic.simulate.models.frontend import FrontEnd
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
@@ -42,7 +41,7 @@ def get_synthesis_object(im_dim=20, color=False):
     torch.manual_seed(0)
 
     if not color:
-        mdl = Front_End().to(DEVICE)  # initialize simple model with which to compute eigendistortions
+        mdl = FrontEnd(pretrained=True, requires_grad=False).to(DEVICE)
         img = plt.imread(op.join(DATA_DIR, '256/einstein.pgm'))
         img_np = img[:im_dim, :im_dim] / np.max(img)
         img = torch.Tensor(img_np).view([1, 1, im_dim, im_dim]).to(DEVICE)
@@ -60,11 +59,10 @@ def get_synthesis_object(im_dim=20, color=False):
     return ed
 
 
-
 class TestEigendistortionSynthesis:
 
     def test_input_dimensionality(self):
-        mdl = Front_End().to(DEVICE)
+        mdl = FrontEnd().to(DEVICE)
         with pytest.raises(AssertionError) as e_info:
             e = Eigendistortion(torch.zeros(1, 1, 1), mdl)  # should be 4D
 
@@ -95,7 +93,7 @@ class TestEigendistortionSynthesis:
         n_chans = 3 if color else 1
         n_steps = 3
         ed = get_synthesis_object(im_dim=LARGE_DIM, color=color)
-        ed.synthesize(method='power', n_steps=n_steps)
+        ed.synthesize(method='power', max_steps=n_steps)
 
         # test it should only return two eigenvectors and values
         assert len(ed.synthesized_eigenvalues) == 2
@@ -104,72 +102,48 @@ class TestEigendistortionSynthesis:
 
         assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
-    @pytest.mark.parametrize("e_vecs", [[0, 1, -2, -1], []])
-    @pytest.mark.parametrize("color", [False, True])
-    def test_method_lanczos(self, e_vecs, color):
-        # return first and last two eigenvectors
-        n_steps = 5
-        n_chans = 3 if color else 1
-
-        # run once with e_vecs specified
-        ed = get_synthesis_object(im_dim=LARGE_DIM, color=color)
-
-        if n_steps < len(e_vecs) * 2:
-            with pytest.warns(RuntimeWarning) as not_enough_iter_warning:
-                ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
-        else:
-            with pytest.warns(UserWarning) as lanczos_experimental_warning:
-                ed.synthesize(method='lanczos', n_steps=n_steps, e_vecs=e_vecs)
-
-        if len(e_vecs) > 0:
-            assert len(ed.synthesized_eigenvalues) == len(e_vecs)
-        else:
-            assert len(ed.synthesized_eigenvalues) == n_steps
-
-        assert len(ed.synthesized_signal) == len(e_vecs)
-        assert len(ed.synthesized_eigenindex) == len(e_vecs)
-
-        if len(e_vecs) > 0:
-            assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
-
-    def test_lanczos_accuracy(self):
-        n = 30
-        e_vals = (torch.randn(n**2)**2).sort(descending=True)[0]
-        eigen_test_matrix = torch.diag(e_vals)
+    def test_orthog_iter(self):
+        n, k = 30, 10
+        n_chans = 1  # TODO color
         ed = get_synthesis_object(im_dim=n)
-        with pytest.warns(UserWarning) as lanczos_experimental_warning:
-            ed.synthesize(method='lanczos', n_steps=eigen_test_matrix.shape[-1], debug_A=eigen_test_matrix)
+        ed.synthesize(k=k, method='power', max_steps=10)
 
-        assert (e_vals[0]-ed.synthesized_eigenvalues[0]) < 1e-2
+        assert ed.synthesized_signal.shape == (k*2, n_chans, n, n)
+        assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
+        assert len(ed.synthesized_eigenvalues) == 2*k
 
-    def test_method_equivalence(self):
+    def test_method_randomized_svd(self):
+        n, k = 30, 10
+        n_chans = 1  # TODO color
+        ed = get_synthesis_object(im_dim=n)
+        ed.synthesize(k=k, method='randomized_svd')
+        assert ed.synthesized_signal.shape == (k, n_chans, n, n)
+        assert ed.synthesized_eigenindex.allclose(torch.arange(k))
+        assert len(ed.synthesized_eigenvalues) == k
 
+    def test_method_accuracy(self):
+        # test pow and svd against ground-truth jacobian (exact) method
         e_jac = get_synthesis_object(im_dim=SMALL_DIM)
         e_pow = get_synthesis_object(im_dim=SMALL_DIM)
+        e_svd = get_synthesis_object(im_dim=SMALL_DIM)
 
-        e_jac.synthesize(method='exact', store_progress=True)
-        e_pow.synthesize(method='power', n_steps=500, store_progress=True)
+        k_pow, k_svd = 10, 75
+        e_jac.synthesize(method='exact')
+        e_pow.synthesize(k=k_pow, method='power', max_steps=300)
+        e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        print(e_pow.synthesized_eigenvalues.shape)
-        print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[1])
-        print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
-
-        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-3)
-        assert e_pow.synthesized_eigenvalues[1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
-
-        fig_max = e_pow.plot_loss(0)
-        # fig_max.show()
-
-        fig_min = e_pow.plot_loss(-1)
-        # fig_min.show()
+        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
+        assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
+        assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
 
     @pytest.mark.parametrize("color", [False, True])
-    def test_display(self, color):
+    @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
+    @pytest.mark.parametrize("k", [2, 3])
+    def test_display(self, color, method, k):
         e_pow = get_synthesis_object(im_dim=SMALL_DIM, color=color)
-        e_pow.synthesize(method='power', n_steps=50, store_progress=True)
-
-        e_pow.display_first_and_last()
-        e_pow.plot_synthesized_image(0)
+        e_pow.synthesize(k=k, method=method, max_steps=10)
+        e_pow.plot_distorted_image(eigen_index=0)
+        e_pow.plot_distorted_image(eigen_index=-1)
 
 
 class TestAutodiffFunctions:
@@ -195,7 +169,7 @@ class TestAutodiffFunctions:
 
         jac = autodiff.jacobian(y, x)
         assert jac.shape == (y_dim, x_dim)
-        assert jac.requires_grad == False
+        assert jac.requires_grad is False
 
     @pytest.mark.parametrize('detach', [False, True])
     def test_vec_jac_prod(self, detach):
@@ -216,7 +190,7 @@ class TestAutodiffFunctions:
         jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
         assert x.requires_grad and y.requires_grad
-        assert jvp.requires_grad == False
+        assert jvp.requires_grad is False
 
     def test_fisher_vec_prod(self):
         x, y, x_dim, y_dim, k = self._state()
@@ -263,10 +237,3 @@ class TestAutodiffFunctions:
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
 
-
-if __name__ == '__main__':
-    tmp = TestEigendistortionSynthesis()
-    tmp.test_method_equivalence()
-    ed = get_synthesis_object(20, True)
-    ed.synthesize('power', n_steps=3)
-    print(ed.synthesized_signal.shape)
