@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-import os.path as op
-import torch
 import plenoptic as po
-import matplotlib.pyplot as plt
-import pytest
-from conftest import DATA_DIR, DTYPE
 
 
 class TestLinear(object):
@@ -14,12 +9,10 @@ class TestLinear(object):
         x = po.make_basic_stimuli()
         assert model(x).requires_grad
 
-    def test_linear_metamer(self):
+    def test_linear_metamer(self, einstein_img):
         model = po.simul.Linear()
-        image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE).squeeze().unsqueeze(0).unsqueeze(0)
-        M = po.synth.Metamer(im0, model)
-        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
+        M = po.synth.Metamer(einstein_img, model)
+        M.synthesize(max_iter=3, learning_rate=1, seed=1)
 
 
 class TestLinearNonlinear(object):
@@ -29,16 +22,10 @@ class TestLinearNonlinear(object):
         x = po.make_basic_stimuli()
         assert model(x).requires_grad
 
-    def test_linear_nonlinear_metamer(self):
+    def test_linear_nonlinear_metamer(self, einstein_img):
         model = po.simul.Linear_Nonlinear()
-        image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
-        M = po.synth.Metamer(im0, model)
-        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
-
-
-# class TestConv(object):
-# TODO expand, arbitrary shapes, dim
+        M = po.synth.Metamer(einstein_img, model)
+        M.synthesize(max_iter=3, learning_rate=1, seed=0)
 
 
 class TestLaplacianPyramid(object):
