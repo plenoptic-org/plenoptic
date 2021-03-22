@@ -7,16 +7,14 @@ import tarfile
 import os
 import numpy as np
 import plenoptic as po
-import pyrtools as pt
 import os.path as op
 import scipy.io as sio
-import matplotlib.pyplot as plt
+from conftest import DATA_DIR
 
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
            'ssim_analysis.mat': 'ndtc7', 'MAD_results.tar.gz': 'jwcsr'}
-print("On device %s" % DEVICE)
 
 
 def osf_download(filename):
