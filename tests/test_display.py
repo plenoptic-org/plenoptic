@@ -557,11 +557,13 @@ class TestMADDisplay(object):
 
     @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
     def synthesized_mad(self, request):
+        # make the images really small so nothing takes as long
         if request.param == 'rgb':
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
-            img = img[..., :256, :256]
+            img = img[..., :16, :16]
         else:
             img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = img[..., :16, :16]
         model1 = po.simul.models.naive.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
         # will return a separate value for each RGB channel
@@ -609,11 +611,13 @@ class TestMetamerDisplay(object):
                                            'rgb-func', 'grayscale-func'])
     def synthesized_met(self, request):
         img, model = request.param.split('-')
+        # make the images really small so nothing takes as long
         if img == 'rgb':
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
-            img = img[..., :256, :256]
+            img = img[..., :16, :16]
         else:
             img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = img[..., :16, :16]
         if model == 'class':
             #  height=1 and order=0 to limit the time this takes, and then we
             #  only return one of the tensors so that everything is easy for
