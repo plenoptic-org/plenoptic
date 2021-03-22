@@ -112,36 +112,33 @@ class TestNonLinearities(object):
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
-    def test_rectangular_to_polar_dict(self):
-        x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1, is_complex=True)
-        y = spc(x)
+    def test_rectangular_to_polar_dict(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True)
+        y = spc(basic_stim)
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y)
 
     def test_rectangular_to_polar_real(self):
         x = torch.randn(10, 1, 256, 256)
         po.simul.non_linearities.rectangular_to_polar_real(x)
 
-    def test_local_gain_control(self):
-        x = po.make_basic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1, is_complex=False)
-        y = spc(x)
+    def test_local_gain_control(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5, order=1, is_complex=False)
+        y = spc(basic_stim)
         energy, state = po.simul.non_linearities.local_gain_control(y)
 
-    def test_normalize(self):
-        x = po.make_basic_stimuli()
+    def test_normalize(self, basic_stim):
         # should operate on both of these, though it will do different
         # things
-        po.simul.non_linearities.normalize(x[0].flatten())
-        po.simul.non_linearities.normalize(x[0].flatten(), 1)
-        po.simul.non_linearities.normalize(x[0])
-        po.simul.non_linearities.normalize(x[0], 1)
-        po.simul.non_linearities.normalize(x[0], sum_dim=1)
+        po.simul.non_linearities.normalize(basic_stim[0].flatten())
+        po.simul.non_linearities.normalize(basic_stim[0].flatten(), 1)
+        po.simul.non_linearities.normalize(basic_stim[0])
+        po.simul.non_linearities.normalize(basic_stim[0], 1)
+        po.simul.non_linearities.normalize(basic_stim[0], sum_dim=1)
 
-    def test_normalize_dict(self):
-        x = po.make_basic_stimuli()
-        spyr = po.simul.Steerable_Pyramid_Freq(x.shape[-2:])
-        po.simul.non_linearities.normalize_dict(spyr(x))
+    def test_normalize_dict(self, basic_stim):
+        spyr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:])
+        po.simul.non_linearities.normalize_dict(spyr(basic_stim))
 
 
 def test_find_files(test_files_dir):

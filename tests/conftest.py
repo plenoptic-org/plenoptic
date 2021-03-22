@@ -37,6 +37,11 @@ def color_img():
     return img[..., :256, :256]
 
 
+@pytest.fixture(scope='package')
+def basic_stim():
+    return po.make_basic_stimuli().to(DEVICE)
+
+
 def get_model(name):
     if name == 'LNL':
         return po.simul.Linear_Nonlinear().to(DEVICE)

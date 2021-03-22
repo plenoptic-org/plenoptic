@@ -4,10 +4,9 @@ import plenoptic as po
 
 class TestLinear(object):
 
-    def test_linear(self):
+    def test_linear(self, basic_stim):
         model = po.simul.Linear()
-        x = po.make_basic_stimuli()
-        assert model(x).requires_grad
+        assert model(basic_stim).requires_grad
 
     def test_linear_metamer(self, einstein_img):
         model = po.simul.Linear()
@@ -17,10 +16,9 @@ class TestLinear(object):
 
 class TestLinearNonlinear(object):
 
-    def test_linear_nonlinear(self):
+    def test_linear_nonlinear(self, basic_stim):
         model = po.simul.Linear_Nonlinear()
-        x = po.make_basic_stimuli()
-        assert model(x).requires_grad
+        assert model(basic_stim).requires_grad
 
     def test_linear_nonlinear_metamer(self, einstein_img):
         model = po.simul.Linear_Nonlinear()
@@ -30,7 +28,7 @@ class TestLinearNonlinear(object):
 
 class TestLaplacianPyramid(object):
 
-    def test_grad(self):
+    def test_grad(self, basic_stim):
         L = po.simul.Laplacian_Pyramid()
-        y = L.analysis(po.make_basic_stimuli())
+        y = L.analysis(basic_stim)
         assert y[0].requires_grad
