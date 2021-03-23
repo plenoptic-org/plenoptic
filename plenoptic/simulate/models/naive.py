@@ -1,5 +1,6 @@
 import torch
 
+__all__ = ["Identity"]
 
 class Identity(torch.nn.Module):
     r"""simple class that just returns a copy of the image

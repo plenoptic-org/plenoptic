@@ -2,7 +2,7 @@ import plenoptic.synthesize.autodiff as autodiff
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate.models.frontend import OnOff
+from plenoptic.simulate import OnOff
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from conftest import get_model
 
@@ -13,7 +13,7 @@ LARGE_DIM = 100
 
 class TestEigendistortionSynthesis:
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_input_dimensionality(self, model):
         with pytest.raises(AssertionError) as e_info:
             e = Eigendistortion(torch.zeros(1, 1, 1), model)  # should be 4D
@@ -21,17 +21,17 @@ class TestEigendistortionSynthesis:
         with pytest.raises(AssertionError) as e_info:
             e = Eigendistortion(torch.zeros(2, 1, 1, 1), model)  # batch dim must be 1
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
         with pytest.raises(AssertionError) as e_info:
             ed.synthesize(method='asdfsdfasf')
 
-    @pytest.mark.parametrize('model', ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff', 'ColorModel'], indirect=True)
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             n_chans = 1
             img = einstein_img
         else:
@@ -50,9 +50,9 @@ class TestEigendistortionSynthesis:
         # test that each eigenvector returned is original img shape
         assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
-    @pytest.mark.parametrize('model', ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff', 'ColorModel'], indirect=True)
     def test_method_power(self, model, einstein_img, color_img):
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             n_chans = 1
             img = einstein_img
         else:
@@ -69,7 +69,7 @@ class TestEigendistortionSynthesis:
 
         assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_orthog_iter(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -81,7 +81,7 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
         assert len(ed.synthesized_eigenvalues) == 2*k
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_randomized_svd(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -92,7 +92,7 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_eigenindex.allclose(torch.arange(k))
         assert len(ed.synthesized_eigenvalues) == k
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
@@ -109,12 +109,12 @@ class TestEigendistortionSynthesis:
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
         assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
 
-    @pytest.mark.parametrize("model", ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize("model", ['frontend.OnOff', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
     @pytest.mark.parametrize("k", [2, 3])
     def test_display(self, model, einstein_img, color_img, method, k):
         # in this case, we're working with grayscale images
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             img = einstein_img
         else:
             img = color_img
@@ -136,7 +136,7 @@ class TestAutodiffFunctions:
         einstein_img = einstein_img[..., :16, :16]  # reduce image size
 
         # eigendistortion object
-        ed = Eigendistortion(einstein_img, get_model('FrontEnd'))
+        ed = Eigendistortion(einstein_img, get_model('frontend.OnOff'))
 
         x, y = ed._input_flat, ed._representation_flat
 

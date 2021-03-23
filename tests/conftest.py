@@ -44,14 +44,14 @@ def basic_stim():
 
 def get_model(name):
     if name == 'LNL':
-        return po.simul.Linear_Nonlinear().to(DEVICE)
+        return po.simul.LinearNonlinear().to(DEVICE)
     elif name == 'SPyr':
         # with downsample=False, we get a tensor back. setting height=1 and
         # order=1 limits the size
         return po.simul.Steerable_Pyramid_Freq((256, 256), downsample=False,
                                                height=1, order=1).to(DEVICE)
     elif name == 'Identity':
-        return po.simul.models.naive.Identity().to(DEVICE)
+        return po.simul.models.Identity().to(DEVICE)
     elif name == 'NLP':
         return po.metric.NLP().to(DEVICE)
     elif name == 'nlpd':
@@ -60,8 +60,20 @@ def get_model(name):
         return po.metric.naive.mse
     elif name == 'ColorModel':
         return ColorModel().to(DEVICE)
-    elif name == 'FrontEnd':
-        return po.simul.FrontEnd(pretrained=True, requires_grad=False).to(DEVICE)
+
+    # FrontEnd models:
+    elif name == 'frontend.CenterSurround':
+        return po.simul.CenterSurround((31, 31)).to(DEVICE)
+    elif name == 'frontend.Gaussian':
+        return po.simul.Gaussian((31, 31)).to(DEVICE)
+    elif name == 'frontend.LN':
+        return po.simul.LN((31, 31)).to(DEVICE)
+    elif name == 'frontend.LG':
+        return po.simul.LG((31, 31)).to(DEVICE)
+    elif name == 'frontend.LGG':
+        return po.simul.LGG((31, 31)).to(DEVICE)
+    elif name == 'frontend.OnOff':
+        return po.simul.OnOff((31, 31), pretrained=True).to(DEVICE)
 
 
 @pytest.fixture(scope='package')

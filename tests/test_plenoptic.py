@@ -254,7 +254,7 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_metric(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad

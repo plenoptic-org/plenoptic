@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import plenoptic as po
+import pytest
+import matplotlib.pyplot as plt
+import torch
 
 
 @pytest.fixture()
@@ -9,22 +12,21 @@ def image_input():
 
 class TestFrontEnd:
 
-    kernel_size = (7, 7)
     all_models = [
-        po.simul.CenterSurround(kernel_size),
-        po.simul.Gaussian(kernel_size),
-        po.simul.LN(kernel_size),
-        po.simul.LG(kernel_size),
-        po.simul.LGG(kernel_size),
-        po.simul.OnOff(kernel_size)
+        "frontend.CenterSurround",
+        "frontend.Gaussian",
+        "frontend.LN",
+        "frontend.LG",
+        "frontend.LGG",
+        "frontend.OnOff",
     ]
 
-    @pytest.mark.parametrize("model", all_models[:-1])  # shape of onoff is different
+    @pytest.mark.parametrize("model", all_models[:-1], indirect=True)
     def test_output_shape(self, model):
         img = torch.ones(1, 1, 100, 100)
         assert model(img).shape == img.shape
 
-    @pytest.mark.parametrize("model", all_models)
+    @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_gradient_flow(self, model):
         img = torch.ones(1, 1, 100, 100)
         y = model(img)
@@ -56,13 +58,12 @@ class TestLinear(object):
 
 class TestLinearNonlinear(object):
 
-
     def test_linear_nonlinear(self, basic_stim):
-        model = po.simul.Linear_Nonlinear()
+        model = po.simul.LinearNonlinear()
         assert model(basic_stim).requires_grad
 
     def test_linear_nonlinear_metamer(self, einstein_img):
-        model = po.simul.Linear_Nonlinear()
+        model = po.simul.LinearNonlinear()
         M = po.synth.Metamer(einstein_img, model)
         M.synthesize(max_iter=3, learning_rate=1, seed=0)
 
