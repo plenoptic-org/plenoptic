@@ -306,23 +306,25 @@ class TestDisplay(object):
         else:
             im_shape = [2, 4, 5, 5]
         if is_complex:
-            im = torch.rand((*im_shape, 2))
-            # this is 2 (the two complex components) * 4 (the four channels) *
-            # 2 (the two batches)
+            dtype = torch.complex64
+            # this is 4 (the four channels) * 2 (the two batches) * 2 (the two
+            # complex components)
             n_axes = 16
         else:
-            im = torch.rand(im_shape)
+            dtype = torch.float32
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+        im = torch.rand(im_shape, dtype=dtype)
         if mini_im:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]] + [2]
                 n_axes += 16
             else:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
                 n_axes += 8
-            im = [im, torch.rand(shape)]
+            # same number of batches and channels, then double the height and
+            # width
+            shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
+            im = [im, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'
@@ -368,23 +370,25 @@ class TestDisplay(object):
     def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
         fails = False
         if is_complex:
-            vid = torch.rand((2, 4, 10, 10, 10, 2))
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
             n_axes = 16
+            dtype = torch.complex64
         else:
-            vid = torch.rand((2, 4, 10, 10, 10))
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+            dtype = torch.float32
+        vid = torch.rand((2, 4, 10, 10, 10), dtype=dtype)
         if mini_vid:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = [2, 4, 10, 5, 5, 2]
                 n_axes += 16
             else:
-                shape = [2, 4, 10, 5, 5]
                 n_axes += 8
-            vid = [vid, torch.rand(shape)]
+            # same number of batches, channels, and frames, then half the
+            # height and width
+            shape = [2, 4, 10, 5, 5]
+            vid = [vid, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'

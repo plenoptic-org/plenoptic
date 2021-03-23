@@ -28,10 +28,10 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
     ---------
     image : torch.Tensor or list
         The images to display. Tensors should be 4d (batch, channel, height,
-        width) or 5d (if complex). List of tensors should be used for tensors
-        of different height and width: all images will automatically be
-        rescaled so they're displayed at the same height and width, thus, their
-        heights and widths must be scalar multiples of each other.
+        width). List of tensors should be used for tensors of different height
+        and width: all images will automatically be rescaled so they're
+        displayed at the same height and width, thus, their heights and widths
+        must be scalar multiples of each other.
     vrange : `tuple` or `str`
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
@@ -70,8 +70,7 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         * if `str`, will put the same title on every plot.
         * if `list`, all values must be `str`, must be the same length as img,
           assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed;
-          unsupported for complex tensors).
+        * if None, no title will be printed (and subtitle will be removed).
     col_wrap : `int` or None, optional
         number of axes to have in each row. If None, will fit all axes in a
         single row.
@@ -115,11 +114,7 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         image = [image]
     images_to_plot = []
     for im in image:
-        if im.ndimension() == 5:
-            # this will also call to_numpy on it
-            im = torch_complex_to_numpy(im)
-        else:
-            im = to_numpy(im)
+        im = to_numpy(im)
         if im.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
             im = im[batch_idx:batch_idx+1]
@@ -176,11 +171,11 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
     ---------
     video : torch.Tensor or list
         The videos to display. Tensors should be 5d (batch, channel, time,
-        height, width) or 6d (if complex). List of tensors should be used for
-        tensors of different height and width: all videos will automatically be
-        rescaled so they're displayed at the same height and width, thus, their
-        heights and widths must be scalar multiples of each other. Videos must
-        all have the same number of frames as well.
+        height, width). List of tensors should be used for tensors of different
+        height and width: all videos will automatically be rescaled so they're
+        displayed at the same height and width, thus, their heights and widths
+        must be scalar multiples of each other. Videos must all have the same
+        number of frames as well.
     framerate : `float`
         Temporal resolution of the video, in Hz (frames per second).
     repeat : `bool`
@@ -223,8 +218,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         * if `str`, will put the same title on every plot.
         * if `list`, all values must be `str`, must be the same length as img,
           assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed;
-          unsupported for complex tensors).
+        * if None, no title will be printed (and subtitle will be removed).
     col_wrap : `int` or None, optional
         number of axes to have in each row. If None, will fit all axes in a
         single row.
@@ -269,10 +263,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         video = [video]
     videos_to_show = []
     for vid in video:
-        if vid.ndimension() == 6:
-            vid = torch_complex_to_numpy(vid)
-        else:
-            vid = to_numpy(vid)
+        vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
             vid = vid[batch_idx:batch_idx+1]
