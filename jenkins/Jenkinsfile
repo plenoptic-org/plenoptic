@@ -3,7 +3,7 @@ pipeline {
   options {
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-    timeout(time: 1, unit: 'HOURS')
+    timeout(time: 2, unit: 'HOURS')
   }
   stages {
     stage('main') {
@@ -15,6 +15,7 @@ pipeline {
       }
       environment {
         HOME = pwd(tmp:true)
+	OMP_NUM_THREADS = 4
       }
       steps {
 	sh 'python3 -c "import torch; torch.cuda.current_device()"'
