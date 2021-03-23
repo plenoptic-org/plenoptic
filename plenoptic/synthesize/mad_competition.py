@@ -2097,6 +2097,18 @@ class MADCompetition(Synthesis):
             The animation object. In order to view, must convert to HTML
             or save.
 
+        Notes
+        -----
+
+        By default, we use the ffmpeg backend, which requires that you have
+        ffmpeg installed and on your path (https://ffmpeg.org/download.html).
+        To use a different, use the matplotlib rcParams:
+        `matplotlib.rcParams['animation.writer'] = writer`, see
+        https://matplotlib.org/stable/api/animation_api.html#writer-classes for
+        more details.
+
+        For displaying in a jupyter notebook, ffmpeg appears to be required.
+
         """
         last_state = self._check_state(synthesis_target, None)
         if isinstance(ylim, str):
