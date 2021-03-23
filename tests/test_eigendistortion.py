@@ -123,8 +123,15 @@ class TestEigendistortionSynthesis:
         e_pow = Eigendistortion(img, model)
         e_pow.synthesize(k=k, method=method, max_steps=10)
         e_pow.plot_distorted_image(eigen_index=0)
-        e_pow.plot_distorted_image(eigen_index=-1)
-
+        e_pow.plot_distorted_image(eigen_index=1)
+        
+        if method == "power:
+            eigendist.plot_distorted_image(eigen_index=-1)
+            eigendist.plot_distorted_image(eigen_index=-2)            
+        elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
+            with pytest.raises(AssertionError):
+                eigendist.plot_distorted_image(eigen_index=-1)
+                   
 
 class TestAutodiffFunctions:
 
