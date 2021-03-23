@@ -7,24 +7,17 @@ matplotlib.use('agg')
 import os.path as op
 import torch
 import plenoptic as po
-import matplotlib.pyplot as plt
 import pytest
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
+from conftest import DEVICE
 
 
 class TestMetamers(object):
 
-    @pytest.mark.parametrize('model', ['class', 'function'])
+    @pytest.mark.parametrize('model', ['LNL', 'nlpd'], indirect=True)
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss'])
-    def test_metamer_save_load(self, model, loss_func, fail, tmp_path):
 
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        if model == 'class':
-            model = po.simul.LinearNonlinear().to(DEVICE)
-        elif model == 'function':
-            model = po.metric.nlpd
+    def test_metamer_save_load(self, einstein_img, model, loss_func, fail, tmp_path):
         loss_kwargs = {}
         if loss_func is None:
             loss = None
@@ -33,7 +26,7 @@ class TestMetamers(object):
         elif loss_func == 'range_penalty_w_beta':
             loss = po.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
-        met = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+        met = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, store_progress=True)
         met.save(op.join(tmp_path, 'test_metamer_save_load.pt'))
         # when the model is a function, the loss_function is ignored and thus
@@ -41,18 +34,18 @@ class TestMetamers(object):
         # callable because we've overwritten the model input arg)
         if fail and not (fail == 'loss' and model == po.metric.nlpd):
             if fail == 'img':
-                im = torch.rand_like(im)
+                einstein_img = torch.rand_like(einstein_img)
             elif fail == 'model':
                 model = po.metric.mse
             elif fail == 'loss':
                 loss = lambda *args, **kwargs: 1
                 loss_kwargs = {}
-            met_copy = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+            met_copy = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
             with pytest.raises(Exception):
                 met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
                               map_location=DEVICE)
         else:
-            met_copy = po.synth.Metamer(im, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+            met_copy = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
             met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
                           map_location=DEVICE)
             for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
@@ -74,70 +67,41 @@ class TestMetamers(object):
             met_copy.synthesize(max_iter=10, loss_change_iter=5, store_progress=True,
                                 learning_rate=None)
 
-    def test_metamer_store_rep(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
-        metamer.synthesize(max_iter=3, store_progress=2)
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('store_progress', [True, 2, 3])
+    def test_metamer_store_rep(self, einstein_img, model, store_progress):
+        metamer = po.synth.Metamer(einstein_img, model)
+        max_iter = 3
+        if store_progress == 3:
+            max_iter = 6
+        metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
 
-    def test_metamer_store_rep_2(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
-        metamer.synthesize(max_iter=3, store_progress=True)
-
-    def test_metamer_store_rep_3(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
-        metamer.synthesize(max_iter=6, store_progress=3)
-
-    def test_metamer_store_rep_4(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    def test_metamer_store_rep_fail(self, einstein_img, model):
+        metamer = po.synth.Metamer(einstein_img, model)
         with pytest.raises(Exception):
+            # save_progress cannot be True if store_progress is False
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
 
-    def test_metamer_continue(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
+
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    def test_metamer_continue(self, einstein_img, model):
+        metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True, learning_rate=None,
                            seed=None)
 
-    def test_metamer_save_progress(self, tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        im = torch.tensor(im, dtype=torch.float32, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        metamer = po.synth.Metamer(im, lnl)
-        save_path = op.join(tmp_path, 'test_metamer_save_progress.pt')
-        metamer.synthesize(max_iter=3, store_progress=True, save_progress=True,
-                           save_path=save_path)
-        metamer_copy = po.synth.Metamer(im, lnl)
-        metamer_copy.load(save_path)
 
+    @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
-    def test_coarse_to_fine(self, coarse_to_fine, tmp_path):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        # with downsample=False, we get a tensor back. setting height=1 and
-        # order=1 limits the size
-        spyr = po.simul.Steerable_Pyramid_Freq(im.shape[-2:], downsample=False,
-                                               height=1, order=1).to(DEVICE)
-        metamer = po.synth.Metamer(im, spyr)
+    def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
+        metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                            coarse_to_fine=coarse_to_fine)
         assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
 
         metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
-        metamer_copy = po.synth.Metamer(im, spyr)
+        metamer_copy = po.synth.Metamer(einstein_img, model)
         metamer_copy.load(op.join(tmp_path, "test_metamer_ctf.pt"),
                           map_location=DEVICE)
         # check the ctf-related attributes all saved correctly
@@ -150,29 +114,24 @@ class TestMetamers(object):
         metamer_copy.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                                 coarse_to_fine=coarse_to_fine)
 
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
-    def test_metamer_clamper(self, clamp_each_iter):
+    def test_metamer_clamper(self, einstein_img, model, clamp_each_iter):
         clamper = po.RangeClamper((0, 1))
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
+
+        metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
-    def test_metamer_no_clamper(self):
-        im = plt.imread(op.join(DATA_DIR, 'nuts.pgm'))
-        im = torch.tensor(im/255, dtype=DTYPE, device=DEVICE).unsqueeze(0).unsqueeze(0)
-        lnl = po.simul.LinearNonlinear().to(DEVICE)
-        metamer = po.synth.Metamer(im, lnl)
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    def test_metamer_no_clamper(self, einstein_img, model):
+        metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=None)
 
+    @pytest.mark.parametrize('model', ['NLP'], indirect=True)
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'mse', 'range_penalty',
                                            'range_penalty_w_beta'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
-    @pytest.mark.parametrize('resume', [False, True])
-    def test_loss_func(self, loss_func, store_progress, resume, tmp_path):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
-        model = po.metric.NLP().to(DEVICE)
+    def test_loss_func(self, curie_img, model, loss_func, store_progress, tmp_path):
         loss_kwargs = {}
         if loss_func is None:
             loss = None
@@ -185,25 +144,22 @@ class TestMetamers(object):
         elif loss_func == 'range_penalty_w_beta':
             loss = po.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
-        met = po.synth.Metamer(img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
+        met = po.synth.Metamer(curie_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                        save_progress=store_progress, save_path=op.join(tmp_path, 'test_mad.pt'))
-        if resume and store_progress:
+        if store_progress:
             met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,
                            save_progress=store_progress,
                            save_path=op.join(tmp_path, 'test_mad.pt'), learning_rate=None)
-        met.plot_synthesis_status()
-        plt.close('all')
 
+    @pytest.mark.parametrize('model', ['NLP'], indirect=True)
     @pytest.mark.parametrize('optimizer', ['Adam', 'SGD', 'Adam-args'])
-    def test_optimizer_opts(self, optimizer):
-        img = po.tools.data.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
-        model = po.metric.NLP().to(DEVICE)
+    def test_optimizer_opts(self, curie_img, model, optimizer):
         if '-' in optimizer:
             optimizer = optimizer.split('-')[0]
             optimizer_kwargs = {'weight_decay': .1}
         else:
             optimizer_kwargs = {}
-        met = po.synth.Metamer(img, model)
+        met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=10, loss_change_iter=5, optimizer=optimizer,
                        optimizer_kwargs=optimizer_kwargs)

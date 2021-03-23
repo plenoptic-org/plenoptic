@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-import os.path as op
-import torch
 import plenoptic as po
-import matplotlib.pyplot as plt
-import pytest
-import numpy as np
-import pyrtools as pt
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
 
 
 @pytest.fixture()
@@ -51,41 +44,32 @@ class TestFrontEnd:
 
 class TestLinear(object):
 
-    def test_linear(self):
+    def test_linear(self, basic_stim):
         model = po.simul.Linear()
-        x = po.make_basic_stimuli()
-        assert model(x).requires_grad
+        assert model(basic_stim).requires_grad
 
-    def test_linear_metamer(self):
+    def test_linear_metamer(self, einstein_img):
         model = po.simul.Linear()
-        image = plt.imread(op.join(DATA_DIR, 'nuts.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image, requires_grad=True, dtype=DTYPE).squeeze().unsqueeze(0).unsqueeze(0)
-        M = po.synth.Metamer(im0, model)
-        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1, seed=1)
+        M = po.synth.Metamer(einstein_img, model)
+        M.synthesize(max_iter=3, learning_rate=1, seed=1)
 
 
 class TestLinearNonlinear(object):
 
-    def test_linear_nonlinear(self):
-        model = po.simul.LinearNonlinear()
-        x = po.make_basic_stimuli()
-        assert model(x).requires_grad
 
-    def test_linear_nonlinear_metamer(self):
-        model = po.simul.LinearNonlinear()
-        image = plt.imread(op.join(DATA_DIR, 'metal.pgm')).astype(float) / 255.
-        im0 = torch.tensor(image,requires_grad=True,dtype = torch.float32).squeeze().unsqueeze(0).unsqueeze(0)
-        M = po.synth.Metamer(im0, model)
-        synthesized_signal, synthesized_representation = M.synthesize(max_iter=3, learning_rate=1,seed=0)
+    def test_linear_nonlinear(self, basic_stim):
+        model = po.simul.Linear_Nonlinear()
+        assert model(basic_stim).requires_grad
 
-
-# class TestConv(object):
-# TODO expand, arbitrary shapes, dim
+    def test_linear_nonlinear_metamer(self, einstein_img):
+        model = po.simul.Linear_Nonlinear()
+        M = po.synth.Metamer(einstein_img, model)
+        M.synthesize(max_iter=3, learning_rate=1, seed=0)
 
 
 class TestLaplacianPyramid(object):
 
-    def test_grad(self):
+    def test_grad(self, basic_stim):
         L = po.simul.Laplacian_Pyramid()
-        y = L.analysis(po.make_basic_stimuli())
+        y = L.analysis(basic_stim)
         assert y[0].requires_grad

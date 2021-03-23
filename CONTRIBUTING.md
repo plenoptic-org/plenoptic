@@ -161,6 +161,83 @@ to `.github/workflows/treebeard.yml` and add the name of the new notebook
 `examples/100_awesome_tutorial.ipynb`, you would add `100_awesome_tutorial` as
 the a new item in the `notebook` list.
 
+### Test parameterizations and fixtures
+
+#### Parametrize
+
+If you have many variants on a test you wish to run, you should probably make
+use of pytests' `parametrize` mark. There are many examples throughout our
+existing tests (and see official [pytest
+docs](https://docs.pytest.org/en/stable/parametrize.html)), but the basic idea
+is that you write a function that takes an argument and then use the
+`@pytest.mark.parametrize` decorator to show pytest how to iterate over the
+arguments. For example, instead of writing:
+
+```python
+def test_basic_1():
+    assert int('3') == 3
+
+def test_basic_2():
+    assert int('5') == 5
+```
+
+You could write:
+
+```python
+@pytest.mark.parametrize('a', [3, 5])
+def test_basic(a):
+    if a == '3':
+        test_val = 3
+    elif a == '5':
+        test_val = 5
+    assert int(a) == test_val
+
+```
+
+This starts to become very helpful when you have multiple arguments you wish to
+iterate over in this manner.
+
+#### Fixtures
+
+If you are using an object that gets used in multiple tests (such as an image or
+model), you should make use of fixtures to avoid having to load or initialize
+the object multiple times. Look at `conftest.py` to see those fixtures available
+for all tests, or you can write your own (though pay attention to the
+[scope](https://docs.pytest.org/en/stable/fixture.html#scope-sharing-fixtures-across-classes-modules-packages-or-session)).
+For example, `conftest.py` contains several images that you can use for your
+tests, such as `basic_stimuli`, `curie_img`, or `color_img`. To use them, simply
+add them as arguments to your function:
+
+```python
+def test_img(curie_img):
+    img = po.load_images('data/curie.pgm')
+    assert torch.allclose(img, curie_img)
+```
+
+#### Combining the two
+
+You can combine fixtures and parameterization, which is helpful for when you
+want to test multiple models with a synthesis method, for example. This is
+slightly more complicated and relies on pytest's [indirect
+parametrization](https://docs.pytest.org/en/stable/example/parametrize.html#indirect-parametrization)
+(and requires `pytest>=5.1.2` to work properly). For example, `conftest.py` has
+a fixture, `model`, which accepts a string and returns an instantiated model on
+the right device. Use it like so:
+
+```python
+@pytest.mark.parametrize('model', ['SPyr', 'LNL'], indirect=True)
+def test_synth(curie_img, model):
+    met = po.synth.Metamer(curie_img, model)
+    met.synthesize()
+```
+
+This model will be run twice, once with the steerable pyramid model and once
+with the Linear-Nonlinear model. See the `get_model` function in `conftest.py`
+for the available strings. Note that unlike in the simple
+[parametrize](#parametrize) example, we add the `indirect=True` argument here.
+If we did not include that argument, `model` would just be the strings `'SPyr'`
+and `'LNL'`!
+
 ## Documentation
 
 ### Adding documentation

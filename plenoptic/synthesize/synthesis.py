@@ -1987,6 +1987,18 @@ class Synthesis(metaclass=abc.ABCMeta):
             The animation object. In order to view, must convert to HTML
             or save.
 
+        Notes
+        -----
+
+        By default, we use the ffmpeg backend, which requires that you have
+        ffmpeg installed and on your path (https://ffmpeg.org/download.html).
+        To use a different, use the matplotlib rcParams:
+        `matplotlib.rcParams['animation.writer'] = writer`, see
+        https://matplotlib.org/stable/api/animation_api.html#writer-classes for
+        more details.
+
+        For displaying in a jupyter notebook, ffmpeg appears to be required.
+
         """
         if not self.store_progress:
             raise Exception("synthesize() was run with store_progress=False,"
