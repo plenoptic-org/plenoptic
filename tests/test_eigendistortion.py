@@ -125,7 +125,7 @@ class TestEigendistortionSynthesis:
         e_pow.plot_distorted_image(eigen_index=0)
         e_pow.plot_distorted_image(eigen_index=1)
         
-        if method == "power:
+        if method == "power":
             eigendist.plot_distorted_image(eigen_index=-1)
             eigendist.plot_distorted_image(eigen_index=-2)            
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
