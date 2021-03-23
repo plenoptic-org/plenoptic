@@ -362,6 +362,47 @@ class TestDisplay(object):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
 
+    @pytest.fixture(scope='class', params=['complex', 'not-complex'])
+    def steerpyr(self, request):
+        if request.param == 'complex':
+            is_complex = True
+        elif request.param == 'not-complex':
+            is_complex = False
+        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
+
+    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('show_residuals', [True, False])
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
+        fails = False
+        if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
+            fails = True
+        n_axes = 4
+        if steerpyr.is_complex:
+            n_axes *= 2
+        if show_residuals:
+            n_axes += 2
+        img = po.load_images(op.join(DATA_DIR, 'curie.pgm'))
+        img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
+        coeffs = steerpyr(img)
+        if not fails:
+            # unfortunately, can't figure out how to properly parametrize this
+            # and use the steerpyr fixture
+            for comp in ['rectangular', 'polar', 'logpolar']:
+                fig = po.pyrshow(coeffs, show_residuals=show_residuals,
+                                 plot_complex=comp, batch_idx=batch_idx,
+                                 channel_idx=channel_idx)
+                # get all the axes that have an image (so, get all non-empty
+                # axes)
+                axes = [ax for ax in fig.axes if ax.images]
+                if len(axes) != n_axes:
+                    raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
+                plt.close('all')
+        else:
+            with pytest.raises(TypeError):
+                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
+
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
