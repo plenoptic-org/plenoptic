@@ -9,7 +9,7 @@ import numpy as np
 import plenoptic as po
 import os.path as op
 import scipy.io as sio
-from conftest import DATA_DIR
+from conftest import DATA_DIR, DEVICE
 
 
 # If you add anything here, remember to update the docstring in osf_download!

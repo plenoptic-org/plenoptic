@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import plenoptic as po
+from conftest import DEVICE
 
 
 class TestLinear(object):
