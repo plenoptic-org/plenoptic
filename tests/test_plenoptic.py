@@ -219,7 +219,7 @@ class TestPerceptualMetrics(object):
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(op.join(ssim_images, ssim_analysis['base_img']))
+        return po.load_images(op.join(ssim_images, ssim_analysis['base_img'])).to(DEVICE)
 
     @pytest.mark.parametrize('weighted', [True, False])
     @pytest.mark.parametrize('other_img', np.arange(1, 11))
