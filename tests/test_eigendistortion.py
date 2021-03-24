@@ -120,10 +120,10 @@ class TestEigendistortionSynthesis:
         else:
             img = color_img
         img = img[..., :SMALL_DIM, :SMALL_DIM]
-        e_pow = Eigendistortion(img, model)
-        e_pow.synthesize(k=k, method=method, max_steps=10)
-        e_pow.plot_distorted_image(eigen_index=0)
-        e_pow.plot_distorted_image(eigen_index=1)
+        eigendist = Eigendistortion(img, model)
+        eigendist.synthesize(k=k, method=method, max_steps=10)
+        eigendist.plot_distorted_image(eigen_index=0)
+        eigendist.plot_distorted_image(eigen_index=1)
         
         if method == "power":
             eigendist.plot_distorted_image(eigen_index=-1)
