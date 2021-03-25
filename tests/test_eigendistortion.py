@@ -109,6 +109,7 @@ class TestEigendistortionSynthesis:
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
         assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
 
+
     @pytest.mark.parametrize("model", ['FrontEnd', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
     @pytest.mark.parametrize("k", [2, 3])
@@ -119,11 +120,18 @@ class TestEigendistortionSynthesis:
         else:
             img = color_img
         img = img[..., :SMALL_DIM, :SMALL_DIM]
-        e_pow = Eigendistortion(img, model)
-        e_pow.synthesize(k=k, method=method, max_steps=10)
-        e_pow.plot_distorted_image(eigen_index=0)
-        e_pow.plot_distorted_image(eigen_index=-1)
-
+        eigendist = Eigendistortion(img, model)
+        eigendist.synthesize(k=k, method=method, max_steps=10)
+        eigendist.plot_distorted_image(eigen_index=0)
+        eigendist.plot_distorted_image(eigen_index=1)
+        
+        if method == "power":
+            eigendist.plot_distorted_image(eigen_index=-1)
+            eigendist.plot_distorted_image(eigen_index=-2)            
+        elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
+            with pytest.raises(AssertionError):
+                eigendist.plot_distorted_image(eigen_index=-1)
+                   
 
 class TestAutodiffFunctions:
 
