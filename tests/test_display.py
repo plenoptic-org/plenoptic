@@ -308,23 +308,25 @@ class TestDisplay(object):
         else:
             im_shape = [2, 4, 5, 5]
         if is_complex:
-            im = torch.rand((*im_shape, 2))
-            # this is 2 (the two complex components) * 4 (the four channels) *
-            # 2 (the two batches)
+            dtype = torch.complex64
+            # this is 4 (the four channels) * 2 (the two batches) * 2 (the two
+            # complex components)
             n_axes = 16
         else:
-            im = torch.rand(im_shape)
+            dtype = torch.float32
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+        im = torch.rand(im_shape, dtype=dtype)
         if mini_im:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]] + [2]
                 n_axes += 16
             else:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
                 n_axes += 8
-            im = [im, torch.rand(shape)]
+            # same number of batches and channels, then double the height and
+            # width
+            shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
+            im = [im, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'
@@ -362,6 +364,47 @@ class TestDisplay(object):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
 
+    @pytest.fixture(scope='class', params=['complex', 'not-complex'])
+    def steerpyr(self, request):
+        if request.param == 'complex':
+            is_complex = True
+        elif request.param == 'not-complex':
+            is_complex = False
+        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
+
+    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('show_residuals', [True, False])
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
+        fails = False
+        if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
+            fails = True
+        n_axes = 4
+        if steerpyr.is_complex:
+            n_axes *= 2
+        if show_residuals:
+            n_axes += 2
+        img = po.load_images(op.join(DATA_DIR, 'curie.pgm'))
+        img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
+        coeffs = steerpyr(img)
+        if not fails:
+            # unfortunately, can't figure out how to properly parametrize this
+            # and use the steerpyr fixture
+            for comp in ['rectangular', 'polar', 'logpolar']:
+                fig = po.pyrshow(coeffs, show_residuals=show_residuals,
+                                 plot_complex=comp, batch_idx=batch_idx,
+                                 channel_idx=channel_idx)
+                # get all the axes that have an image (so, get all non-empty
+                # axes)
+                axes = [ax for ax in fig.axes if ax.images]
+                if len(axes) != n_axes:
+                    raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
+                plt.close('all')
+        else:
+            with pytest.raises(TypeError):
+                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
+
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
@@ -370,23 +413,25 @@ class TestDisplay(object):
     def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
         fails = False
         if is_complex:
-            vid = torch.rand((2, 4, 10, 10, 10, 2))
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
             n_axes = 16
+            dtype = torch.complex64
         else:
-            vid = torch.rand((2, 4, 10, 10, 10))
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+            dtype = torch.float32
+        vid = torch.rand((2, 4, 10, 10, 10), dtype=dtype)
         if mini_vid:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = [2, 4, 10, 5, 5, 2]
                 n_axes += 16
             else:
-                shape = [2, 4, 10, 5, 5]
                 n_axes += 8
-            vid = [vid, torch.rand(shape)]
+            # same number of batches, channels, and frames, then half the
+            # height and width
+            shape = [2, 4, 10, 5, 5]
+            vid = [vid, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'
