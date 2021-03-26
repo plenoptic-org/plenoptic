@@ -4,6 +4,8 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
       cmake \
       git \
+      intel-mkl \
+      python3-numpy \
       python3-pip \
       python3-pytest \
       python3-pytest-cov \
@@ -17,7 +19,7 @@ RUN apt-get update && \
 
 RUN git clone --recursive --depth 1 -b v1.7.1 https://github.com/pytorch/pytorch /tmp/pytorch && \
     cd /tmp/pytorch && \
-    TORCH_CUDA_ARCH_LIST="3.5" python3 setup.py install && \
+    CMAKE_INCLUDE_PATH=/usr/include/mkl TORCH_CUDA_ARCH_LIST="3.5" python3 setup.py install && \
     rm -rf /tmp/pytorch
 
 COPY requirements.txt /tmp/
