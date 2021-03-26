@@ -1067,7 +1067,7 @@ class MADCompetition(Synthesis):
         """
         # we have to check the loss functions ourself, because they're a bit
         # finicky
-        tmp_dict = torch.load(file_path, map_location=map_location, pickle_module=dill)
+        tmp_dict = torch.load(file_path, pickle_module=dill)
         img = torch.rand_like(self.base_signal)
         rep = torch.rand_like(self.base_representation_1)
         saved_loss = tmp_dict['loss_function_1'](rep, self.base_representation_1, img,

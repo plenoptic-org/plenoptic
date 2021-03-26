@@ -41,10 +41,12 @@ class TestMetamers(object):
                 loss_kwargs = {}
             met_copy = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
             with pytest.raises(Exception):
-                met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"))
+                met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
+                              map_location=DEVICE)
         else:
             met_copy = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
-            met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"))
+            met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
+                          map_location=DEVICE)
             for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
                       'synthesized_signal', 'base_representation']:
                 if not getattr(met, k).allclose(getattr(met_copy, k)):

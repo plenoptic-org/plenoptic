@@ -159,10 +159,11 @@ class TestMAD(object):
                 loss = lambda *args, **kwargs: 1
             mad_copy = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss)
             with pytest.raises(Exception):
-                mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"))
+                mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
+                              map_location=DEVICE)
         else:
             mad_copy = po.synth.MADCompetition(curie_img, model, model2)
-            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"))
+            mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE)
             if mad.synthesis_target != mad_copy.synthesis_target:
                 raise Exception("Something went wrong with saving and loading! synthesis_"
                                 "target not the same!")
