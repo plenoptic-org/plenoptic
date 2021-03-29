@@ -19,7 +19,6 @@ setup(
     url="https://github.com/LabForComputationalVision/plenoptic",
     author="LabForComputationalVision",
     classifiers=[
-<<<<<<< HEAD
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3.7'],
     keywords='Visual Information Processing',
@@ -41,37 +40,3 @@ setup(
                       ],
     tests='tests',
      )
-=======
-        "Development Status :: 3 - Alpha",
-        "Programming Language :: Python :: 3.7",
-    ],
-    keywords=[
-        "Visual Information Processing",
-        "PyTorch",
-              ],
-    packages=[
-        "plenoptic",
-        "plenoptic.metric",
-        "plenoptic.simulate",
-        "plenoptic.simulate.models",
-        "plenoptic.simulate.canonical_computations",
-        "plenoptic.synthesize",
-        "plenoptic.tools",
-    ],
-    install_requires=[
-        "numpy>=1.1",
-        "torch<1.8",
-        "pyrtools>=1.0.0",
-        "scipy>=1.0",
-        "matplotlib>=3.1",
-        "torchvision>=0.3",
-        "tqdm>=4.29",
-        "requests>=2.21",
-        "imageio>=2.5",
-        "pytest>=5.1.2",
-        "scikit-image>=0.15.0",
-        "dill",
-    ],
-    tests="tests",
-)
->>>>>>> 37758e1424fb721cc9e93e9ce3fee576f3e10bf1
