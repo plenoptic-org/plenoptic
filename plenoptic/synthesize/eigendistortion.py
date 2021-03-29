@@ -3,7 +3,7 @@ from torch import Tensor
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 import numpy as np
 import warnings
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from ..tools.display import imshow
 from typing import Tuple, List, Callable, Union
 import matplotlib.pyplot
@@ -146,7 +146,7 @@ class Eigendistortion:
                    max_steps: int = 1000,
                    p: int = 5,
                    q: int = 2,
-                   tol: float = 1e-8,
+                   tol: float = 1e-7,
                    seed: int = None) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
@@ -340,7 +340,7 @@ class Eigendistortion:
         postfix_dict = {'delta_eigenval': None}
 
         for _ in pbar:
-            postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.4E}"))
+            postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.2E}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
@@ -351,11 +351,11 @@ class Eigendistortion:
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # minor component
 
-            v_new = torch.qr(Fv)[0] if k > 1 else Fv
+            v_new = torch.qr(Fv)[0]  # (ortho)normalize vector(s)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
-            d_lambda = (lmbda.sum() - lmbda_new.sum()).norm()  # stability of eigenspace
+            d_lambda = (lmbda - lmbda_new).norm()  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
 
@@ -418,13 +418,14 @@ class Eigendistortion:
 
     def _indexer(self, idx: int) -> int:
         """Maps eigenindex to arg index (0-indexed)"""
-        if idx == 0 or idx == -1:
-            return idx
-        else:
-            all_idx = self.synthesized_eigenindex
-            assert idx in all_idx, "eigenindex must be the index of one of the vectors"
-            assert all_idx is not None and len(all_idx) != 0, "No eigendistortions have been synthesized."
-            return int(np.where(all_idx == idx))
+        n = len(self._input_flat)
+        idx_range = range(n)
+        i = idx_range[idx]
+
+        all_idx = self.synthesized_eigenindex
+        assert i in all_idx, "eigenindex must be the index of one of the vectors"
+        assert all_idx is not None and len(all_idx) != 0, "No eigendistortions synthesized"
+        return int(np.where(all_idx == i)[0])
 
     def plot_distorted_image(self,
                              eigen_index: int = 0,
