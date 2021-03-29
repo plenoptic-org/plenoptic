@@ -5,24 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from ...tools.conv import same_padding
 from ...tools.display import imshow
 from ...tools.signal import make_disk
-
 from collections import OrderedDict
 
 __all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff"]
-
-
-def get_pad(kernel_size: Union[int, Tuple[int, int]]) -> Tuple[int, int, int, int]:
-    """Returns padding for ``F.pad()`` given a conv kernel size
-    Pads the last two dims (height and width) of image tensor.
-    """
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size, kernel_size)
-    h, w = kernel_size
-    h_half, w_half = h // 2, w // 2
-
-    return h_half, h_half, w_half, w_half
 
 
 def circular_gaussian(
@@ -88,7 +76,6 @@ class Gaussian(nn.Module):
         self.std = nn.Parameter(torch.tensor(std))
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
-        self.pad = get_pad(kernel_size)
 
     def get_filter(self):
         filt = circular_gaussian(self.kernel_size, self.std)
@@ -98,7 +85,7 @@ class Gaussian(nn.Module):
         self.std.data = self.std.data.abs()  # ensure stdev is positive
         filt = self.get_filter()
 
-        x = F.pad(x, pad=self.pad, mode=self.pad_mode)
+        x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         y = F.conv2d(x, filt)
         return y
 
@@ -161,7 +148,6 @@ class CenterSurround(nn.Module):
         self.surround_std = nn.Parameter(torch.tensor(surround_std))
 
         self.pad_mode = pad_mode
-        self.pad = get_pad(kernel_size)
 
     def get_filter(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
@@ -185,7 +171,7 @@ class CenterSurround(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        x = F.pad(x, self.pad, self.pad_mode)
+        x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
         filt = self.get_filter()
         y = F.conv2d(x, filt, bias=None)
