@@ -557,10 +557,10 @@ class TestMADDisplay(object):
     def synthesized_mad(self, request):
         # make the images really small so nothing takes as long
         if request.param == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         model1 = po.simul.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
@@ -611,10 +611,10 @@ class TestMetamerDisplay(object):
         img, model = request.param.split('-')
         # make the images really small so nothing takes as long
         if img == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False)
+            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm'))
+            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         if model == 'class':
             #  height=1 and order=0 to limit the time this takes, and then we

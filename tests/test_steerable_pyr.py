@@ -129,7 +129,7 @@ class TestSteerablePyramid(object):
         if im_shape is not None:
             basic_stim = basic_stim[..., :im_shape[0], :im_shape[1]]
         spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=height, order=order,
-                                              is_complex=is_complex)
+                                              is_complex=is_complex).to(DEVICE)
         spc(basic_stim)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-True' for h, o, c, d in product(['auto', 1, 2, 3],
