@@ -5,6 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 import pyrtools as pt
 from typing import Union, Tuple
+import math
 
 # TODO
 # documentation
@@ -103,7 +104,7 @@ def get_same_padding(
         dilation: int
 ) -> int:
     """Helper function to determine integer padding for F.pad() given img and kernel"""
-    pad = (np.ceil(x / stride) - 1) * stride + (kernel_size - 1) * dilation + 1 - x
+    pad = (math.ceil(x / stride) - 1) * stride + (kernel_size - 1) * dilation + 1 - x
     pad = max(pad, 0)
     return pad
 
