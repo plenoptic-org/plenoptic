@@ -7,15 +7,9 @@ import matplotlib.pyplot as plt
 import pytest
 import pyrtools as pt
 import numpy as np
-<<<<<<< HEAD
-import itertools
-from plenoptic.tools.data import to_numpy
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE
-=======
 from itertools import product
 from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
 from conftest import DEVICE, DATA_DIR, DTYPE
->>>>>>> 37758e1424fb721cc9e93e9ce3fee576f3e10bf1
 
 
 def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
