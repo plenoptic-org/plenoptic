@@ -460,6 +460,7 @@ def rescale_ylim(axes, data):
         The data to use when rescaling (or a dictiontary of those
         values)
     """
+    data = data.cpu()
     def find_ymax(data):
         try:
             return np.abs(data).max()
