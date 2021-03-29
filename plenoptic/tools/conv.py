@@ -110,9 +110,9 @@ def get_same_padding(
 
 def same_padding(
         x: Tensor,
-        kernel_size: Union[int, Tuple[int]],
-        stride: Union[int, Tuple[int]] = (1, 1),
-        dilation: Union[int, Tuple[int]] = (1, 1),
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int]] = (1, 1),
+        dilation: Union[int, Tuple[int, int]] = (1, 1),
         pad_mode: str = "circular",
 ) -> Tensor:
     """Ciruclarly pad an image tensor and output image of same dims."""
