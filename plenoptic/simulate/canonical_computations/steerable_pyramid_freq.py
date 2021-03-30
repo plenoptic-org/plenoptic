@@ -386,7 +386,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         return pyr_coeffs
 
 
-    def convert_pyr_to_tensor(self, pyr_coeffs):
+    def convert_pyr_to_tensor(self, pyr_coeffs, split_complex=False):
         r"""
         Function that takes a torch pyramid (without downsampling) dictonary and converts the output into a single tensor
         of BxCxHxW for use in an nn module downstream.
@@ -395,11 +395,15 @@ class Steerable_Pyramid_Freq(nn.Module):
         ----------
         pyr_coeffs: `OrderedDict`
             the pyramid coefficients
+        split_complex: `bool`
+            indicates whether the output should split complex bands into real/imag channels or keep them as a single
+            channel. This should be True if you intend to use a convolutional layer on top of the output. 
 
         Returns
         -----------
         coeff_out: `torch.Tensor` (BxCxHxW)
-            pyramid coefficients reshaped into tensor
+            pyramid coefficients reshaped into tensor. The first channel will be the residual highpass and the last will be
+            the residual lowpass. Each band is then a separate channel. 
         """
 
         assert not self.downsample, "conversion to tensor only works for pyramids without downsampling of feature maps"
@@ -412,6 +416,13 @@ class Steerable_Pyramid_Freq(nn.Module):
                 coeff_list.append(pyr_coeffs[k])
         if len(coeff_list) > 0:
             coeff_bands = torch.cat(coeff_list, dim=1)
+            if split_complex:
+                complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
+                if coeff_bands.dtype in complex_types:
+                    coeff_bands = torch.cat([coeff_bands.real, coeff_bands.imag], dim=1)
+                else:
+                    raise TypeError("split_complex is True, but input pyr_coeffs are not complex tensors")
+                    
             batch_size = coeff_bands.shape[0]
             imshape = [coeff_bands.shape[2], coeff_bands.shape[3]]
             if len(coeff_list_resid) == 1:
