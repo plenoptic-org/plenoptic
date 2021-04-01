@@ -36,7 +36,10 @@ jobs:
           # dependencies, to make sure the cache doesn't go stale
           pip install --upgrade --upgrade-strategy eager -e .
           pip install --upgrade --upgrade-strategy eager pytest-cov
+          pip install --upgrade --upgrade-strategy eager pytest-xdist
       - name: Run tests with pytest
-        run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
+        # we have two cores on the linux github action runners:
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        run: 'pytest -n 2 --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
