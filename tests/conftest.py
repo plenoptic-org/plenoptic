@@ -43,9 +43,7 @@ def basic_stim():
 
 
 def get_model(name):
-    if name == 'LNL':
-        return po.simul.LinearNonlinear().to(DEVICE)
-    elif name == 'SPyr':
+    if name == 'SPyr':
         # with downsample=False, we get a tensor back. setting height=1 and
         # order=1 limits the size
         return po.simul.Steerable_Pyramid_Freq((256, 256), downsample=False,
@@ -66,12 +64,12 @@ def get_model(name):
         return po.simul.CenterSurround((31, 31)).to(DEVICE)
     elif name == 'frontend.Gaussian':
         return po.simul.Gaussian((31, 31)).to(DEVICE)
-    elif name == 'frontend.LN':
-        return po.simul.LN((31, 31)).to(DEVICE)
-    elif name == 'frontend.LG':
-        return po.simul.LG((31, 31)).to(DEVICE)
-    elif name == 'frontend.LGG':
-        return po.simul.LGG((31, 31)).to(DEVICE)
+    elif name == 'frontend.LinearNonlinear':
+        return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+    elif name == 'frontend.LuminanceGainControl':
+        return po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+    elif name == 'frontend.LuminanceContrastGainControl':
+        return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
     elif name == 'frontend.OnOff':
         return po.simul.OnOff((31, 31), pretrained=True).to(DEVICE)
 

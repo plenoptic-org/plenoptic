@@ -440,7 +440,6 @@ class TestDisplay(object):
         # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
         # this checks that plot_synthesis_status() and animate() both fail with
         # 2d data and raise the proper exception
-
         class TestModel(po.simul.LinearNonlinear):
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)

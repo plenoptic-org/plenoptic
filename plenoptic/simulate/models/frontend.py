@@ -1,3 +1,10 @@
+"""
+Model architectures in this file are found in [1].
+
+[1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
+    representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+"""
+
 from typing import Tuple, Union, Callable
 
 import torch
@@ -10,7 +17,8 @@ from ...tools.display import imshow
 from ...tools.signal import make_disk
 from collections import OrderedDict
 
-__all__ = ["Gaussian", "CenterSurround", "LN", "LG", "LGG", "OnOff"]
+__all__ = ["Gaussian", "CenterSurround", "LinearNonlinear", "LuminanceGainControl",
+           "LuminanceContrastGainControl", "OnOff"]
 
 
 def circular_gaussian(
@@ -77,16 +85,16 @@ class Gaussian(nn.Module):
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
 
-    def get_filter(self):
+    @property
+    def filt(self):
         filt = circular_gaussian(self.kernel_size, self.std)
         return filt.view(1, 1, *filt.shape)
 
     def forward(self, x: Tensor) -> Tensor:
         self.std.data = self.std.data.abs()  # ensure stdev is positive
-        filt = self.get_filter()
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        y = F.conv2d(x, filt)
+        y = F.conv2d(x, self.filt)
         return y
 
 
@@ -105,9 +113,9 @@ class CenterSurround(nn.Module):
 
     Parameters
     ----------
-    center:
-        Dictates whether center is on or off. The surround always will be the opposite
-        of the center. Must be either ['on', 'off']; default is 'on' center.
+    on_center:
+        Dictates whether center is on or off; surround will be the opposite of center
+        (i.e. on-off or off-on).
     kernel_size: Union[int, Tuple[int, int]], optional
     width_ratio_limit:
         Ratio of surround stdev over center stdev. Surround stdev will be clamped to
@@ -126,7 +134,7 @@ class CenterSurround(nn.Module):
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
-        center: str = "on",
+        on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         center_std: float = 1.0,
@@ -135,11 +143,10 @@ class CenterSurround(nn.Module):
     ):
         super().__init__()
 
-        assert center in ["on", "off"], "center must be 'on' or 'off'"
         assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
-        assert amplitude_ratio >= 1.0, "amplitudes must"
+        assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
-        self.center = center
+        self.on_center = on_center
         self.kernel_size = kernel_size
         self.width_ratio_limit = width_ratio_limit
         self.register_buffer("amplitude_ratio", torch.tensor(amplitude_ratio))
@@ -149,13 +156,14 @@ class CenterSurround(nn.Module):
 
         self.pad_mode = pad_mode
 
-    def get_filter(self) -> Tensor:
+    @property
+    def filt(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
         filt_center = circular_gaussian(self.kernel_size, self.center_std)
         filt_surround = circular_gaussian(self.kernel_size, self.surround_std)
         on_amp = self.amplitude_ratio
 
-        if self.center == "on":  # on center, off surround
+        if self.on_center:  # on center, off surround
             filt = on_amp * filt_center - filt_surround  # on center, off surround
         else:  # off center, on surround
             filt = on_amp * filt_surround - filt_center
@@ -173,12 +181,11 @@ class CenterSurround(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
-        filt = self.get_filter()
-        y = F.conv2d(x, filt, bias=None)
+        y = F.conv2d(x, self.filt, bias=None)
         return y
 
 
-class LN(nn.Module):
+class LinearNonlinear(nn.Module):
     """Linear-Nonlinear model, applies a difference of Gaussians filter followed by an
     activation function.
 
@@ -201,7 +208,7 @@ class LN(nn.Module):
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
-        center: str = "on",
+        on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "circular",
@@ -210,7 +217,7 @@ class LN(nn.Module):
         super().__init__()
         self.center_surround = CenterSurround(
             kernel_size,
-            center,
+            on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
@@ -221,8 +228,30 @@ class LN(nn.Module):
         y = self.activation(self.center_surround(x))
         return y
 
+    def display_filters(self, zoom=5.0, **kwargs):
+        """Displays convolutional filters of model
 
-class LG(nn.Module):
+        Parameters
+        ----------
+        zoom: float
+            Magnification factor for po.imshow()
+        **kwargs:
+            Keyword args for po.imshow
+        Returns
+        -------
+        fig: PyrFigure
+        """
+
+        weights = self.center_surround.filt.detach()
+        title = "linear"
+        fig = imshow(
+            weights, title=title, zoom=zoom, vrange="indep0", **kwargs
+        )
+
+        return fig
+
+
+class LuminanceGainControl(nn.Module):
     """ Linear center-surround followed by luminance gain control and activation.
     Parameters
     ----------
@@ -240,7 +269,7 @@ class LG(nn.Module):
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
-        center: str = "on",
+        on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "circular",
@@ -249,7 +278,7 @@ class LG(nn.Module):
         super().__init__()
         self.center_surround = CenterSurround(
             kernel_size,
-            center,
+            on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
@@ -265,8 +294,38 @@ class LG(nn.Module):
         y = self.activation(lum_normed)
         return y
 
+    def display_filters(self, zoom=5.0, **kwargs):
+        """Displays convolutional filters of model
 
-class LGG(nn.Module):
+        Parameters
+        ----------
+        zoom: float
+            Magnification factor for po.imshow()
+        **kwargs:
+            Keyword args for po.imshow
+        Returns
+        -------
+        fig: PyrFigure
+        """
+
+        weights = torch.cat(
+            [
+                self.center_surround.filt,
+                self.luminance.filt,
+            ],
+            dim=0,
+        ).detach()
+
+        title = ["linear", "luminance norm",]
+
+        fig = imshow(
+            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+        )
+
+        return fig
+
+
+class LuminanceContrastGainControl(nn.Module):
     """ Linear center-surround followed by luminance and contrast gain control,
     and activation function.
 
@@ -287,16 +346,12 @@ class LGG(nn.Module):
     contrast_scalar: nn.Parameter
         Scale factor for contrast normalization.
 
-    Notes
-    -----
-    See `CenterSurround` class for full Parameter docstring.
-
     """
 
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
-        center: str = "on",
+        on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "circular",
@@ -306,7 +361,7 @@ class LGG(nn.Module):
 
         self.center_surround = CenterSurround(
             kernel_size,
-            center,
+            on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
@@ -329,6 +384,37 @@ class LGG(nn.Module):
         y = self.activation(con_normed)
         return y
 
+    def display_filters(self, zoom=5.0, **kwargs):
+        """Displays convolutional filters of model
+
+        Parameters
+        ----------
+        zoom: float
+            Magnification factor for po.imshow()
+        **kwargs:
+            Keyword args for po.imshow
+        Returns
+        -------
+        fig: PyrFigure
+        """
+
+        weights = torch.cat(
+            [
+                self.center_surround.filt,
+                self.luminance.filt,
+                self.contrast.filt,
+            ],
+            dim=0,
+        ).detach()
+
+        title = ["linear", "luminance norm", "contrast norm"]
+
+        fig = imshow(
+            weights, title=title, col_wrap=3, zoom=zoom, vrange="indep0", **kwargs
+        )
+
+        return fig
+
 
 class OnOff(nn.Module):
     """Two-channel on-off and off-on center-surround model with local contrast and
@@ -346,8 +432,11 @@ class OnOff(nn.Module):
     -----
     See `CenterSurround` class for full Parameter docstring.
 
-    Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
-    http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    These 12 parameters (standard deviations & scalar constants) were reverse-engineered
+    from model from [1]. Please use at your own discretion.
+
+    [1] Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
+        http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
     def __init__(
@@ -363,18 +452,18 @@ class OnOff(nn.Module):
         super().__init__()
         kernel_size = (31, 31) if pretrained else kernel_size
 
-        self.on = LGG(
+        self.on = LuminanceContrastGainControl(
             kernel_size,
-            "on",
+            True,  # on_center = True
             width_ratio_limit,
             amplitude_ratio,
             pad_mode,
             activation
         )
 
-        self.off = LGG(
+        self.off = LuminanceContrastGainControl(
             kernel_size,
-            "off",
+            False,  # on_center = False
             width_ratio_limit,
             amplitude_ratio,
             pad_mode,
@@ -400,7 +489,7 @@ class OnOff(nn.Module):
         return y
 
     def display_filters(self, zoom=5.0, **kwargs):
-        """Displays convolutional filters of OnOff model
+        """Displays convolutional filters of model
 
         Parameters
         ----------
@@ -415,12 +504,12 @@ class OnOff(nn.Module):
 
         weights = torch.cat(
             [
-                self.on.center_surround.get_filter(),
-                self.off.center_surround.get_filter(),
-                self.on.luminance.get_filter(),
-                self.off.luminance.get_filter(),
-                self.on.contrast.get_filter(),
-                self.off.contrast.get_filter(),
+                self.on.center_surround.filt,
+                self.off.center_surround.filt,
+                self.on.luminance.filt,
+                self.off.luminance.filt,
+                self.on.contrast.filt,
+                self.off.contrast.filt,
             ],
             dim=0,
         ).detach()
