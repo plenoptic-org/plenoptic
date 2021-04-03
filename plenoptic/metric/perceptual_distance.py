@@ -5,66 +5,12 @@ import warnings
 
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
 from ..simulate.canonical_computations import local_gain_control, rectangular_to_polar_dict
+from ..simulate.canonical_computations.filters import circular_gaussian2d
 
 import os
+
 dirname = os.path.dirname(__file__)
 
-def _gaussian(window_size=11, sigma=1.5):
-    """Normalized, centered Gaussian
-
-    1d Gaussian of size `window_size`, centered half-way, with variable std
-    deviation, and sum of 1.
-
-    With default values, this is the 1d Gaussian used to generate the windows
-    for SSIM
-
-    Parameters
-    ----------
-    window_size : int, optional
-        size of the gaussian
-    sigma : float, optional
-        std dev of the gaussian
-
-    Returns
-    -------
-    window : torch.Tensor
-        1d gaussian
-
-    """
-    x = torch.arange(window_size, dtype=torch.float32)
-    mu = window_size//2
-    gauss = torch.exp(-(x-mu)**2 / (2*sigma**2))
-    return gauss
-
-
-def create_window(window_size=11, n_channels=1):
-    """Create 2d Gaussian window
-
-    Creates 4d tensor containing a 2d Gaussian window (with 1 batch and
-    `n_channels` channels), normalized so that each channel has a sum of 1.
-
-    With default parameters, this is the Gaussian window used to compute the
-    statistics for SSIM.
-
-    Parameters
-    ----------
-    window_size : int, optional
-        height/width of the window
-    n_channels : int, optional
-        number of channels
-
-    Returns
-    -------
-    window : torch.Tensor
-        4d tensor containing the Gaussian windows
-
-    """
-    _1D_window = _gaussian(window_size, 1.5).unsqueeze(1)
-    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
-    window = _2D_window.expand(n_channels, 1, window_size, window_size).contiguous()
-    # need to keepdim to handle RGB images (broadcasting gets made when trying
-    # to divide something of shape (3, 1, h, w) by something of shape (3, 1))
-    return window / window.sum((-1, -2), keepdim=True)
 
 def _ssim_parts(img1, img2, dynamic_range):
     """Calcluates the various components used to compute SSIM
@@ -119,7 +65,9 @@ def _ssim_parts(img1, img2, dynamic_range):
                             f"{img1.shape}, {img2.shape} instead")
 
     real_size = min(11, height, width)
-    window = create_window(real_size, n_channels=n_channels).to(img1.device)
+    # window = create_window(real_size, n_channels=n_channels).to(img1.device)
+    std = torch.tensor(1.5).to(img1.device)
+    window = circular_gaussian2d(real_size, std=1.5, n_channels=n_channels)
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
     if (window.sum((-1, -2)) > 1).any():

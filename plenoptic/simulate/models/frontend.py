@@ -17,6 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from ..canonical_computations import circular_gaussian2d
 from ...tools.conv import same_padding
 from ...tools.display import imshow
 from ...tools.signal import make_disk
@@ -24,45 +25,6 @@ from collections import OrderedDict
 
 __all__ = ["Gaussian", "CenterSurround", "LinearNonlinear", "LuminanceGainControl",
            "LuminanceContrastGainControl", "OnOff"]
-
-
-def circular_gaussian(
-    size: Union[int, Tuple[int, int]],
-    std: Tensor,
-) -> Tensor:
-    """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
-    Parameters
-    ----------
-    size:
-        Filter kernel size.
-    std:
-        Standard deviation of 2D circular Gaussian.
-
-    Returns
-    -------
-    filt:
-        Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
-    """
-    assert std > 0.0, "stdev must be positive"
-
-    device = std.device
-
-    if isinstance(size, int):
-        size = (size, size)
-
-    origin = torch.tensor(((size[0] + 1) / 2.0, (size[1] + 1) / 2.0), device=device)
-
-    shift_y = torch.arange(1, size[1] + 1, device=device) - origin[1]
-    shift_x = torch.arange(1, size[0] + 1, device=device) - origin[0]
-
-    (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
-
-    log_filt = ((xramp ** 2) + (yramp ** 2)) / (-2.0 * std ** 2)
-
-    filt = torch.exp(log_filt)
-    filt = filt / filt.sum()  # normalize
-
-    return filt
 
 
 class Gaussian(nn.Module):
@@ -93,8 +55,8 @@ class Gaussian(nn.Module):
 
     @property
     def filt(self):
-        filt = circular_gaussian(self.kernel_size, self.std)
-        return filt.view(1, 1, *filt.shape)
+        filt = circular_gaussian2d(self.kernel_size, self.std)
+        return filt
 
     def forward(self, x: Tensor) -> Tensor:
         self.std.data = self.std.data.abs()  # ensure stdev is positive
@@ -166,8 +128,8 @@ class CenterSurround(nn.Module):
     @property
     def filt(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
-        filt_center = circular_gaussian(self.kernel_size, self.center_std)
-        filt_surround = circular_gaussian(self.kernel_size, self.surround_std)
+        filt_center = circular_gaussian2d(self.kernel_size, self.center_std)
+        filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std)
         on_amp = self.amplitude_ratio
 
         if self.on_center:  # on center, off surround
@@ -177,7 +139,7 @@ class CenterSurround(nn.Module):
 
         filt = filt / filt.sum()
 
-        return filt.view(1, 1, *filt.shape)
+        return filt
 
     def _clamp_surround_std(self) -> Tensor:
         """Clamps surround standard deviation to ratio_limit times center_std"""
