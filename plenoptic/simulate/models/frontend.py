@@ -1,12 +1,13 @@
 """
-Model architectures in this file are found in [1]_. `frontend.OnOff()` has optional
-pretrained filters that were reverse-engineered from a previously-trained model and
-should be used at your own discretion.
+Model architectures in this file are found in [1]_, [2]_. `frontend.OnOff()` has
+optional pretrained filters that were reverse-engineered from a previously-trained model
+and should be used at your own discretion.
 
 References
 ----------
 .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
     representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+.. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
 from typing import Tuple, Union, Callable
@@ -484,12 +485,13 @@ class OnOff(nn.Module):
     Notes
     -----
     These 12 parameters (standard deviations & scalar constants) were reverse-engineered
-    from model from [1]_. Please use at your own discretion.
+    from model from [1]_, [2]_. Please use at your own discretion.
 
     References
     ----------
-    .. [1] Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
-        http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
     def __init__(
