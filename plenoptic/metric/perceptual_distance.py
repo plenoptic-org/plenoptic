@@ -65,9 +65,9 @@ def _ssim_parts(img1, img2, dynamic_range):
                             f"{img1.shape}, {img2.shape} instead")
 
     real_size = min(11, height, width)
-    # window = create_window(real_size, n_channels=n_channels).to(img1.device)
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=1.5, n_channels=n_channels)
+    window = circular_gaussian2d(real_size, std=std, n_channels=n_channels)
+    window = window.permute(1, 0, 2, 3)
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
     if (window.sum((-1, -2)) > 1).any():
