@@ -1,11 +1,11 @@
 """
-Model architectures in this file are found in [1]. `frontend.OnOff()` has optional
+Model architectures in this file are found in [1]_. `frontend.OnOff()` has optional
 pretrained filters that were reverse-engineered from a previously-trained model and
 should be used at your own discretion.
 
 References
 ----------
-[1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
+.. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
     representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
 """
 
@@ -39,7 +39,8 @@ def circular_gaussian(
 
     Returns
     -------
-    filt: Tensor
+    filt:
+        Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
     """
     assert std > 0.0, "stdev must be positive"
 
@@ -483,11 +484,11 @@ class OnOff(nn.Module):
     Notes
     -----
     These 12 parameters (standard deviations & scalar constants) were reverse-engineered
-    from model from [1]. Please use at your own discretion.
+    from model from [1]_. Please use at your own discretion.
 
     References
     ----------
-    [1] Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
+    .. [1] Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
         http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
