@@ -441,9 +441,13 @@ class TestDisplay(object):
         # this checks that plot_synthesis_status() and animate() both fail with
         # 2d data and raise the proper exception
         class TestModel(po.simul.LinearNonlinear):
+            def __init__(self):
+                super().__init__((7, 7))
+
             def forward(self, *args, **kwargs):
                 output = super().forward(*args, **kwargs)
                 return output.reshape(output.numel())
+
         model = TestModel().to(DEVICE)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
