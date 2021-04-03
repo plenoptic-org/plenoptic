@@ -1,6 +1,10 @@
 """
-Model architectures in this file are found in [1].
+Model architectures in this file are found in [1]. `frontend.OnOff()` has optional
+pretrained filters that were reverse-engineered from a previously-trained model and
+should be used at your own discretion.
 
+References
+----------
 [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
     representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
 """
@@ -113,10 +117,11 @@ class CenterSurround(nn.Module):
 
     Parameters
     ----------
+    kernel_size:
+        Shape of convolutional kernel.
     on_center:
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    kernel_size: Union[int, Tuple[int, int]], optional
     width_ratio_limit:
         Ratio of surround stdev over center stdev. Surround stdev will be clamped to
         ratio_limit times center_std.
@@ -191,6 +196,18 @@ class LinearNonlinear(nn.Module):
 
     Parameters
     ----------
+    kernel_size:
+        Shape of convolutional kernel.
+    on_center:
+        Dictates whether center is on or off; surround will be the opposite of center
+        (i.e. on-off or off-on).
+    width_ratio_limit:
+        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
+        ratio_limit times center_std.
+    amplitude_ratio:
+        Ratio of center/surround amplitude. Applied before filter normalization.
+    pad_mode:
+        Padding for convolution, defaults to "circular".
     activation:
         Activation function following linear convolution.
 
@@ -198,10 +215,6 @@ class LinearNonlinear(nn.Module):
     ----------
     center_surround: nn.Module
         `CenterSurround` difference of Gaussians filter.
-
-    Notes
-    -----
-    See `CenterSurround` class for full Parameter docstring.
 
     """
 
@@ -253,9 +266,23 @@ class LinearNonlinear(nn.Module):
 
 class LuminanceGainControl(nn.Module):
     """ Linear center-surround followed by luminance gain control and activation.
+
     Parameters
     ----------
-    See `CenterSurround` class for full Parameter docstring.
+    kernel_size:
+        Shape of convolutional kernel.
+    on_center:
+        Dictates whether center is on or off; surround will be the opposite of center
+        (i.e. on-off or off-on).
+    width_ratio_limit:
+        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
+        ratio_limit times center_std.
+    amplitude_ratio:
+        Ratio of center/surround amplitude. Applied before filter normalization.
+    pad_mode:
+        Padding for convolution, defaults to "circular".
+    activation:
+        Activation function following linear convolution.
 
     Attributes
     ----------
@@ -331,7 +358,20 @@ class LuminanceContrastGainControl(nn.Module):
 
     Parameters
     ----------
-    See `CenterSurround` class for full Parameter docstring.
+    kernel_size:
+        Shape of convolutional kernel.
+    on_center:
+        Dictates whether center is on or off; surround will be the opposite of center
+        (i.e. on-off or off-on).
+    width_ratio_limit:
+        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
+        ratio_limit times center_std.
+    amplitude_ratio:
+        Ratio of center/surround amplitude. Applied before filter normalization.
+    pad_mode:
+        Padding for convolution, defaults to "circular".
+    activation:
+        Activation function following linear convolution.
 
     Attributes
     ----------
@@ -424,17 +464,29 @@ class OnOff(nn.Module):
 
     Parameters
     ----------
-    apply_mask:
+    kernel_size:
+        Shape of convolutional kernel.
+    width_ratio_limit:
+        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
+        ratio_limit times center_std.
+    amplitude_ratio:
+        Ratio of center/surround amplitude. Applied before filter normalization.
+    pad_mode:
+        Padding for convolution, defaults to "circular".
+    activation:
+        Activation function following linear convolution.
     activation:
         Activation function following linear and gain control operations.
+    apply_mask:
+        Whether or not to apply circular disk mask to image.
 
     Notes
     -----
-    See `CenterSurround` class for full Parameter docstring.
-
     These 12 parameters (standard deviations & scalar constants) were reverse-engineered
     from model from [1]. Please use at your own discretion.
 
+    References
+    ----------
     [1] Berardino et al., Eigen-Distortions of Hierarchical Representations (2017)
         http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
