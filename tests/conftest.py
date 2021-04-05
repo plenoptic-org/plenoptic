@@ -4,6 +4,7 @@ import plenoptic as po
 import os.path as op
 import torch
 
+import plenoptic.simulate.canonical_computations.filters as filters
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
@@ -48,8 +49,6 @@ def get_model(name):
         # order=1 limits the size
         return po.simul.Steerable_Pyramid_Freq((256, 256), downsample=False,
                                                height=1, order=1).to(DEVICE)
-    elif name == 'Identity':
-        return po.simul.models.Identity().to(DEVICE)
     elif name == 'NLP':
         return po.metric.NLP().to(DEVICE)
     elif name == 'nlpd':
@@ -59,11 +58,17 @@ def get_model(name):
     elif name == 'ColorModel':
         return ColorModel().to(DEVICE)
 
-    # FrontEnd models:
-    elif name == 'frontend.CenterSurround':
+    # naive models
+    elif name in ['Identity', "naive.Identity"]:
+        return po.simul.Identity().to(DEVICE)
+    elif name == 'naive.CenterSurround':
         return po.simul.CenterSurround((31, 31)).to(DEVICE)
-    elif name == 'frontend.Gaussian':
+    elif name == 'naive.Gaussian':
         return po.simul.Gaussian((31, 31)).to(DEVICE)
+    elif name == 'naive.Linear':
+        return po.simul.Linear((31, 31)).to(DEVICE)
+
+    # FrontEnd models:
     elif name == 'frontend.LinearNonlinear':
         return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
     elif name == 'frontend.LuminanceGainControl':

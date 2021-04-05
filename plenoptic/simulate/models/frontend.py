@@ -17,146 +17,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from ..canonical_computations import circular_gaussian2d
-from ...tools.conv import same_padding
+from .naive import Gaussian, CenterSurround
 from ...tools.display import imshow
 from ...tools.signal import make_disk
 from collections import OrderedDict
 
-__all__ = ["Gaussian", "CenterSurround", "LinearNonlinear", "LuminanceGainControl",
+__all__ = ["LinearNonlinear", "LuminanceGainControl",
            "LuminanceContrastGainControl", "OnOff"]
-
-
-class Gaussian(nn.Module):
-    """Isotropic Gaussian single-channel convolutional filter.
-    Kernel elements are normalized and sum to one.
-
-    Parameters
-    ----------
-    kernel_size:
-        Size of convolutional kernel.
-    std:
-        Standard deviation of circularly symmtric Gaussian kernel.
-    pad_mode:
-        Padding mode argument to pass to `torch.nn.functional.pad`.
-    """
-
-    def __init__(
-        self,
-        kernel_size: Union[int, Tuple[int, int]],
-        std: float = 3.0,
-        pad_mode: str = "circular",
-    ):
-        super().__init__()
-        assert std > 0, "Gaussian standard deviation must be positive"
-        self.std = nn.Parameter(torch.tensor(std))
-        self.kernel_size = kernel_size
-        self.pad_mode = pad_mode
-
-    @property
-    def filt(self):
-        filt = circular_gaussian2d(self.kernel_size, self.std)
-        return filt
-
-    def forward(self, x: Tensor) -> Tensor:
-        self.std.data = self.std.data.abs()  # ensure stdev is positive
-
-        x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        y = F.conv2d(x, self.filt)
-        return y
-
-
-class CenterSurround(nn.Module):
-    """Center-Surround, Difference of Gaussians (DoG) filter model. Can be either
-    on-center/off-surround, or vice versa.
-
-    Filter is constructed as:
-    .. math::
-        f &= amplitude_ratio * center - surround \\
-        f &= f/f.sum()
-
-    The signs of center and surround are determined by `center` argument. The standard
-    deviation of the surround Gaussian is constrained to be at least `width_ratio_limit`
-    times that of the center Gaussian.
-
-    Parameters
-    ----------
-    kernel_size:
-        Shape of convolutional kernel.
-    on_center:
-        Dictates whether center is on or off; surround will be the opposite of center
-        (i.e. on-off or off-on).
-    width_ratio_limit:
-        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
-        ratio_limit times center_std.
-    amplitude_ratio:
-        Ratio of center/surround amplitude. Applied before filter normalization.
-    center_std:
-        Standard deviation of circular Gaussian for center.
-    surround_std:
-        Standard deviation of circular Gaussian for surround. Must be at least
-        ratio_limit times center_std.
-    pad_mode:
-        Padding for convolution, defaults to "circular".
-    """
-
-    def __init__(
-        self,
-        kernel_size: Union[int, Tuple[int, int]],
-        on_center: bool = True,
-        width_ratio_limit: float = 4.0,
-        amplitude_ratio: float = 1.25,
-        center_std: float = 1.0,
-        surround_std: float = 4.0,
-        pad_mode: str = "circular",
-    ):
-        super().__init__()
-
-        assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
-        assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
-
-        self.on_center = on_center
-        self.kernel_size = kernel_size
-        self.width_ratio_limit = width_ratio_limit
-        self.register_buffer("amplitude_ratio", torch.tensor(amplitude_ratio))
-
-        self.center_std = nn.Parameter(torch.tensor(center_std))
-        self.surround_std = nn.Parameter(torch.tensor(surround_std))
-
-        self.pad_mode = pad_mode
-
-    @property
-    def filt(self) -> Tensor:
-        """Creates an on center/off surround, or off center/on surround conv filter"""
-        filt_center = circular_gaussian2d(self.kernel_size, self.center_std)
-        filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std)
-        on_amp = self.amplitude_ratio
-
-        if self.on_center:  # on center, off surround
-            filt = on_amp * filt_center - filt_surround  # on center, off surround
-        else:  # off center, on surround
-            filt = on_amp * filt_surround - filt_center
-
-        filt = filt / filt.sum()
-
-        return filt
-
-    def _clamp_surround_std(self) -> Tensor:
-        """Clamps surround standard deviation to ratio_limit times center_std"""
-        return self.surround_std.clamp(
-            min=self.width_ratio_limit * float(self.center_std), max=None
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        self._clamp_surround_std()  # clip the surround stdev
-        y = F.conv2d(x, self.filt, bias=None)
-        return y
 
 
 class LinearNonlinear(nn.Module):
     """Linear-Nonlinear model, applies a difference of Gaussians filter followed by an
-    activation function.
+    activation function. Model is described in [1]_ and [2]_.
 
     Parameters
     ----------
@@ -166,8 +38,10 @@ class LinearNonlinear(nn.Module):
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
     width_ratio_limit:
-        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
-        ratio_limit times center_std.
+        Sets a lower bound on the ratio of `surround_std` over `center_std`.
+        The surround Gaussian must be wider than the center Gaussian in order to be a
+        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
+        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -180,6 +54,11 @@ class LinearNonlinear(nn.Module):
     center_surround: nn.Module
         `CenterSurround` difference of Gaussians filter.
 
+    References
+    ----------
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
+        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
     def __init__(
@@ -230,6 +109,7 @@ class LinearNonlinear(nn.Module):
 
 class LuminanceGainControl(nn.Module):
     """ Linear center-surround followed by luminance gain control and activation.
+    Model is described in [1]_ and [2]_.
 
     Parameters
     ----------
@@ -239,8 +119,10 @@ class LuminanceGainControl(nn.Module):
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
     width_ratio_limit:
-        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
-        ratio_limit times center_std.
+        Sets a lower bound on the ratio of `surround_std` over `center_std`.
+        The surround Gaussian must be wider than the center Gaussian in order to be a
+        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
+        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -256,6 +138,12 @@ class LuminanceGainControl(nn.Module):
         Gaussian convolutional kernel used to normalize signal by local luminance.
     luminance_scalar: nn.Parameter
         Scale factor for luminance normalization.
+
+    References
+    ----------
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
+        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
     def __init__(
         self,
@@ -318,7 +206,7 @@ class LuminanceGainControl(nn.Module):
 
 class LuminanceContrastGainControl(nn.Module):
     """ Linear center-surround followed by luminance and contrast gain control,
-    and activation function.
+    and activation function. Model is described in [1]_ and [2]_.
 
     Parameters
     ----------
@@ -328,8 +216,10 @@ class LuminanceContrastGainControl(nn.Module):
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
     width_ratio_limit:
-        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
-        ratio_limit times center_std.
+        Sets a lower bound on the ratio of `surround_std` over `center_std`.
+        The surround Gaussian must be wider than the center Gaussian in order to be a
+        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
+        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -350,6 +240,11 @@ class LuminanceContrastGainControl(nn.Module):
     contrast_scalar: nn.Parameter
         Scale factor for contrast normalization.
 
+    References
+    ----------
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
+        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
     def __init__(
@@ -431,23 +326,29 @@ class OnOff(nn.Module):
     kernel_size:
         Shape of convolutional kernel.
     width_ratio_limit:
-        Ratio of surround stdev over center stdev. Surround stdev will be clamped to
-        ratio_limit times center_std.
+        Sets a lower bound on the ratio of `surround_std` over `center_std`.
+        The surround Gaussian must be wider than the center Gaussian in order to be a
+        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
+        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "circular".
-    activation:
-        Activation function following linear convolution.
+    pretrained:
+        Whether or not to load model params estimated from [1]_. See Notes for details.
     activation:
         Activation function following linear and gain control operations.
     apply_mask:
-        Whether or not to apply circular disk mask to image.
+        Whether or not to apply circular disk mask centered on the input image. This is
+        useful for synthesis methods like Eigendistortions to ensure that the
+        synthesized distortion will not appear in the periphery. See
+        `plenoptic.tools.signal.make_disk()` for details on how mask is created.
 
     Notes
     -----
     These 12 parameters (standard deviations & scalar constants) were reverse-engineered
-    from model from [1]_, [2]_. Please use at your own discretion.
+    from model from [1]_, [2]_. Please use these pretrained weights at your own
+    discretion.
 
     References
     ----------

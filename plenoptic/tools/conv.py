@@ -116,7 +116,8 @@ def same_padding(
         dilation: Union[int, Tuple[int, int]] = (1, 1),
         pad_mode: str = "circular",
 ) -> Tensor:
-    """Ciruclarly pad an image tensor and output image of same dims."""
+    """Pad a tensor so that 2D convolution will result in output with same dims."""
+    assert len(x.shape) > 2, "Input must be tensor whose last dims are height x width"
     ih, iw = x.shape[-2:]
     pad_h = _get_same_padding(ih, kernel_size[0], stride[0], dilation[0])
     pad_w = _get_same_padding(iw, kernel_size[1], stride[1], dilation[1])

@@ -27,7 +27,7 @@ def gaussian1d(kernel_size: int = 11, std: Union[float, Tensor] = 1.5) -> Tensor
     filt:
         1d Gaussian with `Size([kernel_size])`.
     """
-    assert std > 1.0, "std must be positive"
+    assert std > 0.0, "std must be positive"
     if isinstance(std, float):
         std = torch.tensor(std)
     device = std.device
@@ -45,6 +45,7 @@ def circular_gaussian2d(
     n_channels: int = 1,
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
+
     Parameters
     ----------
     kernel_size:
@@ -58,7 +59,7 @@ def circular_gaussian2d(
     -------
     filt:
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
-        Tensor will have `Size([1, n_channels, height, width])`.
+        `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
     """
     assert std > 0.0, "stdev must be positive"
     if isinstance(std, float):
@@ -72,8 +73,8 @@ def circular_gaussian2d(
     origin = torch.tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 
-    shift_y = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]
-    shift_x = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]
+    shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]
+    shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]
 
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 
@@ -81,6 +82,6 @@ def circular_gaussian2d(
 
     filt = torch.exp(log_filt)
     filt = filt / filt.sum()  # normalize
-    filt = torch.stack([filt] * n_channels, dim=0).unsqueeze(0)
+    filt = torch.stack([filt] * n_channels, dim=0).unsqueeze(1)
 
     return filt
