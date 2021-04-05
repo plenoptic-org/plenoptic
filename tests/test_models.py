@@ -38,8 +38,13 @@ class TestFrontEnd:
     def test_onoff(self):
         mdl = po.simul.OnOff(7, pretrained=False).to(DEVICE)
 
-    def test_pretrained_onoff(self):
-        mdl = po.simul.OnOff(7, pretrained=True).to(DEVICE)
+    @pytest.mark.parametrize("kernel_size", [7, 31])
+    def test_pretrained_onoff(self, kernel_size):
+        if kernel_size != 31:
+            with pytest.raises(AssertionError):
+                mdl = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
+        else:
+            mdl = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_frontend_display_filters(self, model):

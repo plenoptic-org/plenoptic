@@ -53,7 +53,7 @@ class Linear(nn.Module):
     pad_mode:
         Mode with which to pad image using `nn.functional.pad()`.
     default_filters:
-        Initialize the first three filters to: low-pass and high-pass on/off.
+        Initialize the filters to a low-pass and a band-pass.
     """
 
     def __init__(
@@ -78,7 +78,7 @@ class Linear(nn.Module):
 
             f2 = circular_gaussian2d(kernel_size, std=np.sqrt(variance/3))
             f2 = f2 - f1
-            f2 = f2 - f2.sum()
+            f2 = f2 / f2.sum()
 
             self.conv.weight.data = torch.cat([f1, f2], dim=0)
 

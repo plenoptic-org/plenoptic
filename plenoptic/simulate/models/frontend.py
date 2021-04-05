@@ -99,7 +99,7 @@ class LinearNonlinear(nn.Module):
         """
 
         weights = self.center_surround.filt.detach()
-        title = "linear"
+        title = "linear filt"
         fig = imshow(
             weights, title=title, zoom=zoom, vrange="indep0", **kwargs
         )
@@ -195,7 +195,7 @@ class LuminanceGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = ["linear", "luminance norm",]
+        title = ["linear filt", "luminance filt",]
 
         fig = imshow(
             weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
@@ -306,7 +306,7 @@ class LuminanceContrastGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = ["linear", "luminance norm", "contrast norm"]
+        title = ["linear filt", "luminance filt", "contrast filt"]
 
         fig = imshow(
             weights, title=title, col_wrap=3, zoom=zoom, vrange="indep0", **kwargs
@@ -368,7 +368,10 @@ class OnOff(nn.Module):
         apply_mask: bool = False,
     ):
         super().__init__()
-        kernel_size = (31, 31) if pretrained else kernel_size
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
+        if pretrained:
+            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
 
         self.on = LuminanceContrastGainControl(
             kernel_size,
@@ -401,6 +404,8 @@ class OnOff(nn.Module):
             im_shape = x.shape[-2:]
             if self._disk is None or self._disk.shape != im_shape:  # cache new mask
                 self._disk = make_disk(im_shape).to(x.device)
+            if self._disk.device != x.device:
+                self._disk = self._disk.to(x.device)
 
             y = self._disk * y  # apply the mask
 
@@ -433,12 +438,12 @@ class OnOff(nn.Module):
         ).detach()
 
         title = [
-            "linear on",
-            "linear off",
-            "luminance norm on",
-            "luminance norm off",
-            "contrast norm on",
-            "contrast norm off",
+            "linear filt on",
+            "linear filt off",
+            "luminance filt on",
+            "luminance filt off",
+            "contrast filt on",
+            "contrast filt off",
         ]
 
         fig = imshow(
