@@ -17,6 +17,7 @@ def make_straight_line(start, stop, n_steps):
         sequence of shape [n_steps+1, C, H, W]
     """
     assert start.shape == stop.shape
+    assert start.shape[0] == 1
     tt = torch.linspace(0, 1, steps=n_steps+1).view(n_steps+1, 1, 1, 1)
     straight = (1 - tt) * start + tt * stop
 
@@ -47,6 +48,7 @@ def sample_brownian_bridge(start, stop, n_steps, max_norm=1):
         a brownian bridge accros the two pylons
     """
     assert start.shape == stop.shape
+    assert start.shape[0] == 1
     assert max_norm >= 0
 
     d = start.numel()

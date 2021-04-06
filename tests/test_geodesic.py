@@ -61,12 +61,12 @@ class TestGeodesic(object):
 
         assert (dist - d).pow(2).mean() < 1e-6
 
-    def test_geodesic_spectral(self):
+    # def test_geodesic_spectral(self):
 
-        model = po.simul.Spectral(imgA.shape[-2:])
-        n_steps = 11
-        moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
-        moog.synthesize(max_iter=5, learning_rate=0.005, lmbda=.1)
+    #     model = po.simul.Spectral(imgA.shape[-2:])
+    #     n_steps = 11
+    #     moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
+    #     moog.synthesize(max_iter=5, learning_rate=0.005, lmbda=.1)
 
     # def test_geodesic_polarpyr(self):
     #     image_size = 64
@@ -86,12 +86,13 @@ class TestGeodesic(object):
     #                              init='straight')
     #     moog.synthesize(max_iter=5, lmbda=.1)
 
-    @pytest.mark.parametrize('n_shifts', [3, 7, 9])
-    def test_geodesic_texture(self, n_shifts):
+    # @pytest.mark.parametrize('n_shifts', [3, 7, 9])
+    def test_geodesic_texture(self):
 
-        model = po.simul.Texture_Statistics(imgA.shape[-2:],
-                                            n_ori=4, n_scale=3,
-                                            n_shifts=n_shifts)
+        # model = po.simul.Texture_Statistics(imgA.shape[-2:],
+        #                                     n_ori=4, n_scale=3,
+        #                                     n_shifts=n_shifts)
+        model = po.simul.FrontEnd(requires_grad=False)
         n_steps = 11
         moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
-        moog.synthesize(max_iter=5, learning_rate=0.005, lmbda=.1)
+        moog.synthesize(max_iter=5, learning_rate=0.005)
