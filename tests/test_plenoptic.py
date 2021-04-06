@@ -18,7 +18,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
 
 
 def osf_download(filename):
-    f"""Download file from plenoptic OSF page.
+    r"""Download file from plenoptic OSF page.
 
     From the OSF project at https://osf.io/ts37w/.
 
@@ -254,7 +254,7 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_metric(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad

@@ -13,7 +13,7 @@ from conftest import DEVICE
 
 class TestMetamers(object):
 
-    @pytest.mark.parametrize('model', ['LNL', 'nlpd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear', 'nlpd'], indirect=True)
     @pytest.mark.parametrize('loss_func', [None, 'l2', 'range_penalty_w_beta'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss'])
     def test_metamer_save_load(self, einstein_img, model, loss_func, fail, tmp_path):
@@ -66,7 +66,7 @@ class TestMetamers(object):
             met_copy.synthesize(max_iter=10, loss_change_iter=5, store_progress=True,
                                 learning_rate=None)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     @pytest.mark.parametrize('store_progress', [True, 2, 3])
     def test_metamer_store_rep(self, einstein_img, model, store_progress):
         metamer = po.synth.Metamer(einstein_img, model)
@@ -75,19 +75,21 @@ class TestMetamers(object):
             max_iter = 6
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     def test_metamer_store_rep_fail(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         with pytest.raises(Exception):
             # save_progress cannot be True if store_progress is False
             metamer.synthesize(max_iter=3, store_progress=False, save_progress=True)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True, learning_rate=None,
                            seed=None)
+
 
     @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
@@ -111,14 +113,15 @@ class TestMetamers(object):
         metamer_copy.synthesize(max_iter=10, loss_change_iter=1, loss_change_thresh=10,
                                 coarse_to_fine=coarse_to_fine)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     def test_metamer_clamper(self, einstein_img, model, clamp_each_iter):
         clamper = po.RangeClamper((0, 1))
+
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     def test_metamer_no_clamper(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=None)
