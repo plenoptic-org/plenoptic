@@ -264,6 +264,18 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         The animation object. In order to view, must convert to HTML
         or save.
 
+    Notes
+    -----
+
+    By default, we use the ffmpeg backend, which requires that you have
+    ffmpeg installed and on your path (https://ffmpeg.org/download.html).
+    To use a different, use the matplotlib rcParams:
+    `matplotlib.rcParams['animation.writer'] = writer`, see
+    https://matplotlib.org/stable/api/animation_api.html#writer-classes for
+    more details.
+
+    For displaying in a jupyter notebook, ffmpeg appears to be required.
+
     """
     if not isinstance(video, list):
         video = [video]
@@ -448,6 +460,7 @@ def rescale_ylim(axes, data):
         The data to use when rescaling (or a dictiontary of those
         values)
     """
+    data = data.cpu()
     def find_ymax(data):
         try:
             return np.abs(data).max()

@@ -148,9 +148,16 @@ explanation of git, Github, and the associated terminology.
 
 ### ffmpeg
 
-Several methods in this package generate videos. In order to save them or
-convert them to HTML5 for viewing, you'll need
-[ffmpeg](https://ffmpeg.org/download.html) installed on your system as well.
+Several methods in this package generate videos. There are several backends
+possible for saving the animations to file, see (matplotlib
+documentation)[https://matplotlib.org/stable/api/animation_api.html#writer-classes]
+for more details. In order convert them to HTML5 for viewing (and thus, to view
+in a jupyter notebook), you'll need [ffmpeg](https://ffmpeg.org/download.html)
+installed and on your path as well.
+
+To change the backend, run `matplotlib.rcParams['animation.writer'] = writer`
+before calling any of the animate functions. If you try to set that `rcParam`
+with a random string, `matplotlib` will tell you the available choices.
 
 ## plenoptic
 
