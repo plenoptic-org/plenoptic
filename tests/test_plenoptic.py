@@ -151,10 +151,8 @@ class TestNonLinearities(object):
 
     def test_normalize_dict(self):
         x = po.tools.make_synthetic_stimuli()
-        v1 = po.simul.PooledV1(1, x.shape[-2:])
-        v1(x[0])
-        po.simul.non_linearities.normalize_dict(v1.representation)
-
+        spyr = po.simul.Steerable_Pyramid_Freq(x.shape[-2:])
+        po.simul.non_linearities.normalize_dict(spyr(x))
 
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
