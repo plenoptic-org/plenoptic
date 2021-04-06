@@ -77,7 +77,7 @@ class Geodesic(nn.Module):
         self.image_shape = imgA.shape
         self.pixelfade = self._initialize('straight', imgA, imgB, n_steps)
 
-        self.xA, x, self.xB = torch.split(self.initialize(init, imgA, imgB,
+        self.xA, x, self.xB = torch.split(self._initialize(init, imgA, imgB,
                                                           n_steps).view(
                                           n_steps+1, torch.numel(imgA[0])),
                                           [1, n_steps-1, 1])
@@ -174,16 +174,16 @@ class Geodesic(nn.Module):
         if loss.item() != loss.item():
             raise Exception('found a NaN in the loss during optimization')
 
-        grad_norm = torch.norm(self.x.grad.data)
-        if grad_norm.item() != grad_norm.item():
-            raise Exception('found a NaN in the gradients during optimization')
-
         # if loss.item() < 1e-6:
         #     raise Exception("""the geodesic matches the representation
         #                     straight line up to floating point
         #                     precision""")
 
         loss.backward()
+
+        grad_norm = torch.norm(self.x.grad.data)
+        if grad_norm.item() != grad_norm.item():
+            raise Exception('found a NaN in the gradients during optimization')
 
         # TODO undercomplete representation case
         # repres_grad = x.grad
