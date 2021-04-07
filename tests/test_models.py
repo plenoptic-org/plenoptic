@@ -83,6 +83,16 @@ class TestNaive(object):
         else:
             assert model._filt is None
 
+    @pytest.mark.parametrize("center_std", [1., torch.tensor([1., 2.])])
+    @pytest.mark.parametrize("out_channels", [1, 2, 3])
+    @pytest.mark.parametrize("on_center", [True, [True, False]])
+    def test_CenterSurround_channels(self, center_std, out_channels, on_center):
+        if not isinstance(on_center, bool) and len(on_center) != out_channels:
+            with pytest.raises(AssertionError):
+                model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
+        else:
+            model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
+
     def test_linear(self, basic_stim):
         model = plenoptic.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
@@ -91,6 +101,13 @@ class TestNaive(object):
         model = plenoptic.simul.Linear().to(DEVICE)
         M = po.synth.Metamer(einstein_img, model)
         M.synthesize(max_iter=3, learning_rate=1, seed=1)
+
+    def test_OnOff2(self):
+        mdl = po.simul.OnOff2(7).to(DEVICE)
+        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
+        for p in mdl.named_parameters():
+            print(p)
+        y = mdl(img)
 
 
 class TestLaplacianPyramid(object):

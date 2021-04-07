@@ -23,7 +23,7 @@ from ...tools.signal import make_disk
 from collections import OrderedDict
 
 __all__ = ["LinearNonlinear", "LuminanceGainControl",
-           "LuminanceContrastGainControl", "OnOff"]
+           "LuminanceContrastGainControl", "OnOff", "OnOff2"]
 
 
 class LinearNonlinear(nn.Module):
@@ -476,3 +476,60 @@ class OnOff(nn.Module):
             ]
         )
         return state_dict
+
+
+class OnOff2(nn.Module):
+    def __init__(
+        self,
+        kernel_size: Union[int, Tuple[int, int]],
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        pad_mode: str = "circular",
+        pretrained=False,
+        activation: Callable[[Tensor], Tensor] = F.softplus,
+        apply_mask: bool = False,
+        cache_filt: bool = False,
+    ):
+        super().__init__()
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
+        if pretrained:
+            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert cache_filt is False
+
+        if pretrained:
+            self.load_state_dict(self._pretrained_state_dict())
+
+        self.center_surround = CenterSurround(
+            kernel_size=kernel_size,
+            on_center=[True, False],
+            amplitude_ratio=amplitude_ratio,
+            out_channels=2,
+        )
+
+        self.luminance = Gaussian(
+           kernel_size=kernel_size,
+           out_channels=2,
+        )
+
+        self.contrast = Gaussian(
+           kernel_size=kernel_size,
+           out_channels=2,
+        )
+
+        self.luminance_scalar = nn.Parameter(torch.rand(2, 1, 1, 1) * 10)
+        self.contrast_scalar = nn.Parameter(torch.rand(2, 1, 1, 1) * 10)
+
+        self.apply_mask = apply_mask
+        self._disk = None  # cached disk to apply to image
+
+    def forward(self, x: Tensor) -> Tensor:
+        linear = self.center_surround(x)
+        lum = self.luminance(x)
+        lum_normed = linear / (1 + self.luminance_scalar * lum)
+
+        con = self.contrast(lum_normed.pow(2)).sqrt() + 1E-6  # avoid div by zero
+        # con_normed = lum_normed / (1 + self.contrast_scalar * con)
+        # y = self.activation(con_normed)
+
+        # return y
