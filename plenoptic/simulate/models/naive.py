@@ -107,15 +107,17 @@ class Gaussian(nn.Module):
         kernel_size: Union[int, Tuple[int, int]],
         std: Union[float, Tensor] = 3.0,
         pad_mode: str = "circular",
+        out_channels: int = 1,
         cache_filt: bool = False,
     ):
         super().__init__()
         assert std > 0, "Gaussian standard deviation must be positive"
-        self.std = nn.Parameter(torch.tensor(std))
+        self.std = nn.Parameter(torch.as_tensor(std))
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
+        self.out_channels = out_channels
 
         self.cache_filt = cache_filt
         self._filt = None
@@ -125,7 +127,7 @@ class Gaussian(nn.Module):
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
-            filt = circular_gaussian2d(self.kernel_size, self.std)
+            filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
             if self.cache_filt:
                 self._filt = filt
             return filt

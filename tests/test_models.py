@@ -67,6 +67,22 @@ class TestNaive(object):
         y = model(img)
         assert y.requires_grad
 
+    @pytest.mark.parametrize("mdl", ["naive.Gaussian", "naive.CenterSurround"])
+    @pytest.mark.parametrize("cache_filt", [False, True])
+    def test_cache_filt(self, cache_filt, mdl):
+        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
+        if mdl == "naive.Gaussian":
+            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt)
+        elif mdl == "naive.CenterSurround":
+            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt)
+
+        y = model(img)  # forward pass should cache filt if True
+
+        if cache_filt:
+            assert model._filt is not None
+        else:
+            assert model._filt is None
+
     def test_linear(self, basic_stim):
         model = plenoptic.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
