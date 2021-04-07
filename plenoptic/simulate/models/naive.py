@@ -107,17 +107,28 @@ class Gaussian(nn.Module):
         kernel_size: Union[int, Tuple[int, int]],
         std: float = 3.0,
         pad_mode: str = "circular",
+        cache_filt: bool = True,
     ):
         super().__init__()
         assert std > 0, "Gaussian standard deviation must be positive"
         self.std = nn.Parameter(torch.tensor(std))
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
 
+        self.cache_filt = cache_filt
+        self._filt = None
+
     @property
     def filt(self):
-        filt = circular_gaussian2d(self.kernel_size, self.std)
-        return filt
+        if self._filt is not None:  # use old filter
+            return self._filt
+        else:  # create new filter, optionally cache it
+            filt = circular_gaussian2d(self.kernel_size, self.std)
+            if self.cache_filt:
+                self._filt = filt
+            return filt
 
     def forward(self, x: Tensor) -> Tensor:
         self.std.data = self.std.data.abs()  # ensure stdev is positive
@@ -172,6 +183,7 @@ class CenterSurround(nn.Module):
         center_std: float = 1.0,
         surround_std: float = 4.0,
         pad_mode: str = "circular",
+        cache_filt: bool = True,
     ):
         super().__init__()
 
@@ -188,19 +200,28 @@ class CenterSurround(nn.Module):
 
         self.pad_mode = pad_mode
 
+        self.cache_filt = cache_filt
+        self._filt = None
+
     @property
     def filt(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
-        filt_center = circular_gaussian2d(self.kernel_size, self.center_std)
-        filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std)
-        on_amp = self.amplitude_ratio
+        if self._filt is not None:  # use cached filt
+            return self._filt
+        else:  # generate new filt and optionally cache
+            filt_center = circular_gaussian2d(self.kernel_size, self.center_std)
+            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std)
+            on_amp = self.amplitude_ratio
 
-        if self.on_center:  # on center, off surround
-            filt = on_amp * filt_center - filt_surround  # on center, off surround
-        else:  # off center, on surround
-            filt = on_amp * filt_surround - filt_center
+            if self.on_center:  # on center, off surround
+                filt = on_amp * filt_center - filt_surround  # on center, off surround
+            else:  # off center, on surround
+                filt = on_amp * filt_surround - filt_center
 
-        filt = filt / filt.sum()
+            filt = filt / filt.sum()
+
+            if self.cache_filt:
+                self._filt = filt
 
         return filt
 
