@@ -76,7 +76,12 @@ def get_model(name):
     elif name == 'frontend.LuminanceContrastGainControl':
         return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
     elif name == 'frontend.OnOff':
-        return po.simul.OnOff((31, 31), pretrained=True).to(DEVICE)
+        return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+    elif name == 'frontend.OnOff.nograd':
+        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        for p in mdl.parameters():
+            p.detach_()
+        return mdl
 
 
 @pytest.fixture(scope='package')

@@ -140,11 +140,11 @@ class Gaussian(nn.Module):
                 self._filt = filt
             return filt
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
         self.std.data = self.std.data.abs()  # ensure stdev is positive
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        y = F.conv2d(x, self.filt)
+        y = F.conv2d(x, self.filt, **conv2d_kwargs)
         return y
 
 
@@ -195,7 +195,7 @@ class CenterSurround(nn.Module):
         self,
         kernel_size: Union[int, Tuple[int, int]],
         on_center: Union[bool, List[bool, ]] = True,
-        width_ratio_limit: float = 4.0,
+        width_ratio_limit: float = 2.0,
         amplitude_ratio: float = 1.25,
         center_std: Union[float, Tensor] = 1.0,
         surround_std: Union[float, Tensor] = 4.0,
@@ -226,8 +226,8 @@ class CenterSurround(nn.Module):
         self.width_ratio_limit = width_ratio_limit
         self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
 
-        self.center_std = nn.Parameter(torch.as_tensor(center_std))
-        self.surround_std = nn.Parameter(torch.as_tensor(surround_std))
+        self.center_std = nn.Parameter(torch.ones(out_channels) * center_std)
+        self.surround_std = nn.Parameter(torch.ones(out_channels) * surround_std)
 
         self.out_channels = out_channels
         self.pad_mode = pad_mode

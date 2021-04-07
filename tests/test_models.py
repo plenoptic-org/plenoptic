@@ -39,12 +39,13 @@ class TestFrontEnd:
         mdl = po.simul.OnOff(7, pretrained=False).to(DEVICE)
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
-    def test_pretrained_onoff(self, kernel_size):
+    @pytest.mark.parametrize("cache_filt", [False, True])
+    def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
             with pytest.raises(AssertionError):
-                mdl = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
+                mdl = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(DEVICE)
         else:
-            mdl = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
+            mdl = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(DEVICE)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_frontend_display_filters(self, model):
@@ -101,13 +102,6 @@ class TestNaive(object):
         model = plenoptic.simul.Linear().to(DEVICE)
         M = po.synth.Metamer(einstein_img, model)
         M.synthesize(max_iter=3, learning_rate=1, seed=1)
-
-    def test_OnOff2(self):
-        mdl = po.simul.OnOff2(7).to(DEVICE)
-        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
-        for p in mdl.named_parameters():
-            print(p)
-        y = mdl(img)
 
 
 class TestLaplacianPyramid(object):
