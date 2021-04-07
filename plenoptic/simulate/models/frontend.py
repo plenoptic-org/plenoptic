@@ -366,12 +366,14 @@ class OnOff(nn.Module):
         pretrained=False,
         activation: Callable[[Tensor], Tensor] = F.softplus,
         apply_mask: bool = False,
+        cache_filt: bool = False,
     ):
         super().__init__()
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
         if pretrained:
             assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert cache_filt is False
 
         self.on = LuminanceContrastGainControl(
             kernel_size,

@@ -3,8 +3,8 @@ import plenoptic as po
 import pytest
 import matplotlib.pyplot as plt
 import torch
+from torch import Tensor
 
-# import plenoptic.simulate.models.naive
 import plenoptic
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
 from conftest import DEVICE
@@ -88,17 +88,23 @@ class TestLaplacianPyramid(object):
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
-    @pytest.mark.parametrize("n_channels", [1, 3, 10])
-    def test_circular_gaussian2d_shape(self, std, kernel_size, n_channels):
+    @pytest.mark.parametrize("out_channels", [1, 3, 10])
+    def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
         if std <=0.:
             with pytest.raises(AssertionError):
                 circular_gaussian2d((7, 7), std)
         else:
-            filt = circular_gaussian2d(kernel_size, std, n_channels)
+            filt = circular_gaussian2d(kernel_size, std, out_channels)
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
-            assert filt.shape == (n_channels, 1, *kernel_size)
-            assert filt.sum().isclose(torch.ones(1)*n_channels)
+            assert filt.shape == (out_channels, 1, *kernel_size)
+            assert filt.sum().isclose(torch.ones(1) * out_channels)
+
+    def test_circular_gaussian2d_wrong_std_length(self):
+        std = torch.tensor([1., 2.])
+        out_channels = 3
+        with pytest.raises(AssertionError):
+            circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
     @pytest.mark.parametrize("std", [1., 20., 0.])

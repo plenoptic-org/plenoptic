@@ -73,10 +73,10 @@ class Linear(nn.Module):
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
         if default_filters:
-            variance = 3
-            f1 = circular_gaussian2d(kernel_size, std=np.sqrt(variance))
+            var = torch.tensor(3.)
+            f1 = circular_gaussian2d(kernel_size, std=torch.sqrt(var))
 
-            f2 = circular_gaussian2d(kernel_size, std=np.sqrt(variance/3))
+            f2 = circular_gaussian2d(kernel_size, std=torch.sqrt(var/3))
             f2 = f2 - f1
             f2 = f2 / f2.sum()
 
@@ -89,7 +89,7 @@ class Linear(nn.Module):
 
 
 class Gaussian(nn.Module):
-    """Isotropic Gaussian single-channel convolutional filter.
+    """Isotropic Gaussian convolutional filter.
     Kernel elements are normalized and sum to one.
 
     Parameters
@@ -105,9 +105,9 @@ class Gaussian(nn.Module):
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
-        std: float = 3.0,
+        std: Union[float, Tensor] = 3.0,
         pad_mode: str = "circular",
-        cache_filt: bool = True,
+        cache_filt: bool = False,
     ):
         super().__init__()
         assert std > 0, "Gaussian standard deviation must be positive"
@@ -183,7 +183,7 @@ class CenterSurround(nn.Module):
         center_std: float = 1.0,
         surround_std: float = 4.0,
         pad_mode: str = "circular",
-        cache_filt: bool = True,
+        cache_filt: bool = False,
     ):
         super().__init__()
 
