@@ -83,6 +83,10 @@ class Geodesic(nn.Module):
                                           [1, n_steps-1, 1])
         self.x = nn.Parameter(x.requires_grad_())
 
+        # making sure we are not computing unnecessary gradients
+        for p in model.parameters():
+            if p.requires_grad:
+                p.detach_()
         self.model = model
 
         self.loss = []
@@ -109,13 +113,14 @@ class Geodesic(nn.Module):
         return x
 
     def _analyze(self, x):
-        """compute the model representation on the current iterate of
-        the geodesic
+        """compute the model representation on the current value of
+        the optimization variable `x`.
 
-        Note that we reshape the vector optimization variable, into a
-        tensor of images for the model, and then view the representation
-        as a vector. This is necessary for computation of the regularization
-        of path jerkinessthe, which is a vector Jacobian product.
+        Note that the optimization variable `x` is a series of vectors,
+        it is first reshaped into a tensor of images that the model can process,
+        and then the representation is viewed as a vector. This is necessary
+        for computation of the regularization of path jerkinessthe, which
+        is a vector Jacobian product.
         """
         return self.model(x.view(len(x), *self.image_shape[1:])
                           ).view(len(x), -1)
@@ -126,7 +131,7 @@ class Geodesic(nn.Module):
         return z[1:] - z[:-1]
 
     def _vector_jacobian_product(self, y, x, a):
-        """Produce vector-jacobian product: a dot dy/dx
+        """compute vector-jacobian product: a dot dy/dx
         and allow for further gradient computations by retaining
         and creating the graph.
         """
@@ -137,7 +142,7 @@ class Geodesic(nn.Module):
 
     def _optimizer_step(self, i, pbar):
         """
-        At each step of the optimization, thw following is done:
+        At each step of the optimization, the following is done:
         - compute the representation
         - calculate the loss:
             - path energy
@@ -206,7 +211,7 @@ class Geodesic(nn.Module):
         self.loss.append(loss.item())
         self.step_energy.append(step_energy.detach())
         self.step_jerkiness.append(step_jerkiness.detach())
-        self.dist_from_line.append(distance_from_line(y))
+        self.dist_from_line.append(distance_from_line(y.unsqueeze(2).unsqueeze(3)))
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
                    lmbda=.1, nu=.01, seed=0):
@@ -221,6 +226,9 @@ class Geodesic(nn.Module):
 
         optimizer: {'Adam', 'SGD', torch.optim.Optimizer}, optional
             algorithm that will perform the search
+            if an optimizer is passed, its `params` argument should be set to
+            `self.x`, where self refers to a previously initialized Geodesic 
+            class.
 
         lmbda: float, optional
             strength of the regularizer that enforces the image range in [0, 1]
