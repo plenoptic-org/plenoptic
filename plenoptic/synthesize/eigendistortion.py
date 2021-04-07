@@ -418,13 +418,14 @@ class Eigendistortion:
 
     def _indexer(self, idx: int) -> int:
         """Maps eigenindex to arg index (0-indexed)"""
-        if idx == 0 or idx == -1:
-            return idx
-        else:
-            all_idx = self.synthesized_eigenindex
-            assert idx in all_idx, "eigenindex must be the index of one of the vectors"
-            assert all_idx is not None and len(all_idx) != 0, "No eigendistortions have been synthesized."
-            return int(np.where(all_idx == idx))
+        n = len(self._input_flat)
+        idx_range = range(n)
+        i = idx_range[idx]
+
+        all_idx = self.synthesized_eigenindex
+        assert i in all_idx, "eigenindex must be the index of one of the vectors"
+        assert all_idx is not None and len(all_idx) != 0, "No eigendistortions synthesized"
+        return int(np.where(all_idx == i)[0])
 
     def plot_distorted_image(self,
                              eigen_index: int = 0,

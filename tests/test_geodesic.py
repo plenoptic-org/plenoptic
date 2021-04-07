@@ -6,7 +6,7 @@ import plenoptic as po
 import pytest
 import torch
 
-from test_plenoptic import DATA_DIR, DEVICE, DTYPE
+from conftest import DATA_DIR, DEVICE, DTYPE
 
 imageA = po.load_images(DATA_DIR + '/256/reptil_skin.pgm')
 imageB = po.load_images(DATA_DIR + '/256/metal.pgm')
@@ -92,7 +92,7 @@ class TestGeodesic(object):
         # model = po.simul.Texture_Statistics(imgA.shape[-2:],
         #                                     n_ori=4, n_scale=3,
         #                                     n_shifts=n_shifts)
-        model = po.simul.FrontEnd(requires_grad=False)
+        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
         n_steps = 11
         moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
         moog.synthesize(max_iter=5, learning_rate=0.005)

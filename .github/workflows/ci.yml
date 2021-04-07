@@ -1,6 +1,8 @@
 name: build
 on:
-  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # weekly
   pull_request:
     branches:
       - master
@@ -20,13 +22,32 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      # based on AllenNLP's setup:
+      # https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d
+      - name: Cache environment
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
-          pip install -e .
-          pip install pytest-cov
-          sudo apt update
-          sudo apt install ffmpeg
+          # using the --upgrade and --upgrade-strategy eager flags ensures that
+          # pip will always install the latest allowed version of all
+          # dependencies, to make sure the cache doesn't go stale
+          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager pytest-cov
+
       - name: Run tests with pytest
+        if: ${{ matrix.test_script == 'display' }}
+        # we have two cores on the linux github action runners:
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        run: |
+          pip install --upgrade --upgrade-strategy eager pytest-xdist
+          pytest -n 2 --cov=plenoptic tests/test_${{ matrix.test_script }}.py
+      - name: Run tests with pytest
+        if: ${{ matrix.test_script != 'display' }}
+        # only test_display should parallelize across the cores, the others get
+        # slowed down by it
         run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'

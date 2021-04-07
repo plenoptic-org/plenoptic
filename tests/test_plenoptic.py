@@ -7,23 +7,18 @@ import tarfile
 import os
 import numpy as np
 import plenoptic as po
-import pyrtools as pt
 import os.path as op
 import scipy.io as sio
-import matplotlib.pyplot as plt
+from conftest import DATA_DIR, DEVICE
 
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DTYPE = torch.float32
-DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
            'ssim_analysis.mat': 'ndtc7', 'MAD_results.tar.gz': 'jwcsr'}
-print("On device %s" % DEVICE)
 
 
 def osf_download(filename):
-    f"""Download file from plenoptic OSF page.
+    r"""Download file from plenoptic OSF page.
 
     From the OSF project at https://osf.io/ts37w/.
 
@@ -81,22 +76,23 @@ def ssim_images():
 
 @pytest.fixture()
 def ssim_analysis():
-    return osf_download('ssim_analysis.mat')
+    ssim_analysis = osf_download('ssim_analysis.mat')
+    return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
 class TestNonLinearities(object):
 
     def test_polar_amplitude_zero(self):
-        a = torch.rand(10)*-1
-        b = po.tools.rescale(torch.randn(10), -np.pi / 2, np.pi / 2)
+        a = torch.rand(10, device=DEVICE) * -1
+        b = po.rescale(torch.randn(10, device=DEVICE), -np.pi / 2, np.pi / 2)
 
         with pytest.raises(ValueError) as _:
             _, _ = po.tools.polar_to_rectangular(a, b)
 
     def test_coordinate_identity_transform_rectangular(self):
         dims = (10, 5, 256, 256)
-        x = torch.randn(dims)
-        y = torch.randn(dims)
+        x = torch.randn(dims, device=DEVICE)
+        y = torch.randn(dims, device=DEVICE)
 
         X, Y = po.tools.polar_to_rectangular(*po.rectangular_to_polar(x, y))
 
@@ -107,52 +103,42 @@ class TestNonLinearities(object):
         dims = (10, 5, 256, 256)
 
         # ensure vec len a is non-zero by adding .1 and then re-normalizing
-        a = torch.rand(dims) + 0.1
+        a = torch.rand(dims, device=DEVICE) + 0.1
         a = a / a.max()
-        b = po.tools.rescale(torch.randn(dims), -np.pi / 2, np.pi / 2)
+        b = po.rescale(torch.randn(dims, device=DEVICE), -np.pi / 2, np.pi / 2)
 
         A, B = po.rectangular_to_polar(*po.tools.polar_to_rectangular(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
-    def test_rectangular_to_polar_dict(self):
-        x = po.tools.make_synthetic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
-                                              is_complex=True)
-        y = spc(x)
+    def test_rectangular_to_polar_dict(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True).to(DEVICE)
+        y = spc(basic_stim)
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y)
 
     def test_rectangular_to_polar_real(self):
-        x = torch.randn(10, 1, 256, 256)
+        x = torch.randn((10, 1, 256, 256), device=DEVICE)
         po.simul.non_linearities.rectangular_to_polar_real(x)
 
-    def test_local_gain_control(self):
-        x = po.tools.make_synthetic_stimuli()
-        spc = po.simul.Steerable_Pyramid_Freq(x.shape[-2:], height=5, order=1,
-                                              is_complex=False)
-        y = spc(x)
-        energy, state = po.simul.local_gain_control(y, residuals=True)
-        y_hat = po.simul.local_gain_release(energy, state, residuals=True)
-        error = 0
-        for k in y.keys():
-            error += (y[k] - y_hat[k]).pow(2).mean()
-        assert (error < 1e-6)
+    def test_local_gain_control(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5, order=1, is_complex=False).to(DEVICE)
+        y = spc(basic_stim)
+        energy, state = po.simul.non_linearities.local_gain_control(y)
 
-    def test_normalize(self):
-        x = po.tools.make_synthetic_stimuli()
+    def test_normalize(self, basic_stim):
         # should operate on both of these, though it will do different
         # things
-        po.simul.non_linearities.normalize(x[0].flatten())
-        po.simul.non_linearities.normalize(x[0].flatten(), 1)
-        po.simul.non_linearities.normalize(x[0])
-        po.simul.non_linearities.normalize(x[0], 1)
-        po.simul.non_linearities.normalize(x[0], sum_dim=1)
+        po.simul.non_linearities.normalize(basic_stim[0].flatten())
+        po.simul.non_linearities.normalize(basic_stim[0].flatten(), 1)
+        po.simul.non_linearities.normalize(basic_stim[0])
+        po.simul.non_linearities.normalize(basic_stim[0], 1)
+        po.simul.non_linearities.normalize(basic_stim[0], sum_dim=1)
 
-    def test_normalize_dict(self):
-        x = po.tools.make_synthetic_stimuli()
-        spyr = po.simul.Steerable_Pyramid_Freq(x.shape[-2:])
-        po.simul.non_linearities.normalize_dict(spyr(x))
+    def test_normalize_dict(self, basic_stim):
+        spyr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:]).to(DEVICE)
+        po.simul.non_linearities.normalize_dict(spyr(basic_stim))
 
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
@@ -195,29 +181,26 @@ def test_load_images(paths, as_gray):
 class TestPerceptualMetrics(object):
 
     @pytest.mark.parametrize('weighted', [True, False])
-    def test_ssim(self, weighted):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        assert po.metric.ssim(im1, im2).requires_grad
+    def test_ssim(self, einstein_img, curie_img, weighted):
+        curie_img.requires_grad_()
+        assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
 
     @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim'])
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
-    def test_batch_handling(self, func_name, size_A, size_B):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1)
+    def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
         if func_name == 'noise':
             func = po.add_noise
-            A = im1.repeat(size_A, 1, 1, 1)
+            A = einstein_img.repeat(size_A, 1, 1, 1)
             B = size_B * [4]
         elif func_name == 'mse':
             func = po.metric.mse
-            A = im1.repeat(size_A, 1, 1, 1)
-            B = im2.repeat(size_B, 1, 1, 1)
+            A = einstein_img.repeat(size_A, 1, 1, 1)
+            B = curie_img.repeat(size_B, 1, 1, 1)
         elif func_name == 'ssim':
             func = po.metric.ssim
-            A = im1.repeat(size_A, 1, 1, 1)
-            B = im2.repeat(size_B, 1, 1, 1)
+            A = einstein_img.repeat(size_A, 1, 1, 1)
+            B = curie_img.repeat(size_B, 1, 1, 1)
         if size_A != size_B and size_A != 1 and size_B != 1:
             with pytest.raises(Exception):
                 func(A, B)
@@ -229,75 +212,66 @@ class TestPerceptualMetrics(object):
             assert func(A, B).shape[0] == tgt_size
 
     @pytest.mark.parametrize('mode', ['many-to-one', 'one-to-many'])
-    def test_noise_independence(self, mode):
+    def test_noise_independence(self, einstein_img, mode):
         # this makes sure that we are drawing the noise independently in the
         # two cases here
-        img = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
         if mode == 'many-to-one':
-            img = img.repeat(2, 1, 1, 1)
+            einstein_img = einstein_img.repeat(2, 1, 1, 1)
             noise_lvl = 1
         elif mode == 'one-to-many':
             noise_lvl = [1, 1]
-        noisy = po.add_noise(img, noise_lvl)
+        noisy = po.add_noise(einstein_img, noise_lvl)
         assert not torch.equal(*noisy)
 
     @pytest.mark.parametrize('noise_lvl', [[1], [128], [2, 4], [2, 4, 8], [0]])
     @pytest.mark.parametrize('noise_as_tensor', [True, False])
-    def test_add_noise(self, noise_lvl, noise_as_tensor):
-        img = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
+    def test_add_noise(self, einstein_img, noise_lvl, noise_as_tensor):
         if noise_as_tensor:
-            noise_lvl = torch.tensor(noise_lvl,
-                                     dtype=torch.float32).unsqueeze(1)
-        noisy = po.add_noise(img, noise_lvl)
+            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
+        noisy = po.add_noise(einstein_img, noise_lvl).to(DEVICE)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
-            noise_lvl = torch.tensor(noise_lvl,
-                                     dtype=torch.float32).unsqueeze(1)
-        assert torch.allclose(po.metric.mse(img, noisy), noise_lvl)
+            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
+        assert torch.allclose(po.metric.mse(einstein_img, noisy), noise_lvl)
+
+    @pytest.fixture
+    def ssim_base_img(self, ssim_images, ssim_analysis):
+        return po.load_images(op.join(ssim_images, ssim_analysis['base_img'])).to(DEVICE)
 
     @pytest.mark.parametrize('weighted', [True, False])
     @pytest.mark.parametrize('other_img', np.arange(1, 11))
     def test_ssim_analysis(self, weighted, other_img, ssim_images,
-                           ssim_analysis):
-        analysis = sio.loadmat(ssim_analysis, squeeze_me=True)
-        print(ssim_analysis)
+                           ssim_analysis, ssim_base_img):
         mat_type = {True: 'weighted', False: 'standard'}[weighted]
-        base_img = po.tools.load_images(op.join(ssim_images, analysis['base_img']))
-        other = po.tools.load_images(op.join(ssim_images, f"samp{other_img}.tif"))
-        # dynamic range is 1 for these images, because po.tools.load_images
+        other = po.load_images(op.join(ssim_images, f"samp{other_img}.tif")).to(DEVICE)
+        # dynamic range is 1 for these images, because po.load_images
         # automatically re-ranges them. They were comptued with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
         # that should be corrected for
-        plen_val = po.metric.ssim(base_img, other, weighted)
-        mat_val = torch.tensor(
-                   analysis[mat_type][f'samp{other_img}'].astype(np.float32))
+        plen_val = po.metric.ssim(ssim_base_img, other, weighted)
+        mat_val = torch.tensor(ssim_analysis[mat_type][f'samp{other_img}'].astype(np.float32), device=DEVICE)
         # float32 precision is ~1e-6 (see `np.finfo(np.float32)`), and the
         # errors increase through multiplication and other operations.
         print(plen_val-mat_val, plen_val, mat_val)
         assert torch.allclose(plen_val, mat_val.view_as(plen_val), atol=1e-5)
 
-    def test_nlpd(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        assert po.metric.nlpd(im1, im2).requires_grad
+    def test_nlpd(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nlpd(einstein_img, curie_img).requires_grad
 
-    def test_nspd(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        assert po.metric.nspd(im1, im2).requires_grad
+    def test_nspd(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nspd(einstein_img, curie_img).requires_grad
 
-    def test_nspd2(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        assert po.metric.nspd(im1, im2, O=3, S=5, complex=True).requires_grad
+    def test_nspd2(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nspd(einstein_img, curie_img, O=3, S=5, complex=True).requires_grad
 
-    def test_nspd3(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        assert po.metric.nspd(im1, im2, O=1, S=5, complex=False).requires_grad
+    def test_nspd3(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
 
-    def test_model_metric(self):
-        im1 = po.tools.load_images(op.join(DATA_DIR, '256/einstein.pgm'))
-        im2 = torch.randn_like(im1, requires_grad=True)
-        model = po.simul.FrontEnd(disk_mask=True)
-        assert po.metric.model_metric(im1, im2, model).requires_grad
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
+    def test_model_metric(self, einstein_img, curie_img, model):
+        curie_img.requires_grad_()
+        assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
