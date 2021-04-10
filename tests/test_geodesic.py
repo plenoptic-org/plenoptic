@@ -14,7 +14,8 @@ c = 64 + 32
 imgA = imageA[..., c:-c, c:-c]
 imgB = imageB[..., c:-c, c:-c]
 
-class TestGeodesic(object):
+
+class TestSequences(object):
 
     def test_brownian_bridge(self):
         torch.manual_seed(0)
@@ -60,6 +61,22 @@ class TestGeodesic(object):
         d = torch.norm(y_ - (y_ @ u)[:, None]*u[None, :], dim=1)
 
         assert (dist - d).pow(2).mean() < 1e-6
+
+
+class TestGeodesic(object):
+
+    # def test_geodesic_OnOff(self):
+    #     try:
+    #         from adabelief_pytorch import AdaBelief
+    #         import adabelief_pytorch
+    #         print(adabelief_pytorch.__version__)
+    #         optimizer = AdaBelief([moog.x], lr=0.001, eps=1e-16, betas=(0.9,0.999),
+    #                             weight_decouple=True, rectify=False, print_change_log=False)
+    #     except:
+    #         optimizer = 'Adam'
+
+    #     moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
+    #     moog.synthesize(optimizer=optimizer)
 
     # def test_geodesic_spectral(self):
 

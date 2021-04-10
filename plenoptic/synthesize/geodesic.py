@@ -31,7 +31,7 @@ class Geodesic(nn.Module):
     model: nn.Module
         an analysis model that computes image representations
 
-    n_steps: int
+    n_steps: int, optional
         the number of steps in the trajectory between the two anchor points
 
     init: {'straight', 'bridge'}, optional
@@ -41,7 +41,7 @@ class Geodesic(nn.Module):
     Attributes
     ----------
     x:
-        optiization variable [n_steps-1, dx]
+        optimization variable, shape: [n_steps-1, dx], where dx = C x H x W
 
     geodesic:
         synthesized sequence of images between the two anchor points that
@@ -56,7 +56,7 @@ class Geodesic(nn.Module):
 
     step_jerkiness:
         alignment of representation's acceleration with local model curvature,
-        stored along the optimization process        
+        stored along the optimization process
 
     dist_from_line:
         l2 distance of the geodesic's representation to the straight line in
@@ -87,7 +87,8 @@ class Geodesic(nn.Module):
         for p in model.parameters():
             if p.requires_grad:
                 p.detach_()
-        self.model = model
+                # TODO: print info
+        self.model = model.eval()
 
         self.loss = []
         self.dist_from_line = []
@@ -117,63 +118,81 @@ class Geodesic(nn.Module):
         the optimization variable `x`.
 
         Note that the optimization variable `x` is a series of vectors,
-        it is first reshaped into a tensor of images that the model can process,
-        and then the representation is viewed as a vector. This is necessary
-        for computation of the regularization of path jerkinessthe, which
-        is a vector Jacobian product.
+        it is first reshaped into a tensor of images that the model can
+        process, and then the representation is viewed as a vector.
+        This is necessary for computation of the regularization of
+        path jerkinessthe, which is a vector Jacobian product.
         """
         return self.model(x.view(len(x), *self.image_shape[1:])
                           ).view(len(x), -1)
 
-    def _discrete_derivative(self, z):
-        """point difference approximation to time derivative
+    def _finite_difference(self, z):
+        """compute a discrete approximation to the derivative operator.
         """
         return z[1:] - z[:-1]
 
+    def _step_energy(self, z):
+        """compute the energy (ie. squared l2 norm) of each step in `z`.
+        """
+        velocity = self._finite_difference(z)
+        step_energy = torch.norm(velocity, dim=1) ** 2
+        return velocity, step_energy
+
     def _vector_jacobian_product(self, y, x, a):
-        """compute vector-jacobian product: a dot dy/dx
-        and allow for further gradient computations by retaining
+        """compute vector-jacobian product: $a^T dy/dx = dy/dx^T a$,
+        and allow for further gradient computations by retaining,
         and creating the graph.
         """
-        accJacc = autograd.grad(y, x, a,
-                                retain_graph=True,
-                                create_graph=True)[0].detach()
-        return accJacc
+        accJac = autograd.grad(y, x, a,
+                               retain_graph=True,
+                               create_graph=True)[0]
+        return accJac
+
+    def _step_jerkiness(self, y, velocity):
+        """compute the energy of `y`'s acceleration direction when it is pulled
+        in the input space by the input-output Jacobian.
+        ie. alignment of representation's acceleration to model curvature.
+        ie. sensitivity of the Jacobian outer product to the acceleration
+        direction.
+        """
+        acceleration = self._finite_difference(velocity)
+        acc_magnitude = torch.norm(acceleration, dim=1, keepdim=True)
+        acc_direction = torch.div(acceleration, acc_magnitude)
+        accJac = self._vector_jacobian_product(y[1:-1], self.x,
+                                               acc_direction)
+        step_jerkiness = torch.norm(accJac, dim=1) ** 2
+        return step_jerkiness
 
     def _optimizer_step(self, i, pbar):
         """
-        At each step of the optimization, the following is done:
+        At each step `i` of the optimization, the following is done:
         - compute the representation
-        - calculate the loss:
-            - path energy
-            - path jerkiness
-            - range constraint
-        - [TODO: conditional]
+        - compute the loss as a sum of:
+            - path energy (weighted by mu)
+            - path jerkiness (weighted by nu)
+            - range constraint (weighted by lambda)
         - compute the gradients
-        - make sure that neither the loss or the gradients are NaN 
-        - take a step in the direction of the gradients
+        - make sure that neither the loss or the gradients are NaN
+        - [TODO: compute conditional loss and gradients]
+        - let the optimizer take a step in the direction of the gradients
         - display some information
-        - store some information [TODO flag to store details or not]
+        - store some information
         """
 
         self.optimizer.zero_grad()
         y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
 
-        velocity = self._discrete_derivative(y)
-        step_energy = torch.norm(velocity, dim=1) ** 2
+        velocity, step_energy = self._step_energy(y)
         repres_path_energy = step_energy.mean()
         # TODO: rescale torch.div(step_energy, )
-        loss = repres_path_energy
+        loss = self.mu * repres_path_energy
 
-        if self.nu >= 0:
-            acceleration = -self._discrete_derivative(velocity)
-            accJacc = self._vector_jacobian_product(y[1:-1], self.x,
-                                                    acceleration)
-            step_jerkiness = torch.norm(accJacc, dim=1) ** 2
-            path_jerkiness = step_jerkiness.mean()
-            loss = loss + self.nu * path_jerkiness
+        # if self.nu > 0:
+        step_jerkiness = self._step_jerkiness(y, velocity)
+        path_jerkiness = step_jerkiness.mean()
+        loss = loss + self.nu * path_jerkiness
 
-        if self.lmbda >= 0:
+        if self.lmbda > 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
 
         if loss.item() != loss.item():
@@ -191,10 +210,12 @@ class Geodesic(nn.Module):
             raise Exception('found a NaN in the gradients during optimization')
 
         # TODO undercomplete representation case
+        # if y.shape[-1`] < dx:
         # repres_grad = x.grad
 
         # self.optimizer.zero_grad()
-        # signal_path_energy = torch.norm(_discrete_derivative(self.x), dim=1).pow(2).mean()
+        # signal_path_energy = torch.norm(_finite_difference(self.x),
+        #                                   dim=1).pow(2).mean()
         # signal_grad = x.grad
         # x.grad = signal_grad - (
         #           signal_grad @ repres_grad
@@ -209,38 +230,54 @@ class Geodesic(nn.Module):
 
         # storing some information
         self.loss.append(loss.item())
-        self.step_energy.append(step_energy.detach())
-        self.step_jerkiness.append(step_jerkiness.detach())
-        self.dist_from_line.append(distance_from_line(y.unsqueeze(2).unsqueeze(3)))
+        if self.verbose:
+            self.step_energy.append(step_energy.detach())
+            # if self.nu > 0:
+            self.step_jerkiness.append(step_jerkiness.detach())
+            self.dist_from_line.append(
+                distance_from_line(y.unsqueeze(2).unsqueeze(3)))
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
-                   lmbda=.1, nu=.01, seed=0):
+                   lmbda=.1, mu=1, nu=0, seed=0, verbose=True):
         """ synthesize a geodesic
         Parameters
         ----------
         max_iter: int, optional
-            maximum number of steps taken by the optimization a
+            maximum number of steps taken by the optimization algorithm.
 
         learning_rate: float, optional
-            controls the step sizes of the search algorithm
+            controls the step sizes of the search algorithm.
 
         optimizer: {'Adam', 'SGD', torch.optim.Optimizer}, optional
-            algorithm that will perform the search
+            choice of algorithm that will perform the search
             if an optimizer is passed, its `params` argument should be set to
-            `self.x`, where self refers to a previously initialized Geodesic 
+            `self.x`, where self refers to a previously initialized Geodesic
             class.
+
+        mu: float, optional
+            strength of the path length objective (usefull for experimenting
+            with only optimizing path jerkiness - under developpement)
+            (defaults to one)
 
         lmbda: float, optional
             strength of the regularizer that enforces the image range in [0, 1]
+            (present by default)
 
         nu: float, optional
             strength of the regularizer that enforces minimal path jerkiness
+            (ie. representation path orthogonal to model curvature).
+            (absent by default)
 
-        seed: int
+        seed: int, optional
             set the random number generator
+
+        verbose: bool, optional
+            storing information along the run of the optimization algorithm
         """
         self.lmbda = lmbda
+        self.mu = mu
         self.nu = nu
+        self.verbose = verbose
 
         torch.manual_seed(seed)
         if optimizer == 'Adam':
@@ -260,7 +297,15 @@ class Geodesic(nn.Module):
     def populate_geodesic(self):
         self.geodesic = torch.cat([self.xA, self.x, self.xB]
                                   ).reshape((self.n_steps+1,
-                                             *self.image_shape[1:]))
+                                             *self.image_shape[1:])
+                                            ).detach()
+
+    # def calculate_path_jerkiness(self):
+    #     usefull to check path jerkiness to certify a candidate geodesic
+    #     for now unnecessary because path jerkiness is computed during main algo
+    #     y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
+    #     velocity = self._finite_difference(y)
+    #     return self._step_jerkiness(y, velocity).detach()
 
     def plot_loss(self):
         plt.semilogy(self.loss)
@@ -323,9 +368,8 @@ class Geodesic(nn.Module):
         -------
         anim : matplotlib.animation.FuncAnimation
             The animation object. It can be saved (can call anim.save(target_location.mp4)),
-            or viewed in a jupyter notebook (needs to be converted to HTML). 
+            or viewed in a jupyter notebook (needs to be converted to HTML).
         """
-
         fig = self.plot_distance_from_line(vid=vid, iteration=0)
 
         def animate(i):
