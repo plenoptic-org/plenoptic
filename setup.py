@@ -37,7 +37,7 @@ setup(
     ],
     install_requires=[
         "numpy>=1.1",
-        "torch<1.8",
+        "torch>=1.8",
         "pyrtools>=1.0.0",
         "scipy>=1.0",
         "matplotlib>=3.1",
@@ -45,10 +45,9 @@ setup(
         "tqdm>=4.29",
         "requests>=2.21",
         "imageio>=2.5",
-        "pytest",
+        "pytest>=5.1.2",
         "scikit-image>=0.15.0",
         "dill",
-        "torchcontrib",
     ],
     tests="tests",
 )

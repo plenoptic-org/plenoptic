@@ -1,4 +1,5 @@
 import torch
+import torch.fft
 import torch.nn as nn
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
 from ...tools.signal import batch_fftshift
@@ -505,7 +506,7 @@ class PortillaSimoncelli(nn.Module):
         if ndim == 2:
             im = torch.stack((im, torch.zeros_like(im)), -1)
 
-        fourier = mult ** 2 * batch_fftshift(torch.fft(im, 2).unsqueeze(0)).squeeze()
+        fourier = mult ** 2 * batch_fftshift(torch.fft.fftn(im, 2).unsqueeze(0)).squeeze()
 
         y1 = int(my / 2 + 1 - my / (2 * mult))
         y2 = int(my / 2 + my / (2 * mult))
@@ -528,7 +529,7 @@ class PortillaSimoncelli(nn.Module):
         fourier_large = batch_fftshift(fourier_large.unsqueeze(0)).squeeze()
 
         # finish this
-        im_large = torch.ifft(fourier_large, 2)
+        im_large = torch.fft.ifftn(fourier_large, 2)
 
         if ndim == 2:
             return im_large[:, :, 0]
@@ -818,13 +819,21 @@ class PortillaSimoncelli(nn.Module):
         cy = int(ch.shape[-1] / 2)
         cx = int(ch.shape[-2] / 2)
 
+        print(ch.shape)
         # Calculate the auto-correlation
-        ac = torch.rfft(ch.squeeze(), 2, onesided=False)
-        ac = torch.stack(
-            (ac[:, :, 0].pow(2) + ac[:, :, 1].pow(2), torch.zeros_like(ac[:, :, 0])), -1
-        )
-        ac = torch.ifft(ac, 2)
+        ac = torch.fft.fftn(ch.squeeze())
+        
+        ac = ac.real.pow(2) + ac.imag.pow(2)
+
+        print(ac.shape)
+
+        ac = torch.fft.ifftn(ac)
+        
+        print(ac.shape)
+
         ac = batch_fftshift(ac.unsqueeze(0)).squeeze() / torch.numel(ch)
+
+        print(ac)
 
         # Return only the central auto-correlation
         ac = ac[cx - le : cx + le + 1, cy - le : cy + le + 1, 0]
