@@ -245,8 +245,8 @@ def ssim_map(img1, img2, dynamic_range=1):
     return _ssim_parts(img1, img2, dynamic_range)[0]
 
 
-def ms_ssim(img1, img2, dynamic_range=1, power_factors=[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]):
-    """Multiscale structural similarity index (MS-SSIM)
+def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
+    r"""Multiscale structural similarity index (MS-SSIM)
 
     As described in [1]_, multiscale structural similarity index (MS-SSIM) is
     an improvement upon structural similarity index (SSIM) that takes into
@@ -303,6 +303,8 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=[0.0448, 0.2856, 0.3001, 
     Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
 
     """
+    if power_factors is None:
+        power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
     msssim = 1
     for i in range(len(power_factors) - 1):
         _, contrast_structure_map, _ = _ssim_parts(img1, img2, dynamic_range)
