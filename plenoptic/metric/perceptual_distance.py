@@ -90,21 +90,16 @@ def _ssim_parts(img1, img2, dynamic_range):
     C1 = (0.01 * dynamic_range) ** 2
     C2 = (0.03 * dynamic_range) ** 2
 
-    v1 = 2.0 * sigma12 + C2
-    v2 = sigma1_sq + sigma2_sq + C2
-
-    # SSIM consists of a luminance component, a contrast component, and a
-    # structure component. This is the contrast component, which is used to
-    # compute MS-SSIM This is the contrast component, which is used to compute
-    # MS-SSIM.
-    contrast_map = v1 / v2
+    # SSIM is the product of a luminance component, a contrast component, and a
+    # structure component. The contrast-structure component has to be separated
+    # when computing MS-SSIM.
+    luminance_map = (2 * mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)
+    contrast_structure_map = (2.0 * sigma12 + C2) / (sigma1_sq + sigma2_sq + C2)
+    map_ssim = luminance_map * contrast_structure_map
 
     # the weight used for stability
     weight = torch.log(torch.matmul((1+(sigma1_sq/C2)), (1+(sigma2_sq/C2))))
-
-    ssim_map = ((2 * mu1_mu2 + C1) * v1) / ((mu1_sq + mu2_sq + C1) * v2)
-    ssim_map = ((2 * mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)) * contrast_map
-    return ssim_map, contrast_map, weight
+    return map_ssim, contrast_structure_map, weight
 
 
 def ssim(img1, img2, weighted=False, dynamic_range=1):
@@ -169,7 +164,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     ----------
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
-       IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
+       IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
     .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
     .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
@@ -238,7 +233,7 @@ def ssim_map(img1, img2, dynamic_range=1):
     ----------
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
-       IEEE Transactios on Image Processing, vol. 13, no. 1, Jan. 2004.
+       IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
     .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
     .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
@@ -248,6 +243,75 @@ def ssim_map(img1, img2, dynamic_range=1):
 
     """
     return _ssim_parts(img1, img2, dynamic_range)[0]
+
+
+def ms_ssim(img1, img2, dynamic_range=1, power_factors=[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]):
+    """Multiscale structural similarity index (MS-SSIM)
+
+    As described in [1]_, multiscale structural similarity index (MS-SSIM) is
+    an improvement upon structural similarity index (SSIM) that takes into
+    account the perceptual distance between two images on different scales.
+
+    SSIM is based on three comparison measurements between the two images:
+    luminance, contrast, and structure. All of these are computed in windows
+    across the images, producing three maps instead of scalars. The SSIM map is
+    the elementwise product of these three maps. See `metric.ssim` and
+    `metric.ssim_map` for a full description of SSIM.
+
+    To get images of different scales, average pooling operations with kernel
+    size 2 are performed recursively on the input images. The product of
+    contrast map and structure map (the "contrast-structure map") is computed
+    for all but the coarsest scales, and the overall SSIM map is only computed
+    for the coarsest scale. Their mean values are raised to exponents and
+    multiplied to produce MS-SSIM:
+    .. math::
+        MSSSIM = {SSIM}_M^{a_M} \prod_{i=1}^{M-1} ({CS}_i)^{a_i}
+    Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
+    of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
+    is the mean value of the SSIM map for the coarsest scale.
+
+    Parameters
+    ----------
+    img1 : torch.Tensor
+        4d tensor with first image to compare
+    img2 : torch.Tensor
+        4d tensor with second image to compare. Must have the same height and
+        width (last two dimensions) as `img1`
+    dynamic_range : int, optional.
+        dynamic range of the images. Note we assume that both images have the
+        same dynamic range. 1, the default, is appropriate for float images
+        between 0 and 1, as is common in synthesis. 2 is appropriate for float
+        images between -1 and 1, and 255 is appropriate for standard 8-bit
+        integer images. We'll raise a warning if it looks like your value is
+        not appropriate for `img1` or `img2`, but will calculate it anyway.
+    power_factors : 1D array, optional.
+        power exponents for the mean values of maps, for different scales (from
+        fine to coarse). The length of this array determines the number of scales.
+        By default, this is set to [0.0448, 0.2856, 0.3001, 0.2363, 0.1333],
+        which is what psychophysical experiments in [1]_ found.
+
+    Returns
+    ------
+    msssim : torch.Tensor
+        2d tensor containing the mean MS-SSIM for each image, averaged over the
+        whole image
+
+    References
+    ----------
+    .. [1] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
+    structural similarity for image quality assessment." The Thrity-Seventh
+    Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
+
+    """
+    msssim = 1
+    for i in range(len(power_factors) - 1):
+        _, contrast_structure_map, _ = _ssim_parts(img1, img2, dynamic_range)
+        msssim *= contrast_structure_map.mean((-1, -2)).pow(power_factors[i])
+        img1 = F.avg_pool2d(img1, kernel_size=2)
+        img2 = F.avg_pool2d(img2, kernel_size=2)
+    map_ssim, _, _ = _ssim_parts(img1, img2, dynamic_range)
+    msssim *= map_ssim.mean((-1, -2)).pow(power_factors[-1])
+    return msssim
 
 
 def normalized_laplacian_pyramid(im):
@@ -273,7 +337,8 @@ def normalized_laplacian_pyramid(im):
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
-        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32, device=im.device).unsqueeze(0).unsqueeze(0)
+        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32,
+                            device=im.device).unsqueeze(0).unsqueeze(0)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
@@ -314,7 +379,8 @@ def nlpd(IM_1, IM_2):
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality
+    assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
     y = normalized_laplacian_pyramid(torch.cat((IM_1, IM_2), 0))
