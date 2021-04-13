@@ -300,8 +300,8 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     References
     ----------
     .. [1] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
-    structural similarity for image quality assessment." The Thrity-Seventh
-    Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
+       structural similarity for image quality assessment." The Thrity-Seventh
+       Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
 
     """
     if power_factors is None:
@@ -383,7 +383,7 @@ def nlpd(IM_1, IM_2):
     References
     ----------
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality
-    assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+       assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
     y = normalized_laplacian_pyramid(torch.cat((IM_1, IM_2), 0))
