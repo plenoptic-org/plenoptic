@@ -203,7 +203,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 self.scales_finished = []
                 self.scales_loss = []
             # else, we're continuing a previous version and want to continue
-        if loss_thresh >= loss_change_thresh:
+        if (loss_change_thresh is not None) and (loss_thresh >= loss_change_thresh):
             raise Exception("loss_thresh must be strictly less than loss_change_thresh, or things"
                             " get weird!")
 
@@ -892,9 +892,9 @@ class Synthesis(metaclass=abc.ABCMeta):
             # the last scale will be 'all', and we never remove
             # it. Otherwise, check to see if it looks like loss has
             # stopped declining and, if so, switch to the next scale
-            if (len(self.scales) > 1 and len(self.scales_loss) > self.loss_change_iter and
-                abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh and
-                len(self.loss) - self.scales_timing[self.scales[0]][0] > self.loss_change_iter):
+            if (len(self.scales) > 1 and len(self.scales_loss) >= self.loss_change_iter and
+                ((self.loss_change_thresh is None) or abs(self.scales_loss[-1] - self.scales_loss[-self.loss_change_iter]) < self.loss_change_thresh) and
+                len(self.loss) - self.scales_timing[self.scales[0]][0] >= self.loss_change_iter):
                 self.scales_timing[self.scales[0]].append(len(self.loss)-1)
                 self.scales_finished.append(self.scales.pop(0))
                 self.scales_timing[self.scales[0]].append(len(self.loss))

@@ -139,10 +139,10 @@ class Metamer(Synthesis):
                 synthesized_signal_data = self.saved_signal[-1]
             except IndexError:
                 # else we're starting over
-                synthesized_signal_data = torch.rand_like(self.base_signal, dtype=torch.float32,
+                synthesized_signal_data = torch.rand_like(self.base_signal, dtype=self.base_signal.dtype,
                                                           device=self.base_signal.device)
         else:
-            synthesized_signal_data = torch.tensor(initial_image, dtype=torch.float32,
+            synthesized_signal_data = torch.tensor(initial_image, dtype=self.base_signal.dtype,
                                                    device=self.base_signal.device)
         super()._init_synthesized_signal(synthesized_signal_data.clone(), clamper, clamp_each_iter)
 

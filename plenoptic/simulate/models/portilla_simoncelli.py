@@ -2,7 +2,6 @@ import torch
 import torch.fft
 import torch.nn as nn
 from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
-from ...tools.signal import batch_fftshift
 from ...tools.conv import blur_downsample
 import numpy as np
 from collections import OrderedDict
@@ -198,8 +197,8 @@ class PortillaSimoncelli(nn.Module):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
 
+        # self.pyr.to(image.dtype)
         self.pyr_coeffs = self.pyr.forward(image)
-
         self.representation = OrderedDict()
 
         ### SECTION 1 (STATISTIC: pixel_statistics) ##################
@@ -460,11 +459,8 @@ class PortillaSimoncelli(nn.Module):
                 self.magnitude_pyr_coeffs[key] = torch.abs(val).squeeze()
                 self.real_pyr_coeffs[key] = val.squeeze()
             else:  # complex
-                tmp = torch.unbind(val, -1)
-                self.magnitude_pyr_coeffs[key] = (
-                    (tmp[0] ** 2 + tmp[1] ** 2) ** 0.5
-                ).squeeze()
-                self.real_pyr_coeffs[key] = tmp[0].squeeze()
+                self.magnitude_pyr_coeffs[key] = val.abs().squeeze()
+                self.real_pyr_coeffs[key] = val.real.squeeze()
 
         # STATISTIC: magnitude_means or the mean magnitude of each pyramid band
         magnitude_means = OrderedDict()
@@ -494,46 +490,41 @@ class PortillaSimoncelli(nn.Module):
         """
 
         im = im.squeeze()
-        ndim = len(im.shape)
 
         mx = im.shape[0]
         my = im.shape[1]
         my = mult * my
         mx = mult * mx
 
-        fourier_large = torch.zeros(my, mx, 2)
 
-        if ndim == 2:
-            im = torch.stack((im, torch.zeros_like(im)), -1)
 
-        fourier = mult ** 2 * batch_fftshift(torch.fft.fftn(im, 2).unsqueeze(0)).squeeze()
+        
+        
+        fourier = mult ** 2 * torch.fft.fftshift(torch.fft.fftn(im))
+        fourier_large = torch.zeros(my, mx).type(fourier.dtype)
 
         y1 = int(my / 2 + 1 - my / (2 * mult))
         y2 = int(my / 2 + my / (2 * mult))
         x1 = int(mx / 2 + 1 - mx / (2 * mult))
         x2 = int(mx / 2 + mx / (2 * mult))
 
-        fourier_large[y1:y2, x1:x2, :] = fourier[
-            1 : int(my / mult), 1 : int(mx / mult), :
-        ]
-        fourier_large[y1 - 1, x1:x2, :] = fourier[0, 1 : int(mx / mult), :] / 2
-        fourier_large[y2, x1:x2, :] = fourier[0, 1 : int(mx / mult), :].flip(1) / 2
-        fourier_large[y1:y2, x1 - 1, :] = fourier[1 : int(my / mult), 0, :] / 2
-        fourier_large[y1:y2, x2, :] = fourier[1 : int(my / mult), 0, :].flip(0) / 2
-        esq = fourier[0, 0, :] / 4
-        fourier_large[y1 - 1, x1 - 1, :] = esq
-        fourier_large[y1 - 1, x2, :] = esq
-        fourier_large[y2, x1 - 1, :] = esq
-        fourier_large[y2, x2, :] = esq
+        fourier_large[y1:y2, x1:x2] = fourier[1 : int(my / mult), 1 : int(mx / mult)]
+        fourier_large[y1 - 1, x1:x2] = fourier[0, 1 : int(mx / mult)] / 2
+        fourier_large[y2, x1:x2] = fourier[0, 1 : int(mx / mult)].flip(0) / 2
+        fourier_large[y1:y2, x1 - 1] = fourier[1 : int(my / mult), 0] / 2
+        fourier_large[y1:y2, x2] = fourier[1 : int(my / mult), 0].flip(0) / 2
+        esq = fourier[0, 0] / 4
+        fourier_large[y1 - 1, x1 - 1] = esq
+        fourier_large[y1 - 1, x2] = esq
+        fourier_large[y2, x1 - 1] = esq
+        fourier_large[y2, x2] = esq
 
-        fourier_large = batch_fftshift(fourier_large.unsqueeze(0)).squeeze()
+        fourier_large = torch.fft.fftshift(fourier_large)
 
         # finish this
-        im_large = torch.fft.ifftn(fourier_large, 2)
-
-        if ndim == 2:
-            return im_large[:, :, 0]
-        return im_large
+        im_large = torch.fft.ifft2(fourier_large)
+        
+        return im_large.type(im.dtype)
 
     def calculate_autocorrelation_skew_kurtosis(self):
         r"""Calculate the autocorrelation for the real parts and magnitudes of the
@@ -546,8 +537,8 @@ class PortillaSimoncelli(nn.Module):
         filterPyr = Steerable_Pyramid_Freq(
             lowpass.shape[-2:], height=0, order=1, tight_frame=False
         )
-        _ = filterPyr.forward(lowpass)
-        reconstructed_image = filterPyr.pyr_coeffs["residual_lowpass"].squeeze()
+        filter_pyr_coeffs = filterPyr.forward(lowpass)
+        reconstructed_image = filter_pyr_coeffs["residual_lowpass"].squeeze()
 
         # Find the auto-correlation of the low-pass residual
         channel_size = torch.min(torch.tensor(lowpass.shape[-2:])).to(float)
@@ -598,12 +589,12 @@ class PortillaSimoncelli(nn.Module):
                 is_complex=False,
                 tight_frame=False,
             )
-            _ = unoriented_band_pyr.forward(reconstructed_image)
+            unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
             for ii in range(0, self.n_orientations):
-                unoriented_band_pyr.pyr_coeffs[(0, ii)] = (
+                unoriented_pyr_coeffs[(0, ii)] = (
                     self.real_pyr_coeffs[(this_scale, ii)].unsqueeze(0).unsqueeze(0)
                 )
-            unoriented_band = unoriented_band_pyr.recon_pyr(levels=[0])
+            unoriented_band = unoriented_band_pyr.recon_pyr(unoriented_pyr_coeffs,levels=[0])
 
             # Add the unoriented band to the image reconstruction
             reconstructed_image = reconstructed_image + unoriented_band
@@ -638,6 +629,11 @@ class PortillaSimoncelli(nn.Module):
                 next_scale_real = torch.empty((band_num_el, self.n_orientations * 2))
 
                 for nor in range(0, self.n_orientations):
+                    # upsampled = PortillaSimoncelli.expand(self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2) / 4.0
+                    # # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
+                    # X = upsampled.abs() * torch.cos( 2 * upsampled.angle())
+                    # Y = upsampled.abs() * torch.sin( 2 * upsampled.angle())
+
                     upsampled = (
                         PortillaSimoncelli.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
@@ -646,15 +642,11 @@ class PortillaSimoncelli(nn.Module):
                     )
 
                     # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
-                    X = (
-                        upsampled[:, :, 0] ** 2 + upsampled[:, :, 1] ** 2
-                    ) ** 0.5 * torch.cos(
-                        2 * torch.atan2(upsampled[:, :, 0], upsampled[:, :, 1])
+                    X = upsampled.abs() * torch.cos(
+                        2 * torch.atan2(upsampled.real, upsampled.imag)
                     )
-                    Y = (
-                        upsampled[:, :, 0] ** 2 + upsampled[:, :, 1] ** 2
-                    ) ** 0.5 * torch.sin(
-                        2 * torch.atan2(upsampled[:, :, 0], upsampled[:, :, 1])
+                    Y = upsampled.abs() * torch.sin(
+                        2 * torch.atan2(upsampled.real, upsampled.imag)
                     )
 
                     # Save the components -- why both?
@@ -705,17 +697,21 @@ class PortillaSimoncelli(nn.Module):
                 np0 = next_scale_mag.shape[1]
             else:
                 np0 = 0
+
             self.representation["cross_orientation_correlation_magnitude"][
                 0 : self.n_orientations, 0 : self.n_orientations, this_scale
-            ] = self.compute_crosscorrelation(
-                orientation_bands_mag.t(), orientation_bands_mag, band_num_el
-            )
+            ] = self.compute_crosscorrelation( orientation_bands_mag.t(), orientation_bands_mag, band_num_el)
+
             if np0 > 0:
                 self.representation["cross_scale_correlation_magnitude"][
                     0 : self.n_orientations, 0:np0, this_scale
                 ] = self.compute_crosscorrelation(
                     orientation_bands_mag.t(), next_scale_mag, band_num_el
                 )
+
+
+
+
                 if (
                     this_scale == self.n_scales - 1
                 ):  # correlations on the low-pass residuals
@@ -819,24 +815,14 @@ class PortillaSimoncelli(nn.Module):
         cy = int(ch.shape[-1] / 2)
         cx = int(ch.shape[-2] / 2)
 
-        print(ch.shape)
         # Calculate the auto-correlation
-        ac = torch.fft.fftn(ch.squeeze())
-        
+        ac = torch.fft.fft2(ch.squeeze())
         ac = ac.real.pow(2) + ac.imag.pow(2)
-
-        print(ac.shape)
-
-        ac = torch.fft.ifftn(ac)
-        
-        print(ac.shape)
-
-        ac = batch_fftshift(ac.unsqueeze(0)).squeeze() / torch.numel(ch)
-
-        print(ac)
+        ac = torch.fft.ifft2(ac)
+        ac = torch.fft.fftshift(ac.unsqueeze(0)).squeeze() / torch.numel(ch)
 
         # Return only the central auto-correlation
-        ac = ac[cx - le : cx + le + 1, cy - le : cy + le + 1, 0]
+        ac = ac.real[cx - le : cx + le + 1, cy - le : cy + le + 1]
         vari = ac[le, le]
 
         if self.use_true_correlations:

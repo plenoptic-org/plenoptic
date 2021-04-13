@@ -19,7 +19,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
            'portilla_simoncelli_synthesize.npy': '7aw82'}
 
-print("On device %s" % DEVICE)
+# print("On device %s" % DEVICE)
 
 
 

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 import plenoptic as po
-<<<<<<< HEAD
 import matplotlib.pyplot as plt
 import pytest
 import numpy as np
 import pyrtools as pt
 import scipy.io as sio
+import torch
+import os.path as op
+from conftest import DATA_DIR
+from test_plenoptic import osf_download
 
-from test_plenoptic import DEVICE, DATA_DIR, DTYPE, osf_download
 
 class TestLinear(object):
 
@@ -143,7 +145,8 @@ class TestPortillaSimoncelli(object):
             loss = np.load(f)
 
         n=256
-        im0 = torch.Tensor(im)
+
+        im0 = torch.Tensor(im).unsqueeze(0).unsqueeze(0)
         model = po.simul.PortillaSimoncelli(
             [n,n],
             n_scales=4, 
@@ -165,9 +168,9 @@ class TestPortillaSimoncelli(object):
             initial_image = im_init)       
 
         np.testing.assert_allclose(
-            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-2, atol=1e-2
+            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=5e-2, atol=5e-2
         )
 
         np.testing.assert_allclose(
-            output[1].squeeze().detach().numpy(), loss.squeeze(), rtol=1e-4, atol=1e-4
+            output[1].squeeze().detach().numpy(), loss.squeeze(), rtol=1e-3, atol=1e-3
         )

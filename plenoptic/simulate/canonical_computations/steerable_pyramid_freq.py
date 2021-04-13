@@ -226,9 +226,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         # reasonable default dtype
         self = self.to(torch.float32)
         
-        # initialize empty coefficient dictionary
-        self.pyr_coeffs = OrderedDict()
-        
         
     @classmethod
     def vector_to_pyramid(cls, vector, imShape, Nsc, Nor):
