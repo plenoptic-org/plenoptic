@@ -268,7 +268,8 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
         MSSSIM = {SSIM}_M^{a_M} \prod_{i=1}^{M-1} ({CS}_i)^{a_i}
     Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
     of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
-    is the mean value of the SSIM map for the coarsest scale.
+    is the mean value of the SSIM map for the coarsest scale. If at least one
+    of these terms are negative, the value of MS-SSIM is zero.
 
     Parameters
     ----------
@@ -308,11 +309,11 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     msssim = 1
     for i in range(len(power_factors) - 1):
         _, contrast_structure_map, _ = _ssim_parts(img1, img2, dynamic_range)
-        msssim *= contrast_structure_map.mean((-1, -2)).pow(power_factors[i])
+        msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(power_factors[i])
         img1 = F.avg_pool2d(img1, kernel_size=2)
         img2 = F.avg_pool2d(img2, kernel_size=2)
     map_ssim, _, _ = _ssim_parts(img1, img2, dynamic_range)
-    msssim *= map_ssim.mean((-1, -2)).pow(power_factors[-1])
+    msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
     return msssim
 
 
