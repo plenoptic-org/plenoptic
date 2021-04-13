@@ -168,7 +168,11 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
 
-    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim'])
+    def test_msssim(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
+
+    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim'])
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
@@ -176,12 +180,13 @@ class TestPerceptualMetrics(object):
             func = po.add_noise
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = size_B * [4]
-        elif func_name == 'mse':
-            func = po.metric.mse
-            A = einstein_img.repeat(size_A, 1, 1, 1)
-            B = curie_img.repeat(size_B, 1, 1, 1)
-        elif func_name == 'ssim':
-            func = po.metric.ssim
+        else:
+            if func_name == 'mse':
+                func = po.metric.mse
+            elif func_name == 'ssim':
+                func = po.metric.ssim
+            elif func_name == 'ms-ssim':
+                func = po.metric.ms_ssim
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = curie_img.repeat(size_B, 1, 1, 1)
         if size_A != size_B and size_A != 1 and size_B != 1:
