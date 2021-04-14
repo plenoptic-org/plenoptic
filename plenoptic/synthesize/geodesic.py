@@ -1,66 +1,80 @@
 from collections import OrderedDict
-from plenoptic.tools.display import update_plot
 
 import matplotlib.pyplot as plt
 import torch
+import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
-import torch.autograd as autograd
-
 from tqdm import tqdm
-from matplotlib.animation import FuncAnimation
 
-from ..tools.data import to_numpy
 from ..tools.optim import penalize_range
-from ..tools.straightness import (distance_from_line, make_straight_line,
+from ..tools.straightness import (deviation_from_line, make_straight_line,
                                   sample_brownian_bridge)
 
 
 class Geodesic(nn.Module):
-    r'''Synthesize a geodesic between two images according to a model [1]_.
+    r'''Synthesize an approximate geodesic between two images according to a model.
 
     This method can be used to visualize and refine the invariances of a
-    model's representation.
+    model's representation as described in [1]_.
 
     Parameters
     ----------
-    imgA (resp. imgB): torch.FloatTensor
-        Start (resp. stop) anchor of the geodesic,
+    imgA, imgB: torch.FloatTensor
+        Start (resp. stop) anchor points of the geodesic,
         of shape [1, C, H, W] in range [0, 1].
 
     model: nn.Module
-        an analysis model that computes image representations
+        an analysis model that computes representations on siglals like `imgA`.
 
     n_steps: int, optional
-        the number of steps in the trajectory between the two anchor points
+        the number of steps in the trajectory between the two anchor points.
 
     init: {'straight', 'bridge'}, optional
         initialize the geodesic with pixel linear interpolation (default),
-        or with a brownian bridge between the two anchors
+        or with a brownian bridge between the two anchors.
 
     Attributes
     ----------
-    x:
-        optimization variable, shape: [n_steps-1, dx], where dx = C x H x W
+    x: torch.FloatTensor
+        the optimization variable of shape: [n_steps-1, D], where D = C x H x W
 
-    geodesic:
-        synthesized sequence of images between the two anchor points that
-        minimizes distance in representation space
+    geodesic: torch.FloatTensor
+        the synthesized sequence of images between the two anchor points that
+        minimizes representation path energy
 
-    pixelfade:
-        straight interpolation between the two anchor points for reference
+    pixelfade: torch.FloatTensor
+        the straight interpolation between the two anchor points,
+        used as reference
 
-    step_energy:
+    step_energy: list of torch.FloatTensor
         step lengths in representation space, stored along the optimization
         process
 
-    step_jerkiness:
-        alignment of representation's acceleration with local model curvature,
+    dev_from_line: list of torch.FloatTensor
+        deviation of the representation to the straight line interpolation,
+        measures distance from straight line and distance along straight line,
         stored along the optimization process
 
-    dist_from_line:
-        l2 distance of the geodesic's representation to the straight line in
-        representation space, stored along the optimization process
+    step_jerkiness: list of torch.FloatTensor
+        alignment of representation's acceleration with local model curvature,
+        stored along the optimization process.
+        (TODO this is an experimental feature)
+
+    Note
+    ----
+    Manifold prior hypothesis: natural images form a manifold 𝑀x embedded
+    in signal space (ℝ𝑛), a model warps this manifold to another manifold 𝑀y
+    embedded in representation space (ℝ𝑛), and thereby induces a different
+    local metric.
+
+    This method computes an approximate geodesics by solving an optimization
+    problem: it minimizes the path energy (aka. action functional), which has
+    the same minimum as minimizing path length and by Cauchy-Schwarz, reaches
+    it with constant-speed minimizing geodesic
+
+    Caveat: depending on the geometry of the manifold, geodesics between two
+    anchor points may not be unique and be dependent on the initialization.
 
     References
     ----------
@@ -75,27 +89,34 @@ class Geodesic(nn.Module):
 
         self.n_steps = n_steps
         self.image_shape = imgA.shape
-        self.pixelfade = self._initialize('straight', imgA, imgB, n_steps)
+        start = imgA.clone().view(1, -1)
+        stop = imgB.clone().view(1, -1)
+        self.pixelfade = self._initialize('straight', start, stop, n_steps
+                                          ).view(n_steps+1, *imgA.shape[1:])
 
-        self.xA, x, self.xB = torch.split(self._initialize(init, imgA, imgB,
-                                                          n_steps).view(
-                                          n_steps+1, torch.numel(imgA[0])),
-                                          [1, n_steps-1, 1])
+        xinit = self._initialize(init, start, stop, n_steps
+                                 ).view(n_steps+1, -1)
+        self.xA, x, self.xB = torch.split(xinit, [1, n_steps-1, 1])
         self.x = nn.Parameter(x.requires_grad_())
 
-        # making sure we are not computing unnecessary gradients
+        warn = True
         for p in model.parameters():
             if p.requires_grad:
                 p.detach_()
-                # TODO: print info
+                if warn:
+                    print("""we detach model parameters in order to
+                             save time on extraneous gradients
+                             computations - indeed only pixel values
+                             should be modified.""")
+                    warn = False
         self.model = model.eval()
 
         self.loss = []
-        self.dist_from_line = []
+        self.dev_from_line = []
         self.step_energy = []
         self.step_jerkiness = []
 
-    def _initialize(self, init, imgA, imgB, n_steps):
+    def _initialize(self, init, start, stop, n_steps):
         """initialize the geodesic
 
         Parameters
@@ -105,11 +126,11 @@ class Geodesic(nn.Module):
             desired geodesic.
         """
         if init == 'bridge':
-            x = sample_brownian_bridge(imgA, imgB, n_steps)
+            x = sample_brownian_bridge(start, stop, n_steps)
         elif init == 'straight':
-            x = make_straight_line(imgA, imgB, n_steps)
+            x = make_straight_line(start, stop, n_steps)
         else:
-            assert init.shape == (n_steps, *self.image_shape[1:])
+            assert init.shape == (n_steps, torch.numel(self.image_shape[1:]))
             x = init
         return x
 
@@ -149,11 +170,12 @@ class Geodesic(nn.Module):
         return accJac
 
     def _step_jerkiness(self, y, velocity):
-        """compute the energy of `y`'s acceleration direction when it is pulled
-        in the input space by the input-output Jacobian.
-        ie. alignment of representation's acceleration to model curvature.
-        ie. sensitivity of the Jacobian outer product to the acceleration
-        direction.
+        """compute alignment of representation's acceleration to model curvature.
+
+        More specifically: compute the sensitivity of the model's input-output
+        Jacobian outer product to the representation's `y` acceleration
+        ie. the squared norm of the acceleration according to the local
+        Riemannian metric on the model's tangent space.
         """
         acceleration = self._finite_difference(velocity)
         acc_magnitude = torch.norm(acceleration, dim=1, keepdim=True)
@@ -173,7 +195,7 @@ class Geodesic(nn.Module):
             - range constraint (weighted by lambda)
         - compute the gradients
         - make sure that neither the loss or the gradients are NaN
-        - [TODO: compute conditional loss and gradients]
+        - [TODO: compute conditional loss and gradients - with nesting in mind]
         - let the optimizer take a step in the direction of the gradients
         - display some information
         - store some information
@@ -187,10 +209,10 @@ class Geodesic(nn.Module):
         # TODO: rescale torch.div(step_energy, )
         loss = self.mu * repres_path_energy
 
-        # if self.nu > 0:
-        step_jerkiness = self._step_jerkiness(y, velocity)
-        path_jerkiness = step_jerkiness.mean()
-        loss = loss + self.nu * path_jerkiness
+        if self.nu > 0:
+            step_jerkiness = self._step_jerkiness(y, velocity)
+            path_jerkiness = step_jerkiness.mean()
+            loss = loss + self.nu * path_jerkiness
 
         if self.lmbda > 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
@@ -215,7 +237,7 @@ class Geodesic(nn.Module):
 
         # self.optimizer.zero_grad()
         # signal_path_energy = torch.norm(_finite_difference(self.x),
-        #                                   dim=1).pow(2).mean()
+        #                                   dim=1).pow(2).mean(
         # signal_grad = x.grad
         # x.grad = signal_grad - (
         #           signal_grad @ repres_grad
@@ -232,14 +254,15 @@ class Geodesic(nn.Module):
         self.loss.append(loss.item())
         if self.verbose:
             self.step_energy.append(step_energy.detach())
-            # if self.nu > 0:
-            self.step_jerkiness.append(step_jerkiness.detach())
-            self.dist_from_line.append(
-                distance_from_line(y.unsqueeze(2).unsqueeze(3)))
+            if self.nu > 0:
+                self.step_jerkiness.append(step_jerkiness.detach())
+            self.dev_from_line.append(
+                deviation_from_line(y.detach()))
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
                    lmbda=.1, mu=1, nu=0, seed=0, verbose=True):
-        """ synthesize a geodesic
+        """Synthesize a geodesic.
+
         Parameters
         ----------
         max_iter: int, optional
@@ -256,7 +279,7 @@ class Geodesic(nn.Module):
 
         mu: float, optional
             strength of the path length objective (usefull for experimenting
-            with only optimizing path jerkiness - under developpement)
+            with only optimizing path jerkiness - TODO under developpement)
             (defaults to one)
 
         lmbda: float, optional
@@ -283,9 +306,6 @@ class Geodesic(nn.Module):
         if optimizer == 'Adam':
             self.optimizer = optim.Adam([self.x],
                                         lr=learning_rate, amsgrad=True)
-        elif optimizer == 'SGD':
-            self.optimizer = optim.SGD([self.x],
-                                       lr=learning_rate, momentum=0.9)
         elif isinstance(optimizer, optim.Optimizer):
             self.optimizer = optimizer
 
@@ -295,34 +315,43 @@ class Geodesic(nn.Module):
         self.populate_geodesic()
 
     def populate_geodesic(self):
-        self.geodesic = torch.cat([self.xA, self.x, self.xB]
-                                  ).reshape((self.n_steps+1,
-                                             *self.image_shape[1:])
-                                            ).detach()
+        """Help format the current optimization variable `x` into a geodesic
+        attribute that can be used later.
 
-    # def calculate_path_jerkiness(self):
-    #     usefull to check path jerkiness to certify a candidate geodesic
-    #     for now unnecessary because path jerkiness is computed during main algo
-    #     y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
-    #     velocity = self._finite_difference(y)
-    #     return self._step_jerkiness(y, velocity).detach()
+        It joins the endpoints, reshapes the variable into a sequence
+        of images, detaches the gradients and clips the range to [0, 1].
+        """
+        self.geodesic = torch.clip(torch.cat([self.xA, self.x, self.xB]
+                                             ).reshape(
+                                    (self.n_steps+1, *self.image_shape[1:])
+                                      ).detach(), 0, 1)
+
+    def calculate_path_jerkiness(self):
+        """check path jerkiness, which can certify a candidate geodesic
+        """
+        y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
+        velocity = self._finite_difference(y)
+        return self._step_jerkiness(y, velocity).detach()
 
     def plot_loss(self):
-        plt.semilogy(self.loss)
-        plt.xlabel('iter step')
-        plt.ylabel('loss value')
-        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(self.loss)
+        ax.set(yscale='log',
+               xlabel='iter step',
+               ylabel='loss value')
+        return fig
 
-    def plot_distance_from_line(self, vid=None, iteration=None,
-                                figsize=(7, 5)):
+    def plot_deviation_from_line(self, video=None, iteration=None,
+                                 figsize=(7, 5)):
         """visual diagnostic of geodesic linearity in representation space.
 
         Parameters
         ----------
-        vid : torch.Tensor, optional
+        video : torch.Tensor, optional
             natural video that bridges the anchor points
         iteration : int, optional
             plot the geodesic at a given step number of the optimization
+            TODO remove if animation no longer supported
         figsize : tuple, optional
             set the dimension of the figure
 
@@ -334,52 +363,25 @@ class Geodesic(nn.Module):
             self.populate_geodesic()
 
         fig, ax = plt.subplots(1, 1, figsize=figsize)
-        ax.plot(to_numpy(distance_from_line(self.model(self.pixelfade))),
-                'g-o', label='pixelfade')
+        ax.plot(*deviation_from_line(self.model(self.pixelfade
+                                                ).view(self.n_steps+1, -1)
+                                     ), 'g-o', label='pixelfade')
 
         if iteration is None:
-            distance = distance_from_line(self.model(self.geodesic))
+            deviation = deviation_from_line(
+                            self.model(self.geodesic
+                                       ).view(self.n_steps+1, -1))
         else:
-            distance = self.dist_from_line[iteration]
-        ax.plot(to_numpy(distance), 'r-o', label='geodesic')
+            deviation = self.dev_from_line[iteration]
+        ax.plot(*deviation, 'r-o', label='geodesic')
 
-        if vid is not None:
-            ax.plot(to_numpy(distance_from_line(self.model(vid))),
-                    'b-o', label='video')
-        ax.set(xlabel='projection on representation line',
-               ylabel='distance from representation line')
+        if video is not None:
+            ax.plot(*deviation_from_line(self.model(video
+                                                    ).view(self.n_steps+1, -1)
+                                         ), 'b-o', label='video')
+        ax.set(xlabel='distance along representation line',
+               ylabel='distance from representation line',
+               title='deviation from the straight line')
         ax.legend(loc=1)
 
         return fig
-
-    def animate_distance_from_line(self, vid=None, framerate=25):
-        """dynamic visualisation of geodesic linearity along the optimization process
-
-        This animates `plot_distance_from_line` over the steps of the algorithm
-
-        Parameters
-        ----------
-        vid : torch.Tensor, optional
-            natural video that bridges the anchor points
-        framerate : int, optional
-            set the number of frames per second in the animation
-
-        Returns
-        -------
-        anim : matplotlib.animation.FuncAnimation
-            The animation object. It can be saved (can call anim.save(target_location.mp4)),
-            or viewed in a jupyter notebook (needs to be converted to HTML).
-        """
-        fig = self.plot_distance_from_line(vid=vid, iteration=0)
-
-        def animate(i):
-            # update_plot requires 3d data for lines
-            data = self.dist_from_line[i].unsqueeze(0).unsqueeze(0)
-            artist = update_plot(fig.axes[0], {'geodesic': data})
-            return artist
-
-        anim = FuncAnimation(fig, animate,
-                             frames=len(self.dist_from_line),
-                             interval=1000./framerate, blit=True, repeat=False)
-        plt.close(fig)
-        return anim
