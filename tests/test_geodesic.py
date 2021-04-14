@@ -46,7 +46,8 @@ class TestSequences(object):
                            ).std((1)).mean((1, 2)) * s) - max_norm).abs() < .01
 
     def test_distance_from_line(self):
-
+        # TODO 
+        # po.tools.straightness.deviation_from_line(po.make_straight_line(torch.randn(1, 100), torch.randn(1, 100), 10))
         s = 128
         n_steps = 10
         max_norm = 3
