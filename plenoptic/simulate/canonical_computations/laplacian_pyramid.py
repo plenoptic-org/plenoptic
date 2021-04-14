@@ -26,7 +26,7 @@ class Laplacian_Pyramid(nn.Module):
     """
 
     def __init__(self, n_scales=5):
-        super(Laplacian_Pyramid, self).__init__()
+        super().__init__()
 
         self.n_scales = n_scales
 
