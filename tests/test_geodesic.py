@@ -1,70 +1,51 @@
 #!/usr/bin/env python3
 import os.path as op
+from _pytest.fixtures import fixture
 
 import matplotlib.pyplot as plt
 import plenoptic as po
 import pytest
 import torch
+from torchvision.transforms.functional import center_crop
 
 from conftest import DATA_DIR, DEVICE, DTYPE
 
 imageA = po.load_images(DATA_DIR + '/256/reptil_skin.pgm')
-imageB = po.load_images(DATA_DIR + '/256/metal.pgm')
-c = 64 + 32
-imgA = imageA[..., c:-c, c:-c]
-imgB = imageB[..., c:-c, c:-c]
-
+imgA = center_crop(imageA, 64).to(DEVICE).to(DEVICE)
 
 class TestSequences(object):
 
-    def test_brownian_bridge(self):
+    def test_deviation_from_line_and_brownian_bridge(self):
         torch.manual_seed(0)
-        s = 128
-        n_steps = 10
-        max_norm = 2
-
-        x0 = torch.randn(1, 1, s, s)
-        x1 = torch.randn(1, 1, s, s)
-
-        N = 200
-        bridges = torch.zeros(n_steps+1, N, s, s)
-        for n in range(N):
-            bridges[:, n] = po.tools.sample_brownian_bridge(x0, x1,
-                                                            n_steps,
-                                                            max_norm)[:, 0]
-
-        # check pylons
-        assert (bridges[0] - x0[0]).pow(2).sum() < 1e-6
-        assert (bridges[-1] - x1[0]).pow(2).sum() < 1e-6
-        # check max l2 norm from straight line
-        # NOTE distance from line does not support batch
-        assert (torch.max(po.tools.distance_from_line(bridges[:, 0:1], x0, x1))
-                - max_norm).abs() < .1
-        # check max std of bridge coordinate
-        assert (torch.max((bridges - po.tools.make_straight_line(x0, x1,
-                                                                 n_steps)
-                           ).std((1)).mean((1, 2)) * s) - max_norm).abs() < .01
-
-    def test_distance_from_line(self):
-        # TODO 
-        # po.tools.straightness.deviation_from_line(po.make_straight_line(torch.randn(1, 100), torch.randn(1, 100), 10))
-        s = 128
-        n_steps = 10
-        max_norm = 3
-        y0 = torch.randn(1, 1, s, s)
-        y1 = torch.randn(1, 1, s, s)
-        y = po.tools.sample_brownian_bridge(y0, y1, n_steps, max_norm)
-        dist = po.tools.distance_from_line(y, y0, y1)
-
-        line = (y1 - y0).flatten()
-        u = line / torch.norm(line)
-        y_ = (y - y0).view(len(y), -1)  # center
-        d = torch.norm(y_ - (y_ @ u)[:, None]*u[None, :], dim=1)
-
-        assert (dist - d).pow(2).mean() < 1e-6
+        t = 2**6
+        d = 2**15
+        b = po.sample_brownian_bridge(torch.randn(1, d),
+                                      torch.randn(1, d),
+                                      t, d**.5)
+        a, f = po.deviation_from_line(b)
+        assert torch.abs(a[t//2] - .5) < 1e-2, f"{a[t//2]}"
+        assert torch.abs(f[t//2] - 2**.5/2) < 1e-2, f"{f[t//2]}"
 
 
 class TestGeodesic(object):
+
+        # @pytest.mark.parametrize("model", [OnOff], fixture=True)
+        # model = po.simul.Texture_Statistics(imgA.shape[-2:],
+        #                                     n_ori=4, n_scale=3,
+        #                                     n_shifts=n_shifts)
+
+    @pytest.mark.parametrize('n_steps', [5, 10])
+    @pytest.mark.parametrize("init", ['straight', 'bridge'])
+    @pytest.mark.parametrize("nu", [0, .1])
+    def test_geodesic_texture(self, n_steps, init, nu):
+
+        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
+        sequence = po.translation_sequence(imgA[0], n_steps)
+        moog = po.synth.Geodesic(sequence[0:1], sequence[-1:],
+                                 model, n_steps, init)
+        moog.synthesize(max_iter=5, learning_rate=0.001, nu=nu)
+        moog.plot_loss()
+        moog.plot_deviation_from_line(video=sequence)
 
     # def test_geodesic_OnOff(self):
     #     try:
@@ -104,13 +85,3 @@ class TestGeodesic(object):
     #                              init='straight')
     #     moog.synthesize(max_iter=5, lmbda=.1)
 
-    # @pytest.mark.parametrize('n_shifts', [3, 7, 9])
-    def test_geodesic_texture(self):
-
-        # model = po.simul.Texture_Statistics(imgA.shape[-2:],
-        #                                     n_ori=4, n_scale=3,
-        #                                     n_shifts=n_shifts)
-        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        n_steps = 11
-        moog = po.synth.Geodesic(imgA, imgB, model, n_steps, init='straight')
-        moog.synthesize(max_iter=5, learning_rate=0.005)
