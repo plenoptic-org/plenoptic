@@ -305,12 +305,18 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     """
     if power_factors is None:
         power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+
+    def downsample(img):
+        img = F.pad(img, (0, img.shape[3] % 2, 0, img.shape[2] % 2), mode="replicate")
+        img = F.avg_pool2d(img, kernel_size=2)
+        return img
+
     msssim = 1
     for i in range(len(power_factors) - 1):
         _, contrast_structure_map, _ = _ssim_parts(img1, img2, dynamic_range)
         msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(power_factors[i])
-        img1 = F.avg_pool2d(img1, kernel_size=2)
-        img2 = F.avg_pool2d(img2, kernel_size=2)
+        img1 = downsample(img1)
+        img2 = downsample(img2)
     map_ssim, _, _ = _ssim_parts(img1, img2, dynamic_range)
     msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
     return msssim
