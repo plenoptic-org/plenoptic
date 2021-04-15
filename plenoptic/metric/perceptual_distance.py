@@ -98,7 +98,7 @@ def _ssim_parts(img1, img2, dynamic_range):
     map_ssim = luminance_map * contrast_structure_map
 
     # the weight used for stability
-    weight = torch.log(torch.matmul((1+(sigma1_sq/C2)), (1+(sigma2_sq/C2))))
+    weight = torch.log((1 + sigma1_sq/C2) * (1 + sigma2_sq/C2))
     return map_ssim, contrast_structure_map, weight
 
 
@@ -146,8 +146,8 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     Returns
     ------
     mssim : torch.Tensor
-        2d tensor containing the mean SSIM for each image, averaged over the
-        whole image
+        2d tensor of shape (batch, channel) containing the mean SSIM for each
+        image, averaged over the whole image
 
     Notes
     -----
@@ -294,8 +294,7 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     Returns
     ------
     msssim : torch.Tensor
-        2d tensor containing the mean MS-SSIM for each image, averaged over the
-        whole image
+        2d tensor of shape (batch, channel) containing the MS-SSIM for each image
 
     References
     ----------
