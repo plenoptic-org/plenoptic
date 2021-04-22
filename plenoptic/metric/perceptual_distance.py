@@ -277,7 +277,8 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
     of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
     is the mean value of the SSIM map for the coarsest scale. If at least one
-    of these terms are negative, the value of MS-SSIM is zero.
+    of these terms are negative, the value of MS-SSIM is zero. The values of
+    :math: `a_i` are taken from the argument `power_factors`.
 
     Parameters
     ----------
