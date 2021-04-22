@@ -69,7 +69,9 @@ def l2_norm(synth_rep, ref_rep, **kwargs):
 def relative_MSE(synth_rep, ref_rep, **kwargs):
     r"""squared l2-norm of the difference between reference representation
     and synthesized representation relative to the squared l2-norm of the
-    reference representation
+    reference representation:
+
+    $$\frac{||x - \hat{x}||_2^2}{||x||_2^2}$$
 
     Parameters
     ----------

@@ -356,7 +356,6 @@ def convert_pyrshow(pyr_coeffs, image_index=0, channel=0, **kwargs):
             im = to_numpy(im)
         pyr_coeffvis[k] = im[image_index, channel, ...]
 
-    # pt.pyrshow(pyr_coeffvis, **kwargs)
     return pyr_coeffvis
 
 

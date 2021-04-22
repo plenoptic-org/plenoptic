@@ -263,11 +263,6 @@ def local_gain_release(energy, state, residuals=False):
     return coeff_dict
 
 
-# def local_gain_control_ori(coeff_dict, residuals=True):
-#     """local gain control in spatio-orientation neighborhood
-#     """
-
-############
 def normalize(x, power=2, sum_dim=-1):
     r"""Compute the norm and direction of x
 
