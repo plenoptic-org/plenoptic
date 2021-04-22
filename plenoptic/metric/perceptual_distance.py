@@ -108,7 +108,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
     based on three comparison measurements between the two images: luminance,
-    contrast, and structure. All of these are computed in windows across the
+    contrast, and structure. All of these are computed convolutionally across the
     images. See the references for more information.
 
     This implementation follows the original implementation, as found at [2]_,
@@ -181,6 +181,10 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     else:
         mssim = (map_ssim*weight).sum((-1, -2)) / weight.sum((-1, -2))
 
+    if min(img1.shape[2], img1.shape[3]) < 11:
+        warnings.warn("SSIM uses 11x11 convolutional kernel, but the height and/or "
+                      "the width of the input image is smaller than 11, so the "
+                      "kernel size is set to be the minimum of these two numbers.")
     return mssim
 
 
@@ -190,7 +194,7 @@ def ssim_map(img1, img2, dynamic_range=1):
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
     based on three comparison measurements between the two images: luminance,
-    contrast, and structure. All of these are computed in windows across the
+    contrast, and structure. All of these are computed convolutionally across the
     images. See the references for more information.
 
     This implementation follows the original implementation, as found at [2]_,
@@ -242,6 +246,10 @@ def ssim_map(img1, img2, dynamic_range=1):
        http://dx.doi.org/10.1167/8.12.8
 
     """
+    if min(img1.shape[2], img1.shape[3]) < 11:
+        warnings.warn("SSIM uses 11x11 convolutional kernel, but the height and/or "
+                      "the width of the input image is smaller than 11, so the "
+                      "kernel size is set to be the minimum of these two numbers.")
     return _ssim_parts(img1, img2, dynamic_range)[0]
 
 
@@ -253,7 +261,7 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     account the perceptual distance between two images on different scales.
 
     SSIM is based on three comparison measurements between the two images:
-    luminance, contrast, and structure. All of these are computed in windows
+    luminance, contrast, and structure. All of these are computed convolutionally
     across the images, producing three maps instead of scalars. The SSIM map is
     the elementwise product of these three maps. See `metric.ssim` and
     `metric.ssim_map` for a full description of SSIM.
@@ -319,6 +327,12 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
         img2 = downsample(img2)
     map_ssim, _, _ = _ssim_parts(img1, img2, dynamic_range)
     msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
+
+    if min(img1.shape[2], img1.shape[3]) < 11:
+        warnings.warn("SSIM uses 11x11 convolutional kernel, but for some scales "
+                      "of the input image, the height and/or the width is smaller "
+                      "than 11, so the kernel size in SSIM is set to be the "
+                      "minimum of these two numbers for these scales.")
     return msssim
 
 
