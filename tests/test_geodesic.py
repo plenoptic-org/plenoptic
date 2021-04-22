@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-import os.path as op
-# from _pytest.fixtures import fixture
 
 import plenoptic as po
 import pytest
 import torch
 from torchvision.transforms.functional import center_crop
 
-from conftest import DATA_DIR, DEVICE, DTYPE
+from conftest import DATA_DIR, DEVICE
 
 imageA = po.load_images(DATA_DIR + '/256/reptil_skin.pgm')
-imgA = center_crop(imageA, [64]).to(DEVICE).to(DEVICE)
+imgA = center_crop(imageA, [64]).to(DEVICE)
 
 
 class TestSequences(object):
@@ -34,15 +32,13 @@ class TestGeodesic(object):
 
     @pytest.mark.parametrize('n_steps', [5, 10])
     @pytest.mark.parametrize("init", ['straight', 'bridge'])
-    @pytest.mark.parametrize("nu", [0, .1])
-    def test_geodesic_texture(self, n_steps, init, nu):
+    def test_geodesic_texture(self, n_steps, init):
 
         model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
         sequence = po.translation_sequence(imgA[0], n_steps)
         moog = po.synth.Geodesic(sequence[0:1], sequence[-1:],
                                  model, n_steps, init)
-        moog.synthesize(max_iter=5, learning_rate=0.001, nu=nu)
+        moog.synthesize(max_iter=5, learning_rate=0.001)
         moog.plot_loss()
-        # .savefig(f"./logs/geodesicloss-n_steps{n_steps}-init{init}-nu{nu}-model{model.__class__.__name__}.pdf")
         moog.plot_deviation_from_line(video=sequence)
-        # .savefig(f"./logs/geodesicdevfromline-n_steps{n_steps}-init{init}-nu{nu}-model{model.__class__.__name__}.pdf")
+        moog.calculate_jerkiness()
