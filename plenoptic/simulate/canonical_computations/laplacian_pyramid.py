@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 from ...tools.conv import blur_downsample, upsample_blur
 
+
 class Laplacian_Pyramid(nn.Module):
     """
     The Laplacian pyramid [1]_ is a multiscale image representation. It decomposes the image by computing the local mean
@@ -39,8 +40,9 @@ class Laplacian_Pyramid(nn.Module):
 
         y = []
         for scale in range(self.n_scales - 1):
+            odd = torch.tensor(x.shape)[2:4] % 2
             x_down = blur_downsample(x)
-            x_up = upsample_blur(x_down)
+            x_up = upsample_blur(x_down, odd)
             y.append(x - x_up)
             x = x_down
         y.append(x)
@@ -61,7 +63,8 @@ class Laplacian_Pyramid(nn.Module):
         """
         x = y[self.n_scales - 1]
         for scale in range(self.n_scales - 1, 0, -1):
-            y_up = upsample_blur(x)
+            odd = torch.tensor(y[scale - 1].shape)[2:4] % 2
+            y_up = upsample_blur(x, odd)
             x = y[scale - 1] + y_up
 
         return x
