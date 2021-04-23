@@ -14,7 +14,6 @@ examples/data/cifar*
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
-data/msssim_images
 data/cat7*
 data/elep*
 docs/_build

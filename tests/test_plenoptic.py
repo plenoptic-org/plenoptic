@@ -14,7 +14,7 @@ from conftest import DATA_DIR, DEVICE
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr'}
+           'ssim_analysis.mat': 'ndtc7', 'MAD_results.tar.gz': 'jwcsr'}
 
 
 def osf_download(filename):
@@ -28,7 +28,7 @@ def osf_download(filename):
     Parameters
     ----------
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz', 'MAD_results.tar.gz'}
+                'ssim_analysis.mat', 'MAD_results.tar.gz'}
         Which file to download.
 
     Returns
@@ -72,11 +72,6 @@ def test_files_dir():
 @pytest.fixture()
 def ssim_images():
     return osf_download('ssim_images.tar.gz')
-
-
-@pytest.fixture()
-def msssim_images():
-    return osf_download('msssim_images.tar.gz')
 
 
 @pytest.fixture()
@@ -173,11 +168,7 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
 
-    def test_msssim(self, einstein_img, curie_img):
-        curie_img.requires_grad_()
-        assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
-
-    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim'])
+    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim'])
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
@@ -185,13 +176,12 @@ class TestPerceptualMetrics(object):
             func = po.add_noise
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = size_B * [4]
-        else:
-            if func_name == 'mse':
-                func = po.metric.mse
-            elif func_name == 'ssim':
-                func = po.metric.ssim
-            elif func_name == 'ms-ssim':
-                func = po.metric.ms_ssim
+        elif func_name == 'mse':
+            func = po.metric.mse
+            A = einstein_img.repeat(size_A, 1, 1, 1)
+            B = curie_img.repeat(size_B, 1, 1, 1)
+        elif func_name == 'ssim':
+            func = po.metric.ssim
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = curie_img.repeat(size_B, 1, 1, 1)
         if size_A != size_B and size_A != 1 and size_B != 1:
@@ -247,16 +237,6 @@ class TestPerceptualMetrics(object):
         # errors increase through multiplication and other operations.
         print(plen_val-mat_val, plen_val, mat_val)
         assert torch.allclose(plen_val, mat_val.view_as(plen_val), atol=1e-5)
-
-    def test_msssim_analysis(self, msssim_images):
-        # True values are defined by https://ece.uwaterloo.ca/~z70wang/research/iwssim/msssim.zip
-        true_values = torch.tensor([1.0000000, 0.9112161, 0.7699084, 0.8785111, 0.9488805], device=DEVICE)
-        computed_values = torch.zeros_like(true_values)
-        base_img = po.load_images(op.join(msssim_images, "samp0.tiff")).to(DEVICE)
-        for i in range(len(true_values)):
-            other_img = po.load_images(op.join(msssim_images, f"samp{i}.tiff")).to(DEVICE)
-            computed_values[i] = po.metric.ms_ssim(base_img, other_img)
-        assert torch.allclose(true_values, computed_values)
 
     def test_nlpd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
