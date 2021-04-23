@@ -62,20 +62,6 @@ class TestNonLinearities(object):
             assert torch.norm(y[key] - y_hat[key]) < 1e-5
 
 
-    def test_normalize(self, basic_stim):
-        # should operate on both of these, though it will do different
-        # things
-        po.simul.non_linearities.normalize(basic_stim[0].flatten())
-        po.simul.non_linearities.normalize(basic_stim[0].flatten(), 1)
-        po.simul.non_linearities.normalize(basic_stim[0])
-        po.simul.non_linearities.normalize(basic_stim[0], 1)
-        po.simul.non_linearities.normalize(basic_stim[0], sum_dim=1)
-
-    def test_normalize_dict(self, basic_stim):
-        spyr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:]).to(DEVICE)
-        po.simul.non_linearities.normalize_dict(spyr(basic_stim))
-
-
 class TestSignal(object):
 
     def test_autocorr(self):
