@@ -45,7 +45,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     downsample: `bool`
         Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
         in fixed bands of size imshapeximshape. When downsample is False, the forward method returns a tensor.
-    fft_norm: `bool` default: True
+    tight_frame: `bool` default: True
         Whether the pyramid obeys the generalized parseval theorem or not (i.e. is a tight frame).
         If True, the energy of the pyr_coeffs = energy of the image. If not this is not true.
         In order to match the matlabPyrTools or pyrtools pyramids, this must be set to False
@@ -92,7 +92,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         self.is_complex = is_complex
         self.downsample = downsample
-        if tight_frame:
+        self.tight_frame = tight_frame
+        if self.tight_frame:
             self.fft_norm = "ortho"
         else:
             self.fft_norm = "backward"
@@ -100,8 +101,6 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.lutsize = 1024
         self.Xcosn = np.pi * np.array(range(-(2*self.lutsize + 1), (self.lutsize+2)))/self.lutsize
         self.alpha = (self.Xcosn + np.pi) % (2*np.pi) - np.pi
-
-        self.pyr_size = {}
 
         max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1])))-2
         if height == 'auto':
@@ -307,6 +306,7 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         """
         pyr_coeffs = OrderedDict()
+        self.pyr_size = OrderedDict()
         if not isinstance(scales, list):
             raise Exception("scales must be a list!")
         if not scales:
@@ -347,11 +347,12 @@ class Steerable_Pyramid_Freq(nn.Module):
                     banddft = complex_const * lodft * anglemask * himask
                     band = fft.ifftshift(banddft)
                     band = fft.ifft2(band, dim=(-2,-1), norm=self.fft_norm)
+                    
                     if not self.is_complex:
                         pyr_coeffs[(i, b)] = band.real
                     else:
-                        if self.fft_norm == "ortho":
-                            band = band / np.sqrt(2)
+                        if self.tight_frame:
+                            band = band/np.sqrt(2)
                         pyr_coeffs[(i, b)] = band
                     self.pyr_size[(i, b)] = tuple(band.shape[-2:])
 
@@ -385,7 +386,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         return pyr_coeffs
 
 
-    def convert_pyr_to_tensor(self, pyr_coeffs):
+    def convert_pyr_to_tensor(self, pyr_coeffs, split_complex=False):
         r"""
         Function that takes a torch pyramid (without downsampling) dictonary and converts the output into a single tensor
         of BxCxHxW for use in an nn module downstream.
@@ -394,11 +395,15 @@ class Steerable_Pyramid_Freq(nn.Module):
         ----------
         pyr_coeffs: `OrderedDict`
             the pyramid coefficients
+        split_complex: `bool`
+            indicates whether the output should split complex bands into real/imag channels or keep them as a single
+            channel. This should be True if you intend to use a convolutional layer on top of the output. 
 
         Returns
         -----------
         coeff_out: `torch.Tensor` (BxCxHxW)
-            pyramid coefficients reshaped into tensor
+            pyramid coefficients reshaped into tensor. The first channel will be the residual highpass and the last will be
+            the residual lowpass. Each band is then a separate channel. 
         """
 
         assert not self.downsample, "conversion to tensor only works for pyramids without downsampling of feature maps"
@@ -411,6 +416,13 @@ class Steerable_Pyramid_Freq(nn.Module):
                 coeff_list.append(pyr_coeffs[k])
         if len(coeff_list) > 0:
             coeff_bands = torch.cat(coeff_list, dim=1)
+            if split_complex:
+                complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
+                if coeff_bands.dtype in complex_types:
+                    coeff_bands = torch.cat([coeff_bands.real, coeff_bands.imag], dim=1)
+                else:
+                    raise TypeError("split_complex is True, but input pyr_coeffs are not complex tensors")
+                    
             batch_size = coeff_bands.shape[0]
             imshape = [coeff_bands.shape[2], coeff_bands.shape[3]]
             if len(coeff_list_resid) == 1:
@@ -445,8 +457,13 @@ class Steerable_Pyramid_Freq(nn.Module):
         key_list = list(self.pyr_size.keys())
         i = 0
         for k in key_list:
-                pyr_coeffs[k] = pyr_tensor[:,i,...].unsqueeze(1)
-                i += 1
+            pyr_tens = pyr_tensor[:,i,...].unsqueeze(1)
+            if 'residual' in k:
+                pyr_tens = pyr_tens.to(torch.float32)
+            else:
+                pyr_tens = pyr_tens.to(torch.complex64)
+            pyr_coeffs[k] = pyr_tens
+            i += 1
 
         return pyr_coeffs
 
@@ -651,8 +668,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         reconstruction = fft.ifft2(reconstruction, dim=(-2,-1), norm=self.fft_norm)
 
         # get real part of reconstruction (if complex)
-        if self.is_complex:
-            reconstruction = reconstruction.real
+        reconstruction = reconstruction.real
 
         return reconstruction
 
@@ -683,7 +699,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                 lodft = fft.fft2(pyr_coeffs['residual_lowpass'], dim=(-2,-1), norm=self.fft_norm)
                 lodft = fft.fftshift(lodft)
             else:
-                lodft = fft.fft2(torch.zeros_like(pyr_coeffs['residual_lowpass']), dim=(-2,-1),
+                lodft = fft.fft2(torch.zeros_like(pyr_coeffs['residual_lowpass'], dtype=torch.float64), dim=(-2,-1),
                                    norm=self.fft_norm)
 
             return lodft
@@ -691,19 +707,20 @@ class Steerable_Pyramid_Freq(nn.Module):
         # Reconstruct from orientation bands
         # update himask
         himask = self._himasks[scale]
-        orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
+        if self.is_complex:
+            tensor_type = torch.complex64
+        else:
+            tensor_type = torch.float64
+        orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=tensor_type)
 
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
                 anglemask = self._anglemasks_recon[scale][b]
-                if self.is_complex:
-                    if self.fft_norm == "ortho":
-                        coeffs = pyr_coeffs[(scale,b)]*np.sqrt(2)
-                    else:
-                        coeffs = pyr_coeffs[(scale,b)]
-                    banddft = fft.fft2(coeffs, dim=(-2,-1), norm=self.fft_norm)
+                if self.tight_frame and self.is_complex:
+                    coeffs = pyr_coeffs[(scale,b)]*np.sqrt(2)
                 else:
-                    banddft = fft.fft2(pyr_coeffs[(scale, b)], dim=(-2,-1), norm=self.fft_norm)
+                    coeffs = pyr_coeffs[(scale,b)]                
+                banddft = fft.fft2(coeffs, dim=(-2,-1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
                 complex_const = np.power(np.complex(0, 1), self.order)
@@ -719,7 +736,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         # Recursively reconstruct by going to the next scale
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1)
         # create output for reconstruction result
-        resdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
+        resdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=torch.complex64)
 
         # place upsample and convolve lowpass component
         resdft[:, :, lostart[0]:loend[0], lostart[1]:loend[1]] = reslevdft*lomask

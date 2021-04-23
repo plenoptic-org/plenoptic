@@ -8,7 +8,7 @@ import pytest
 import pyrtools as pt
 import numpy as np
 from itertools import product
-from plenoptic.tools.data import to_numpy, torch_complex_to_numpy
+from plenoptic.tools.data import to_numpy
 from conftest import DEVICE, DATA_DIR, DTYPE
 
 
@@ -124,26 +124,26 @@ class TestSteerablePyramid(object):
                                                                                         [True, False])],
                              indirect=True)
     def test_tight_frame(self, img, spyr):
-        spyr.forward(img)
-        check_parseval(img, spyr.pyr_coeffs)
+        pyr_coeffs = spyr.forward(img)
+        check_parseval(img, pyr_coeffs)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-True' for h, o, c in product([3, 4, 5],
                                                                                       [1, 2, 3],
                                                                                       [True, False])],
                              indirect=True)
     def test_not_downsample(self, img, spyr):
-        spyr.forward(img)
+        pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in spyr.pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
         spyr_not_downsample = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, spyr.order,
                                                               is_complex=spyr.is_complex,
-                                                              downsample=False, tight_frame=True)
+                                                              downsample=False, tight_frame=spyr.tight_frame)
         spyr_not_downsample.to(DEVICE)
-        spyr_not_downsample.forward(img)
-        check_band_energies(spyr.pyr_coeffs, spyr_not_downsample.pyr_coeffs)
+        pyr_coeffs_nd = spyr_not_downsample.forward(img)
+        check_band_energies(pyr_coeffs, pyr_coeffs_nd)
 
     @pytest.mark.parametrize("scales", [[0], [1], [0, 1, 2], [2], [], ['residual_highpass', 'residual_lowpass'],
                                         ['residual_highpass', 0, 1, 'residual_lowpass']])
@@ -152,12 +152,12 @@ class TestSteerablePyramid(object):
                                                                                         [True, False])],
                              indirect=True)
     def test_pyr_to_tensor(self, img, spyr, scales, rtol=1e-12, atol=1e-12):
-        pyr_tensor = spyr.forward(img, scales=scales)
-        pyr_coeff_dict = spyr.convert_tensor_to_pyr(pyr_tensor)
+        pyr_coeff_dict = spyr.forward(img, scales=scales)
+        pyr_tensor = spyr.convert_pyr_to_tensor(pyr_coeff_dict)
+        pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor)
         for i in range(len(pyr_coeff_dict.keys())):
-            k1 = list(pyr_coeff_dict.keys())[i]
-            k2 = list(spyr.pyr_coeffs.keys())[i]
-            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k1]), to_numpy(spyr.pyr_coeffs[k2]), rtol=rtol, atol=atol)
+            k = list(pyr_coeff_dict.keys())[i]
+            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k]), to_numpy(pyr_coeff_dict2[k]), rtol=rtol, atol=atol)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
                                                                                        [1, 2, 3],
@@ -167,7 +167,7 @@ class TestSteerablePyramid(object):
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in spyr.pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in torch_spc.keys() if isinstance(k[0], int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
                                                        is_complex=spyr.is_complex)
         pyrtools_spc = pyrtools_sp.pyr_coeffs
@@ -175,11 +175,11 @@ class TestSteerablePyramid(object):
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
                                       product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                              [True, False], [True, False], [True, False])],
+                                              [True, False], [True, False], [True,False])],
                              indirect=True)
     def test_complete_recon(self, img, spyr):
-        spyr.forward(img)
-        recon = to_numpy(spyr.recon_pyr())
+        pyr_coeffs = spyr.forward(img)
+        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
         np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
 
 
@@ -188,16 +188,16 @@ class TestSteerablePyramid(object):
                                               [True, False], [True, False])],
                              indirect=True)
     def test_partial_recon(self, img, spyr):
-        spyr.forward(img)
+        pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in spyr.pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
                                                    is_complex=spyr.is_complex)
         recon_levels = [[0], [1,3], [1,3,4]]
         recon_bands = [[1],[1,3]]
         for levels, bands in product(['all'] + recon_levels, ['all'] + recon_bands):
-            po_recon = to_numpy(spyr.recon_pyr(levels, bands).squeeze())
+            po_recon = to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_spyr.recon_pyr(levels, bands)
             np.testing.assert_allclose(po_recon, pt_recon,rtol=1e-4, atol=1e-4)
 
@@ -208,13 +208,13 @@ class TestSteerablePyramid(object):
     def test_recon_match_pyrtools(self, img, spyr, rtol=1e-6, atol=1e-6):
         # this should fail if and only if test_complete_recon does, but
         # may as well include it just in case
-        spyr.forward(img)
+        pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in spyr.pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
                                                   is_complex=spyr.is_complex)
-        po_recon = po.to_numpy(spyr.recon_pyr().squeeze())
+        po_recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs).squeeze())
         pt_recon = pt_pyr.recon_pyr()
         np.testing.assert_allclose(po_recon, pt_recon, rtol=rtol, atol=atol)
 
@@ -225,10 +225,8 @@ class TestSteerablePyramid(object):
                                                                                   [True, False])],
                              indirect=True)
     def test_scales_arg(self, img, spyr, scales):
-        spyr.forward(img)
-        pyr_coeffs = spyr.pyr_coeffs.copy()
-        spyr.forward(img, scales)
-        reduced_pyr_coeffs = spyr.pyr_coeffs.copy()
+        pyr_coeffs = spyr.forward(img)
+        reduced_pyr_coeffs = spyr.forward(img, scales)
         for k, v in reduced_pyr_coeffs.items():
             if (v != pyr_coeffs[k]).any():
                 raise Exception("Reduced pyr_coeffs should be same as original, but at least key "

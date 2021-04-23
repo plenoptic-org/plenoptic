@@ -28,10 +28,10 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
     ---------
     image : torch.Tensor or list
         The images to display. Tensors should be 4d (batch, channel, height,
-        width) or 5d (if complex). List of tensors should be used for tensors
-        of different height and width: all images will automatically be
-        rescaled so they're displayed at the same height and width, thus, their
-        heights and widths must be scalar multiples of each other.
+        width). List of tensors should be used for tensors of different height
+        and width: all images will automatically be rescaled so they're
+        displayed at the same height and width, thus, their heights and widths
+        must be scalar multiples of each other.
     vrange : `tuple` or `str`
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
@@ -70,8 +70,7 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         * if `str`, will put the same title on every plot.
         * if `list`, all values must be `str`, must be the same length as img,
           assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed;
-          unsupported for complex tensors).
+        * if None, no title will be printed (and subtitle will be removed).
     col_wrap : `int` or None, optional
         number of axes to have in each row. If None, will fit all axes in a
         single row.
@@ -115,11 +114,7 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         image = [image]
     images_to_plot = []
     for im in image:
-        if im.ndimension() == 5:
-            # this will also call to_numpy on it
-            im = torch_complex_to_numpy(im)
-        else:
-            im = to_numpy(im)
+        im = to_numpy(im)
         if im.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
             im = im[batch_idx:batch_idx+1]
@@ -176,11 +171,11 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
     ---------
     video : torch.Tensor or list
         The videos to display. Tensors should be 5d (batch, channel, time,
-        height, width) or 6d (if complex). List of tensors should be used for
-        tensors of different height and width: all videos will automatically be
-        rescaled so they're displayed at the same height and width, thus, their
-        heights and widths must be scalar multiples of each other. Videos must
-        all have the same number of frames as well.
+        height, width). List of tensors should be used for tensors of different
+        height and width: all videos will automatically be rescaled so they're
+        displayed at the same height and width, thus, their heights and widths
+        must be scalar multiples of each other. Videos must all have the same
+        number of frames as well.
     framerate : `float`
         Temporal resolution of the video, in Hz (frames per second).
     repeat : `bool`
@@ -223,8 +218,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         * if `str`, will put the same title on every plot.
         * if `list`, all values must be `str`, must be the same length as img,
           assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed;
-          unsupported for complex tensors).
+        * if None, no title will be printed (and subtitle will be removed).
     col_wrap : `int` or None, optional
         number of axes to have in each row. If None, will fit all axes in a
         single row.
@@ -281,10 +275,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         video = [video]
     videos_to_show = []
     for vid in video:
-        if vid.ndimension() == 6:
-            vid = torch_complex_to_numpy(vid)
-        else:
-            vid = to_numpy(vid)
+        vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
             vid = vid[batch_idx:batch_idx+1]
@@ -315,40 +306,95 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
                        plot_complex=plot_complex, **kwargs)
 
 
-def convert_pyrshow(pyr_coeffs, image_index=0, channel=0):
-    r"""Wrapper that makes outputs of the steerable pyramids compatible
-    with the display functions of pyrtools.
-    Selects pyramid coefficients corresponding to 'image_index' out of
-    the images in the batch, and to 'channel' out of the channel indexes
-    (eg. RGB channels that undergo steerable pyramid independently)
-    
+def pyrshow(pyr_coeffs, vrange='indep1', zoom=1, show_residuals=True,
+            cmap=None, plot_complex='rectangular', batch_idx=0, channel_idx=0,
+            **kwargs):
+    r"""Display steerable pyramid coefficients in orderly fashion.
+
+    This function uses ``imshow`` to show the coefficients of the steeable
+    pyramid, such that each scale shows up on a single row, with each scale in
+    a given column.
+
+    Note that unlike imshow, we can only show one batch or channel at a time
+
     Parameters
     ----------
     pyr_coeffs : `dict`
-                pyramid coefficients in the standard dictionary format as
-                specified in Steerable_Pyramid_Freq
-    image_index : `int` in [0, batch_size]
-                  index of the image you would like to select from the batch
-                  of coefficients
-    channel: `int`
-             index of channel to select for image display
-             for grayscale images this will be 0.
+        pyramid coefficients in the standard dictionary format as returned by
+        ``SteerablePyramidFreq.forward()``
+    vrange : `tuple` or `str`
+        If a 2-tuple, specifies the image values vmin/vmax that are mapped to
+        the minimum and maximum value of the colormap, respectively. If a
+        string:
 
-    Examples
-    --------
-        >>> size = 32
-        >>> signal = torch.randn(2, 3, size,size) # three images, each with three channels
-        >>> SPF = po.simul.Steerable_Pyramid_Freq((size, size), order=3, height=3, is_complex=True, downsample=False)
-        >>> pyr = SPF(signal)
-        >>> pt.pyrshow(po.convert_pyrshow(pyr, 1, 2), is_complex=True, plot_complex='polar', zoom=3);
+        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
+                     value, and come from the minimum or maximum across all
+                     images, whichever has the larger absolute value
+        * `'auto/auto1'`: all images have same vmin/vmax, which are the
+                          minimum/maximum values across all images
+        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
+                     all images) minus/ plus 2 std dev (across all images)
+        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
+                     10th/90th percentile values to the 10th/90th percentile of
+                     the display intensity range. For example: vmin is the 10th
+                     percentile image value minus 1/8 times the difference
+                     between the 90th and 10th percentile
+        * `'indep0'`: each image has an independent vmin/vmax, which have the
+                      same absolute value, which comes from either their
+                      minimum or maximum value, whichever has the larger
+                      absolute value.
+        * `'indep1'`: each image has an independent vmin/vmax, which are their
+                      minimum/maximum values
+        * `'indep2'`: each image has an independent vmin/vmax, which is their
+                      mean minus/plus 2 std dev
+        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
+                      the 10th/90th percentile values map to the 10th/90th
+                      percentile intensities.
+    zoom : `float`
+        ratio of display pixels to image pixels. if >1, must be an integer. If
+        <1, must be 1/d where d is a a divisor of the size of the largest
+        image.
+    show_residuals : `bool`
+        whether to display the residual bands (lowpass, highpass depending on the pyramid type)
+    cmap : matplotlib colormap, optional
+        colormap to use when showing these images
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        specifies handling of complex values.
+
+        * `'rectangular'`: plot real and imaginary components as separate images
+        * `'polar'`: plot amplitude and phase as separate images
+        * `'logpolar'`: plot log_2 amplitude and phase as separate images
+        for any other value, we raise a warning and default to rectangular.
+    batch_idx : int, optional
+        Which element from the batch dimension to plot.
+    channel_idx : int, optional
+        Which element from the channel dimension to plot.
+    kwargs :
+        Passed on to ``pyrtools.pyrshow``
+
+    Returns
+    -------
+    fig: `PyrFigure`
+        the figure displaying the coefficients.
+
     """
+    pyr_coeffvis = {}
+    is_complex = False
+    for k, v in pyr_coeffs.items():
+        im = to_numpy(v)
+        if np.iscomplex(im).any():
+            is_complex = True
+        # this removes only the first (batch) dimension
+        im = im[batch_idx:batch_idx+1].squeeze(0)
+        # this removes only the first (now channel) dimension
+        im = im[channel_idx:channel_idx+1].squeeze(0)
+        # because of how we've handled everything above, we know that im will
+        # be (h,w).
+        pyr_coeffvis[k] = im
 
-    pyr_coeffvis = pyr_coeffs.copy()
-    for k in pyr_coeffvis.keys():
-        im = to_numpy(pyr_coeffvis[k])
-        pyr_coeffvis[k] = im[image_index, channel, ...]
-
-    return pyr_coeffvis
+    return pt.pyrshow(pyr_coeffvis, is_complex=is_complex, vrange=vrange,
+                      zoom=zoom, cmap=cmap, plot_complex=plot_complex,
+                      show_residuals=show_residuals, **kwargs)
 
 
 def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
