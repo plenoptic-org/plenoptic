@@ -20,7 +20,9 @@ def make_straight_line(start, stop, n_steps):
     """
     assert start.shape == stop.shape
     assert start.shape[0] == 1
-    tt = torch.linspace(0, 1, steps=n_steps+1).view(n_steps+1, 1)
+
+    device = start.device
+    tt = torch.linspace(0, 1, steps=n_steps+1, device=device).view(n_steps+1, 1)
     straight = (1 - tt) * start + tt * stop
 
     return straight
@@ -55,12 +57,13 @@ def sample_brownian_bridge(start, stop, n_steps, max_norm=1):
     assert start.shape[0] == 1
     assert max_norm >= 0
 
+    device = start.device
     D = start.shape[1]
     dt = torch.tensor(1/n_steps)
-    tt = torch.linspace(0, 1, steps=n_steps+1)[:, None]
+    tt = torch.linspace(0, 1, steps=n_steps+1, device=device)[:, None]
 
     sigma = torch.sqrt(dt / D) * 2. * max_norm
-    dW = sigma * torch.randn(n_steps+1, D)
+    dW = sigma * torch.randn(n_steps+1, D, device=device)
     dW[0] = start.flatten()
     W = torch.cumsum(dW, dim=0)
 
