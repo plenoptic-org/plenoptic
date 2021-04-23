@@ -1,14 +1,14 @@
 import pytest
-import torch
 import requests
 import math
 import tqdm
 import tarfile
 import os
-import numpy as np
-import plenoptic as po
 import os.path as op
 import scipy.io as sio
+import torch
+import numpy as np
+import plenoptic as po
 from conftest import DATA_DIR, DEVICE
 
 
@@ -69,6 +69,9 @@ def test_files_dir():
     return osf_download('plenoptic-test-files.tar.gz')
 
 
+def test_find_files(test_files_dir):
+    assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
+
 @pytest.fixture()
 def ssim_images():
     return osf_download('ssim_images.tar.gz')
@@ -78,90 +81,6 @@ def ssim_images():
 def ssim_analysis():
     ssim_analysis = osf_download('ssim_analysis.mat')
     return sio.loadmat(ssim_analysis, squeeze_me=True)
-
-
-class TestNonLinearities(object):
-
-    def test_polar_amplitude_zero(self):
-        a = torch.rand(10, device=DEVICE) * -1
-        b = po.rescale(torch.randn(10, device=DEVICE), -np.pi / 2, np.pi / 2)
-
-        with pytest.raises(ValueError) as _:
-            _, _ = po.tools.polar_to_rectangular(a, b)
-
-    def test_coordinate_identity_transform_rectangular(self):
-        dims = (10, 5, 256, 256)
-        x = torch.randn(dims, device=DEVICE)
-        y = torch.randn(dims, device=DEVICE)
-
-        X, Y = po.tools.polar_to_rectangular(*po.rectangular_to_polar(x, y))
-
-        assert torch.norm(x - X) < 1e-3
-        assert torch.norm(y - Y) < 1e-3
-
-    def test_coordinate_identity_transform_polar(self):
-        dims = (10, 5, 256, 256)
-
-        # ensure vec len a is non-zero by adding .1 and then re-normalizing
-        a = torch.rand(dims, device=DEVICE) + 0.1
-        a = a / a.max()
-        b = po.rescale(torch.randn(dims, device=DEVICE), -np.pi / 2, np.pi / 2)
-
-        A, B = po.rectangular_to_polar(*po.tools.polar_to_rectangular(a, b))
-
-        assert torch.norm(a - A) < 1e-3
-        assert torch.norm(b - B) < 1e-3
-
-    def test_rectangular_to_polar_dict(self, basic_stim):
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=True).to(DEVICE)
-        y = spc(basic_stim)
-        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y)
-
-    def test_rectangular_to_polar_real(self):
-        x = torch.randn((10, 1, 256, 256), device=DEVICE)
-        po.simul.non_linearities.rectangular_to_polar_real(x)
-
-    def test_local_gain_control(self, basic_stim):
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5, order=1, is_complex=False).to(DEVICE)
-        y = spc(basic_stim)
-        energy, state = po.simul.non_linearities.local_gain_control(y)
-
-    def test_normalize(self, basic_stim):
-        # should operate on both of these, though it will do different
-        # things
-        po.simul.non_linearities.normalize(basic_stim[0].flatten())
-        po.simul.non_linearities.normalize(basic_stim[0].flatten(), 1)
-        po.simul.non_linearities.normalize(basic_stim[0])
-        po.simul.non_linearities.normalize(basic_stim[0], 1)
-        po.simul.non_linearities.normalize(basic_stim[0], sum_dim=1)
-
-    def test_normalize_dict(self, basic_stim):
-        spyr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:]).to(DEVICE)
-        po.simul.non_linearities.normalize_dict(spyr(basic_stim))
-
-def test_find_files(test_files_dir):
-    assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
-
-
-class TestSignalTools(object):
-
-    def test_autocorr(self):
-        x = po.tools.make_synthetic_stimuli()
-        x_centered = x - x.mean((2, 3), keepdim=True)
-        a = po.tools.autocorr(x_centered, n_shifts=7)
-
-        # autocorr with zero delay is variance
-        assert (torch.abs(
-                torch.var(x, dim=(2, 3)) - a[..., 3, 3])
-                < 1e-5).all()
-        # autocorr can be computed in signal domain directly with roll
-        assert (torch.abs(
-                (x_centered * torch.roll(x_centered, 1, 2)).sum((2, 3))
-                / np.prod(x.shape[-2:])
-                - a[..., 4, 3])
-                < 1e-5).all()
-
 
 @pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, '256/einstein.png'),
                                    op.join(DATA_DIR, '256'),
