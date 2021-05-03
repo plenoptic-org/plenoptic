@@ -48,16 +48,13 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
     filt = filt.flip((0, 1))
 
     n_channels = image.shape[1]
-    pad_size = np.array(filt.shape) - np.array(odd) + 1
-    pad_rule = np.array([[0, -1, 0, 1],
-                         [0, 0, 0, 0],
-                         [0, 0, 1, 0],
-                         [0, 0, 1, 1]])
-    pad_plan = pad_rule[pad_size % 4] + np.outer(pad_size // 4, np.array([1, 1, 0, 0]))
-    image_prepad = F.pad(image, [pad_plan[1, 0], pad_plan[1, 1], pad_plan[0, 0], pad_plan[0, 1]], mode=padding_mode)
+    pad_start = np.array(filt.shape) // 2
+    pad_end = np.array(filt.shape) - np.array(odd) - pad_start
+    image_prepad = F.pad(image, [pad_start[1] // 2, pad_end[1] // 2, pad_start[0] // 2, pad_end[0] // 2],
+                         mode=padding_mode)
     image_upsample = F.conv_transpose2d(image_prepad, weight=torch.ones((n_channels, 1, 1, 1), device=image.device),
                                         stride=2, groups=n_channels)
-    image_postpad = F.pad(image_upsample, [pad_plan[1, 2], pad_plan[1, 3], pad_plan[0, 2], pad_plan[0, 3]])
+    image_postpad = F.pad(image_upsample, [pad_start[1] % 2, pad_end[1] % 2, pad_start[0] % 2, pad_end[0] % 2])
     return F.conv2d(image_postpad, filt.repeat(n_channels, 1, 1, 1), groups=n_channels)
 
 
