@@ -96,11 +96,11 @@ def rectangular_to_polar_real(x, epsilon=1e-12):
     """
 
     # these could be parameters, but no use case so far
-    step = (2, 2)
     p = 2.0
 
-    norm = torch.pow(blur_downsample(torch.abs(x ** p), step=step), 1 / p)
-    direction = x / (upsample_blur(norm, step=step) + epsilon)
+    norm = torch.pow(blur_downsample(torch.abs(x ** p)), 1 / p)
+    odd = torch.tensor(x.shape)[2:4] % 2
+    direction = x / (upsample_blur(norm, odd) + epsilon)
 
     return norm, direction
 
