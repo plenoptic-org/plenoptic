@@ -84,13 +84,20 @@ class TestLaplacianPyramid(object):
         y = L.analysis(basic_stim)
         assert y[0].requires_grad
 
+    def test_synthesis(self):
+        img = torch.rand(1, 1, 543, 654).to(DEVICE)
+        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        y = L.analysis(img)
+        img_recon = L.synthesis(y)
+        assert torch.allclose(img, img_recon)
+
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("n_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, n_channels):
-        if std <=0.:
+        if std <= 0.:
             with pytest.raises(AssertionError):
                 circular_gaussian2d((7, 7), std)
         else:
@@ -103,7 +110,7 @@ class TestFilters:
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
     @pytest.mark.parametrize("std", [1., 20., 0.])
     def test_gaussian1d(self, kernel_size, std):
-        if std <=0:
+        if std <= 0:
             with pytest.raises(AssertionError):
                 gaussian1d(kernel_size, std)
         else:

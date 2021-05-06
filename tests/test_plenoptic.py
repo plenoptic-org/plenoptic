@@ -9,6 +9,7 @@ import numpy as np
 import plenoptic as po
 import os.path as op
 import scipy.io as sio
+import scipy.ndimage
 from conftest import DATA_DIR, DEVICE
 
 
@@ -83,6 +84,20 @@ def msssim_images():
 def ssim_analysis():
     ssim_analysis = osf_download('ssim_analysis.mat')
     return sio.loadmat(ssim_analysis, squeeze_me=True)
+
+
+@pytest.mark.parametrize('odd', [0, 1])
+@pytest.mark.parametrize('size', [9, 10, 11, 12])
+def test_downsample_upsample(odd, size):
+    img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE)
+    img[0, 0, 12, 12] = 1
+    filt = np.zeros([size, size + 1])
+    filt[5, 5] = 1
+    filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
+    filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
+    img_down = po.correlate_downsample(img, filt)
+    img_up = po.upsample_convolve(img_down, (odd, 1), filt)
+    assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
 
 
 class TestNonLinearities(object):
