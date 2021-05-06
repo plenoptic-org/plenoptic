@@ -22,7 +22,8 @@ def make_straight_line(start, stop, n_steps):
     assert start.shape[0] == 1
 
     device = start.device
-    tt = torch.linspace(0, 1, steps=n_steps+1, device=device).view(n_steps+1, 1)
+    tt = torch.linspace(0, 1, steps=n_steps+1, device=device
+                        ).view(n_steps+1, 1)
     straight = (1 - tt) * start + tt * stop
 
     return straight
