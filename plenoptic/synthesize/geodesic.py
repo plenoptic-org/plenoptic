@@ -160,6 +160,7 @@ class Geodesic(nn.Module):
         - compute the loss as a sum of:
             - representation's path energy
             - range constraint (weighted by lambda)
+            - if regularized: signal's path energy (weighted by mu)
         - compute the gradients
         - make sure that neither the loss or the gradients are NaN
         - let the optimizer take a step in the direction of the gradients
@@ -177,10 +178,14 @@ class Geodesic(nn.Module):
         step_energy = self._step_energy(y)
         loss = step_energy.mean()
         # note that we also keep track of the signal path energy
-        self.loss.append((loss.item(), self._step_energy(x).mean().item()))
+        signal_path_energy = self._step_energy(x).mean()
+        self.loss.append((loss.item(), signal_path_energy.item()))
 
         if self.lmbda > 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
+
+        if self.regularized and self.mu > 0:
+            loss = loss + self.mu * signal_path_energy
 
         if not torch.isfinite(loss):
             raise Exception('found a NaN in the loss during optimization')
@@ -242,7 +247,8 @@ class Geodesic(nn.Module):
         self.loss.append((repres_loss.item(), signal_loss.item()))
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
-                   conditional=False, lmbda=.1, seed=0, tol=None,
+                   regularized=True, mu=None, lmbda=.1,
+                   conditional=False,  tol=None, seed=0,
                    verbose=True):
         """Synthesize a geodesic via optimization.
 
@@ -257,6 +263,16 @@ class Geodesic(nn.Module):
             if an optimizer is passed, its `params` argument should be set to
             `self.x`, where self refers to a previously initialized Geodesic
             class.
+        regularized: bool, optional
+            If True the loss will contain an additional regularization term
+            which penalizes signal path energy, True by default
+        mu: float, optional
+            Strength of the regularization, this hyperparameter should be 
+            carefully chosen, the default value is only an example
+        lmbda: float, optional
+            strength of the regularization term that penalizes the optimization
+            variable when it exceeds the [0, 1] range, it is strictly positive
+            by default (TODO implement this via differentiable parametrization)
         conditional: bool, optional
             If True, search for the geodesic that is shortest in pixel space,
             ie. among paths that minimizes representation path energy, search
@@ -265,25 +281,38 @@ class Geodesic(nn.Module):
             would resolve the degeneracy in the solution.
             Note: this is a non-linear analogue to picking the least square
             solution out of a subspace of solutions in an underdetermined
-            system of equations.
+            system of equations
             Else if conditional is set to False, search for the geodesic
             that minimizes representation path energy, irrespective of its
-            signal path energy.
-        lmbda: float, optional
-            strength of the regularizer that enforces the image range in [0, 1]
-            (strictly positive by default)
+            signal path energy
+        tol: float, optional
+            tolerance threshold used to terminate algorithm before `max_iter`
+            if the optimization stopped making progress
         seed: int, optional
             set the random number generator
         verbose: bool, optional
             storing information along the run of the optimization algorithm
         """
-        self.lmbda = lmbda
-        self.conditional = conditional
         self.verbose = verbose
+        torch.manual_seed(seed)
+        self.lmbda = lmbda
+        assert not (conditional and regularized), "one thing at a time"
+
+        self.regularized = regularized
+        if mu is None and self.regularized:
+            # tentative default value
+            mu = 2 * (self.model(self.pixelfade).pow(2).mean().pow(.5) /
+                      self.pixelfade.pow(2).mean().pow(.5))
+        if self.regularized:
+            print(f"\n tradeoff parameter, mu = {mu:.4e}")
+        self.mu = mu
+
+        self.conditional = conditional
         if tol is None:
+            # tentative default value
             tol = self.pixelfade.norm() / 1e4 * (1 + 5 ** .5) / 2
         print(f"\n threshold for delta_x, tolerance = {tol:.5e}")
-        torch.manual_seed(seed)
+
         if optimizer == 'Adam':
             self.optimizer = optim.Adam([self.x],
                                         lr=learning_rate, amsgrad=True)
@@ -299,7 +328,11 @@ class Geodesic(nn.Module):
                 i += 1
             last_r_loss = self.loss[-1][0]
             if self.verbose:
-                print(f"""found representational geodesic after {i} iterations,
+                if self.regularized:
+                    print(f"""found a regularized geodesic after {i} iterations,
+            achieving a representational path energy of {last_r_loss:.2e}""")
+                else:
+                    print(f"""found a representational geodesic after {i} iterations,
             achieving a representational path energy of {last_r_loss:.2e}""")
 
             if self.conditional and i < max_iter:
@@ -335,22 +368,25 @@ class Geodesic(nn.Module):
 
         self.populate_geodesic()
 
-    def plot_loss(self, sharey=False, show_switches=True):
+    def plot_loss(self, share_y=False, show_switches=True):
         """display the evolution of representation and signal path energies
         along the optimisation process.
 
         Parameters
         ----------
-        sharey : bool, optional
-            [description], by default False
+        share_y : bool, optional
+            whether the representational path energy and signal path energy
+            share a common y axis, by default False because these quantities
+            have different "units"
         show_switches : bool, optional
-            [description], by default True
+            indicate steps of the outer loop by vertical lines (relevant to
+            the conditional geodesic implementation), by default True
 
         Returns
         -------
         fig: matplotlib.figure.Figure
         """
-        if sharey:
+        if share_y:
             fig, ax = plt.subplots(1, 1)
             ax.plot(self.loss)
             ax.set(yscale='log',
@@ -379,7 +415,7 @@ class Geodesic(nn.Module):
             ax2.set_ylabel(r'$E[\gamma]$', color=color)
             ax2.plot(t, s_loss, color=color)
             ax2.tick_params(axis='y')  # , labelcolor=color
-        if show_switches and self.conditional:
+        if show_switches and hasattr(self, 'outer_step_stamp'):
             for t in self.outer_step_stamp:
                 fig.axes[0].axvline(t, alpha=.1)
         fig.tight_layout()
