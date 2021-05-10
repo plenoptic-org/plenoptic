@@ -5,7 +5,7 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from ..tools.optim import penalize_range
 from ..tools.straightness import (deviation_from_line, make_straight_line,
@@ -168,17 +168,16 @@ class Geodesic(nn.Module):
         - return delta_x, the norm of the step just taken
         """
         xprev = self.x.clone()
-
         self.optimizer.zero_grad()
+
         x = torch.cat([self.xA, self.x, self.xB])
         y = self._analyze(x)
 
         # representation's path energy
         step_energy = self._step_energy(y)
         loss = step_energy.mean()
-        # note that we also keep track of the signal path energy
-        self.loss.append((loss.item(), self._step_energy(x).mean().item()))
 
+        self.loss.append(loss.item())
         if self.lmbda > 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
 
@@ -197,7 +196,6 @@ class Geodesic(nn.Module):
         pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
                          ('gradient norm', f'{grad_norm:.4e}'),
                          ('delta_x', f"{delta_x.item():.5e}")]))
-
         # storing some information
         if self.verbose:
             self.step_energy.append(step_energy.detach())
@@ -206,44 +204,8 @@ class Geodesic(nn.Module):
 
         return delta_x
 
-    def _outer_optimizer_step(self):
-        """
-        At each step of the outer optimization, the following is done:
-        - compute the representation path energy
-        - compute the signal path energy
-        - project the representational gradient out of the signal gradient
-        - take a step in this direction
-
-        - store some information
-        """
-        # representation path energy
-        self.x.grad *= 0
-        x = torch.cat([self.xA, self.x, self.xB])
-        y = self._analyze(x)
-        repres_loss = self._step_energy(y).mean()
-        repres_loss.backward()
-        repres_grad = self.x.grad.clone()
-
-        # signal path energy
-        self.x.grad *= 0
-        signal_loss = self._step_energy(x).mean()
-        signal_loss.backward()
-        signal_grad = self.x.grad.clone()
-        # project out representational gradient
-        projected_signal_grad = signal_grad - (
-                        (signal_grad.flatten()@repres_grad.flatten()) /
-                        torch.norm(repres_grad)**2) * repres_grad
-        # step
-        self.x.grad = projected_signal_grad
-        self.optimizer_outer.step()
-        # self.x.data = self.x.data - self.alpha * projected_signal_grad
-
-        # store some information
-        self.loss.append((repres_loss.item(), signal_loss.item()))
-
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
-                   conditional=False, lmbda=.1, seed=0, tol=None,
-                   verbose=True):
+                   lmbda=.1, tol=None, seed=0, verbose=True):
         """Synthesize a geodesic via optimization.
 
         Parameters
@@ -257,32 +219,23 @@ class Geodesic(nn.Module):
             if an optimizer is passed, its `params` argument should be set to
             `self.x`, where self refers to a previously initialized Geodesic
             class.
-        conditional: bool, optional
-            If True, search for the geodesic that is shortest in pixel space,
-            ie. among paths that minimizes representation path energy, search
-            for one with minimal signal path energy. If the representation
-            is undercomplete there is a set of candidate geodesics, and this
-            would resolve the degeneracy in the solution.
-            Note: this is a non-linear analogue to picking the least square
-            solution out of a subspace of solutions in an underdetermined
-            system of equations.
-            Else if conditional is set to False, search for the geodesic
-            that minimizes representation path energy, irrespective of its
-            signal path energy.
         lmbda: float, optional
             strength of the regularizer that enforces the image range in [0, 1]
             (strictly positive by default)
+        tol: float, optional
+            tolerance threshold used to terminate algorithm before `max_iter`
+            if the optimization stopped making progress
         seed: int, optional
             set the random number generator
         verbose: bool, optional
             storing information along the run of the optimization algorithm
         """
         self.lmbda = lmbda
-        self.conditional = conditional
         self.verbose = verbose
         if tol is None:
             tol = self.pixelfade.norm() / 1e4 * (1 + 5 ** .5) / 2
         print(f"\n threshold for delta_x, tolerance = {tol:.5e}")
+
         torch.manual_seed(seed)
         if optimizer == 'Adam':
             self.optimizer = optim.Adam([self.x],
@@ -297,92 +250,14 @@ class Geodesic(nn.Module):
             while delta_x > tol and i < max_iter:
                 delta_x = self._optimizer_step(pbar)
                 i += 1
-            last_r_loss = self.loss[-1][0]
-            if self.verbose:
-                print(f"""found representational geodesic after {i} iterations,
-            achieving a representational path energy of {last_r_loss:.2e}""")
-
-            if self.conditional and i < max_iter:
-                if self.verbose:
-                    print("""starting search for conditional geodesic""")
-                delta_x_outer = torch.ones(1)
-                # self.alpha = .1
-                self.optimizer_outer = optim.Adam([self.x], lr=learning_rate,
-                                                  amsgrad=True)
-                self.outer_step_stamp = []
-                while delta_x_outer > tol and i < max_iter:
-                    self.outer_step_stamp.append(i)
-                    xprev_outer = self.x.clone()
-                    self._outer_optimizer_step()
-                    delta_x = torch.norm(self.x - xprev_outer)
-
-                    # project back onto set of representational geodesics
-                    # delta_x > tol and
-                    current_r_loss = self._step_energy(
-                        self._analyze(torch.cat([self.xA, self.x, self.xB]))
-                                                       ).mean().item()
-                    while last_r_loss < current_r_loss and i < max_iter:
-                        _ = self._optimizer_step(pbar)
-                        i += 1
-                        current_r_loss = self.loss[-1][0]
-
-                    delta_x_outer = torch.norm(self.x - xprev_outer)
-                    # display some information
-                    pbar.set_postfix(OrderedDict([
-                            ('delta_x_outer', f"{delta_x_outer.item():.5e}")]))
-                    pbar.update(1)
-                    i += 1
-
         self.populate_geodesic()
 
-    def plot_loss(self, sharey=False, show_switches=True):
-        """display the evolution of representation and signal path energies
-        along the optimisation process.
-
-        Parameters
-        ----------
-        sharey : bool, optional
-            [description], by default False
-        show_switches : bool, optional
-            [description], by default True
-
-        Returns
-        -------
-        fig: matplotlib.figure.Figure
-        """
-        if sharey:
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(self.loss)
-            ax.set(yscale='log',
-                   xlabel='iteration number',
-                   ylabel='loss value',
-                   title='evolution of path energy')
-            ax.legend(labels=[r'$E[f(\gamma)]$', r'$E[\gamma]$'], loc=1)
-        else:
-            r_loss = [loss[0] for loss in self.loss]
-            s_loss = [loss[1] for loss in self.loss]
-            t = range(len(r_loss))
-
-            fig, ax1 = plt.subplots()
-            ax1.set(title='evolution of path energy')
-
-            color = 'C0'
-            ax1.set_xlabel('iteration number')
-            ax1.set(yscale='log')
-            ax1.set_ylabel(r'$E[f(\gamma)]$', color=color)
-            ax1.plot(t, r_loss, color=color)
-            ax1.tick_params(axis='y')  #, labelcolor=color
-
-            ax2 = ax1.twinx()
-            color = 'C1'
-            ax2.set(yscale='log')
-            ax2.set_ylabel(r'$E[\gamma]$', color=color)
-            ax2.plot(t, s_loss, color=color)
-            ax2.tick_params(axis='y')  # , labelcolor=color
-        if show_switches and self.conditional:
-            for t in self.outer_step_stamp:
-                fig.axes[0].axvline(t, alpha=.1)
-        fig.tight_layout()
+    def plot_loss(self):
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(self.loss)
+        ax.set(yscale='log',
+               xlabel='iter step',
+               ylabel='loss value')
         return fig
 
     def populate_geodesic(self):
