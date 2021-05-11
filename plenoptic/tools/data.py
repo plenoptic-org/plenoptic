@@ -96,11 +96,11 @@ def load_images(paths, as_gray=True):
         images = torch.tensor(images, dtype=torch.float32)
     except ValueError:
         raise Exception("Concatenating the images into a tensor raised"
-                        "a ValueError! This probably"
+                        " a ValueError! This probably"
                         " means that not all images are the same size.")
     if as_gray:
         if images.ndimension() != 3:
-            raise Exception("For loading in images as grayscale, this"
+            raise Exception("For loading in images as grayscale, this "
                             "should be a 3d tensor!")
         images = images.unsqueeze(1)
     else:
@@ -113,7 +113,7 @@ def load_images(paths, as_gray=True):
                 # then multiple grayscales ones, so add channel dimension
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
-        raise Exception("Somehow ended up with other than 4 dimensions!"
+        raise Exception("Somehow ended up with other than 4 dimensions! "
                         "Not sure how we got here")
     return images
 
