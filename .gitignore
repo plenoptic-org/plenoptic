@@ -17,6 +17,7 @@ data/msssim_images
 data/cat7*
 data/elep*
 data/cifar*
+data/MAD_results
 
 logs/
 
