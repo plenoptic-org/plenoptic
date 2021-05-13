@@ -14,15 +14,10 @@ data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
 data/msssim_images
-data/cat7*
-data/elep*
-data/cifar*
 
 logs/
+train/
 
-train
-
-examples/geodesics_development.ipynb
 docs/_build
 docs/api
 
