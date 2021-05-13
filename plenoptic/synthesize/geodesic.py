@@ -250,7 +250,7 @@ class Geodesic(nn.Module):
             while delta_x > tol and i < max_iter:
                 delta_x = self._optimizer_step(pbar)
                 i += 1
-        self.populate_geodesic()
+        self._populate_geodesic()
 
     def plot_loss(self):
         fig, ax = plt.subplots(1, 1)
@@ -260,7 +260,7 @@ class Geodesic(nn.Module):
                ylabel='loss value')
         return fig
 
-    def populate_geodesic(self):
+    def _populate_geodesic(self):
         """Help format the current optimization variable `x` into a geodesic
         attribute that can be used later.
 
@@ -285,9 +285,27 @@ class Geodesic(nn.Module):
         Returns
         -------
         fig: matplotlib.figure.Figure
+
+        Notes
+        -----
+        This plot illustrates the deviation from the straight line connecting
+        the representations of a pair of images, for different paths
+        in representation space.
+        Axes are in the same units, normalized by the distance separating
+        the end point representations.
+        Knots along each curve indicate samples used to compute the path.
+
+        When the representation is non-linear it may not be feasible for the
+        geodesic to be straight (for example if the representation is
+        normalized, all paths are constrained to live on a hypershpere).
+        Nevertheless, if the representation is able to linearize the
+        transformation between the anchor images, then we expect that both
+        the ground tuth video sequence and the geodesic will deviate from
+        straight line similarly. By contrast the pixel-based interpolation
+        will deviate significantly more from a straight line.
         """
         if not hasattr(self, 'geodesic'):
-            self.populate_geodesic()
+            self._populate_geodesic()
 
         fig, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(*deviation_from_line(self.model(self.pixelfade
@@ -331,10 +349,11 @@ class Geodesic(nn.Module):
         return step_jerkiness
 
     def calculate_jerkiness(self):
-        """check jerkiness at each step along path,
-        the first order optimality condition for a geodesic
-        is to have zero jerkiness, that is to say no alignment
-        of representation's acceleration to model local curvature.
+        """Compute the alignment of representation's acceleration
+        to model local curvature (here called "jerkiness").
+        This is the first order optimality condition for a geodesic,
+        and can be used to assess the validity of the solution obtained
+        by optimization.
         """
         y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
         return self._step_jerkiness(y).detach()
