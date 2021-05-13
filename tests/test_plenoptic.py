@@ -86,18 +86,27 @@ def ssim_analysis():
     return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
-@pytest.mark.parametrize('odd', [0, 1])
-@pytest.mark.parametrize('size', [9, 10, 11, 12])
-def test_downsample_upsample(odd, size):
-    img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE)
-    img[0, 0, 12, 12] = 1
-    filt = np.zeros([size, size + 1])
-    filt[5, 5] = 1
-    filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
-    filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
-    img_down = po.correlate_downsample(img, filt)
-    img_up = po.upsample_convolve(img_down, (odd, 1), filt)
-    assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
+class TestDownsampleUpsample(object):
+
+    @pytest.mark.parametrize('odd', [0, 1])
+    @pytest.mark.parametrize('size', [9, 10, 11, 12])
+    def test_filter(self, odd, size):
+        img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE)
+        img[0, 0, 12, 12] = 1
+        filt = np.zeros([size, size + 1])
+        filt[5, 5] = 1
+        filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
+        filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
+        img_down = po.correlate_downsample(img, filt=filt)
+        img_up = po.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
+
+    def test_multichannel(self):
+        img = torch.randn([10, 3, 24, 25], device=DEVICE)
+        filt = torch.randn([5, 5], device=DEVICE)
+        img_down = po.correlate_downsample(img, filt=filt)
+        img_up = po.upsample_convolve(img_down, odd=(0, 1), filt=filt)
+        assert img_up.shape == img.shape
 
 
 class TestNonLinearities(object):
@@ -192,7 +201,7 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
 
-    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim'])
+    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim', 'nlpd'])
     @pytest.mark.parametrize('size_A', [1, 3])
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
@@ -207,6 +216,8 @@ class TestPerceptualMetrics(object):
                 func = po.metric.ssim
             elif func_name == 'ms-ssim':
                 func = po.metric.ms_ssim
+            elif func_name == 'nlpd':
+                func = po.metric.nlpd
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = curie_img.repeat(size_B, 1, 1, 1)
         if size_A != size_B and size_A != 1 and size_B != 1:

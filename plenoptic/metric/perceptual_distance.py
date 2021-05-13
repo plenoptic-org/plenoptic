@@ -364,7 +364,7 @@ def normalized_laplacian_pyramid(im):
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
         filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32,
-                            device=im.device).unsqueeze(0).unsqueeze(0)
+                            device=im.device).repeat(channel, 1, 1, 1)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
@@ -390,19 +390,14 @@ def nlpd(IM_1, IM_2):
 
     Parameters
     ----------
-    IM_1: torch.Tensor of shape (1, 1, height, width)
-        The first image.
-    IM_2: torch.Tensor of shape (1, 1, height, width)
-        The second image.
-
+    IM_1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images. Channels are also treated as batches.
+    IM_2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. Channels are also treated as batches.
     Returns
     -------
-    distance: float
+    distance: torch.Tensor of shape (batch, channel)
         The normalized Laplacian Pyramid distance.
-
-    Note
-    ----
-    The input images have to be single-channel.
 
     References
     ----------
@@ -410,15 +405,16 @@ def nlpd(IM_1, IM_2):
        assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
-    y = normalized_laplacian_pyramid(torch.cat((IM_1, IM_2), 0))
+    y1 = normalized_laplacian_pyramid(IM_1)
+    y2 = normalized_laplacian_pyramid(IM_2)
 
     # for optimization purpose (stabilizing the gradient around zero)
     epsilon = 1e-10
     dist = []
     for i in range(6):
-        dist.append(torch.sqrt(torch.mean((y[i][0] - y[i][1]) ** 2) + epsilon))
+        dist.append(torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2, dim=(2, 3)) + epsilon))
 
-    return torch.stack(dist).mean()
+    return torch.stack(dist).mean(dim=0)
 
 
 def nspd(IM_1, IM_2, O=1, S=5, complex=True):
