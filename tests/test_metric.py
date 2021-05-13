@@ -118,7 +118,7 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('size_B', [1, 2, 3])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
         if func_name == 'noise':
-            func = po.add_noise
+            func = po.tools.add_noise
             A = einstein_img.repeat(size_A, 1, 1, 1)
             B = size_B * [4]
         else:
@@ -149,7 +149,7 @@ class TestPerceptualMetrics(object):
             noise_lvl = 1
         elif mode == 'one-to-many':
             noise_lvl = [1, 1]
-        noisy = po.add_noise(einstein_img, noise_lvl)
+        noisy = po.tools.add_noise(einstein_img, noise_lvl)
         assert not torch.equal(*noisy)
 
     @pytest.mark.parametrize('noise_lvl', [[1], [128], [2, 4], [2, 4, 8], [0]])
@@ -157,7 +157,7 @@ class TestPerceptualMetrics(object):
     def test_add_noise(self, einstein_img, noise_lvl, noise_as_tensor):
         if noise_as_tensor:
             noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
-        noisy = po.add_noise(einstein_img, noise_lvl).to(DEVICE)
+        noisy = po.tools.add_noise(einstein_img, noise_lvl).to(DEVICE)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
             noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)

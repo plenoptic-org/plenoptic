@@ -44,7 +44,7 @@ def color_img():
 
 @pytest.fixture(scope='package')
 def basic_stim():
-    return po.make_synthetic_stimuli().to(DEVICE)
+    return po.tools.make_synthetic_stimuli().to(DEVICE)
 
 
 def get_model(name):

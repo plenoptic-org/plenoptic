@@ -15,10 +15,10 @@ class TestSequences(object):
         torch.manual_seed(0)
         t = 2**6
         d = 2**15
-        b = po.sample_brownian_bridge(torch.randn(1, d),
+        b = po.tools.sample_brownian_bridge(torch.randn(1, d),
                                       torch.randn(1, d),
                                       t, d**.5)
-        a, f = po.deviation_from_line(b)
+        a, f = po.tools.deviation_from_line(b)
         assert torch.abs(a[t//2] - .5) < 1e-2, f"{a[t//2]}"
         assert torch.abs(f[t//2] - 2**.5/2) < 1e-2, f"{f[t//2]}"
 
@@ -32,7 +32,7 @@ class TestGeodesic(object):
     def test_geodesic_texture(self, einstein_img_small, init, optimizer, learning_rate, n_steps):
 
         model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        sequence = po.translation_sequence(einstein_img_small[0], n_steps)
+        sequence = po.tools.translation_sequence(einstein_img_small[0], n_steps)
         moog = po.synth.Geodesic(sequence[0:1], sequence[-1:],
                                  model, n_steps, init)
         if optimizer == "SGD":
