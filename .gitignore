@@ -21,3 +21,5 @@ docs/_build
 docs/api
 
 *.mypy_cache
+
+logs/
