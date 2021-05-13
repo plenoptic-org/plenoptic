@@ -1,11 +1,11 @@
 from collections import OrderedDict
-
 import matplotlib.pyplot as plt
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+import warnings
 
 from ..tools.optim import penalize_range
 from ..tools.straightness import (deviation_from_line, make_straight_line,
@@ -99,10 +99,10 @@ class Geodesic(nn.Module):
             if p.requires_grad:
                 p.detach_()
                 if warn:
-                    print("""we detach model parameters in order to
-                             save time on extraneous gradients
-                             computations - indeed only pixel values
-                             should be modified.""")
+                    warnings.warn("""we detach model parameters in order to
+                                     save time on extraneous gradients
+                                     computations - indeed only pixel values
+                                     should be modified.""")
                     warn = False
         self.model = model.eval()
 
@@ -252,13 +252,28 @@ class Geodesic(nn.Module):
                 i += 1
         self._populate_geodesic()
 
-    def plot_loss(self):
-        fig, ax = plt.subplots(1, 1)
+    def plot_loss(self, ax=None):
+        """Plot synthesis loss.
+
+        Parameters
+        ----------
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+            Figure containing the plot.
+
+        """
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
         ax.plot(self.loss)
         ax.set(yscale='log',
-               xlabel='iter step',
+               xlabel='Synthesis iteration',
                ylabel='loss value')
-        return fig
+        return ax.figure
 
     def _populate_geodesic(self):
         """Help format the current optimization variable `x` into a geodesic
@@ -272,19 +287,23 @@ class Geodesic(nn.Module):
                                 (self.n_steps+1, *self.image_shape[1:])
                                             ).clamp(0, 1).detach()
 
-    def plot_deviation_from_line(self, video=None, figsize=(7, 5)):
-        """visual diagnostic of geodesic linearity in representation space.
+    def plot_deviation_from_line(self, video=None, figsize=(7, 5), ax=None):
+        """Visual diagnostic of geodesic linearity in representation space.
 
         Parameters
         ----------
         video : torch.Tensor, optional
-            natural video that bridges the anchor points
+            Natural video that bridges the anchor points
         figsize : tuple, optional
-            set the dimension of the figure
+            Dimensions of the figure. Ignored if ax is not None.
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
 
         Returns
         -------
         fig: matplotlib.figure.Figure
+            Figure containing the plot
 
         Notes
         -----
@@ -307,7 +326,8 @@ class Geodesic(nn.Module):
         if not hasattr(self, 'geodesic'):
             self._populate_geodesic()
 
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(*deviation_from_line(self.model(self.pixelfade
                                                 ).view(self.n_steps+1, -1)
                                      ), 'g-o', label='pixelfade')
@@ -326,7 +346,7 @@ class Geodesic(nn.Module):
                title='deviation from the straight line')
         ax.legend(loc=1)
 
-        return fig
+        return ax.figure
 
     def _vector_jacobian_product(self, y, x, a):
         """compute vector-jacobian product: $a^T dy/dx = dy/dx^T a$,

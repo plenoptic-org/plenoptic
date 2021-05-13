@@ -14,6 +14,7 @@ data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
 data/msssim_images
+data/MAD_results
 
 logs/
 train/

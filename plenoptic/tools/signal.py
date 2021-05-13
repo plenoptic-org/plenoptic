@@ -87,14 +87,21 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
 
 def minimum(x, dim=None, keepdim=False):
     r"""compute minimum in torch over any axis or combination of axes in tensor
+
     Parameters
-    -----------
+    ----------
     x: torch.Tensor
         input tensor
     dim: list of ints
         dimensions over which you would like to compute the minimum
     keepdim: bool
         keep original dimensions of tensor when returning result
+
+    Returns
+    -------
+    min_x : torch.Tensor
+        Minimum value of x.
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -107,14 +114,21 @@ def minimum(x, dim=None, keepdim=False):
 
 def maximum(x, dim=None, keepdim=False):
     r"""compute maximum in torch over any dim or combination of axes in tensor
+
     Parameters
-    -----------
+    ----------
     x: torch.Tensor
         input tensor
     dim: list of ints
         dimensions over which you would like to compute the minimum
     keepdim: bool
         keep original dimensions of tensor when returning result
+
+    Returns
+    -------
+    max_x : torch.Tensor
+        Maximum value of x.
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -231,8 +245,7 @@ def fftshift(x, dims=None):
 
 
 def autocorr(x, n_shifts=7):
-    """
-    Compute the autocorrelation of `x` up to `n_shifts` shifts in Fourier space
+    """ Compute the autocorrelation of `x` up to `n_shifts` shifts in Fourier space
 
     Notes:
     - By the Einstein-Wiener-Khinchin theorem:
@@ -250,7 +263,6 @@ def autocorr(x, n_shifts=7):
     ---------
     x: torch.Tensor
         input signal of shape [b, c, h, w]
-
     n_shifts: integer
         Sets the length scale of the auto-correlation
         (ie. maximum offset or lag)
