@@ -357,7 +357,7 @@ def normalized_laplacian_pyramid(im):
     spatialpooling_filters = np.load(dirname + '/DN_filts.npy')
     sigmas = np.load(dirname + '/DN_sigmas.npy')
 
-    L = Laplacian_Pyramid(n_scales=N_scales, filter_norm_one=True)
+    L = Laplacian_Pyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.analysis(im)
 
     padd = 2

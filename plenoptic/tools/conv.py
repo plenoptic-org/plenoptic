@@ -1,18 +1,10 @@
 import numpy as np
 import torch
 from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
 import pyrtools as pt
 from typing import Union, Tuple
 import math
-
-# TODO
-# documentation
-# test that it does the right thing for multiple channels
-# handle batch dimension and infer dimension 1,2,3
-# faster implementation with separable 1d conv
-# fft - circular
 
 
 def correlate_downsample(image, filt, padding_mode="reflect"):
@@ -69,28 +61,40 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
     return F.conv2d(image_postpad, filt.repeat(n_channels, 1, 1, 1), groups=n_channels)
 
 
-def blur_downsample(x, filtname='binom5', filter_norm_one=False):
+def blur_downsample(x, n_scales=1, filtname='binom5', scale_filter=True):
     """Correlate with a blurring filter and downsample by 2
 
     Parameters
     ----------
     x: torch.Tensor of shape (batch, channel, height, width)
         Image, or batch of images. Channels are also treated as batches.
+    n_scales: int, optional
+        Apply the blur and downsample procedure recursively `n_scales` times.
     filtname: string, optional
         Name of the 1D filter. See `pt.named_filter` for the list of valid names. The 2D blurring
         filter is obtained by computing this 1D filter's outer product with itself.
-    filter_norm_one: bool, optional
-        If true, the norm of the filter is 1. If false (default), it is 2.
+    scale_filter: bool, optional
+        If true (default), the filter sums to 1 (ie. it does not affect the DC
+        component of the signal). If false, the filter sums to 2.
     """
 
     f = pt.named_filter(filtname)
     filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
-    if filter_norm_one:
+    if scale_filter:
         filt = filt / 2
-    return correlate_downsample(x, filt)
+
+    if n_scales > 1:
+        x = blur_downsample(x, n_scales-1, filtname, scale_filter)
+
+    if n_scales >= 1:
+        res = correlate_downsample(x, filt)
+    else:
+        res = x
+
+    return res
 
 
-def upsample_blur(x, odd, filtname='binom5', filter_norm_one=False):
+def upsample_blur(x, odd, filtname='binom5', scale_filter=True):
     """Upsample by 2 and convolve with a blurring filter
 
     Parameters
@@ -103,14 +107,14 @@ def upsample_blur(x, odd, filtname='binom5', filter_norm_one=False):
     filtname: string, optional
         Name of the 1D filter. See `pt.named_filter` for the list of valid names. The 2D blurring
         filter is obtained by computing this 1D filter's outer product with itself.
-    filter_norm_one: bool, optional
-        If true, the norm of the filter is 1. If false (default), it is 2. If the norm is 1, the
-        image is multiplied by 4 before the blurring operation.
+    scale_filter: bool, optional
+        If true (default), the filter sums to 4 (ie. it multiplies the signal
+        by 4 before the blurring operation). If false, the filter sums to 2.
     """
 
     f = pt.named_filter(filtname)
     filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
-    if filter_norm_one:
+    if scale_filter:
         filt = filt * 2
     return upsample_convolve(x, odd, filt)
 
