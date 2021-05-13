@@ -181,7 +181,7 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
 
     Returns
     -------
-    stimuli: `torch.FloatTensor` of shape [B, 1, size, size]
+    stimuli: `torch.FloatTensor` of shape [11, 1, size, size]
         the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
                 sine_grating, square_grating, polar_angle, angular_sine,
                 zone_plate, fractal]
