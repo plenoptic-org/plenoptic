@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from torch import Tensor
 import torch.nn.functional as F
-import pyrtools as pt
 from typing import Union, Tuple
 import math
 
@@ -61,8 +60,17 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
     return F.conv2d(image_postpad, filt.repeat(n_channels, 1, 1, 1), groups=n_channels)
 
 
-def blur_downsample(x, n_scales=1, filtname='binom5', scale_filter=True):
-    """Correlate with a blurring filter and downsample by 2
+def binomial_filter(order_plus_one):
+    """returns a vector of binomial coefficients of order (order_plus_one-1)."""
+    assert order_plus_one >= 2, "order_plus_one argument must be at least 2"
+    kernel = np.array([0.5, 0.5])
+    for _ in range(order_plus_one - 2):
+        kernel = np.convolve(np.array([0.5, 0.5]), kernel)
+    return kernel
+
+
+def blur_downsample(x, n_scales=1, order_plus_one=5, scale_filter=True):
+    """Correlate with a binomial coefficient filter and downsample by 2
 
     Parameters
     ----------
@@ -70,21 +78,22 @@ def blur_downsample(x, n_scales=1, filtname='binom5', scale_filter=True):
         Image, or batch of images. Channels are also treated as batches.
     n_scales: int, optional
         Apply the blur and downsample procedure recursively `n_scales` times.
-    filtname: string, optional
-        Name of the 1D filter. See `pt.named_filter` for the list of valid names. The 2D blurring
-        filter is obtained by computing this 1D filter's outer product with itself.
+    order_plus_one: int, optional
+        One plus the order of the binomial coefficient filter. Must be at least 2.
+        The 2D blurring filter is obtained by computing this 1D filter's outer
+        product with itself, and has shape (order_plus_one, order_plus_one).
     scale_filter: bool, optional
         If true (default), the filter sums to 1 (ie. it does not affect the DC
         component of the signal). If false, the filter sums to 2.
     """
 
-    f = pt.named_filter(filtname)
+    f = np.sqrt(2) * binomial_filter(order_plus_one)
     filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt / 2
 
     if n_scales > 1:
-        x = blur_downsample(x, n_scales-1, filtname, scale_filter)
+        x = blur_downsample(x, n_scales-1, order_plus_one, scale_filter)
 
     if n_scales >= 1:
         res = correlate_downsample(x, filt)
@@ -94,8 +103,8 @@ def blur_downsample(x, n_scales=1, filtname='binom5', scale_filter=True):
     return res
 
 
-def upsample_blur(x, odd, filtname='binom5', scale_filter=True):
-    """Upsample by 2 and convolve with a blurring filter
+def upsample_blur(x, odd, order_plus_one=5, scale_filter=True):
+    """Upsample by 2 and convolve with a binomial coefficient filter
 
     Parameters
     ----------
@@ -104,15 +113,16 @@ def upsample_blur(x, odd, filtname='binom5', scale_filter=True):
     odd: tuple, list or numpy.ndarray
         This should contain two integers of value 0 or 1, which determines whether
         the output height and width should be even (0) or odd (1).
-    filtname: string, optional
-        Name of the 1D filter. See `pt.named_filter` for the list of valid names. The 2D blurring
-        filter is obtained by computing this 1D filter's outer product with itself.
+    order_plus_one: int, optional
+        One plus the order of the binomial coefficient filter. Must be at least 2.
+        The 2D blurring filter is obtained by computing this 1D filter's outer
+        product with itself, and has shape (order_plus_one, order_plus_one).
     scale_filter: bool, optional
         If true (default), the filter sums to 4 (ie. it multiplies the signal
         by 4 before the blurring operation). If false, the filter sums to 2.
     """
 
-    f = pt.named_filter(filtname)
+    f = np.sqrt(2) * binomial_filter(order_plus_one)
     filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt * 2
