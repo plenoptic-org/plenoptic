@@ -86,11 +86,15 @@ def load_images(paths, as_gray=True):
             continue
         # make it a float32 array with values between 0 and 1
         im = im / np.iinfo(im.dtype).max
-        if as_gray:
-            im = color.rgb2gray(im)
-        else:
-            # RGB dimension ends up on the last one, so we rearrange
-            im = np.moveaxis(im, -1, 0)
+        if im.ndim > 2:
+            if as_gray:
+                # From scikit-image 0.19 on, it will treat 2d signals as 1d
+                # images with 3 channels, so only call rgb2gray when it's more
+                # than 2d
+                im = color.rgb2gray(im)
+            else:
+                # RGB dimension ends up on the last one, so we rearrange
+                im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)
