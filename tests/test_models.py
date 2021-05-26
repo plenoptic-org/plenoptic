@@ -10,7 +10,7 @@ import torch
 from plenoptic.simulate.canonical_computations import (circular_gaussian2d,
                                                        gaussian1d)
 
-from conftest import DEVICE
+from conftest import DEVICE, DATA_DIR
 
 
 @pytest.fixture()
@@ -55,12 +55,20 @@ class TestLaplacianPyramid(object):
 
 class TestFactorizedPyramid(object):
 
-    def test_factpyr(self, basic_stim):
+    @pytest.mark.parametrize("downsample_dict", [True, False])
+    @pytest.mark.parametrize("is_complex", [True, False])
+    def test_factpyr(self, basic_stim, downsample_dict, is_complex):
         x = basic_stim
-        model = po.simul.Factorized_Pyramid(x.shape[-2:])
+        # x = po.load_images(DATA_DIR + "/512/")
+        model = po.simul.Factorized_Pyramid(x.shape[-2:],
+                                            downsample_dict=downsample_dict,
+                                            is_complex=is_complex)
         x_hat = model.synthesis(*model.analysis(x))
-        assert (torch.norm(x - x_hat, dim=(2, 3)) / torch.norm(x, dim=(2, 3))
-                < 1e-5).all()
+
+        relative_MSE = (torch.norm(x - x_hat, dim=(2, 3))**2 /
+                        torch.norm(x, dim=(2, 3))**2)
+        print(relative_MSE)
+        assert (relative_MSE < 1e-10).all()
 
 
 class TestFrontEnd:

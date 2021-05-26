@@ -10,31 +10,50 @@ from plenoptic.tools.signal import polar_to_rectangular, rectangular_to_polar
 
 class Factorized_Pyramid(nn.Module):
     """
-    non linear invertible transform
+    An non-linear transform which factorizes signal and is exactely invertible.
 
-    factorize, parition / expand, multiply
+    Loosely partitions things and stuff.
 
-    residuals in amplitude automatically
+    Analogous to Fourier amplitude and phase for a localized multiscale
+    and oriented transform.
 
-    handle:
-        is_complex=False
-        downsample=True
-        multi channel input (eg. from front end)
+    Notes
+    -----
+    residuals are stored in amplitude
 
-    recursive - generalization of scattering
+    by default the not downsampled version also returns a tensor,
+    which allows easy further processing
+        eg. recursive Factorized Pyr
+        (analogous to the scattering transform)
+
+    TODO
+    ----
+    flesh out the relationship btw real and complex cases
+
+    handle multi channel input
+        eg. from front end, or from recursive calls
+        hack: fold channels into batch dim and then back out
+
+    cross channel processing - thats next level
     """
-
     def __init__(self, image_size, n_ori=4, n_scale='auto',
-                 downsample=True, is_complex=True):
+                 downsample_dict=True, is_complex=True):
         super().__init__()
 
-        self.n_scale = n_scale
-        self.n_ori = n_ori
+        self.downsample_dict = downsample_dict
+        self.is_complex = is_complex
 
-        self.pyr = Steerable_Pyramid_Freq(image_size, height=n_scale,
-                                          is_complex=is_complex, order=n_ori-1,
-                                          downsample=downsample)
-        if downsample:
+        pyr = Steerable_Pyramid_Freq(image_size,
+                                     order=n_ori-1,
+                                     height=n_scale,
+                                     is_complex=is_complex,
+                                     downsample=downsample_dict)
+        self.n_ori = pyr.num_orientations
+        self.n_scale = pyr.num_scales
+
+        if downsample_dict:
+            self.pyramid_analysis  = lambda x: pyr.forward(x)
+            self.pyramid_synthesis = lambda y: pyr.recon_pyr(y)
             if is_complex:
                 self.decomposition = rectangular_to_polar_dict
                 self.recomposition = polar_to_rectangular_dict
@@ -42,6 +61,10 @@ class Factorized_Pyramid(nn.Module):
                 self.decomposition = local_gain_control_dict
                 self.recomposition = local_gain_release_dict
         else:
+            self.pyramid_analysis  = lambda x: pyr.convert_pyr_to_tensor(
+                                                           pyr.forward(x))
+            self.pyramid_synthesis = lambda y: pyr.recon_pyr(
+                                 pyr.convert_tensor_to_pyr(y))
             if is_complex:
                 self.decomposition = rectangular_to_polar
                 self.recomposition = polar_to_rectangular
@@ -50,22 +73,13 @@ class Factorized_Pyramid(nn.Module):
                 self.recomposition = local_gain_release
 
     def analysis(self, x):
-        b, c, h, w = x.shape
-        assert c == 1
+        y = self.pyramid_analysis(x)
+        energy, state = self.decomposition(y)
+        return energy, state
 
-        y = self.pyr(x)
-        amplitude, phase = self.decomposition(y)
-        # self.low_pass = y["residual_lowpass"]
-        # self.high_pass = y["residual_highpass"]
-
-        return amplitude, phase
-
-    def synthesis(self, amplitude, phase):
-
-        y = self.recomposition(amplitude, phase)
-        # y["residual_lowpass"] = self.low_pass
-        # y["residual_highpass"] = self.high_pass
-        x = self.pyr.recon_pyr(y)
+    def synthesis(self, energy, state):
+        y = self.recomposition(energy, state)
+        x = self.pyramid_synthesis(y)
         return x
 
     def forward(self, x):
