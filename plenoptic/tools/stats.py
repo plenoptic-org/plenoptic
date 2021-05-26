@@ -4,7 +4,7 @@ import torch
 def variance(x, mean=None, dim=None, keepdim=False):
     r"""sample estimate of `x` *variability*
 
-    Arguments
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor
@@ -30,7 +30,7 @@ def variance(x, mean=None, dim=None, keepdim=False):
 def skew(x, mean=None, var=None, dim=None, keepdim=False):
     r"""sample estimate of `x` *asymmetry* about its mean
 
-    Arguments
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor
@@ -64,7 +64,7 @@ def kurtosis(x, mean=None, var=None, dim=None, keepdim=False):
     smaller than 3: *platykurtic* (eg. uniform distribution)
     greater than 3: *leptokurtic* (eg. Laplace distribution)
 
-    Arguments
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor

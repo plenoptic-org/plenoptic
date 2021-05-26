@@ -233,6 +233,7 @@ class Geodesic(nn.Module):
         self.lmbda = lmbda
         self.verbose = verbose
         if tol is None:
+            # semi arbitrary default choice of tolerance
             tol = self.pixelfade.norm() / 1e4 * (1 + 5 ** .5) / 2
         print(f"\n threshold for delta_x, tolerance = {tol:.5e}")
 
