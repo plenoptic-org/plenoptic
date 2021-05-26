@@ -1,18 +1,66 @@
 #!/usr/bin/env python3
-import plenoptic as po
-import pytest
-import matplotlib.pyplot as plt
-import torch
+from math import pi
 
+import matplotlib.pyplot as plt
 # import plenoptic.simulate.models.naive
 import plenoptic
-from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
+import plenoptic as po
+import pytest
+import torch
+from plenoptic.simulate.canonical_computations import (circular_gaussian2d,
+                                                       gaussian1d)
+
 from conftest import DEVICE
 
 
 @pytest.fixture()
 def image_input():
     return torch.rand(1, 1, 100, 100)
+
+
+class TestNonLinearities(object):
+
+    def test_rectangular_to_polar_dict(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True).to(DEVICE)
+        y = spc(basic_stim)
+        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+
+    def test_local_gain_control(self):
+        x = torch.randn((10, 1, 256, 256), device=DEVICE)
+        norm, direction = po.simul.non_linearities.local_gain_control(x)
+        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        assert torch.norm(x - x_hat) < 1e-4
+
+    def test_local_gain_control_dict(self, basic_stim):
+        spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=False).to(DEVICE)
+        y = spr(basic_stim)
+        energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+
+
+class TestLaplacianPyramid(object):
+
+    def test_grad(self, basic_stim):
+        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        y = L.analysis(basic_stim)
+        assert y[0].requires_grad
+
+
+class TestFactorizedPyramid(object):
+
+    def test_factpyr(self, basic_stim):
+        x = basic_stim
+        model = po.simul.Factorized_Pyramid(x.shape[-2:])
+        x_hat = model.synthesis(*model.analysis(x))
+        assert (torch.norm(x - x_hat, dim=(2, 3)) / torch.norm(x, dim=(2, 3))
+                < 1e-5).all()
 
 
 class TestFrontEnd:
@@ -75,14 +123,6 @@ class TestNaive(object):
         model = plenoptic.simul.Linear().to(DEVICE)
         M = po.synth.Metamer(einstein_img, model)
         M.synthesize(max_iter=3, learning_rate=1, seed=1)
-
-
-class TestLaplacianPyramid(object):
-
-    def test_grad(self, basic_stim):
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
-        y = L.analysis(basic_stim)
-        assert y[0].requires_grad
 
 
 class TestFilters:
