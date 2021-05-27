@@ -7,18 +7,12 @@ import pyrtools as pt
 from typing import Union, Tuple
 import math
 
-<<<<<<< HEAD
-# TODO
-# documentation
-# test that it does the right thing for multiple channels
-# handle batch dimension and infer dimension 1,2,3
-=======
+
 # TODO under development
 # needs documentation and testing
 # handle multiple channels
 # handle batch dimension
 # handle signal of dimension 1,2,3
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 # faster implementation with separable 1d conv
 
 

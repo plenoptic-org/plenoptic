@@ -229,11 +229,7 @@ class LuminanceContrastGainControl(nn.Module):
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
-<<<<<<< HEAD
         Padding for convolution, defaults to "reflect".
-=======
-        Padding for convolution, defaults to "circular".
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     activation:
         Activation function following linear convolution.
 

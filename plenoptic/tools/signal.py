@@ -1,10 +1,7 @@
 import numpy as np
 import torch
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
-<<<<<<< HEAD
-=======
 from torchvision.transforms.functional import center_crop
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 from typing import Union, Tuple
 
 
@@ -520,8 +517,6 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
     elif harmonics.shape[0] != 1 and harmonics.shape[1] != 1:
         raise Exception('input parameter HARMONICS must be 1D!')
 
-<<<<<<< HEAD
-=======
     if 2 * harmonics.shape[0] - (harmonics == 0).sum() != num:
         raise Exception('harmonics list is incompatible with basis size!')
 
@@ -554,7 +549,6 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
         return res
 
 
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 def make_disk(img_size: Union[int, Tuple[int, int]],
               outer_radius: float = None,
               inner_radius: float = None) -> torch.Tensor:
