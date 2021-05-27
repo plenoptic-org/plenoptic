@@ -52,7 +52,6 @@ def fisher_info_matrix_eigenvalue(y: Tensor, x: Tensor, v: Tensor, dummy_vec: Te
 
     # compute eigenvalues for all vectors in v
     lambduh = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
-    lambduh = torch.abs(lambduh)
     return lambduh
 
 
@@ -227,7 +226,7 @@ class Eigendistortion:
         # reshape to (n x num_chans x h x w)
         self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
 
-        self.synthesized_eigenvalues = eig_vals.detach()
+        self.synthesized_eigenvalues = torch.abs(eig_vals.detach())
         self.synthesized_eigenindex = eig_vecs_ind
 
         return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
@@ -285,7 +284,7 @@ class Eigendistortion:
         F = J.T @ J
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
         eig_vecs = eig_vecs.flip(dims=(1,))
-        eig_vals = torch.abs(eig_vals.flip(dims=(0,)))
+        eig_vals = eig_vals.flip(dims=(0,))
         return eig_vals, eig_vecs
 
     def _synthesize_power(self,
