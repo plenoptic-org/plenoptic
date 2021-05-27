@@ -13,6 +13,8 @@ def rectangular_to_polar_dict(coeff_dict, residuals=True):
        A dictionary containing complex tensors.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
@@ -31,7 +33,6 @@ def rectangular_to_polar_dict(coeff_dict, residuals=True):
     energy = {}
     state = {}
     for key in coeff_dict.keys():
-        # ignore residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
             energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
 
@@ -55,6 +56,8 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
         The dictionary of torch.Tensors containing the local phase.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
@@ -64,8 +67,6 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
 
     coeff_dict = {}
     for key in energy.keys():
-        # ignore residuals
-
         if isinstance(key, tuple) or not key.startswith('residual'):
             coeff_dict[key] = polar_to_rectangular(energy[key], state[key])
 
@@ -167,6 +168,8 @@ def local_gain_control_dict(coeff_dict, residuals=True):
         A dictionary containing tensors of shape (B,C,H,W)
     residuals: bool, optional
         An option to carry around residuals in the energy dict.
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
@@ -176,6 +179,7 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
+
     Note
     ----
     Note that energy and state is not computed on the residuals.
@@ -188,7 +192,6 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     state = {}
 
     for key in coeff_dict.keys():
-        # we don't want to do this on the residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
             energy[key], state[key] = local_gain_control(
                                       coeff_dict[key])
@@ -213,6 +216,8 @@ def local_gain_release_dict(energy, state, residuals=True):
         ``x``.
     residuals: bool, optional
         An option to carry around residuals in the energy dict.
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
@@ -228,7 +233,6 @@ def local_gain_release_dict(energy, state, residuals=True):
     coeff_dict = {}
 
     for key in energy.keys():
-        # we don't want to do this on the residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
             coeff_dict[key] = local_gain_release(
                                       energy[key], state[key])
