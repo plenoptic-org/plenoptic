@@ -22,7 +22,6 @@ class TestEigendistortionSynthesis:
             e = Eigendistortion(torch.zeros((2, 1, 1, 1), device=DEVICE), model)  # batch dim must be 1
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
@@ -30,7 +29,6 @@ class TestEigendistortionSynthesis:
             ed.synthesize(method='asdfsdfasf')
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
-
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
         if model.__class__ == OnOff:
@@ -53,7 +51,6 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
-
     def test_method_power(self, model, einstein_img, color_img):
         if model.__class__ == OnOff:
             n_chans = 1
@@ -73,7 +70,6 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-
     def test_orthog_iter(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -86,7 +82,6 @@ class TestEigendistortionSynthesis:
         assert len(ed.synthesized_eigenvalues) == 2*k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-
     def test_method_randomized_svd(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -98,26 +93,30 @@ class TestEigendistortionSynthesis:
         assert len(ed.synthesized_eigenvalues) == k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_temp(self, model, einstein_img):
+        y = model(einstein_img)
+        print(y.shape)
+        # e_pow = Eigendistortion(einstein_img, model)
 
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
-        einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
+        einstein_img = einstein_img[..., 100:100+SMALL_DIM, 100:100+SMALL_DIM]
         e_jac = Eigendistortion(einstein_img, model)
         e_pow = Eigendistortion(einstein_img, model)
         e_svd = Eigendistortion(einstein_img, model)
 
-        k_pow, k_svd = 5, 75
+        k_pow, k_svd = 2, 75
         e_jac.synthesize(method='exact')
-        e_pow.synthesize(k=k_pow, method='power', max_steps=500)
+        e_pow.synthesize(k=k_pow, method='power', max_steps=2000)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        print(e_pow.synthesized_eigenvalues)
-        print(e_jac.synthesized_eigenvalues[-5:])
+        print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[-1])
+        print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
 
         assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
         assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
-
 
     @pytest.mark.parametrize("model", ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])

@@ -422,10 +422,10 @@ class OnOff(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         linear = self.center_surround(x)
         lum = self.luminance(x)
-        lum_normed = linear / (1 + self.luminance_scalar.view(2, 1, 1, 1) * lum)
+        lum_normed = linear / (1 + self.luminance_scalar.view(1, 2, 1, 1) * lum)
 
         con = self.contrast(lum_normed.pow(2), groups=2).sqrt() + 1E-6  # avoid div by 0
-        con_normed = lum_normed / (1 + self.contrast_scalar.view(2, 1, 1, 1) * con)
+        con_normed = lum_normed / (1 + self.contrast_scalar.view(1, 2, 1, 1) * con)
         y = self.activation(con_normed)
 
         if self.apply_mask:

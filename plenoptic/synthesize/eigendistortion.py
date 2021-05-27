@@ -52,6 +52,7 @@ def fisher_info_matrix_eigenvalue(y: Tensor, x: Tensor, v: Tensor, dummy_vec: Te
 
     # compute eigenvalues for all vectors in v
     lambduh = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
+    lambduh = torch.abs(lambduh)
     return lambduh
 
 
@@ -283,7 +284,9 @@ class Eigendistortion:
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
-        return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
+        eig_vecs = eig_vecs.flip(dims=(1,))
+        eig_vals = torch.abs(eig_vals.flip(dims=(0,)))
+        return eig_vals, eig_vecs
 
     def _synthesize_power(self,
                           k: int,
@@ -327,11 +330,11 @@ class Eigendistortion:
 
         # note: v is an n x k matrix where k is number of eigendists to be synthesized!
         v = torch.randn(len(x), k).to(x.device)
-        v = v / v.norm()
+        v = v / torch.norm(v, dim=0, keepdim=True)
 
         _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
-        v = Fv / torch.norm(Fv)
+        v = Fv / torch.norm(Fv, dim=0, keepdim=True)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
         d_lambda = torch.tensor(float('inf'))
@@ -349,7 +352,7 @@ class Eigendistortion:
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
-            Fv = Fv - shift * v  # minor component
+            Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
             v_new = torch.qr(Fv)[0]  # (ortho)normalize vector(s)
 
@@ -414,7 +417,7 @@ class Eigendistortion:
         error_approx = omega - (Q @ Q.T @ omega)
         error_approx = error_approx.norm(dim=0).mean()
 
-        return S[:k], V[:, :k], error_approx  # truncate
+        return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
     def _indexer(self, idx: int) -> int:
         """Maps eigenindex to arg index (0-indexed)"""
