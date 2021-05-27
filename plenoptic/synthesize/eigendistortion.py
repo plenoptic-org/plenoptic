@@ -296,8 +296,8 @@ class Eigendistortion:
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
 
-        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a single (when `k=1`), or multiple
-        (when `k>1`) vectors.
+        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a single (`k=1`), or multiple
+        (`k>1`) vectors.
 
         Parameters
         ----------
