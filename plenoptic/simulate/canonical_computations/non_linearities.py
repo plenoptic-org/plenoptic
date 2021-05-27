@@ -154,8 +154,9 @@ def local_gain_release(norm, direction, epsilon=1e-8):
     component. This is a normalization operation (local unit vector),
     hence the connection to local gain control.
     """
-    step = (2, 2)
-    x = direction * (upsample_blur(norm, step=step) + epsilon)
+
+    odd = torch.tensor(direction.shape)[2:4] % 2
+    x = direction * (upsample_blur(norm, odd) + epsilon)
     return x
 
 

@@ -103,13 +103,13 @@ class TestDownsampleUpsample(object):
         filt[5, 5] = 1
         filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
         filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
-        img_down = po.correlate_downsample(img, filt=filt)
-        img_up = po.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
+        img_down = po.tools.correlate_downsample(img, filt=filt)
+        img_up = po.tools.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
 
     def test_multichannel(self):
         img = torch.randn([10, 3, 24, 25], device=DEVICE)
         filt = torch.randn([5, 5], device=DEVICE)
-        img_down = po.correlate_downsample(img, filt=filt)
-        img_up = po.upsample_convolve(img_down, odd=(0, 1), filt=filt)
+        img_down = po.tools.correlate_downsample(img, filt=filt)
+        img_up = po.tools.upsample_convolve(img_down, odd=(0, 1), filt=filt)
         assert img_up.shape == img.shape
