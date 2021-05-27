@@ -87,7 +87,7 @@ class TestNaive(object):
     @pytest.mark.parametrize("out_channels", [1, 2, 3])
     @pytest.mark.parametrize("on_center", [True, [True, False]])
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
-        if not isinstance(on_center, bool) and len(on_center) != out_channels:
+        if not isinstance(center_std, float) and len(center_std) != out_channels:
             with pytest.raises(AssertionError):
                 model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
         else:

@@ -120,7 +120,6 @@ class TestEigendistortionSynthesis:
 
 
     @pytest.mark.parametrize("model", ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
-
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
     @pytest.mark.parametrize("k", [2, 3])
     def test_display(self, model, einstein_img, color_img, method, k):

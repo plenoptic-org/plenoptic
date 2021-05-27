@@ -459,12 +459,6 @@ class OnOff(nn.Module):
                 self.center_surround.filt,
                 self.luminance.filt,
                 self.contrast.filt,
-                self.on.center_surround.filt,
-                self.off.center_surround.filt,
-                self.on.luminance.filt,
-                self.off.luminance.filt,
-                self.on.contrast.filt,
-                self.off.contrast.filt,
             ],
             dim=0,
         ).detach()
