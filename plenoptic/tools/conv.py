@@ -88,6 +88,6 @@ def blur_downsample(x,filtname = 'binom5', step=(2, 2)):
     return correlate_downsample(x, filt=np.outer(f, f), step=step)
 
 
-def upsample_blur(x, step=(2, 2)):
-    f = pt.named_filter('binom5')
+def upsample_blur(x, filtname ='binom5', step=(2, 2)):
+    f = pt.named_filter(filtname)
     return upsample_convolve(x, filt=np.outer(f, f), step=step)
