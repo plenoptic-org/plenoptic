@@ -9,7 +9,6 @@ dependencies:
   - numpydoc
   - numpy
   - python
-  # test
   - pip
   - ipython
   - pip:
