@@ -86,21 +86,25 @@ def load_images(paths, as_gray=True):
             continue
         # make it a float32 array with values between 0 and 1
         im = im / np.iinfo(im.dtype).max
-        if as_gray:
-            im = color.rgb2gray(im)
-        else:
-            # RGB dimension ends up on the last one, so we rearrange
-            im = np.moveaxis(im, -1, 0)
+        if im.ndim > 2:
+            if as_gray:
+                # From scikit-image 0.19 on, it will treat 2d signals as 1d
+                # images with 3 channels, so only call rgb2gray when it's more
+                # than 2d
+                im = color.rgb2gray(im)
+            else:
+                # RGB dimension ends up on the last one, so we rearrange
+                im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)
     except ValueError:
         raise Exception("Concatenating the images into a tensor raised"
-                        "a ValueError! This probably"
+                        " a ValueError! This probably"
                         " means that not all images are the same size.")
     if as_gray:
         if images.ndimension() != 3:
-            raise Exception("For loading in images as grayscale, this"
+            raise Exception("For loading in images as grayscale, this "
                             "should be a 3d tensor!")
         images = images.unsqueeze(1)
     else:
@@ -113,7 +117,7 @@ def load_images(paths, as_gray=True):
                 # then multiple grayscales ones, so add channel dimension
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
-        raise Exception("Somehow ended up with other than 4 dimensions!"
+        raise Exception("Somehow ended up with other than 4 dimensions! "
                         "Not sure how we got here")
     return images
 
@@ -144,7 +148,7 @@ def convert_float_to_int(im, dtype=np.uint8):
 
     """
     if im.max() > 1:
-        raise Exception("all values of im must lie between 0 and 1,"
+        raise Exception("all values of im must lie between 0 and 1, "
                         f"but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
 
@@ -162,8 +166,8 @@ def torch_complex_to_numpy(x):
 
     x_np = to_numpy(x)
     if x.ndim not in [5, 6]:
-        raise Exception(f"x has {x.ndim} dimensions, but a complex tensor"
-                        "should have 5 (real and imaginary stacked along"
+        raise Exception(f"x has {x.ndim} dimensions, but a complex tensor "
+                        "should have 5 (real and imaginary stacked along "
                         "the final dim) or 6 if it's a video!")
     x_np = x_np[..., 0] + 1j * x_np[..., 1]
     return x_np
@@ -181,7 +185,7 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
 
     Returns
     -------
-    stimuli: `torch.FloatTensor` of shape [B, 1, size, size]
+    stimuli: `torch.FloatTensor` of shape [11, 1, size, size]
         the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
                 sine_grating, square_grating, polar_angle, angular_sine,
                 zone_plate, fractal]

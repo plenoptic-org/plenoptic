@@ -88,9 +88,9 @@ def deviation_from_line(y, y0=None, y1=None, normalize=True):
     ----------
     y: torch.FloatTensor
         sequence of signals of shape [T, D]
-    y0, y1: torch.Tensor, optional
-        signal of shape [1, D], the points that define the line
-        set by default to the endpoints of y
+    y0, y1: torch.Tensor or None, optional
+        signal of shape [1, D], the points that define the line. If None,
+        the endpoints of y.
     normalize: bool, optional
         use the distance between the anchor points as a unit of measurement
 
@@ -98,9 +98,9 @@ def deviation_from_line(y, y0=None, y1=None, normalize=True):
     -------
     dist_along_line: torch.FloatTensor
         sequence of T euclidian distances along the line
-
     dist_from_line: torch.FloatTensor
         sequence of T euclidian distances to the line
+
     """
     T, D = y.shape
     if y0 is None:

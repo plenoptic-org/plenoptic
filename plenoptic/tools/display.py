@@ -437,9 +437,9 @@ def update_stem(stem_container, ydata):
     try:
         segments = stem_container.stemlines.get_segments().copy()
     except AttributeError:
-        raise Exception("We require that the initial stem plot be called with"
-                        "use_line_collection=True in order to correctly update"
-                        "it. This will significantly improve performance as"
+        raise Exception("We require that the initial stem plot be called with "
+                        "use_line_collection=True in order to correctly update "
+                        "it. This will significantly improve performance as "
                         "well.")
     for s, y in zip(segments, ydata):
         try:

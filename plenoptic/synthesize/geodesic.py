@@ -1,11 +1,11 @@
 from collections import OrderedDict
-
 import matplotlib.pyplot as plt
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
-from tqdm.auto import tqdm
+from tqdm import tqdm
+import warnings
 
 from ..tools.optim import penalize_range
 from ..tools.straightness import (deviation_from_line, make_straight_line,
@@ -99,10 +99,10 @@ class Geodesic(nn.Module):
             if p.requires_grad:
                 p.detach_()
                 if warn:
-                    print("""we detach model parameters in order to
-                             save time on extraneous gradients
-                             computations - indeed only pixel values
-                             should be modified.""")
+                    warnings.warn("""we detach model parameters in order to
+                                     save time on extraneous gradients
+                                     computations - indeed only pixel values
+                                     should be modified.""")
                     warn = False
         self.model = model.eval()
 
@@ -169,8 +169,8 @@ class Geodesic(nn.Module):
         - return delta_x, the norm of the step just taken
         """
         xprev = self.x.clone()
-
         self.optimizer.zero_grad()
+
         x = torch.cat([self.xA, self.x, self.xB])
         y = self._analyze(x)
 
@@ -181,6 +181,7 @@ class Geodesic(nn.Module):
         signal_path_energy = self._step_energy(x).mean()
         self.loss.append((loss.item(), signal_path_energy.item()))
 
+        self.loss.append(loss.item())
         if self.lmbda > 0:
             loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
 
@@ -202,7 +203,6 @@ class Geodesic(nn.Module):
         pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
                          ('gradient norm', f'{grad_norm:.4e}'),
                          ('delta_x', f"{delta_x.item():.5e}")]))
-
         # storing some information
         if self.verbose:
             self.step_energy.append(step_energy.detach())
@@ -210,41 +210,6 @@ class Geodesic(nn.Module):
                 deviation_from_line(y.detach()))
 
         return delta_x
-
-    def _outer_optimizer_step(self):
-        """
-        At each step of the outer optimization, the following is done:
-        - compute the representation path energy
-        - compute the signal path energy
-        - project the representational gradient out of the signal gradient
-        - take a step in this direction
-
-        - store some information
-        """
-        # representation path energy
-        self.x.grad *= 0
-        x = torch.cat([self.xA, self.x, self.xB])
-        y = self._analyze(x)
-        repres_loss = self._step_energy(y).mean()
-        repres_loss.backward()
-        repres_grad = self.x.grad.clone()
-
-        # signal path energy
-        self.x.grad *= 0
-        signal_loss = self._step_energy(x).mean()
-        signal_loss.backward()
-        signal_grad = self.x.grad.clone()
-        # project out representational gradient
-        projected_signal_grad = signal_grad - (
-                        (signal_grad.flatten()@repres_grad.flatten()) /
-                        torch.norm(repres_grad)**2) * repres_grad
-        # step
-        self.x.grad = projected_signal_grad
-        self.optimizer_outer.step()
-        # self.x.data = self.x.data - self.alpha * projected_signal_grad
-
-        # store some information
-        self.loss.append((repres_loss.item(), signal_loss.item()))
 
     def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
                    regularized=True, mu=None, lmbda=.1,
@@ -384,7 +349,9 @@ class Geodesic(nn.Module):
 
         Returns
         -------
-        fig: matplotlib.figure.Figure
+        fig : matplotlib.pyplot.Figure
+            Figure containing the plot.
+
         """
         if share_y:
             fig, ax = plt.subplots(1, 1)
@@ -433,24 +400,47 @@ class Geodesic(nn.Module):
                                 (self.n_steps+1, *self.image_shape[1:])
                                             ).clamp(0, 1).detach()
 
-    def plot_deviation_from_line(self, video=None, figsize=(7, 5)):
-        """visual diagnostic of geodesic linearity in representation space.
+    def plot_deviation_from_line(self, video=None, figsize=(7, 5), ax=None):
+        """Visual diagnostic of geodesic linearity in representation space.
 
         Parameters
         ----------
         video : torch.Tensor, optional
-            natural video that bridges the anchor points
+            Natural video that bridges the anchor points
         figsize : tuple, optional
-            set the dimension of the figure
+            Dimensions of the figure. Ignored if ax is not None.
+        ax : matplotlib.pyplot.axis or None, optional
+            If not None, the axis to plot this representation on. If
+            None, we create our own 1 subplot figure to hold it
 
         Returns
         -------
         fig: matplotlib.figure.Figure
+            Figure containing the plot
+
+        Notes
+        -----
+        This plot illustrates the deviation from the straight line connecting
+        the representations of a pair of images, for different paths
+        in representation space.
+        Axes are in the same units, normalized by the distance separating
+        the end point representations.
+        Knots along each curve indicate samples used to compute the path.
+
+        When the representation is non-linear it may not be feasible for the
+        geodesic to be straight (for example if the representation is
+        normalized, all paths are constrained to live on a hypershpere).
+        Nevertheless, if the representation is able to linearize the
+        transformation between the anchor images, then we expect that both
+        the ground tuth video sequence and the geodesic will deviate from
+        straight line similarly. By contrast the pixel-based interpolation
+        will deviate significantly more from a straight line.
         """
         if not hasattr(self, 'geodesic'):
-            self.populate_geodesic()
+            self._populate_geodesic()
 
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=figsize)
         ax.plot(*deviation_from_line(self.model(self.pixelfade
                                                 ).view(self.n_steps+1, -1)
                                      ), 'g-o', label='pixelfade')
@@ -469,7 +459,7 @@ class Geodesic(nn.Module):
                title='deviation from the straight line')
         ax.legend(loc=1)
 
-        return fig
+        return ax.figure
 
     def _vector_jacobian_product(self, y, x, a):
         """compute vector-jacobian product: $a^T dy/dx = dy/dx^T a$,
@@ -492,10 +482,11 @@ class Geodesic(nn.Module):
         return step_jerkiness
 
     def calculate_jerkiness(self):
-        """check jerkiness at each step along path,
-        the first order optimality condition for a geodesic
-        is to have zero jerkiness, that is to say no alignment
-        of representation's acceleration to model local curvature.
+        """Compute the alignment of representation's acceleration
+        to model local curvature (here called "jerkiness").
+        This is the first order optimality condition for a geodesic,
+        and can be used to assess the validity of the solution obtained
+        by optimization.
         """
         y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
         return self._step_jerkiness(y).detach()

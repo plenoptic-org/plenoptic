@@ -9,7 +9,7 @@ class TestNonLinearities(object):
 
     def test_polar_amplitude_zero(self):
         a = torch.rand(10, device=DEVICE) * -1
-        b = po.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
+        b = po.tools.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
 
         with pytest.raises(ValueError) as _:
             _, _ = po.tools.polar_to_rectangular(a, b)
@@ -19,7 +19,7 @@ class TestNonLinearities(object):
         x = torch.randn(dims, device=DEVICE)
         y = torch.randn(dims, device=DEVICE)
 
-        X, Y = po.tools.polar_to_rectangular(*po.rectangular_to_polar(x, y))
+        X, Y = po.tools.polar_to_rectangular(*po.tools.rectangular_to_polar(x, y))
 
         assert torch.norm(x - X) < 1e-3
         assert torch.norm(y - Y) < 1e-3
@@ -30,9 +30,9 @@ class TestNonLinearities(object):
         # ensure vec len a is non-zero by adding .1 and then re-normalizing
         a = torch.rand(dims, device=DEVICE) + 0.1
         a = a / a.max()
-        b = po.rescale(torch.randn(dims, device=DEVICE), -pi / 2, pi / 2)
+        b = po.tools.rescale(torch.randn(dims, device=DEVICE), -pi / 2, pi / 2)
 
-        A, B = po.rectangular_to_polar(*po.tools.polar_to_rectangular(a, b))
+        A, B = po.tools.rectangular_to_polar(*po.tools.polar_to_rectangular(a, b))
 
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
@@ -88,19 +88,19 @@ class TestStats(object):
         B, D = 32, 512
         x = torch.randn(B, D)
         m = torch.mean(x, dim=1, keepdim=True)
-        v = po.variance(x, mean=m, dim=1, keepdim=True)
+        v = po.tools.variance(x, mean=m, dim=1, keepdim=True)
         assert (torch.abs(v - torch.var(x, dim=1, keepdim=True, unbiased=False)
                           ) < 1e-5).all()
-        s = po.skew(x, mean=m, var=v, dim=1)
-        k = po.kurtosis(x, mean=m, var=v, dim=1)
+        s = po.tools.skew(x, mean=m, var=v, dim=1)
+        k = po.tools.kurtosis(x, mean=m, var=v, dim=1)
         assert torch.abs(k.mean() - 3) < 1e-1
 
-        k = po.kurtosis(torch.rand(B, D), dim=1)
+        k = po.tools.kurtosis(torch.rand(B, D), dim=1)
         assert k.mean() < 3
 
         scale = 2
         exp_samples1 = -scale * torch.log(torch.rand(B, D))
         exp_samples2 = -scale * torch.log(torch.rand(B, D))
         lap_samples = exp_samples1 - exp_samples2
-        k = po.kurtosis(lap_samples, dim=1)
+        k = po.tools.kurtosis(lap_samples, dim=1)
         assert k.mean() > 3
