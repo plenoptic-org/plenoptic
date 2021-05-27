@@ -7,7 +7,7 @@ from torch import optim
 import numpy as np
 import warnings
 from ..tools.data import to_numpy, _find_min_int
-from ..tools.optim import l2_norm
+from ..tools.optim import l2_norm, relative_MSE
 import matplotlib.pyplot as plt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
@@ -33,11 +33,11 @@ class Synthesis(metaclass=abc.ABCMeta):
     model : torch.nn.Module or function
         The visual model or metric to synthesize with. See `MAD_Competition`
         for details.
-    loss_function : callable or None, optional
+    loss_function : 'l2_norm' or 'relative_MSE' or callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the default:
-        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        the l2 norm. See `MAD_Competition` notebook for more
         details
     model_kwargs : dict
         if model is a function (that is, you're using a metric instead
@@ -61,8 +61,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.seed = None
         self._rep_warning = False
 
-        if loss_function is None:
+        if loss_function == 'l2_norm' or loss_function is None:
             loss_function = l2_norm
+        elif loss_function == 'relative_MSE':
+            loss_function = relative_MSE
         else:
             if not isinstance(model, torch.nn.Module):
                 warnings.warn("Ignoring custom loss_function for model since it's a metric")
@@ -912,7 +914,11 @@ class Synthesis(metaclass=abc.ABCMeta):
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        g = self.synthesized_signal.grad.detach()
+        grad = self.synthesized_signal.grad.detach()
+        grad_norm = grad.norm()
+        if grad_norm.item() != grad_norm.item():
+            raise Exception('found a NaN in the gradients during optimization')
+
         # optionally step the scheduler
         if self._scheduler is not None:
             self._scheduler.step(loss.item())
@@ -929,14 +935,15 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         pixel_change = torch.max(torch.abs(self.synthesized_signal - self._last_iter_synthesized_signal))
         # for display purposes, always want loss to be positive
-        postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
-                                 gradient_norm="%.4e" % g.norm().item(),
+        postfix_dict.update(dict(loss=f"{abs(loss.item()):.04e}",
+                                 gradient_norm=f"{grad_norm.item():.04e}",
                                  learning_rate=self._optimizer.param_groups[0]['lr'],
-                                 pixel_change=f"{pixel_change:.04e}", **kwargs))
+                                 pixel_change=f"{pixel_change:.04e}",
+                                 **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
+        return loss, grad_norm, self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
     def save(self, file_path,

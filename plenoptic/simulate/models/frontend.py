@@ -23,6 +23,7 @@ from ...tools.signal import make_disk
 from collections import OrderedDict
 from warnings import warn
 
+
 __all__ = ["LinearNonlinear", "LuminanceGainControl",
            "LuminanceContrastGainControl", "OnOff"]
 
@@ -47,6 +48,7 @@ class LinearNonlinear(nn.Module):
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "reflect".
+
     activation:
         Activation function following linear convolution.
 
@@ -69,6 +71,7 @@ class LinearNonlinear(nn.Module):
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
+
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -128,6 +131,7 @@ class LuminanceGainControl(nn.Module):
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "reflect".
+
     activation:
         Activation function following linear convolution.
 
@@ -153,6 +157,7 @@ class LuminanceGainControl(nn.Module):
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
+
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -224,7 +229,11 @@ class LuminanceContrastGainControl(nn.Module):
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
+<<<<<<< HEAD
         Padding for convolution, defaults to "reflect".
+=======
+        Padding for convolution, defaults to "circular".
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     activation:
         Activation function following linear convolution.
 
@@ -255,6 +264,7 @@ class LuminanceContrastGainControl(nn.Module):
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
+
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -368,6 +378,7 @@ class OnOff(nn.Module):
         activation: Callable[[Tensor], Tensor] = F.softplus,
         apply_mask: bool = False,
         cache_filt: bool = False,
+
     ):
         super().__init__()
         if isinstance(kernel_size, int):
@@ -432,6 +443,7 @@ class OnOff(nn.Module):
 
         return y
 
+
     def display_filters(self, zoom=5.0, **kwargs):
         """Displays convolutional filters of model
 
@@ -451,6 +463,12 @@ class OnOff(nn.Module):
                 self.center_surround.filt,
                 self.luminance.filt,
                 self.contrast.filt,
+                self.on.center_surround.filt,
+                self.off.center_surround.filt,
+                self.on.luminance.filt,
+                self.off.luminance.filt,
+                self.on.contrast.filt,
+                self.off.contrast.filt,
             ],
             dim=0,
         ).detach()
@@ -482,6 +500,7 @@ class OnOff(nn.Module):
                 ("center_surround.amplitude_ratio", torch.tensor([1.25])),
                 ("luminance.std", torch.tensor([8.7366, 1.4751])),
                 ("contrast.std", torch.tensor([2.7353, 1.5583])),
+
             ]
         )
         return state_dict

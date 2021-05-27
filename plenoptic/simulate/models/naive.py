@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 from typing import Union, Tuple, List
+=======
+from typing import Union, Tuple
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 import torch
 from torch import nn, nn as nn, Tensor
 from torch import Tensor
@@ -73,10 +77,17 @@ class Linear(nn.Module):
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
         if default_filters:
+<<<<<<< HEAD
             var = torch.tensor(3.)
             f1 = circular_gaussian2d(kernel_size, std=torch.sqrt(var))
 
             f2 = circular_gaussian2d(kernel_size, std=torch.sqrt(var/3))
+=======
+            variance = 3
+            f1 = circular_gaussian2d(kernel_size, std=np.sqrt(variance))
+
+            f2 = circular_gaussian2d(kernel_size, std=np.sqrt(variance/3))
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
             f2 = f2 - f1
             f2 = f2 / f2.sum()
 
@@ -89,7 +100,11 @@ class Linear(nn.Module):
 
 
 class Gaussian(nn.Module):
+<<<<<<< HEAD
     """Isotropic Gaussian convolutional filter.
+=======
+    """Isotropic Gaussian single-channel convolutional filter.
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     Kernel elements are normalized and sum to one.
 
     Parameters
@@ -100,16 +115,20 @@ class Gaussian(nn.Module):
         Standard deviation of circularly symmtric Gaussian kernel.
     pad_mode:
         Padding mode argument to pass to `torch.nn.functional.pad`.
+<<<<<<< HEAD
     out_channels:
         Number of filters with which to convolve.
     cache_filt:
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`.
+=======
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     """
 
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
+<<<<<<< HEAD
         std: Union[float, Tensor] = 3.0,
         pad_mode: str = "reflect",
         out_channels: int = 1,
@@ -145,6 +164,27 @@ class Gaussian(nn.Module):
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         y = F.conv2d(x, self.filt, **conv2d_kwargs)
+=======
+        std: float = 3.0,
+        pad_mode: str = "circular",
+    ):
+        super().__init__()
+        assert std > 0, "Gaussian standard deviation must be positive"
+        self.std = nn.Parameter(torch.tensor(std))
+        self.kernel_size = kernel_size
+        self.pad_mode = pad_mode
+
+    @property
+    def filt(self):
+        filt = circular_gaussian2d(self.kernel_size, self.std)
+        return filt
+
+    def forward(self, x: Tensor) -> Tensor:
+        self.std.data = self.std.data.abs()  # ensure stdev is positive
+
+        x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
+        y = F.conv2d(x, self.filt)
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
         return y
 
 
@@ -167,9 +207,13 @@ class CenterSurround(nn.Module):
         Shape of convolutional kernel.
     on_center:
         Dictates whether center is on or off; surround will be the opposite of center
+<<<<<<< HEAD
         (i.e. on-off or off-on). If List of bools, then list length must equal
         `out_channels`, if just a single bool, then all `out_channels` will be assumed
         to be all on-off or off-on.
+=======
+        (i.e. on-off or off-on).
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     width_ratio_limit:
         Sets a lower bound on the ratio of `surround_std` over `center_std`.
         The surround Gaussian must be wider than the center Gaussian in order to be a
@@ -182,6 +226,7 @@ class CenterSurround(nn.Module):
     surround_std:
         Standard deviation of circular Gaussian for surround. Must be at least
         `ratio_limit` times `center_std`.
+<<<<<<< HEAD
     out_channels:
         Number of filters.
     pad_mode:
@@ -189,11 +234,16 @@ class CenterSurround(nn.Module):
     cache_filt:
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`
+=======
+    pad_mode:
+        Padding for convolution, defaults to "circular".
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
     """
 
     def __init__(
         self,
         kernel_size: Union[int, Tuple[int, int]],
+<<<<<<< HEAD
         on_center: Union[bool, List[bool, ]] = True,
         width_ratio_limit: float = 2.0,
         amplitude_ratio: float = 1.25,
@@ -217,10 +267,22 @@ class CenterSurround(nn.Module):
             surround_std = torch.ones(out_channels) * surround_std
         assert len(center_std) == out_channels and len(surround_std) == out_channels, "stds must correspond to each out_channel"
 
+=======
+        on_center: bool = True,
+        width_ratio_limit: float = 4.0,
+        amplitude_ratio: float = 1.25,
+        center_std: float = 1.0,
+        surround_std: float = 4.0,
+        pad_mode: str = "circular",
+    ):
+        super().__init__()
+
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
         assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
         assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
         self.on_center = on_center
+<<<<<<< HEAD
 
         self.kernel_size = kernel_size
         self.width_ratio_limit = width_ratio_limit
@@ -264,6 +326,38 @@ class CenterSurround(nn.Module):
         lower_bound = self.width_ratio_limit * self.center_std
         for i, lb in enumerate(lower_bound):
             self.surround_std[i] = self.surround_std[i].clamp(min=float(lb))
+=======
+        self.kernel_size = kernel_size
+        self.width_ratio_limit = width_ratio_limit
+        self.register_buffer("amplitude_ratio", torch.tensor(amplitude_ratio))
+
+        self.center_std = nn.Parameter(torch.tensor(center_std))
+        self.surround_std = nn.Parameter(torch.tensor(surround_std))
+
+        self.pad_mode = pad_mode
+
+    @property
+    def filt(self) -> Tensor:
+        """Creates an on center/off surround, or off center/on surround conv filter"""
+        filt_center = circular_gaussian2d(self.kernel_size, self.center_std)
+        filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std)
+        on_amp = self.amplitude_ratio
+
+        if self.on_center:  # on center, off surround
+            filt = on_amp * filt_center - filt_surround  # on center, off surround
+        else:  # off center, on surround
+            filt = on_amp * filt_surround - filt_center
+
+        filt = filt / filt.sum()
+
+        return filt
+
+    def _clamp_surround_std(self) -> Tensor:
+        """Clamps surround standard deviation to ratio_limit times center_std"""
+        return self.surround_std.clamp(
+            min=self.width_ratio_limit * float(self.center_std), max=None
+        )
+>>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

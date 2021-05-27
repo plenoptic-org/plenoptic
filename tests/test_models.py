@@ -3,7 +3,6 @@ import plenoptic as po
 import pytest
 import matplotlib.pyplot as plt
 import torch
-from torch import Tensor
 
 import plenoptic
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
@@ -117,6 +116,7 @@ class TestFilters:
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
+
         if std <=0.:
             with pytest.raises(AssertionError):
                 circular_gaussian2d((7, 7), std)
@@ -132,6 +132,7 @@ class TestFilters:
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)
+
 
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
     @pytest.mark.parametrize("std", [1., 20., 0.])

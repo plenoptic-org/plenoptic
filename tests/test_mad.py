@@ -44,16 +44,16 @@ class TestMAD(object):
         if loss_func is None:
             loss = None
         elif loss_func == 'l2':
-            loss = po.optim.l2_norm
+            loss = po.tools.optim.l2_norm
         elif loss_func == 'mse':
-            loss = po.optim.mse
+            loss = po.tools.optim.mse
         elif loss_func == 'range_penalty':
-            loss = po.optim.l2_and_penalize_range
+            loss = po.tools.optim.l2_and_penalize_range
         elif loss_func == 'range_penalty_w_lmbda':
-            loss = po.optim.l2_and_penalize_range
+            loss = po.tools.optim.l2_and_penalize_range
             loss_kwargs['lmbda'] = .1
         elif loss_func == 'mse_range_penalty_w_lmbda':
-            loss = po.optim.mse_and_penalize_range
+            loss = po.tools.optim.mse_and_penalize_range
             loss_kwargs['lmbda'] = .1
         mad = po.synth.MADCompetition(curie_img, model, model2, loss_function=loss,
                                       loss_function_kwargs=loss_kwargs)
