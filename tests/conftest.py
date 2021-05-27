@@ -48,11 +48,23 @@ def basic_stim():
 
 
 def get_model(name):
-    if name == 'SPyr':
-        # with downsample=False, we get a tensor back. setting height=1 and
-        # order=1 limits the size
-        return po.simul.Steerable_Pyramid_Freq((256, 256), downsample=False,
-                                               height=1, order=1).to(DEVICE)
+    if name == 'LNL':
+        return po.simul.Linear_Nonlinear().to(DEVICE)
+    elif name == 'SPyr':
+        # in order to get a tensor back, need to wrap steerable pyramid so that
+        # we can call convert_pyr_to_tensor in the forward call. in order for
+        # that to work, downsample must be False
+        class spyr(po.simul.Steerable_Pyramid_Freq):
+            def __init__(self, *args, **kwargs):
+                kwargs.pop('downsample', None)
+                super().__init__(*args, downsample=False, **kwargs)
+            def forward(self, *args, **kwargs):
+                coeffs = super().forward(*args, **kwargs)
+                return self.convert_pyr_to_tensor(coeffs)
+        # setting height=1 and # order=1 limits the size
+        return spyr((256, 256), height=1, order=1).to(DEVICE)
+    elif name == 'Identity':
+        return po.simul.models.naive.Identity().to(DEVICE)
     elif name == 'NLP':
         return po.metric.NLP().to(DEVICE)
     elif name == 'nlpd':

@@ -1,18 +1,80 @@
 #!/usr/bin/env python3
+from math import pi
+
+import matplotlib.pyplot as plt
+# import plenoptic.simulate.models.naive
 import plenoptic as po
 import pytest
-import matplotlib.pyplot as plt
 import torch
+from plenoptic.simulate.canonical_computations import (circular_gaussian2d,
+                                                       gaussian1d)
 
-# import plenoptic.simulate.models.naive
-import plenoptic
-from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
-from conftest import DEVICE
+from conftest import DEVICE, DATA_DIR
 
 
 @pytest.fixture()
 def image_input():
     return torch.rand(1, 1, 100, 100)
+
+
+class TestNonLinearities(object):
+
+    def test_rectangular_to_polar_dict(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True).to(DEVICE)
+        y = spc(basic_stim)
+        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+
+    def test_local_gain_control(self):
+        x = torch.randn((10, 1, 256, 256), device=DEVICE)
+        norm, direction = po.simul.non_linearities.local_gain_control(x)
+        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        assert torch.norm(x - x_hat) < 1e-4
+
+    def test_local_gain_control_dict(self, basic_stim):
+        spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=False).to(DEVICE)
+        y = spr(basic_stim)
+        energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+
+
+class TestLaplacianPyramid(object):
+
+    def test_grad(self, basic_stim):
+        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        y = L.analysis(basic_stim)
+        assert y[0].requires_grad
+
+    def test_synthesis(self):
+        img = torch.rand(1, 1, 543, 654).to(DEVICE)
+        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        y = L.analysis(img)
+        img_recon = L.synthesis(y)
+        assert torch.allclose(img, img_recon)
+
+
+class TestFactorizedPyramid(object):
+
+    @pytest.mark.parametrize("downsample_dict", [True, False])
+    @pytest.mark.parametrize("is_complex", [True, False])
+    def test_factpyr(self, basic_stim, downsample_dict, is_complex):
+        x = basic_stim
+        # x = po.load_images(DATA_DIR + "/512/")
+        model = po.simul.Factorized_Pyramid(x.shape[-2:],
+                                            downsample_dict=downsample_dict,
+                                            is_complex=is_complex)
+        x_hat = model.synthesis(*model.analysis(x))
+
+        relative_MSE = (torch.norm(x - x_hat, dim=(2, 3))**2 /
+                        torch.norm(x, dim=(2, 3))**2)
+        print(relative_MSE)
+        assert (relative_MSE < 1e-10).all()
 
 
 class TestFrontEnd:
@@ -68,28 +130,13 @@ class TestNaive(object):
         assert y.requires_grad
 
     def test_linear(self, basic_stim):
-        model = plenoptic.simul.Linear().to(DEVICE)
+        model = po.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
 
     def test_linear_metamer(self, einstein_img):
-        model = plenoptic.simul.Linear().to(DEVICE)
+        model = po.simul.Linear().to(DEVICE)
         M = po.synth.Metamer(einstein_img, model)
         M.synthesize(max_iter=3, learning_rate=1, seed=1)
-
-
-class TestLaplacianPyramid(object):
-
-    def test_grad(self, basic_stim):
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
-        y = L.analysis(basic_stim)
-        assert y[0].requires_grad
-
-    def test_synthesis(self):
-        img = torch.rand(1, 1, 543, 654).to(DEVICE)
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
-        y = L.analysis(img)
-        img_recon = L.synthesis(y)
-        assert torch.allclose(img, img_recon)
 
 
 class TestFilters:
