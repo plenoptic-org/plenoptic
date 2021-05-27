@@ -21,9 +21,9 @@ class TestMetamers(object):
         if loss_func is None:
             loss = None
         elif loss_func == 'l2':
-            loss = po.optim.l2_norm
+            loss = po.tools.optim.l2_norm
         elif loss_func == 'range_penalty_w_beta':
-            loss = po.optim.l2_and_penalize_range
+            loss = po.tools.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
         met = po.synth.Metamer(einstein_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, store_progress=True)
@@ -116,7 +116,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     def test_metamer_clamper(self, einstein_img, model, clamp_each_iter):
-        clamper = po.RangeClamper((0, 1))
+        clamper = po.tools.RangeClamper((0, 1))
 
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
@@ -135,13 +135,13 @@ class TestMetamers(object):
         if loss_func is None:
             loss = None
         elif loss_func == 'l2':
-            loss = po.optim.l2_norm
+            loss = po.tools.optim.l2_norm
         elif loss_func == 'mse':
-            loss = po.optim.mse
+            loss = po.tools.optim.mse
         elif loss_func == 'range_penalty':
-            loss = po.optim.l2_and_penalize_range
+            loss = po.tools.optim.l2_and_penalize_range
         elif loss_func == 'range_penalty_w_beta':
-            loss = po.optim.l2_and_penalize_range
+            loss = po.tools.optim.l2_and_penalize_range
             loss_kwargs['beta'] = .9
         met = po.synth.Metamer(curie_img, model, loss_function=loss, loss_function_kwargs=loss_kwargs)
         met.synthesize(max_iter=10, loss_change_iter=5, store_progress=store_progress,

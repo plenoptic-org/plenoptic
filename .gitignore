@@ -10,13 +10,16 @@ __pycache__/
 .idea/
 .vscode/
 
-examples/data/cifar*
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
 data/msssim_images
-data/cat7*
-data/elep*
+data/MAD_results
+data/imagenet1000_clsidx_to_labels.txt
+
+logs/
+train/
+
 docs/_build
 docs/api
 
