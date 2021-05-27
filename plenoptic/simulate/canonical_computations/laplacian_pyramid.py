@@ -5,9 +5,11 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 class Laplacian_Pyramid(nn.Module):
     """
-    The Laplacian pyramid [1]_ is a multiscale image representation. It decomposes the image by computing the local mean
-    using Gaussian blurring filters and substracting it from the image and repeating this operation on the local mean
-    itself after downsampling. This representation is overcomplete and invertible.
+    The Laplacian pyramid [1]_ is a multiscale image representation.
+    It decomposes the image by computing the local mean using Gaussian
+    blurring filters and substracting it from the image and repeating this
+    operation on the local mean itself after downsampling. This
+    representation is overcomplete and invertible.
 
     Argument
     --------
@@ -20,13 +22,12 @@ class Laplacian_Pyramid(nn.Module):
 
     Reference
     ---------
-    .. [1] Burt, P. and Adelson, E., 1983. The Laplacian pyramid as a compact image code. IEEE Transactions on communications, 31(4), pp.532-540.
-
+    .. [1] Burt, P. and Adelson, E., 1983. The Laplacian pyramid as a compact
+    image code. IEEE Transactions on communications, 31(4), pp.532-540.
     """
 
     def __init__(self, n_scales=5, scale_filter=False):
-        super(Laplacian_Pyramid, self).__init__()
-
+        super().__init__()
         self.n_scales = n_scales
         self.scale_filter = scale_filter
 
@@ -36,11 +37,13 @@ class Laplacian_Pyramid(nn.Module):
         Arguments
         ---------
         x: torch.Tensor of shape (B, C, H, W)
-            Image, or batch of images. If there are multiple channels, the Laplacian is computed separately for each of them
+            Image, or batch of images. If there are multiple channels,
+            the Laplacian is computed separately for each of them
         Returns
         -------
         y: list of torch.Tensor
-            Laplacian pyramid representation, each element of the list corresponds to a scale, from fine to coarse
+            Laplacian pyramid representation, each element of the list
+            corresponds to a scale, from fine to coarse
         """
 
         y = []
@@ -60,7 +63,8 @@ class Laplacian_Pyramid(nn.Module):
         Arguments
         ---------
         y: list of torch.Tensor
-            Laplacian pyramid representation, each element of the list corresponds to a scale, from fine to coarse
+            Laplacian pyramid representation, each element of the list
+            corresponds to a scale, from fine to coarse
         Returns
         -------
         x: torch.Tensor of shape (B, C, H, W)

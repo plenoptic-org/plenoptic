@@ -24,7 +24,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
@@ -43,7 +43,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
@@ -73,7 +73,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.lines) == 2, "Incorrect number of lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
@@ -93,7 +93,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
@@ -112,7 +112,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.stem(x, y1, label='hi', use_line_collection=True)
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
@@ -142,7 +142,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=i, use_line_collection=True)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
@@ -161,7 +161,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.update_plot(ax, torch.tensor(y2))
+        po.tools.update_plot(ax, torch.tensor(y2))
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
@@ -177,7 +177,7 @@ class TestDisplay(object):
         elif how == 'dict':
             y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
         fig = pt.imshow([y for y in y1.squeeze()])
-        po.update_plot(fig.axes, y2)
+        po.tools.update_plot(fig.axes, y2)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
@@ -197,7 +197,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
         data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 1, len(x2), 2)
-        po.update_plot(ax, data)
+        po.tools.update_plot(ax, data)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, data):
@@ -217,7 +217,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.scatter(x1, y1)
-        po.update_plot(axes, data)
+        po.tools.update_plot(axes, data)
         for i, ax in enumerate(axes):
             assert len(ax.collections) == 1, "Too many scatter plots created"
             ax_data = ax.collections[0].get_offsets()
@@ -248,7 +248,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
-        po.update_plot(ax, data)
+        po.tools.update_plot(ax, data)
         assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
         for i in range(2):
             ax_data = ax.collections[i].get_offsets()
@@ -276,7 +276,7 @@ class TestDisplay(object):
                 ax.scatter(x1, y1)
             else:
                 ax.plot(x1, y1)
-        po.update_plot(axes, data)
+        po.tools.update_plot(axes, data)
         for i, ax in enumerate(axes):
             if i == 0:
                 assert len(ax.collections) == 1, "Too many scatter plots created"
@@ -362,6 +362,11 @@ class TestDisplay(object):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
 
+    def test_display_test_signals(self):
+        po.imshow(po.tools.make_synthetic_stimuli(128));
+        po.imshow(po.load_images(DATA_DIR + '/512'));
+        po.imshow(po.load_images(DATA_DIR + '/256'));
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
@@ -431,7 +436,7 @@ class TestDisplay(object):
         fig = po.imshow(einstein_img)
         with pytest.raises(Exception):
             try:
-                po.update_plot(fig.axes[0], einstein_img.squeeze())
+                po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
             except Exception as e:
                 assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
                 raise e
@@ -563,7 +568,7 @@ class TestMADDisplay(object):
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
+            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         model1 = po.simul.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
@@ -617,7 +622,7 @@ class TestMetamerDisplay(object):
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
+            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         if model == 'class':
             #  height=1 and order=0 to limit the time this takes, and then we

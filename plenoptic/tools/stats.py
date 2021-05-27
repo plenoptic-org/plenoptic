@@ -3,7 +3,8 @@ import torch
 
 def variance(x, mean=None, dim=None, keepdim=False):
     r"""sample estimate of `x` *variability*
-    Arguments
+
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor
@@ -13,6 +14,7 @@ def variance(x, mean=None, dim=None, keepdim=False):
         the dimension or dimensions to reduce.
     keepdim: `bool`, optional
         whether the output tensor has dim retained or not.
+
     Returns
     -------
     out: torch.Tensor
@@ -27,7 +29,8 @@ def variance(x, mean=None, dim=None, keepdim=False):
 
 def skew(x, mean=None, var=None, dim=None, keepdim=False):
     r"""sample estimate of `x` *asymmetry* about its mean
-    Arguments
+
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor
@@ -39,6 +42,7 @@ def skew(x, mean=None, var=None, dim=None, keepdim=False):
         the dimension or dimensions to reduce.
     keepdim: `bool`, optional
         whether the output tensor has dim retained or not.
+
     Returns
     -------
     out: torch.Tensor
@@ -59,7 +63,8 @@ def kurtosis(x, mean=None, var=None, dim=None, keepdim=False):
     kurtosis of univariate noral is 3
     smaller than 3: *platykurtic* (eg. uniform distribution)
     greater than 3: *leptokurtic* (eg. Laplace distribution)
-    Arguments
+
+    Parameters
     ----------
     x: torch.Tensor
         the input tensor
@@ -71,6 +76,7 @@ def kurtosis(x, mean=None, var=None, dim=None, keepdim=False):
         the dimension or dimensions to reduce.
     keepdim: `bool`, optional
         whether the output tensor has dim retained or not.
+
     Returns
     -------
     out: torch.Tensor

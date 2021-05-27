@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad', 'display']
+        test_script: ['metamers', 'models', 'tools', 'metric', 'steerable_pyr', 'eigendistortion', 'mad', 'display', 'geodesic']
       fail-fast: false
     name: CI
     steps:
