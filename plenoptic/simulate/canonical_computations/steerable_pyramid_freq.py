@@ -316,12 +316,10 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # x is a torch tensor batch of images of size [N,C,W,H]
         assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
-        # if input has multiple channels, reshape the channels into the batch for independent processing
-        if x.shape[1] > 1:
-            x = x.view(x.shape[0]*x.shape[1], 1, x.shape[2], x.shape[3])
         
         imdft = fft.fft2(x, dim=(-2,-1), norm = self.fft_norm)
         imdft = fft.fftshift(imdft)
+        
         if 'residual_highpass' in scales:
             # high-pass
             hi0dft = imdft * hi0mask
@@ -617,6 +615,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Parameters
         ----------
+        pyr_coeffs : `OrderedDict`
+            pyramid coefficients to reconstruct from
         levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`}
             If `list` should contain some subset of integers from `0` to `self.num_scales-1`
             (inclusive) and `'residual_lowpass'`. If `'all'`, returned value will contain all
@@ -734,10 +734,10 @@ class Steerable_Pyramid_Freq(nn.Module):
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
                 anglemask = self._anglemasks_recon[scale][b]
+                coeffs = pyr_coeffs[(scale,b)]
                 if self.tight_frame and self.is_complex:
-                    coeffs = pyr_coeffs[(scale,b)]*np.sqrt(2)
-                else:
-                    coeffs = pyr_coeffs[(scale,b)]                
+                    coeffs = coeffs*np.sqrt(2)
+
                 banddft = fft.fft2(coeffs, dim=(-2,-1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
@@ -749,10 +749,12 @@ class Steerable_Pyramid_Freq(nn.Module):
         lostart, loend = self._loindices[scale]
 
         # create lowpass mask
-
         lomask = self._lomasks[scale]
         # Recursively reconstruct by going to the next scale
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1)
+        #in not downsampled case, rescale the magnitudes of the reconstructed dft at each level by factor of 2 to account for the scaling in the forward 
+        if (not self.tight_frame) and (not self.downsample):
+            reslevdft = reslevdft/2
         # create output for reconstruction result
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=torch.complex64)
 
