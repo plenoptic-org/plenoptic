@@ -1,98 +1,112 @@
 """Simple Metamer Class
 """
-
 import torch
 from tqdm.auto import tqdm
 from .synthesis import Synthesis
+from ..tools import optim
+from typing import Union
 
 
 class SimpleMetamer(Synthesis):
-    r"""Abstract super-class for synthesis methods
+    r"""Simple version of metamer synthesis.
 
-    All synthesis methods share a variety of similarities and thus need
-    to have similar methods. Some of these can be implemented here and
-    simply inherited, some of them will need to be different for each
-    sub-class and thus are marked as abstract methods here
+    This doesn't have any of the bells and whistles of the full Metamer class,
+    but does perform basic metamer synthesis: given a target image and a model,
+    synthesize a new image (initialized with uniform noise) that has the same
+    model output.
+
+    This is meant as a demonstration of the basic logic of synthesis.
 
     """
 
-    def __init__(self, model: torch.nn.Module, target_signal: torch.Tensor, max_iter:int=100, lr:float=.01):
-        self.model = model
-        self.max_iter = max_iter
-        self.lr = lr
+    def __init__(self, model: torch.nn.Module, target_signal: torch.Tensor):
+        super().__init__(model)
         self.target_signal = target_signal
-        self.synthesized_signal = torch.rand_like(
-            self.target_signal,
-            requires_grad=True
-        )
+        self.synthesized_signal = torch.rand_like(self.target_signal,
+                                                  requires_grad=True)
         self.target_model_response = self.model(self.target_signal)
-        self.loss = torch.nn.MSELoss()
-
-    def synthesize(self) -> torch.Tensor:
-
-        self.optimizer = torch.optim.SGD([self.synthesized_signal], lr=self.lr)
-
-        step = 0
+        self.optimizer = None
         self.losses = []
-        
-        pbar = tqdm(range(self.max_iter))
+
+    def synthesize(self, max_iter: int = 100,
+                   optimizer: Union[None, torch.optim.Optimizer] = None) -> torch.Tensor:
+        """Synthesize a simple metamer.
+
+        If called multiple times, will continue where we left off.
+
+        Parameters
+        ----------
+        max_iter :
+            Number of iterations to run synthesis for.
+        optimizer :
+            The optimizer to use. If None and this is the first time calling
+            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
+            been called before, we reuse the previous optimizer.
+
+        Returns
+        -------
+        synthesized_image :
+            The synthesized metamer
+
+        """
+        if optimizer is None:
+            if self.optimizer is None:
+                self.optimizer = torch.optim.Adam([self.synthesized_signal], lr=.01, amsgrad=True)
+        else:
+            self.optimizer = optimizer
+
+        pbar = tqdm(range(max_iter))
         for step in pbar:
 
             def closure():
                 self.optimizer.zero_grad()
                 synthesized_model_response = self.model(self.synthesized_signal)
-                loss = self.loss(self.target_model_response,synthesized_model_response)
+                # We want to make sure our synthesized signal ends up in the
+                # range [0, 1], so we penalize all values outside that range in
+                # the loss function. You could theoretically also just clamp
+                # synthesized_signal on each step of the iteration, but the
+                # penalty in the loss seems to work better in practice
+                loss = optim.mse_and_penalize_range(synthesized_model_response,
+                                                    self.target_model_response,
+                                                    self.synthesized_signal,
+                                                    beta=.1)
                 self.losses.append(loss.item())
                 loss.backward(retain_graph=True)
                 pbar.set_postfix(loss=loss.item())
                 return loss
 
             self.optimizer.step(closure)
-        
-
 
         return self.synthesized_signal
 
-
     def save(self, file_path):
         r"""Save all relevant (non-model) variables in .pt file.
-        
+
         Parameters
         ----------
         file_path : str
             The path to save the synthesis object to
-        attrs : list
-            List of strs containing the names of the attributes of this
-            object to save.
+
         """
-
-
-        attributes=['target_model_response','target_signal','synthesized_signal','losses','optimizer']
-        super().save(file_path,attributes=None)
-
+        super().save(file_path, attrs=None)
 
     def load(self, file_path, map_location=None):
         r"""Load all relevant attributes from a .pt file.
-        
+
         Note this operates in place and so doesn't return anything.
+
         Parameters
         ----------
         file_path : str
             The path to load the synthesis object from
-        Examples
-        --------
-        >>> 
         """
-        check_attributes = ['target_model_response','target_signal']
-        super().load(file_path,check_attributes=check_attributes,map_location=map_location)
-        
-    
+        check_attributes = ['target_model_response', 'target_signal']
+        super().load(file_path, check_attributes=check_attributes,
+                     map_location=map_location)
 
     def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
-        Similar to ``save``, this is an abstract method only because you
-        need to define the attributes to call to on.
-        
+        r"""Move and/or cast the parameters and buffers.
+
         This can be called as
         .. function:: to(device=None, dtype=None, non_blocking=False)
         .. function:: to(dtype, non_blocking=False)
@@ -121,8 +135,7 @@ class SimpleMetamer(Synthesis):
         Returns:
             Module: self
         """
-        
-        super().to(*args,attrs=['model','target_signal','target_model_response','synthesized_signal'],**kwargs)
-
-
+        attrs = ['model', 'target_signal', 'target_model_response',
+                 'synthesized_signal']
+        super().to(*args, attrs=attrs, **kwargs)
         return self

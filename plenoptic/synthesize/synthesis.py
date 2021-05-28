@@ -3,6 +3,7 @@
 import abc
 import warnings
 import torch
+import dill
 
 
 class Synthesis(metaclass=abc.ABCMeta):
@@ -30,21 +31,26 @@ class Synthesis(metaclass=abc.ABCMeta):
         pass
 
 
-    def save(self, file_path,
-             attrs=None):
+    def save(self, file_path, attrs=None):
         r"""Save all relevant (non-model) variables in .pt file.
-        
+
+        If you leave attrs as None, we grab vars(self) and exclude 'model'.
+        This is probably correct, but the option is provided to override it
+        just in case
+
         Parameters
         ----------
         file_path : str
             The path to save the synthesis object to
-        attrs : list
+        attrs : list or None, optional
             List of strs containing the names of the attributes of this
-            object to save.
+            object to save. See above for behavior if attrs is None.
+
         """
-        
         if attrs is None:
-            attrs = vars(self)
+            # this copies the attributes dict so we don't actually remove the
+            # model attribute in the next line
+            attrs = {k: v for k, v in vars(self).items()}
             attrs.pop('model')
 
         save_dict = {}
@@ -59,18 +65,16 @@ class Synthesis(metaclass=abc.ABCMeta):
             save_dict[k] = attr
         torch.save(save_dict, file_path, pickle_module=dill)
 
-
-    def load(self, file_path, map_location=None,
-             check_attributes=[],
+    def load(self, file_path, map_location=None, check_attributes=[],
              **pickle_load_args):
         r"""Load all relevant attributes from a .pt file.
+
         This should be called by an initialized ``Synthesis`` object -- we will
         ensure that the attributes in the ``check_attributes`` arg all match in
         the current and loaded object.
-        Note that we check a ``loss_function`` in a special way (because
-        comparing two python callables if very difficult): we compare the
-        outputs on some random images.
+
         Note this operates in place and so doesn't return anything.
+
         Parameters
         ----------
         file_path : str
@@ -91,6 +95,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
+
         Examples
         --------
         >>> metamer = po.synth.Metamer(img, model)
@@ -98,8 +103,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer(img, model)
         >>> metamer_copy.load('metamers.pt')
+
         Note that you must create a new instance of the Synthesis object and
         *then* load.
+
         """
         tmp_dict = torch.load(file_path, pickle_module=dill, **pickle_load_args)
         for k in check_attributes:
