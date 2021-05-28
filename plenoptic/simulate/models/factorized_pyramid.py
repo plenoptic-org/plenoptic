@@ -37,7 +37,8 @@ class Factorized_Pyramid(nn.Module):
     cross channel processing - thats next level
     """
     def __init__(self, image_size, n_ori=4, n_scale='auto',
-                 downsample_dict=True, is_complex=True):
+                 downsample_dict=True, is_complex=True,
+                 tight_frame=True):
         super().__init__()
 
         self.downsample_dict = downsample_dict
@@ -47,7 +48,8 @@ class Factorized_Pyramid(nn.Module):
                                      order=n_ori-1,
                                      height=n_scale,
                                      is_complex=is_complex,
-                                     downsample=downsample_dict)
+                                     downsample=downsample_dict,
+                                     tight_frame=tight_frame)
         self.n_ori = pyr.num_orientations
         self.n_scale = pyr.num_scales
 
