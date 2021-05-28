@@ -1,14 +1,14 @@
 # plenoptic
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE)
 ![Python version](https://img.shields.io/badge/python-3.6|3.7|3.8-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
-[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
+[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/main/STABILITY-BADGES.md#alpha)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
-[![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/master/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
+[![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
-[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)
+[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)
 
 In recent years, [adversarial
 examples](https://openai.com/blog/adversarial-example-research/) have
@@ -191,7 +191,7 @@ will install all the requirements necessary for plenoptic to run.
 
 If you wish to locally run the notebooks, you will need to install `jupyter` and
 `ipywidgets` (you can also run them in the cloud using
-[Binder](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/master?filepath=examples)).
+[Binder](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)).
 There are two main ways of getting a local `jupyter` install` working with this
 package:
 
@@ -236,7 +236,7 @@ your kernel the first time you open a notebook: select the one named
 Once you've downloaded and set up plenoptic for the first time, you can use `git
 pull` to keep it up-to-date. Navigate to the directory (if you downloaded
 plenoptic into your Documents folder above, that's `cd ~/Documents/plenoptic`)
-and run `git pull origin master`. git may yell at you if you've made local
+and run `git pull origin main`. git may yell at you if you've made local
 changes it can't figure out how to resolve. You'll have a merge conflict on your
 hands, see
 [here](https://www.atlassian.com/git/tutorials/using-branches/merge-conflicts)
