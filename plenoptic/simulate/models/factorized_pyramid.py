@@ -36,6 +36,7 @@ class Factorized_Pyramid(nn.Module):
 
     cross channel processing - thats next level
     """
+
     def __init__(self, image_size, n_ori=4, n_scale='auto',
                  downsample_dict=True, is_complex=True):
         super().__init__()
@@ -43,17 +44,15 @@ class Factorized_Pyramid(nn.Module):
         self.downsample_dict = downsample_dict
         self.is_complex = is_complex
 
-        pyr = Steerable_Pyramid_Freq(image_size,
-                                     order=n_ori-1,
-                                     height=n_scale,
-                                     is_complex=is_complex,
-                                     downsample=downsample_dict)
-        self.n_ori = pyr.num_orientations
-        self.n_scale = pyr.num_scales
+        self.pyr = Steerable_Pyramid_Freq(image_size,
+                                          order=n_ori-1,
+                                          height=n_scale,
+                                          is_complex=is_complex,
+                                          downsample=downsample_dict)
+        self.n_ori = self.pyr.num_orientations
+        self.n_scale = self.pyr.num_scales
 
         if downsample_dict:
-            self.pyramid_analysis  = lambda x: pyr.forward(x)
-            self.pyramid_synthesis = lambda y: pyr.recon_pyr(y)
             if is_complex:
                 self.decomposition = rectangular_to_polar_dict
                 self.recomposition = polar_to_rectangular_dict
@@ -61,16 +60,24 @@ class Factorized_Pyramid(nn.Module):
                 self.decomposition = local_gain_control_dict
                 self.recomposition = local_gain_release_dict
         else:
-            self.pyramid_analysis  = lambda x: pyr.convert_pyr_to_tensor(
-                                                           pyr.forward(x))
-            self.pyramid_synthesis = lambda y: pyr.recon_pyr(
-                                 pyr.convert_tensor_to_pyr(y))
             if is_complex:
                 self.decomposition = rectangular_to_polar
                 self.recomposition = polar_to_rectangular
             else:
                 self.decomposition = local_gain_control
                 self.recomposition = local_gain_release
+
+    def pyramid_analysis(self, x):
+        y = self.pyr.forward(x)
+        if not self.downsample_dict:
+            y = self.pyr.convert_pyr_to_tensor(y)
+        return y
+
+    def pyramid_synthesis(self, y):
+        if not self.downsample_dict:
+            y = self.pyr.convert_tensor_to_pyr(y)
+        x = self.pyr.recon_pyr(y)
+        return x
 
     def analysis(self, x):
         y = self.pyramid_analysis(x)
