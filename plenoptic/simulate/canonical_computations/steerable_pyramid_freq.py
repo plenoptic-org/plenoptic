@@ -347,7 +347,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                     
                     '''
                     anglemask = self._anglemasks[i][b]
-                    complex_const = np.power(np.complex(0, -1), self.order)
+                    complex_const = np.power(complex(0, -1), self.order)
                     banddft = complex_const * lodft * anglemask * himask
                     #fft output is then shifted to center frequencies
                     band = fft.ifftshift(banddft)
@@ -741,7 +741,7 @@ class Steerable_Pyramid_Freq(nn.Module):
                 banddft = fft.fft2(coeffs, dim=(-2,-1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
-                complex_const = np.power(np.complex(0, 1), self.order)
+                complex_const = np.power(complex(0, 1), self.order)
                 banddft = complex_const * banddft * anglemask * himask
                 orientdft = orientdft + banddft
 
