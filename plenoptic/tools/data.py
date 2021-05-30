@@ -10,7 +10,7 @@ import warnings
 from glob import glob
 
 
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
+DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/')
 
 NUMPY_TO_TORCH_TYPES = {
         np.bool       : torch.bool,
