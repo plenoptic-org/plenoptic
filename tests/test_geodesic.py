@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+import matplotlib.pyplot as plt
 import plenoptic as po
 import pytest
 import torch
+
 from conftest import DATA_DIR, DEVICE
 
 
@@ -45,7 +47,10 @@ class TestGeodesic(object):
 
         moog.plot_loss()
         moog.plot_deviation_from_line(video=sequence)
+        moog.plot_PC_projections(video=sequence)
         moog.calculate_jerkiness()
+        # plt.show()
+        plt.close()
 
     def test_conditional_geodesic(self, einstein_img_small):
         n_steps = 10
@@ -60,12 +65,13 @@ class TestGeodesic(object):
                                              init='bridge')
         moog_conditional.synthesize(max_iter=100, conditional=True,
                                     regularized=False, tol=None)
-
-        print("last losses ", moog_conditional.loss[-1])
+        # print("last losses ", moog_conditional.loss[-1])
 
         moog_conditional.plot_loss()
-        moog_conditional.plot_deviation_from_line(vid)
+        moog_conditional.plot_deviation_from_line(video=vid)
+        moog_conditional.plot_PC_projections(video=vid)
         moog_conditional.calculate_jerkiness()
+        plt.close()
 
     def test_regularized_geodesic(self, einstein_img_small):
         n_steps = 10
@@ -82,7 +88,9 @@ class TestGeodesic(object):
                                     regularized=True, tol=0)
 
         moog_regularized.plot_loss()
-        moog_regularized.plot_deviation_from_line(vid)
+        moog_regularized.plot_deviation_from_line(video=vid)
+        moog_regularized.plot_PC_projections(video=vid)
         moog_regularized.calculate_jerkiness()
+        plt.close()
 
     # def test_nested_geodesic(self):

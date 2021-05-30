@@ -267,7 +267,7 @@ class Geodesic(nn.Module):
             If True the loss will contain an additional regularization term
             which penalizes signal path energy, True by default
         mu: float, optional
-            Strength of the regularization, this hyperparameter should be 
+            Strength of the regularization, this hyperparameter should be
             carefully chosen, the default value is only an example
         lmbda: float, optional
             strength of the regularization term that penalizes the optimization
@@ -407,14 +407,14 @@ class Geodesic(nn.Module):
             ax1.set(yscale='log')
             ax1.set_ylabel(r'$E[f(\gamma)]$', color=color)
             ax1.plot(t, r_loss, color=color)
-            ax1.tick_params(axis='y')  #, labelcolor=color
+            ax1.tick_params(axis='y')  #labelcolor=color
 
             ax2 = ax1.twinx()
             color = 'C1'
             ax2.set(yscale='log')
             ax2.set_ylabel(r'$E[\gamma]$', color=color)
             ax2.plot(t, s_loss, color=color)
-            ax2.tick_params(axis='y')  # , labelcolor=color
+            ax2.tick_params(axis='y')  #labelcolor=color
         if show_switches and hasattr(self, 'outer_step_stamp'):
             for t in self.outer_step_stamp:
                 fig.axes[0].axvline(t, alpha=.1)
@@ -486,6 +486,66 @@ class Geodesic(nn.Module):
                title='deviation from the straight line')
         ax.legend(loc=1)
 
+        return fig
+
+    def plot_PC_projections(self, video=None):
+        """Two dimensional visual comparison of the geodesic and pixelfade sequences
+        both in signal space and in representation space
+
+        Parameters
+        ----------
+        video : torch.Tensor, optional
+            natural video that bridges the anchor points
+
+        Returns
+        -------
+        fig: matplotlib.figure.Figure
+        """
+        if not hasattr(self, 'geodesic'):
+            self._populate_geodesic()
+
+        g = self.geodesic.view(self.n_steps+1, -1)
+        p = self.pixelfade.view(self.n_steps+1, -1)
+        X = torch.cat([g, p], 0)
+        if video is not None:
+            v = video.view(self.n_steps+1, -1)
+            X = torch.cat([X, v], 0)
+
+        print("signal PR", torch.trace(X @ X.T) ** 2 / torch.norm(X @ X.T, p='fro') ** 2)
+        U, s, V = torch.svd(X)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
+
+        ax1.plot(V[:, 0] @ g.T, V[:, 1] @ g.T, 'r-o', label='geodesic')
+        ax1.plot(V[:, 0] @ p.T, V[:, 1] @ p.T, 'g-o', label='pixelfade')
+        if video is not None:
+            ax1.plot(V[:, 0] @ v.T, V[:, 1] @ v.T, 'b-o', label='video')
+
+        ax1.set(xlabel='PC1',
+                ylabel='PC2',
+                title="pixel space")
+
+        g = self.model(self.geodesic).view(self.n_steps+1, -1)
+        p = self.model(self.pixelfade).view(self.n_steps+1, -1)
+        X = torch.cat([g, p], 0)
+        if video is not None:
+            v = self.model(video).view(self.n_steps+1, -1)
+            X = torch.cat([X, v], 0)
+
+        print("representation PR", torch.trace(X @ X.T) ** 2 / torch.norm(X @ X.T, p='fro') ** 2)
+        U, s, V = torch.svd(X)
+
+        ax2.plot(V[:, 0] @ g.T, V[:, 1] @ g.T, 'r-o', label='geodesic')
+        ax2.plot(V[:, 0] @ p.T, V[:, 1] @ p.T, 'g-o', label='pixelfade')
+        if video is not None:
+            ax2.plot(V[:, 0] @ v.T, V[:, 1] @ v.T, 'b-o', label='video')
+
+        ax2.set(xlabel='PC1',
+                ylabel='PC2',
+                title="representation space")
+        ax2.legend(loc='best')
+
+        plt.tight_layout()
         return fig
 
     def _vector_jacobian_product(self, y, x, a):
