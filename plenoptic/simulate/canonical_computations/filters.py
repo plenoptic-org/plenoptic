@@ -53,11 +53,7 @@ def circular_gaussian2d(
         Filter kernel size. Recommended to be odd so that kernel is properly centered.
     std:
         Standard deviation of 2D circular Gaussian.
-<<<<<<< HEAD
     out_channels:
-=======
-    n_channels:
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
         Number of channels with same kernel repeated along channel dim.
 
     Returns

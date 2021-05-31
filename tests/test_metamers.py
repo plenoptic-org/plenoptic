@@ -116,11 +116,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     @pytest.mark.parametrize("clamp_each_iter", [True, False])
     def test_metamer_clamper(self, einstein_img, model, clamp_each_iter):
-<<<<<<< HEAD
-        clamper = po.RangeClamper((0, 1))
-=======
         clamper = po.tools.RangeClamper((0, 1))
->>>>>>> 0a69b565b406587624c65a2e2ed95b691a5ab6a7
 
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, clamper=clamper, clamp_each_iter=clamp_each_iter)
