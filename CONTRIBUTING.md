@@ -65,7 +65,7 @@ git push origin my_cool_branch # push to the origin remote
 
 Once you're happy with your changes, [add tests](#adding-tests) to check that
 they run correctly, then make sure the rest of the [tests](#testing) all run
-successfully, that your branch is up-to-date with master, and then open a pull
+successfully, that your branch is up-to-date with main, and then open a pull
 request (see [here](https://yangsu.github.io/pull-request-tutorial/) for a
 tutorial).
 
@@ -247,7 +247,7 @@ that means nothing to you, don't worry!
 
 Documentation comes in two types: `.rst` files (reST, the markup language used
 by Sphinx, see
-[here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
+[here](https://www.sphinx-doc.org/en/main/usage/restructuredtext/basics.html)
 for a primer), which contain only text (including math) and images, and `.ipynb`
 files (Jupyter notebooks), which also contain code.
 

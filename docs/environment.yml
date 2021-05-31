@@ -9,7 +9,7 @@ dependencies:
   - numpydoc
   - numpy
   - python
-  - pip==9.0.3
+  - pip
   - ipython
   - pip:
     - nbsphinx
