@@ -2,9 +2,9 @@ import plenoptic.synthesize.autodiff as autodiff
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate.models.frontend import FrontEnd
+from plenoptic.simulate import OnOff
 from plenoptic.synthesize.eigendistortion import Eigendistortion
-from conftest import get_model
+from conftest import get_model, DEVICE
 
 # to be used for default model instantiation
 SMALL_DIM = 20
@@ -13,25 +13,25 @@ LARGE_DIM = 100
 
 class TestEigendistortionSynthesis:
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_input_dimensionality(self, model):
         with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros(1, 1, 1), model)  # should be 4D
+            e = Eigendistortion(torch.zeros((1, 1, 1), device=DEVICE), model)  # should be 4D
 
         with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros(2, 1, 1, 1), model)  # batch dim must be 1
+            e = Eigendistortion(torch.zeros((2, 1, 1, 1), device=DEVICE), model)  # batch dim must be 1
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
         with pytest.raises(AssertionError) as e_info:
             ed.synthesize(method='asdfsdfasf')
 
-    @pytest.mark.parametrize('model', ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff', 'ColorModel'], indirect=True)
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             n_chans = 1
             img = einstein_img
         else:
@@ -50,9 +50,9 @@ class TestEigendistortionSynthesis:
         # test that each eigenvector returned is original img shape
         assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
-    @pytest.mark.parametrize('model', ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff', 'ColorModel'], indirect=True)
     def test_method_power(self, model, einstein_img, color_img):
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             n_chans = 1
             img = einstein_img
         else:
@@ -69,7 +69,7 @@ class TestEigendistortionSynthesis:
 
         assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_orthog_iter(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -81,7 +81,7 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
         assert len(ed.synthesized_eigenvalues) == 2*k
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_randomized_svd(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -92,7 +92,7 @@ class TestEigendistortionSynthesis:
         assert ed.synthesized_eigenindex.allclose(torch.arange(k))
         assert len(ed.synthesized_eigenvalues) == k
 
-    @pytest.mark.parametrize('model', ['FrontEnd'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
@@ -110,12 +110,12 @@ class TestEigendistortionSynthesis:
         assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
 
 
-    @pytest.mark.parametrize("model", ['FrontEnd', 'ColorModel'], indirect=True)
+    @pytest.mark.parametrize("model", ['frontend.OnOff', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
     @pytest.mark.parametrize("k", [2, 3])
     def test_display(self, model, einstein_img, color_img, method, k):
         # in this case, we're working with grayscale images
-        if model.__class__ == FrontEnd:
+        if model.__class__ == OnOff:
             img = einstein_img
         else:
             img = color_img
@@ -144,7 +144,7 @@ class TestAutodiffFunctions:
         einstein_img = einstein_img[..., :16, :16]  # reduce image size
 
         # eigendistortion object
-        ed = Eigendistortion(einstein_img, get_model('FrontEnd'))
+        ed = Eigendistortion(einstein_img, get_model('frontend.OnOff'))
 
         x, y = ed._input_flat, ed._representation_flat
 
@@ -164,7 +164,7 @@ class TestAutodiffFunctions:
     def test_vec_jac_prod(self, state, detach):
         x, y, x_dim, y_dim, k = state
 
-        U = torch.randn(y_dim, k)
+        U = torch.randn((y_dim, k), device=DEVICE)
         U = U / U.norm(dim=0, p=2)
 
         vjp = autodiff.vector_jacobian_product(y, x, U, detach=detach)
@@ -174,7 +174,7 @@ class TestAutodiffFunctions:
     def test_jac_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V = torch.randn(x_dim, k)
+        V = torch.randn((x_dim, k), device=DEVICE)
         V = V / V.norm(dim=0, p=2)
         jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
@@ -184,7 +184,7 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V = torch.randn(x_dim, k)
+        V = torch.randn((x_dim, k), device=DEVICE)
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
@@ -197,10 +197,11 @@ class TestAutodiffFunctions:
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
-        singular_value = torch.ones(1)*3.
+        singular_value = torch.ones(1, device=DEVICE) * 3.
 
         class LM(nn.Module):
             """Simple y = Mx where M=3"""
+
             def __init__(self):
                 super().__init__()
                 self.M = nn.Linear(1, 1, bias=False)
@@ -210,13 +211,13 @@ class TestAutodiffFunctions:
                 y = self.M(x)
                 return y
 
-        x0 = torch.randn((1, 1, 5, 1), requires_grad=True)
+        x0 = torch.randn((1, 1, 5, 1), requires_grad=True, device=DEVICE)
         x0 = x0 / x0.norm()
-        mdl = LM()
+        mdl = LM().to(DEVICE)
 
         k = 10
         x_dim = x0.numel()
-        V = torch.randn(x_dim, k)  # random directions
+        V = torch.randn((x_dim, k), device=DEVICE)  # random directions
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
@@ -225,4 +226,3 @@ class TestAutodiffFunctions:
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
-

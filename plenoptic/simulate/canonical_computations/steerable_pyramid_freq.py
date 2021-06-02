@@ -7,6 +7,7 @@ import torch
 import torch.fft as fft
 import torch.nn as nn
 
+complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
 
 class Steerable_Pyramid_Freq(nn.Module):
     r"""Steerable frequency pyramid in Torch
@@ -54,17 +55,11 @@ class Steerable_Pyramid_Freq(nn.Module):
     ----------
     image_shape : `list or tuple`
         shape of input image
-    pyr_type : `str` or `None`
-        Human-readable string specifying the type of pyramid. For base class, is None.
-    pyr_coeffs : `dict`
-        Dictionary containing the coefficients of the pyramid. Keys are `(level, band)` tuples and
-        values are 1d or 2d numpy arrays (same number of dimensions as the input image)
     pyr_size : `dict`
         Dictionary containing the sizes of the pyramid coefficients. Keys are `(level, band)`
         tuples and values are tuples.
-    fft_normalize : `bool`
-        Whether the fft's are normalized or not. It is automatically set to True when fft_norm is true
-        else it is set to False
+    fft_norm : `str`
+        The way the ffts are normalized, see pytorch documentation for more details.
     is_complex : `bool`
         Whether the coefficients are complex- or real-valued.
 
@@ -321,8 +316,10 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         # x is a torch tensor batch of images of size [N,C,W,H]
         assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
+        
         imdft = fft.fft2(x, dim=(-2,-1), norm = self.fft_norm)
         imdft = fft.fftshift(imdft)
+        
         if 'residual_highpass' in scales:
             # high-pass
             hi0dft = imdft * hi0mask
@@ -331,26 +328,41 @@ class Steerable_Pyramid_Freq(nn.Module):
             pyr_coeffs['residual_highpass'] = hi0.real
             self.pyr_size['residual_highpass'] = tuple(hi0.real.shape[-2:])
 
-
+        #input to the next scale is the low-pass filtered component
         lodft = imdft * lo0mask
 
         for i in range(self.num_scales):
 
             if i in scales:
-
+                #high-pass mask is selected based on the current scale
                 himask = self._himasks[i]
+                #compute filter output at each orientation
                 for b in range(self.num_orientations):
+                    '''
+                    band pass filtering is done in the fourier space as multiplying by the fft of a gaussian derivative.
+                    The oriented dft is computed as a product of the fft of the low-passed component,
+                    the precomputed anglemask (specifies orientation), and the precomputed hipass mask (creating a bandpass filter)
+                    the complex_const variable comes from the Fourier transform of a gaussian derivative.
+                    Based on the order of the gaussian, this constant changes.
+                    
+                    '''
                     anglemask = self._anglemasks[i][b]
-
-                    # bandpass filtering
-                    complex_const = np.power(np.complex(0, -1), self.order)
+                    complex_const = np.power(complex(0, -1), self.order)
                     banddft = complex_const * lodft * anglemask * himask
+                    #fft output is then shifted to center frequencies
                     band = fft.ifftshift(banddft)
+                    #ifft is applied to recover the filtered representation in spatial domain
                     band = fft.ifft2(band, dim=(-2,-1), norm=self.fft_norm)
                     
+                    #for real pyramid, take the real component of the complex band
                     if not self.is_complex:
                         pyr_coeffs[(i, b)] = band.real
                     else:
+                        '''
+                        Because the input signal is real, to maintain a tight frame 
+                        if the complex pyramid is used, magnitudes need to be divided by sqrt(2) 
+                        because energy is doubled.
+                        '''
                         if self.tight_frame:
                             band = band/np.sqrt(2)
                         pyr_coeffs[(i, b)] = band
@@ -361,6 +373,13 @@ class Steerable_Pyramid_Freq(nn.Module):
                 # just use lo0mask
                 lomask = self._lomasks[i]
                 lodft = lodft * lomask
+                '''
+                because we don't subsample here, if we are not using orthonormalization that
+                we need to manually account for the subsampling, so that energy in each band remains the same
+                the energy is cut by factor of 4 so we need to scale magnitudes by factor of 2
+                '''
+                if self.fft_norm != "ortho":
+                    lodft = 2*lodft
             else:
                 # subsample indices
                 lostart, loend = self._loindices[i]
@@ -368,11 +387,11 @@ class Steerable_Pyramid_Freq(nn.Module):
                 log_rad = log_rad[lostart[0]:loend[0], lostart[1]:loend[1]]
                 angle = angle[lostart[0]:loend[0], lostart[1]:loend[1]]
 
-                # subsampling
+                # subsampling of the dft for next scale
                 lodft = lodft[:, :, lostart[0]:loend[0], lostart[1]:loend[1]]
-                # filtering
+                # low-pass filter mask is selected
                 lomask = self._lomasks[i]
-                # convolution in spatial domain
+                # again multiply dft by subsampled mask (convolution in spatial domain)
 
                 lodft = lodft * lomask
 
@@ -417,12 +436,11 @@ class Steerable_Pyramid_Freq(nn.Module):
         if len(coeff_list) > 0:
             coeff_bands = torch.cat(coeff_list, dim=1)
             if split_complex:
-                complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
                 if coeff_bands.dtype in complex_types:
                     coeff_bands = torch.cat([coeff_bands.real, coeff_bands.imag], dim=1)
                 else:
                     raise TypeError("split_complex is True, but input pyr_coeffs are not complex tensors")
-                    
+
             batch_size = coeff_bands.shape[0]
             imshape = [coeff_bands.shape[2], coeff_bands.shape[3]]
             if len(coeff_list_resid) == 1:
@@ -459,9 +477,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         for k in key_list:
             pyr_tens = pyr_tensor[:,i,...].unsqueeze(1)
             if 'residual' in k:
-                pyr_tens = pyr_tens.to(torch.float32)
-            else:
-                pyr_tens = pyr_tens.to(torch.complex64)
+                pyr_tens = pyr_tens.type(torch.float)
             pyr_coeffs[k] = pyr_tens
             i += 1
 
@@ -599,6 +615,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Parameters
         ----------
+        pyr_coeffs : `OrderedDict`
+            pyramid coefficients to reconstruct from
         levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`}
             If `list` should contain some subset of integers from `0` to `self.num_scales-1`
             (inclusive) and `'residual_lowpass'`. If `'all'`, returned value will contain all
@@ -716,14 +734,14 @@ class Steerable_Pyramid_Freq(nn.Module):
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
                 anglemask = self._anglemasks_recon[scale][b]
+                coeffs = pyr_coeffs[(scale,b)]
                 if self.tight_frame and self.is_complex:
-                    coeffs = pyr_coeffs[(scale,b)]*np.sqrt(2)
-                else:
-                    coeffs = pyr_coeffs[(scale,b)]                
+                    coeffs = coeffs*np.sqrt(2)
+
                 banddft = fft.fft2(coeffs, dim=(-2,-1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
-                complex_const = np.power(np.complex(0, 1), self.order)
+                complex_const = np.power(complex(0, 1), self.order)
                 banddft = complex_const * banddft * anglemask * himask
                 orientdft = orientdft + banddft
 
@@ -731,10 +749,12 @@ class Steerable_Pyramid_Freq(nn.Module):
         lostart, loend = self._loindices[scale]
 
         # create lowpass mask
-
         lomask = self._lomasks[scale]
         # Recursively reconstruct by going to the next scale
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale+1)
+        #in not downsampled case, rescale the magnitudes of the reconstructed dft at each level by factor of 2 to account for the scaling in the forward 
+        if (not self.tight_frame) and (not self.downsample):
+            reslevdft = reslevdft/2
         # create output for reconstruction result
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=torch.complex64)
 
@@ -754,6 +774,8 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         Parameters
         ----------
+        pyr_coeffs : `OrderedDict`
+            the pyramid coefficients to steer 
         angles : `list`
             list of angles (in radians) to steer the pyramid coefficients to
         even_phase : `bool`
@@ -771,7 +793,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             keys as `resteered_coeffs`.
 
         """
-
+        assert  pyr_coeffs[(0,0)].dtype not in complex_types, "steering only implemented for real coefficients"
         resteered_coeffs = {}
         resteering_weights = {}
         for i in range(self.num_scales):
