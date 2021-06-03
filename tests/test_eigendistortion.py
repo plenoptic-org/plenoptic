@@ -101,18 +101,18 @@ class TestEigendistortionSynthesis:
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
-        einstein_img = einstein_img[..., 100:100+SMALL_DIM, 100:100+SMALL_DIM]
+        einstein_img = einstein_img[..., 125:125+25, 125:125+25]
         e_jac = Eigendistortion(einstein_img, model)
         e_pow = Eigendistortion(einstein_img, model)
         e_svd = Eigendistortion(einstein_img, model)
 
-        k_pow, k_svd = 2, 75
+        k_pow, k_svd = 1, 75
         e_jac.synthesize(method='exact')
-        e_pow.synthesize(k=k_pow, method='power', max_steps=2000)
+        e_pow.synthesize(k=k_pow, method='power', max_steps=2500, seed=0)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        print(e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[-1])
-        print(e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
+        print("synthesized first and last: ", e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[-1])
+        print("exact first and last: ", e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
 
         assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
         assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
