@@ -2,10 +2,6 @@ FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-      cmake \
-      gfortran \
-      git \
-      intel-mkl \
       python3-numpy \
       python3-pip \
       python3-pytest \
@@ -18,18 +14,5 @@ RUN apt-get update && \
     apt-get autoclean -y && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/*
 
-ADD http://icl.utk.edu/projectsfiles/magma/downloads/magma-2.5.4.tar.gz /tmp/
-RUN cd /tmp && \
-    tar xzf magma-*.tar.gz && \
-    rm magma-*.tar.gz && \
-    mkdir magma && cd magma && \
-    CFLAGS=-I/usr/include/mkl CXXFLAGS=-I/usr/include/mkl cmake ../magma-* -DMKLROOT=/usr -DGPU_TARGET=sm_35 && \
-    make -j4 && make install && \
-    git clone --recursive --depth 1 -b v1.7.1 https://github.com/pytorch/pytorch /tmp/pytorch && \
-    cd /tmp/pytorch && \
-    CMAKE_INCLUDE_PATH=/usr/include/mkl TORCH_CUDA_ARCH_LIST="3.5" python3 setup.py install && \
-    cd /tmp && \
-    rm -rf magma pytorch
-
 COPY requirements.txt /tmp/
-RUN pip3 install --no-binary=torch -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
