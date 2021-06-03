@@ -3,7 +3,9 @@ import pytest
 import plenoptic as po
 import os.path as op
 import torch
+from torchvision.transforms.functional import center_crop
 
+import plenoptic.simulate.canonical_computations.filters as filters
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
@@ -22,13 +24,16 @@ class ColorModel(torch.nn.Module):
 
 @pytest.fixture(scope='package')
 def curie_img():
-    return po.load_images(op.join(DATA_DIR, 'curie.pgm')).to(DEVICE)
+    return po.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
 
 
 @pytest.fixture(scope='package')
 def einstein_img():
-    return po.load_images(op.join(DATA_DIR, 'einstein.pgm')).to(DEVICE)
+    return po.load_images(op.join(DATA_DIR, '256/einstein.pgm')).to(DEVICE)
 
+@pytest.fixture(scope='package')
+def einstein_img_small(einstein_img):
+    return center_crop(einstein_img, [64]).to(DEVICE)
 
 @pytest.fixture(scope='package')
 def color_img():
@@ -39,19 +44,15 @@ def color_img():
 
 @pytest.fixture(scope='package')
 def basic_stim():
-    return po.make_basic_stimuli().to(DEVICE)
+    return po.tools.make_synthetic_stimuli().to(DEVICE)
 
 
 def get_model(name):
-    if name == 'LNL':
-        return po.simul.Linear_Nonlinear().to(DEVICE)
-    elif name == 'SPyr':
+    if name == 'SPyr':
         # with downsample=False, we get a tensor back. setting height=1 and
         # order=1 limits the size
         return po.simul.Steerable_Pyramid_Freq((256, 256), downsample=False,
                                                height=1, order=1).to(DEVICE)
-    elif name == 'Identity':
-        return po.simul.models.naive.Identity().to(DEVICE)
     elif name == 'NLP':
         return po.metric.NLP().to(DEVICE)
     elif name == 'nlpd':
@@ -60,8 +61,26 @@ def get_model(name):
         return po.metric.naive.mse
     elif name == 'ColorModel':
         return ColorModel().to(DEVICE)
-    elif name == 'FrontEnd':
-        return po.simul.FrontEnd(pretrained=True, requires_grad=False).to(DEVICE)
+
+    # naive models
+    elif name in ['Identity', "naive.Identity"]:
+        return po.simul.Identity().to(DEVICE)
+    elif name == 'naive.CenterSurround':
+        return po.simul.CenterSurround((31, 31)).to(DEVICE)
+    elif name == 'naive.Gaussian':
+        return po.simul.Gaussian((31, 31)).to(DEVICE)
+    elif name == 'naive.Linear':
+        return po.simul.Linear((31, 31)).to(DEVICE)
+
+    # FrontEnd models:
+    elif name == 'frontend.LinearNonlinear':
+        return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+    elif name == 'frontend.LuminanceGainControl':
+        return po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+    elif name == 'frontend.LuminanceContrastGainControl':
+        return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+    elif name == 'frontend.OnOff':
+        return po.simul.OnOff((31, 31), pretrained=True).to(DEVICE)
 
 
 @pytest.fixture(scope='package')
