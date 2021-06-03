@@ -260,11 +260,9 @@ class CenterSurround(nn.Module):
 
     def _clamp_surround_std(self):
         """Clamps surround standard deviation to ratio_limit times center_std"""
-        # TODO
-        return
         lower_bound = self.width_ratio_limit * self.center_std
         for i, lb in enumerate(lower_bound):
-            self.surround_std[i] = self.surround_std[i].clamp(min=float(lb))
+            self.surround_std[i].data = self.surround_std[i].data.clamp(min=float(lb))
 
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

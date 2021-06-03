@@ -409,6 +409,7 @@ class OnOff(nn.Module):
            cache_filt=cache_filt,
         )
 
+        # init scalar values around fitted parameters found in Berardino et al 2017
         self.luminance_scalar = nn.Parameter(torch.rand(2) * 10)
         self.contrast_scalar = nn.Parameter(torch.rand(2) * 10)
 
