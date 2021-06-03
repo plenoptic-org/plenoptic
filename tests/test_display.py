@@ -384,7 +384,7 @@ class TestDisplay(object):
             n_axes *= 2
         if show_residuals:
             n_axes += 2
-        img = po.load_images(op.join(DATA_DIR, 'curie.pgm'))
+        img = po.load_images(op.join(DATA_DIR, '256/curie.pgm'))
         img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
         if not fails:
