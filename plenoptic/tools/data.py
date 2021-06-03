@@ -10,7 +10,7 @@ import warnings
 from glob import glob
 
 
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data')
+DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 NUMPY_TO_TORCH_TYPES = {
         np.bool       : torch.bool,
@@ -28,20 +28,26 @@ NUMPY_TO_TORCH_TYPES = {
 
 TORCH_TO_NUMPY_TYPES = {value : key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
-def to_numpy(x):
+def to_numpy(x, squeeze=False):
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
     ----------------
     x: `torch.Tensor`
        Tensor to be converted to `numpy.ndarray` on CPU.
+
+    squeeze: bool, optional
+        removes all dummy dimensions of the tensor
     """
 
     try:
+        
         x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
     except AttributeError:
         # in this case, it's already a numpy array
         pass
+    if squeeze:
+        x = x.squeeze()
     return x
 
 
@@ -83,31 +89,39 @@ def load_images(paths, as_gray=True):
         elif op.isdir(paths):
             paths = glob(op.join(paths, '*'))
         else:
-            raise Exception("paths must either a single file, a list of files, or a single "
-                            "directory, unsure what to do with %s!" % paths)
+            raise Exception("paths must either a single file, a list of "
+                            "files, or a single directory, unsure what "
+                            "to do with %s!" % paths)
     images = []
     for p in paths:
         try:
             im = imageio.imread(p)
         except ValueError:
-            warnings.warn("Unable to load in file %s, it's probably not an image, skipping..." % p)
+            warnings.warn("Unable to load in file %s, it's probably not "
+                          "an image, skipping..." % p)
             continue
         # make it a float32 array with values between 0 and 1
         im = im / np.iinfo(im.dtype).max
-        if as_gray:
-            im = color.rgb2gray(im)
-        else:
-            # RGB dimension ends up on the last one, so we rearrange
-            im = np.moveaxis(im, -1, 0)
+        if im.ndim > 2:
+            if as_gray:
+                # From scikit-image 0.19 on, it will treat 2d signals as 1d
+                # images with 3 channels, so only call rgb2gray when it's more
+                # than 2d
+                im = color.rgb2gray(im)
+            else:
+                # RGB dimension ends up on the last one, so we rearrange
+                im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)
     except ValueError:
-        raise Exception("Concatenating the images into a tensor raised a ValueError! This probably"
+        raise Exception("Concatenating the images into a tensor raised"
+                        " a ValueError! This probably"
                         " means that not all images are the same size.")
     if as_gray:
         if images.ndimension() != 3:
-            raise Exception("For loading in images as grayscale, this should be a 3d tensor!")
+            raise Exception("For loading in images as grayscale, this "
+                            "should be a 3d tensor!")
         images = images.unsqueeze(1)
     else:
         if images.ndimension() == 3:
@@ -119,7 +133,8 @@ def load_images(paths, as_gray=True):
                 # then multiple grayscales ones, so add channel dimension
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
-        raise Exception("Somehow ended up with other than 4 dimensions! Not sure how we got here")
+        raise Exception("Somehow ended up with other than 4 dimensions! "
+                        "Not sure how we got here")
     return images
 
 
@@ -149,44 +164,70 @@ def convert_float_to_int(im, dtype=np.uint8):
 
     """
     if im.max() > 1:
-        raise Exception(f"all values of im must lie between 0 and 1, but max is {im.max()}")
+        raise Exception("all values of im must lie between 0 and 1, "
+                        f"but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
 
-def make_basic_stimuli(size=256, requires_grad=True):
+def torch_complex_to_numpy(x):
+    r""" convert a torch complex tensor (written as two stacked real
+     and imaginary tensors) to a numpy complex array
+
+    Parameters
+    ----------------------
+    x: `torch.Tensor`
+        Tensor whose last dimension is size 2 where first component is the
+        real component and the second is the imaginary component.
+    """
+
+    x_np = to_numpy(x)
+    if x.ndim not in [5, 6]:
+        raise Exception(f"x has {x.ndim} dimensions, but a complex tensor "
+                        "should have 5 (real and imaginary stacked along "
+                        "the final dim) or 6 if it's a video!")
+    x_np = x_np[..., 0] + 1j * x_np[..., 1]
+    return x_np
+
+
+def make_synthetic_stimuli(size=256, requires_grad=True):
     r""" Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
     ----------
-    size: `int` in [8, 16, 32, 64, 128, 256]
+    size: `int`
         the stimuli will have `torch.Size([size, size])`
     requires_grad: `bool`
         weather to initialize the simuli with gradients
 
     Returns
     -------
-    stimuli: `torch.FloatTensor` of shape [15, 1, size, size]
+    stimuli: `torch.FloatTensor` of shape [11, 1, size, size]
         the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
-                sine_grating, square_grating, polar_angle, angular_sine, zone_plate,
-                fract, checkerboard, sawtooth, reptil_skin, image]
+                sine_grating, square_grating, polar_angle, angular_sine,
+                zone_plate, fractal]
     """
 
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
-    step_edge = synthetic_images.square_wave(size=size, period=size + 1, direction=0, amplitude=1, phase=0)
+    step_edge = synthetic_images.square_wave(size=size, period=size + 1,
+                                             direction=0, amplitude=1, phase=0)
 
     ramp = synthetic_images.ramp(size=size, direction=np.pi / 2, slope=1)
 
     bar = np.zeros((size, size))
-    bar[size // 2 - size//10:size // 2 + size//10, size // 2 - 1:size // 2 + 1] = 1
+    bar[size // 2 - size//10:size // 2 + size//10,
+        size // 2 - 1:size // 2 + 1] = 1
 
-    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
+    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2,
+                                      origin=(size, size))
 
-    sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(size, covariance=size)
+    sine_grating = (synthetic_images.sine(size) * 
+        synthetic_images.gaussian(size, covariance=size))
 
-    square_grating = synthetic_images.square_wave(size, frequency=(.5, .5), phase=2 * np.pi / 3.)
+    square_grating = synthetic_images.square_wave(size, frequency=(.5, .5),
+                                                  phase=2 * np.pi / 3.)
     square_grating *= synthetic_images.gaussian(size, covariance=size)
 
     polar_angle = synthetic_images.polar_angle(size)
@@ -197,31 +238,15 @@ def make_basic_stimuli(size=256, requires_grad=True):
 
     fract = synthetic_images.pink_noise(size, fract_dim=.8)
 
-    checkerboard = plt.imread(op.join(DATA_PATH, 'checkerboard.pgm')).astype(float)
-    # adjusting form 256 to desired size
-    l = int(np.log2(checkerboard.shape[0] // size))
-    checkerboard = blurDn(checkerboard, l, 'qmf9')
-
-    sawtooth = plt.imread(op.join(DATA_PATH, 'sawtooth.pgm')).astype(float)
-    sawtooth = blurDn(sawtooth, l, 'qmf9')
-
-    reptil_skin = plt.imread(op.join(DATA_PATH, 'reptil_skin.pgm')).astype(float)
-    reptil_skin = blurDn(reptil_skin, l, 'qmf9')
-
-    image = plt.imread(op.join(DATA_PATH, 'einstein.png')).astype(float)[:,:,0]
-    image = blurDn(image, l, 'qmf9')
-
-    # image = plt.imread('/Users/pe/Pictures/umbrella.jpg').astype(float)
-    # image = image[500:500+2**11,1000:1000+2**11,0]
-    # image = pt.blurDn(image, 4, 'qmf9')
-
     stim = [impulse, step_edge, ramp, bar, curv_edge,
-            sine_grating, square_grating, polar_angle, angular_sine, zone_plate,
-            fract, checkerboard, sawtooth, reptil_skin, image]
+            sine_grating, square_grating, polar_angle, angular_sine,
+            zone_plate, fract]
     stim = [rescale(s) for s in stim]
 
     stimuli = torch.cat(
-        [torch.tensor(s, dtype=torch.float32, requires_grad=requires_grad).unsqueeze(0).unsqueeze(0) for s in stim],
+        [torch.tensor(s, dtype=torch.float32,
+                      requires_grad=requires_grad).unsqueeze(0).unsqueeze(0)
+         for s in stim],
         dim=0)
 
     return stimuli
@@ -365,4 +390,4 @@ def _find_min_int(vals):
 
 
 if __name__ == '__main__':
-    make_basic_stimuli()
+    make_synthetic_stimuli()

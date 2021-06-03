@@ -76,7 +76,7 @@ class TestSteerablePyramid(object):
                                            for shape in [None, 224, '128_1', '128_2']])
     def img(self, request):
         im, shape = request.param.split('-')
-        img = po.load_images(op.join(DATA_DIR, f'{im}.pgm')).to(DEVICE)
+        img = po.load_images(op.join(DATA_DIR, f'256/{im}.pgm')).to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
