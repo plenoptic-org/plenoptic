@@ -2,6 +2,7 @@ from typing import Union, Tuple
 
 import torch
 from torch import Tensor
+from warnings import warn
 
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
@@ -42,7 +43,7 @@ def gaussian1d(kernel_size: int = 11, std: Union[float, Tensor] = 1.5) -> Tensor
 def circular_gaussian2d(
     kernel_size: Union[int, Tuple[int, int]],
     std: Union[float, Tensor],
-    n_channels: int = 1,
+    out_channels: int = 1,
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
 
@@ -52,7 +53,7 @@ def circular_gaussian2d(
         Filter kernel size. Recommended to be odd so that kernel is properly centered.
     std:
         Standard deviation of 2D circular Gaussian.
-    n_channels:
+    out_channels:
         Number of channels with same kernel repeated along channel dim.
 
     Returns
@@ -61,27 +62,29 @@ def circular_gaussian2d(
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
         `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
     """
-    assert std > 0.0, "stdev must be positive"
-    if isinstance(std, float):
-        std = torch.tensor(std)
-
-    device = std.device
-
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
+    if isinstance(std, float) or std.shape == torch.Size([]):
+        std = torch.ones(out_channels) * std
 
+    assert out_channels >= 1, "number of filters must be positive integer"
+    assert torch.all(std > 0.0), "stdev must be positive"
+    assert len(std) == out_channels, "Number of stds must equal out_channels"
+
+    device = std.device
     origin = torch.tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 
-    shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]
-    shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]
+    shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]  # height
+    shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]  # width
 
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 
-    log_filt = ((xramp ** 2) + (yramp ** 2)) / (-2.0 * std ** 2)
+    log_filt = ((xramp ** 2) + (yramp ** 2))
+    log_filt = log_filt.repeat(out_channels, 1, 1, 1)  # 4D
+    log_filt = log_filt / (-2. * std ** 2).view(out_channels, 1, 1, 1)
 
     filt = torch.exp(log_filt)
-    filt = filt / filt.sum()  # normalize
-    filt = torch.stack([filt] * n_channels, dim=0).unsqueeze(1)
+    filt = filt / torch.sum(filt, dim=[1, 2, 3], keepdim=True)  # normalize
 
     return filt
