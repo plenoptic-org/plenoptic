@@ -1,3 +1,4 @@
+from math import pi
 from typing import Tuple, Union
 
 import numpy as np
@@ -23,7 +24,6 @@ def minimum(x, dim=None, keepdim=False):
     -------
     min_x : torch.Tensor
         Minimum value of x.
-
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -50,7 +50,6 @@ def maximum(x, dim=None, keepdim=False):
     -------
     max_x : torch.Tensor
         Maximum value of x.
-
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -72,12 +71,8 @@ def rescale(x, a=0, b=1):
 
 
 def interpolate1d(x_new, Y, X):
-    r""" One-dimensional linear interpolation.
-
-    Returns the one-dimensional piecewise linear interpolant to a
+    r"""One-dimensional piecewise linear interpolation to a
     function with given discrete data points (X, Y), evaluated at x_new.
-
-    Note: this function is just a wrapper around ``np.interp()``.
 
     Parameters
     ----------
@@ -91,8 +86,11 @@ def interpolate1d(x_new, Y, X):
     Returns
     -------
     Interpolated values of shape identical to `x_new`.
-    """
 
+    Notes
+    -----
+    This function is a wrapper around ``np.interp()``.
+    """
     out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
 
     return np.reshape(out, x_new.shape)
@@ -124,10 +122,9 @@ def raised_cosine(width=1, position=0, values=(0, 1)):
     Y : `np.ndarray`
         the y values of this raised cosine
     """
-
     sz = 256   # arbitrary!
 
-    X = np.pi * np.arange(-sz-1, 2) / (2*sz)
+    X = pi * np.arange(-sz-1, 2) / (2*sz)
 
     Y = values[0] + (values[1]-values[0]) * np.cos(X) ** 2
 
@@ -135,7 +132,7 @@ def raised_cosine(width=1, position=0, values=(0, 1)):
     Y[0] = Y[1]
     Y[sz+2] = Y[sz+1]
 
-    X = position + (2*width/np.pi) * (X + np.pi / 4)
+    X = position + (2*width/pi) * (X + pi / 4)
 
     return X, Y
 
@@ -147,6 +144,7 @@ def rectangular_to_polar(x):
     --------
     x: torch.Tensor
         complex tensor
+
     Returns
     -------
     amplitude: torch.Tensor
@@ -184,27 +182,25 @@ def make_disk(img_size: Union[int, Tuple[int, int]],
               outer_radius: float = None,
               inner_radius: float = None) -> torch.Tensor:
     r""" Create a circular mask with softened edges to  an image.
-    All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
-    to ``outer_radius`` will decay smoothly to 0.
+    All values within ``inner_radius`` will be 1, and all values from
+    ``inner_radius`` to ``outer_radius`` will decay smoothly to 0.
 
     Parameters
     ----------
     img_size:
         Size of image in pixels.
     outer_radius:
-        Total radius of disk. Values from ``inner_radius`` to ``outer_radius`` will
-        decay smoothly to zero.
+        Total radius of disk. Values from ``inner_radius`` to ``outer_radius``
+        will decay smoothly to zero.
     inner_radius:
-        Radius of inner disk. All elements from the origin to ``inner_radius`` will be
-        set to 1.
+        Radius of inner disk. All elements from the origin to ``inner_radius``
+        will be set to 1.
 
     Returns
     -------
     mask:
         Tensor mask with torch.Size(img_size).
-
     """
-
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
     assert len(img_size) == 2
@@ -229,7 +225,7 @@ def make_disk(img_size: Union[int, Tuple[int, int]],
                 mask[i][j] = 1
             else:
                 radial_decay = (r - inner_radius) / (outer_radius - inner_radius)
-                mask[i][j] = (1 + np.cos(np.pi * radial_decay)) / 2
+                mask[i][j] = (1 + np.cos(pi * radial_decay)) / 2
 
     return mask
 
@@ -258,11 +254,12 @@ def add_noise(img, noise_mse):
     TODO
     ----
     parametrize in terms of SNR
-
     """
-    noise_mse = torch.tensor(noise_mse, dtype=torch.float32, device=img.device).unsqueeze(0)
+    noise_mse = torch.tensor(noise_mse, dtype=torch.float32,
+                             device=img.device).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
-    noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:], device=img.device)
+    noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]),
+                              *img.shape[1:], device=img.device)
     noise = noise - noise.mean()
     noise = noise * \
         torch.sqrt(noise_mse / (noise**2).mean((-1, -2)
@@ -297,19 +294,7 @@ def add_noise(img, noise_mse):
 
 def autocorr(x, n_shifts=7):
     """Compute the autocorrelation of `x` up to `n_shifts` shifts,
-    the calculation is performed in frequency space.
-
-    Notes:
-    - By the Einstein-Wiener-Khinchin theorem:
-    The autocorrelation of a WSS process is the inverse Fourier transform
-    of its energy spectrum (ESD) - which itself is the multiplication between
-    FT(x(t)) and FT(x(-t))
-    aka. auto-corr is convolution with self, which is squaring in Fourier space
-    This approach is computationally more efficient than brute force
-    (n log(n) vs n^2).
-    - By Cauchy-Swartz, the autocorrelation attains it is maximum
-    at the center location - that maximum value is the signal's variance
-    (assuming that the input signal is mean centered).
+    the calculation is performed in the frequency domain.
 
     Parameters
     ---------
@@ -324,28 +309,42 @@ def autocorr(x, n_shifts=7):
     autocorr: torch.tensor
         computed autocorrelation
 
+    Notes
+    -----
+    - By the Einstein-Wiener-Khinchin theorem:
+    The autocorrelation of a wide sense stationary (WSS) process is the
+    inverse Fourier transform of its energy spectrum (ESD) - which itself
+    is the multiplication between FT(x(t)) and FT(x(-t)).
+    In other words, the auto-correlation is convolution of the signal `x` with
+    itself, which corresponds to squaring in the frequency domain.
+    This approach is computationally more efficient than brute force
+    (n log(n) vs n^2).
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
+    location (ie. no shift) - that maximum value is the signal's variance
+    (assuming that the input signal is mean centered).
+
     TODO
     ----
-    FIX N_SHIFTS ODD OF BY ONE ERROR
-    use torch.fft.rfft2
-    signal_ndim argument, rfftn
+    signal_ndim argument, rfftn, n_shift list
     ESD PSD
     periodogram
     """
-    n_batch, n_ch, h, w = x.shape
+    N, C, H, W = x.shape
+    assert n_shifts >= 1
 
     spectrum = fft.rfft2(x, dim=(-2, -1), norm=None)
+
     energy_spectrum = torch.abs(spectrum) ** 2
     zero_phase = torch.zeros_like(energy_spectrum)
     energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
 
     autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None,
-                          s=(h, w))
-    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (h*w)
+                          s=(H, W))
+    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H*W)
 
     if n_shifts is not None:
-        autocorr = center_crop(autocorr, output_size=(n_shifts, n_shifts))
-
+        autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
+                                  (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
     return autocorr
 
 
@@ -411,7 +410,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
     # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
     if steermtx is None:
         steermtx = steer_to_harmonics_mtx(
-            harmonics, np.pi * np.arange(num) / num, even_phase=even_phase)
+            harmonics, pi * np.arange(num) / num, even_phase=even_phase)
 
     steervect = np.zeros((angle.shape[0], num))
     arg = angle * harmonics[np.nonzero(harmonics)[0]].T
