@@ -169,7 +169,7 @@ def convert_float_to_int(im, dtype=np.uint8):
 
 
 
-def make_basic_stimuli(size=256, requires_grad=True):
+def make_synthetic_stimuli(size=256, requires_grad=True):
     r""" Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
