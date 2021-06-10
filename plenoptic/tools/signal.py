@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.fft as fft
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
-from torchvision.transforms.functional import center_crop
 
 
 def minimum(x, dim=None, keepdim=False):
@@ -267,31 +266,6 @@ def add_noise(img, noise_mse):
     return img + noise
 
 
-# def fftshift(x, dims=None):
-#     r"""Shift the zero-frequency component to the center of the spectrum.
-
-#     Parameters
-#     ---------
-#     x: torch.Tensor
-#         spectrum
-
-#     dims: tuple, optional
-#         dimensions along which to shift the spectrum.
-#         by default it will shift all but the first dimension (batch dimension).
-
-#     Returns
-#     -------
-#     x: torch.Tensor
-#         shifted spectrum
-
-#     TODO: DEPRECATED use torch.fft.fftshift
-#     """
-#     if dims is None:
-#         dims = tuple(range(1, x.ndim))
-#     shifts = [(x.shape[d] + 1)//2 for d in dims]
-#     return torch.roll(x, shifts=shifts, dims=dims)
-
-
 def autocorr(x, n_shifts=7):
     """Compute the autocorrelation of `x` up to `n_shifts` shifts,
     the calculation is performed in the frequency domain.
@@ -322,12 +296,6 @@ def autocorr(x, n_shifts=7):
     - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
     location (ie. no shift) - that maximum value is the signal's variance
     (assuming that the input signal is mean centered).
-
-    TODO
-    ----
-    signal_ndim argument, rfftn, n_shift list
-    ESD PSD
-    periodogram
     """
     N, C, H, W = x.shape
     assert n_shifts >= 1
