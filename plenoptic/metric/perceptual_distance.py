@@ -67,7 +67,7 @@ def _ssim_parts(img1, img2, dynamic_range):
 
     real_size = min(11, height, width)
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=std, n_channels=n_channels)
+    window = circular_gaussian2d(real_size, std=std, out_channels=n_channels)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
