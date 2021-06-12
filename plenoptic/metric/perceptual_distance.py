@@ -8,6 +8,7 @@ from ..simulate.canonical_computations import local_gain_control_dict, rectangul
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 
 import os
+import pickle
 
 dirname = os.path.dirname(__file__)
 
@@ -417,7 +418,22 @@ def nlpd(IM_1, IM_2):
     return torch.stack(dist).mean(dim=0)
 
 
-def nspd(IM_1, IM_2, O=1, S=5, complex=True):
+def normalized_steerable_pyramid(im):
+    filters = pickle.load(open(dirname + "/nspd_filters.pickle", mode="rb"))
+    sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
+    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=4, order=3, is_complex=False, downsample=True)
+    spyr_coeffs = spyr.forward(im)
+    channel = im.shape[1]
+    normalized_spyr_coeffs = {}
+    for key in spyr_coeffs.keys():
+        filt = torch.tensor(filters[key], dtype=torch.float32,
+                            device=im.device).repeat(channel, 1, 1, 1)
+        filtered_coeffs = F.conv2d(torch.abs(spyr_coeffs[key]), filt, padding=2, groups=channel)
+        normalized_spyr_coeffs[key] = spyr_coeffs[key] / (torch.tensor(sigmas[key]) + filtered_coeffs)
+    return normalized_spyr_coeffs
+
+
+def nspd(IM_1, IM_2):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
@@ -425,24 +441,13 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
     under construction
     """
 
-    if complex:
-        linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S, is_complex=True)
-        non_linear = rectangular_to_polar_dict
-    else:
-        linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
-        non_linear = local_gain_control_dict
-
-    linear.to(IM_1.device)
-    pyr = linear(torch.cat((IM_1, IM_2), 0))
-
-    norm, state = non_linear(pyr)
+    y1 = normalized_steerable_pyramid(IM_1)
+    y2 = normalized_steerable_pyramid(IM_2)
 
     # for optimization purpose (stabilizing the gradient around zero)
     epsilon = 1e-10
     dist = []
-    for key in state.keys():
-        # TODO learn weights on TID2013
-        dist.append(torch.sqrt(torch.mean((norm[key][0] - norm[key][1]) ** 2) + epsilon))
-        dist.append(torch.sqrt(torch.mean((state[key][0] - state[key][1]) ** 2) + epsilon))
+    for key in y1.keys():
+        dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
 
-    return torch.stack(dist).mean()
+    return torch.stack(dist).mean(dim=0)
