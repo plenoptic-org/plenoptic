@@ -339,7 +339,7 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
 
 
 def normalized_laplacian_pyramid(im):
-    """computes the normalized Laplacian Pyramid using pre-optimized parameters
+    """Compute the normalized Laplacian Pyramid using pre-optimized parameters
 
     Arguments
     --------
@@ -419,6 +419,20 @@ def nlpd(IM_1, IM_2):
 
 
 def normalized_steerable_pyramid(im):
+    """Compute the normalized Steerable Pyramid using pre-optimized parameters
+
+    Arguments
+    --------
+    im: torch.Tensor of shape (batch, channel, height, width)
+        Image, or batch of images. Channels are also treated as batches.
+
+    Returns
+    -------
+    normalized_spyr_coeffs: dict of torch.Tensor
+        The normalized Steerable Pyramid with 4 scales and 4 orientations. The keys
+        of this dictionary are the same as the output of `Steerable_Pyramid_Freq`.
+    """
+
     filters = pickle.load(open(dirname + "/nspd_filters.pickle", mode="rb"))
     sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
     spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=4, order=3, is_complex=False, downsample=True)
