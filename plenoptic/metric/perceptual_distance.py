@@ -429,13 +429,13 @@ def normalized_steerable_pyramid(im):
     Returns
     -------
     normalized_spyr_coeffs: dict of torch.Tensor
-        The normalized Steerable Pyramid with 4 scales and 4 orientations. The keys
+        The normalized Steerable Pyramid with 5 scales and 4 orientations. The keys
         of this dictionary are the same as the output of `Steerable_Pyramid_Freq`.
     """
 
     filters = pickle.load(open(dirname + "/nspd_filters.pickle", mode="rb"))
     sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
-    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=4, order=3, is_complex=False, downsample=True)
+    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True)
     spyr_coeffs = spyr.forward(im)
     channel = im.shape[1]
     normalized_spyr_coeffs = {}
@@ -463,6 +463,8 @@ def nspd(IM_1, IM_2):
     epsilon = 1e-10
     dist = []
     for key in y1.keys():
+        if key == "residual_lowpass":
+            continue
         dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
 
     return torch.stack(dist).mean(dim=0)
