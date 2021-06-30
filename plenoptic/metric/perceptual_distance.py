@@ -442,7 +442,8 @@ def normalized_steerable_pyramid(im):
     for key in spyr_coeffs.keys():
         filt = torch.tensor(filters[key], dtype=torch.float32,
                             device=im.device).repeat(channel, 1, 1, 1)
-        filtered_coeffs = F.conv2d(torch.abs(spyr_coeffs[key]), filt, padding=2, groups=channel)
+        padded_coeffs = F.pad(torch.abs(spyr_coeffs[key]), [2] * 4, mode="reflect")
+        filtered_coeffs = F.conv2d(padded_coeffs, filt, groups=channel)
         normalized_spyr_coeffs[key] = spyr_coeffs[key] / (torch.tensor(sigmas[key]) + filtered_coeffs)
     return normalized_spyr_coeffs
 
