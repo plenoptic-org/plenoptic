@@ -4,7 +4,7 @@ import torch
 from tqdm.auto import tqdm
 from .synthesis import Synthesis
 from ..tools import optim
-from typing import Union
+from typing import Union, Tuple
 
 
 class SimpleMetamer(Synthesis):
@@ -17,10 +17,18 @@ class SimpleMetamer(Synthesis):
 
     This is meant as a demonstration of the basic logic of synthesis.
 
+    Parameters
+    ----------
+    target_signal :
+        A 4d tensor, this is the image whose model representation we wish to
+        match.
+    model :
+        The visual model whose representation we wish to match.
+
     """
 
     def __init__(self, model: torch.nn.Module, target_signal: torch.Tensor):
-        super().__init__(model)
+        self.model = model
         self.target_signal = target_signal
         self.synthesized_signal = torch.rand_like(self.target_signal,
                                                   requires_grad=True)
@@ -51,7 +59,8 @@ class SimpleMetamer(Synthesis):
         """
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.synthesized_signal], lr=.01, amsgrad=True)
+                self.optimizer = torch.optim.Adam([self.synthesized_signal],
+                                                  lr=.01, amsgrad=True)
         else:
             self.optimizer = optimizer
 
@@ -66,10 +75,10 @@ class SimpleMetamer(Synthesis):
                 # the loss function. You could theoretically also just clamp
                 # synthesized_signal on each step of the iteration, but the
                 # penalty in the loss seems to work better in practice
-                loss = optim.mse_and_penalize_range(synthesized_model_response,
-                                                    self.target_model_response,
-                                                    self.synthesized_signal,
-                                                    beta=.1)
+                loss = optim.mse(synthesized_model_response,
+                                 self.target_model_response)
+                loss = loss + .1 * optim.penalize_range(self.synthesized_signal,
+                                                        (0, 1))
                 self.losses.append(loss.item())
                 loss.backward(retain_graph=True)
                 pbar.set_postfix(loss=loss.item())

@@ -1,5 +1,4 @@
-"""abstract synthesis super-class
-"""
+"""abstract synthesis super-class."""
 import abc
 import warnings
 import torch
@@ -7,7 +6,7 @@ import dill
 
 
 class Synthesis(metaclass=abc.ABCMeta):
-    r"""Abstract super-class for synthesis methods
+    r"""Abstract super-class for synthesis methods.
 
     All synthesis methods share a variety of similarities and thus need
     to have similar methods. Some of these can be implemented here and
@@ -16,20 +15,10 @@ class Synthesis(metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self,model):
-        # this initializes all the attributes that are shared, though
-        # they can be overwritten in the individual __init__() if
-        # necessary
-        super().__init__()
-        self.model = model
-
-
     @abc.abstractmethod
     def synthesize(self):
-        r"""Generate an image (or set/sequence of images) given a
-        base signal and a model"""
+        r"""Synthesize something."""
         pass
-
 
     def save(self, file_path, attrs=None):
         r"""Save all relevant (non-model) variables in .pt file.
@@ -55,8 +44,10 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         save_dict = {}
         for k in attrs:
-            if k=='model':
-                warnings.warn("Models can be quite large and they don't change over synthesis. Please be sure that you actually want to save the model.")
+            if k == 'model':
+                warnings.warn("Models can be quite large and they don't change"
+                              " over synthesis. Please be sure that you "
+                              "actually want to save the model.")
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
             # tensors having extra hooks or the like
@@ -108,30 +99,37 @@ class Synthesis(metaclass=abc.ABCMeta):
         *then* load.
 
         """
-        tmp_dict = torch.load(file_path, pickle_module=dill, **pickle_load_args)
+        tmp_dict = torch.load(file_path, pickle_module=dill,
+                              **pickle_load_args)
         for k in check_attributes:
             if not hasattr(self, k):
-                raise Exception("All values of `check_attributes` should be attributes set at"
-                                f" initialization, but got attr {k}!")
+                raise Exception("All values of `check_attributes` should be "
+                                "attributes set at initialization, but got "
+                                f"attr {k}!")
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
                 # the same shape but different values and the second (in the
                 # except block) are if they're different shapes.
                 try:
-                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k]):
-                        raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
-                                        f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
+                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device),
+                                          tmp_dict[k]):
+                        raise Exception(f"Saved and initialized {k} are "
+                                        f"different! Initialized: {getattr(self, k)}"
+                                        f", Saved: {tmp_dict[k]}, difference: "
+                                        f"{getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
-                    raise Exception(f"Attribute {k} have different shapes in saved and initialized versions!"
-                                    f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
+                    raise Exception(f"Attribute {k} have different shapes in"
+                                    " saved and initialized versions! Initialized"
+                                    f": {getattr(self, k).shape}, Saved: "
+                                    f"{tmp_dict[k].shape}")
             else:
                 if getattr(self, k) != tmp_dict[k]:
-                    raise Exception(f"Saved and initialized {k} are different! Self: {getattr(self, k)}"
-                                    f", Saved: {tmp_dict[k]}")
+                    raise Exception(f"Saved and initialized {k} are different!"
+                                    f" Self: {getattr(self, k)}, "
+                                    f"Saved: {tmp_dict[k]}")
         for k, v in tmp_dict.items():
             setattr(self, k, v)
         self.to(device=map_location)
-    
 
     @abc.abstractmethod
     def to(self, *args, attrs=[], **kwargs):
@@ -167,20 +165,21 @@ class Synthesis(metaclass=abc.ABCMeta):
         Returns:
             Module: self
         """
-        
         try:
             self.model = self.model.to(*args, **kwargs)
         except AttributeError:
             warnings.warn("model has no `to` method, so we leave it as is...")
-        
+
         device, dtype, non_blocking, memory_format = torch._C._nn._parse_to(*args, **kwargs)
+
         def move(a, k):
             move_device = None if k.startswith("saved_") else device
             if memory_format is not None and a.dim() == 4:
-                return a.to(move_device, dtype, non_blocking, memory_format=memory_format)
+                return a.to(move_device, dtype, non_blocking,
+                            memory_format=memory_format)
             else:
                 return a.to(move_device, dtype, non_blocking)
-        
+
         for k in attrs:
             if hasattr(self, k):
                 attr = getattr(self, k)
