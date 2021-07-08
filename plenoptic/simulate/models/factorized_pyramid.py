@@ -53,6 +53,8 @@ class Factorized_Pyramid(nn.Module):
         self.n_scale = self.pyr.num_scales
 
         if downsample_dict:
+            self.pyramid_analysis = lambda x: self.pyr.forward(x)
+            self.pyramid_synthesis = lambda y: self.pyr.recon_pyr(y)
             if is_complex:
                 self.decomposition = rectangular_to_polar_dict
                 self.recomposition = polar_to_rectangular_dict
@@ -60,24 +62,14 @@ class Factorized_Pyramid(nn.Module):
                 self.decomposition = local_gain_control_dict
                 self.recomposition = local_gain_release_dict
         else:
+            self.pyramid_analysis = lambda x: self.pyr.convert_pyr_to_tensor(self.pyr.forward(x))
+            self.pyramid_synthesis = lambda y: self.pyr.recon_pyr(self.pyr.convert_tensor_to_pyr(y))
             if is_complex:
                 self.decomposition = rectangular_to_polar
                 self.recomposition = polar_to_rectangular
             else:
                 self.decomposition = local_gain_control
                 self.recomposition = local_gain_release
-
-    def pyramid_analysis(self, x):
-        y = self.pyr.forward(x)
-        if not self.downsample_dict:
-            y = self.pyr.convert_pyr_to_tensor(y)
-        return y
-
-    def pyramid_synthesis(self, y):
-        if not self.downsample_dict:
-            y = self.pyr.convert_tensor_to_pyr(y)
-        x = self.pyr.recon_pyr(y)
-        return x
 
     def analysis(self, x):
         y = self.pyramid_analysis(x)
