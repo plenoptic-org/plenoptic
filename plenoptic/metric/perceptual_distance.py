@@ -440,11 +440,14 @@ def normalized_steerable_pyramid(im):
     channel = im.shape[1]
     normalized_spyr_coeffs = {}
     for key in spyr_coeffs.keys():
-        filt = torch.tensor(filters[key], dtype=torch.float32,
-                            device=im.device).repeat(channel, 1, 1, 1)
-        padded_coeffs = F.pad(torch.abs(spyr_coeffs[key]), [2] * 4, mode="reflect")
-        filtered_coeffs = F.conv2d(padded_coeffs, filt, groups=channel)
-        normalized_spyr_coeffs[key] = spyr_coeffs[key] / (torch.tensor(sigmas[key]) + filtered_coeffs)
+        if key == "residual_lowpass":
+            normalized_spyr_coeffs[key] = spyr_coeffs[key]  # No normalization for residual_lowpass
+        else:
+            filt = torch.tensor(filters[key], dtype=torch.float32,
+                                device=im.device).repeat(channel, 1, 1, 1)
+            padded_coeffs = F.pad(torch.abs(spyr_coeffs[key]), [2] * 4, mode="reflect")
+            filtered_coeffs = F.conv2d(padded_coeffs, filt, groups=channel)
+            normalized_spyr_coeffs[key] = spyr_coeffs[key] / (torch.tensor(sigmas[key]) + filtered_coeffs)
     return normalized_spyr_coeffs
 
 
@@ -464,7 +467,9 @@ def nspd(IM_1, IM_2):
     dist = []
     for key in y1.keys():
         if key == "residual_lowpass":
-            continue
-        dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
+            dist.append(torch.sqrt(torch.mean(
+                (y1[key] - y2[key]) ** 2 / (y1[key] ** 2 + y2[key] ** 2), dim=(2, 3)) + epsilon))  # Similar to SSIM
+        else:
+            dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
 
     return torch.stack(dist).mean(dim=0)
