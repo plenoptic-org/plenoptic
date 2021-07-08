@@ -470,11 +470,13 @@ class Steerable_Pyramid_Freq(nn.Module):
                     else:
                         coeff_list_bands.append(coeffs)
 
-                
+            
             if 'residual_highpass' in pyr_coeffs.keys():
                 coeff_list_bands.insert(0,coeff_list_resid[0])
-            if 'residual_lowpass' in pyr_coeffs.keys():
-                coeff_list_bands.append(coeff_list_resid[1])
+                if 'residual_lowpass' in pyr_coeffs.keys():
+                    coeff_list_bands.append(coeff_list_resid[1])
+            elif 'residual_lowpass' in pyr_coeffs.keys():
+                coeff_list_bands.append(coeff_list_resid[0])
 
             coeff_list.extend(coeff_list_bands)
         
