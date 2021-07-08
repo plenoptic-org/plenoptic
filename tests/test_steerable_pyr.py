@@ -12,22 +12,30 @@ from plenoptic.tools.data import to_numpy
 from conftest import DEVICE, DATA_DIR, DTYPE
 
 
-def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
+
+def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     '''
-    function that checks if two sets of pyramid coefficients (one numpy  and one torch) are the same
+    function that checks if two sets of pyramid coefficients are the same
     We set an absolute and relative tolerance and the following function checks if
     abs(coeff1-coeff2) <= atol + rtol*abs(coeff1)
     Inputs:
-    coeff1: numpy pyramid coefficients
-    coeff2: torch pyramid coefficients
+    coeff1: first dictionary of pyramid coefficients
+    coeff2: second dictionary of pyramid coefficients
     Both coeffs must obviously have the same number of scales, orientations etc.
     '''
 
-    for k in coeff_np.keys():
-        coeff_np_k = coeff_np[k]
-        coeff_torch_k  = to_numpy(coeff_torch[k])
-        coeff_torch_k = coeff_torch_k.squeeze()
-        np.testing.assert_allclose(coeff_torch_k, coeff_np_k, rtol=rtol, atol=atol)
+    for k in coeff_1.keys():
+        if torch.is_tensor(coeff_1[k]):
+            coeff_1_np = to_numpy(coeff_1[k].squeeze())
+        else:
+            coeff_1_np = coeff_1[k]
+        if torch.is_tensor(coeff_2[k]):
+            coeff_2_np = to_numpy(coeff_2[k].squeeze())
+        else:
+            coeff_2_np = coeff_2[k]
+        
+        
+        np.testing.assert_allclose(coeff_1_np, coeff_2_np, rtol=rtol, atol=atol)
 
 
 def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
@@ -180,11 +188,14 @@ class TestSteerablePyramid(object):
                              indirect=True)
     def test_pyr_to_tensor(self, img, spyr, scales, rtol=1e-12, atol=1e-12):
         pyr_coeff_dict = spyr.forward(img, scales=scales)
-        pyr_tensor = spyr.convert_pyr_to_tensor(pyr_coeff_dict)
-        pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor)
-        for i in range(len(pyr_coeff_dict.keys())):
-            k = list(pyr_coeff_dict.keys())[i]
-            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k]), to_numpy(pyr_coeff_dict2[k]), rtol=rtol, atol=atol)
+        if spyr.is_complex:
+            split_complex = [True, False]
+        else:
+            split_complex = [False]
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(pyr_coeff_dict, split_complex=val)
+            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
                                                                                        [1, 2, 3],
