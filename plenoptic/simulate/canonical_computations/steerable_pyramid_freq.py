@@ -482,7 +482,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         
         try:
             pyr_tensor = torch.cat(coeff_list, dim=1)
-            pyr_info = tuple(num_channels, split_complex, pyr_keys)
+            pyr_info = tuple([num_channels, split_complex, pyr_keys])
         except RuntimeError as e:
             raise Exception("""feature maps could not be concatenated into tensor. 
             Check that you are using coefficients that are not downsampled across scales. 
@@ -514,7 +514,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         Note: num_channels, split_complex, and pyr_keys are elements of the ``pyr_info`` tuple returned by
         ``convert_pyr_to_tensor``. You should always unpack the arguments for this function from that ``pyr_info`` tuple.
         Example Usage:
-        
+
         .. code-block:: python 
         
            pyr_tensor, pyr_info = convert_pyr_to_tensor(pyr_coeffs, split_complex=True)
@@ -525,9 +525,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         pyr_coeffs: `OrderedDict`
             pyramid coefficients in dictionary format
         """
-        num_channels = pyr_info[0]
-        split_complex = pyr_info[1]
-        pyr_keys = pyr_info[2]
+        
         pyr_coeffs = OrderedDict()
         i = 0
         for ch in range(num_channels):
