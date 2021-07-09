@@ -229,10 +229,7 @@ def rectangular_to_polar(x):
 
     Parameters
     --------
-    real: torch.Tensor
-        tensor containing the real component
-    imaginary: torch.Tensor
-        tensor containing the imaginary component
+    x: torch.ComplexTensor
 
     Returns
     -------
@@ -240,15 +237,7 @@ def rectangular_to_polar(x):
         tensor containing the amplitude (aka. complex modulus)
     phase: torch.Tensor
         tensor containing the phase
-    Note
-    ----
-    Since complex numbers are not supported by pytorch, this function expects
-    two tensors of the same shape. One containing the real component, one
-    containing the imaginary component. This means that if complex numbers are
-    represented as an extra dimension in the tensor of interest, the user
-    needs to index through that dimension.
 
-    TODO: torch.abs(cmplx) torch.angle(cmplx)
     """
 
     amplitude = torch.abs(x)
