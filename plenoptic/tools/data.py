@@ -13,20 +13,21 @@ from glob import glob
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 NUMPY_TO_TORCH_TYPES = {
-        np.bool       : torch.bool,
-        np.uint8      : torch.uint8,
-        np.int8       : torch.int8,
-        np.int16      : torch.int16,
-        np.int32      : torch.int32,
-        np.int64      : torch.int64,
-        np.float16    : torch.float16,
-        np.float32    : torch.float32,
-        np.float64    : torch.float64,
-        np.complex64  : torch.complex64,
-        np.complex128 : torch.complex128
-    }
+    np.bool: torch.bool,
+    np.uint8: torch.uint8,
+    np.int8: torch.int8,
+    np.int16: torch.int16,
+    np.int32: torch.int32,
+    np.int64: torch.int64,
+    np.float16: torch.float16,
+    np.float32: torch.float32,
+    np.float64: torch.float64,
+    np.complex64: torch.complex64,
+    np.complex128: torch.complex128
+}
 
-TORCH_TO_NUMPY_TYPES = {value : key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
+TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
+
 
 def to_numpy(x, squeeze=False):
     r"""cast tensor to numpy in the most conservative way possible
@@ -201,8 +202,8 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
     curv_edge = synthetic_images.disk(size=size, radius=size / 1.2,
                                       origin=(size, size))
 
-    sine_grating = (synthetic_images.sine(size) * 
-        synthetic_images.gaussian(size, covariance=size))
+    sine_grating = (synthetic_images.sine(size) *
+                    synthetic_images.gaussian(size, covariance=size))
 
     square_grating = synthetic_images.square_wave(size, frequency=(.5, .5),
                                                   phase=2 * np.pi / 3.)

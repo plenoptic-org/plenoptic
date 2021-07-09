@@ -60,7 +60,8 @@ def get_model(name):
                 super().__init__(*args, downsample=False, **kwargs)
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                return self.convert_pyr_to_tensor(coeffs)
+                pyr_tensor, _ = self.convert_pyr_to_tensor(coeffs)
+                return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
     elif name == 'Identity':

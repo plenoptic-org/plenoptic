@@ -86,7 +86,6 @@ def local_gain_control(x, epsilon=1e-8):
         Tensor of shape (B,C,H,W)
     epsilon: float, optional
         Small constant to avoid division by zero.
-
     Returns
     -------
     norm : torch.Tensor
@@ -134,7 +133,6 @@ def local_gain_release(norm, direction, epsilon=1e-8):
         state)
     epsilon: float, optional
         Small constant to avoid division by zero.
-
     Returns
     -------
     x : torch.Tensor
@@ -180,7 +178,6 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
-
     Note
     ----
     Note that energy and state is not computed on the residuals.
@@ -194,8 +191,7 @@ def local_gain_control_dict(coeff_dict, residuals=True):
 
     for key in coeff_dict.keys():
         if isinstance(key, tuple) or not key.startswith('residual'):
-            energy[key], state[key] = local_gain_control(
-                coeff_dict[key])
+            energy[key], state[key] = local_gain_control(coeff_dict[key])
 
     if residuals:
         energy['residual_lowpass'] = coeff_dict['residual_lowpass']
@@ -235,8 +231,7 @@ def local_gain_release_dict(energy, state, residuals=True):
 
     for key in energy.keys():
         if isinstance(key, tuple) or not key.startswith('residual'):
-            coeff_dict[key] = local_gain_release(
-                energy[key], state[key])
+            coeff_dict[key] = local_gain_release(energy[key], state[key])
 
     if residuals:
         coeff_dict['residual_lowpass'] = energy['residual_lowpass']

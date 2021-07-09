@@ -2,18 +2,18 @@
 
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
+from conftest import DEVICE, DATA_DIR
+import pyrtools as pt
+import numpy as np
+import os.path as op
+import torch
+import plenoptic as po
+import matplotlib.pyplot as plt
+import pytest
 import matplotlib as mpl
 # use the html backend, so we don't need to have ffmpeg
 mpl.rcParams['animation.writer'] = 'html'
 mpl.use('agg')
-import pytest
-import matplotlib.pyplot as plt
-import plenoptic as po
-import torch
-import os.path as op
-import numpy as np
-import pyrtools as pt
-from conftest import DEVICE, DATA_DIR
 
 
 class TestDisplay(object):
@@ -213,7 +213,8 @@ class TestDisplay(object):
         if how == 'tensor':
             data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, len(x1), 2)
         elif how == 'dict':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, len(x1), 2) for i in range(2)}
+            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -
+                                   1).reshape(1, 1, len(x1), 2) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.scatter(x1, y1)
@@ -242,7 +243,8 @@ class TestDisplay(object):
         if how == 'tensor':
             data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, x1.shape[-1], 2)
         elif how == 'dict-multi':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
+            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -
+                                   1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
         elif how == 'dict-single':
             data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])), -1).reshape(1, 1, x1.shape[-1], 2)}
         fig, ax = plt.subplots(1, 1)
@@ -357,7 +359,8 @@ class TestDisplay(object):
         if not fails:
             fig = po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                             batch_idx=batch_idx, plot_complex=is_complex)
-            assert len(fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
+            assert len(
+                fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
             plt.close('all')
         if fails:
             with pytest.raises(Exception):
@@ -404,6 +407,10 @@ class TestDisplay(object):
             with pytest.raises(TypeError):
                 po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
 
+    def test_display_test_signals(self):
+        po.imshow(po.tools.make_synthetic_stimuli(128))
+        po.imshow(po.load_images(DATA_DIR + '/512'))
+        po.imshow(po.load_images(DATA_DIR + '/256'))
 
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
@@ -463,7 +470,8 @@ class TestDisplay(object):
             anim = po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
                                batch_idx=batch_idx, plot_complex=is_complex)
             fig = anim._fig
-            assert len(fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
+            assert len(
+                fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
             plt.close('all')
         if fails:
             with pytest.raises(Exception):
@@ -613,6 +621,7 @@ class TestMADDisplay(object):
         model1 = po.simul.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
         # will return a separate value for each RGB channel
+
         def rgb_ssim(*args, **kwargs):
             return po.metric.ssim(*args, **kwargs).mean()
         model2 = rgb_ssim
@@ -674,6 +683,7 @@ class TestMetamerDisplay(object):
             class SPyr(po.simul.Steerable_Pyramid_Freq):
                 def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)
+
                 def forward(self, *args, **kwargs):
                     return super().forward(*args, **kwargs)[(0, 0)]
             model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)

@@ -297,20 +297,7 @@ def add_noise(img, noise_mse):
 
 def autocorr(x, n_shifts=7):
     """Compute the autocorrelation of `x` up to `n_shifts` shifts,
-    the calculation is performed in frequency space.
-
-    Notes:
-    - By the Einstein-Wiener-Khinchin theorem:
-    The autocorrelation of a WSS process is the inverse Fourier transform
-    of its energy spectrum (ESD) - which itself is the multiplication between
-    FT(x(t)) and FT(x(-t))
-    aka. auto-corr is convolution with self, which is squaring in Fourier space
-    This approach is computationally more efficient than brute force
-    (n log(n) vs n^2).
-    - By Cauchy-Swartz, the autocorrelation attains it is maximum
-    at the center location - that maximum value is the signal's variance
-    (assuming that the input signal is mean centered).
-
+    the calculation is performed in the frequency domain.
     Parameters
     ---------
     x: torch.Tensor
@@ -318,34 +305,40 @@ def autocorr(x, n_shifts=7):
     n_shifts: integer
         Sets the length scale of the auto-correlation
         (ie. maximum offset or lag)
-
     Returns
     -------
     autocorr: torch.tensor
         computed autocorrelation
-
-    TODO
-    ----
-    FIX N_SHIFTS ODD OF BY ONE ERROR
-    use torch.fft.rfft2
-    signal_ndim argument, rfftn
-    ESD PSD
-    periodogram
+    Notes
+    -----
+    - By the Einstein-Wiener-Khinchin theorem:
+    The autocorrelation of a wide sense stationary (WSS) process is the
+    inverse Fourier transform of its energy spectrum (ESD) - which itself
+    is the multiplication between FT(x(t)) and FT(x(-t)).
+    In other words, the auto-correlation is convolution of the signal `x` with
+    itself, which corresponds to squaring in the frequency domain.
+    This approach is computationally more efficient than brute force
+    (n log(n) vs n^2).
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
+    location (ie. no shift) - that maximum value is the signal's variance
+    (assuming that the input signal is mean centered).
     """
-    n_batch, n_ch, h, w = x.shape
+    N, C, H, W = x.shape
+    assert n_shifts >= 1
 
     spectrum = fft.rfft2(x, dim=(-2, -1), norm=None)
+
     energy_spectrum = torch.abs(spectrum) ** 2
     zero_phase = torch.zeros_like(energy_spectrum)
     energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
 
     autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None,
-                          s=(h, w))
-    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (h*w)
+                          s=(H, W))
+    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H*W)
 
     if n_shifts is not None:
-        autocorr = center_crop(autocorr, output_size=(n_shifts, n_shifts))
-
+        autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
+                            (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
     return autocorr
 
 

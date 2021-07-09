@@ -41,25 +41,30 @@ class TestSignal(object):
         assert torch.norm(a - A) < 1e-3
         assert torch.norm(b - B) < 1e-3
 
-    def test_autocorr(self):
+    @pytest.mark.parametrize("n", range(1, 15))
+    def test_autocorr(self, n):
         x = po.tools.make_synthetic_stimuli().to(DEVICE)
         x_centered = x - x.mean((2, 3), keepdim=True)
-        # TODO: THIS NEEDS TO BE FIXED FOR N_SHIFTS ODD
-        n = 8
         a = po.tools.autocorr(x_centered, n_shifts=n)
+
+        # import matplotlib.pyplot as plt
+        # po.imshow(a, zoom=4)
+        # plt.show()
 
         # autocorr with zero delay is variance
         assert (torch.abs(
                 torch.var(x, dim=(2, 3)) - a[..., n//2, n//2])
                 < 1e-5).all()
+
         # autocorr can be computed in signal domain directly with roll
-        h = randint(-n//2, n//2)
+        h = randint(-(n//2), ((n+1)//2))
         assert (torch.abs(
                 (x_centered * torch.roll(x_centered, h, dims=2)).sum((2, 3))
                 / (x.shape[-2]*x.shape[-1])
                 - a[..., n//2+h, n//2])
                 < 1e-5).all()
-        w = randint(-n//2, n//2)
+
+        w = randint(-(n//2), ((n+1)//2))
         assert (torch.abs(
                 (x_centered * torch.roll(x_centered, w, dims=3)).sum((2, 3))
                 / (x.shape[-2]*x.shape[-1])

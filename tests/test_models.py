@@ -16,10 +16,9 @@ def image_input():
 
 
 class TestNonLinearities(object):
-
     def test_rectangular_to_polar_dict(self, basic_stim):
         spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=True).to(DEVICE)
+                                              order=1, is_complex=True, tight_frame=True).to(DEVICE)
         y = spc(basic_stim)
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
@@ -34,7 +33,7 @@ class TestNonLinearities(object):
 
     def test_local_gain_control_dict(self, basic_stim):
         spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=False).to(DEVICE)
+                                              order=1, is_complex=False, tight_frame=True).to(DEVICE)
         y = spr(basic_stim)
         energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
