@@ -3,6 +3,25 @@
 such as more objective functions
 """
 import torch
+from typing import Union
+import numpy as np
+
+
+def set_seed(seed: Union[int, None] = None):
+    """Set the seed.
+
+    We call both ``torch.manual_seed()`` and ``np.random.seed()``.
+
+    Parameters
+    ----------
+    seed :
+        The seed to set. If None, do nothing.
+
+    """
+    if seed is not None:
+        # random initialization
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
 
 def mse(synth_rep, ref_rep, **kwargs):

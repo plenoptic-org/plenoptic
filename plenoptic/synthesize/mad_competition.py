@@ -3,15 +3,14 @@ import warnings
 from tqdm.auto import tqdm
 import dill
 import pyrtools as pt
-from .synthesis import Synthesis
+from .old_synthesis import OldSynthesis
 import matplotlib.pyplot as plt
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
-from ..tools.metamer_utils import RangeClamper
 from ..tools.optim import l2_norm
 
 
-class MADCompetition(Synthesis):
+class MADCompetition(OldSynthesis):
     """Generate maximally-differentiating images for two models
 
     In MAD Competition, we start with a reference image and generate two
@@ -550,7 +549,7 @@ class MADCompetition(Synthesis):
             loss = loss / self.loss_norm
         return self._loss_sign * loss
 
-    def _init_synthesized_signal(self, initial_noise=None, clamper=RangeClamper((0, 1)),
+    def _init_synthesized_signal(self, initial_noise=None, clamper=None,
                                  clamp_each_iter=True, norm_loss=True):
         """initialize the synthesized image
 
@@ -762,7 +761,7 @@ class MADCompetition(Synthesis):
 
     def synthesize(self, synthesis_target, initial_noise=.1, fix_step_n_iter=5, norm_loss=True,
                    seed=0, max_iter=100, learning_rate=1, scheduler=True, optimizer='SGD',
-                   optimizer_kwargs={}, clamper=RangeClamper((0, 1)),
+                   optimizer_kwargs={}, clamper=None,
                    clamp_each_iter=True, store_progress=False,
                    save_progress=False, save_path='mad.pt', loss_thresh=1e-4, loss_change_iter=50,
                    loss_change_thresh=1e-2, coarse_to_fine=False, clip_grad_norm=False):
