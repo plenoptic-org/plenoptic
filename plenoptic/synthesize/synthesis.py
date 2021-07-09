@@ -3,6 +3,7 @@ import abc
 import warnings
 import torch
 import dill
+from typing import Union, List
 
 
 class Synthesis(metaclass=abc.ABCMeta):
@@ -20,7 +21,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         r"""Synthesize something."""
         pass
 
-    def save(self, file_path, attrs=None):
+    def save(self, file_path: str, attrs: Union[List[str], None] = None):
         r"""Save all relevant (non-model) variables in .pt file.
 
         If you leave attrs as None, we grab vars(self) and exclude 'model'.
@@ -56,7 +57,10 @@ class Synthesis(metaclass=abc.ABCMeta):
             save_dict[k] = attr
         torch.save(save_dict, file_path, pickle_module=dill)
 
-    def load(self, file_path, map_location=None, check_attributes=[],
+    def load(self, file_path: str,
+             map_location: Union[str, None] = None,
+             check_attributes: List[str] = [],
+             check_loss_functions: List[str] = [],
              **pickle_load_args):
         r"""Load all relevant attributes from a .pt file.
 
@@ -68,35 +72,31 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to load the synthesis object from
-        map_location : str, optional
+        map_location :
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        check_attributes : list, optional
+        check_attributes :
             List of strings we ensure are identical in the current
             ``Synthesis`` object and the loaded one. Checking the model is
             generally not recommended, since it can be hard to do (checking
             callable objects is hard in Python) -- instead, checking the
             ``base_representation`` should ensure the model hasn't functinoally
             changed.
+        check_loss_functions :
+            Names of attributes that are loss functions and so must be checked
+            specially -- loss functions are callables, and it's very difficult
+            to check python callables for equality so, to get around that, we
+            instead call the two versions on the same pair of tensors,
+            and compare the outputs.
+
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
-
-        Examples
-        --------
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer(img, model)
-        >>> metamer_copy.load('metamers.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         tmp_dict = torch.load(file_path, pickle_module=dill,
@@ -127,12 +127,23 @@ class Synthesis(metaclass=abc.ABCMeta):
                     raise Exception(f"Saved and initialized {k} are different!"
                                     f" Self: {getattr(self, k)}, "
                                     f"Saved: {tmp_dict[k]}")
+        for k in check_loss_functions:
+            # this way, each is a 1x1x100x100 tensor
+            tensor_a, tensor_b = torch.rand(2, 1, 1, 100, 100)
+            saved_loss = tmp_dict[k](tensor_a, tensor_b)
+            init_loss = getattr(self, k)(tensor_a, tensor_b)
+            if not torch.allclose(saved_loss, init_loss):
+                raise Exception(f"Saved and initialized {k} are "
+                                "different! On two random tensors: "
+                                f"Initialized: {init_loss}, Saved: "
+                                f"{saved_loss}, difference: "
+                                f"{init_loss-saved_loss}")
         for k, v in tmp_dict.items():
             setattr(self, k, v)
         self.to(device=map_location)
 
     @abc.abstractmethod
-    def to(self, *args, attrs=[], **kwargs):
+    def to(self, *args, attrs: List[str] = [], **kwargs):
         r"""Moves and/or casts the parameters and buffers.
         Similar to ``save``, this is an abstract method only because you
         need to define the attributes to call to on.

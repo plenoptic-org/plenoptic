@@ -29,6 +29,10 @@ class SimpleMetamer(Synthesis):
 
     def __init__(self, model: torch.nn.Module, target_signal: torch.Tensor):
         self.model = model
+        if target_signal.ndimension() < 4:
+            raise Exception("target_signal must be torch.Size([n_batch, "
+                            "n_channels, im_height, im_width]) but got "
+                            f"{target_signal.size()}")
         self.target_signal = target_signal
         self.synthesized_signal = torch.rand_like(self.target_signal,
                                                   requires_grad=True)
@@ -88,18 +92,19 @@ class SimpleMetamer(Synthesis):
 
         return self.synthesized_signal
 
-    def save(self, file_path):
+    def save(self, file_path: str):
         r"""Save all relevant (non-model) variables in .pt file.
 
         Parameters
         ----------
-        file_path : str
-            The path to save the synthesis object to
+        file_path :
+            The path to save the SimpleMetamer object to.
 
         """
         super().save(file_path, attrs=None)
 
-    def load(self, file_path, map_location=None):
+    def load(self, file_path: str,
+             map_location: Union[str, None] = None):
         r"""Load all relevant attributes from a .pt file.
 
         Note this operates in place and so doesn't return anything.
