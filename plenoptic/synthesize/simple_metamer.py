@@ -4,7 +4,7 @@ import torch
 from tqdm.auto import tqdm
 from .synthesis import Synthesis
 from ..tools import optim
-from typing import Union, Tuple
+from typing import Union
 
 
 class SimpleMetamer(Synthesis):
