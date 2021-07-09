@@ -50,7 +50,7 @@ class Steerable_Pyramid_Freq(nn.Module):
     downsample: `bool`
         Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
         in fixed bands of size imshapeximshape. When downsample is False, the forward method returns a tensor.
-    tight_frame: `bool` default: True
+    tight_frame: `bool` default: False
         Whether the pyramid obeys the generalized parseval theorem or not (i.e. is a tight frame).
         If True, the energy of the pyr_coeffs = energy of the image. If not this is not true.
         In order to match the matlabPyrTools or pyrtools pyramids, this must be set to False
@@ -296,10 +296,10 @@ class Steerable_Pyramid_Freq(nn.Module):
             an empty list (the default), we include all
             scales. Otherwise, can contain subset of values present in
             this model's ``scales`` attribute (ints from 0 up to
-            self.num_scales-1 and the strs 'residual_highpass' and
+            ``self.num_scales-1`` and the strs 'residual_highpass' and
             'residual_lowpass'. Can contain a single value or multiple
             values. If it's an int, we include all orientations from
-            that scale. Order within the list does not matter
+            that scale. Order within the list does not matter.
 
         Returns
         -------
@@ -444,7 +444,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         pyr_tensor: `torch.Tensor` (BxCxHxW)
             pyramid coefficients reshaped into tensor. The first channel will be the residual highpass and the last will be
             the residual lowpass. Each band is then a separate channel. 
-        pyr_info: List 
+        pyr_info: `List` 
             containing the number of channels, if split_complex was used
             in the convert_pyr_to_tensor, and the list of pyramid keys for the dictionary
 
@@ -452,7 +452,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         Note:conversion to tensor only works for pyramids without downsampling of feature maps 
         """
         
-        pyr_keys = list(pyr_coeffs.keys())
+        pyr_keys = tuple(pyr_coeffs.keys())
         test_band = pyr_coeffs[pyr_keys[0]]
         num_channels = test_band.size(1)
         coeff_list = []
@@ -482,7 +482,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         
         try:
             pyr_tensor = torch.cat(coeff_list, dim=1)
-            pyr_info = [num_channels, split_complex, pyr_keys]
+            pyr_info = tuple(num_channels, split_complex, pyr_keys)
         except RuntimeError as e:
             raise Exception("""feature maps could not be concatenated into tensor. 
             Check that you are using coefficients that are not downsampled across scales. 
@@ -492,7 +492,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         return pyr_tensor, pyr_info
 
     @staticmethod
-    def convert_tensor_to_pyr(pyr_tensor, pyr_info):
+    def convert_tensor_to_pyr(pyr_tensor, num_channels, split_complex, pyr_keys):
         r"""
         Function that takes a torch pyramid coefficient tensor and converts
         the output into the dictionary format where
@@ -502,10 +502,23 @@ class Steerable_Pyramid_Freq(nn.Module):
         pyr_tensor: `torch.Tensor` or `torch.ComplexTensor` (BxCxHxW)
             the pyramid coefficients
         
-        pyr_info: List 
-            containing the number of channels, if split_complex was used
-            in the convert_pyr_to_tensor, and the list of pyramid keys for the dictionary
-            This should be taken from the output of convert_pyr_to_tensor
+        num_channels: `int` 
+            number of channels in the original input tensor the pyramid was created for (i.e. if the input was
+            an RGB image, this would be 3)
+        split_complex: `bool` 
+            true or false, specifying whether the pyr_tensor was created with complex channels split
+            or not (if the pyramid was a complex pyramid).
+        pyr_keys: `tuple`
+            tuple containing the list of keys for the original pyramid dictionary
+
+        Note: num_channels, split_complex, and pyr_keys are elements of the ``pyr_info`` tuple returned by
+        ``convert_pyr_to_tensor``. You should always unpack the arguments for this function from that ``pyr_info`` tuple.
+        Example Usage:
+        
+        .. code-block:: python 
+        
+           pyr_tensor, pyr_info = convert_pyr_to_tensor(pyr_coeffs, split_complex=True)
+           pyr_dict = convert_tensor_to_pyr(pyr_tensor, *pyr_info)
 
         Returns
         ----------
