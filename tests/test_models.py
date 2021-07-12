@@ -1,17 +1,45 @@
 #!/usr/bin/env python3
+from math import pi
+import matplotlib.pyplot as plt
+import plenoptic
 import plenoptic as po
 import pytest
-import matplotlib.pyplot as plt
 import torch
 
 import plenoptic
-from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
-from conftest import DEVICE
+from plenoptic.simulate.canonical_computations import (gaussian1d, circular_gaussian2d)
+from conftest import DEVICE, DATA_DIR
 
 
 @pytest.fixture()
 def image_input():
     return torch.rand(1, 1, 100, 100)
+
+
+class TestNonLinearities(object):
+    def test_rectangular_to_polar_dict(self, basic_stim):
+        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True, tight_frame=True).to(DEVICE)
+        y = spc(basic_stim)
+        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+
+    def test_local_gain_control(self):
+        x = torch.randn((10, 1, 256, 256), device=DEVICE)
+        norm, direction = po.simul.non_linearities.local_gain_control(x)
+        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        assert torch.norm(x - x_hat) < 1e-4
+
+    def test_local_gain_control_dict(self, basic_stim):
+        spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=False, tight_frame=True).to(DEVICE)
+        y = spr(basic_stim)
+        energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
+        y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
+        for key in y.keys():
+            assert torch.norm(y[key] - y_hat[key]) < 1e-5
 
 
 class TestFrontEnd:
