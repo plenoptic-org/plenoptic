@@ -194,7 +194,7 @@ class TestSteerablePyramid(object):
             split_complex = [False]
         for val in split_complex:
             pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(pyr_coeff_dict, split_complex=val)
-            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, pyr_info)
+            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
             check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
