@@ -79,7 +79,7 @@ class Factorized_Pyramid(nn.Module):
         y = self.recomposition(energy, state)
         if not self.downsample_dict:
             assert self.pyr_info is not None
-            y = self.pyr.convert_tensor_to_pyr(y, self.pyr_info)
+            y = self.pyr.convert_tensor_to_pyr(y, *self.pyr_info)
         x = self.pyr.recon_pyr(y)
         return x
 

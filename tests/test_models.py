@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-from math import pi
-
 import matplotlib.pyplot as plt
-# import plenoptic.simulate.models.naive
 import pytest
 import torch
 import plenoptic as po

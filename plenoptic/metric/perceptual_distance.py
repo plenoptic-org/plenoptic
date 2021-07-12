@@ -4,7 +4,6 @@ import torch.nn.functional as F
 import warnings
 
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
-from ..simulate.canonical_computations import local_gain_control_dict, rectangular_to_polar_dict
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..simulate.models import Factorized_Pyramid
 
