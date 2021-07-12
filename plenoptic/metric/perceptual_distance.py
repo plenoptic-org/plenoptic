@@ -6,6 +6,7 @@ import warnings
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
 from ..simulate.canonical_computations import local_gain_control_dict, rectangular_to_polar_dict
 from ..simulate.canonical_computations.filters import circular_gaussian2d
+from ..simulate.models import Factorized_Pyramid
 
 import os
 import pickle
@@ -409,8 +410,7 @@ def nlpd(IM_1, IM_2):
     y1 = normalized_laplacian_pyramid(IM_1)
     y2 = normalized_laplacian_pyramid(IM_2)
 
-    # for optimization purpose (stabilizing the gradient around zero)
-    epsilon = 1e-10
+    epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
     for i in range(6):
         dist.append(torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2, dim=(2, 3)) + epsilon))
@@ -462,8 +462,7 @@ def nspd(IM_1, IM_2):
     y1 = normalized_steerable_pyramid(IM_1)
     y2 = normalized_steerable_pyramid(IM_2)
 
-    # for optimization purpose (stabilizing the gradient around zero)
-    epsilon = 1e-10
+    epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
     for key in y1.keys():
         if key == "residual_lowpass":
@@ -471,5 +470,26 @@ def nspd(IM_1, IM_2):
                 (y1[key] - y2[key]) ** 2 / (y1[key] ** 2 + y2[key] ** 2), dim=(2, 3)) + epsilon))  # Similar to SSIM
         else:
             dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
+
+    return torch.stack(dist).mean(dim=0)
+
+
+def fpd(IM_1, IM_2):
+    """Factorized pyramid distance."""
+
+    fpyr = Factorized_Pyramid(IM_1.shape[-2:], n_scale=5, n_ori=4, is_complex=False, downsample_dict=True)
+    energy1, state1 = fpyr(IM_1)
+    energy2, state2 = fpyr(IM_2)
+
+    epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
+    dist = []
+    for key in energy1.keys():
+        if key == "residual_highpass":
+            continue
+        elif key == "residual_lowpass":
+            dist.append(torch.sqrt(torch.mean(
+                (energy1[key] - energy2[key]) ** 2 / (energy1[key] ** 2 + energy2[key] ** 2), dim=(2, 3)) + epsilon))
+        else:
+            dist.append(torch.sqrt(torch.mean((state1[key] - state2[key]) ** 2, dim=(2, 3)) + epsilon))
 
     return torch.stack(dist).mean(dim=0)
