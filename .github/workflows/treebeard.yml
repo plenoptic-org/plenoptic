@@ -46,6 +46,10 @@ jobs:
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
           pip install jupyter
+          # unclear why this is no longer installed as part of the repo2docker
+          # install, but as of
+          # https://github.com/LabForComputationalVision/plenoptic/runs/3104823312,
+          # it was not.
           pip install chardet
           pip install ipywidgets
       - uses: treebeardtech/treebeard@master
