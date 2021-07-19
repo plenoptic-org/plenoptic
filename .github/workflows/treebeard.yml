@@ -46,6 +46,7 @@ jobs:
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
           pip install jupyter
+          pip install chardet
           pip install ipywidgets
       - uses: treebeardtech/treebeard@master
         with:
