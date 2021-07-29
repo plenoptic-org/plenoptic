@@ -6,6 +6,7 @@ import warnings
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..simulate.models import Factorized_Pyramid
+from ..simulate.canonical_computations.non_linearities import local_gain_control
 
 import os
 import pickle
@@ -432,21 +433,18 @@ def normalized_steerable_pyramid(im):
         of this dictionary are the same as the output of `Steerable_Pyramid_Freq`.
     """
 
-    filters = pickle.load(open(dirname + "/nspd_filters.pickle", mode="rb"))
     sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
     spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True)
     spyr_coeffs = spyr.forward(im)
-    channel = im.shape[1]
     normalized_spyr_coeffs = {}
     for key in spyr_coeffs.keys():
         if key == "residual_lowpass":
             normalized_spyr_coeffs[key] = spyr_coeffs[key]  # No normalization for residual_lowpass
+        elif key == "residual_highpass":
+            continue
         else:
-            filt = torch.tensor(filters[key], dtype=torch.float32,
-                                device=im.device).repeat(channel, 1, 1, 1)
-            padded_coeffs = F.pad(torch.abs(spyr_coeffs[key]), [2] * 4, mode="reflect")
-            filtered_coeffs = F.conv2d(padded_coeffs, filt, groups=channel)
-            normalized_spyr_coeffs[key] = spyr_coeffs[key] / (torch.tensor(sigmas[key]) + filtered_coeffs)
+            _, normalized_spyr_coeffs[key] = local_gain_control(
+                spyr_coeffs[key], epsilon=5 * torch.tensor(sigmas[key]))
     return normalized_spyr_coeffs
 
 
