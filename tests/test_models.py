@@ -216,7 +216,7 @@ class TestPortillaSimoncelli(object):
         print(path)
 
         torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"{im}.pgm")).copy() / 255
+        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy() / 255
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
         ps = po.simul.PortillaSimoncelli(
             x.shape[-2:],
