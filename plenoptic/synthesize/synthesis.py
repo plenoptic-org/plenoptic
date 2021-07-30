@@ -7,7 +7,7 @@ from torch import optim
 import numpy as np
 import warnings
 from ..tools.data import to_numpy, _find_min_int
-from ..tools.optim import l2_norm
+from ..tools.optim import l2_norm, relative_MSE
 import matplotlib.pyplot as plt
 from ..tools.display import rescale_ylim, plot_representation, update_plot, imshow
 from matplotlib import animation
@@ -33,11 +33,11 @@ class Synthesis(metaclass=abc.ABCMeta):
     model : torch.nn.Module or function
         The visual model or metric to synthesize with. See `MAD_Competition`
         for details.
-    loss_function : callable or None, optional
+    loss_function : 'l2_norm' or 'relative_MSE' or callable or None, optional
         the loss function to use to compare the representations of the
         models in order to determine their loss. Only used for the
         Module models, ignored otherwise. If None, we use the default:
-        the element-wise 2-norm. See `MAD_Competition` notebook for more
+        the l2 norm. See `MAD_Competition` notebook for more
         details
     model_kwargs : dict
         if model is a function (that is, you're using a metric instead
@@ -61,8 +61,10 @@ class Synthesis(metaclass=abc.ABCMeta):
         self.seed = None
         self._rep_warning = False
 
-        if loss_function is None:
+        if loss_function == 'l2_norm' or loss_function is None:
             loss_function = l2_norm
+        elif loss_function == 'relative_MSE':
+            loss_function = relative_MSE
         else:
             if not isinstance(model, torch.nn.Module):
                 warnings.warn("Ignoring custom loss_function for model since it's a metric")
@@ -912,7 +914,11 @@ class Synthesis(metaclass=abc.ABCMeta):
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        g = self.synthesized_signal.grad.detach()
+        grad = self.synthesized_signal.grad.detach()
+        grad_norm = grad.norm()
+        if grad_norm.item() != grad_norm.item():
+            raise Exception('found a NaN in the gradients during optimization')
+
         # optionally step the scheduler
         if self._scheduler is not None:
             self._scheduler.step(loss.item())
@@ -929,14 +935,15 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         pixel_change = torch.max(torch.abs(self.synthesized_signal - self._last_iter_synthesized_signal))
         # for display purposes, always want loss to be positive
-        postfix_dict.update(dict(loss="%.4e" % abs(loss.item()),
-                                 gradient_norm="%.4e" % g.norm().item(),
+        postfix_dict.update(dict(loss=f"{abs(loss.item()):.04e}",
+                                 gradient_norm=f"{grad_norm.item():.04e}",
                                  learning_rate=self._optimizer.param_groups[0]['lr'],
-                                 pixel_change=f"{pixel_change:.04e}", **kwargs))
+                                 pixel_change=f"{pixel_change:.04e}",
+                                 **kwargs))
         # add extra info here if you want it to show up in progress bar
         if pbar is not None:
             pbar.set_postfix(**postfix_dict)
-        return loss, g.norm(), self._optimizer.param_groups[0]['lr'], pixel_change
+        return loss, grad_norm, self._optimizer.param_groups[0]['lr'], pixel_change
 
     @abc.abstractmethod
     def save(self, file_path,
@@ -973,7 +980,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path, pickle_module=dill)
 
     @abc.abstractmethod
-    def load(self, file_path, map_location='cpu',
+    def load(self, file_path, map_location=None,
              check_attributes=['base_signal', 'base_representation',
                                'loss_function'],
              **pickle_load_args):
@@ -1022,8 +1029,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         *then* load.
 
         """
-        tmp_dict = torch.load(file_path, map_location=map_location,
-                              pickle_module=dill, **pickle_load_args)
+        tmp_dict = torch.load(file_path, pickle_module=dill, **pickle_load_args)
         for k in check_attributes:
             if not hasattr(self, k):
                 raise Exception("All values of `check_attributes` should be attributes set at"
@@ -1033,11 +1039,11 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # the same shape but different values and the second (in the
                 # except block) are if they're different shapes.
                 try:
-                    if not torch.allclose(getattr(self, k), tmp_dict[k]):
+                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k]):
                         raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
                                         f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
-                    raise Exception(f"Attribute {k} is a different shape in saved and initialized versions!"
+                    raise Exception(f"Attribute {k} have different shapes in saved and initialized versions!"
                                     f" Initialized: {getattr(self, k).shape}, Saved: {tmp_dict[k].shape}")
             elif k == 'loss_function':
                 # it is very difficult to check python callables for equality
@@ -1065,6 +1071,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                     f", Saved: {tmp_dict[k]}")
         for k, v in tmp_dict.items():
             setattr(self, k, v)
+        self.to(device=map_location)
 
     @abc.abstractmethod
     def to(self, *args, attrs=[], **kwargs):
@@ -1093,7 +1100,9 @@ class Synthesis(metaclass=abc.ABCMeta):
         :attr:`device`, if that is given, but with dtypes unchanged. When
         :attr:`non_blocking` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
-        pinned memory to CUDA devices.
+        pinned memory to CUDA devices. When calling this method to move tensors
+        to a CUDA device, items in ``attrs`` that start with "saved_" will not
+        be moved.
 
         .. note::
             This method modifies the module in-place.
@@ -1116,16 +1125,25 @@ class Synthesis(metaclass=abc.ABCMeta):
             self.model = self.model.to(*args, **kwargs)
         except AttributeError:
             warnings.warn("model has no `to` method, so we leave it as is...")
+        
+        device, dtype, non_blocking, memory_format = torch._C._nn._parse_to(*args, **kwargs)
+        def move(a, k):
+            move_device = None if k.startswith("saved_") else device
+            if memory_format is not None and a.dim() == 4:
+                return a.to(move_device, dtype, non_blocking, memory_format=memory_format)
+            else:
+                return a.to(move_device, dtype, non_blocking)
+        
         for k in attrs:
             if hasattr(self, k):
                 attr = getattr(self, k)
                 if isinstance(attr, torch.Tensor):
-                    attr = attr.to(*args, **kwargs)
+                    attr = move(attr, k)
                     if isinstance(getattr(self, k), torch.nn.Parameter):
                         attr = torch.nn.Parameter(attr)
                     setattr(self, k, attr)
                 elif isinstance(attr, list):
-                    setattr(self, k, [a.to(*args, **kwargs) for a in attr])
+                    setattr(self, k, [move(a, k) for a in attr])
         return self
 
     def plot_representation_error(self, batch_idx=0, iteration=None, figsize=(5, 5), ylim=None,
@@ -1439,8 +1457,8 @@ class Synthesis(metaclass=abc.ABCMeta):
             raise Exception(f"Don't know how to handle value {value}!")
         # if this is 4d, this will convert it to 3d (if it's 3d, nothing
         # changes)
-        base_val = base_val.flatten(2, -1)
-        synthesized_val = synthesized_val.flatten(2, -1)
+        base_val = base_val.flatten(2, -1).cpu()
+        synthesized_val = synthesized_val.flatten(2, -1).cpu()
         plot_vals = torch.stack((base_val, synthesized_val), -1)
         if scatter_subsample < 1:
             plot_vals = plot_vals[:, :, ::int(1/scatter_subsample)]

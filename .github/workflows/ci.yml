@@ -5,7 +5,7 @@ on:
     - cron: "0 0 * * 0" # weekly
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad', 'display']
+        test_script: ['metamers', 'models', 'tools', 'metric', 'steerable_pyr', 'eigendistortion', 'mad', 'display', 'geodesic']
       fail-fast: false
     name: CI
     steps:
@@ -27,7 +27,17 @@ jobs:
       - name: Cache environment
         uses: actions/cache@v2
         with:
-          path: ${{ env.pythonLocation }}
+          # Cache the Python package environment, excluding pip and setuptools
+          # installed by setup-python, following
+          # https://github.com/pypa/pip/issues/9880
+          path: |
+            ~/.cache/pip
+            ${{ env.pythonLocation }}/bin/*
+            ${{ env.pythonLocation }}/include
+            ${{ env.pythonLocation }}/lib/python*/site-packages/*
+            !${{ env.pythonLocation }}/bin/pip*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/pipe*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/setuptools*
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
@@ -36,7 +46,18 @@ jobs:
           # dependencies, to make sure the cache doesn't go stale
           pip install --upgrade --upgrade-strategy eager -e .
           pip install --upgrade --upgrade-strategy eager pytest-cov
+
       - name: Run tests with pytest
+        if: ${{ matrix.test_script == 'display' }}
+        # we have two cores on the linux github action runners:
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        run: |
+          pip install --upgrade --upgrade-strategy eager pytest-xdist
+          pytest -n 2 --cov=plenoptic tests/test_${{ matrix.test_script }}.py
+      - name: Run tests with pytest
+        if: ${{ matrix.test_script != 'display' }}
+        # only test_display should parallelize across the cores, the others get
+        # slowed down by it
         run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'

@@ -48,6 +48,7 @@ setup(
         "pytest>=5.1.2",
         "scikit-image>=0.15.0",
         "dill",
+        "einops>=0.3.0"
     ],
     tests="tests",
 )

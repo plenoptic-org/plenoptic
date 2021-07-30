@@ -7,7 +7,7 @@ on:
     - cron: "0 0 * * 0" # weekly
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   run:
@@ -28,7 +28,17 @@ jobs:
       - name: Cache environment
         uses: actions/cache@v2
         with:
-          path: ${{ env.pythonLocation }}
+          # Cache the Python package environment, excluding pip and setuptools
+          # installed by setup-python, following
+          # https://github.com/pypa/pip/issues/9880
+          path: |
+            ~/.cache/pip
+            ${{ env.pythonLocation }}/bin/*
+            ${{ env.pythonLocation }}/include
+            ${{ env.pythonLocation }}/lib/python*/site-packages/*
+            !${{ env.pythonLocation }}/bin/pip*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/pipe*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/setuptools*
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Setup FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v1
@@ -36,6 +46,11 @@ jobs:
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
           pip install jupyter
+          # unclear why this is no longer installed as part of the repo2docker
+          # install, but as of
+          # https://github.com/LabForComputationalVision/plenoptic/runs/3104823312,
+          # it was not.
+          pip install chardet
           pip install ipywidgets
       - uses: treebeardtech/treebeard@master
         with:
