@@ -17,13 +17,13 @@ class PortillaSimoncelli(nn.Module):
 
     Parameters
     ----------
-    n_scales: uint
+    n_scales: int, Optional
         The number of pyramid scales used to measure the statistics (default=4)
 
-    n_orientations: uint
+    n_orientations: int, Optional
         The number of orientations used to measure the statistics (default=4)
 
-    spatial_corr_width: uint
+    spatial_corr_width: int, Optional
         The width of the spatial cross- and auto-correlation statistics in the representation
 
     use_true_correlations: bool
@@ -193,7 +193,7 @@ class PortillaSimoncelli(nn.Module):
             A flattened tensor (1d) containing the measured representation statistics.
 
         """
-
+        device = image.device
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
 
@@ -222,7 +222,7 @@ class PortillaSimoncelli(nn.Module):
         # and real_pyr_coeffs, which contain the magnitude of the
         # pyramid coefficients and the real part of the pyramid
         # coefficients respectively.
-        self.representation["magnitude_means"] = self.calculate_magnitude_means()
+        self.representation["magnitude_means"] = self._calculate_magnitude_means()
 
         ### SECTION 3 (STATISTICS: auto_correlation_magnitude,
         #                          skew_reconstructed,
@@ -263,7 +263,7 @@ class PortillaSimoncelli(nn.Module):
         if self.use_true_correlations:
             self.representation["std_reconstructed"] = torch.empty(self.n_scales + 1, 1)
 
-        self.calculate_autocorrelation_skew_kurtosis()
+        self._calculate_autocorrelation_skew_kurtosis()
 
         ### SECTION 4 (STATISTICS: cross_orientation_correlation_magnitude,
         #                          cross_scale_correlation_magnitude,
@@ -289,7 +289,7 @@ class PortillaSimoncelli(nn.Module):
             2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales
         )
 
-        self.calculate_crosscorrelations()
+        self._calculate_crosscorrelations()
 
         # STATISTIC: var_highpass_residual or the variance of the high-pass residual
         self.representation["var_highpass_residual"] = (
@@ -298,7 +298,6 @@ class PortillaSimoncelli(nn.Module):
 
         representation_vector = self.convert_to_vector()
 
-        # This is likely NOT efficient and should be replaced [did some timing tests... and it actually doesn't seem to matter]
         if scales is not None:
             ind = torch.LongTensor(
                 [
@@ -306,7 +305,7 @@ class PortillaSimoncelli(nn.Module):
                     for i, s in enumerate(self.representation_scales)
                     if s in self.scales
                 ]
-            )
+            ).to(device)
             return representation_vector.index_select(0, ind)
 
         return representation_vector.unsqueeze(0).unsqueeze(0)
@@ -433,7 +432,7 @@ class PortillaSimoncelli(nn.Module):
 
         return rep
 
-    def calculate_magnitude_means(self):
+    def _calculate_magnitude_means(self):
         r"""Calculates the mean of the pyramid coefficient magnitudes.  Also
         stores two dictionaries, one containing the magnitudes of the pyramid
         coefficient and the other containing the real parts.
@@ -450,7 +449,6 @@ class PortillaSimoncelli(nn.Module):
             "residual_lowpass"
         ] - torch.mean(self.pyr_coeffs["residual_lowpass"])
 
-        # do we to calculate real pyramid coefficients
         # calculate two new sets of coefficients: 1) magnitude of the pyramid coefficients, 2) real part of the pyramid coefficients
         self.magnitude_pyr_coeffs = OrderedDict()
         self.real_pyr_coeffs = OrderedDict()
@@ -480,12 +478,13 @@ class PortillaSimoncelli(nn.Module):
         im: torch.Tensor
             An image for expansion.
 
-        mult: uint
+        mult: int
             Multiplier by which to resize image.
 
         Returns
         =======
-
+        im_large: torch.Tensor
+            resized image
 
         """
 
@@ -526,7 +525,7 @@ class PortillaSimoncelli(nn.Module):
         
         return im_large.type(im.dtype)
 
-    def calculate_autocorrelation_skew_kurtosis(self):
+    def _calculate_autocorrelation_skew_kurtosis(self):
         r"""Calculate the autocorrelation for the real parts and magnitudes of the
         coefficients. Calculate the skew and kurtosis at each scale.
 
@@ -616,7 +615,7 @@ class PortillaSimoncelli(nn.Module):
                 self.representation["kurtosis_reconstructed"][this_scale],
             ) = self.compute_skew_kurtosis(reconstructed_image, vari)
 
-    def calculate_crosscorrelations(self):
+    def _calculate_crosscorrelations(self):
         r"""Calculate the cross-orientation and cross-scale correlations for the real parts
         and the magnitudes of the pyramid coefficients.
 
@@ -771,7 +770,7 @@ class PortillaSimoncelli(nn.Module):
             First matrix for cross correlation.
         ch2: torch.Tensor
             Second matrix for cross correlation.
-        band_num_el: uint
+        band_num_el: int
             Number of elements for bands in the scale
 
         Returns
