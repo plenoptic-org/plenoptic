@@ -158,7 +158,7 @@ class TestPortillaSimoncelli(object):
         im_shape,
         use_true_correlations,
     ):
-        x = po.make_basic_stimuli()
+        x = po.tools.make_synthetic_stimuli()
         if im_shape is not None:
             x = x[0, 0, : im_shape[0], : im_shape[1]]
         ps = po.simul.PortillaSimoncelli(
@@ -182,7 +182,7 @@ class TestPortillaSimoncelli(object):
         path = osf_download("portilla_simoncelli_matlab_test_vectors.tar.gz")
 
         torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"{im}.pgm")).copy()
+        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy()
         im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
         ps = po.simul.PortillaSimoncelli(
             x.shape[-2:],
