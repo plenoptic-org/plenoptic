@@ -14,7 +14,7 @@ from conftest import DATA_DIR, DEVICE
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'mssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
+           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
            'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
            'portilla_simoncelli_synthesize.npy': '7aw82'}

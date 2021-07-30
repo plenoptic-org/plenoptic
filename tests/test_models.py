@@ -11,7 +11,7 @@ import scipy.io as sio
 import pytest
 import torch
 import os.path as op
-from test_plenoptic import osf_download
+from test_metric import osf_download
 from plenoptic.simulate.canonical_computations import (gaussian1d, circular_gaussian2d)
 from conftest import DEVICE, DATA_DIR
 
