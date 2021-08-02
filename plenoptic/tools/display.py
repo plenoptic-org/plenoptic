@@ -12,7 +12,7 @@ except ImportError:
     warnings.warn("Unable to import IPython.display.HTML")
 
 
-def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
+def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
            cmap=None, plot_complex='rectangular', batch_idx=None,
            channel_idx=None, as_rgb=False, **kwargs):
     """Show image(s) correctly.
@@ -60,10 +60,10 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
         * `'indep3'`: each image has an independent vmin/vmax, chosen so that
                       the 10th/90th percentile values map to the 10th/90th
                       percentile intensities.
-    zoom : `float`
+    zoom : `float` or `None`
         ratio of display pixels to image pixels. if >1, must be an integer. If
         <1, must be 1/d where d is a a divisor of the size of the largest
-        image.
+        image. If None, we try to determine the best zoom.
     title : `str`, `list`, or None, optional
         Title for the plot. In addition to the specified title, we add a
         subtitle giving the plotted range and dimensionality (with zoom)
@@ -114,6 +114,7 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
     if not isinstance(image, list):
         image = [image]
     images_to_plot = []
+    heights, widths = [], []
     for im in image:
         if im.ndimension() == 5:
             # this will also call to_numpy on it
@@ -147,6 +148,27 @@ def imshow(image, vrange='indep1', zoom=1, title='', col_wrap=None, ax=None,
             # squeeze, which could accidentally drop a dimension if h or w is a
             # singleton dimension
             images_to_plot.extend([i_ for i_ in i])
+            heights.extend([i_.shape[0] for i_ in i])
+            widths.extend([i_.shape[1] for i_ in i])
+
+    def find_zoom(x, limit):
+        """Find zoom that works. This is only for limit < x."""
+        # find all non-trivial divisors of x
+        divisors = [i for i in range(2, x) if not x % i]
+        # find the largest zoom (equivalently, smallest divisor) such that the
+        # zoomed in image is smaller than the limit
+        return 1 / min([i for i in divisors if x/i <= limit])
+    if ax is not None and zoom is None:
+        if ax.bbox.height > max(heights):
+            zoom = ax.bbox.height // max(heights)
+        else:
+            zoom = find_zoom(max(heights), ax.bbox.height)
+        if ax.bbox.width > max(widths):
+            zoom = min(zoom, ax.bbox.width // max(widths))
+        else:
+            zoom = find_zoom(max(widths), ax.bbox.width)
+    elif zoom is None:
+        zoom = 1
     return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
                      col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
                      **kwargs)
@@ -890,8 +912,8 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
 
     Returns
     -------
-    fig : matplotlib.figure.Figure
-        The figure containing the plot
+    axes : list
+        List of created axes.
 
     """
     if ax is None:
@@ -951,7 +973,7 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
                                    False, ['top', 'right', 'bottom', 'left'],
                                    ['x', 'y'])
                 # only plot the specified batch
-                imshow(v, batch_idx=batch_idx, title=title, ax=ax,
+                imshow(v, batch_idx=batch_idx, title=k, ax=ax,
                        vrange='indep0', as_rgb=as_rgb)
                 axes.append(ax)
             # because we're plotting image data, don't want to change
@@ -964,4 +986,4 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
         rescale_ylim(axes, data)
-    return fig
+    return axes

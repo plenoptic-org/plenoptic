@@ -3,14 +3,14 @@ import warnings
 from tqdm.auto import tqdm
 import dill
 import pyrtools as pt
-from .old_synthesis import OldSynthesis
+from .synthesis import Synthesis
 import matplotlib.pyplot as plt
 from ..tools.display import plot_representation, clean_up_axes
 from ..simulate.models.naive import Identity
 from ..tools.optim import l2_norm
 
 
-class MADCompetition(OldSynthesis):
+class MADCompetition(Synthesis):
     """Generate maximally-differentiating images for two models
 
     In MAD Competition, we start with a reference image and generate two
