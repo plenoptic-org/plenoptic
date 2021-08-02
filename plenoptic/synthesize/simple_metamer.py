@@ -19,15 +19,15 @@ class SimpleMetamer(Synthesis):
 
     Parameters
     ----------
+    model :
+        The visual model whose representation we wish to match.
     target_signal :
         A 4d tensor, this is the image whose model representation we wish to
         match.
-    model :
-        The visual model whose representation we wish to match.
 
     """
 
-    def __init__(self, model: torch.nn.Module, target_signal: torch.Tensor):
+    def __init__(self, target_signal: torch.Tensor, model: torch.nn.Module):
         self.model = model
         if target_signal.ndimension() < 4:
             raise Exception("target_signal must be torch.Size([n_batch, "
