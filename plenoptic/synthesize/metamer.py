@@ -1457,15 +1457,17 @@ def animate(metamer: Metamer,
     except AttributeError:
         # this way we'll never rescale
         ylim_rescale_interval = len(metamer.saved_signal)+1
-    if fig is None:
-        # initialize the figure
+    # we run plot_synthesis_status to initialize the figure if either fig is
+    # None or if there are no titles on any axes, which we assume means that
+    # it's an empty figure
+    if fig is None or not any([ax.get_title() for ax in fig.axes]):
         fig, axes_idx = plot_synthesis_status(metamer=metamer,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
                                               ylim=ylim, loss=loss,
                                               model_response_error=model_response_error,
-                                              zoom=zoom,
+                                              zoom=zoom, fig=fig,
                                               synthesized_signal=synthesized_signal,
                                               pixel_values=pixel_values,
                                               axes_idx=axes_idx,
