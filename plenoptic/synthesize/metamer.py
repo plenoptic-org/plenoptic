@@ -170,7 +170,12 @@ class Metamer(Synthesis):
             # if self.scales is not None, we're continuing a previous version
             # and want to continue. this list comprehension creates a new
             # object, so we don't modify model.scales
-            self.scales = [i for i in self.model.scales[:-1]]
+            try:
+                self.scales = [i for i in self.model.scales[:-1]]
+            except AttributeError:
+                raise AttributeError(f"Model '{self.model._get_name()}' has no"
+                                     " attribute " " 'scales', and therefore "
+                                     "we cannot do coarse-to-fine synthesis.")
             if coarse_to_fine == 'separate':
                 self.scales += [self.model.scales[-1]]
             self.scales += ['all']
