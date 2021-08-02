@@ -226,7 +226,7 @@ class Eigendistortion:
         # reshape to (n x num_chans x h x w)
         self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
 
-        self.synthesized_eigenvalues = eig_vals.detach()
+        self.synthesized_eigenvalues = torch.abs(eig_vals.detach())
         self.synthesized_eigenindex = eig_vecs_ind
 
         return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
@@ -283,7 +283,9 @@ class Eigendistortion:
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
-        return eig_vals.flip(dims=(0,)), eig_vecs.flip(dims=(1,))
+        eig_vecs = eig_vecs.flip(dims=(1,))
+        eig_vals = eig_vals.flip(dims=(0,))
+        return eig_vals, eig_vecs
 
     def _synthesize_power(self,
                           k: int,
@@ -294,8 +296,8 @@ class Eigendistortion:
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
 
-        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a single (when `k=1`), or multiple
-        (when `k>1`) vectors.
+        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a single (`k=1`), or multiple
+        (`k>1`) vectors.
 
         Parameters
         ----------
@@ -327,11 +329,11 @@ class Eigendistortion:
 
         # note: v is an n x k matrix where k is number of eigendists to be synthesized!
         v = torch.randn(len(x), k).to(x.device)
-        v = v / v.norm()
+        v = v / torch.norm(v, dim=0, keepdim=True)
 
         _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
-        v = Fv / torch.norm(Fv)
+        v = Fv / torch.norm(Fv, dim=0, keepdim=True)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
         d_lambda = torch.tensor(float('inf'))
@@ -349,7 +351,7 @@ class Eigendistortion:
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
-            Fv = Fv - shift * v  # minor component
+            Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
             v_new = torch.qr(Fv)[0]  # (ortho)normalize vector(s)
 
@@ -414,7 +416,7 @@ class Eigendistortion:
         error_approx = omega - (Q @ Q.T @ omega)
         error_approx = error_approx.norm(dim=0).mean()
 
-        return S[:k], V[:, :k], error_approx  # truncate
+        return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
     def _indexer(self, idx: int) -> int:
         """Maps eigenindex to arg index (0-indexed)"""
