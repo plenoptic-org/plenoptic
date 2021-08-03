@@ -469,24 +469,3 @@ def nspd(IM_1, IM_2):
             dist.append(torch.sqrt(torch.mean((y1[key] - y2[key]) ** 2, dim=(2, 3)) + epsilon))
 
     return torch.stack(dist).mean(dim=0)
-
-
-def fpd(IM_1, IM_2):
-    """Factorized pyramid distance."""
-
-    fpyr = FactorizedPyramid(IM_1.shape[-2:], n_scale=5, n_ori=4, is_complex=False, downsample_dict=True)
-    energy1, state1 = fpyr(IM_1)
-    energy2, state2 = fpyr(IM_2)
-
-    epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
-    dist = []
-    for key in energy1.keys():
-        if key == "residual_highpass":
-            continue
-        elif key == "residual_lowpass":
-            dist.append(torch.sqrt(torch.mean(
-                (energy1[key] - energy2[key]) ** 2 / (energy1[key] ** 2 + energy2[key] ** 2), dim=(2, 3)) + epsilon))
-        else:
-            dist.append(torch.sqrt(torch.mean((state1[key] - state2[key]) ** 2, dim=(2, 3)) + epsilon))
-
-    return torch.stack(dist).mean(dim=0)
