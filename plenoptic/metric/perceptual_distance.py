@@ -3,9 +3,9 @@ import torch
 import torch.nn.functional as F
 import warnings
 
-from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
+from ..simulate.canonical_computations import LaplacianPyramid, Steerable_Pyramid_Freq
 from ..simulate.canonical_computations.filters import circular_gaussian2d
-from ..simulate.models import Factorized_Pyramid
+from ..simulate.models import FactorizedPyramid
 from ..simulate.canonical_computations.non_linearities import local_gain_control
 
 import os
@@ -359,7 +359,7 @@ def normalized_laplacian_pyramid(im):
     spatialpooling_filters = np.load(dirname + '/DN_filts.npy')
     sigmas = np.load(dirname + '/DN_sigmas.npy')
 
-    L = Laplacian_Pyramid(n_scales=N_scales, scale_filter=True)
+    L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.analysis(im)
 
     padd = 2
@@ -474,7 +474,7 @@ def nspd(IM_1, IM_2):
 def fpd(IM_1, IM_2):
     """Factorized pyramid distance."""
 
-    fpyr = Factorized_Pyramid(IM_1.shape[-2:], n_scale=5, n_ori=4, is_complex=False, downsample_dict=True)
+    fpyr = FactorizedPyramid(IM_1.shape[-2:], n_scale=5, n_ori=4, is_complex=False, downsample_dict=True)
     energy1, state1 = fpyr(IM_1)
     energy2, state2 = fpyr(IM_2)
 

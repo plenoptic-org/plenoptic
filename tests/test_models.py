@@ -41,13 +41,13 @@ class TestNonLinearities(object):
 class TestLaplacianPyramid(object):
 
     def test_grad(self, basic_stim):
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        L = po.simul.LaplacianPyramid().to(DEVICE)
         y = L.analysis(basic_stim)
         assert y[0].requires_grad
 
     def test_synthesis(self):
         img = torch.rand(1, 1, 543, 654).to(DEVICE)
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
+        L = po.simul.LaplacianPyramid().to(DEVICE)
         y = L.analysis(img)
         img_recon = L.synthesis(y)
         assert torch.allclose(img, img_recon)
@@ -60,9 +60,9 @@ class TestFactorizedPyramid(object):
     def test_factpyr(self, basic_stim, downsample_dict, is_complex):
         x = basic_stim
         # x = po.load_images(DATA_DIR + "/512/")
-        model = po.simul.Factorized_Pyramid(x.shape[-2:],
-                                            downsample_dict=downsample_dict,
-                                            is_complex=is_complex)
+        model = po.simul.FactorizedPyramid(x.shape[-2:],
+                                           downsample_dict=downsample_dict,
+                                           is_complex=is_complex)
         x_hat = model.synthesis(*model.analysis(x))
 
         relative_MSE = (torch.norm(x - x_hat, dim=(2, 3))**2 /

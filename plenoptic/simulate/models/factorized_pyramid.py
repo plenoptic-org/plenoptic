@@ -8,7 +8,7 @@ from plenoptic.simulate.canonical_computations.steerable_pyramid_freq import \
 from plenoptic.tools.signal import polar_to_rectangular, rectangular_to_polar
 
 
-class Factorized_Pyramid(nn.Module):
+class FactorizedPyramid(nn.Module):
     """
     An non-linear transform which factorizes signal and is exactely invertible.
 
