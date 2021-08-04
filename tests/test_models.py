@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import matplotlib.pyplot as plt
 import pytest
+import numpy as np
 import torch
 import plenoptic as po
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
+import pyrtools as pt
 from conftest import DEVICE
 
 
@@ -41,16 +43,29 @@ class TestNonLinearities(object):
 class TestLaplacianPyramid(object):
 
     def test_grad(self, basic_stim):
-        L = po.simul.LaplacianPyramid().to(DEVICE)
-        y = L.analysis(basic_stim)
+        lpyr = po.simul.LaplacianPyramid().to(DEVICE)
+        y = lpyr.analysis(basic_stim)
         assert y[0].requires_grad
 
-    def test_synthesis(self):
-        img = torch.rand(1, 1, 543, 654).to(DEVICE)
-        L = po.simul.LaplacianPyramid().to(DEVICE)
-        y = L.analysis(img)
-        img_recon = L.synthesis(y)
+    @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
+    def test_synthesis(self, curie_img, n_scales):
+        img = curie_img[0:253, 0:234]  # Original 256x256 shape is not good for testing padding
+        lpyr = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        y = lpyr.analysis(img)
+        img_recon = lpyr.synthesis(y)
         assert torch.allclose(img, img_recon)
+
+    @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
+    def test_match_pyrtools(self, curie_img, n_scales):
+        img = curie_img[0:253, 0:234]
+        lpyr_po = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        y_po = lpyr_po(img)
+        lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)
+        y_pt = [lpyr_pt.pyr_coeffs[(i, 0)] for i in range(n_scales)]
+        assert len(y_po) == len(y_pt)
+        for x_po, x_pt in zip(y_po, y_pt):
+            x_po = x_po.squeeze().detach().cpu().numpy()
+            assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5  # There is some problem with right and bottom edge
 
 
 class TestFactorizedPyramid(object):
