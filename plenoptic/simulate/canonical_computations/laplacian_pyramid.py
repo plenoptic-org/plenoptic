@@ -32,13 +32,14 @@ class LaplacianPyramid(nn.Module):
         self.scale_filter = scale_filter
 
     def analysis(self, x):
-        """
+        """Build the Laplacian pyramid of an image.
 
         Arguments
         ---------
         x: torch.Tensor of shape (B, C, H, W)
             Image, or batch of images. If there are multiple channels,
             the Laplacian is computed separately for each of them
+
         Returns
         -------
         y: list of torch.Tensor
@@ -58,18 +59,20 @@ class LaplacianPyramid(nn.Module):
         return y
 
     def synthesis(self, y):
-        """
+        """Reconstruct the image from its Laplacian pyramid.
 
         Arguments
         ---------
         y: list of torch.Tensor
             Laplacian pyramid representation, each element of the list
             corresponds to a scale, from fine to coarse
+
         Returns
         -------
         x: torch.Tensor of shape (B, C, H, W)
             Image, or batch of images
         """
+
         x = y[self.n_scales - 1]
         for scale in range(self.n_scales - 1, 0, -1):
             odd = torch.tensor(y[scale - 1].shape)[2:4] % 2
