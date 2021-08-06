@@ -119,8 +119,9 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     the LIVE database).
 
     Note that this is a similarity metric (not a distance), and so 1 means the
-    two images are identical and 0 means they're very different. It is bounded
-    between 0 and 1.
+    two images are identical and 0 means they're very different. When the two
+    images are negatively correlated, SSIM can be negative. SSIM is bounded
+    between -1 and 1.
 
     This function returns the mean SSIM, a scalar-valued metric giving the
     average over the whole image. For the SSIM map (showing the computed value
@@ -205,8 +206,9 @@ def ssim_map(img1, img2, dynamic_range=1):
     the LIVE database).
 
     Note that this is a similarity metric (not a distance), and so 1 means the
-    two images are identical and 0 means they're very different. It is bounded
-    between 0 and 1.
+    two images are identical and 0 means they're very different. When the two
+    images are negatively correlated, SSIM can be negative. SSIM is bounded
+    between -1 and 1.
 
     This function returns the SSIM map, showing the SSIM values across the
     image. For the mean SSIM (a single value metric), call `ssim`.
