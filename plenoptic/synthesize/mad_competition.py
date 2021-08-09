@@ -549,7 +549,16 @@ class MADCompetition(Synthesis):
             The path to save the metamer object to
 
         """
-        super().save(file_path, attrs=None)
+        # this copies the attributes dict so we don't actually remove the
+        # model attribute in the next line
+        attrs = {k: v for k, v in vars(self).items()}
+        # if the metrics are Modules, then we don't want to save them. If
+        # they're functions then saving them is fine.
+        if isinstance(self.synthesis_metric, torch.nn.Module):
+            attrs.pop('synthesis_metric')
+        if isinstance(self.fixed_metric, torch.nn.Module):
+            attrs.pop('fixed_metric')
+        super().save(file_path, attrs=attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -587,8 +596,7 @@ class MADCompetition(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['target_signal', 'synthesized_signal', 'model',
-                 'saved_signal']
+        attrs = ['reference_signal', 'synthesized_signal', 'saved_signal']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
@@ -600,7 +608,6 @@ class MADCompetition(Synthesis):
             self.synthesis_metric.to(*args, **kwargs)
         except AttributeError:
             pass
-
 
     def load(self, file_path: str,
              map_location: Union[str, None] = None,
@@ -639,8 +646,9 @@ class MADCompetition(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['target_signal', 'metric_tradeoff_lambda',
-                            'range_penalty_lambda', 'allowed_range']
+        check_attributes = ['reference_signal', 'metric_tradeoff_lambda',
+                            'range_penalty_lambda', 'allowed_range',
+                            'synthesis_target']
         check_loss_functions = ['fixed_metric', 'synthesis_metric']
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,

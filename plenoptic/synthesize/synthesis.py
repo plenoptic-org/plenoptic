@@ -41,7 +41,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             # this copies the attributes dict so we don't actually remove the
             # model attribute in the next line
             attrs = {k: v for k, v in vars(self).items()}
-            attrs.pop('model')
+            attrs.pop('model', None)
 
         save_dict = {}
         for k in attrs:
@@ -128,8 +128,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                     f" Self: {getattr(self, k)}, "
                                     f"Saved: {tmp_dict[k]}")
         for k in check_loss_functions:
-            # this way, each is a 1x1x100x100 tensor
-            tensor_a, tensor_b = torch.rand(2, 1, 1, 100, 100)
+            # this way, each is a 1x1x64x64 tensor
+            tensor_a, tensor_b = torch.rand(2, 1, 1, 64, 64)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss):
