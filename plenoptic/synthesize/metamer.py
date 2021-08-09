@@ -232,10 +232,6 @@ class Metamer(Synthesis):
             ``self.saved_model_response`` contains the stored model response.
 
         """
-        # python's implicit boolean-ness means we can do this! it will evaluate
-        # to False for False and 0, and True for True and every int >= 1
-        if store_progress is None and self.store_progress is not None:
-            store_progress = self.store_progress
         if store_progress:
             if store_progress is True:
                 store_progress = 1
