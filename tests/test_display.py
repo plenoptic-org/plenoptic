@@ -524,12 +524,17 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
     if sum([synthesized_signal, loss, model_response_error, pixel_values]) == 0:
         # then there's nothing to plot here
         return
-    as_rgb = synthesis_object.target_signal.shape[1] > 1
-    plot_func = 'scatter'
     plot_choices = {'synthesized_signal': synthesized_signal,
                     'loss': loss,
                     'model_response_error': model_response_error,
                     'pixel_values': pixel_values}
+    plot_kwargs = {}
+    try:
+        as_rgb = synthesis_object.target_signal.shape[1] > 1
+        plot_kwargs['plot_model_response_error_as_rgb'] = as_rgb
+    except AttributeError:
+        # MAD doesn't have a model_response_error plot
+        plot_choices.pop('model_response_error')
     width_ratios = {}
     # need to figure out which plotting function to call
     if isinstance(synthesis_object, po.synth.Metamer):
@@ -546,14 +551,13 @@ def template_test_synthesis_all_plot(synthesis_object, iteration,
                 width_ratios['synthesized_signal'] = 2
     elif fig_creation.startswith('pass'):
         fig, axes, axes_idx = containing_file._setup_synthesis_fig(None, {}, None,
-                                                                   model_response_error_width=2,
                                                                    **plot_choices)
         if fig_creation.endswith('without'):
             axes_idx = {}
     containing_file.plot_synthesis_status(synthesis_object, iteration=iteration, **plot_choices,
                                           fig=fig,
                                           axes_idx=axes_idx,
-                                          plot_model_response_error_as_rgb=as_rgb,
+                                          **plot_kwargs,
                                           width_ratios=width_ratios)
     plt.close('all')
 
@@ -564,7 +568,14 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation,
     # it to the plotting and animating functions, specifying some or all of the
     # locations for the plots. Any synthesis object that has had synthesis()
     # called should work with this
-    as_rgb = synthesis_object.target_signal.shape[1] > 1
+    plot_kwargs = {}
+    try:
+        as_rgb = synthesis_object.target_signal.shape[1] > 1
+        plot_kwargs['plot_model_response_error_as_rgb'] = as_rgb
+        plot_kwargs['model_response_error'] = True
+    except AttributeError:
+        # Metamer calls it target_signal, MAD calls it reference_signal
+        pass
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
     axes_idx = {'synthesized_signal': 0, 'model_response_error': 8}
     if '-' in fig_creation:
@@ -584,18 +595,17 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation,
         fig, axes_idx = containing_file.plot_synthesis_status(synthesis_object,
                                                               synthesized_signal=synthesized_signal,
                                                               loss=True,
-                                                              model_response_error=True,
                                                               pixel_values=True,
                                                               fig=fig,
                                                               axes_idx=axes_idx,
-                                                              plot_model_response_error_as_rgb=as_rgb)
+                                                              **plot_kwargs)
     if func == 'animate':
         path = op.join(tmp_path, 'test_anim.html')
         containing_file.animate(synthesis_object, synthesized_signal=synthesized_signal,
-                                loss=True, model_response_error=True,
+                                loss=True,
                                 pixel_values=True, fig=fig,
                                 axes_idx=axes_idx,
-                                plot_model_response_error_as_rgb=as_rgb).save(path)
+                                **plot_kwargs).save(path)
         plt.close('all')
 
 
@@ -610,31 +620,29 @@ class TestMADDisplay(object):
         else:
             img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
-        model1 = po.simul.Identity().to(DEVICE)
-        # to serve as a metric, need to return a single value, but SSIM
+        # to serve as a metric, need to return a single value, but SSIM and MSE
         # will return a separate value for each RGB channel
         def rgb_ssim(*args, **kwargs):
             return po.metric.ssim(*args, **kwargs).mean()
-        model2 = rgb_ssim
-        mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize('model_1_min', max_iter=2, store_progress=True)
+        def rgb_mse(*args, **kwargs):
+            return po.metric.mse(*args, **kwargs).mean()
+        mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, 'min')
+        mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
     @pytest.mark.parametrize('iteration', [None, 1, -1])
     @pytest.mark.parametrize('synthesized_signal', [True, False])
     @pytest.mark.parametrize('loss', [True, False])
-    @pytest.mark.parametrize('representation_error', [True, False])
     @pytest.mark.parametrize('pixel_values', [True, False])
     @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
                                               'pass-with', 'pass-without'])
     def test_all_plot(self, synthesized_mad, iteration,
                       synthesized_signal, loss,
-                      representation_error, pixel_values,
-                      fig_creation):
+                      pixel_values, fig_creation):
         # tests whether we can plot all possible combinations of plots.
         # test_custom_fig tests whether these animate correctly.
         template_test_synthesis_all_plot(synthesized_mad, iteration,
-                                         synthesized_signal, loss, representation_error,
+                                         synthesized_signal, loss, False,
                                          pixel_values, fig_creation)
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
