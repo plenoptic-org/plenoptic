@@ -18,7 +18,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty'])
     @pytest.mark.parametrize('range_penalty', [.1, 0])
     def test_metamer_save_load(self, einstein_img, model, loss_func, fail, range_penalty, tmp_path):
-        if loss_func is 'mse':
+        if loss_func == 'mse':
             loss = po.tools.optim.mse
         elif loss_func == 'l2':
             loss = po.tools.optim.l2_norm
@@ -75,13 +75,11 @@ class TestMetamers(object):
         # have 1 extra saved
         assert len(metamer.saved_signal) == (max_iter//store_progress)+1, "Didn't end up with enough saved signal!"
 
-
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True)
-
 
     @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
@@ -106,7 +104,6 @@ class TestMetamers(object):
         metamer.synthesize(max_iter=5, stop_iters_to_check=1, coarse_to_fine=coarse_to_fine,
                            coarse_to_fine_kwargs={'change_scale_criterion': 10,
                                                   'ctf_iters_to_check': 1})
-
 
     @pytest.mark.parametrize('model', ['NLP'], indirect=True)
     @pytest.mark.parametrize('optimizer', ['Adam', None, 'Scheduler'])
