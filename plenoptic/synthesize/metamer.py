@@ -33,8 +33,7 @@ class Metamer(Synthesis):
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model :
-        A visual model or metric, see `MAD_Competition` notebook for more
-        details
+        A visual model, see `MAD_Competition` notebook for more details
     loss_function :
         the loss function to use to compare the representations of the
         models in order to determine their loss.
@@ -159,6 +158,7 @@ class Metamer(Synthesis):
                 raise Exception("synthesized_signal and target_signal must be"
                                 " same size!")
         self.synthesized_signal = synthesized_signal
+        self.losses.append(self.objective_function(self.model(synthesized_signal)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
                   change_scale_criterion: float,
@@ -223,14 +223,13 @@ class Metamer(Synthesis):
         Parameters
         ----------
         store_progress : bool or int, optional
-            Whether we should store the representation of the metamer
-            and the metamer image in progress on every iteration. If
-            False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress``
-            iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_signal``
-            contains the stored images, and ``self.saved_model_response``
-            contains the stored model response.
+            Whether we should store the model response and the metamer image in
+            progress on every iteration. If False, we don't save anything. If
+            True, we save every iteration. If an int, we save every
+            ``store_progress`` iterations (note then that 0 is the same as
+            False and 1 the same as True). If True or int>0,
+            ``self.saved_signal`` contains the stored images, and
+            ``self.saved_model_response`` contains the stored model response.
 
         """
         # python's implicit boolean-ness means we can do this! it will evaluate
@@ -293,7 +292,7 @@ class Metamer(Synthesis):
             # calculating the gradient and updating synthesized_signal;
             # therefore the iteration where loss is NaN is the one *after* the
             # iteration where synthesized_signal (and thus
-            # synthesized_representation) started to have NaN values. this will
+            # synthesized_model_response) started to have NaN values. this will
             # fail if it hits a nan before store_progress iterations (because
             # then saved_signal only has a length of 1) but in that case, you
             # have more severe problems
@@ -520,7 +519,7 @@ class Metamer(Synthesis):
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
         # (otherwise there's an error thrown because self.scales[-1] is
-        # not the same scale we computed synthesized_representation using)
+        # not the same scale we computed synthesized_model_response using)
         if self.coarse_to_fine:
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
@@ -1200,8 +1199,8 @@ def plot_synthesis_status(metamer: Metamer,
         The ylimit to use for the model_response_error plot. We pass
         this value directly to ``plot_model_response_error``
     vrange :
-        The vrange option to pass to ``display_synthesized_signal()``. See that
-        function for details
+        The vrange option to pass to ``display_synthesized_signal()``. See
+        docstring of ``imshow`` for possible values.
     zoom :
         How much to zoom in / enlarge the synthesized image, the ratio
         of display pixels to image pixels. If None (the default), we
@@ -1534,13 +1533,8 @@ def animate(metamer: Metamer,
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i*metamer.store_progress
-            # saved_signal will end up being one element longer than losses,
-            # because it grabs the initial value during initialization, whereas
-            # losses does not. this makes sure we don't try to grab a value
-            # from losses that isn't present
-            if x_val < len(metamer.losses):
-                scat.set_offsets((x_val, metamer.losses[i*metamer.store_progress]))
-                artists.append(scat)
+            scat.set_offsets((x_val, metamer.losses[x_val]))
+            artists.append(scat)
         # as long as blitting is True, need to return a sequence of artists
         return artists
 
