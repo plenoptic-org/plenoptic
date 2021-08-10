@@ -420,8 +420,8 @@ def nlpd(IM_1, IM_2):
     return torch.stack(dist).mean(dim=0)
 
 
-def normalized_steerable_pyramid(im):
-    """Compute the normalized Steerable Pyramid using pre-optimized parameters
+def normalized_steerable_pyramid(im, sigmas=None):
+    """Compute the normalized Steerable Pyramid using pre-optimized parameters. (under construction)
 
     Arguments
     --------
@@ -435,7 +435,8 @@ def normalized_steerable_pyramid(im):
         of this dictionary are the same as the output of `Steerable_Pyramid_Freq`.
     """
 
-    sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
+    if sigmas is None:
+        sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
     spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True)
     spyr_coeffs = spyr.forward(im)
     normalized_spyr_coeffs = {}
@@ -445,12 +446,11 @@ def normalized_steerable_pyramid(im):
         elif key == "residual_highpass":
             continue
         else:
-            _, normalized_spyr_coeffs[key] = local_gain_control(
-                spyr_coeffs[key], epsilon=5 * torch.tensor(sigmas[key]))
+            _, normalized_spyr_coeffs[key] = local_gain_control(spyr_coeffs[key], epsilon=sigmas[key])
     return normalized_spyr_coeffs
 
 
-def nspd(IM_1, IM_2):
+def nspd(IM_1, IM_2, sigmas=None):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
@@ -458,8 +458,8 @@ def nspd(IM_1, IM_2):
     under construction
     """
 
-    y1 = normalized_steerable_pyramid(IM_1)
-    y2 = normalized_steerable_pyramid(IM_2)
+    y1 = normalized_steerable_pyramid(IM_1, sigmas=sigmas)
+    y2 = normalized_steerable_pyramid(IM_2, sigmas=sigmas)
 
     epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
