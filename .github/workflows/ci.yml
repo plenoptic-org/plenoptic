@@ -5,7 +5,7 @@ on:
     - cron: "0 0 * * 0" # weekly
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        test_script: ['metamers', 'models', 'plenoptic', 'steerable_pyr', 'eigendistortion', 'mad', 'display']
+        test_script: ['metamers', 'models', 'tools', 'metric', 'steerable_pyr', 'eigendistortion', 'mad', 'display', 'geodesic']
       fail-fast: false
     name: CI
     steps:
@@ -27,7 +27,17 @@ jobs:
       - name: Cache environment
         uses: actions/cache@v2
         with:
-          path: ${{ env.pythonLocation }}
+          # Cache the Python package environment, excluding pip and setuptools
+          # installed by setup-python, following
+          # https://github.com/pypa/pip/issues/9880
+          path: |
+            ~/.cache/pip
+            ${{ env.pythonLocation }}/bin/*
+            ${{ env.pythonLocation }}/include
+            ${{ env.pythonLocation }}/lib/python*/site-packages/*
+            !${{ env.pythonLocation }}/bin/pip*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/pipe*
+            !${{ env.pythonLocation }}/lib/python*/site-packages/setuptools*
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |

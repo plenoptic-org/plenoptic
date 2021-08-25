@@ -1,5 +1,5 @@
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
-			    :target: https://github.com/LabForComputationalVision/plenoptic/blob/master/LICENSE
+			    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.6%7C3.7-blue.svg
 

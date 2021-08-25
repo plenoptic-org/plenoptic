@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import warnings
 
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
-from ..simulate.canonical_computations import local_gain_control, rectangular_to_polar_dict
+from ..simulate.canonical_computations import local_gain_control_dict, rectangular_to_polar_dict
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 
 import os
@@ -66,7 +66,7 @@ def _ssim_parts(img1, img2, dynamic_range):
 
     real_size = min(11, height, width)
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=std, n_channels=n_channels)
+    window = circular_gaussian2d(real_size, std=std, out_channels=n_channels)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
@@ -341,7 +341,7 @@ def nspd(IM_1, IM_2, O=1, S=5, complex=True):
         non_linear = rectangular_to_polar_dict
     else:
         linear = Steerable_Pyramid_Freq(IM_1.shape[-2:], order=O, height=S)
-        non_linear = local_gain_control
+        non_linear = local_gain_control_dict
 
     linear.to(IM_1.device)
     pyr = linear(torch.cat((IM_1, IM_2), 0))

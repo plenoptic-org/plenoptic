@@ -24,7 +24,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
@@ -43,7 +43,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.plot(x, y1, '-o', label='hi')
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
@@ -73,7 +73,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.lines) == 2, "Incorrect number of lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
@@ -93,7 +93,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
-        po.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
@@ -112,7 +112,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.stem(x, y1, label='hi', use_line_collection=True)
-        po.update_plot(axes, y2)
+        po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
@@ -142,7 +142,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=i, use_line_collection=True)
-        po.update_plot(ax, y2)
+        po.tools.update_plot(ax, y2)
         assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
@@ -161,7 +161,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.update_plot(ax, torch.tensor(y2))
+        po.tools.update_plot(ax, torch.tensor(y2))
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
@@ -177,7 +177,7 @@ class TestDisplay(object):
         elif how == 'dict':
             y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
         fig = pt.imshow([y for y in y1.squeeze()])
-        po.update_plot(fig.axes, y2)
+        po.tools.update_plot(fig.axes, y2)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
@@ -197,7 +197,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
         data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 1, len(x2), 2)
-        po.update_plot(ax, data)
+        po.tools.update_plot(ax, data)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, data):
@@ -217,7 +217,7 @@ class TestDisplay(object):
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.scatter(x1, y1)
-        po.update_plot(axes, data)
+        po.tools.update_plot(axes, data)
         for i, ax in enumerate(axes):
             assert len(ax.collections) == 1, "Too many scatter plots created"
             ax_data = ax.collections[0].get_offsets()
@@ -248,7 +248,7 @@ class TestDisplay(object):
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
-        po.update_plot(ax, data)
+        po.tools.update_plot(ax, data)
         assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
         for i in range(2):
             ax_data = ax.collections[i].get_offsets()
@@ -276,7 +276,7 @@ class TestDisplay(object):
                 ax.scatter(x1, y1)
             else:
                 ax.plot(x1, y1)
-        po.update_plot(axes, data)
+        po.tools.update_plot(axes, data)
         for i, ax in enumerate(axes):
             if i == 0:
                 assert len(ax.collections) == 1, "Too many scatter plots created"
@@ -308,23 +308,25 @@ class TestDisplay(object):
         else:
             im_shape = [2, 4, 5, 5]
         if is_complex:
-            im = torch.rand((*im_shape, 2))
-            # this is 2 (the two complex components) * 4 (the four channels) *
-            # 2 (the two batches)
+            dtype = torch.complex64
+            # this is 4 (the four channels) * 2 (the two batches) * 2 (the two
+            # complex components)
             n_axes = 16
         else:
-            im = torch.rand(im_shape)
+            dtype = torch.float32
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+        im = torch.rand(im_shape, dtype=dtype)
         if mini_im:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]] + [2]
                 n_axes += 16
             else:
-                shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
                 n_axes += 8
-            im = [im, torch.rand(shape)]
+            # same number of batches and channels, then double the height and
+            # width
+            shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
+            im = [im, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'
@@ -362,6 +364,51 @@ class TestDisplay(object):
                 po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
                           batch_idx=batch_idx, plot_complex=is_complex)
 
+    @pytest.fixture(scope='class', params=['complex', 'not-complex'])
+    def steerpyr(self, request):
+        if request.param == 'complex':
+            is_complex = True
+        elif request.param == 'not-complex':
+            is_complex = False
+        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
+
+    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
+    @pytest.mark.parametrize('show_residuals', [True, False])
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
+        fails = False
+        if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
+            fails = True
+        n_axes = 4
+        if steerpyr.is_complex:
+            n_axes *= 2
+        if show_residuals:
+            n_axes += 2
+        img = po.load_images(op.join(DATA_DIR, '256/curie.pgm'))
+        img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
+        coeffs = steerpyr(img)
+        if not fails:
+            # unfortunately, can't figure out how to properly parametrize this
+            # and use the steerpyr fixture
+            for comp in ['rectangular', 'polar', 'logpolar']:
+                fig = po.pyrshow(coeffs, show_residuals=show_residuals,
+                                 plot_complex=comp, batch_idx=batch_idx,
+                                 channel_idx=channel_idx)
+                # get all the axes that have an image (so, get all non-empty
+                # axes)
+                axes = [ax for ax in fig.axes if ax.images]
+                if len(axes) != n_axes:
+                    raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
+                plt.close('all')
+        else:
+            with pytest.raises(TypeError):
+                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
+
+    def test_display_test_signals(self):
+        po.imshow(po.tools.make_synthetic_stimuli(128));
+        po.imshow(po.load_images(DATA_DIR + '/512'));
+        po.imshow(po.load_images(DATA_DIR + '/256'));
+
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
@@ -370,23 +417,25 @@ class TestDisplay(object):
     def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
         fails = False
         if is_complex:
-            vid = torch.rand((2, 4, 10, 10, 10, 2))
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
             n_axes = 16
+            dtype = torch.complex64
         else:
-            vid = torch.rand((2, 4, 10, 10, 10))
             # this is 4 (the four channels) * 2 (the two batches)
             n_axes = 8
+            dtype = torch.float32
+        vid = torch.rand((2, 4, 10, 10, 10), dtype=dtype)
         if mini_vid:
             # n_axes here follows the same logic as above
             if is_complex:
-                shape = [2, 4, 10, 5, 5, 2]
                 n_axes += 16
             else:
-                shape = [2, 4, 10, 5, 5]
                 n_axes += 8
-            vid = [vid, torch.rand(shape)]
+            # same number of batches, channels, and frames, then half the
+            # height and width
+            shape = [2, 4, 10, 5, 5]
+            vid = [vid, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
             is_complex = 'rectangular'
@@ -431,7 +480,7 @@ class TestDisplay(object):
         fig = po.imshow(einstein_img)
         with pytest.raises(Exception):
             try:
-                po.update_plot(fig.axes[0], einstein_img.squeeze())
+                po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
             except Exception as e:
                 assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
                 raise e
@@ -563,7 +612,7 @@ class TestMADDisplay(object):
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
+            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         model1 = po.simul.Identity().to(DEVICE)
         # to serve as a metric, need to return a single value, but SSIM
@@ -617,7 +666,7 @@ class TestMetamerDisplay(object):
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, 'nuts.pgm')).to(DEVICE)
+            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         if model == 'class':
             #  height=1 and order=0 to limit the time this takes, and then we
