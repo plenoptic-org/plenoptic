@@ -90,6 +90,7 @@ def interpolate1d(x_new, Y, X):
 
     Returns
     -------
+    
     Interpolated values of shape identical to `x_new`.
     """
 
@@ -145,16 +146,20 @@ def rectangular_to_polar(x):
 
     Parameters
     --------
-    x: torch.Tensor
-        complex tensor
+    x: torch.ComplexTensor
+
     Returns
     -------
     amplitude: torch.Tensor
         tensor containing the amplitude (aka. complex modulus)
     phase: torch.Tensor
         tensor containing the phase
+
     """
-    return torch.abs(x), torch.angle(x)
+
+    amplitude = torch.abs(x)
+    phase = torch.angle(x)
+    return amplitude, phase
 
 
 def polar_to_rectangular(amplitude, phase):
@@ -348,6 +353,51 @@ def autocorr(x, n_shifts=7):
 
     return autocorr
 
+def autocorr(x, n_shifts=7):
+    """Compute the autocorrelation of `x` up to `n_shifts` shifts,
+    the calculation is performed in the frequency domain.
+    Parameters
+    ---------
+    x: torch.Tensor
+        input signal of shape [b, c, h, w]
+    n_shifts: integer
+        Sets the length scale of the auto-correlation
+        (ie. maximum offset or lag)
+    Returns
+    -------
+    autocorr: torch.tensor
+        computed autocorrelation
+    Notes
+    -----
+    - By the Einstein-Wiener-Khinchin theorem:
+    The autocorrelation of a wide sense stationary (WSS) process is the
+    inverse Fourier transform of its energy spectrum (ESD) - which itself
+    is the multiplication between FT(x(t)) and FT(x(-t)).
+    In other words, the auto-correlation is convolution of the signal `x` with
+    itself, which corresponds to squaring in the frequency domain.
+    This approach is computationally more efficient than brute force
+    (n log(n) vs n^2).
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
+    location (ie. no shift) - that maximum value is the signal's variance
+    (assuming that the input signal is mean centered).
+    """
+    N, C, H, W = x.shape
+    assert n_shifts >= 1
+
+    spectrum = fft.rfft2(x, dim=(-2, -1), norm=None)
+
+    energy_spectrum = torch.abs(spectrum) ** 2
+    zero_phase = torch.zeros_like(energy_spectrum)
+    energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
+
+    autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None,
+                          s=(H, W))
+    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H*W)
+
+    if n_shifts is not None:
+        autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
+                                  (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
+    return autocorr
 
 def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
           even_phase=True):

@@ -61,10 +61,13 @@ class Factorized_Pyramid(nn.Module):
                 self.decomposition = local_gain_control_dict
                 self.recomposition = local_gain_release_dict
         else:
-            self.pyramid_analysis  = lambda x: pyr.convert_pyr_to_tensor(
-                                                           pyr.forward(x))
+            def stash(y, info):
+                self.pyr_info = info
+                return y
+            self.pyramid_analysis  = lambda x: stash(*pyr.convert_pyr_to_tensor(
+                                                           pyr.forward(x)))
             self.pyramid_synthesis = lambda y: pyr.recon_pyr(
-                                 pyr.convert_tensor_to_pyr(y))
+                                 pyr.convert_tensor_to_pyr(y, *self.pyr_info))
             if is_complex:
                 self.decomposition = rectangular_to_polar
                 self.recomposition = polar_to_rectangular

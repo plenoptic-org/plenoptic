@@ -12,22 +12,30 @@ from plenoptic.tools.data import to_numpy
 from conftest import DEVICE, DATA_DIR, DTYPE
 
 
-def check_pyr_coeffs(coeff_np, coeff_torch, rtol=1e-3, atol=1e-3):
+
+def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     '''
-    function that checks if two sets of pyramid coefficients (one numpy  and one torch) are the same
+    function that checks if two sets of pyramid coefficients are the same
     We set an absolute and relative tolerance and the following function checks if
     abs(coeff1-coeff2) <= atol + rtol*abs(coeff1)
     Inputs:
-    coeff1: numpy pyramid coefficients
-    coeff2: torch pyramid coefficients
+    coeff1: first dictionary of pyramid coefficients
+    coeff2: second dictionary of pyramid coefficients
     Both coeffs must obviously have the same number of scales, orientations etc.
     '''
 
-    for k in coeff_np.keys():
-        coeff_np_k = coeff_np[k]
-        coeff_torch_k  = to_numpy(coeff_torch[k])
-        coeff_torch_k = coeff_torch_k.squeeze()
-        np.testing.assert_allclose(coeff_torch_k, coeff_np_k, rtol=rtol, atol=atol)
+    for k in coeff_1.keys():
+        if torch.is_tensor(coeff_1[k]):
+            coeff_1_np = to_numpy(coeff_1[k].squeeze())
+        else:
+            coeff_1_np = coeff_1[k]
+        if torch.is_tensor(coeff_2[k]):
+            coeff_2_np = to_numpy(coeff_2[k].squeeze())
+        else:
+            coeff_2_np = coeff_2[k]
+        
+        
+        np.testing.assert_allclose(coeff_1_np, coeff_2_np, rtol=rtol, atol=atol)
 
 
 def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
@@ -85,6 +93,18 @@ class TestSteerablePyramid(object):
             img = img[..., :128]
         return img
 
+    @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2' ]])
+    def multichannel_img(self, request):
+        shape = request.param
+        img = po.load_images(op.join(DATA_DIR, f'512/flowers.jpg'), as_gray=False).to(DEVICE)
+        if shape == '224':
+            img = img[..., :224, :224]
+        elif shape == '128_1':
+            img = img[..., :128, :]
+        elif shape == '128_2':
+            img = img[..., :128]
+        return img
+
     # WARNING: because this fixture requires the img fixture above, it should
     # only be used in tests that also use the img fixture. That is, tests where
     # you want to test both the einstein and curie images, as well as the
@@ -101,6 +121,21 @@ class TestSteerablePyramid(object):
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
         pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, int(order), is_complex=eval(is_complex),
+                                              downsample=eval(downsample), tight_frame=eval(tightframe))
+        pyr.to(DEVICE)
+        return pyr
+
+    @pytest.fixture(scope='class')
+    def spyr_multi(self, multichannel_img, request):
+        height, order, is_complex, downsample, tightframe = request.param.split('-')
+        try:
+            height = int(height)
+        except ValueError:
+            # then height = 'auto', and that's fine
+            pass
+        # need to use eval to get from 'False' (string) to False (bool);
+        # bool('False') == True, annoyingly enough
+        pyr = po.simul.Steerable_Pyramid_Freq(multichannel_img.shape[-2:], height, int(order), is_complex=eval(is_complex),
                                               downsample=eval(downsample), tight_frame=eval(tightframe))
         pyr.to(DEVICE)
         return pyr
@@ -127,9 +162,9 @@ class TestSteerablePyramid(object):
         pyr_coeffs = spyr.forward(img)
         check_parseval(img, pyr_coeffs)
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-True' for h, o, c in product([3, 4, 5],
+    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-{t}' for h, o, c, t in product([3, 4, 5],
                                                                                       [1, 2, 3],
-                                                                                      [True, False])],
+                                                                                      [True, False],[True, False])],
                              indirect=True)
     def test_not_downsample(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
@@ -153,11 +188,14 @@ class TestSteerablePyramid(object):
                              indirect=True)
     def test_pyr_to_tensor(self, img, spyr, scales, rtol=1e-12, atol=1e-12):
         pyr_coeff_dict = spyr.forward(img, scales=scales)
-        pyr_tensor = spyr.convert_pyr_to_tensor(pyr_coeff_dict)
-        pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor)
-        for i in range(len(pyr_coeff_dict.keys())):
-            k = list(pyr_coeff_dict.keys())[i]
-            np.testing.assert_allclose(to_numpy(pyr_coeff_dict[k]), to_numpy(pyr_coeff_dict2[k]), rtol=rtol, atol=atol)
+        if spyr.is_complex:
+            split_complex = [True, False]
+        else:
+            split_complex = [False]
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(pyr_coeff_dict, split_complex=val)
+            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
                                                                                        [1, 2, 3],
@@ -175,13 +213,21 @@ class TestSteerablePyramid(object):
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
                                       product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                              [True, False], [True, False], [True,False])],
+                                              [True, False], [True,False], [True,False])],
                              indirect=True)
     def test_complete_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
         np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
 
+    @pytest.mark.parametrize('spyr_multi', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
+                                      product(['auto', 1, 3, 4, 5], [1, 2, 3],
+                                              [True, False], [True,False], [True,False])],
+                             indirect=True)
+    def test_complete_recon_multi(self, multichannel_img, spyr_multi):
+        pyr_coeffs = spyr_multi.forward(multichannel_img)
+        recon = to_numpy(spyr_multi.recon_pyr(pyr_coeffs))
+        np.testing.assert_allclose(recon, to_numpy(multichannel_img), rtol=1e-4, atol=1e-4)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
                                       product(['auto'], [3], [True, False],

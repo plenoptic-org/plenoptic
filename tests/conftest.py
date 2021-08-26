@@ -60,7 +60,8 @@ def get_model(name):
                 super().__init__(*args, downsample=False, **kwargs)
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                return self.convert_pyr_to_tensor(coeffs)
+                pyr_tensor, _ = self.convert_pyr_to_tensor(coeffs)
+                return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
     elif name == 'Identity':
@@ -92,7 +93,12 @@ def get_model(name):
     elif name == 'frontend.LuminanceContrastGainControl':
         return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
     elif name == 'frontend.OnOff':
-        return po.simul.OnOff((31, 31), pretrained=True).to(DEVICE)
+        return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+    elif name == 'frontend.OnOff.nograd':
+        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        for p in mdl.parameters():
+            p.detach_()
+        return mdl
 
 
 @pytest.fixture(scope='package')
