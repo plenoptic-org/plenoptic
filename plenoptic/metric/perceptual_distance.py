@@ -6,13 +6,14 @@ import warnings
 from ..simulate.canonical_computations import Laplacian_Pyramid, Steerable_Pyramid_Freq
 from ..simulate.canonical_computations import local_gain_control_dict, rectangular_to_polar_dict
 from ..simulate.canonical_computations.filters import circular_gaussian2d
+from ..tools.conv import same_padding
 
 import os
 
 dirname = os.path.dirname(__file__)
 
 
-def _ssim_parts(img1, img2, dynamic_range):
+def _ssim_parts(img1, img2, dynamic_range, pad):
     """Calcluates the various components used to compute SSIM
 
     This should not be called by users directly, but is meant to assist for
@@ -50,7 +51,6 @@ def _ssim_parts(img1, img2, dynamic_range):
             warnings.warn("dynamic_range is 255 but image range falls outside [0, 255]"
                           f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
                           "Continuing anyway...")
-    padd = 0
     (n_batches, n_channels, height, width) = img1.shape
     if n_channels > 1:
         warnings.warn("SSIM was developed on grayscale images, no guarantee "
@@ -76,6 +76,10 @@ def _ssim_parts(img1, img2, dynamic_range):
     if window.ndim != 4:
         raise Exception("window must have 4 dimensions!")
 
+    if pad is not False:
+        img1 = same_padding(img1, (real_size, real_size), pad_mode=pad)
+        img2 = same_padding(img2, (real_size, real_size), pad_mode=pad)
+    padd = 0
     mu1 = F.conv2d(img1, window, padding=padd, groups=n_channels)
     mu2 = F.conv2d(img2, window, padding=padd, groups=n_channels)
 
@@ -102,7 +106,7 @@ def _ssim_parts(img1, img2, dynamic_range):
     return map_ssim, contrast_structure_map, weight
 
 
-def ssim(img1, img2, weighted=False, dynamic_range=1):
+def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
     r"""Structural similarity index
 
     As described in [1]_, the structural similarity index (SSIM) is a
@@ -175,7 +179,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1):
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
-    map_ssim, _, weight = _ssim_parts(img1, img2, dynamic_range)
+    map_ssim, _, weight = _ssim_parts(img1, img2, dynamic_range, pad)
     if not weighted:
         mssim = map_ssim.mean((-1, -2))
     else:
