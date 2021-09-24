@@ -13,7 +13,7 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-def _ssim_parts(img1, img2, dynamic_range, pad):
+def _ssim_parts(img1, img2, dynamic_range, pad=False):
     """Calcluates the various components used to compute SSIM
 
     This should not be called by users directly, but is meant to assist for
@@ -33,6 +33,10 @@ def _ssim_parts(img1, img2, dynamic_range, pad):
         images between -1 and 1, and 255 is appropriate for standard 8-bit
         integer images. We'll raise a warning if it looks like your value is
         not appropriate for `img1` or `img2`, but will calculate it anyway.
+    pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
+        If not False, how to pad the image for the convolutions computing the
+        local average of each image. See `torch.nn.functional.pad` for how
+        these work.
 
     """
     img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
@@ -146,6 +150,10 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
         images between -1 and 1, and 255 is appropriate for standard 8-bit
         integer images. We'll raise a warning if it looks like your value is
         not appropriate for `img1` or `img2`, but will calculate it anyway.
+    pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
+        If not False, how to pad the image for the convolutions computing the
+        local average of each image. See `torch.nn.functional.pad` for how
+        these work.
 
     Returns
     ------
