@@ -46,9 +46,7 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
     for key in coeff_dict.keys():
         # ignore residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
-            energy[key], state[key] = rectangular_to_polar(
-                                        coeff_dict[key].select(dim, 0),
-                                        coeff_dict[key].select(dim, 1))
+            energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
 
     if residuals:
         energy['residual_lowpass'] = coeff_dict['residual_lowpass']
@@ -57,7 +55,7 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
     return energy, state
 
 
-def polar_to_rectangular_dict(energy, state, dim=-1, residuals=False):
+def polar_to_rectangular_dict(energy, state, residuals=True):
     """Return the real and imaginary part  tensor in a dictionary.
 
     Parameters
@@ -83,8 +81,7 @@ def polar_to_rectangular_dict(energy, state, dim=-1, residuals=False):
         # ignore residuals
 
         if isinstance(key, tuple) or not key.startswith('residual'):
-            real, imag = polar_to_rectangular(energy[key], state[key])
-            coeff_dict[key] = torch.stack((real, imag), dim=dim)
+            coeff_dict[key] = polar_to_rectangular(energy[key], state[key])
 
     if residuals:
         coeff_dict['residual_lowpass'] = energy['residual_lowpass']
@@ -93,27 +90,14 @@ def polar_to_rectangular_dict(energy, state, dim=-1, residuals=False):
     return coeff_dict
 
 
-def rectangular_to_polar_real(x, epsilon=1e-8):
-    """This function is an analogue to rectangular_to_polar for
-    real valued signals.
-
-    Norm and direction (analogous to complex modulus and phase) are
-    defined using blurring operator and division.  Indeed blurring the
-    responses removes high frequencies introduced by the squaring
-    operation. In the complex case adding the quadrature pair response
-    has the same effect (note that this is most clearly seen in the
-    frequency domain).  Here computing the direction (phase) reduces to
-    dividing out the norm (modulus), indeed the signal only has one real
-    component. This is a normalization operation (local unit vector),
-    ehnce the connection to local gain control.
-
+def local_gain_control(x, epsilon=1e-8):
+    """Spatially local gain control.
     Parameters
     ----------
     x : torch.Tensor
         Tensor of shape (B,C,H,W)
     epsilon: float, optional
         Small constant to avoid division by zero.
-
     Returns
     -------
     norm : torch.Tensor
@@ -122,33 +106,33 @@ def rectangular_to_polar_real(x, epsilon=1e-8):
     direction: torch.Tensor
         The local phase of ``x`` (aka. local unit vector, or local
         state)
-
+    Note
+    ----
+    This function is an analogue to rectangular_to_polar for
+    real valued signals.
+    Norm and direction (analogous to complex modulus and phase) are
+    defined using blurring operator and division.  Indeed blurring the
+    responses removes high frequencies introduced by the squaring
+    operation. In the complex case adding the quadrature pair response
+    has the same effect (note that this is most clearly seen in the
+    frequency domain).  Here computing the direction (phase) reduces to
+    dividing out the norm (modulus), indeed the signal only has one real
+    component. This is a normalization operation (local unit vector),
+    hence the connection to local gain control.
     """
 
     # these could be parameters, but no use case so far
     step = (2, 2)
     p = 2.0
 
-    norm = torch.pow(blur_downsample(torch.abs(x ** p), step=step), 1 / p)
+    norm = blur_downsample(torch.abs(x ** p), step=step).pow(1 / p)
     direction = x / (upsample_blur(norm, step=step) + epsilon)
 
     return norm, direction
 
 
-def polar_to_rectangular_real(norm, direction, epsilon=1e-8):
-    """This function is an analogue to polar_to_rectangular for
-    real valued signals.
-
-    Norm and direction (analogous to complex modulus and phase) are
-    defined using blurring operator and division.  Indeed blurring the
-    responses removes high frequencies introduced by the squaring
-    operation. In the complex case adding the quadrature pair response
-    has the same effect (note that this is most clearly seen in the
-    frequency domain).  Here computing the direction (phase) reduces to
-    dividing out the norm (modulus), indeed the signal only has one real
-    component. This is a normalization operation (local unit vector),
-    ehnce the connection to local gain control.
-
+def local_gain_release(norm, direction, epsilon=1e-8):
+    """Spatially local gain release.
     Parameters
     ----------
     norm : torch.Tensor
@@ -159,32 +143,39 @@ def polar_to_rectangular_real(norm, direction, epsilon=1e-8):
         state)
     epsilon: float, optional
         Small constant to avoid division by zero.
-
     Returns
     -------
     x : torch.Tensor
         Tensor of shape (B,C,H,W)
-
+    Note
+    ----
+    This function is an analogue to polar_to_rectangular for
+    real valued signals.
+    Norm and direction (analogous to complex modulus and phase) are
+    defined using blurring operator and division.  Indeed blurring the
+    responses removes high frequencies introduced by the squaring
+    operation. In the complex case adding the quadrature pair response
+    has the same effect (note that this is most clearly seen in the
+    frequency domain).  Here computing the direction (phase) reduces to
+    dividing out the norm (modulus), indeed the signal only has one real
+    component. This is a normalization operation (local unit vector),
+    hence the connection to local gain control.
     """
     step = (2, 2)
     x = direction * (upsample_blur(norm, step=step) + epsilon)
     return x
 
 
-def local_gain_control(coeff_dict, residuals=False):
-    """Spatially local gain control.
-
-    The inverse operation is achieved by `local_gain_release`.
-    This function is an analogue to rectangular_to_polar_dict for real
-    valued signals.
-
+def local_gain_control_dict(coeff_dict, residuals=True):
+    """Spatially local gain control, for each element in a dictionary.
     Parameters
     ----------
     coeff_dict : dict
         A dictionary containing tensors of shape (B,C,H,W)
     residuals: bool, optional
         An option to carry around residuals in the energy dict.
-
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
     Returns
     -------
     energy : dict
@@ -193,23 +184,19 @@ def local_gain_control(coeff_dict, residuals=False):
     state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
-
     Note
     ----
     Note that energy and state is not computed on the residuals.
-
-    See Also
-    --------
-    :meth:`rectangular_to_polar_real`
-
+    The inverse operation is achieved by `local_gain_release_dict`.
+    This function is an analogue to rectangular_to_polar_dict for real
+    valued signals. For more details, see :meth:`local_gain_control`
     """
     energy = {}
     state = {}
 
     for key in coeff_dict.keys():
-        # we don't want to do this on the residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
-            energy[key], state[key] = rectangular_to_polar_real(
+            energy[key], state[key] = local_gain_control(
                                       coeff_dict[key])
 
     if residuals:
@@ -219,13 +206,8 @@ def local_gain_control(coeff_dict, residuals=False):
     return energy, state
 
 
-def local_gain_release(energy, state, residuals=False):
-    """Spatially local gain release.
-
-    The inverse operation to `local_gain_control`.
-    This function is  an analogue to polar_to_rectangular_dict for real
-    valued signals.
-
+def local_gain_release_dict(energy, state, residuals=True):
+    """Spatially local gain release, for each element in a dictionary.
     Parameters
     ----------
     energy : dict
@@ -236,24 +218,23 @@ def local_gain_release(energy, state, residuals=False):
         ``x``.
     residuals: bool, optional
         An option to carry around residuals in the energy dict.
-
+        Note that the transformation is not applied to the residuals,
+        that is dictionary elements with a key starting in "residual".
     Returns
     -------
     coeff_dict : dict
         A dictionary containing tensors of shape (B,C,H,W)
-
-
-    See Also
-    --------
-    :meth:`polar_to_rectangular_real`
-
+    Note
+    ----
+    The inverse operation to `local_gain_control_dict`.
+    This function is  an analogue to polar_to_rectangular_dict for real
+    valued signals. For more details, see :meth:`local_gain_release`
     """
     coeff_dict = {}
 
     for key in energy.keys():
-        # we don't want to do this on the residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
-            coeff_dict[key] = polar_to_rectangular_real(
+            coeff_dict[key] = local_gain_release(
                                       energy[key], state[key])
 
     if residuals:

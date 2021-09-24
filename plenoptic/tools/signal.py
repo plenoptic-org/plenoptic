@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.fft as fft
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from typing import Union, Tuple
 
@@ -128,10 +129,13 @@ def rescale(x, a=0, b=1):
     return a + g * (b-a)
 
 
+<<<<<<< HEAD
 
 
 def rcosFn(width=1, position=0, values=(0, 1)):
     """Return a lookup table containing a "raised cosine" soft threshold function
+=======
+>>>>>>> main
 
     Y =  VALUES(1) + (VALUES(2)-VALUES(1)) * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
 
@@ -189,15 +193,12 @@ def pointOp(im, Y, X):
     return np.reshape(out, im.shape)
 
 
-def rectangular_to_polar(real, imaginary):
+def rectangular_to_polar(x):
     r"""Rectangular to polar coordinate transform
 
     Parameters
     --------
-    real: torch.Tensor
-        tensor containing the real component
-    imaginary: torch.Tensor
-        tensor containing the imaginary component
+    x: torch.ComplexTensor
 
     Returns
     -------
@@ -205,16 +206,11 @@ def rectangular_to_polar(real, imaginary):
         tensor containing the amplitude (aka. complex modulus)
     phase: torch.Tensor
         tensor containing the phase
-    Note
-    ----
-    Since complex numbers are not supported by pytorch, this function expects two tensors of the same shape.
-    One containing the real component, one containing the imaginary component. This means that if complex
-    numbers are represented as an extra dimension in the tensor of interest, the user needs to index through
-    that dimension.
+
     """
 
-    amplitude = torch.sqrt(real ** 2 + imaginary ** 2)
-    phase = torch.atan2(imaginary, real)
+    amplitude = torch.abs(x)
+    phase = torch.angle(x)
     return amplitude, phase
 
 
@@ -230,26 +226,93 @@ def polar_to_rectangular(amplitude, phase):
 
     Returns
     -------
-    real: torch.Tensor
-        tensor containing the real component
-    imaginary: torch.Tensor
-        tensor containing the imaginary component
-    Note
+    torch.Tensor 
+        complex tensor
 
-    ----
-    Since complex numbers are not supported by pytorch, this function returns two tensors of the same shape.
-    One containing the real component, one containing the imaginary component.
     """
     if (amplitude<=0).any():
         raise ValueError("Amplitudes must be strictly positive.")
 
     real = amplitude * torch.cos(phase)
     imaginary = amplitude * torch.sin(phase)
-    return real, imaginary
+    return torch.complex(real, imaginary)
 
 
-def power_spectrum(x, log=True):
-    """ Returns the fft shifted power spectrum or log power spectrum of a signal.
+# def power_spectrum(x, log=True):
+#     """ Compute the power spectrum of a spatial signal.
+
+#     Parameters
+#     ----------
+#     x: torch.Tensor
+#         Signal tensor [B, C, H, W]
+#     log: bool
+#         Apply the non-linear contrast function `log(1 + power)`.
+#     Returns
+#     -------
+#     power: torch.Tensor
+#         Power spectrum of signal along H and W
+
+#     TODO: with torch 1.8
+#     """
+#     import torch.fft
+#     spectrum = torch.fft.rfftn(x, dim=(2, 3), norm='ortho')
+#     spectrum = torch.fft.fftshift(spectrum, dim=(2, 3))
+#     amplitude = torch.abs(spectrum)
+#     power = amplitude ** 2
+#     if log:
+#         return torch.log(1 + power)
+#     else:
+#         return power
+
+def autocorr(x, n_shifts=7):
+    """Compute the autocorrelation of `x` up to `n_shifts` shifts,
+    the calculation is performed in the frequency domain.
+    Parameters
+    ---------
+    x: torch.Tensor
+        input signal of shape [b, c, h, w]
+    n_shifts: integer
+        Sets the length scale of the auto-correlation
+        (ie. maximum offset or lag)
+    Returns
+    -------
+    autocorr: torch.tensor
+        computed autocorrelation
+    Notes
+    -----
+    - By the Einstein-Wiener-Khinchin theorem:
+    The autocorrelation of a wide sense stationary (WSS) process is the
+    inverse Fourier transform of its energy spectrum (ESD) - which itself
+    is the multiplication between FT(x(t)) and FT(x(-t)).
+    In other words, the auto-correlation is convolution of the signal `x` with
+    itself, which corresponds to squaring in the frequency domain.
+    This approach is computationally more efficient than brute force
+    (n log(n) vs n^2).
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
+    location (ie. no shift) - that maximum value is the signal's variance
+    (assuming that the input signal is mean centered).
+    """
+    N, C, H, W = x.shape
+    assert n_shifts >= 1
+
+    spectrum = fft.rfft2(x, dim=(-2, -1), norm=None)
+
+    energy_spectrum = torch.abs(spectrum) ** 2
+    zero_phase = torch.zeros_like(energy_spectrum)
+    energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
+
+    autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None,
+                          s=(H, W))
+    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H*W)
+
+    if n_shifts is not None:
+        autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
+                                  (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
+    return autocorr
+
+def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
+          even_phase=True):
+    """Steer BASIS to the specfied ANGLE.
 
     Parameters
     ----------
