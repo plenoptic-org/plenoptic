@@ -11,21 +11,18 @@ from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 
 
 class PortillaSimoncelli(nn.Module):
-    r"""Model for measuring statistics originally proposed in [1] for synthesis.
+    r"""Model for measuring statistics originally proposed in [1]_ for synthesis.
 
     Currently we do not: support batch measurement of images.
 
     Parameters
     ----------
-    n_scales: int, Optional
+    n_scales: int, optional
         The number of pyramid scales used to measure the statistics (default=4)
-
-    n_orientations: int, Optional
+    n_orientations: int, optional
         The number of orientations used to measure the statistics (default=4)
-
-    spatial_corr_width: int, Optional
+    spatial_corr_width: int, optional
         The width of the spatial cross- and auto-correlation statistics in the representation
-
     use_true_correlations: bool
         In the original Portilla-Simoncelli model the statistics in the representation
         that are labelled correlations were actually covariance matrices (i.e. not properly
@@ -37,31 +34,26 @@ class PortillaSimoncelli(nn.Module):
     ----------
     pyr: Steerable_Pyramid_Freq
         The complex steerable pyramid object used to calculate the portilla-simoncelli representation
-
     pyr_coeffs: OrderedDict
         The coefficients of the complex steerable pyramid.
-
     mag_pyr_coeffs: OrderedDict
         The magnitude of the pyramid coefficients.
-
     real_pyr_coeffs: OrderedDict
         The real parts of the pyramid coefficients.
-
     scales: list
         The names of the unique scales of coefficients in the pyramid.
-
     representation_scales: list
         The scale for each coefficient in its vector form
-
     representation: dictionary
         A dictionary containing the Portilla-Simoncelli statistics
 
     References
     -----
-    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on Joint Statistics of
-    Complex Wavelet Coefficients. Int'l Journal of Computer Vision. 40(1):49-71, October, 2000.
-    http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
-    http://www.cns.nyu.edu/~lcv/texture/
+    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
+       Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
+       Computer Vision. 40(1):49-71, October, 2000.
+       http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       http://www.cns.nyu.edu/~lcv/texture/
 
     """
 
@@ -177,19 +169,19 @@ class PortillaSimoncelli(nn.Module):
         return scales
 
     def forward(self, image, scales=None):
-        r"""Generate Texture Statistics representation of an image (see reference [1])
+        r"""Generate Texture Statistics representation of an image (see reference [1]_)
 
         Parameters
         ----------
-        image : torch.tensor
+        image : torch.Tensor
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
             we will unsqueeze it until its 4d
 
         Returns
-        =======
-        representation_vector: torch.tensor
+        -------
+        representation_vector: torch.Tensor
             A flattened tensor (1d) containing the measured representation statistics.
 
         """
@@ -236,7 +228,7 @@ class PortillaSimoncelli(nn.Module):
         # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
         #
         # Calculates the central auto-correlation of the low-pass residuals
-        # for each scale of the pyrmid (auto_correlation_reconstructed),
+        # for each scale of the pyramid (auto_correlation_reconstructed),
         # where the residual at each scale is reconstructed from the
         # previous scale.  (Note: the lowpass residual of the pyramid
         # is low-pass filtered before this reconstruction process begins,
@@ -306,6 +298,7 @@ class PortillaSimoncelli(nn.Module):
                     if s in self.scales
                 ]
             ).to(device)
+            print(ind)
             return representation_vector.index_select(0, ind)
 
         return representation_vector.unsqueeze(0).unsqueeze(0)
@@ -314,7 +307,7 @@ class PortillaSimoncelli(nn.Module):
         r"""Converts dictionary of statistics to a vector (for synthesis).
 
         Returns
-        =======
+        -------
          -- : torch.Tensor
             Flattened 1d vector of statistics.
 
@@ -438,7 +431,7 @@ class PortillaSimoncelli(nn.Module):
         coefficient and the other containing the real parts.
 
         Returns
-        =======
+        -------
         magnitude_means: OrderedDict
             The mean of the pyramid coefficient magnitudes.
 
@@ -477,17 +470,15 @@ class PortillaSimoncelli(nn.Module):
         ----------
         im: torch.Tensor
             An image for expansion.
-
         mult: int
             Multiplier by which to resize image.
 
         Returns
-        =======
+        -------
         im_large: torch.Tensor
             resized image
 
         """
-
         im = im.squeeze()
 
         mx = im.shape[0]
@@ -495,10 +486,6 @@ class PortillaSimoncelli(nn.Module):
         my = mult * my
         mx = mult * mx
 
-
-
-        
-        
         fourier = mult ** 2 * torch.fft.fftshift(torch.fft.fftn(im))
         fourier_large = torch.zeros(my, mx).type(fourier.dtype)
 
@@ -522,7 +509,7 @@ class PortillaSimoncelli(nn.Module):
 
         # finish this
         im_large = torch.fft.ifft2(fourier_large)
-        
+
         return im_large.type(im.dtype)
 
     def _calculate_autocorrelation_skew_kurtosis(self):
@@ -774,9 +761,8 @@ class PortillaSimoncelli(nn.Module):
             Number of elements for bands in the scale
 
         Returns
-        =======
-
-        --: torch.Tensor
+        -------
+        torch.Tensor
             cross-correlation.
 
         """
@@ -793,12 +779,10 @@ class PortillaSimoncelli(nn.Module):
         ----------
         ch: torch.Tensor
 
-
         Returns
-        =======
+        -------
         ac: torch.Tensor
             Autocorrelation of matrix (ch).
-
         vari: torch.Tensor
             Variance of matrix (ch).
 
@@ -830,25 +814,23 @@ class PortillaSimoncelli(nn.Module):
         return ac, vari
 
     def compute_skew_kurtosis(self, ch, vari):
-        r"""Computes the skew and kurtosis of ch given the ratio of its
-        variance (vari) and the pixel variance of the original image are
-        above a certain threshold.  If the ratio does not meet that threshold
-        it returns the default values (0,3).
+        r"""Computes the skew and kurtosis of ch.
+
+        Skew and kurtosis are only computed if the ratio of its variance (vari)
+        and the pixel variance of the original image are above a certain
+        threshold. If the ratio does not meet that threshold it returns the
+        default values (0,3).
 
         Parameters
         ----------
         ch: torch.Tensor
-
-
         vari: torch.Tensor
             variance of ch
 
         Returns
-        =======
-
+        -------
         skew: torch.Tensor
             skew of ch or default value (0)
-
         kurtosis: torch.Tensor
             kurtosis of ch or default value (3)
 
@@ -858,7 +840,6 @@ class PortillaSimoncelli(nn.Module):
         if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
             skew = PortillaSimoncelli.skew(ch, mu=0, var=vari)
             kurtosis = PortillaSimoncelli.kurtosis(ch, mu=0, var=vari)
-
         else:
             skew = 0
             kurtosis = 3
@@ -871,21 +852,18 @@ class PortillaSimoncelli(nn.Module):
         Parameters
         ----------
         X: torch.Tensor
-
-        mu: torch.Tensor
-            pre-computed mean.
-
-        var: torch.Tensor
-            pre-computed variance.
+            matrix to compute the skew of.
+        mu: torch.Tensor or None, optional
+            pre-computed mean. If None, we compute it.
+        var: torch.Tensor or None, optional
+            pre-computed variance. If None, we compute it.
 
         Returns
-        =======
-
+        -------
         skew: torch.Tensor
             skew of the matrix X
 
         """
-
         if mu is None:
             mu = X.mean()
         if var is None:
@@ -898,21 +876,18 @@ class PortillaSimoncelli(nn.Module):
         Parameters
         ----------
         X: torch.Tensor
-
+            matrix to compute the kurtosis of.
         mu: torch.Tensor
-            pre-computed mean.
-
+            pre-computed mean. If None, we compute it.
         var: torch.Tensor
-            pre-computed variance.
+            pre-computed variance. If None, we compute it.
 
         Returns
-        =======
-
+        -------
         kurtosis: torch.Tensor
             kurtosis of the matrix X
 
         """
-
         # implementation is only for real components
         if mu is None:
             mu = X.mean()
@@ -1025,9 +1000,7 @@ class PortillaSimoncelli(nn.Module):
         go.
 
         We can optionally accept a data argument, in which case it
-        should look just like the representation of this model (or be
-        able to transformed into that form, see
-        ``PooledV1._representation_for_plotting`).
+        should look just like the representation of this model.
 
         In order for this to be used by ``FuncAnimation``, we need to
         return Artists, so we return a list of the relevant artists, the
@@ -1041,7 +1014,7 @@ class PortillaSimoncelli(nn.Module):
             in the correct order.
         batch_idx : int, optional
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, np.array, dict or None, optional
+        data : torch.Tensor, dict, or None, optional
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -1063,7 +1036,6 @@ class PortillaSimoncelli(nn.Module):
         for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
                 vals = np.array([dd.detach() for dd in d.values()])
-
             else:
                 vals = d.flatten().detach().numpy()
 
