@@ -950,6 +950,17 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
             axes = [axes]
     else:
         axes = fig.axes
+    # make sure misc contains all the empty axes
+    misc_axes = axes_idx.get('misc', [])
+    all_axes = []
+    for i in axes_idx.values():
+        # so if it's a list of ints
+        if hasattr(i, '__iter__'):
+            all_axes.extend(i)
+        else:
+            all_axes.append(i)
+    misc_axes += [i for i, _ in enumerate(fig.axes) if i not in all_axes]
+    axes_idx['misc'] = misc_axes
     return fig, axes, axes_idx
 
 
@@ -1050,17 +1061,6 @@ def plot_synthesis_status(mad: MADCompetition,
                                                pixel_values,
                                                **width_ratios)
 
-    def check_iterables(i, vals):
-        for j in vals:
-            try:
-                # then it's an iterable
-                if i in j:
-                    return True
-            except TypeError:
-                # then it's not an iterable
-                if i == j:
-                    return True
-
     if synthesized_signal:
         display_synthesized_signal(mad, batch_idx=batch_idx,
                                    channel_idx=channel_idx,
@@ -1072,8 +1072,15 @@ def plot_synthesis_status(mad: MADCompetition,
         # this function creates a single axis for loss, which plot_loss then
         # split into two. this makes sure the right two axes are present in the
         # dict
+        all_axes = []
+        for i in axes_idx.values():
+            # so if it's a list of ints
+            if hasattr(i, '__iter__'):
+                all_axes.extend(i)
+            else:
+                all_axes.append(i)
         new_axes = [i for i, _ in enumerate(fig.axes)
-                    if i not in axes_idx.values()]
+                    if i not in all_axes]
         axes_idx['loss'] = new_axes
     if pixel_values:
         plot_pixel_values(mad, batch_idx=batch_idx,

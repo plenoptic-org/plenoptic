@@ -1144,6 +1144,17 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
             axes = [axes]
     else:
         axes = fig.axes
+    # make sure misc contains all the empty axes
+    misc_axes = axes_idx.get('misc', [])
+    all_axes = []
+    for i in axes_idx.values():
+        # so if it's a list of ints
+        if hasattr(i, '__iter__'):
+            all_axes.extend(i)
+        else:
+            all_axes.append(i)
+    misc_axes += [i for i, _ in enumerate(fig.axes) if i not in all_axes]
+    axes_idx['misc'] = misc_axes
     return fig, axes, axes_idx
 
 
