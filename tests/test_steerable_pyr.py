@@ -88,7 +88,7 @@ class TestSteerablePyramid(object):
     @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2' ]])
     def multichannel_img(self, request):
         shape = request.param
-        img = po.load_images(op.join(DATA_DIR, 'flowers.jpg'), as_gray=False).to(DEVICE)
+        img = po.load_images(op.join(DATA_DIR, '512/flowers.jpg'), as_gray=False).to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
