@@ -452,7 +452,8 @@ class MADCompetition(Synthesis):
                    optimizer: Union[None, torch.optim.Optimizer] = None,
                    scheduler: Union[None, torch.optim.lr_scheduler._LRScheduler] = None,
                    store_progress: Union[bool, int] = False,
-                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50):
+                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
+                   ) -> Tensor:
         r"""Synthesize a metamer.
 
         This is the main method, which updates the ``initial_image`` until its
