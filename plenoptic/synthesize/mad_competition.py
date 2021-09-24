@@ -654,14 +654,14 @@ class MADCompetition(Synthesis):
 
 def plot_loss(mad: MADCompetition,
               iteration: Union[int, None] = None,
-              ax: Union[mpl.axes.Axes, None] = None,
+              axes: Union[List[mpl.axes.Axes], mpl.axes.Axes, None] = None,
               **kwargs) -> mpl.axes.Axes:
-    """Plot synthesis loss with log-scaled y axis.
+    """Plot metric losses.
 
-    Plots ``abs(mad.losses)``, ``mad.synthesis_metric_loss`` and
-    ``mad.metric_tradeoff_lambda * mad.fixed_metric_loss`` over all iterations.
-    Also plots a red dot at ``iteration``, to highlight the loss there. If
-    ``iteration=None``, then the dot will be at the final iteration.
+    Plots ``mad.synthesis_metric_loss`` and ``mad.fixed_metric_loss`` on two
+    separate axes, over all iterations. Also plots a red dot at ``iteration``,
+    to highlight the loss there. If ``iteration=None``, then the dot will be at
+    the final iteration.
 
     Parameters
     ----------
@@ -670,14 +670,16 @@ def plot_loss(mad: MADCompetition,
     iteration :
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
+    axes :
+        Pre-existing axes for plot. If a list of axes, must be the two axes to
+        use for this plot. If a single axis, we'll split it in half
+        horizontally. If None, we call ``plt.gca()``.
     kwargs :
-        passed to plt.semilogy
+        passed to plt.plot
 
     Returns
     -------
-    ax :
+    axes :
         The matplotlib axes containing the plot.
 
     Notes
@@ -696,25 +698,21 @@ def plot_loss(mad: MADCompetition,
             loss_idx = len(mad.losses) + iteration
         else:
             loss_idx = iteration
-    if ax is None:
-        ax = plt.gca()
-    # if we're maximizing synthesis_metric, our loss will be negative. for
-    # plotting purposes, make it positive.
-    losses = np.abs(mad.losses)
-    ax.semilogy(losses, label='abs(objective function)', **kwargs)
-    try:
-        ax.scatter(loss_idx, losses[loss_idx], c='r')
-    except IndexError:
-        # then there's no loss here
-        pass
-    ax.semilogy(mad.synthesis_metric_loss, label='synthesis metric')
-    ax.scatter(loss_idx, mad.synthesis_metric_loss[loss_idx], c='r')
-    fixed_metric = data.to_numpy(mad.metric_tradeoff_lambda *
-                                 np.array(mad.fixed_metric_loss))
-    ax.semilogy(fixed_metric, label=r'$\lambda$ * fixed metric')
-    ax.scatter(loss_idx, fixed_metric[loss_idx], c='r')
-    ax.set(xlabel='Synthesis iteration', ylabel='Loss')
-    ax.legend()
+    if axes is None:
+        axes = plt.gca()
+    if not hasattr(axes, '__iter__'):
+        axes = display.clean_up_axes(axes, False,
+                                     ['top', 'right', 'bottom', 'left'],
+                                     ['x', 'y'])
+        gs = axes.get_subplotspec().subgridspec(1, 2)
+        fig = axes.figure
+        axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
+    losses = [mad.fixed_metric_loss, mad.synthesis_metric_loss]
+    names = ['Fixed metric loss', 'Synthesis metric loss']
+    for ax, loss, name in zip(axes, losses, names):
+        ax.plot(loss, **kwargs)
+        ax.scatter(loss_idx, loss[loss_idx], c='r')
+        ax.set(xlabel='Synthesis iteration', ylabel=name)
     return ax
 
 
@@ -868,7 +866,7 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
                          loss: bool = True,
                          pixel_values: bool = False,
                          synthesized_signal_width: float = 1,
-                         loss_width: float = 1,
+                         loss_width: float = 2,
                          pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
@@ -879,7 +877,7 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     you want them to be on different rows, will need to initialize fig yourself
     and pass that in. For changing width, change the corresponding *_width arg,
     which gives width relative to other axes. So if you want the axis for the
-    loss plot to be twice as wide as the others, set loss_width=2.
+    loss plot to be three times as wide as the others, set loss_width=3.
 
     Parameters
     ----------
@@ -1070,7 +1068,13 @@ def plot_synthesis_status(mad: MADCompetition,
                                    ax=axes[axes_idx['synthesized_signal']],
                                    zoom=zoom, vrange=vrange)
     if loss:
-        plot_loss(mad, iteration=iteration, ax=axes[axes_idx['loss']])
+        plot_loss(mad, iteration=iteration, axes=axes[axes_idx['loss']])
+        # this function creates a single axis for loss, which plot_loss then
+        # split into two. this makes sure the right two axes are present in the
+        # dict
+        new_axes = [i for i, _ in enumerate(fig.axes)
+                    if i not in axes_idx.values()]
+        axes_idx['loss'] = new_axes
     if pixel_values:
         plot_pixel_values(mad, batch_idx=batch_idx,
                           channel_idx=channel_idx,
@@ -1191,7 +1195,7 @@ def animate(mad: MADCompetition,
     # synthesized image or model_response plot, because we use the update_plot
     # function for that)
     if loss:
-        scat = fig.axes[axes_idx['loss']].collections
+        scat = [fig.axes[i].collections[0] for i in axes_idx['loss']]
     # can also have multiple plots
 
     def movie_plot(i):
@@ -1213,11 +1217,8 @@ def animate(mad: MADCompetition,
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i*mad.store_progress
-            scat[0].set_offsets((x_val, np.abs(mad.losses[x_val])))
+            scat[0].set_offsets((x_val, mad.fixed_metric_loss[x_val]))
             scat[1].set_offsets((x_val, mad.synthesis_metric_loss[x_val]))
-            fixed_metric = data.to_numpy(mad.metric_tradeoff_lambda *
-                                         np.array(mad.fixed_metric_loss))
-            scat[2].set_offsets((x_val, fixed_metric[x_val]))
             artists.extend(scat)
         # as long as blitting is True, need to return a sequence of artists
         return artists
