@@ -552,7 +552,8 @@ class Metamer(Synthesis):
                    stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
                    coarse_to_fine: Literal['together', 'separate', False] = False,
                    coarse_to_fine_kwargs: Dict[str, float] = {'change_scale_criterion': 1e-2,
-                                                              'ctf_iters_to_check': 50}):
+                                                              'ctf_iters_to_check': 50}
+                   ) -> Tensor:
         r"""Synthesize a metamer.
 
         This is the main method, which updates the ``initial_image`` until its
