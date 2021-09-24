@@ -16,14 +16,14 @@ complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
 class Steerable_Pyramid_Freq(nn.Module):
     r"""Steerable frequency pyramid in Torch
 
-    Construct a steerable pyramid on matrix IM, in the Fourier domain.
-    Reconstruction is exact (within floating point errors). However, if the image has odd-shape, the reconstruction
-    will not be exact due to boundary-handling issues that have not been resolved.
-    Boundary-handling is circular.
+    Construct a steerable pyramid on matrix two dimensional signals, in the
+    Fourier domain. Boundary-handling is circular. Reconstruction is exact
+    (within floating point errors). However, if the image has an odd-shape,
+    the reconstruction will not be exact due to boundary-handling issues
+    that have not been resolved.
 
-    The squared radial functions tile the Fourier plane with a
-    raised-cosine falloff. Angular functions are cos(theta-
-    k*pi/order+1)^(order).
+    The squared radial functions tile the Fourier plane with a raised-cosine
+    falloff. Angular functions are cos(theta-k*pi/order+1)^(order).
 
     Notes
     -----
@@ -35,8 +35,8 @@ class Steerable_Pyramid_Freq(nn.Module):
     image_shape : `list or tuple`
         shape of input image
     height : 'auto' or `int`
-        The height of the pyramid. If 'auto', will automatically determine based on the size of
-        `image`.
+        The height of the pyramid. If 'auto', will automatically determine
+        based on the size of `image`.
     order : `int`.
         The Gaussian derivative order used for the steerable filters. Default value is 3.
         Note that to achieve steerability the minimum number of orientation is `order` + 1,
@@ -88,7 +88,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.image_shape = image_shape
 
         if (self.image_shape[0] % 2 != 0) or (self.image_shape[1] % 2 != 0):
-            warnings.warn("Reconstruction will not be perfect with odd-sized images")
+            warnings.warn(
+                "Reconstruction will not be perfect with odd-sized images")
 
         self.is_complex = is_complex
         self.downsample = downsample
@@ -99,19 +100,23 @@ class Steerable_Pyramid_Freq(nn.Module):
             self.fft_norm = "backward"
         # cache constants
         self.lutsize = 1024
-        self.Xcosn = np.pi * np.array(range(-(2*self.lutsize + 1), (self.lutsize+2)))/self.lutsize
+        self.Xcosn = np.pi * \
+            np.array(range(-(2*self.lutsize + 1),
+                           (self.lutsize+2)))/self.lutsize
         self.alpha = (self.Xcosn + np.pi) % (2*np.pi) - np.pi
 
         max_ht = np.floor(np.log2(min(self.image_shape[0], self.image_shape[1])))-2
         if height == 'auto':
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise Exception("Cannot build pyramid higher than %d levels." % (max_ht))
+            raise Exception(
+                "Cannot build pyramid higher than %d levels." % (max_ht))
         else:
             self.num_scales = int(height)
 
         if self.order > 15 or self.order <= 0:
-            warnings.warn("order must be an integer in the range [1,15]. Truncating.")
+            warnings.warn(
+                "order must be an integer in the range [1,15]. Truncating.")
             self.order = min(max(self.order, 1), 15)
         self.num_orientations = int(self.order + 1)
 
@@ -134,7 +139,7 @@ class Steerable_Pyramid_Freq(nn.Module):
         self.log_rad = np.log2(log_rad)
 
         # radial transition function (a raised cosine in log-frequency):
-        self.Xrcos, Yrcos = rcosFn(twidth, (-twidth/2.0), np.array([0, 1]))
+        self.Xrcos, Yrcos = raised_cosine(twidth, (-twidth/2.0), np.array([0, 1]))
         self.Yrcos = np.sqrt(Yrcos)
 
         self.YIrcos = np.sqrt(1.0 - self.Yrcos**2)
@@ -180,7 +185,8 @@ class Steerable_Pyramid_Freq(nn.Module):
                 Ycosn_recon = np.sqrt(const) * (np.cos(self.Xcosn))**self.order
 
             else:
-                Ycosn_forward = np.sqrt(const) * (np.cos(self.Xcosn))**self.order
+                Ycosn_forward = np.sqrt(
+                    const) * (np.cos(self.Xcosn))**self.order
                 Ycosn_recon = Ycosn_forward
 
             himask = interpolate1d(log_rad, self.Yrcos, Xrcos)
@@ -312,9 +318,10 @@ class Steerable_Pyramid_Freq(nn.Module):
             raise Exception("scales must be a list!")
         if not scales:
             scales = self.scales
-        scale_ints = [s for s in scales if isinstance(s,int)]
+        scale_ints = [s for s in scales if isinstance(s, int)]
         if len(scale_ints) != 0:
-            assert (max(scale_ints) < self.num_scales) and (min(scale_ints) >= 0), "Scales must be within 0 and num_scales-1"
+            assert (max(scale_ints) < self.num_scales) and (
+                min(scale_ints) >= 0), "Scales must be within 0 and num_scales-1"
         angle = self.angle.copy()
         log_rad = self.log_rad.copy()
         lo0mask = self.lo0mask.clone()
@@ -487,8 +494,8 @@ class Steerable_Pyramid_Freq(nn.Module):
     @staticmethod
     def convert_tensor_to_pyr(pyr_tensor, num_channels, split_complex, pyr_keys):
         r"""
-        Function that takes a torch pyramid coefficient tensor and converts the output into
-        the dictionary format where
+        Function that takes a torch pyramid coefficient tensor and converts
+        the output into the dictionary format where
 
         Parameters
         ----------
@@ -563,14 +570,18 @@ class Steerable_Pyramid_Freq(nn.Module):
 
         """
         if isinstance(levels, str) and levels == 'all':
-            levels = ['residual_highpass'] + list(range(self.num_scales)) + ['residual_lowpass']
+            levels = ['residual_highpass'] + \
+                list(range(self.num_scales)) + ['residual_lowpass']
         else:
             if not hasattr(levels, '__iter__') or isinstance(levels, str):
                 # then it's a single int or string
                 levels = [levels]
-            levs_nums = np.array([int(i) for i in levels if isinstance(i, int) or i.isdigit()])
-            assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
-            assert (levs_nums < self.num_scales).all(), "Level numbers must be in the range [0, %d]" % (self.num_scales-1)
+            levs_nums = np.array(
+                [int(i) for i in levels if isinstance(i, int) or i.isdigit()])
+            assert (levs_nums >= 0).all(
+            ), "Level numbers must be non-negative."
+            assert (levs_nums < self.num_scales).all(
+            ), "Level numbers must be in the range [0, %d]" % (self.num_scales-1)
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
             if 'residual_highpass' in levels:
                 levs_tmp = ['residual_highpass'] + levs_tmp
@@ -596,9 +607,10 @@ class Steerable_Pyramid_Freq(nn.Module):
         Parameters
         ----------
         bands : `list`, `int`, or `'all'`.
-            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
-            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
-            of the valid orientations.
+            If list, should contain some subset of integers from `0` to
+            `self.num_orientations-1`.
+            If `'all'`, returned value will contain all valid orientations.
+            Otherwise, must be one of the valid orientations.
 
         Returns
         -------
@@ -609,8 +621,10 @@ class Steerable_Pyramid_Freq(nn.Module):
             bands = np.arange(self.num_orientations)
         else:
             bands = np.array(bands, ndmin=1)
-            assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
-            assert (bands < self.num_orientations).all(), "Error: band numbers must be in the range [0, %d]" % (self.num_orientations - 1)
+            assert (bands >= 0).all(
+            ), "Error: band numbers must be larger than 0."
+            assert (bands < self.num_orientations).all(
+            ), "Error: band numbers must be in the range [0, %d]" % (self.num_orientations - 1)
         return bands
 
     def _recon_keys(self, levels, bands, max_orientations=None):
@@ -707,14 +721,12 @@ class Steerable_Pyramid_Freq(nn.Module):
                                         "include all scales, so make sure forward() was called "
                                         "with arg scales=[]")
 
-
         if twidth <= 0:
             warnings.warn("twidth must be positive. Setting to 1.")
             twidth = 1
 
         recon_keys = self._recon_keys(levels, bands)
         scale = 0
-
 
         # load masks from model
         lo0mask = self.lo0mask
@@ -816,7 +828,8 @@ class Steerable_Pyramid_Freq(nn.Module):
         resdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=torch.complex64)
 
         # place upsample and convolve lowpass component
-        resdft[:, :, lostart[0]:loend[0], lostart[1]:loend[1]] = reslevdft*lomask
+        resdft[:, :, lostart[0]:loend[0],
+               lostart[1]:loend[1]] = reslevdft*lomask
         recondft = resdft + orientdft
         # add orientation interpolated and added images to the lowpass image
         return recondft
@@ -859,7 +872,8 @@ class Steerable_Pyramid_Freq(nn.Module):
                                range(num_orientations)], dim=-1)
 
             for j, a in enumerate(angles):
-                res, steervect = steer(basis, a, return_weights=True, even_phase=even_phase)
+                res, steervect = steer(
+                    basis, a, return_weights=True, even_phase=even_phase)
                 resteering_weights[(i, j)] = steervect
                 resteered_coeffs[(i, num_orientations + j)] = res.reshape(pyr_coeffs[(i, 0)].shape)
 
