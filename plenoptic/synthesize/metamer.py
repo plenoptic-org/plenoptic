@@ -11,6 +11,7 @@ from .synthesis import Synthesis
 import warnings
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 
 class Metamer(Synthesis):
@@ -453,8 +454,8 @@ class Metamer(Synthesis):
 
     def _optimizer_step(self, pbar: tqdm,
                         change_scale_criterion: float,
-                        ctf_iters_to_check: int,
-                        **kwargs) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+                        ctf_iters_to_check: int
+                        ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""Compute and propagate gradients, then step the optimizer to update synthesized_signal.
 
         Parameters
@@ -471,8 +472,6 @@ class Metamer(Synthesis):
         ctf_iters_to_check :
             Minimum number of iterations coarse-to-fine must run at each scale.
             If self.coarse_to_fine is False, then this is ignored.
-        kwargs :
-            Will also display in the progress bar's postfix
 
         Returns
         -------
@@ -537,14 +536,13 @@ class Metamer(Synthesis):
             loss = self.objective_function(self.model(self.synthesized_signal))
 
         pixel_change = torch.max(torch.abs(self.synthesized_signal - last_iter_synthesized_signal))
-        # for display purposes, always want loss to be positive
-        postfix_dict.update(dict(loss=f"{abs(loss.item()):.04e}",
-                                 gradient_norm=f"{grad_norm.item():.04e}",
-                                 learning_rate=self.optimizer.param_groups[0]['lr'],
-                                 pixel_change=f"{pixel_change:.04e}",
-                                 **kwargs))
-        # add extra info here if you want it to show up in progress bar
-        pbar.set_postfix(**postfix_dict)
+        # for display purposes, always want loss to be positive. add extra info
+        # here if you want it to show up in progress bar
+        pbar.set_postfix(
+            OrderedDict(loss=f"{abs(loss.item()):.04e}",
+                        learning_rate=self.optimizer.param_groups[0]['lr'],
+                        gradient_norm=f"{grad_norm.item():.04e}",
+                        pixel_change=f"{pixel_change:.04e}"))
         return loss, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
 
     def synthesize(self, max_iter: int = 100,
