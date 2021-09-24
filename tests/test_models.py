@@ -65,7 +65,8 @@ class TestLaplacianPyramid(object):
         assert len(y_po) == len(y_pt)
         for x_po, x_pt in zip(y_po, y_pt):
             x_po = x_po.squeeze().detach().cpu().numpy()
-            assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5  # There is some problem with right and bottom edge
+            assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
+            # TODO: There is some problem with padding on right and bottom edge, should figure out why
 
 
 class TestFactorizedPyramid(object):
