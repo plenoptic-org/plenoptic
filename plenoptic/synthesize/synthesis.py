@@ -1039,7 +1039,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # the same shape but different values and the second (in the
                 # except block) are if they're different shapes.
                 try:
-                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k]):
+                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k], rtol=1E-3):
                         raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
                                         f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
@@ -1061,7 +1061,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                          self.base_signal)
                 init_loss = self.loss_function(rep, self.base_representation,
                                                img, self.base_signal)
-                if not torch.allclose(saved_loss, init_loss):
+                if not torch.allclose(saved_loss, init_loss, rtol=1E-3):
                     raise Exception("Saved and initialized loss_function are different! On base and random "
                                     f"representation got: Initialized: {init_loss}"
                                     f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
