@@ -33,7 +33,7 @@ def portilla_simoncelli_test_vectors():
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize():
-    return osf_download('portilla_simoncelli_synthesize.npy')
+    return osf_download('portilla_simoncelli_synthesize.npz')
 
 
 class TestNonLinearities(object):
@@ -248,15 +248,15 @@ class TestPortillaSimoncelli(object):
 
     def test_ps_synthesis(self, portilla_simoncelli_synthesize):
         torch.set_default_dtype(torch.float64)
-        with open(portilla_simoncelli_synthesize, 'rb') as f:
-            im = np.load(f)
-            im_init = np.load(f)
-            im_synth = np.load(f)
-            loss = np.load(f)
+        with np.load(portilla_simoncelli_synthesize) as f:
+            im = f['im']
+            im_init = f['im_init']
+            im_synth = f['im_synth']
+            rep_synth = f['rep_synth']
 
         n=256
 
-        im0 = torch.Tensor(im).unsqueeze(0).unsqueeze(0)
+        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0)
         model = po.simul.PortillaSimoncelli(
             [n,n],
             n_scales=4, 
@@ -264,7 +264,6 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=9,
             use_true_correlations=True)
 
-        
         met = po.synth.Metamer(im0, model)
 
         output=met.synthesize(
@@ -272,17 +271,17 @@ class TestPortillaSimoncelli(object):
             seed=1,
             loss_change_thresh=None,
             loss_change_iter=7,
-            max_iter=10,
+            max_iter=75,
             coarse_to_fine='together',
             optimizer='Adam',
-            initial_image = im_init)       
+            initial_image=im_init)
 
         np.testing.assert_allclose(
-            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=5e-2, atol=5e-2
+            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
         )
 
         np.testing.assert_allclose(
-            output[1].squeeze().detach().numpy(), loss.squeeze(), rtol=1e-3, atol=1e-3
+            output[1].squeeze().detach().numpy(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
         )
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])

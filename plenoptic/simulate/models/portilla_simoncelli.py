@@ -205,7 +205,6 @@ class PortillaSimoncelli(nn.Module):
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
 
-        # self.pyr.to(image.dtype)
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
 
@@ -711,12 +710,8 @@ class PortillaSimoncelli(nn.Module):
                     orientation_bands_mag.t(), next_scale_mag, band_num_el
                 )
 
-
-
-
-                if (
-                    this_scale == self.n_scales - 1
-                ):  # correlations on the low-pass residuals
+                # correlations on the low-pass residuals
+                if this_scale == self.n_scales - 1:
                     self.representation["cross_orientation_correlation_magnitude"][
                         0:np0, 0:np0, this_scale + 1
                     ] = self.compute_crosscorrelation(
