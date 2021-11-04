@@ -1074,7 +1074,7 @@ class MADCompetition(Synthesis):
                                                  self.base_signal)
         init_loss = self.loss_function_1(rep, self.base_representation_1, img,
                                          self.base_signal)
-        if not torch.allclose(saved_loss, init_loss, rtol=1E-3):
+        if not torch.allclose(saved_loss, init_loss, atol=1E-4):
             raise Exception("Saved and initialized loss_function_1 are different! On base and random "
                             f"representation got: Initialized: {init_loss}"
                             f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
@@ -1083,7 +1083,7 @@ class MADCompetition(Synthesis):
                                                  self.base_signal)
         init_loss = self.loss_function_2(rep, self.base_representation_2, img,
                                          self.base_signal)
-        if not torch.allclose(saved_loss, init_loss, rtol=1E-3):
+        if not torch.allclose(saved_loss, init_loss, atol=1E-4):
             raise Exception("Saved and initialized loss_function_2 are different! On base and random "
                             f"representation got: Initialized: {init_loss}"
                             f", Saved: {saved_loss}, difference: {init_loss-saved_loss}")
