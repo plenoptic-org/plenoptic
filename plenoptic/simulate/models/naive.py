@@ -251,8 +251,6 @@ class CenterSurround(nn.Module):
             sign = sign.view(self.out_channels, 1, 1, 1)
             filt = on_amp * (sign * (filt_center - filt_surround))
 
-            filt = filt / filt.sum()
-
             if self.cache_filt:
                 self._filt = filt
 
