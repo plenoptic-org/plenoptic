@@ -23,9 +23,9 @@ pipeline {
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
 	  pip3 install .
-      for f in tests/test_*py; do python3 -m pytest $f; done
+      python3 -m pytest tests/test_mad.py -k save_load
 	'''
-
+    //   for f in tests/test_*py; do python3 -m pytest $f; done
       }
     }
   }

@@ -1039,7 +1039,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # the same shape but different values and the second (in the
                 # except block) are if they're different shapes.
                 try:
-                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k], rtol=1E-2):
+                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device), tmp_dict[k], rtol=5E-2):
                         raise Exception(f"Saved and initialized {k} are different! Initialized: {getattr(self, k)}"
                                         f", Saved: {tmp_dict[k]}, difference: {getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
