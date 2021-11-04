@@ -131,12 +131,13 @@ class Gaussian(nn.Module):
         self.cache_filt = cache_filt
         self._filt = None
 
-    @property
-    def filt(self):
+    def filt(self, device):
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
             filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
+            filt = filt.to(device)
+            print(device)
             if self.cache_filt:
                 self._filt = filt
             return filt
@@ -145,7 +146,8 @@ class Gaussian(nn.Module):
         self.std.data = self.std.data.abs()  # ensure stdev is positive
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        y = F.conv2d(x, self.filt, **conv2d_kwargs)
+        filt_weights = self.filt(x.device)
+        y = F.conv2d(x, filt_weights, **conv2d_kwargs)
 
         return y
 
@@ -236,8 +238,7 @@ class CenterSurround(nn.Module):
         self.cache_filt = cache_filt
         self._filt = None
 
-    @property
-    def filt(self) -> Tensor:
+    def filt(self, device) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
         if self._filt is not None:  # use cached filt
             return self._filt
@@ -247,13 +248,12 @@ class CenterSurround(nn.Module):
             on_amp = self.amplitude_ratio
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(filt_center.device)
+            sign = torch.as_tensor([1. if x else -1. for x in self.on_center])
             sign = sign.view(self.out_channels, 1, 1, 1)
             filt = on_amp * (sign * (filt_center - filt_surround))
-
+            filt = filt.to(device)
             if self.cache_filt:
                 self._filt = filt
-
         return filt
 
     def _clamp_surround_std(self):
@@ -265,5 +265,6 @@ class CenterSurround(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
-        y = F.conv2d(x, self.filt, bias=None)
+        filt_weights = self.filt(x.device)
+        y = F.conv2d(x, filt_weights, bias=None)
         return y
