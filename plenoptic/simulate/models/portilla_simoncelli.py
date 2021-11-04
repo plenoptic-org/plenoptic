@@ -79,6 +79,21 @@ class PortillaSimoncelli(nn.Module):
             is_complex=True,
             tight_frame=False,
         )
+        self.filterPyr = Steerable_Pyramid_Freq(
+            self.pyr._lomasks[-1].shape[-2:], height=0, order=1,
+            tight_frame=False
+        )
+        self.unoriented_band_pyrs = [
+            Steerable_Pyramid_Freq(
+                himask.shape[-2:],
+                height=1,
+                order=self.n_orientations - 1,
+                is_complex=False,
+                tight_frame=False,
+            )
+            # want to go through these masks backwards
+            for himask in self.pyr._himasks
+        ]
 
         self.use_true_correlations = use_true_correlations
         self.scales = (
@@ -243,18 +258,22 @@ class PortillaSimoncelli(nn.Module):
                 self.spatial_corr_width,
                 self.n_scales,
                 self.n_orientations,
-            ]
+            ],
+            device=image.device
         )
-        self.representation["skew_reconstructed"] = torch.empty((self.n_scales + 1, 1))
+        self.representation["skew_reconstructed"] = torch.empty((self.n_scales + 1, 1),
+                                                                device=image.device)
         self.representation["kurtosis_reconstructed"] = torch.empty(
-            (self.n_scales + 1, 1)
+            (self.n_scales + 1, 1), device=image.device
         )
         self.representation["auto_correlation_reconstructed"] = torch.zeros(
-            [self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1]
+            [self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1],
+            device=image.device
         )
 
         if self.use_true_correlations:
-            self.representation["std_reconstructed"] = torch.empty(self.n_scales + 1, 1)
+            self.representation["std_reconstructed"] = torch.empty(self.n_scales + 1, 1,
+                                                                   device=image.device)
 
         self._calculate_autocorrelation_skew_kurtosis()
 
@@ -268,18 +287,22 @@ class PortillaSimoncelli(nn.Module):
 
         # Initialize statistics
         self.representation["cross_orientation_correlation_magnitude"] = torch.zeros(
-            self.n_orientations, self.n_orientations, self.n_scales + 1
+            self.n_orientations, self.n_orientations, self.n_scales + 1,
+            device=image.device
         )
         self.representation["cross_scale_correlation_magnitude"] = torch.zeros(
-            self.n_orientations, self.n_orientations, self.n_scales
+            self.n_orientations, self.n_orientations, self.n_scales,
+            device=image.device
         )
         self.representation["cross_orientation_correlation_real"] = torch.zeros(
             max(2 * self.n_orientations, 5),
             max(2 * self.n_orientations, 5),
             self.n_scales + 1,
+            device=image.device
         )
         self.representation["cross_scale_correlation_real"] = torch.zeros(
-            2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales
+            2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales,
+            device=image.device
         )
 
         self._calculate_crosscorrelations()
@@ -312,7 +335,6 @@ class PortillaSimoncelli(nn.Module):
             Flattened 1d vector of statistics.
 
         """
-
         list_of_stats = [
             torch.cat([vv.flatten() for vv in val.values()])
             if isinstance(val, OrderedDict)
@@ -487,7 +509,8 @@ class PortillaSimoncelli(nn.Module):
         mx = mult * mx
 
         fourier = mult ** 2 * torch.fft.fftshift(torch.fft.fftn(im))
-        fourier_large = torch.zeros(my, mx).type(fourier.dtype)
+        fourier_large = torch.zeros(my, mx, device=fourier.device,
+                                    dtype=fourier.dtype)
 
         y1 = int(my / 2 + 1 - my / (2 * mult))
         y2 = int(my / 2 + my / (2 * mult))
@@ -520,10 +543,7 @@ class PortillaSimoncelli(nn.Module):
 
         # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
         lowpass = self.pyr_coeffs["residual_lowpass"]
-        filterPyr = Steerable_Pyramid_Freq(
-            lowpass.shape[-2:], height=0, order=1, tight_frame=False
-        )
-        filter_pyr_coeffs = filterPyr.forward(lowpass)
+        filter_pyr_coeffs = self.filterPyr.forward(lowpass)
         reconstructed_image = filter_pyr_coeffs["residual_lowpass"].squeeze()
 
         # Find the auto-correlation of the low-pass residual
@@ -568,13 +588,7 @@ class PortillaSimoncelli(nn.Module):
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
             # reconstruct the unoriented band for this scale
-            unoriented_band_pyr = Steerable_Pyramid_Freq(
-                reconstructed_image.shape[-2:],
-                height=1,
-                order=self.n_orientations - 1,
-                is_complex=False,
-                tight_frame=False,
-            )
+            unoriented_band_pyr = self.unoriented_band_pyrs[this_scale]
             unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
             for ii in range(0, self.n_orientations):
                 unoriented_pyr_coeffs[(0, ii)] = (
@@ -611,8 +625,10 @@ class PortillaSimoncelli(nn.Module):
         for this_scale in range(0, self.n_scales):
             band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
             if this_scale < self.n_scales - 1:
-                next_scale_mag = torch.empty((band_num_el, self.n_orientations))
-                next_scale_real = torch.empty((band_num_el, self.n_orientations * 2))
+                next_scale_mag = torch.empty((band_num_el, self.n_orientations),
+                                             device=self.pyr.hi0mask.device)
+                next_scale_real = torch.empty((band_num_el, self.n_orientations * 2),
+                                              device=self.pyr.hi0mask.device)
 
                 for nor in range(0, self.n_orientations):
                     # upsampled = PortillaSimoncelli.expand(self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2) / 4.0
@@ -661,7 +677,7 @@ class PortillaSimoncelli(nn.Module):
                     ),
                     1,
                 )
-                next_scale_mag = torch.empty((0))
+                next_scale_mag = torch.empty((0), device=upsampled.device)
 
             orientation_bands_mag = (
                 torch.stack(
@@ -936,7 +952,7 @@ class PortillaSimoncelli(nn.Module):
                 ax = clean_stem_plot([to_numpy(v_) for v_ in v.values()], ax, k,
                                      ylim=ylim)
             else:
-                ax = clean_stem_plot(v.flatten().detach().numpy(), ax, k, ylim=ylim)
+                ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
 
             axes.append(ax)
 
@@ -1045,3 +1061,44 @@ class PortillaSimoncelli(nn.Module):
             sc = update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists
+
+    def to(self, *args, **kwargs):
+        r"""Moves and/or casts the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See below for examples.
+
+        .. note::
+            This method modifies the module in-place.
+        Args:
+            device (:class:`torch.device`): the desired device of the parameters
+                and buffers in this module
+            dtype (:class:`torch.dtype`): the desired floating point type of
+                the floating point parameters and buffers in this module
+            tensor (torch.Tensor): Tensor whose dtype and device are the desired
+                dtype and device for all parameters and buffers in this module
+
+        Returns:
+            Module: self
+        """
+        self.pyr = self.pyr.to(*args, **kwargs)
+        self.filterPyr = self.filterPyr.to(*args, **kwargs)
+        self.unoriented_band_pyrs = [pyr.to(*args, **kwargs) for pyr in
+                                     self.unoriented_band_pyrs]
+        return self
