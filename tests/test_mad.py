@@ -177,7 +177,7 @@ class TestMAD(object):
                             eql = True
                     except RuntimeError:
                         # then it's a tensor
-                        if v.allclose(saved[ki]):
+                        if v.allclose(saved[ki], rtol=1E-2):
                             eql = True
                     if not eql:
                         raise Exception(f"Something went wrong with saving and loading! {k, ki} not the same!")
@@ -187,7 +187,7 @@ class TestMAD(object):
                         eql = True
                 except RuntimeError:
                     # then it's a tensor
-                    if saved[mad.synthesis_target].allclose(getattr(mad_copy, k)):
+                    if saved[mad.synthesis_target].allclose(getattr(mad_copy, k), rtol=1E-2):
                         eql = True
                 if not eql:
                     raise Exception(f"Something went wrong with saving and loading! {k} and its _all"
@@ -196,7 +196,7 @@ class TestMAD(object):
             for k in ['base_signal', 'saved_representation_1', 'saved_signal',
                       'synthesized_representation_1', 'synthesized_signal', 'base_representation_1',
                       'saved_representation_2', 'synthesized_representation_2', 'base_representation_2']:
-                if not getattr(mad, k).allclose(getattr(mad_copy, k)):
+                if not getattr(mad, k).allclose(getattr(mad_copy, k), rtol=1E-2):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             assert not isinstance(mad_copy.synthesized_representation, torch.nn.Parameter), "synthesized_rep shouldn't be a parameter!"
