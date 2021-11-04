@@ -112,7 +112,7 @@ def load_images(paths, as_gray=True):
                 im = np.moveaxis(im, -1, 0)
         images.append(im)
     try:
-        images = torch.tensor(images, dtype=torch.float32)
+        images = torch.as_tensor(np.stack(images,0), dtype=torch.float32)
     except ValueError:
         raise Exception("Concatenating the images into a tensor raised"
                         " a ValueError! This probably"
