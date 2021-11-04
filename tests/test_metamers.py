@@ -49,7 +49,7 @@ class TestMetamers(object):
                           map_location=DEVICE)
             for k in ['base_signal', 'saved_representation', 'saved_signal', 'synthesized_representation',
                       'synthesized_signal', 'base_representation']:
-                if not getattr(met, k).allclose(getattr(met_copy, k)):
+                if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1E-2):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             assert not isinstance(met_copy.synthesized_representation, torch.nn.Parameter), "matched_rep shouldn't be a parameter!"
@@ -59,7 +59,7 @@ class TestMetamers(object):
             met_copy_loss = met_copy.loss_function(met_copy.synthesized_representation,
                                                    met_copy.base_representation,
                                                    met_copy.synthesized_signal, met_copy.base_signal)
-            if met_loss != met_copy_loss:
+            if not torch.allclose(met_loss, met_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
                                 f"after loading was {met_copy_loss}")
             # check that can resume
