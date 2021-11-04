@@ -247,7 +247,7 @@ class CenterSurround(nn.Module):
             on_amp = self.amplitude_ratio
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor([1. if x else -1. for x in self.on_center])
+            sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(filt_center.device)
             sign = sign.view(self.out_channels, 1, 1, 1)
             filt = on_amp * (sign * (filt_center - filt_surround))
 
