@@ -10,7 +10,7 @@ import plenoptic as po
 import torch
 import os.path as op
 from conftest import DEVICE, DATA_DIR, get_model
-
+import numpy as np
 
 class TestMAD(object):
 
@@ -206,7 +206,7 @@ class TestMAD(object):
             mad_copy_loss = mad_copy.loss_function_1(mad_copy.synthesized_representation_1,
                                                      mad_copy.base_representation_1,
                                                      mad_copy.synthesized_signal, mad_copy.base_signal)
-            if mad_loss != mad_copy_loss:
+            if not torch.allclose(mad_loss, mad_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function 1 not properly saved! Before saving was {mad_loss}, "
                                 f"after loading was {mad_copy_loss}")
             mad_loss = mad.loss_function_2(mad.synthesized_representation_2, mad.base_representation_2,
@@ -214,7 +214,8 @@ class TestMAD(object):
             mad_copy_loss = mad_copy.loss_function_2(mad_copy.synthesized_representation_2,
                                                      mad_copy.base_representation_2,
                                                      mad_copy.synthesized_signal, mad_copy.base_signal)
-            if mad_loss != mad_copy_loss:
+
+            if not torch.allclose(mad_loss, mad_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function 2 not properly saved! Before saving was {mad_loss}, "
                                 f"after loading was {mad_copy_loss}")
             # check that can resume
