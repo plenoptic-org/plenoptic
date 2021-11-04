@@ -31,7 +31,11 @@ def osf_download(filename):
     Parameters
     ----------
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz', 'MAD_results.tar.gz'}
+                'ssim_analysis.mat', 'msssim_images.tar.gz',
+                'MAD_results.tar.gz',
+                'portilla_simoncelli_matlab_test_vectors.tar.gz',
+                'portilla_simoncelli_test_vectors.tar.gz',
+                'portilla_simoncelli_synthesize.npy'}
         Which file to download.
 
     Returns
