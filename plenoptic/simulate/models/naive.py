@@ -137,7 +137,7 @@ class Gaussian(nn.Module):
             return self._filt
         else:  # create new filter, optionally cache it
             device = self.std.device
-            filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
+            filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels, device)
             filt = filt.to(device)
             if self.cache_filt:
                 self._filt = filt
@@ -248,8 +248,8 @@ class CenterSurround(nn.Module):
             on_amp = self.amplitude_ratio
             device = on_amp.device
 
-            filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels).to(device)
-            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels).to(device)
+            filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels, device)
+            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels, device)
 
             # sign is + or - depending on center is on or off
             sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(device)

@@ -44,6 +44,7 @@ def circular_gaussian2d(
     kernel_size: Union[int, Tuple[int, int]],
     std: Union[float, Tensor],
     out_channels: int = 1,
+    device=torch.device("cpu"),
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
 
@@ -55,6 +56,8 @@ def circular_gaussian2d(
         Standard deviation of 2D circular Gaussian.
     out_channels:
         Number of channels with same kernel repeated along channel dim.
+    device:
+        torch.device("cpu") (default) or torch.device("cuda")
 
     Returns
     -------
@@ -65,13 +68,12 @@ def circular_gaussian2d(
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(std, float) or std.shape == torch.Size([]):
-        std = torch.ones(out_channels).to(std.device) * std
+        std = torch.ones(out_channels).to(device) * std
 
     assert out_channels >= 1, "number of filters must be positive integer"
     assert torch.all(std > 0.0), "stdev must be positive"
     assert len(std) == out_channels, "Number of stds must equal out_channels"
 
-    device = std.device
     origin = torch.tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 
@@ -81,7 +83,7 @@ def circular_gaussian2d(
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 
     log_filt = ((xramp ** 2) + (yramp ** 2))
-    log_filt = log_filt.repeat(out_channels, 1, 1, 1)  # 4D
+    log_filt = log_filt.repeat(out_channels, 1, 1, 1).to(device)  # 4D
     log_filt = log_filt / (-2. * std ** 2).view(out_channels, 1, 1, 1)
 
     filt = torch.exp(log_filt)
