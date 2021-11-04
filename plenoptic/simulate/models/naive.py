@@ -131,13 +131,14 @@ class Gaussian(nn.Module):
         self.cache_filt = cache_filt
         self._filt = None
 
-    def filt(self, device):
+    @property
+    def filt(self):
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
+            device = self.std.device
             filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
             filt = filt.to(device)
-            print(device)
             if self.cache_filt:
                 self._filt = filt
             return filt
@@ -146,8 +147,7 @@ class Gaussian(nn.Module):
         self.std.data = self.std.data.abs()  # ensure stdev is positive
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        filt_weights = self.filt(x.device)
-        y = F.conv2d(x, filt_weights, **conv2d_kwargs)
+        y = F.conv2d(x, self.filt, **conv2d_kwargs)
 
         return y
 
@@ -237,21 +237,26 @@ class CenterSurround(nn.Module):
 
         self.cache_filt = cache_filt
         self._filt = None
+        self._input_device = torch.device("cpu")
 
-    def filt(self, device) -> Tensor:
+    @property
+    def filt(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
         if self._filt is not None:  # use cached filt
             return self._filt
         else:  # generate new filt and optionally cache
+            on_amp = self.amplitude_ratio
+            device = on_amp.device
+
             filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels).to(device)
             filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels).to(device)
-            on_amp = self.amplitude_ratio
 
             # sign is + or - depending on center is on or off
             sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(device)
-            sign = sign.view(self.out_channels, 1, 1, 1).to(device)
+            sign = sign.view(self.out_channels, 1, 1, 1)
+
             filt = on_amp * (sign * (filt_center - filt_surround))
-            filt = filt.to(device)
+
             if self.cache_filt:
                 self._filt = filt
         return filt
@@ -265,6 +270,6 @@ class CenterSurround(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
-        filt_weights = self.filt(x.device)
-        y = F.conv2d(x, filt_weights, bias=None)
+
+        y = F.conv2d(x, self.filt, bias=None)
         return y

@@ -100,9 +100,9 @@ class TestNaive(object):
     def test_cache_filt(self, cache_filt, mdl):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt)
+            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt)
+            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
 
         y = model(img)  # forward pass should cache filt if True
 
