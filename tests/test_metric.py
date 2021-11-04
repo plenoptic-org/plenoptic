@@ -108,6 +108,7 @@ class TestPerceptualMetrics(object):
     def test_ssim(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
+        curie_img.requires_grad_(False)
 
     def test_msssim(self, einstein_img, curie_img):
         curie_img.requires_grad_()
@@ -197,20 +198,25 @@ class TestPerceptualMetrics(object):
     def test_nlpd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)
 
     def test_nspd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)
 
     def test_nspd2(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img, O=3, S=5, complex=True).requires_grad
+        curie_img.requires_grad_(False)
 
     def test_nspd3(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
+        curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_metric(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
+        curie_img.requires_grad_(False)
