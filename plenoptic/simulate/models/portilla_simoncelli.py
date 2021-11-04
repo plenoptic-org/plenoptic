@@ -8,6 +8,7 @@ from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
+from ...tools.data import to_numpy
 
 
 class PortillaSimoncelli(nn.Module):
@@ -931,7 +932,10 @@ class PortillaSimoncelli(nn.Module):
 
             ax = fig.add_subplot(gs[i // 3, i % 3])
             if isinstance(v, OrderedDict):
-                ax = clean_stem_plot(list(v.values()), ax, k, ylim=ylim)
+                # need to make sure these are not tensors when we call the
+                # plotting function
+                ax = clean_stem_plot([to_numpy(v_) for v_ in v.values()], ax, k,
+                                     ylim=ylim)
             else:
                 ax = clean_stem_plot(v.flatten().detach().numpy(), ax, k, ylim=ylim)
 
