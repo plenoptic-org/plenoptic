@@ -65,7 +65,7 @@ def circular_gaussian2d(
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(std, float) or std.shape == torch.Size([]):
-        std = torch.ones(out_channels) * std
+        std = torch.ones(out_channels).to(std.device) * std
 
     assert out_channels >= 1, "number of filters must be positive integer"
     assert torch.all(std > 0.0), "stdev must be positive"
