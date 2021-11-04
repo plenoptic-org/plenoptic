@@ -12,7 +12,9 @@ DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
-
+torch.manual_seed(0)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(0)
 class ColorModel(torch.nn.Module):
     """Simple model that takes color image as input and outputs 2d conv."""
     def __init__(self):

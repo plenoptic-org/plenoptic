@@ -11,10 +11,6 @@ import matplotlib.pyplot as plt
 SMALL_DIM = 20
 LARGE_DIM = 100
 
-torch.manual_seed(0)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed(0)
-
 class TestEigendistortionSynthesis:
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
