@@ -243,13 +243,13 @@ class CenterSurround(nn.Module):
         if self._filt is not None:  # use cached filt
             return self._filt
         else:  # generate new filt and optionally cache
-            filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels)
-            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels)
+            filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels).to(device)
+            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels).to(device)
             on_amp = self.amplitude_ratio
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor([1. if x else -1. for x in self.on_center])
-            sign = sign.view(self.out_channels, 1, 1, 1)
+            sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(device)
+            sign = sign.view(self.out_channels, 1, 1, 1).to(device)
             filt = on_amp * (sign * (filt_center - filt_surround))
             filt = filt.to(device)
             if self.cache_filt:
