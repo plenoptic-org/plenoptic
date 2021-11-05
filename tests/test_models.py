@@ -177,7 +177,7 @@ class TestNaive(object):
 
 
 class TestFilters:
-    @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
+    @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
@@ -189,10 +189,10 @@ class TestFilters:
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
             assert filt.shape == (out_channels, 1, *kernel_size)
-            assert filt.sum().isclose(torch.ones(1) * out_channels)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE) * out_channels)
 
     def test_circular_gaussian2d_wrong_std_length(self):
-        std = torch.tensor([1., 2.])
+        std = torch.tensor([1., 2.], device=DEVICE)
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)

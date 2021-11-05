@@ -437,7 +437,7 @@ def normalized_steerable_pyramid(im, sigmas=None):
 
     if sigmas is None:
         sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
-    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True)
+    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True).to(im.device)
     spyr_coeffs = spyr.forward(im)
     normalized_spyr_coeffs = {}
     for key in spyr_coeffs.keys():
