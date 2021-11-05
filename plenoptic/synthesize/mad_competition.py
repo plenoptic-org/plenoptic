@@ -22,6 +22,11 @@ class MADCompetition(Synthesis):
     adjusting its pixels so as to either minimize or maximize
     ``synthesis_metric`` while holding the value of ``fixed_metric`` constant.
 
+    MADCompetiton accepts two metrics as its input. These should be callables
+    that take two images and return a single number, and that number should be
+    0 if and only if the two images are identical (thus, the larger the number,
+    the more different the two images).
+
     Note that a full set of images MAD Competition images consists of two
     pairs: a maximal and a minimal image for each metric. A single
     instantiation of ``MADCompetition`` will generate one of these four images.
@@ -102,6 +107,10 @@ class MADCompetition(Synthesis):
             raise Exception("reference_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{reference_signal.size()}")
+        if fixed_metric(reference_signal, reference_signal) != 0:
+            raise Exception("fixed_metric should return 0 on two identical images!")
+        if synthesis_metric(reference_signal, reference_signal) != 0:
+            raise Exception("synthesis_metric should return 0 on two identical images!")
         self.optimizer = None
         self.scheduler = None
         self.losses = []
