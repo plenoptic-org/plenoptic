@@ -11,6 +11,7 @@ import warnings
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
+from pyrtools.tools.display import make_figure as pt_make_figure
 
 
 class MADCompetition(Synthesis):
@@ -731,6 +732,7 @@ def display_synthesized_signal(mad: MADCompetition,
                                zoom: Union[float, None] = None,
                                iteration: Union[int, None] = None,
                                ax: Union[mpl.axes.Axes, None] = None,
+                               title: str = 'MADCompetition',
                                **kwargs) -> mpl.axes.Axes:
     """Display synthesized_signal.
 
@@ -752,15 +754,17 @@ def display_synthesized_signal(mad: MADCompetition,
     channel_idx :
         Which index to take from the channel dimension. If None, we assume
         image is RGB(A) and show all channels.
+    zoom :
+        How much to zoom in / enlarge the synthesized image, the ratio
+        of display pixels to image pixels. If None (the default), we
+        attempt to find the best value ourselves.
     iteration :
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
     ax :
         Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    zoom :
-        How much to zoom in / enlarge the synthesized image, the ratio
-        of display pixels to image pixels. If None (the default), we
-        attempt to find the best value ourselves.
+    title :
+        Title of the axis.
     kwargs :
         Passed to ``plenoptic.imshow``
 
@@ -784,7 +788,7 @@ def display_synthesized_signal(mad: MADCompetition,
         as_rgb = False
     if ax is None:
         ax = plt.gca()
-    display.imshow(image, ax=ax, title='MADCompetition', zoom=zoom,
+    display.imshow(image, ax=ax, title=title, zoom=zoom,
                    batch_idx=batch_idx, channel_idx=channel_idx,
                    as_rgb=as_rgb, **kwargs)
     ax.xaxis.set_visible(False)
@@ -1246,3 +1250,169 @@ def animate(mad: MADCompetition,
                                        repeat=False)
     plt.close(fig)
     return anim
+
+
+def display_synthesized_signal_all(mad_metric1_min: MADCompetition,
+                                   mad_metric2_min: MADCompetition,
+                                   mad_metric1_max: MADCompetition,
+                                   mad_metric2_max: MADCompetition,
+                                   metric1_name: Union[str, None] = None,
+                                   metric2_name: Union[str, None] = None,
+                                   zoom: Union[int, float] = 1,
+                                   **kwargs) -> mpl.figure.Figure:
+    """Display all MAD Competition images.
+
+    To generate a full set of MAD Competition images, you need four instances:
+    one for minimizing and maximizing each metric. This helper function creates
+    a figure to display the full set of images.
+
+    In addition to the four MAD Competition images, this also plots the initial
+    image from `mad_metric1_min`, for comparison.
+
+    Note that all four MADCompetition instances must have the same
+    `reference_signal`.
+
+    Parameters
+    ----------
+    mad_metric1_min :
+        MADCompetition object that minimized the first metric.
+    mad_metric2_min :
+        MADCompetition object that minimized the second metric.
+    mad_metric1_max :
+        MADCompetition object that maximized the first metric.
+    mad_metric2_max :
+        MADCompetition object that maximized the second metric.
+    metric1_name :
+        Name of the first metric. If None, we use the name of the
+        `synthesis_metric` function from `mad_metric1_min`.
+    metric2_name :
+        Name of the second metric. If None, we use the name of the
+        `synthesis_metric` function from `mad_metric2_min`.
+    zoom :
+        Ratio of display pixels to image pixels. See `plenoptic.imshow` for
+        details.
+    kwargs :
+        Passed to `plenoptic.imshow`.
+
+    Returns
+    -------
+    fig :
+        Figure containing the images.
+
+    """
+    # this is a bit of a hack right now, because they don't all have same
+    # initial image
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_min.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric1_max.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_max.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if metric1_name is None:
+        metric1_name = mad_metric1_min.synthesis_metric.__name__
+    if metric2_name is None:
+        metric2_name = mad_metric2_min.synthesis_metric.__name__
+    fig = pt_make_figure(3, 2, [zoom * i for i in
+                                mad_metric1_min.reference_signal.shape[-2:]])
+    mads = [mad_metric1_min, mad_metric1_max, mad_metric2_min, mad_metric2_max]
+    titles = [f'Minimize {metric1_name}', f'Maximize {metric1_name}',
+              f'Minimize {metric2_name}', f'Maximize {metric2_name}']
+    # we're only plotting one image here, so if the user wants multiple
+    # channels, they must be RGB
+    if kwargs.get('channel_idx', None) is None and mad_metric1_min.initial_signal.shape[1] > 1:
+        as_rgb = True
+    else:
+        as_rgb = False
+    display.imshow(mad_metric1_min.reference_signal, ax=fig.axes[0],
+                   title='Reference image', zoom=zoom, as_rgb=as_rgb,
+                   **kwargs)
+    display.imshow(mad_metric1_min.initial_signal, ax=fig.axes[1],
+                   title='Initial (noisy) image', zoom=zoom, as_rgb=as_rgb,
+                   **kwargs)
+    for ax, mad, title in zip(fig.axes[2:], mads, titles):
+        display_synthesized_signal(mad, zoom=zoom, ax=ax, title=title,
+                                   **kwargs)
+    return fig
+
+
+def plot_loss_all(mad_metric1_min: MADCompetition,
+                  mad_metric2_min: MADCompetition,
+                  mad_metric1_max: MADCompetition,
+                  mad_metric2_max: MADCompetition,
+                  metric1_name: Union[str, None] = None,
+                  metric2_name: Union[str, None] = None,
+                  metric1_kwargs: Dict = {'c': 'C0'},
+                  metric2_kwargs: Dict = {'c': 'C1'},
+                  min_kwargs: Dict = {'linestyle': '--'},
+                  max_kwargs: Dict = {'linestyle': '-'},
+                  figsize=(10, 5)) -> mpl.figure.Figure:
+    """Plot loss for full set of MAD Competiton instances.
+
+    To generate a full set of MAD Competition images, you need four instances:
+    one for minimizing and maximizing each metric. This helper function creates
+    a two-axis figure to display the loss for this full set.
+
+    Note that all four MADCompetition instances must have the same
+    `reference_signal`.
+
+    Parameters
+    ----------
+    mad_metric1_min :
+        MADCompetition object that minimized the first metric.
+    mad_metric2_min :
+        MADCompetition object that minimized the second metric.
+    mad_metric1_max :
+        MADCompetition object that maximized the first metric.
+    mad_metric2_max :
+        MADCompetition object that maximized the second metric.
+    metric1_name :
+        Name of the first metric. If None, we use the name of the
+        `synthesis_metric` function from `mad_metric1_min`.
+    metric2_name :
+        Name of the second metric. If None, we use the name of the
+        `synthesis_metric` function from `mad_metric2_min`.
+    metric1_kwargs :
+        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+        synthesis instance where the first metric was being optimized.
+    metric2_kwargs :
+        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+        synthesis instance where the second metric was being optimized.
+    min_kwargs :
+        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+        synthesis instance where `synthesis_metric` was being minimized.
+    max_kwargs :
+        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+        synthesis instance where `synthesis_metric` was being maximized.
+    figsize :
+        Size of the figure we create.
+
+    Returns
+    -------
+    fig :
+        Figure containing the plot.
+
+    """
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_min.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric1_max.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_max.reference_signal):
+        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if metric1_name is None:
+        metric1_name = mad_metric1_min.synthesis_metric.__name__
+    if metric2_name is None:
+        metric2_name = mad_metric2_min.synthesis_metric.__name__
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    plot_loss(mad_metric1_min, axes=axes, label=f'Minimize {metric1_name}',
+              **metric1_kwargs, **min_kwargs)
+    plot_loss(mad_metric1_max, axes=axes, label=f'Maximize {metric1_name}',
+              **metric1_kwargs, **max_kwargs)
+    # we pass the axes backwards here because the fixed and synthesis metrics are the opposite as they are in the instances above.
+    plot_loss(mad_metric2_min, axes=axes[::-1], label=f'Minimize {metric2_name}',
+              **metric2_kwargs, **min_kwargs)
+    plot_loss(mad_metric2_max, axes=axes[::-1], label=f'Maximize {metric2_name}',
+              **metric2_kwargs, **max_kwargs)
+    axes[0].set(ylabel='Loss', title=metric2_name)
+    axes[1].set(ylabel='Loss', title=metric1_name)
+    axes[1].legend(loc='center left', bbox_to_anchor=(1.1, .5))
+    return fig
