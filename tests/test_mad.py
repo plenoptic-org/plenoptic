@@ -33,7 +33,9 @@ class TestMAD(object):
     def test_save_load(self, curie_img, fail, tmp_path):
         # for ease of use
         model = po.metric.mse
-        model2 = po.metric.ssim
+        # MAD requires metrics are *dis*-similarity metrics, so that they
+        # return 0 if two images are identical (SSIM normally returns 1)
+        model2 = lambda *args: 1-po.metric.ssim(*args)
         target = 'min'
         mad = po.synth.MADCompetition(curie_img, model, model2, target)
         mad.synthesize(max_iter=4, store_progress=True)
@@ -70,3 +72,5 @@ class TestMAD(object):
             if optimizer == 'Scheduler':
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+
+        TESTS
