@@ -621,9 +621,11 @@ class TestMADDisplay(object):
             img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
         # to serve as a metric, need to return a single value, but SSIM and MSE
-        # will return a separate value for each RGB channel
+        # will return a separate value for each RGB channel. Additionally, MAD
+        # requires metrics are *dis*-similarity metrics, so that they return 0
+        # if two images are identical (SSIM normally returns 1)
         def rgb_ssim(*args, **kwargs):
-            return po.metric.ssim(*args, **kwargs).mean()
+            return 1 - po.metric.ssim(*args, **kwargs).mean()
         def rgb_mse(*args, **kwargs):
             return po.metric.mse(*args, **kwargs).mean()
         mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, 'min')
@@ -653,6 +655,33 @@ class TestMADDisplay(object):
         # MADCompetition's plotting and animating functions, specifying some or
         # all of the locations for the plots
         template_test_synthesis_custom_fig(synthesized_mad, func, fig_creation, tmp_path)
+
+    @pytest.fixture(scope='class')
+    def all_mad(self):
+        # run synthesis for all 4 MAD images.
+        img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
+        img = img[..., :16, :16]
+        model1 = po.metric.mse
+        # MAD requires metrics are *dis*-similarity metrics, so that they
+        # return 0 if two images are identical (SSIM normally returns 1)
+        model2 = lambda *args: 1 - po.metric.ssim(*args).mean()
+        mad = po.synth.MADCompetition(img, model1, model2, 'min')
+        mad.synthesize(max_iter=2)
+        mad2 = po.synth.MADCompetition(img, model1, model2, 'max')
+        mad2.synthesize(max_iter=2)
+        mad3 = po.synth.MADCompetition(img, model2, model1, 'min')
+        mad3.synthesize(max_iter=2)
+        mad4 = po.synth.MADCompetition(img, model2, model1, 'max')
+        mad4.synthesize(max_iter=2)
+        return mad, mad2, mad3, mad4
+
+    @pytest.mark.parametrize('func', ['loss', 'image'])
+    def test_helper_funcs(self, all_mad, func):
+        if func == 'loss':
+            func = po.synth.mad_competition.plot_loss_all
+        elif func == 'image':
+            func = po.synth.mad_competition.display_synthesized_signal_all
+        func(*all_mad)
 
 
 class TestMetamerDisplay(object):

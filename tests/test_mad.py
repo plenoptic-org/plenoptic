@@ -20,9 +20,9 @@ class TestMAD(object):
     def test_basic(self, curie_img, target, model_order, store_progress):
         if model_order == 'mse-nlpd':
             model = po.metric.mse
-            model2 = po.metric.nlpd
+            model2 = lambda *args: 1 - po.metric.ssim(*args)
         elif model_order == 'nlpd-mse':
-            model = po.metric.nlpd
+            model = lambda *args: 1 - po.metric.ssim(*args)
             model2 = po.metric.mse
         mad = po.synth.MADCompetition(curie_img, model, model2, target)
         mad.synthesize(max_iter=5, store_progress=store_progress)
@@ -47,7 +47,7 @@ class TestMAD(object):
             if fail == 'img':
                 curie_img = torch.rand_like(curie_img)
             elif fail == 'model1':
-                model = po.metric.nlpd
+                model = lambda *args: 2*(1 - po.metric.ssim(*args))
             elif fail == 'model2':
                 model2 = po.metric.mse
             elif fail == 'target':
@@ -64,8 +64,8 @@ class TestMAD(object):
 
     @pytest.mark.parametrize('optimizer', ['Adam', None, 'Scheduler'])
     def test_optimizer_opts(self, curie_img, optimizer):
-        mad = po.synth.MADCompetition(curie_img, po.metric.mse, po.metric.nlpd,
-                                      'min')
+        mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
+                                      1-po.metric.ssim(*args), 'min')
         scheduler = None
         if optimizer == 'Adam' or optimizer == 'Scheduler':
             optimizer = torch.optim.Adam([mad.synthesized_signal])
@@ -73,4 +73,13 @@ class TestMAD(object):
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
-        TESTS
+    @pytest.mark.parametrize('model', ['ssim', 'class'])
+    def test_require_metric(self, curie_img, model):
+        # test that we fail if we get a model or a function that's not a metric
+        # (i.e., doesn't return 0 on identical images)
+        if model == 'ssim':
+            model = po.metric.ssim
+        elif model == 'class':
+            model = po.simul.OnOff((8, 8))
+        with pytest.raises(Exception):
+            po.synth.MADCompetition(curie_img, po.metric.mse)
