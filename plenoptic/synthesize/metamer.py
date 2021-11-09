@@ -105,7 +105,7 @@ class Metamer(Synthesis):
             raise Exception("target_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{target_signal.size()}")
-        self.target_model_response = self.model(self.target_signal)
+        self.target_model_response = self.model(self.target_signal).detach()
         self.optimizer = None
         self.scheduler = None
         self.losses = []
@@ -448,7 +448,7 @@ class Metamer(Synthesis):
             target_resp = None
 
         loss = self.objective_function(synthesized_model_response, target_resp)
-        loss.backward(retain_graph=True)
+        loss.backward(retain_graph=False)
 
         return loss
 

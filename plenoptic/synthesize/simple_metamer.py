@@ -36,7 +36,7 @@ class SimpleMetamer(Synthesis):
         self.target_signal = target_signal
         self.synthesized_signal = torch.rand_like(self.target_signal,
                                                   requires_grad=True)
-        self.target_model_response = self.model(self.target_signal)
+        self.target_model_response = self.model(self.target_signal).detach()
         self.optimizer = None
         self.losses = []
 
@@ -84,7 +84,7 @@ class SimpleMetamer(Synthesis):
                 loss = loss + .1 * optim.penalize_range(self.synthesized_signal,
                                                         (0, 1))
                 self.losses.append(loss.item())
-                loss.backward(retain_graph=True)
+                loss.backward(retain_graph=False)
                 pbar.set_postfix(loss=loss.item())
                 return loss
 

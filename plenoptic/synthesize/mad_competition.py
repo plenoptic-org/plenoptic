@@ -97,7 +97,7 @@ class MADCompetition(Synthesis):
                  allowed_range: Tuple[float] = (0, 1),):
         self.synthesis_metric = synthesis_metric
         self.fixed_metric = fixed_metric
-        self.reference_signal = reference_signal
+        self.reference_signal = reference_signal.detach()
         if reference_signal.ndimension() < 4:
             raise Exception("reference_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
@@ -390,7 +390,7 @@ class MADCompetition(Synthesis):
         """
         self.optimizer.zero_grad()
         loss = self.objective_function()
-        loss.backward(retain_graph=True)
+        loss.backward(retain_graph=False)
         return loss
 
     def _optimizer_step(self, pbar: tqdm) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
