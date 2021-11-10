@@ -1,5 +1,5 @@
 # .github/workflows/notebooks.yml
-# Run all notebooks on every push and weekly
+# Run all notebooks on every PR and weekly
 name: tutorials
 on:
   workflow_dispatch:
@@ -48,4 +48,4 @@ jobs:
           pip install jupyter
           pip install ipywidgets
       - name: Run notebooks
-        run: "jupyter execute examples/${{ matrix.notebook }}.ipynb"
+        run: "jupyter execute examples/${{ matrix.notebook }}.ipynb --kernel_name=python3"
