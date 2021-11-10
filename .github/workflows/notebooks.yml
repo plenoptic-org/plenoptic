@@ -1,4 +1,4 @@
-# .github/workflows/treebeard.yml
+# .github/workflows/notebooks.yml
 # Run all notebooks on every push and weekly
 name: tutorials
 on:
@@ -17,7 +17,7 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
         notebook: ['00_simple_example', '02_Eigendistortions', '01_Linear_approximation_of_nonlinear_model', '03_Steerable_Pyramid', '04_Perceptual_distance', '05_Geodesics', '06_Metamer', '07_MAD_Competition', '08_Simple_MAD', '09_Original_MAD', '10_Synthesis', 'Display']
       fail-fast: false
-    name: Run treebeard
+    name: Execute notebooks
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -46,13 +46,6 @@ jobs:
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
           pip install jupyter
-          # unclear why this is no longer installed as part of the repo2docker
-          # install, but as of
-          # https://github.com/LabForComputationalVision/plenoptic/runs/3104823312,
-          # it was not.
-          pip install chardet
           pip install ipywidgets
-      - uses: treebeardtech/treebeard@master
-        with:
-          use-docker: false
-          notebooks: 'examples/${{ matrix.notebook }}.ipynb'
+      - name: Run notebooks
+        run: "jupyter execute examples/${{ matrix.notebook }}.ipynb"
