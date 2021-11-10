@@ -128,7 +128,7 @@ class TestNaive(object):
     def test_linear_metamer(self, einstein_img):
         model = plenoptic.simul.Linear().to(DEVICE)
         M = po.synth.Metamer(einstein_img, model)
-        M.synthesize(max_iter=3, learning_rate=1, seed=1)
+        M.synthesize(max_iter=3)
 
 
 class TestLaplacianPyramid(object):
