@@ -16,9 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - id: get-scripts
+        # it's weird to me, but the quotes around \n should *not* be escaped or it breaks
         run: echo "::set-output name=script::$(ls tests/test*py | jq -R -s -c 'split("\n")[:-1]')"
   build:
     runs-on: ubuntu-latest
+    needs: [get_test_scripts]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
