@@ -118,7 +118,8 @@ We use [jupyter
 execute](https://jupyter.readthedocs.io/en/latest/running.html#using-a-command-line-interface)
 to test our notebooks and make sure everything runs. You can run it locally to
 try and debug some errors (though errors that result from environment issues
-obviously will be harder to figure out locally).
+obviously will be harder to figure out locally); `jupyter execute` is part of
+the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
 Similar to adding new [test scripts](#adding-tests), you need to add new
 tutorials to the corresponding build matrix so they can be tested. As long as
