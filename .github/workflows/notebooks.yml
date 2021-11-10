@@ -60,4 +60,4 @@ jobs:
           pip install jupyter ipywidgets
           pip install "nbclient>=0.5.5"
       - name: Run notebooks
-        run: "jupyter execute examples/${{ matrix.notebook }}.ipynb --kernel_name=python3"
+        run: "jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3"

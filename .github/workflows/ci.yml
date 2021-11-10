@@ -64,11 +64,11 @@ jobs:
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         run: |
           pip install --upgrade --upgrade-strategy eager pytest-xdist
-          pytest -n 2 --cov=plenoptic tests/test_${{ matrix.test_script }}.py
+          pytest -n 2 --cov=plenoptic ${{ matrix.test_script }}.py
       - name: Run tests with pytest
         if: ${{ matrix.test_script != 'display' }}
         # only test_display should parallelize across the cores, the others get
         # slowed down by it
-        run: 'pytest --cov=plenoptic tests/test_${{ matrix.test_script }}.py'
+        run: 'pytest --cov=plenoptic ${{ matrix.test_script }}.py'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
