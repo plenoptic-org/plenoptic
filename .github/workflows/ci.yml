@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - id: get-scripts
-        run: echo "::set-output name=script::$(ls tests/test*py | jq -R -s -c 'split(\"\n\")[:-1]')"
+        run: echo "::set-output name=script::$(ls tests/test*py | jq -R -s -c 'split("\n")[:-1]')"
   build:
     runs-on: ubuntu-latest
     strategy:
