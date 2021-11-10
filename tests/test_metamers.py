@@ -30,7 +30,7 @@ class TestMetamers(object):
             if fail == 'img':
                 einstein_img = torch.rand_like(einstein_img)
             elif fail == 'model':
-                model = po.simul.Gaussian(30)
+                model = po.simul.Gaussian(30).to(DEVICE)
             elif fail == 'loss':
                 loss = lambda *args, **kwargs: 1
             elif fail == 'range_penalty':

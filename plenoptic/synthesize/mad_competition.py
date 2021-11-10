@@ -108,9 +108,13 @@ class MADCompetition(Synthesis):
             raise Exception("reference_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{reference_signal.size()}")
-        if fixed_metric(reference_signal, reference_signal) != 0:
+        # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
+        # of 5e-7 to check for zero
+        if fixed_metric(reference_signal, reference_signal) > 5e-7:
+            print(fixed_metric(reference_signal, reference_signal))
             raise Exception("fixed_metric should return 0 on two identical images!")
-        if synthesis_metric(reference_signal, reference_signal) != 0:
+        if synthesis_metric(reference_signal, reference_signal) > 5e-7:
+            print(synthesis_metric(reference_signal, reference_signal))
             raise Exception("synthesis_metric should return 0 on two identical images!")
         self.optimizer = None
         self.scheduler = None
