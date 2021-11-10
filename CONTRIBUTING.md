@@ -108,58 +108,22 @@ test functions should be named `test_something` in snakecase.
 
 If you're adding a substantial bunch of tests that are separate from the
 existing ones, you can create a new test script. Its name must begin with
-`test_` and it must be contained within the `tests` directory. Additionally, you
-should add its name to the `build:strategy:matrix:test_script` section of
-`.github/workflows/ci.yml` (this enables us to run tests in parallel). For
-example, say you create a new script `tests/test_awesome.py`. You should then
-open up `ci.yml` and add a new item to the `test_script` list containing
-`awesome`. **Do not** edit the anything else -- if you did the above correctly,
-Github Actions will correctly run your new script.
+`test_` and it must be contained within the `tests` directory. Assuming you do
+that, our github actions will automatically find it and add it to the
+tests-to-run.
 
 ### Testing notebooks
 
-We use [treebeard](https://github.com/treebeardtech/treebeard) to test our
-notebooks and make sure everything runs. `treebeard` is still in development and
-so their documentation may not be up-to-date. You can run it locally to try and
-debug some errors (though errors that result from environment issues obviously
-will be harder to figure out locally).
-
-WARNING: If you run `treebeard` locally (with default options, so it doesn't use
-`repo2docker` ), then it will restart, re-run, and overwrite your local
-notebooks. Make sure this is okay with you.
-
-`treebeard` uses [papermill](https://papermill.readthedocs.io/en/latest/) under
-the hood, so if you have problems getting it to run at all, `papermill` may be
-where to look. When running papermill locally, I've had issues with papermill
-correctly determining which kernel to use (this happens since I use
-[nb_conda](https://github.com/Anaconda-Platform/nb_conda_kernels) to specify
-conda environments as notebook kernels), which leads to `NoSuchKernel` errors.
-If you run into this problem, [this
-page](https://papermill.readthedocs.io/en/latest/troubleshooting.html) has
-troubleshooting info. I also got an error when trying to run the example
-`jupyter kernelspec install` command given, and had to use the solution [on this
-page](https://github.com/jupyter/jupyter_client/issues/72) instead:
-
-```
-conda activate my-env
-python -m ipykernel install --user --name my-env --display-name "my-env"
-```
-
-And then `papermill` worked. (You may also need to specify the kernel using `-k
-my-env` when calling `papermill`).
-
-Once you've gotten that taken care of, you should be able to run `treebeard`
-locally by running `treebeard run` in the `examples/` directory (which contains
-all the notebooks). This will re-run all notebooks. You can specify specific
-notebook using the `-n` flag.
+We use [jupyter
+execute](https://jupyter.readthedocs.io/en/latest/running.html#using-a-command-line-interface)
+to test our notebooks and make sure everything runs. You can run it locally to
+try and debug some errors (though errors that result from environment issues
+obviously will be harder to figure out locally).
 
 Similar to adding new [test scripts](#adding-tests), you need to add new
-tutorials to the corresponding build matrix so they can be tested. For this, go
-to `.github/workflows/treebeard.yml` and add the name of the new notebook
-(without the `.ipynb` extension) to the `notebook` field (under
-`run:strategy:matrix`). So if your new tutorial was
-`examples/100_awesome_tutorial.ipynb`, you would add `100_awesome_tutorial` as
-the a new item in the `notebook` list.
+tutorials to the corresponding build matrix so they can be tested. As long as
+your notebook is in the `examples/` directory, our github actions will
+automatically find it and test it.
 
 ### Test parameterizations and fixtures
 
