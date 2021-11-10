@@ -28,6 +28,7 @@ jobs:
       fail-fast: false
     name: CI
     steps:
+      - uses: actions/checkout@v2
       - name: Install Python 3
         uses: actions/setup-python@v2
         with:
