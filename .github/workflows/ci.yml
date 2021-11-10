@@ -8,16 +8,24 @@ on:
       - main
 
 jobs:
+  # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
+  get_test_scripts:
+    runs-on: ubuntu-latest
+    outputs:
+      script: ${{ steps.get-scripts.outputs.script }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: get-scripts
+        run: echo "::set-output name=script::$(ls tests/test*py | jq -R -s -c 'split(\"\n\")[:-1]')"
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        test_script: ['metamers', 'models', 'tools', 'metric', 'steerable_pyr', 'eigendistortion', 'mad', 'display', 'geodesic']
+        test_script: ${{fromJson(needs.get_test_scripts.outputs.script)}}
       fail-fast: false
     name: CI
     steps:
-      - uses: actions/checkout@v2
       - name: Install Python 3
         uses: actions/setup-python@v2
         with:

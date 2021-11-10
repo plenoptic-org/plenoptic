@@ -10,16 +10,25 @@ on:
       - main
 
 jobs:
+  # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
+  get_notebooks:
+    runs-on: ubuntu-latest
+    outputs:
+      notebook: ${{ steps.get-notebooks.outputs.nb }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: get-notebooks
+        run: echo "::set-output name=nb::$(ls examples/*ipynb | jq -R -s -c 'split(\"\n\")[:-1]')"
   run:
     runs-on: ubuntu-latest
+    needs: [get_notebooks]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        notebook: ['00_simple_example', '02_Eigendistortions', '01_Linear_approximation_of_nonlinear_model', '03_Steerable_Pyramid', '04_Perceptual_distance', '05_Geodesics', '06_Metamer', '07_MAD_Competition', '08_Simple_MAD', '09_Original_MAD', '10_Synthesis', 'Display']
+        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
       fail-fast: false
     name: Execute notebooks
     steps:
-      - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
