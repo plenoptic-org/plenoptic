@@ -303,7 +303,7 @@ class PortillaSimoncelli(nn.Module):
                 [
                     i
                     for i, s in enumerate(self.representation_scales)
-                    if s in self.scales
+                    if s in scales
                 ]
             ).to(device)
             return representation_vector.index_select(0, ind)
