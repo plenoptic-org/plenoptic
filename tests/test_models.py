@@ -163,17 +163,17 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("im_shape", [(256, 256)])
     @pytest.mark.parametrize("use_true_correlations", [True, False])
     def test_portilla_simoncelli(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
-        im_shape,
         use_true_correlations,
     ):
+        im_shape = (256,256)
         x = po.tools.make_synthetic_stimuli()
+        x = x.unsqueeze(0).unsqueeze(0)
         if im_shape is not None:
             x = x[0, 0, : im_shape[0], : im_shape[1]]
         ps = po.simul.PortillaSimoncelli(
@@ -183,7 +183,7 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=use_true_correlations,
         )
-        ps(x)
+        ps(x[0,:,:,:])
 
     ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])

@@ -12,9 +12,11 @@ from ...tools.data import to_numpy
 
 
 class PortillaSimoncelli(nn.Module):
-    r"""Model for measuring statistics originally proposed in [1]_ for synthesis.
+    r"""Model for measuring texture statistics originally proposed in [1] for the purpose of 
+    synthesizing texture metamers. These statistics are proposed in [1] as a sufficient set
+    measurements for describing and synthesizing a given visual texture.
 
-    Currently we do not: support batch measurement of images.
+    Currently we do not support batch measurement of images.
 
     Parameters
     ----------
@@ -201,6 +203,11 @@ class PortillaSimoncelli(nn.Module):
             A flattened tensor (1d) containing the measured representation statistics.
 
         """
+
+        if image.shape[0]>1:
+            raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
+
+
         device = image.device
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
@@ -630,11 +637,7 @@ class PortillaSimoncelli(nn.Module):
                                               device=self.pyr.hi0mask.device)
 
                 for nor in range(0, self.n_orientations):
-                    # upsampled = PortillaSimoncelli.expand(self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2) / 4.0
-                    # # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
-                    # X = upsampled.abs() * torch.cos( 2 * upsampled.angle())
-                    # Y = upsampled.abs() * torch.sin( 2 * upsampled.angle())
-
+                    
                     upsampled = (
                         PortillaSimoncelli.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
@@ -642,7 +645,9 @@ class PortillaSimoncelli(nn.Module):
                         / 4.0
                     )
 
-                    # double the phase of the upsampled band -- why? so there is something to correlate (better explanation here)
+                    # Here we double the phase of the upsampled band.  This trick
+                    # allows us to find the correlation between content in two adjacent
+                    # spatial scales.
                     X = upsampled.abs() * torch.cos(
                         2 * torch.atan2(upsampled.real, upsampled.imag)
                     )
@@ -650,7 +655,7 @@ class PortillaSimoncelli(nn.Module):
                         2 * torch.atan2(upsampled.real, upsampled.imag)
                     )
 
-                    # Save the components -- why both?
+                    # Save the components
                     next_scale_real[:, nor] = X.t().flatten()
                     next_scale_real[:, nor + self.n_orientations] = Y.t().flatten()
 
@@ -827,10 +832,9 @@ class PortillaSimoncelli(nn.Module):
     def compute_skew_kurtosis(self, ch, vari):
         r"""Computes the skew and kurtosis of ch.
 
-        Skew and kurtosis are only computed if the ratio of its variance (vari)
-        and the pixel variance of the original image are above a certain
-        threshold. If the ratio does not meet that threshold it returns the
-        default values (0,3).
+        Skew and kurtosis of ch are computed.  If the ratio of its variance (vari)
+        and the pixel variance of the original image are below a certain
+        threshold (1e-6) skew and kurtosis are assigned the default values (0,3). 
 
         Parameters
         ----------
@@ -906,9 +910,43 @@ class PortillaSimoncelli(nn.Module):
             var = X.var()
         return torch.mean(torch.abs(X - mu).pow(4)) / (var.pow(2))
 
+
+
+
     def plot_representation(
         self, data=None, ax=None, figsize=(15, 15), ylim=None, batch_idx=0, title=None
     ):
+
+        r""" Plot the representation in a human viewable format -- stem
+        plots with data separated out by statistic type.
+
+        
+        Parameters
+        ----------
+        data : torch.Tensor, dict, or None, optional
+            The data to show on the plot. If None, we use
+            ``self.representation``. Else, should look like
+            ``self.representation``, with the exact same structure
+            (e.g., as returned by ``metamer.representation_error()`` or
+            another instance of this class).
+        ax : 
+            axis where we will plot the data
+        figsize : (int, int), optional
+            the size of the figure
+        ylim : (int,int) or None, optional
+        batch_idx : int, optional
+            Which index to take from the batch dimension (the first one)
+        title : string
+            title for the plot
+
+        Returns
+        -------
+        data : torch.Tensor, dict, or None, optional
+            The data that was plotted. 
+            
+
+        """
+
         n_rows = 3
         n_cols = 3
 
@@ -953,7 +991,13 @@ class PortillaSimoncelli(nn.Module):
 
         return fig, axes
 
+
+
     def _representation_for_plotting(self, rep, batch_idx=0):
+        r""" Converts the data into a dictionary representation that is more convenient for plotting.  Intended
+        as a helper function for plot_representation.
+
+        """
         data = OrderedDict()
         data["pixels+var_highpass"] = rep["pixel_statistics"]
         data["pixels+var_highpass"]["var_highpass_residual"] = rep[
