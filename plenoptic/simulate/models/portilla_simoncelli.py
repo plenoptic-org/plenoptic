@@ -207,14 +207,10 @@ class PortillaSimoncelli(nn.Module):
             A flattened tensor (1d) containing the measured representation statistics.
 
         """
-
-        if image.shape[0]>1:
-            raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
-
-
-        device = image.device
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
+        if image.shape[0]>1:
+            raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
@@ -322,7 +318,7 @@ class PortillaSimoncelli(nn.Module):
             self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
         )
 
-        representation_vector = self.convert_to_vector()
+        representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
 
         if scales is not None:
             ind = torch.LongTensor(
@@ -331,10 +327,10 @@ class PortillaSimoncelli(nn.Module):
                     for i, s in enumerate(self.representation_scales)
                     if s in scales
                 ]
-            ).to(device)
-            return representation_vector.index_select(0, ind)
+            ).to(image.device)
+            return representation_vector.index_select(-1, ind)
 
-        return representation_vector.unsqueeze(0).unsqueeze(0)
+        return representation_vector
 
     def convert_to_vector(self):
         r"""Converts dictionary of statistics to a vector (for synthesis).
