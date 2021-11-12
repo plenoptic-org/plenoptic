@@ -17,10 +17,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
            'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
-           'portilla_simoncelli_synthesize.npy': '7aw82'}
-
-# print("On device %s" % DEVICE)
-
+           'portilla_simoncelli_synthesize.npz': 'a7p9r'}
 
 
 def osf_download(filename):
@@ -34,7 +31,11 @@ def osf_download(filename):
     Parameters
     ----------
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz', 'MAD_results.tar.gz'}
+                'ssim_analysis.mat', 'msssim_images.tar.gz',
+                'MAD_results.tar.gz',
+                'portilla_simoncelli_matlab_test_vectors.tar.gz',
+                'portilla_simoncelli_test_vectors.tar.gz',
+                'portilla_simoncelli_synthesize.npz'}
         Which file to download.
 
     Returns
