@@ -220,12 +220,12 @@ class PortillaSimoncelli(nn.Module):
         self.representation["pixel_statistics"] = OrderedDict()
         self.representation["pixel_statistics"]["mean"] = torch.mean(image)
         self.representation["pixel_statistics"]["var"] = torch.var(image)
-        self.representation["pixel_statistics"]["skew"] = PortillaSimoncelli.skew(
+        self.representation["pixel_statistics"]["skew"] = self.__class__.skew(
             image
         )
         self.representation["pixel_statistics"][
             "kurtosis"
-        ] = PortillaSimoncelli.kurtosis(image)
+        ] = self.__class__.kurtosis(image)
         self.representation["pixel_statistics"]["min"] = torch.min(image)
         self.representation["pixel_statistics"]["max"] = torch.max(image)
 
@@ -589,7 +589,7 @@ class PortillaSimoncelli(nn.Module):
                 ) = self.compute_autocorrelation(ch)
 
             reconstructed_image = (
-                PortillaSimoncelli.expand(reconstructed_image, 2) / 4.0
+                self.__class__.expand(reconstructed_image, 2) / 4.0
             )
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
@@ -639,7 +639,7 @@ class PortillaSimoncelli(nn.Module):
                 for nor in range(0, self.n_orientations):
                     
                     upsampled = (
-                        PortillaSimoncelli.expand(
+                        self.__class__.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
                         )
                         / 4.0
@@ -665,7 +665,7 @@ class PortillaSimoncelli(nn.Module):
 
             else:
                 upsampled = (
-                    PortillaSimoncelli.expand(
+                    self.__class__.expand(
                         self.real_pyr_coeffs["residual_lowpass"].squeeze(), 2
                     )
                     / 4.0
@@ -853,8 +853,8 @@ class PortillaSimoncelli(nn.Module):
 
         # Find the skew and the kurtosis of the low-pass residual
         if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
-            skew = PortillaSimoncelli.skew(ch, mu=0, var=vari)
-            kurtosis = PortillaSimoncelli.kurtosis(ch, mu=0, var=vari)
+            skew = self.__class__.skew(ch, mu=0, var=vari)
+            kurtosis = self.__class__.kurtosis(ch, mu=0, var=vari)
         else:
             skew = 0
             kurtosis = 3
