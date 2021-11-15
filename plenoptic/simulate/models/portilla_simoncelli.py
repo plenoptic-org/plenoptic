@@ -243,18 +243,25 @@ class PortillaSimoncelli(nn.Module):
         #                          kurtosis_reconstructed,
         #                          auto_correlation_reconstructed) #####
         #
-        # Calculates the central auto-correlation of the magnitude of each
+        # Calculates: 
+        # 1) the central auto-correlation of the magnitude of each
         # orientation/scale band.
         #
-        # Calculates the skew and the kurtosis of the reconstructed
-        # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
-        #
-        # Calculates the central auto-correlation of the low-pass residuals
+        # 2) the central auto-correlation of the low-pass residuals
         # for each scale of the pyramid (auto_correlation_reconstructed),
         # where the residual at each scale is reconstructed from the
         # previous scale.  (Note: the lowpass residual of the pyramid
         # is low-pass filtered before this reconstruction process begins,
         # see below).
+        #
+        # 3) the skew and the kurtosis of the reconstructed
+        # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
+        # The skew and kurtosis are calculated with the auto-correlation 
+        # statistics because like #2 (above) they rely on the reconstructed
+        # low-pass residuals, making it more efficient (in terms of memory 
+        # and/or compute time) to calculate it at the same time.
+        #
+        #
 
         # Initialize statistics
         # let's remove the normalization from the auto_correlation statistics
@@ -313,7 +320,7 @@ class PortillaSimoncelli(nn.Module):
 
         self._calculate_crosscorrelations()
 
-        # STATISTIC: var_highpass_residual or the variance of the high-pass residual
+        # SECTION 5: var_highpass_residual or the variance of the high-pass residual
         self.representation["var_highpass_residual"] = (
             self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
         )
@@ -321,7 +328,7 @@ class PortillaSimoncelli(nn.Module):
         representation_vector = self.convert_to_vector()
 
         if scales is not None:
-            ind = torch.LongTensor(
+            ind = torch.Tensor(
                 [
                     i
                     for i, s in enumerate(self.representation_scales)
@@ -491,6 +498,7 @@ class PortillaSimoncelli(nn.Module):
 
         return magnitude_means
 
+    @staticmethod
     def expand(im, mult):
         r"""Resize an image (im) by a multiplier (mult).
 
@@ -861,6 +869,7 @@ class PortillaSimoncelli(nn.Module):
 
         return skew, kurtosis
 
+    @staticmethod
     def skew(X, mu=None, var=None):
         r"""Computes the skew of a matrix X.
 
@@ -884,7 +893,8 @@ class PortillaSimoncelli(nn.Module):
         if var is None:
             var = X.var()
         return torch.mean((X - mu).pow(3)) / (var.pow(1.5))
-
+    
+    @staticmethod
     def kurtosis(X, mu=None, var=None):
         r"""Computes the kurtosis of a matrix X.
 
