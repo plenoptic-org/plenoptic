@@ -603,7 +603,9 @@ class Metamer(Synthesis):
             ``stop_criterion`` and ``stop_iters_to_check``: if the loss has
             changed less than ``'change_scale_criterion'`` in the past
             ``'ctf_iters_to_check'`` iterations, we move on to the next scale in
-            coarse-to-fine optimization.
+            coarse-to-fine optimization. `'change_scale_criterion'` can also be
+            `None`, in which case we will change scales as soon as we've spent
+            `ctf_iters_to_check` on a given scale.
 
         Returns
         -------
