@@ -335,7 +335,7 @@ class PortillaSimoncelli(nn.Module):
         representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
 
         if scales is not None:
-            ind = torch.Tensor(
+            ind = torch.tensor(
                 [
                     i
                     for i, s in enumerate(self.representation_scales)
