@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-from math import pi
 import matplotlib.pyplot as plt
 import plenoptic
 import plenoptic as po
-import matplotlib.pyplot as plt
 import pytest
 import numpy as np
-import pyrtools as pt
 import scipy.io as sio
-import pytest
 import torch
 import os.path as op
 from test_metric import osf_download
@@ -247,6 +243,7 @@ class TestPortillaSimoncelli(object):
         )
 
     def test_ps_synthesis(self, portilla_simoncelli_synthesize):
+        torch.use_deterministic_algorithms(True)
         torch.set_default_dtype(torch.float64)
         with np.load(portilla_simoncelli_synthesize) as f:
             im = f['im']
@@ -264,25 +261,29 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=9,
             use_true_correlations=True)
 
-        met = po.synth.Metamer(im0, model)
+        po.tools.set_seed(1)
+        im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
+        met = po.synth.Metamer(im0, model, initial_image=im_init,
+                               loss_functions=po.tools.optim.l2_norm)
 
-        output=met.synthesize(
-            learning_rate=.01,
-            seed=1,
-            loss_change_thresh=None,
-            loss_change_iter=7,
-            max_iter=75,
-            coarse_to_fine='together',
-            optimizer='Adam',
-            initial_image=im_init)
+        coarse_to_fine_kwargs = {'change_scale_criterion': None,
+                                 'ctf_iters_to_check': 7}
+        optim = torch.optim.Adam([met.synthesized_signal], lr=.01,
+                                 amsgrad=True)
+        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', factor=.5)
+        output = met.synthesize(max_iter=75, optimizer=optim, coarse_to_fine='together',
+                                coarse_to_fine_kwargs=coarse_to_fine_kwargs,
+                                scheduler=sched)
 
         np.testing.assert_allclose(
-            output[0].squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
+            output.squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
         )
 
         np.testing.assert_allclose(
-            output[1].squeeze().detach().numpy(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
+            model(output).squeeze().detach().numpy(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
         )
+
+
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
