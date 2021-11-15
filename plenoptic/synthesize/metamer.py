@@ -494,13 +494,13 @@ class Metamer(Synthesis):
             # has stopped declining and, if so, switch to the next scale. Then
             # we're checking if self.scales_loss is long enough to check
             # ctf_iters_to_check back.
-            if len(self.scales) > 1 and len(self.scales_loss) > ctf_iters_to_check:
+            if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
                 # Now we check whether loss has decreased less than
                 # change_scale_criterion
                 if ((change_scale_criterion is None) or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion):
                     # and finally we check whether we've been optimizing this
                     # scale for ctf_iters_to_check
-                    if len(self.losses) - self.scales_timing[self.scales[0]][0] > ctf_iters_to_check:
+                    if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
                         self.scales_timing[self.scales[0]].append(len(self.losses)-1)
                         self.scales_finished.append(self.scales.pop(0))
                         self.scales_timing[self.scales[0]].append(len(self.losses))
