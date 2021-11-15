@@ -542,7 +542,7 @@ class Metamer(Synthesis):
             OrderedDict(loss=f"{abs(loss.item()):.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change=f"{pixel_change:.04e}"))
+                        pixel_change=f"{pixel_change:.04e}", **postfix_dict))
         return loss, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
 
     def synthesize(self, max_iter: int = 100,
