@@ -1317,6 +1317,7 @@ def animate(metamer: Metamer,
             batch_idx: int = 0,
             channel_idx: Union[int, None] = None,
             ylim: Union[str, Tuple[float], Literal[False]] = None,
+            vrange: Union[Tuple[float], str] = (0, 1),
             zoom: Union[float, None] = None,
             plot_model_response_error_as_rgb: bool = False,
             fig: Union[mpl.figure.Figure, None] = None,
@@ -1371,6 +1372,9 @@ def animate(metamer: Metamer,
           'rescale', then we do this 10 times over the course of the
           animation
 
+    vrange :
+        The vrange option to pass to ``display_synthesized_signal()``. See
+        docstring of ``imshow`` for possible values.
     zoom :
         How much to zoom in / enlarge the synthesized image, the ratio
         of display pixels to image pixels. If None (the default), we
@@ -1470,7 +1474,8 @@ def animate(metamer: Metamer,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
-                                              ylim=ylim, loss=loss,
+                                              ylim=ylim, vrange=vrange,
+                                              loss=loss,
                                               model_response_error=model_response_error,
                                               zoom=zoom, fig=fig,
                                               synthesized_signal=synthesized_signal,
