@@ -17,7 +17,8 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
            'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
-           'portilla_simoncelli_synthesize.npz': 'a7p9r'}
+           'portilla_simoncelli_synthesize.npz': 'a7p9r',
+           'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
 def osf_download(filename):
