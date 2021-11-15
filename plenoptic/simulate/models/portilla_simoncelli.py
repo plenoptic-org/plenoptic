@@ -106,7 +106,11 @@ class PortillaSimoncelli(nn.Module):
         self.representation_scales = self._get_representation_scales()
 
     def _get_representation_scales(self):
-        r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)"""
+        r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)
+        The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
+        # values from 0 to self.n_scales-1 """
+
+        # There are 6 pixel statistics by defulat
         pixel_statistics = ["pixel_statistics"] * 6
 
         # magnitude_means
@@ -120,38 +124,41 @@ class PortillaSimoncelli(nn.Module):
             + ["residual_lowpass"]
         )
 
-        sc = [s for s in range(0, self.n_scales)]
-        sc_lowpass = sc + ["residual_lowpass"]
+        # These (`scales` and `scales_with_lowpass`) are the basic building 
+        # blocks of the scale assignments for many of the statistics calculated 
+        # by the PortillaSimoncelli model.
+        scales = [s for s in range(0, self.n_scales)]
+        scales_with_lowpass = scales + ["residual_lowpass"]
 
         # skew_reconstructed
-        skew_reconstructed = sc_lowpass
+        skew_reconstructed = scales_with_lowpass
 
         # kurtosis_reconstructed
-        kurtosis_reconstructed = sc_lowpass
+        kurtosis_reconstructed = scales_with_lowpass
 
         # variance_reconstructed
-        std_reconstructed = sc_lowpass
+        std_reconstructed = scales_with_lowpass
 
         auto_correlation = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * sc_lowpass
+        ) * scales_with_lowpass
         auto_correlation_magnitude = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * [s for s in sc for i in range(0, self.n_orientations)]
+        ) * [s for s in scales for i in range(0, self.n_orientations)]
 
         cross_orientation_correlation_magnitude = (
             self.n_orientations * self.n_orientations
-        ) * sc_lowpass
+        ) * scales_with_lowpass
         cross_orientation_correlation_real = (
             4 * self.n_orientations * self.n_orientations
-        ) * sc_lowpass
+        ) * scales_with_lowpass
 
         cross_scale_correlation_magnitude = (
             self.n_orientations * self.n_orientations
-        ) * sc
+        ) * scales
         cross_scale_correlation_real = (
             2 * self.n_orientations * max(2 * self.n_orientations, 5)
-        ) * sc
+        ) * scales
         var_highpass_residual = ["residual_highpass"]
 
         if self.use_true_correlations:

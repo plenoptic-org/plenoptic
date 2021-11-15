@@ -35,6 +35,9 @@ def portilla_simoncelli_test_vectors():
 def portilla_simoncelli_synthesize():
     return osf_download('portilla_simoncelli_synthesize.npz')
 
+@pytest.fixture()
+def portilla_simoncelli_scales():
+    return osf_download('portilla_simoncelli_scales.npz')
 
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
@@ -283,6 +286,37 @@ class TestPortillaSimoncelli(object):
         np.testing.assert_allclose(
             output[1].squeeze().detach().numpy(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
         )
+
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    def test_portilla_simoncelli_scales(
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        use_true_correlations,
+        portilla_simoncelli_scales
+    ):
+        with np.load(portilla_simoncelli_scales) as f:
+            key = f'scale_{n_scales}_ori_{n_orientations}_width_{spatial_corr_width}_corr_{use_true_correlations}'
+            saved = f[key]
+
+        model = po.simul.PortillaSimoncelli(
+            [256,256],
+            n_scales=n_scales, 
+            n_orientations=n_orientations, 
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations)
+
+        output = model._get_representation_scales()
+
+        for (oo,ss) in zip(output,saved):
+            if str(oo) != ss:
+                raise ValueError("Scales do not match.")
+
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
@@ -316,3 +350,6 @@ class TestFilters:
             filt = gaussian1d(kernel_size, std)
             assert filt.sum().isclose(torch.ones(1))
             assert filt.shape == torch.Size([kernel_size])
+
+
+
