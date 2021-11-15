@@ -106,7 +106,11 @@ class PortillaSimoncelli(nn.Module):
         self.representation_scales = self._get_representation_scales()
 
     def _get_representation_scales(self):
-        r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)"""
+        r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)
+        The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
+        # values from 0 to self.n_scales-1 """
+
+        # There are 6 pixel statistics by defulat
         pixel_statistics = ["pixel_statistics"] * 6
 
         # magnitude_means
@@ -120,38 +124,41 @@ class PortillaSimoncelli(nn.Module):
             + ["residual_lowpass"]
         )
 
-        sc = [s for s in range(0, self.n_scales)]
-        sc_lowpass = sc + ["residual_lowpass"]
+        # These (`scales` and `scales_with_lowpass`) are the basic building 
+        # blocks of the scale assignments for many of the statistics calculated 
+        # by the PortillaSimoncelli model.
+        scales = [s for s in range(0, self.n_scales)]
+        scales_with_lowpass = scales + ["residual_lowpass"]
 
         # skew_reconstructed
-        skew_reconstructed = sc_lowpass
+        skew_reconstructed = scales_with_lowpass
 
         # kurtosis_reconstructed
-        kurtosis_reconstructed = sc_lowpass
+        kurtosis_reconstructed = scales_with_lowpass
 
         # variance_reconstructed
-        std_reconstructed = sc_lowpass
+        std_reconstructed = scales_with_lowpass
 
         auto_correlation = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * sc_lowpass
+        ) * scales_with_lowpass
         auto_correlation_magnitude = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * [s for s in sc for i in range(0, self.n_orientations)]
+        ) * [s for s in scales for i in range(0, self.n_orientations)]
 
         cross_orientation_correlation_magnitude = (
             self.n_orientations * self.n_orientations
-        ) * sc_lowpass
+        ) * scales_with_lowpass
         cross_orientation_correlation_real = (
             4 * self.n_orientations * self.n_orientations
-        ) * sc_lowpass
+        ) * scales_with_lowpass
 
         cross_scale_correlation_magnitude = (
             self.n_orientations * self.n_orientations
-        ) * sc
+        ) * scales
         cross_scale_correlation_real = (
             2 * self.n_orientations * max(2 * self.n_orientations, 5)
-        ) * sc
+        ) * scales
         var_highpass_residual = ["residual_highpass"]
 
         if self.use_true_correlations:
@@ -220,12 +227,12 @@ class PortillaSimoncelli(nn.Module):
         self.representation["pixel_statistics"] = OrderedDict()
         self.representation["pixel_statistics"]["mean"] = torch.mean(image)
         self.representation["pixel_statistics"]["var"] = torch.var(image)
-        self.representation["pixel_statistics"]["skew"] = PortillaSimoncelli.skew(
+        self.representation["pixel_statistics"]["skew"] = self.__class__.skew(
             image
         )
         self.representation["pixel_statistics"][
             "kurtosis"
-        ] = PortillaSimoncelli.kurtosis(image)
+        ] = self.__class__.kurtosis(image)
         self.representation["pixel_statistics"]["min"] = torch.min(image)
         self.representation["pixel_statistics"]["max"] = torch.max(image)
 
@@ -243,18 +250,25 @@ class PortillaSimoncelli(nn.Module):
         #                          kurtosis_reconstructed,
         #                          auto_correlation_reconstructed) #####
         #
-        # Calculates the central auto-correlation of the magnitude of each
+        # Calculates: 
+        # 1) the central auto-correlation of the magnitude of each
         # orientation/scale band.
         #
-        # Calculates the skew and the kurtosis of the reconstructed
-        # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
-        #
-        # Calculates the central auto-correlation of the low-pass residuals
+        # 2) the central auto-correlation of the low-pass residuals
         # for each scale of the pyramid (auto_correlation_reconstructed),
         # where the residual at each scale is reconstructed from the
         # previous scale.  (Note: the lowpass residual of the pyramid
         # is low-pass filtered before this reconstruction process begins,
         # see below).
+        #
+        # 3) the skew and the kurtosis of the reconstructed
+        # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
+        # The skew and kurtosis are calculated with the auto-correlation 
+        # statistics because like #2 (above) they rely on the reconstructed
+        # low-pass residuals, making it more efficient (in terms of memory 
+        # and/or compute time) to calculate it at the same time.
+        #
+        #
 
         # Initialize statistics
         # let's remove the normalization from the auto_correlation statistics
@@ -313,7 +327,7 @@ class PortillaSimoncelli(nn.Module):
 
         self._calculate_crosscorrelations()
 
-        # STATISTIC: var_highpass_residual or the variance of the high-pass residual
+        # SECTION 5: var_highpass_residual or the variance of the high-pass residual
         self.representation["var_highpass_residual"] = (
             self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
         )
@@ -321,7 +335,7 @@ class PortillaSimoncelli(nn.Module):
         representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
 
         if scales is not None:
-            ind = torch.LongTensor(
+            ind = torch.Tensor(
                 [
                     i
                     for i, s in enumerate(self.representation_scales)
@@ -491,6 +505,7 @@ class PortillaSimoncelli(nn.Module):
 
         return magnitude_means
 
+    @staticmethod
     def expand(im, mult):
         r"""Resize an image (im) by a multiplier (mult).
 
@@ -589,7 +604,7 @@ class PortillaSimoncelli(nn.Module):
                 ) = self.compute_autocorrelation(ch)
 
             reconstructed_image = (
-                PortillaSimoncelli.expand(reconstructed_image, 2) / 4.0
+                self.__class__.expand(reconstructed_image, 2) / 4.0
             )
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
@@ -639,7 +654,7 @@ class PortillaSimoncelli(nn.Module):
                 for nor in range(0, self.n_orientations):
                     
                     upsampled = (
-                        PortillaSimoncelli.expand(
+                        self.__class__.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
                         )
                         / 4.0
@@ -665,7 +680,7 @@ class PortillaSimoncelli(nn.Module):
 
             else:
                 upsampled = (
-                    PortillaSimoncelli.expand(
+                    self.__class__.expand(
                         self.real_pyr_coeffs["residual_lowpass"].squeeze(), 2
                     )
                     / 4.0
@@ -853,14 +868,15 @@ class PortillaSimoncelli(nn.Module):
 
         # Find the skew and the kurtosis of the low-pass residual
         if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
-            skew = PortillaSimoncelli.skew(ch, mu=0, var=vari)
-            kurtosis = PortillaSimoncelli.kurtosis(ch, mu=0, var=vari)
+            skew = self.__class__.skew(ch, mu=0, var=vari)
+            kurtosis = self.__class__.kurtosis(ch, mu=0, var=vari)
         else:
             skew = 0
             kurtosis = 3
 
         return skew, kurtosis
 
+    @staticmethod
     def skew(X, mu=None, var=None):
         r"""Computes the skew of a matrix X.
 
@@ -884,7 +900,8 @@ class PortillaSimoncelli(nn.Module):
         if var is None:
             var = X.var()
         return torch.mean((X - mu).pow(3)) / (var.pow(1.5))
-
+    
+    @staticmethod
     def kurtosis(X, mu=None, var=None):
         r"""Computes the kurtosis of a matrix X.
 
