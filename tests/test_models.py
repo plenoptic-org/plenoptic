@@ -246,6 +246,16 @@ class TestPortillaSimoncelli(object):
         )
 
     def test_ps_synthesis(self, portilla_simoncelli_synthesize):
+        # this tests whether the output of metamer synthesis is consistent.
+        # this is probably the most likely to fail as our requirements change,
+        # because if something in how torch computes its gradients changes,
+        # then our outputs will change. for example, in release 1.10
+        # (https://github.com/pytorch/pytorch/releases/tag/v1.10.0), they fixed
+        # the sub-gradient for torch.a{max,min}, which resulted in our PS
+        # synthesis getting worse, somehow. this is just a note to keep an eye
+        # on this; you might need to update the output to test against as
+        # versions change. you probably only need to store the most recent
+        # version, because that's what we test against.
         torch.use_deterministic_algorithms(True)
         torch.set_default_dtype(torch.float64)
         with np.load(portilla_simoncelli_synthesize) as f:
@@ -254,29 +264,28 @@ class TestPortillaSimoncelli(object):
             im_synth = f['im_synth']
             rep_synth = f['rep_synth']
 
-        n=256
-
         im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0)
-        model = po.simul.PortillaSimoncelli(
-            [n,n],
-            n_scales=4, 
-            n_orientations=4, 
-            spatial_corr_width=9,
-            use_true_correlations=True)
+        model = po.simul.PortillaSimoncelli(im0.shape[-2:],
+                                            n_scales=4,
+                                            n_orientations=4,
+                                            spatial_corr_width=9,
+                                            use_true_correlations=True)
 
         po.tools.set_seed(1)
         im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
         met = po.synth.Metamer(im0, model, initial_image=im_init,
-                               loss_functions=po.tools.optim.l2_norm)
+                               loss_function=po.tools.optim.l2_norm,
+                               range_penalty_lambda=0)
 
         coarse_to_fine_kwargs = {'change_scale_criterion': None,
-                                 'ctf_iters_to_check': 7}
+                                 'ctf_iters_to_check': 15}
+        # this is the same as the default optimizer, but we explicitly
+        # instantiate it anyway, in case we change the defaults at some point
         optim = torch.optim.Adam([met.synthesized_signal], lr=.01,
                                  amsgrad=True)
-        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', factor=.5)
-        output = met.synthesize(max_iter=75, optimizer=optim, coarse_to_fine='together',
-                                coarse_to_fine_kwargs=coarse_to_fine_kwargs,
-                                scheduler=sched)
+        output = met.synthesize(max_iter=200, optimizer=optim,
+                                coarse_to_fine='together',
+                                coarse_to_fine_kwargs=coarse_to_fine_kwargs)
 
         np.testing.assert_allclose(
             output.squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
