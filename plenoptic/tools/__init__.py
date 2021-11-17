@@ -7,5 +7,3 @@ from .straightness import *
 
 from .optim import *
 from .external import *
-
-from .metamer_utils import *
