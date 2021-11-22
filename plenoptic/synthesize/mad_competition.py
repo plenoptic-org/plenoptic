@@ -436,7 +436,6 @@ class MADCompetition(Synthesis):
 
         """
         last_iter_synthesized_signal = self.synthesized_signal.clone()
-        postfix_dict = {}
         loss = self.optimizer.step(self._closure)
         grad_norm = self.synthesized_signal.grad.detach().norm()
         if grad_norm.item() != grad_norm.item():
