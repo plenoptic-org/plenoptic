@@ -162,7 +162,7 @@ class Metamer(Synthesis):
         self.losses.append(self.objective_function(self.model(synthesized_signal)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
-                  change_scale_criterion: float,
+                  change_scale_criterion: Union[float, None],
                   stop_criterion: float):
         """Initialize stuff related to coarse-to-fine."""
         if coarse_to_fine not in [False, 'separate', 'together']:
@@ -185,7 +185,7 @@ class Metamer(Synthesis):
             self.scales_timing[self.scales[0]].append(0)
             self.scales_finished = []
             self.scales_loss = []
-            if stop_criterion >= change_scale_criterion:
+            if (change_scale_criterion is not None) and (stop_criterion >= change_scale_criterion):
                 raise Exception("stop_criterion must be strictly less than "
                                 "coarse-to-fine's change_scale_criterion, or"
                                 " things get weird!")
@@ -494,13 +494,13 @@ class Metamer(Synthesis):
             # has stopped declining and, if so, switch to the next scale. Then
             # we're checking if self.scales_loss is long enough to check
             # ctf_iters_to_check back.
-            if len(self.scales) > 1 and len(self.scales_loss) > ctf_iters_to_check:
+            if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
                 # Now we check whether loss has decreased less than
                 # change_scale_criterion
-                if abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion:
+                if ((change_scale_criterion is None) or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion):
                     # and finally we check whether we've been optimizing this
                     # scale for ctf_iters_to_check
-                    if len(self.losses) - self.scales_timing[self.scales[0]][0] > ctf_iters_to_check:
+                    if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
                         self.scales_timing[self.scales[0]].append(len(self.losses)-1)
                         self.scales_finished.append(self.scales.pop(0))
                         self.scales_timing[self.scales[0]].append(len(self.losses))
@@ -542,7 +542,7 @@ class Metamer(Synthesis):
             OrderedDict(loss=f"{abs(loss.item()):.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change=f"{pixel_change:.04e}"))
+                        pixel_change=f"{pixel_change:.04e}", **postfix_dict))
         return loss, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
 
     def synthesize(self, max_iter: int = 100,
@@ -603,7 +603,9 @@ class Metamer(Synthesis):
             ``stop_criterion`` and ``stop_iters_to_check``: if the loss has
             changed less than ``'change_scale_criterion'`` in the past
             ``'ctf_iters_to_check'`` iterations, we move on to the next scale in
-            coarse-to-fine optimization.
+            coarse-to-fine optimization. `'change_scale_criterion'` can also be
+            `None`, in which case we will change scales as soon as we've spent
+            `ctf_iters_to_check` on a given scale.
 
         Returns
         -------
@@ -1317,6 +1319,7 @@ def animate(metamer: Metamer,
             batch_idx: int = 0,
             channel_idx: Union[int, None] = None,
             ylim: Union[str, Tuple[float], Literal[False]] = None,
+            vrange: Union[Tuple[float], str] = (0, 1),
             zoom: Union[float, None] = None,
             plot_model_response_error_as_rgb: bool = False,
             fig: Union[mpl.figure.Figure, None] = None,
@@ -1371,6 +1374,9 @@ def animate(metamer: Metamer,
           'rescale', then we do this 10 times over the course of the
           animation
 
+    vrange :
+        The vrange option to pass to ``display_synthesized_signal()``. See
+        docstring of ``imshow`` for possible values.
     zoom :
         How much to zoom in / enlarge the synthesized image, the ratio
         of display pixels to image pixels. If None (the default), we
@@ -1470,7 +1476,8 @@ def animate(metamer: Metamer,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
-                                              ylim=ylim, loss=loss,
+                                              ylim=ylim, vrange=vrange,
+                                              loss=loss,
                                               model_response_error=model_response_error,
                                               zoom=zoom, fig=fig,
                                               synthesized_signal=synthesized_signal,
