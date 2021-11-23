@@ -13,21 +13,20 @@ from glob import glob
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 NUMPY_TO_TORCH_TYPES = {
-    np.bool: torch.bool,
-    np.uint8: torch.uint8,
-    np.int8: torch.int8,
-    np.int16: torch.int16,
-    np.int32: torch.int32,
-    np.int64: torch.int64,
-    np.float16: torch.float16,
-    np.float32: torch.float32,
-    np.float64: torch.float64,
-    np.complex64: torch.complex64,
-    np.complex128: torch.complex128
-}
+        np.bool       : torch.bool,
+        np.uint8      : torch.uint8,
+        np.int8       : torch.int8,
+        np.int16      : torch.int16,
+        np.int32      : torch.int32,
+        np.int64      : torch.int64,
+        np.float16    : torch.float16,
+        np.float32    : torch.float32,
+        np.float64    : torch.float64,
+        np.complex64  : torch.complex64,
+        np.complex128 : torch.complex128
+    }
 
-TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
-
+TORCH_TO_NUMPY_TYPES = {value : key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
 def to_numpy(x, squeeze=False):
     r"""cast tensor to numpy in the most conservative way possible
