@@ -100,6 +100,7 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         """
         tmp_dict = torch.load(file_path, pickle_module=dill,
+                              map_location=map_location,
                               **pickle_load_args)
         for k in check_attributes:
             if not hasattr(self, k):
@@ -140,7 +141,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                                 f"{init_loss-saved_loss}")
         for k, v in tmp_dict.items():
             setattr(self, k, v)
-        self.to(device=map_location)
 
     @abc.abstractmethod
     def to(self, *args, attrs: List[str] = [], **kwargs):

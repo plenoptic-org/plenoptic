@@ -116,3 +116,20 @@ class TestMetamers(object):
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         met.synthesize(max_iter=5, optimizer=optimizer,
                        scheduler=scheduler)
+
+    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    def test_map_location(self, curie_img, model, tmp_path):
+        # only run this test if we have a gpu available
+        if DEVICE.type != 'cpu':
+            curie_img = curie_img.to(DEVICE)
+            model.to(DEVICE)
+            met = po.synth.Metamer(curie_img, model)
+            met.synthesize(max_iter=4, store_progress=True)
+            met.save(op.join(tmp_path, 'test_metamer_map_location.pt'))
+            curie_img = curie_img.to('cpu')
+            model.to('cpu')
+            met_copy = po.synth.Metamer(curie_img, model)
+            assert met_copy.target_signal.device.dtype == 'cpu'
+            met_copy.load(op.join(tmp_path, 'test_metamer_map_location.pt'),
+                          map_location='cpu')
+            assert met_copy.synthesized_signal.device.dtype == 'cpu'

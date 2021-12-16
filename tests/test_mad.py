@@ -95,3 +95,18 @@ class TestMAD(object):
         # initial_signal doesn't get used anywhere after init, so check it like
         # this
         mad.initial_signal - mad.reference_signal
+
+    def test_map_location(self, curie_img, tmp_path):
+        # only run this test if we have a gpu available
+        if DEVICE.type != 'cpu':
+            curie_img = curie_img.to(DEVICE)
+            mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
+                                          1-po.metric.ssim(*args), 'min')
+            mad.synthesize(max_iter=4, store_progress=True)
+            mad.save(op.join(tmp_path, 'test_mad_map_location.pt'))
+            curie_img = curie_img.to('cpu')
+            mad_copy = po.synth.Madamer(curie_img, model)
+            assert mad_copy.reference_signal.device.dtype == 'cpu'
+            mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
+                          map_location='cpu')
+            assert mad_copy.synthesized_signal.device.dtype == 'cpu'
