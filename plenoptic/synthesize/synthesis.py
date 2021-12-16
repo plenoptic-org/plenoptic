@@ -129,8 +129,15 @@ class Synthesis(metaclass=abc.ABCMeta):
                                     f" Self: {getattr(self, k)}, "
                                     f"Saved: {tmp_dict[k]}")
         for k in check_loss_functions:
-            # this way, each is a 1x1x64x64 tensor
-            tensor_a, tensor_b = torch.rand(2, 1, 1, 64, 64)
+            # want to find an attribute that looks like our input, but we don't
+            # know what they're named, so we find one that's a tensor and has 4
+            # dimensions.
+            for attr in check_attributes:
+                if isinstance(getattr(self, attr), torch.Tensor) and getattr(self, attr).ndim == 4:
+                    img_attr = getattr(self, attr)
+                    break
+            # this way, each is a tensor the same shape as the img_attr
+            tensor_a, tensor_b = torch.rand(2, *img_attr.shape)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss):
