@@ -117,7 +117,7 @@ class TestMetamers(object):
         met.synthesize(max_iter=5, optimizer=optimizer,
                        scheduler=scheduler)
 
-    @pytest.mark.parametrize('model', ['LNL'], indirect=True)
+    @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         # only run this test if we have a gpu available
         if DEVICE.type != 'cpu':
