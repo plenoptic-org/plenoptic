@@ -599,7 +599,8 @@ class MADCompetition(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['reference_signal', 'synthesized_signal', 'saved_signal']
+        attrs = ['initial_signal', 'reference_signal', 'synthesized_signal',
+                 'saved_signal']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.

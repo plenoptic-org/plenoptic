@@ -83,3 +83,15 @@ class TestMAD(object):
             model = po.simul.OnOff((8, 8))
         with pytest.raises(Exception):
             po.synth.MADCompetition(curie_img, po.metric.mse)
+
+    # test that .to() changes everything. we don't always have GPU available in
+    # tests, so we use dtype instead
+    def test_to(self, curie_img):
+        mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
+                                      1-po.metric.ssim(*args), 'min')
+        mad.synthesize(max_iter=5)
+        mad.to(torch.float16)
+        mad.synthesize(max_iter=5)
+        # initial_signal doesn't get used anywhere after init, so check it like
+        # this
+        mad.initial_signal - mad.reference_signal
