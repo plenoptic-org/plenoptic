@@ -84,29 +84,37 @@ class TestMAD(object):
         with pytest.raises(Exception):
             po.synth.MADCompetition(curie_img, po.metric.mse)
 
-    # test that .to() changes everything. we don't always have GPU available in
-    # tests, so we use dtype instead
-    def test_to(self, curie_img):
-        mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
-                                      1-po.metric.ssim(*args), 'min')
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, curie_img, to_type):
+        mad = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                      po.tools.optim.l2_norm, 'min')
         mad.synthesize(max_iter=5)
-        mad.to(torch.float16)
-        mad.synthesize(max_iter=5)
+        if to_type == 'dtype':
+            mad.to(torch.float16)
+            assert mad.initial_signal.dtype == torch.float16
+            assert mad.reference_signal.dtype == torch.float16
+            assert mad.synthesized_signal.dtype == torch.float16
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == 'device' and DEVICE.type != 'cpu':
+            mad.to('cpu')
         # initial_signal doesn't get used anywhere after init, so check it like
         # this
         mad.initial_signal - mad.reference_signal
+        mad.synthesized_signal - mad.reference_signal
+
 
     def test_map_location(self, curie_img, tmp_path):
         # only run this test if we have a gpu available
         if DEVICE.type != 'cpu':
             curie_img = curie_img.to(DEVICE)
-            mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
-                                          1-po.metric.ssim(*args), 'min')
+            mad = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                          po.tools.optim.l2_norm, 'min')
             mad.synthesize(max_iter=4, store_progress=True)
             mad.save(op.join(tmp_path, 'test_mad_map_location.pt'))
             curie_img = curie_img.to('cpu')
-            mad_copy = po.synth.Madamer(curie_img, model)
-            assert mad_copy.reference_signal.device.dtype == 'cpu'
+            mad_copy = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                               po.tools.optim.l2_norm, 'min')
+            assert mad_copy.reference_signal.device.type == 'cpu'
             mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
                           map_location='cpu')
-            assert mad_copy.synthesized_signal.device.dtype == 'cpu'
+            assert mad_copy.synthesized_signal.device.type == 'cpu'
