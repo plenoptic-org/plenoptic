@@ -57,9 +57,9 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
                           f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
                           "Continuing anyway...")
     (n_batches, n_channels, height, width) = img1.shape
-    if n_channels > 1:
-        warnings.warn("SSIM was developed on grayscale images, no guarantee "
-                      "it will make sense for more than one channel!")
+    if n_channels > 1 or img2.shape[1] > 1:
+        warnings.warn("SSIM was developed on grayscale images, so the channel dimension "
+                      "is treated as another batch dimension.")
     if img2.shape[-2:] != (height, width):
         raise Exception("img1 and img2 must have the same height and width!")
     if n_batches != img2.shape[0]:
@@ -71,11 +71,13 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
 
     real_size = min(11, height, width)
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=std, out_channels=n_channels)
+    window = circular_gaussian2d(real_size, std=std)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
-    if (window.sum((-1, -2)) > 1).any():
+    window_sum = window.sum((-1, -2))
+    if not torch.allclose(window_sum, torch.ones_like(window_sum)):
+        print(window.sum((-1, -2)))
         warnings.warn("window should have sum of 1! normalizing...")
         window = window / window.sum((-1, -2), keepdim=True)
     if window.ndim != 4:
@@ -84,17 +86,25 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
     if pad is not False:
         img1 = same_padding(img1, (real_size, real_size), pad_mode=pad)
         img2 = same_padding(img2, (real_size, real_size), pad_mode=pad)
-    padd = 0
-    mu1 = F.conv2d(img1, window, padding=padd, groups=n_channels)
-    mu2 = F.conv2d(img2, window, padding=padd, groups=n_channels)
+
+    def windowed_average(img):
+        padd = 0
+        (n_batches, n_channels, _, _) = img.shape
+        img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
+        img_average = F.conv2d(img, window, padding=padd)
+        img_average = img_average.reshape(n_batches, n_channels, img_average.shape[2], img_average.shape[3])
+        return img_average
+
+    mu1 = windowed_average(img1)
+    mu2 = windowed_average(img2)
 
     mu1_sq = mu1.pow(2)
     mu2_sq = mu2.pow(2)
     mu1_mu2 = mu1 * mu2
 
-    sigma1_sq = F.conv2d(img1 * img1, window, padding=padd, groups=n_channels) - mu1_sq
-    sigma2_sq = F.conv2d(img2 * img2, window, padding=padd, groups=n_channels) - mu2_sq
-    sigma12 = F.conv2d(img1 * img2, window, padding=padd, groups=n_channels) - mu1_mu2
+    sigma1_sq = windowed_average(img1 * img1) - mu1_sq
+    sigma2_sq = windowed_average(img2 * img2) - mu2_sq
+    sigma12 = windowed_average(img1 * img2) - mu1_mu2
 
     C1 = (0.01 * dynamic_range) ** 2
     C2 = (0.03 * dynamic_range) ** 2
