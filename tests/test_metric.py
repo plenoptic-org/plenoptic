@@ -14,7 +14,14 @@ from conftest import DATA_DIR, DEVICE
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr'}
+           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
+           'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
+           'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
+           # synthesis gives different outputs on GPU vs CPU, so we have
+           # separate versions to test against
+           'portilla_simoncelli_synthesize.npz': 'a7p9r',
+           'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
+           'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
 def osf_download(filename):
@@ -28,7 +35,11 @@ def osf_download(filename):
     Parameters
     ----------
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz', 'MAD_results.tar.gz'}
+                'ssim_analysis.mat', 'msssim_images.tar.gz',
+                'MAD_results.tar.gz',
+                'portilla_simoncelli_matlab_test_vectors.tar.gz',
+                'portilla_simoncelli_test_vectors.tar.gz',
+                'portilla_simoncelli_synthesize.npz'}
         Which file to download.
 
     Returns
