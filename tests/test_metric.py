@@ -198,7 +198,7 @@ class TestPerceptualMetrics(object):
     def test_nlpd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
-        curie_img.requires_grad_(False)
+        curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
 
     def test_nspd(self, einstein_img, curie_img):
         curie_img.requires_grad_()

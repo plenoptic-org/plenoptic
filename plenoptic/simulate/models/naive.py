@@ -138,7 +138,7 @@ class Gaussian(nn.Module):
         else:  # create new filter, optionally cache it
             device = self.std.device
             filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels, device)
-            filt = filt.to(device)
+
             if self.cache_filt:
                 self._filt = filt
             return filt
@@ -237,7 +237,6 @@ class CenterSurround(nn.Module):
 
         self.cache_filt = cache_filt
         self._filt = None
-        self._input_device = torch.device("cpu")
 
     @property
     def filt(self) -> Tensor:
