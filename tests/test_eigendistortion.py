@@ -202,10 +202,7 @@ class TestAutodiffFunctions:
         Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
-        if DEVICE != torch.device("cuda"):
-            assert Fv2.allclose(Fv, rtol=1E-2) 
-        else:
-            assert Fv2.allclose(Fv, atol=1E-6) 
+        assert Fv2.allclose(Fv, atol=1E-6)
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
