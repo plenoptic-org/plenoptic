@@ -408,7 +408,8 @@ class Eigendistortion:
 
         Q, _ = torch.linalg.qr(Z, "reduced")
         B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)  # B = Q.T @ A @ Q
-        _, S, V = torch.linalg.svd(B, False)  # eigendecomp of small matrix
+        _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
+        V = Vh.T
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
