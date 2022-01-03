@@ -429,7 +429,7 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
         return res
 
 
-def make_disk(img_size: Union[int, Tuple[int, int]],
+def make_disk(img_size: Union[int, Tuple[int, int], torch.Size],
               outer_radius: float = None,
               inner_radius: float = None) -> torch.Tensor:
     r""" Create a circular mask with softened edges to  an image.

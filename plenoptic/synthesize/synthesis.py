@@ -113,7 +113,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                 # except block) are if they're different shapes.
                 try:
                     if not torch.allclose(getattr(self, k).to(tmp_dict[k].device),
-                                          tmp_dict[k]):
+                                          tmp_dict[k], rtol=5e-2):
                         raise Exception(f"Saved and initialized {k} are "
                                         f"different! Initialized: {getattr(self, k)}"
                                         f", Saved: {tmp_dict[k]}, difference: "
@@ -140,7 +140,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             tensor_a, tensor_b = torch.rand(2, *img_attr.shape)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
-            if not torch.allclose(saved_loss, init_loss):
+            if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
                 raise Exception(f"Saved and initialized {k} are "
                                 "different! On two random tensors: "
                                 f"Initialized: {init_loss}, Saved: "

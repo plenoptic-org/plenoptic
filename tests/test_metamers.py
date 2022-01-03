@@ -30,7 +30,7 @@ class TestMetamers(object):
             if fail == 'img':
                 einstein_img = torch.rand_like(einstein_img)
             elif fail == 'model':
-                model = po.simul.Gaussian(30)
+                model = po.simul.Gaussian(30).to(DEVICE)
             elif fail == 'loss':
                 loss = lambda *args, **kwargs: 1
             elif fail == 'range_penalty':
@@ -49,7 +49,7 @@ class TestMetamers(object):
                           map_location=DEVICE)
             for k in ['target_signal', 'saved_model_response', 'saved_signal',
                       'synthesized_signal', 'target_model_response']:
-                if not getattr(met, k).allclose(getattr(met_copy, k)):
+                if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             # check loss functions correctly saved
@@ -57,7 +57,7 @@ class TestMetamers(object):
                                          met.target_model_response)
             met_copy_loss = met_copy.loss_function(met.model(met.synthesized_signal),
                                                    met_copy.target_model_response)
-            if met_loss != met_copy_loss:
+            if not torch.allclose(met_loss, met_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
                                 f"after loading was {met_copy_loss}")
             # check that can resume

@@ -5,11 +5,11 @@ from torch import nn
 from plenoptic.simulate import OnOff
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 from conftest import get_model, DEVICE
+import matplotlib.pyplot as plt
 
 # to be used for default model instantiation
 SMALL_DIM = 20
 LARGE_DIM = 100
-
 
 class TestEigendistortionSynthesis:
 
@@ -139,17 +139,16 @@ class TestEigendistortionSynthesis:
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
             with pytest.raises(AssertionError):
                 eigendist.plot_distorted_image(eigen_index=-1)
-                   
+        plt.close("all")    
 
 class TestAutodiffFunctions:
 
     @pytest.fixture(scope='class')
     def state(self, einstein_img):
         """variables to be reused across tests in this class"""
-        torch.manual_seed(0)
 
         k = 2  # num vectors with which to compute vjp, jvp, Fv
-        einstein_img = einstein_img[..., :16, :16]  # reduce image size
+        einstein_img = einstein_img[..., 100:100+16, 100:100+16]  # reduce image size
 
         # eigendistortion object
         ed = Eigendistortion(einstein_img, get_model('frontend.OnOff.nograd'))
@@ -193,16 +192,17 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V = torch.randn((x_dim, k), device=DEVICE)
+        V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
+        U = V.clone()
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         jac = autodiff.jacobian(y, x)
 
-        Fv2 = jac.T @ jac @ V  # manually compute product to compare accuracy
+        Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
-        assert Fv2.allclose(Fv, rtol=1E-2)
+        assert Fv2.allclose(Fv, atol=1E-6)
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
@@ -233,5 +233,4 @@ class TestAutodiffFunctions:
         x, y = e._input_flat, e._representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
-
-        assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
+        assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1E-3)

@@ -13,7 +13,7 @@ from glob import glob
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 NUMPY_TO_TORCH_TYPES = {
-        np.bool       : torch.bool,
+        bool       : torch.bool,  # np.bool deprecated in fav of built-in
         np.uint8      : torch.uint8,
         np.int8       : torch.int8,
         np.int16      : torch.int16,
