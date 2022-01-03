@@ -95,7 +95,7 @@ def upsample_convolve(signal, filt, edges="reflect1",
 
     if isinstance(filt, np.ndarray) or filt.shape[0] != n_channels:
         filt = torch.tensor(filt, dtype=torch.float32)
-        filt = filt.repeat(n_channels,  1, 1, 1)
+        filt = filt.repeat(n_channels,  1, 1, 1).to(signal.device)
 
     if edges == 'zero':
         upsample_convolve = nn.functional.conv_transpose2d(signal, filt,

@@ -62,16 +62,19 @@ def circular_gaussian2d(
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
         `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
     """
+    if isinstance(std, float):
+        device = torch.device("cpu")
+    else:
+        device = std.device
+
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(std, float) or std.shape == torch.Size([]):
-        std = torch.ones(out_channels) * std
+        std = torch.ones(out_channels, device=device) * std
 
     assert out_channels >= 1, "number of filters must be positive integer"
     assert torch.all(std > 0.0), "stdev must be positive"
     assert len(std) == out_channels, "Number of stds must equal out_channels"
-
-    device = std.device
     origin = torch.tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 

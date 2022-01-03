@@ -10,18 +10,18 @@ import plenoptic as po
 import torch
 import os.path as op
 from conftest import DEVICE, DATA_DIR, get_model
-
+import numpy as np
 
 class TestMAD(object):
 
     @pytest.mark.parametrize('target', ['min', 'max'])
-    @pytest.mark.parametrize('model_order', ['mse-nlpd', 'nlpd-mse'])
+    @pytest.mark.parametrize('model_order', ['mse-ssim', 'ssim-mse'])
     @pytest.mark.parametrize('store_progress', [False, True, 2])
     def test_basic(self, curie_img, target, model_order, store_progress):
-        if model_order == 'mse-nlpd':
+        if model_order == 'mse-ssim':
             model = po.metric.mse
             model2 = lambda *args: 1 - po.metric.ssim(*args)
-        elif model_order == 'nlpd-mse':
+        elif model_order == 'ssim-mse':
             model = lambda *args: 1 - po.metric.ssim(*args)
             model2 = po.metric.mse
         mad = po.synth.MADCompetition(curie_img, model, model2, target)
