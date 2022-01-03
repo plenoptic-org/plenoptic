@@ -179,6 +179,12 @@ def test_img(curie_img):
     assert torch.allclose(img, curie_img)
 ```
 
+WARNING: If you're using fixtures, make sure you don't modify them in your test
+(or you reset them to their original state at the end of the test). The fixture
+is a single object that will get reused across tests, so modifying it will lead
+to unexpected behaviors in other tests depending on which tests were run and
+their execution order.
+
 #### Combining the two
 
 You can combine fixtures and parameterization, which is helpful for when you

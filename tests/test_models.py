@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+#/usr/bin/env python3
+# we do this to enable deterministic behavior on the gpu, see
+# https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
+# details
+import os
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import matplotlib.pyplot as plt
 import plenoptic
 import plenoptic as po
@@ -29,11 +34,18 @@ def portilla_simoncelli_test_vectors():
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize():
-    return osf_download('portilla_simoncelli_synthesize.npz')
+    # synthesis gives differnet outputs on cpu vs gpu, so we have two different
+    # versions to test against
+    if DEVICE.type == 'cpu':
+        return osf_download('portilla_simoncelli_synthesize.npz')
+    elif DEVICE.type == 'cuda':
+        return osf_download('portilla_simoncelli_synthesize_gpu.npz')
+
 
 @pytest.fixture()
 def portilla_simoncelli_scales():
     return osf_download('portilla_simoncelli_scales.npz')
+
 
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
@@ -119,9 +131,9 @@ class TestNaive(object):
     def test_cache_filt(self, cache_filt, mdl):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt)
+            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt)
+            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
 
         y = model(img)  # forward pass should cache filt if True
 
@@ -171,7 +183,7 @@ class TestPortillaSimoncelli(object):
         use_true_correlations,
     ):
         im_shape = (256,256)
-        x = po.tools.make_synthetic_stimuli()
+        x = po.tools.make_synthetic_stimuli().to(DEVICE)
         x = x.unsqueeze(0).unsqueeze(0)
         if im_shape is not None:
             x = x[0, 0, : im_shape[0], : im_shape[1]]
@@ -181,7 +193,7 @@ class TestPortillaSimoncelli(object):
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=use_true_correlations,
-        )
+        ).to(DEVICE)
         ps(x[0,:,:,:])
 
     ## tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
@@ -196,15 +208,15 @@ class TestPortillaSimoncelli(object):
 
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy()
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
+        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             x.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=False,
-        )
-        python_vector = ps(im0)
+        ).to(DEVICE)
+        python_vector = po.to_numpy(ps(im0))
 
         matlab = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
                              f"{im}-scales{n_scales}-ori{n_orientations}"
@@ -227,15 +239,15 @@ class TestPortillaSimoncelli(object):
 
         torch.set_default_dtype(torch.float64)
         x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy() / 255
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0)
+        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             x.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=use_true_correlations,
-        )
-        output = ps(im0)
+        ).to(DEVICE)
+        output = po.to_numpy(ps(im0))
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
                         f"{im}-scales{n_scales}-ori{n_orientations}-"
@@ -264,12 +276,12 @@ class TestPortillaSimoncelli(object):
             im_synth = f['im_synth']
             rep_synth = f['rep_synth']
 
-        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0)
+        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE)
         model = po.simul.PortillaSimoncelli(im0.shape[-2:],
                                             n_scales=4,
                                             n_orientations=4,
                                             spatial_corr_width=9,
-                                            use_true_correlations=True)
+                                            use_true_correlations=True).to(DEVICE)
 
         po.tools.set_seed(1)
         im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
@@ -288,11 +300,11 @@ class TestPortillaSimoncelli(object):
                                 coarse_to_fine_kwargs=coarse_to_fine_kwargs)
 
         np.testing.assert_allclose(
-            output.squeeze().detach().numpy(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
+            po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
         )
 
         np.testing.assert_allclose(
-            model(output).squeeze().detach().numpy(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
+            po.to_numpy(model(output)).squeeze(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
         )
 
 
@@ -317,7 +329,7 @@ class TestPortillaSimoncelli(object):
             n_scales=n_scales, 
             n_orientations=n_orientations, 
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations)
+            use_true_correlations=use_true_correlations).to(DEVICE)
 
         output = model._get_representation_scales()
 
