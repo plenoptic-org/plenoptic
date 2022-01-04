@@ -45,4 +45,15 @@ jobs:
           pip install jupyter ipywidgets
           pip install "nbclient>=0.5.5"
       - name: Run notebooks
+        if: ${{ matrix.notebook != 'examples/Demo_Eigendistortion.ipynb' }}
         run: "jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3"
+      - name: Run tests with pytest
+        if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
+        # this notebook takes much longer than the rest (if run to completion,
+        # ~1hr on a laptop, more than 5 hours on the Github runners). We use
+        # papermill's parameters to reduce the max number of steps for
+        # eigendistortion synthesis here (we want to test that each cell runs,
+        # but we don't need synthesis to go to completion)
+        run: |
+          pip install --upgrade --upgrade-strategy eager papermill
+          papermill ${{ matrix.notebook }} examples/Demo_Eigendistortion_output.ipynb -p max_steps_frontend 10 -p max_steps_vgg 10 -k python3
