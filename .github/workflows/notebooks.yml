@@ -47,7 +47,7 @@ jobs:
       - name: Run notebooks
         if: ${{ matrix.notebook != 'examples/Demo_Eigendistortion.ipynb' }}
         run: "jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3"
-      - name: Run tests with pytest
+      - name: Run notebooks
         if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
         # this notebook takes much longer than the rest (if run to completion,
         # ~1hr on a laptop, more than 5 hours on the Github runners). We use
