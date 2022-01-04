@@ -757,6 +757,12 @@ class Metamer(Synthesis):
                      **pickle_load_args)
         # make this require a grad again
         self.synthesized_signal.requires_grad_()
+        # these are always supposed to be on cpu, but may get copied over to
+        # gpu on load (which can cause problems when resuming synthesis), so
+        # fix that.
+        if hasattr(self, 'saved_signal') and self.saved_signal.device.type != 'cpu':
+            self.saved_signal = self.saved_signal.to('cpu')
+            self.saved_model_response = self.saved_model_response.to('cpu')
 
 
 def plot_loss(metamer: Metamer,

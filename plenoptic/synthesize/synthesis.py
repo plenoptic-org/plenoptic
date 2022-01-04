@@ -137,7 +137,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                     img_attr = getattr(self, attr)
                     break
             # this way, each is a tensor the same shape as the img_attr
-            tensor_a, tensor_b = torch.rand(2, *img_attr.shape)
+            tensor_a, tensor_b = torch.rand(2, *img_attr.shape).to(img_attr.device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
