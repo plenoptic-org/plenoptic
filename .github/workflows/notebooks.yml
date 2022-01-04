@@ -56,4 +56,4 @@ jobs:
         # but we don't need synthesis to go to completion)
         run: |
           pip install --upgrade --upgrade-strategy eager papermill
-          papermill ${{ matrix.notebook }} examples/Demo_Eigendistortion_output.ipynb -p max_steps_frontend 10 -p max_steps_vgg 10 -k python3
+          papermill ${{ matrix.notebook }} examples/Demo_Eigendistortion_output.ipynb -p max_steps_frontend 10 -p max_steps_vgg 10 -k python3 --cwd examples/
