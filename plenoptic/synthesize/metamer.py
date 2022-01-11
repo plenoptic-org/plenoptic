@@ -105,6 +105,7 @@ class Metamer(Synthesis):
             raise Exception("target_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{target_signal.size()}")
+        self._signal_shape = target_signal.shape
         self.target_model_response = self.model(self.target_signal).detach()
         self.optimizer = None
         self.scheduler = None

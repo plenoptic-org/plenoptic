@@ -34,6 +34,7 @@ class SimpleMetamer(Synthesis):
                             "n_channels, im_height, im_width]) but got "
                             f"{target_signal.size()}")
         self.target_signal = target_signal
+        self._signal_shape = target_signal.shape
         self.synthesized_signal = torch.rand_like(self.target_signal,
                                                   requires_grad=True)
         self.target_model_response = self.model(self.target_signal).detach()
