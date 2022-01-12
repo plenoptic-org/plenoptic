@@ -108,6 +108,7 @@ class MADCompetition(Synthesis):
             raise Exception("reference_signal must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{reference_signal.size()}")
+        self._signal_shape = reference_signal.shape
         # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
         # of 5e-7 to check for zero
         if fixed_metric(reference_signal, reference_signal) > 5e-7:
@@ -603,7 +604,8 @@ class MADCompetition(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['reference_signal', 'synthesized_signal', 'saved_signal']
+        attrs = ['initial_signal', 'reference_signal', 'synthesized_signal',
+                 'saved_signal']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
@@ -663,6 +665,11 @@ class MADCompetition(Synthesis):
                      **pickle_load_args)
         # make this require a grad again
         self.synthesized_signal.requires_grad_()
+        # these are always supposed to be on cpu, but may get copied over to
+        # gpu on load (which can cause problems when resuming synthesis), so
+        # fix that.
+        if hasattr(self, 'saved_signal') and self.saved_signal.device.type != 'cpu':
+            self.saved_signal = self.saved_signal.to('cpu')
 
 
 def plot_loss(mad: MADCompetition,

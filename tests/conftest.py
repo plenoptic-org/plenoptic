@@ -51,9 +51,7 @@ def basic_stim():
 
 
 def get_model(name):
-    if name == 'LNL':
-        return po.simul.Linear_Nonlinear().to(DEVICE)
-    elif name == 'SPyr':
+    if name == 'SPyr':
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
