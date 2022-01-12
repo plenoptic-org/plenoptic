@@ -100,7 +100,15 @@ class Synthesis(metaclass=abc.ABCMeta):
 
         """
         tmp_dict = torch.load(file_path, pickle_module=dill,
+                              map_location=map_location,
                               **pickle_load_args)
+        if map_location is not None:
+            device = map_location
+        else:
+            for v in tmp_dict.values():
+                if isinstance(v, torch.Tensor):
+                    device = v.device
+                    break
         for k in check_attributes:
             if not hasattr(self, k):
                 raise Exception("All values of `check_attributes` should be "
@@ -128,8 +136,8 @@ class Synthesis(metaclass=abc.ABCMeta):
                                     f" Self: {getattr(self, k)}, "
                                     f"Saved: {tmp_dict[k]}")
         for k in check_loss_functions:
-            # this way, each is a 1x1x64x64 tensor
-            tensor_a, tensor_b = torch.rand(2, 1, 1, 64, 64)
+            # this way, we know it's the right shape
+            tensor_a, tensor_b = torch.rand(2, *self._signal_shape).to(device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
@@ -140,7 +148,6 @@ class Synthesis(metaclass=abc.ABCMeta):
                                 f"{init_loss-saved_loss}")
         for k, v in tmp_dict.items():
             setattr(self, k, v)
-        self.to(device=map_location)
 
     @abc.abstractmethod
     def to(self, *args, attrs: List[str] = [], **kwargs):
