@@ -333,16 +333,19 @@ class PortillaSimoncelli(nn.Module):
         )
 
         representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
-
+        
         if scales is not None:
-            ind = torch.tensor(
-                [
-                    i
-                    for i, s in enumerate(self.representation_scales)
-                    if s in scales
-                ]
-            ).to(image.device)
-            return representation_vector.index_select(-1, ind)
+            for ii,s in enumerate(self.representation_scales):
+                if s not in scales:
+                    representation_vector[:,:,ii]=0
+            # ind = torch.tensor(
+            #     [
+            #         i
+            #         for i, s in enumerate(self.representation_scales)
+            #         if s in scales
+            #     ]
+            # ).to(image.device)
+            # return representation_vector.index_select(-1, ind)
 
         return representation_vector
 
