@@ -11,7 +11,10 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
 DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
 
-
+torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
+torch.manual_seed(0)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(0)
 class ColorModel(torch.nn.Module):
     """Simple model that takes color image as input and outputs 2d conv."""
     def __init__(self):
@@ -48,9 +51,7 @@ def basic_stim():
 
 
 def get_model(name):
-    if name == 'LNL':
-        return po.simul.Linear_Nonlinear().to(DEVICE)
-    elif name == 'SPyr':
+    if name == 'SPyr':
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False

@@ -14,10 +14,13 @@ from conftest import DATA_DIR, DEVICE
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
-           'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
+           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr',
+           'portilla_simoncelli_matlab_test_vectors.tar.gz': 'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
+           # synthesis gives different outputs on GPU vs CPU, so we have
+           # separate versions to test against
            'portilla_simoncelli_synthesize.npz': 'a7p9r',
+           'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
            'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
@@ -119,6 +122,7 @@ class TestPerceptualMetrics(object):
     def test_ssim(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
+        curie_img.requires_grad_(False)
 
     def test_msssim(self, einstein_img, curie_img):
         curie_img.requires_grad_()
@@ -210,12 +214,25 @@ class TestPerceptualMetrics(object):
     def test_nlpd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
 
     def test_nspd(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)
+
+    def test_nspd2(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nspd(einstein_img, curie_img, O=3, S=5, complex=True).requires_grad
+        curie_img.requires_grad_(False)
+
+    def test_nspd3(self, einstein_img, curie_img):
+        curie_img.requires_grad_()
+        assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
+        curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_metric(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
+        curie_img.requires_grad_(False)
