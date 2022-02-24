@@ -71,7 +71,7 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
 
     real_size = min(11, height, width)
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std, n_channels)
+    window = circular_gaussian2d(real_size, std=std)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
@@ -430,6 +430,9 @@ def nlpd(IM_1, IM_2):
        assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
+    if IM_1.shape[1] > 1 or IM_2.shape[1] > 1:
+        warnings.warn("NLPD was developed on grayscale images, so the channel dimension "
+                      "is treated as another batch dimension.")
     y1 = normalized_laplacian_pyramid(IM_1)
     y2 = normalized_laplacian_pyramid(IM_2)
 
@@ -479,6 +482,9 @@ def nspd(IM_1, IM_2, sigmas=None):
     under construction
     """
 
+    if IM_1.shape[1] > 1 or IM_2.shape[1] > 1:
+        warnings.warn("NSPD was developed on grayscale images, so the channel dimension "
+                      "is treated as another batch dimension.")
     y1 = normalized_steerable_pyramid(IM_1, sigmas=sigmas)
     y2 = normalized_steerable_pyramid(IM_2, sigmas=sigmas)
 

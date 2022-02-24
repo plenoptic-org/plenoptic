@@ -128,34 +128,33 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
 
-    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim', 'nlpd'])
-    @pytest.mark.parametrize('size_A', [1, 3])
-    @pytest.mark.parametrize('size_B', [1, 2, 3])
+    @pytest.mark.parametrize('func_name', ['mse', 'ssim', 'ms-ssim', 'nlpd', 'nspd'])
+    @pytest.mark.parametrize('size_A', [(1, 1), (5, 3), (5, 3), (5, 1), (5, 1), (5, 3)])
+    @pytest.mark.parametrize('size_B', [(1, 1), (5, 3), (1, 1), (1, 3), (3, 1), (5, 2)])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
-        if func_name == 'noise':
-            func = po.tools.add_noise
-            A = einstein_img.repeat(size_A, 1, 1, 1)
-            B = size_B * [4]
-        else:
-            if func_name == 'mse':
-                func = po.metric.mse
-            elif func_name == 'ssim':
-                func = po.metric.ssim
-            elif func_name == 'ms-ssim':
-                func = po.metric.ms_ssim
-            elif func_name == 'nlpd':
-                func = po.metric.nlpd
-            A = einstein_img.repeat(size_A, 1, 1, 1)
-            B = curie_img.repeat(size_B, 1, 1, 1)
-        if size_A != size_B and size_A != 1 and size_B != 1:
+        func = {'mse': po.metric.mse,
+                'ssim': po.metric.ssim,
+                'ms-ssim': po.metric.ms_ssim,
+                'nlpd': po.metric.nlpd,
+                'nspd': po.metric.nspd}[func_name]
+        A = einstein_img.repeat(*size_A, 1, 1)
+        B = curie_img.repeat(*size_B, 1, 1)
+
+        tgt_size = []
+        for i in range(2):
+            if size_A[i] == size_B[i] or size_A[i] == 1 or size_B[i] == 1:
+                tgt_size.append(max(size_A[i], size_B[i]))
+            else:
+                tgt_size = None
+                break
+        if tgt_size is None:
             with pytest.raises(Exception):
                 func(A, B)
+        elif tgt_size[1] > 1 and func_name != "mse":
+            with pytest.warns(Warning, match="the channel dimension is treated as another batch dimension."):
+                assert list(func(A, B).shape[0:2]) == tgt_size
         else:
-            if size_A > size_B:
-                tgt_size = size_A
-            else:
-                tgt_size = size_B
-            assert func(A, B).shape[0] == tgt_size
+            assert list(func(A, B).shape[0:2]) == tgt_size
 
     @pytest.mark.parametrize('mode', ['many-to-one', 'one-to-many'])
     def test_noise_independence(self, einstein_img, mode):
