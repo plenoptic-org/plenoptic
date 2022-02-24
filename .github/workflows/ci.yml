@@ -51,6 +51,11 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .
           pip install jupyter ipywidgets
           pip install "nbclient>=0.5.5"
+      - name: Download TID2013 dataset
+        if: ${{ matrix.notebook == 'examples/04_Perceptual_distance.ipynb' }}
+        run: |
+          wget http://www.ponomarenko.info/tid2013/tid2013.rar -P ./data/
+          7z x ./data/tid2013.rar -o./data/tid2013/
       - name: Run notebooks
         if: ${{ matrix.notebook != 'examples/Demo_Eigendistortion.ipynb' }}
         run: "jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3"
