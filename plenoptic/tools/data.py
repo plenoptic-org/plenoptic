@@ -13,7 +13,7 @@ from glob import glob
 DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
 
 NUMPY_TO_TORCH_TYPES = {
-        np.bool       : torch.bool,
+        bool       : torch.bool,  # np.bool deprecated in fav of built-in
         np.uint8      : torch.uint8,
         np.int8       : torch.int8,
         np.int16      : torch.int16,
@@ -166,7 +166,6 @@ def convert_float_to_int(im, dtype=np.uint8):
         raise Exception("all values of im must lie between 0 and 1, "
                         f"but max is {im.max()}")
     return (im * np.iinfo(dtype).max).astype(dtype)
-
 
 
 

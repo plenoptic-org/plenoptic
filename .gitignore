@@ -10,7 +10,10 @@ __pycache__/
 .idea/
 .vscode/
 
-examples/data
+*.npz
+*.mat
+*.npy
+
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
