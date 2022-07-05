@@ -10,7 +10,7 @@ import torch.nn as nn
 from einops import rearrange
 
 
-complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
+complex_types = [torch.cdouble, torch.cfloat]
 
 
 class Steerable_Pyramid_Freq(nn.Module):
