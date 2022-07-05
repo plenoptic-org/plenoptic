@@ -54,7 +54,7 @@ jobs:
       - name: Download TID2013 dataset
         if: ${{ matrix.notebook == 'examples/04_Perceptual_distance.ipynb' }}
         run: |
-          wget --random-wait http://www.ponomarenko.info/tid2013/tid2013.rar -P ./data/
+          wget --random-wait https://osf.io/7nfkz/download -P ./data/
           7z x ./data/tid2013.rar -o./data/tid2013/
       - name: Run notebooks
         if: ${{ matrix.notebook != 'examples/Demo_Eigendistortion.ipynb' }}
