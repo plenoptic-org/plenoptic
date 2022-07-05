@@ -102,24 +102,6 @@ class TestLaplacianPyramid(object):
             # TODO: There is some problem with padding on right and bottom edge, should figure out why
 
 
-class TestFactorizedPyramid(object):
-
-    @pytest.mark.parametrize("downsample_dict", [True, False])
-    @pytest.mark.parametrize("is_complex", [True, False])
-    def test_factpyr(self, basic_stim, downsample_dict, is_complex):
-        x = basic_stim
-        # x = po.load_images(DATA_DIR + "/512/")
-        model = po.simul.FactorizedPyramid(x.shape[-2:],
-                                           downsample_dict=downsample_dict,
-                                           is_complex=is_complex)
-        x_hat = model.synthesis(*model.analysis(x))
-
-        relative_MSE = (torch.norm(x - x_hat, dim=(2, 3))**2 /
-                        torch.norm(x, dim=(2, 3))**2)
-        print(relative_MSE)
-        assert (relative_MSE < 1e-10).all()
-
-
 class TestFrontEnd:
 
     all_models = [
