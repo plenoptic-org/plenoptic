@@ -22,8 +22,12 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-	  pip3 install .
-      python3 -m pytest tests
+	  if [[ $BRANCH_NAME == "main" ]] ; then
+	    pip3 install -U .
+	  else
+	    pip3 install .
+	  fi
+	  python3 -m pytest tests
 	'''
       }
     }
