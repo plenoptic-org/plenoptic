@@ -5,8 +5,15 @@ pipeline {
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
     timeout(time: 2, unit: 'HOURS')
   }
+  triggers {
+    cron '@weekly'
+  }
   stages {
-    stage('main') {
+    stage('weekly') {
+      when {
+	triggeredBy 'TimerTrigger'
+	branch 'main'
+      }
       agent {
         dockerfile {
 	  dir 'jenkins'
@@ -22,11 +29,33 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-	  if [[ $BRANCH_NAME == "main" ]] ; then
-	    pip3 install -U .
-	  else
-	    pip3 install .
-	  fi
+	  pip3 install -U .
+	  python3 -m pytest tests
+	'''
+      }
+    }
+    stage('commit') {
+      when {
+	not {
+	  triggeredBy 'TimerTrigger'
+	}
+      }
+      agent {
+        dockerfile {
+	  dir 'jenkins'
+	  args '--gpus 1'
+        }
+      }
+      environment {
+        HOME = pwd(tmp:true)
+	OMP_NUM_THREADS = 4
+      }
+      steps {
+	sh 'python3 -c "import torch; torch.cuda.current_device()"'
+	sh 'python3 -m venv --system-site-packages $HOME'
+	sh '''#!/bin/bash -ex
+	  source $HOME/bin/activate
+	  pip3 install .
 	  python3 -m pytest tests
 	'''
       }
