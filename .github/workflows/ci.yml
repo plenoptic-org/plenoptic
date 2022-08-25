@@ -115,6 +115,14 @@ jobs:
       - name: Check for file
         if: -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)"
         run: exit 1
+  no_extra_nblinks:
+    runs-on: ubuntu-latest
+    name: Check that we don't have any extra nblink files
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check same number of nblink and notebooks
+        if: "$(ls docs/tutorials/*nblink | wc -l)" -eq "$(ls examples/*ipynb | wc -l)"
+        run: exit 1
 
   check:
     if: always()
