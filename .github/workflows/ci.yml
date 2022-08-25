@@ -103,6 +103,19 @@ jobs:
         run: 'pytest --cov=plenoptic ${{ matrix.test_script }}'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
+  all_tutorials_in_docs:
+    runs-on: ubuntu-latest
+    name: Check that all tutorial notebooks are included in docs
+    needs: [get_notebooks]
+    strategy:
+      matrix:
+        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check for file
+        if: -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)"
+        run: exit 1
+
   check:
     if: always()
     needs:
