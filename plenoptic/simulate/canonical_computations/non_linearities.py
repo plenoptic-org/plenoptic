@@ -3,19 +3,17 @@ from ...tools.conv import blur_downsample, upsample_blur
 from ...tools.signal import rectangular_to_polar, polar_to_rectangular
 
 
-def rectangular_to_polar_dict(coeff_dict, residuals=True):
-    """Wraps the rectangular to polar transform to act on all
-    the values in a dictionary.
-
+def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
+    """Return the complex modulus and the phase of each complex tensor
+    in a dictionary.
     Parameters
     ----------
     coeff_dict : dict
        A dictionary containing complex tensors.
+    dim : int, optional
+       The dimension that contains the real and imaginary components.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
-        Note that the transformation is not applied to the residuals,
-        that is dictionary elements with a key starting in "residual".
-
     Returns
     -------
     energy : dict
@@ -24,15 +22,24 @@ def rectangular_to_polar_dict(coeff_dict, residuals=True):
     state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``coeff_dict``.
-
     Note
     ----
+    Since complex numbers are not supported by pytorch, we represent
+    complex tensors as having an extra dimension with two slices, where
+    one contains the real and the other contains the imaginary
+    components. E.g., ``1+2j`` would be represented as
+    ``torch.tensor([1, 2])`` and ``[1+2j, 4+5j]`` would be
+    ``torch.tensor([[1, 2], [4, 5]])``. In the cases represented here,
+    this "complex dimension" is the last one, and so the default
+    argument ``dim=-1`` would work.
+    Note that energy and state is not computed on the residuals.
     Computing the state is local gain control in disguise, see
-    ``local_gain_control`` and ``local_gain_control_dict``.
+    ``rectangular_to_polar_real`` and ``local_gain_control``.
     """
     energy = {}
     state = {}
     for key in coeff_dict.keys():
+        # ignore residuals
         if isinstance(key, tuple) or not key.startswith('residual'):
             energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
 
@@ -44,9 +51,7 @@ def rectangular_to_polar_dict(coeff_dict, residuals=True):
 
 
 def polar_to_rectangular_dict(energy, state, residuals=True):
-    """Wraps the polar to rectangular transform to act on all
-    the values in a matching pair of dictionaries.
-
+    """Return the real and imaginary part  tensor in a dictionary.
     Parameters
     ----------
     energy : dict
@@ -54,11 +59,10 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
         modulus.
     state : dict
         The dictionary of torch.Tensors containing the local phase.
+    dim : int, optional
+       The dimension that contains the real and imaginary components.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
-        Note that the transformation is not applied to the residuals,
-        that is dictionary elements with a key starting in "residual".
-
     Returns
     -------
     coeff_dict : dict
@@ -67,6 +71,8 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
 
     coeff_dict = {}
     for key in energy.keys():
+        # ignore residuals
+
         if isinstance(key, tuple) or not key.startswith('residual'):
             coeff_dict[key] = polar_to_rectangular(energy[key], state[key])
 

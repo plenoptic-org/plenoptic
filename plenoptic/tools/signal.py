@@ -1,11 +1,90 @@
-from typing import Tuple, Union
-
 import numpy as np
 import torch
 import torch.fft as fft
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torchvision.transforms.functional import center_crop
+from typing import Union, Tuple
 
+
+def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, even_phase=True):
+    """Steer BASIS to the specfied ANGLE.
+
+    Parameters
+    ----------
+    basis : array_like
+        array whose columns are vectorized rotated copies of a steerable function, or the responses
+        of a set of steerable filters.
+    angle : array_like or int
+        scalar or column vector the size of the basis. specifies the angle(s) (in radians) to
+        steer to
+    harmonics : list or None
+        a list of harmonic numbers indicating the angular harmonic content of the basis. if None
+        (default), N even or odd low frequencies, as for derivative filters
+    steermtx : array_like or None
+        matrix which maps the filters onto Fourier series components (ordered [cos0 cos1 sin1 cos2
+        sin2 ... sinN]). See steer_to_harmonics_mtx function for more details. If None (default),
+        assumes cosine phase harmonic components, and filter positions at 2pi*n/N.
+    return_weights : bool
+        whether to return the weights or not.
+    even_phase : bool
+        specifies whether the harmonics are cosine or sine phase aligned about those positions.
+
+    Returns
+    -------
+    res : np.ndarray
+        the resteered basis
+    steervect : np.ndarray
+        the weights used to resteer the basis. only returned if ``return_weights`` is True
+    """
+
+    num = basis.shape[-1]
+    device = basis.device
+
+    if isinstance(angle, (int, float)):
+        angle = np.array([angle])
+    else:
+        if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:
+            raise Exception("""ANGLE must be a scalar, or a column vector the size of the basis elements""")
+
+    # If HARMONICS is not specified, assume derivatives.
+    if harmonics is None:
+        harmonics = np.arange(1 - (num % 2), num, 2)
+
+    if len(harmonics.shape) == 1 or harmonics.shape[0] == 1:
+        # reshape to column matrix
+        harmonics = harmonics.reshape(harmonics.shape[0], 1)
+    elif harmonics.shape[0] != 1 and harmonics.shape[1] != 1:
+        raise Exception('input parameter HARMONICS must be 1D!')
+
+    if 2 * harmonics.shape[0] - (harmonics == 0).sum() != num:
+        raise Exception('harmonics list is incompatible with basis size!')
+
+    # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
+    if steermtx is None:
+        steermtx = steer_to_harmonics_mtx(harmonics, np.pi * np.arange(num) / num, even_phase=even_phase)
+
+    steervect = np.zeros((angle.shape[0], num))
+    arg = angle * harmonics[np.nonzero(harmonics)[0]].T
+    if all(harmonics):
+        steervect[:, range(0, num, 2)] = np.cos(arg)
+        steervect[:, range(1, num, 2)] = np.sin(arg)
+    else:
+        steervect[:, 0] = np.ones((arg.shape[0], 1))
+        steervect[:, range(1, num, 2)] = np.cos(arg)
+        steervect[:, range(2, num, 2)] = np.sin(arg)
+
+    steervect = np.dot(steervect, steermtx)
+
+    steervect = torch.tensor(steervect, dtype=basis.dtype).to(device)
+    if steervect.shape[0] > 1:
+        tmp = basis @ steervect
+        res = tmp.sum().t()
+    else:
+        res = basis @ steervect.t()
+    if return_weights:
+        return res, steervect.reshape(num)
+    else:
+        return res
 
 def minimum(x, dim=None, keepdim=False):
     r"""compute minimum in torch over any axis or combination of axes in tensor
@@ -62,7 +141,7 @@ def maximum(x, dim=None, keepdim=False):
 
 
 def rescale(x, a=0, b=1):
-    r"""Linearly rescale the dynamic range of the input x to [a, b]
+    r"""Linearly rescale the dynamic range of the input x to [a,b]
     """
     v = x.max() - x.min()
     g = (x - x.min())
@@ -70,32 +149,6 @@ def rescale(x, a=0, b=1):
         g = g / v
     return a + g * (b-a)
 
-
-def interpolate1d(x_new, Y, X):
-    r""" One-dimensional linear interpolation.
-
-    Returns the one-dimensional piecewise linear interpolant to a
-    function with given discrete data points (X, Y), evaluated at x_new.
-
-    Note: this function is just a wrapper around ``np.interp()``.
-
-    Parameters
-    ----------
-    x_new: torch.Tensor
-        The x-coordinates at which to evaluate the interpolated values.
-    Y: array_like
-        The y-coordinates of the data points.
-    X: array_like
-        The x-coordinates of the data points, same length as X.
-
-    Returns
-    -------
-    Interpolated values of shape identical to `x_new`.
-    """
-
-    out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
-
-    return np.reshape(out, x_new.shape)
 
 
 def raised_cosine(width=1, position=0, values=(0, 1)):
@@ -140,21 +193,56 @@ def raised_cosine(width=1, position=0, values=(0, 1)):
     return X, Y
 
 
+def interpolate1d(x_new, Y, X):
+    r""" One-dimensional linear interpolation.
+
+    Returns the one-dimensional piecewise linear interpolant to a
+    function with given discrete data points (X, Y), evaluated at x_new.
+
+    Note: this function is just a wrapper around ``np.interp()``.
+
+    Parameters
+    ----------
+    x_new: torch.Tensor
+        The x-coordinates at which to evaluate the interpolated values.
+    Y: array_like
+        The y-coordinates of the data points.
+    X: array_like
+        The x-coordinates of the data points, same length as X.
+
+    Returns
+    -------
+    Interpolated values of shape identical to `x_new`.
+
+    TODO
+    ----
+    rename and reorder arguments, refactor corresponding use in SteerablePyr
+    """
+
+    out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
+
+    return np.reshape(out, x_new.shape)
+
+
 def rectangular_to_polar(x):
     r"""Rectangular to polar coordinate transform
 
     Parameters
     --------
-    x: torch.Tensor
-        complex tensor
+    x: torch.ComplexTensor
+
     Returns
     -------
     amplitude: torch.Tensor
         tensor containing the amplitude (aka. complex modulus)
     phase: torch.Tensor
         tensor containing the phase
+
     """
-    return torch.abs(x), torch.angle(x)
+
+    amplitude = torch.abs(x)
+    phase = torch.angle(x)
+    return amplitude, phase
 
 
 def polar_to_rectangular(amplitude, phase):
@@ -169,8 +257,9 @@ def polar_to_rectangular(amplitude, phase):
 
     Returns
     -------
-    torch.Tensor
+    torch.Tensor 
         complex tensor
+
     """
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be strictly positive.")
@@ -249,9 +338,8 @@ def autocorr(x, n_shifts=7):
 
     if n_shifts is not None:
         autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
-                            (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
+                                  (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
     return autocorr
-
 
 def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
           even_phase=True):
@@ -429,28 +517,3 @@ def add_noise(img, noise_mse):
         torch.sqrt(noise_mse / (noise**2).mean((-1, -2)
                                                ).unsqueeze(-1).unsqueeze(-1))
     return img + noise
-
-
-# def fftshift(x, dims=None):
-#     r"""Shift the zero-frequency component to the center of the spectrum.
-
-#     Parameters
-#     ---------
-#     x: torch.Tensor
-#         spectrum
-
-#     dims: tuple, optional
-#         dimensions along which to shift the spectrum.
-#         by default it will shift all but the first dimension (batch dimension).
-
-#     Returns
-#     -------
-#     x: torch.Tensor
-#         shifted spectrum
-
-#     TODO: DEPRECATED use torch.fft.fftshift
-#     """
-#     if dims is None:
-#         dims = tuple(range(1, x.ndim))
-#     shifts = [(x.shape[d] + 1)//2 for d in dims]
-#     return torch.roll(x, shifts=shifts, dims=dims)

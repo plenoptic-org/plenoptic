@@ -1,5 +1,4 @@
 import torch
-from ..tools.stats import variance 
 
 
 def mse(img1, img2):
@@ -32,18 +31,3 @@ def mse(img1, img2):
 
     """
     return torch.pow(img1 - img2, 2).mean((-1, -2))
-
-
-def SNR(x, x_hat, dim=-1):
-    """Signal-to-noise ratio in decibels (dB) relative to `x`
-
-    Parameters
-    ----------
-    x : [type]
-        [description]
-    x_hat : [type]
-        [description]
-    """
-
-    return 10 * torch.log10(variance(x, dim=dim) /
-                            variance(x - x_hat, dim=dim))

@@ -12,6 +12,7 @@ from plenoptic.tools.data import to_numpy
 from conftest import DEVICE, DATA_DIR, DTYPE
 
 
+
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     '''
     function that checks if two sets of pyramid coefficients are the same
@@ -32,7 +33,8 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
             coeff_2_np = to_numpy(coeff_2[k].squeeze())
         else:
             coeff_2_np = coeff_2[k]
-
+        
+        
         np.testing.assert_allclose(coeff_1_np, coeff_2_np, rtol=rtol, atol=atol)
 
 
@@ -54,10 +56,10 @@ def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
         band_1 = band_1.squeeze()
         band_2 = band_2.squeeze()
 
-        np.testing.assert_allclose(np.sum(np.abs(band_1)**2), np.sum(np.abs(band_2)**2), rtol=rtol, atol=atol)
+        np.testing.assert_allclose(np.sum(np.abs(band_1)**2),np.sum(np.abs(band_2)**2), rtol=rtol, atol=atol)
 
 
-def check_parseval(im, coeff, rtol=1e-4, atol=0):
+def check_parseval(im ,coeff, rtol=1e-4, atol=0):
     '''
     function that checks if the pyramid is parseval, i.e. energy of coeffs is
     the same as the energy in the original image.
@@ -67,7 +69,7 @@ def check_parseval(im, coeff, rtol=1e-4, atol=0):
     '''
     total_band_energy = 0
     im_energy = np.sum(to_numpy(im)**2)
-    for k, v in coeff.items():
+    for k,v in coeff.items():
         band = to_numpy(coeff[k])
         band = band.squeeze()
 
@@ -91,7 +93,7 @@ class TestSteerablePyramid(object):
             img = img[..., :128]
         return img
 
-    @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2']])
+    @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2' ]])
     def multichannel_img(self, request):
         shape = request.param
         img = po.load_images(op.join(DATA_DIR, f'512/flowers.jpg'), as_gray=False).to(DEVICE)
@@ -161,8 +163,8 @@ class TestSteerablePyramid(object):
         check_parseval(img, pyr_coeffs)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-{t}' for h, o, c, t in product([3, 4, 5],
-                                                                                        [1, 2, 3],
-                                                                                        [True, False], [True, False])],
+                                                                                      [1, 2, 3],
+                                                                                      [True, False],[True, False])],
                              indirect=True)
     def test_not_downsample(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
@@ -211,7 +213,7 @@ class TestSteerablePyramid(object):
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
                                       product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                              [True, False], [True, False], [True, False])],
+                                              [True, False], [True,False], [True,False])],
                              indirect=True)
     def test_complete_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
@@ -219,8 +221,8 @@ class TestSteerablePyramid(object):
         np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
 
     @pytest.mark.parametrize('spyr_multi', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
-                                            product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                                    [True, False], [True, False], [True, False])],
+                                      product(['auto', 1, 3, 4, 5], [1, 2, 3],
+                                              [True, False], [True,False], [True,False])],
                              indirect=True)
     def test_complete_recon_multi(self, multichannel_img, spyr_multi):
         pyr_coeffs = spyr_multi.forward(multichannel_img)
@@ -238,12 +240,12 @@ class TestSteerablePyramid(object):
         height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
                                                    is_complex=spyr.is_complex)
-        recon_levels = [[0], [1, 3], [1, 3, 4]]
-        recon_bands = [[1], [1, 3]]
+        recon_levels = [[0], [1,3], [1,3,4]]
+        recon_bands = [[1],[1,3]]
         for levels, bands in product(['all'] + recon_levels, ['all'] + recon_bands):
             po_recon = to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_spyr.recon_pyr(levels, bands)
-            np.testing.assert_allclose(po_recon, pt_recon, rtol=1e-4, atol=1e-4)
+            np.testing.assert_allclose(po_recon, pt_recon,rtol=1e-4, atol=1e-4)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product(['auto', 1, 3, 4],
                                                                                        [1, 2, 3],

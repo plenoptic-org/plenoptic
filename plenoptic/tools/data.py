@@ -168,6 +168,7 @@ def convert_float_to_int(im, dtype=np.uint8):
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
+
 def make_synthetic_stimuli(size=256, requires_grad=True):
     r""" Make a set of basic stimuli, useful for developping and debugging models
 
@@ -201,8 +202,8 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
     curv_edge = synthetic_images.disk(size=size, radius=size / 1.2,
                                       origin=(size, size))
 
-    sine_grating = (synthetic_images.sine(size) *
-                    synthetic_images.gaussian(size, covariance=size))
+    sine_grating = (synthetic_images.sine(size) * 
+        synthetic_images.gaussian(size, covariance=size))
 
     square_grating = synthetic_images.square_wave(size, frequency=(.5, .5),
                                                   phase=2 * np.pi / 3.)
