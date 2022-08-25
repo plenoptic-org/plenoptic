@@ -113,8 +113,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Check for file
-        if: ${{ ! "$(grep matrix.notebook docs/tutorials/*nblink)" }}
-        run: exit 1
+        shell: bash
+        run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" ]] ;then exit 1; fi
   no_extra_nblinks:
     runs-on: ubuntu-latest
     name: Check that we don't have any extra nblink files
