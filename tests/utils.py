@@ -45,12 +45,19 @@ def update_ps_synthesis_test_file():
     file_name_parts = re.findall('(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*).npz',
                                  ps_synth_file)[0]
     output_file_name = ''.join(file_name_parts[:2]) + f'_torch_v{torch_v}.npz'
-    print(f"Saving at {output_file_name}")
     output = po.to_numpy(met.synthesized_signal).squeeze()
     rep = po.to_numpy(met.model(met.synthesized_signal)).squeeze()
-    np.savez(output_file_name, im=im, im_init=im_init, im_synth=output,
-             rep_synth=rep)
-    fig = pt.imshow([output, im_synth.squeeze()],
-                    title=[f'New metamer (torch {torch_v})', 'Old metamer'])
-    fig.savefig(output_file_name.replace('.npz', '.png'))
+    try:
+        np.testing.assert_allclose(output, im_synth.squeeze(), rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(rep, rep_synth.squeeze(), rtol=1e-4, atol=1e-4)
+        print("Current synthesis same as saved version, so not saving current synthesis.")
+    # only do all this if the tests would've failed
+    except AssertionError:
+        print(f"Saving at {output_file_name}")
+        np.savez(output_file_name, im=im, im_init=im_init, im_synth=output,
+                 rep_synth=rep)
+        fig = pt.imshow([output, im_synth.squeeze()],
+                        title=[f'New metamer (torch {torch_v})',
+                               'Old metamer'])
+        fig.savefig(output_file_name.replace('.npz', '.png'))
     return met
