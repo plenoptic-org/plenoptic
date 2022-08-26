@@ -293,7 +293,7 @@ class TestPortillaSimoncelli(object):
                                  'ctf_iters_to_check': 15}
         # this is the same as the default optimizer, but we explicitly
         # instantiate it anyway, in case we change the defaults at some point
-        optim = torch.optim.Adam([met.synthesized_signal], lr=.01,
+        optim = torch.optim.Adam([met.metamer], lr=.01,
                                  amsgrad=True)
         output = met.synthesize(max_iter=200, optimizer=optim,
                                 coarse_to_fine='together',

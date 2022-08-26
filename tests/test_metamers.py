@@ -47,16 +47,15 @@ class TestMetamers(object):
                                         range_penalty_lambda=range_penalty)
             met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
                           map_location=DEVICE)
-            for k in ['target_signal', 'saved_model_response', 'saved_signal',
-                      'synthesized_signal', 'target_model_response']:
+            for k in ['image', 'saved_metamer', 'metamer', 'target_representation']:
                 if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             # check loss functions correctly saved
-            met_loss = met.loss_function(met.model(met.synthesized_signal),
-                                         met.target_model_response)
-            met_copy_loss = met_copy.loss_function(met.model(met.synthesized_signal),
-                                                   met_copy.target_model_response)
+            met_loss = met.loss_function(met.model(met.metamer),
+                                         met.target_representation)
+            met_copy_loss = met_copy.loss_function(met.model(met.metamer),
+                                                   met_copy.target_representation)
             if not torch.allclose(met_loss, met_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
                                 f"after loading was {met_copy_loss}")
@@ -71,9 +70,9 @@ class TestMetamers(object):
         if store_progress == 3:
             max_iter = 6
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
-        # we initialize saved_signal the first time it's called, so it will
+        # we initialize saved_metamer the first time it's called, so it will
         # have 1 extra saved
-        assert len(metamer.saved_signal) == (max_iter//store_progress)+1, "Didn't end up with enough saved signal!"
+        assert len(metamer.saved_metamer) == (max_iter//store_progress)+1, "Didn't end up with enough saved signal!"
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
@@ -111,7 +110,7 @@ class TestMetamers(object):
         met = po.synth.Metamer(curie_img, model)
         scheduler = None
         if optimizer == 'Adam' or optimizer == 'Scheduler':
-            optimizer = torch.optim.Adam([met.synthesized_signal])
+            optimizer = torch.optim.Adam([met.metamer])
             if optimizer == 'Scheduler':
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         met.synthesize(max_iter=5, optimizer=optimizer,
@@ -131,8 +130,8 @@ class TestMetamers(object):
             met_copy = po.synth.Metamer(curie_img, model)
             met_copy.load(op.join(tmp_path, 'test_metamer_map_location.pt'),
                           map_location='cpu')
-            assert met_copy.synthesized_signal.device.type == 'cpu'
-            assert met_copy.target_signal.device.type == 'cpu'
+            assert met_copy.metamer.device.type == 'cpu'
+            assert met_copy.image.device.type == 'cpu'
             met.synthesize(max_iter=4, store_progress=True)
 
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
@@ -142,9 +141,9 @@ class TestMetamers(object):
         met.synthesize(max_iter=5)
         if to_type == 'dtype':
             met.to(torch.float16)
-            assert met.target_signal.dtype == torch.float16
-            assert met.synthesized_signal.dtype == torch.float16
+            assert met.image.dtype == torch.float16
+            assert met.metamer.dtype == torch.float16
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == 'device' and DEVICE.type != 'cpu':
             met.to('cpu')
-        met.synthesized_signal - met.target_signal
+        met.metamer - met.image

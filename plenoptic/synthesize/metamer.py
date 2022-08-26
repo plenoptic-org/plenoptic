@@ -20,7 +20,7 @@ class Metamer(Synthesis):
     Following the basic idea in [1]_, this class creates a metamer for a given
     model on a given image. We start with ``initial_image`` and iteratively
     adjust the pixel values so as to match the representation of the
-    ``synthesized_signal`` and ``target_signal``.
+    ``metamer`` and ``image``.
 
     All ``saved_`` attributes are initialized as empty lists and will be
     non-empty if the ``store_progress`` arg to ``synthesize()`` is not
@@ -30,7 +30,7 @@ class Metamer(Synthesis):
 
     Parameters
     ----------
-    target_signal :
+    image :
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model :
@@ -49,13 +49,12 @@ class Metamer(Synthesis):
 
     Attributes
     ----------
-    target_model_response : torch.Tensor
-        Whatever is returned by ``model(target_signal)``, this is what we match
+    target_representation : torch.Tensor
+        Whatever is returned by ``model(image)``, this is what we match
         in order to create a metamer
-    synthesized_signal : torch.Tensor
+    metamer : torch.Tensor
         The metamer. This may be unfinished depending on how many
         iterations we've run for.
-        generators
     losses : list
         A list of our loss over iterations.
     gradient_norm : list
@@ -66,13 +65,11 @@ class Metamer(Synthesis):
     pixel_change : list
         A list containing the max pixel change over iterations
         (``pixel_change[i]`` is the max pixel change in
-        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
+        ``metamer`` between iterations ``i`` and ``i-1``). note
         this is calculated before any clamping, so may have some very
         large numbers in the beginning
-    saved_signal : torch.Tensor or list
-        Saved ``self.synthesized_signal`` for later examination.
-    saved_model_response : torch.Tensor or list
-        Saved ``synthesized_model_response`` for later examination.
+    saved_metamer : torch.Tensor or list
+        Saved ``self.metamer`` for later examination.
     scales : list or None
         The list of scales in optimization order (i.e., from coarse to fine).
         Will be modified during the course of optimization.
@@ -94,19 +91,19 @@ class Metamer(Synthesis):
 
     """
 
-    def __init__(self, target_signal: Tensor, model: torch.nn.Module,
+    def __init__(self, image: Tensor, model: torch.nn.Module,
                  loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float] = (0, 1),
                  initial_image: Union[None, Tensor] = None):
         self.model = model
-        self.target_signal = target_signal
-        if target_signal.ndimension() < 4:
-            raise Exception("target_signal must be torch.Size([n_batch, "
+        self.image = image
+        if image.ndimension() < 4:
+            raise Exception("image must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
-                            f"{target_signal.size()}")
-        self._signal_shape = target_signal.shape
-        self.target_model_response = self.model(self.target_signal).detach()
+                            f"{image.size()}")
+        self._signal_shape = image.shape
+        self.target_representation = self.model(self.image).detach()
         self.optimizer = None
         self.scheduler = None
         self.losses = []
@@ -116,51 +113,48 @@ class Metamer(Synthesis):
         self.loss_function = loss_function
         self.range_penalty_lambda = range_penalty_lambda
         self.allowed_range = allowed_range
-        self._init_synthesized_signal(initial_image)
+        self._init_metamer(initial_image)
         self.coarse_to_fine = False
         self.scales = None
         self.scales_loss = None
         self.scales_timing = None
         self.scales_finished = None
         self.store_progress = None
-        self.saved_signal = []
-        self.saved_model_response = []
+        self.saved_metamer = []
 
-    def _init_synthesized_signal(self,
-                                 initial_image: Union[None, Tensor] = None):
-        """Initialize the synthesized image.
+    def _init_metamer(self, initial_image: Union[None, Tensor] = None):
+        """Initialize the metamer.
 
-        Set the ``self.synthesized_signal`` attribute to be a parameter with
-        the user-supplied data, making sure it's the right shape.
+        Set the ``self.metamer`` attribute to be a parameter with the
+        user-supplied data, making sure it's the right shape.
 
         Parameters
         ----------
         initial_image :
-            The tensor we use to initialize the metamer. If None (the
-            default), we initialize with uniformly-distributed random
-            noise lying between 0 and 1.
+            The tensor we use to initialize the metamer. If None (the default),
+            we initialize with uniformly-distributed random noise lying between
+            0 and 1.
 
         """
         if initial_image is None:
-            synthesized_signal = torch.rand_like(self.target_signal)
-            # rescale synthesized_signal to lie within the interval
+            metamer = torch.rand_like(self.image)
+            # rescale metamer to lie within the interval
             # self.allowed_range
-            synthesized_signal = signal.rescale(synthesized_signal, *self.allowed_range)
-            synthesized_signal.requires_grad_()
+            metamer = signal.rescale(metamer, *self.allowed_range)
+            metamer.requires_grad_()
         else:
-            synthesized_signal = initial_image.clone().detach()
-            synthesized_signal = synthesized_signal.to(dtype=self.target_signal.dtype,
-                                                       device=self.target_signal.device)
-            synthesized_signal.requires_grad_()
-            if synthesized_signal.ndimension() < 4:
-                raise Exception("synthesized_signal must be torch.Size([n_batch"
+            metamer = initial_image.clone().detach()
+            metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
+            metamer.requires_grad_()
+            if metamer.ndimension() < 4:
+                raise Exception("metamer must be torch.Size([n_batch"
                                 ", n_channels, im_height, im_width]) but got "
-                                f"{synthesized_signal.size()}")
-            if synthesized_signal.size() != self.target_signal.size():
-                raise Exception("synthesized_signal and target_signal must be"
+                                f"{metamer.size()}")
+            if metamer.size() != self.image.size():
+                raise Exception("metamer and image must be"
                                 " same size!")
-        self.synthesized_signal = synthesized_signal
-        self.losses.append(self.objective_function(self.model(synthesized_signal)).item())
+        self.metamer = metamer
+        self.losses.append(self.objective_function(self.model(metamer)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
                   change_scale_criterion: Union[float, None],
@@ -196,13 +190,13 @@ class Metamer(Synthesis):
         """Initialize optimizer and scheduler."""
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.synthesized_signal],
+                self.optimizer = torch.optim.Adam([self.metamer],
                                                   lr=.01, amsgrad=True)
         else:
             if self.optimizer is not None:
                 raise Exception("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]['params']
-            if len(params) != 1 or not torch.equal(params[0], self.synthesized_signal):
+            if len(params) != 1 or not torch.equal(params[0], self.metamer):
                 raise Exception("For metamer synthesis, optimizer must have one "
                                 "parameter, the metamer we're synthesizing.")
             self.optimizer = optimizer
@@ -217,10 +211,9 @@ class Metamer(Synthesis):
     def _init_store_progress(self, store_progress: Union[bool, int]):
         """Initialize store_progress-related attributes.
 
-        Sets the ``self.store_progress`` attribute, as well as changing
-        ``saved_signal`` and ``saved_model_response`` attibutes to lists so we
-        can append to them. finally, adds first value to ``saved_signal`` and
-        ``saved_model_response`` if they're empty.
+        Sets the ``self.store_progress`` attribute, as well as changing the
+        ``saved_metamer`` attibute to a list so we can append to them. finally,
+        adds first value to ``saved_metamer`` if it's empty.
 
         Parameters
         ----------
@@ -230,32 +223,27 @@ class Metamer(Synthesis):
             True, we save every iteration. If an int, we save every
             ``store_progress`` iterations (note then that 0 is the same as
             False and 1 the same as True). If True or int>0,
-            ``self.saved_signal`` contains the stored images, and
-            ``self.saved_model_response`` contains the stored model response.
+            ``self.saved_metamer`` contains the stored images.
 
         """
         if store_progress:
             if store_progress is True:
                 store_progress = 1
             # if this is not the first time synthesize is being run for this
-            # metamer object, saved_signal/saved_model_response will be tensors
-            # instead of lists. This converts them back to lists so we can use
-            # append. If it's the first time, they'll be empty lists and this
-            # does nothing
-            self.saved_signal = list(self.saved_signal)
-            self.saved_model_response = list(self.saved_model_response)
-            # first time synthesize() is called, add the initial synthesized
-            # signal and model response (on subsequent calls, this is already
-            # part of saved_signal / saved_model_response).
-            if len(self.saved_signal) == 0:
-                self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
-                self.saved_model_response.append(self.model(self.synthesized_signal).to('cpu'))
+            # metamer object, saved_metamer will be a tensor instead of a list.
+            # This converts it back to a list so we can use append. If it's the
+            # first time, it will be an empty list and this does nothing
+            self.saved_metamer = list(self.saved_metamer)
+            # first time synthesize() is called, add the initial metamer (on
+            # subsequent calls, this is already part of saved_metamer).
+            if len(self.saved_metamer) == 0:
+                self.saved_metamer.append(self.metamer.clone().to('cpu'))
         if self.store_progress is not None and store_progress != self.store_progress:
             # we require store_progress to be the same because otherwise the
             # subsampling relationship between attrs that are stored every
             # iteration (loss, gradient, etc) and those that are stored every
-            # store_progress iteration (e.g., saved_signal,
-            # saved_model_response) changes partway through and that's annoying
+            # store_progress iteration (e.g., saved_metamer) changes partway
+            # through and that's annoying
             raise Exception("If you've already run synthesize() before, must "
                             "re-run it with same store_progress arg. You "
                             f"passed {store_progress} instead of "
@@ -265,9 +253,8 @@ class Metamer(Synthesis):
     def _check_nan_loss(self, loss: Tensor) -> bool:
         """Check if loss is nan and, if so, return True.
 
-        This checks if loss is NaN and, if so, updates
-        synthesized_signal/model_response to be several iterations ago (so
-        they're meaningful) and then returns True.
+        This checks if loss is NaN and, if so, updates metamer to be several
+        iterations ago (so they're meaningful) and then returns True.
 
         Parameters
         ----------
@@ -282,27 +269,25 @@ class Metamer(Synthesis):
         """
         if np.isnan(loss.item()):
             warnings.warn("Loss is NaN, quitting out! We revert "
-                          "synthesized_signal to our last saved values (which "
+                          "metamer to our last saved values (which "
                           "means this will throw an IndexError if you're not "
                           "saving anything)!")
             # need to use the -2 index because the last one will be the one
             # full of NaNs. this happens because the loss is computed before
-            # calculating the gradient and updating synthesized_signal;
-            # therefore the iteration where loss is NaN is the one *after* the
-            # iteration where synthesized_signal (and thus
-            # synthesized_model_response) started to have NaN values. this will
-            # fail if it hits a nan before store_progress iterations (because
-            # then saved_signal only has a length of 1) but in that case, you
-            # have more severe problems
-            self.synthesized_signal = torch.nn.Parameter(self.saved_signal[-2])
+            # calculating the gradient and updating metamer; therefore the
+            # iteration where loss is NaN is the one *after* the iteration
+            # where metamer started to have NaN values. this will fail if it
+            # hits a nan before store_progress iterations (because then
+            # saved_metamer only has a length of 1) but in that case, you have
+            # more severe problems
+            self.metamer = torch.nn.Parameter(self.saved_metamer[-2])
             return True
         return False
 
     def _store(self, i: int) -> bool:
-        """Store synthesized_signal anbd model response, if appropriate.
+        """Store metamer, if appropriate.
 
-        if it's the right iteration, we update: ``saved_signal,
-        saved_model_response``
+        if it's the right iteration, we update: ``saved_metamer``.
 
         Parameters
         ----------
@@ -324,8 +309,7 @@ class Metamer(Synthesis):
             # save it three times, at 3, 6, 9)
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
-                self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
-                self.saved_model_response.append(self.model(self.synthesized_signal).to('cpu'))
+                self.saved_metamer.append(self.metamer.clone().to('cpu'))
                 stored = True
         return stored
 
@@ -382,31 +366,31 @@ class Metamer(Synthesis):
                     return True
         return False
 
-    def objective_function(self, synthesized_model_response: Tensor,
-                           target_model_response: Union[Tensor, None] = None) -> Tensor:
+    def objective_function(self, metamer_representation: Tensor,
+                           target_representation: Union[Tensor, None] = None) -> Tensor:
         """Compute the metamer synthesis loss.
 
-        This calls self.loss_function on ``synthesized_model_response`` and
-        ``target_model_response`` and then adds the weighted range penalty.
+        This calls self.loss_function on ``metamer_representation`` and
+        ``target_representation`` and then adds the weighted range penalty.
 
         Parameters
         ----------
-        synthesized_model_response :
-            Model response to ``synthesized_signal``.
-        target_model_response :
-            Model response to ``target_signal``. If None, we use
-            ``self.target_model_response``.
+        metamer_representation :
+            Model response to ``metamer``.
+        target_representation :
+            Model response to ``image``. If None, we use
+            ``self.target_representation``.
 
         Returns
         -------
         loss
 
         """
-        if target_model_response is None:
-            target_model_response = self.target_model_response
-        loss = self.loss_function(synthesized_model_response,
-                                  target_model_response)
-        range_penalty = optim.penalize_range(self.synthesized_signal,
+        if target_representation is None:
+            target_representation = self.target_representation
+        loss = self.loss_function(metamer_representation,
+                                  target_representation)
+        range_penalty = optim.penalize_range(self.metamer,
                                              self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
@@ -419,9 +403,9 @@ class Metamer(Synthesis):
 
         Additionally, this is where:
 
-        - ``synthesized_model_response`` is calculated, and thus any
-          modifications to the model's forward call (e.g., specifying `scale`
-          kwarg for coarse-to-fine) should happen.
+        - ``metamer_representation`` is calculated, and thus any modifications
+          to the model's forward call (e.g., specifying `scale` kwarg for
+          coarse-to-fine) should happen.
 
         - ``loss`` is calculated and ``loss.backward()`` is called.
 
@@ -441,14 +425,15 @@ class Metamer(Synthesis):
                 # scales
                 if self.coarse_to_fine == 'together':
                     analyze_kwargs['scales'] += self.scales_finished
-        synthesized_model_response = self.model(self.synthesized_signal,
-                                                **analyze_kwargs)
+        metamer_representation = self.model(self.metamer, **analyze_kwargs)
+        # if analyze_kwargs is empty, we can just compare
+        # metamer_representation against our cached target_representation
         if analyze_kwargs:
-            target_resp = self.model(self.target_signal, **analyze_kwargs)
+            target_rep = self.model(self.image, **analyze_kwargs)
         else:
-            target_resp = None
+            target_rep = None
 
-        loss = self.objective_function(synthesized_model_response, target_resp)
+        loss = self.objective_function(metamer_representation, target_rep)
         loss.backward(retain_graph=False)
 
         return loss
@@ -457,7 +442,7 @@ class Metamer(Synthesis):
                         change_scale_criterion: float,
                         ctf_iters_to_check: int
                         ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        r"""Compute and propagate gradients, then step the optimizer to update synthesized_signal.
+        r"""Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
         ----------
@@ -484,10 +469,10 @@ class Metamer(Synthesis):
             1-element tensor containing the learning rate on this step
         pixel_change : torch.Tensor
             1-element tensor containing the max pixel change in
-            synthesized_signal between this step and the last
+            metamer between this step and the last
 
         """
-        last_iter_synthesized_signal = self.synthesized_signal.clone()
+        last_iter_metamer = self.metamer.clone()
         postfix_dict = {}
         if self.coarse_to_fine:
             # The first check here is because the last scale will be 'all', and
@@ -515,12 +500,12 @@ class Metamer(Synthesis):
         # we have this here because we want to do the above checking at
         # the beginning of each step, before computing the loss
         # (otherwise there's an error thrown because self.scales[-1] is
-        # not the same scale we computed synthesized_model_response using)
+        # not the same scale we computed metamer_representation using)
         if self.coarse_to_fine:
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
             self.scales_loss.append(loss.item())
-        grad_norm = self.synthesized_signal.grad.detach().norm()
+        grad_norm = self.metamer.grad.detach().norm()
         if grad_norm.item() != grad_norm.item():
             raise Exception('found a NaN in the gradients during optimization')
 
@@ -530,13 +515,13 @@ class Metamer(Synthesis):
 
         if self.coarse_to_fine and self.scales[0] != 'all':
             with torch.no_grad():
-                tmp_im = self.synthesized_signal.detach().clone()
-                full_synthesized_rep = self.model(tmp_im)
-                loss = self.objective_function(full_synthesized_rep)
+                tmp_im = self.metamer.detach().clone()
+                full_metamer_rep = self.model(tmp_im)
+                loss = self.objective_function(full_metamer_rep)
         else:
-            loss = self.objective_function(self.model(self.synthesized_signal))
+            loss = self.objective_function(self.model(self.metamer))
 
-        pixel_change = torch.max(torch.abs(self.synthesized_signal - last_iter_synthesized_signal))
+        pixel_change = torch.max(torch.abs(self.metamer - last_iter_metamer))
         # for display purposes, always want loss to be positive. add extra info
         # here if you want it to show up in progress bar
         pbar.set_postfix(
@@ -558,7 +543,7 @@ class Metamer(Synthesis):
         r"""Synthesize a metamer.
 
         This is the main method, which updates the ``initial_image`` until its
-        representation matches that of ``target_signal``.
+        representation matches that of ``image``.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
@@ -610,7 +595,7 @@ class Metamer(Synthesis):
 
         Returns
         -------
-        synthesized_signal : torch.Tensor
+        metamer : torch.Tensor
             The metamer we've created
 
         """
@@ -650,10 +635,9 @@ class Metamer(Synthesis):
 
         # finally, stack the saved_* attributes
         if self.store_progress:
-            self.saved_model_response = torch.stack(self.saved_model_response)
-            self.saved_signal = torch.stack(self.saved_signal)
+            self.saved_metamer = torch.stack(self.saved_metamer)
 
-        return self.synthesized_signal
+        return self.metamer
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
@@ -707,9 +691,8 @@ class Metamer(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['target_signal', 'target_model_response',
-                 'synthesized_signal', 'model', 'saved_signal',
-                 'saved_model_response']
+        attrs = ['image', 'target_representation',
+                 'metamer', 'model', 'saved_metamer']
         return super().to(*args, attrs=attrs, **kwargs)
 
     def load(self, file_path: str,
@@ -718,7 +701,7 @@ class Metamer(Synthesis):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Metamer`` object -- we will
-        ensure that ``target_signal``, ``target_model_response`` (and thus
+        ensure that ``image``, ``target_representation`` (and thus
         ``model``), and ``loss_function`` are all identical.
 
         Note this operates in place and so doesn't return anything.
@@ -749,7 +732,7 @@ class Metamer(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['target_signal', 'target_model_response',
+        check_attributes = ['image', 'target_representation',
                             'range_penalty_lambda', 'allowed_range']
         check_loss_functions = ['loss_function']
         super().load(file_path, map_location=map_location,
@@ -757,13 +740,12 @@ class Metamer(Synthesis):
                      check_loss_functions=check_loss_functions,
                      **pickle_load_args)
         # make this require a grad again
-        self.synthesized_signal.requires_grad_()
+        self.metamer.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if len(self.saved_signal) and self.saved_signal.device.type != 'cpu':
-            self.saved_signal = self.saved_signal.to('cpu')
-            self.saved_model_response = self.saved_model_response.to('cpu')
+        if len(self.saved_metamer) and self.saved_metamer.device.type != 'cpu':
+            self.saved_metamer = self.saved_metamer.to('cpu')
 
 
 def plot_loss(metamer: Metamer,
@@ -815,19 +797,19 @@ def plot_loss(metamer: Metamer,
     return ax
 
 
-def display_synthesized_signal(metamer: Metamer,
-                               batch_idx: int = 0,
-                               channel_idx: Union[int, None] = None,
-                               zoom: Union[float, None] = None,
-                               iteration: Union[int, None] = None,
-                               ax: Union[mpl.axes.Axes, None] = None,
-                               **kwargs) -> mpl.axes.Axes:
-    """Display synthesized_signal.
+def display_metamer(metamer: Metamer,
+                    batch_idx: int = 0,
+                    channel_idx: Union[int, None] = None,
+                    zoom: Union[float, None] = None,
+                    iteration: Union[int, None] = None,
+                    ax: Union[mpl.axes.Axes, None] = None,
+                    **kwargs) -> mpl.axes.Axes:
+    """Display metamer.
 
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
 
-    We use ``plenoptic.imshow`` to display the synthesized image and attempt to
+    We use ``plenoptic.imshow`` to display the metamer and attempt to
     automatically find the most reasonable zoom value. You can override this
     value using the zoom arg, but remember that ``plenoptic.imshow`` is
     opinionated about the size of the resulting image and will throw an
@@ -848,9 +830,9 @@ def display_synthesized_signal(metamer: Metamer,
     ax :
         Pre-existing axes for plot. If None, we call ``plt.gca()``.
     zoom :
-        How much to zoom in / enlarge the synthesized image, the ratio
-        of display pixels to image pixels. If None (the default), we
-        attempt to find the best value ourselves.
+        How much to zoom in / enlarge the metamer, the ratio of display pixels
+        to image pixels. If None (the default), we attempt to find the best
+        value ourselves.
     kwargs :
         Passed to ``plenoptic.imshow``
 
@@ -861,9 +843,9 @@ def display_synthesized_signal(metamer: Metamer,
 
     """
     if iteration is None:
-        image = metamer.synthesized_signal
+        image = metamer.metamer
     else:
-        image = metamer.saved_signal[iteration]
+        image = metamer.saved_metamer[iteration]
     if batch_idx is None:
         raise Exception("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -882,14 +864,14 @@ def display_synthesized_signal(metamer: Metamer,
     return ax
 
 
-def _model_response_error(metamer: Metamer,
+def _representation_error(metamer: Metamer,
                           iteration: Union[int, None] = None,
                           **kwargs) -> Tensor:
-    r"""Get the model response error.
+    r"""Get the representation error.
 
-    This is ``metamer.model(synthesized_signal) - target_model_response)``. If
-    ``iteration`` is not None, we use ``self.saved_model_response[iteration]``
-    instead.
+    This is ``metamer.model(metamer) - target_representation)``. If
+    ``iteration`` is not None, we use
+    ``metamer.model(saved_metamer[iteration])`` instead.
 
     Parameters
     ----------
@@ -903,26 +885,17 @@ def _model_response_error(metamer: Metamer,
 
     Returns
     -------
-    model_response_error
+    representation_error
 
     """
     if iteration is not None:
-        synthesized_rep = metamer.saved_model_response[iteration].to(metamer.target_model_response.device)
+        metamer_rep = metamer.model(metamer.saved_metamer[iteration]).to(metamer.target_representation.device)
     else:
-        synthesized_rep = metamer.model(metamer.synthesized_signal, **kwargs)
-    try:
-        rep_error = synthesized_rep - metamer.target_model_response
-    except RuntimeError:
-        # try to use the last scale (if the above failed, it's
-        # because they were different shapes), but only if the user
-        # didn't give us another scale to use
-        if 'scales' not in kwargs.keys():
-            kwargs['scales'] = [metamer.scales[-1]]
-        rep_error = synthesized_rep - metamer.model_response(metamer.target_signal, **kwargs)
-    return rep_error
+        metamer_rep = metamer.model(metamer.metamer, **kwargs)
+    return metamer_rep - metamer.target_representation
 
 
-def plot_model_response_error(metamer: Metamer,
+def plot_representation_error(metamer: Metamer,
                               batch_idx: int = 0,
                               iteration: Union[int, None] = None,
                               ylim: Union[Tuple[float], None, Literal[False]] = None,
@@ -931,7 +904,7 @@ def plot_model_response_error(metamer: Metamer,
                               **kwargs) -> List[mpl.axes.Axes]:
     r"""Plot distance ratio showing how close we are to convergence.
 
-    We plot ``_model_response_error(metamer, iteration)``. For more details, see
+    We plot ``_representation_error(metamer, iteration)``. For more details, see
     ``plenoptic.tools.display.plot_representation``.
 
     Parameters
@@ -965,8 +938,8 @@ def plot_model_response_error(metamer: Metamer,
         List of created axes
 
     """
-    representation_error = _model_response_error(metamer=metamer,
-                                                iteration=iteration, **kwargs)
+    representation_error = _representation_error(metamer=metamer,
+                                                 iteration=iteration, **kwargs)
     if ax is None:
         ax = plt.gca()
     return display.plot_representation(metamer.model, representation_error, ax,
@@ -1028,20 +1001,20 @@ def plot_pixel_values(metamer: Metamer,
 
     kwargs.setdefault('alpha', .4)
     if iteration is None:
-        image = metamer.synthesized_signal[batch_idx]
+        image = metamer.metamer[batch_idx]
     else:
-        image = metamer.saved_signal[iteration, batch_idx]
-    target_signal = metamer.target_signal[batch_idx]
+        image = metamer.saved_metamer[iteration, batch_idx]
+    image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
-        target_signal = target_signal[channel_idx]
+        image = image[channel_idx]
     if ax is None:
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
-    target_signal = data.to_numpy(target_signal).flatten()
+    image = data.to_numpy(image).flatten()
     ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
             label='metamer', **kwargs)
-    ax.hist(target_signal, bins=min(_freedman_diaconis_bins(image), 50),
+    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
             label='target image', **kwargs)
     ax.legend()
     if ylim:
@@ -1053,14 +1026,13 @@ def plot_pixel_values(metamer: Metamer,
 def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
                          axes_idx: Dict[str, int] = {},
                          figsize: Union[Tuple[float], None] = None,
-                         synthesized_signal: bool = True,
-                         loss: bool = True,
-                         model_response_error: bool = True,
-                         pixel_values: bool = False,
-                         synthesized_signal_width: float = 1,
-                         loss_width: float = 1,
-                         model_response_error_width: float = 1,
-                         pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
+                         included_plots: List[str] = ['display_metamer',
+                                                      'plot_loss',
+                                                      'plot_representation_error'],
+                         display_metamer_width: float = 1,
+                         plot_loss_width: float = 1,
+                         plot_representation_error_width: float = 1,
+                         plot_pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
     Creates figure with enough axes for the all the plots you want. Will
@@ -1070,8 +1042,8 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     If you want them to be on different rows, will need to initialize fig
     yourself and pass that in. For changing width, change the corresponding
     *_width arg, which gives width relative to other axes. So if you want
-    the axis for the model_response_error plot to be twice as wide as the
-    others, set model_response_error_width=2.
+    the axis for the representation_error plot to be twice as wide as the
+    others, set representation_error_width=2.
 
     Parameters
     ----------
@@ -1080,7 +1052,7 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     axes_idx :
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: loss, model_response_error,
+        helpful if fig is also defined. Possible keys: loss, representation_error,
         pixel_values, misc. Values should all be ints. If you tell this
         function to create a plot that doesn't have a corresponding key, we
         find the lowest int that is not already in the dict, so if you have
@@ -1089,22 +1061,16 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have relative width=1 correspond to 5
-    synthesized_signal :
-        Whether to include axis for plot of the synthesized image or not.
-    loss :
-        Whether to include axis for plot of the loss or not.
-    model_response_error :
-        Whether to include axis for plot of the model_response ratio or not.
-    pixel_values :
-        Whether to include axis for plot of the histograms of image pixel
-        intensities or not.
-    synthesized_signal_width :
-        Relative width of the axis for the synthesized image.
-    loss_width :
+    included_plots :
+        Which plots to include. Must be some subset of ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
+    display_metamer_width :
+        Relative width of the axis for the synthesized metamer.
+    plot_loss_width :
         Relative width of the axis for loss plot.
-    model_response_error_width :
-        Relative width of the axis for model_response error plot.
-    pixel_values_width :
+    plot_representation_error_width :
+        Relative width of the axis for representation error plot.
+    plot_pixel_values_width :
         Relative width of the axis for image pixel intensities histograms.
 
     Returns
@@ -1120,26 +1086,26 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if synthesized_signal:
+    if "display_metamer" in included_plots:
         n_subplots += 1
-        width_ratios.append(synthesized_signal_width)
-        if 'synthesized_signal' not in axes_idx.keys():
-            axes_idx['synthesized_signal'] = data._find_min_int(axes_idx.values())
-    if loss:
+        width_ratios.append(display_metamer_width)
+        if 'display_metamer' not in axes_idx.keys():
+            axes_idx['display_metamer'] = data._find_min_int(axes_idx.values())
+    if "plot_loss" in included_plots:
         n_subplots += 1
-        width_ratios.append(loss_width)
-        if 'loss' not in axes_idx.keys():
-            axes_idx['loss'] = data._find_min_int(axes_idx.values())
-    if model_response_error:
+        width_ratios.append(plot_loss_width)
+        if 'plot_loss' not in axes_idx.keys():
+            axes_idx['plot_loss'] = data._find_min_int(axes_idx.values())
+    if "plot_representation_error" in included_plots:
         n_subplots += 1
-        width_ratios.append(model_response_error_width)
-        if 'model_response_error' not in axes_idx.keys():
-            axes_idx['model_response_error'] = data._find_min_int(axes_idx.values())
-    if pixel_values:
+        width_ratios.append(plot_representation_error_width)
+        if 'plot_representation_error' not in axes_idx.keys():
+            axes_idx['plot_representation_error'] = data._find_min_int(axes_idx.values())
+    if "plot_pixel_values" in included_plots:
         n_subplots += 1
-        width_ratios.append(pixel_values_width)
-        if 'pixel_values' not in axes_idx.keys():
-            axes_idx['pixel_values'] = data._find_min_int(axes_idx.values())
+        width_ratios.append(plot_pixel_values_width)
+        if 'plot_pixel_values' not in axes_idx.keys():
+            axes_idx['plot_pixel_values'] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -1174,14 +1140,13 @@ def plot_synthesis_status(metamer: Metamer,
                           ylim: Union[Tuple[float], Literal[False]] = None,
                           vrange: Union[Tuple[float], str] = 'indep1',
                           zoom: Union[float, None] = None,
-                          plot_model_response_error_as_rgb: bool = False,
+                          plot_representation_error_as_rgb: bool = False,
                           fig: Union[mpl.figure.Figure, None] = None,
                           axes_idx: Dict[str, int] = {},
                           figsize: Union[Tuple[float], None] = None,
-                          synthesized_signal: bool = True,
-                          loss: bool = True,
-                          model_response_error: bool = True,
-                          pixel_values: bool = False,
+                          included_plots: List[str] = ['display_metamer',
+                                                       'plot_loss',
+                                                       'plot_representation_error'],
                           width_ratios: Dict[str, float] = {},
                           ) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
     r"""Make a plot showing synthesis status.
@@ -1191,12 +1156,12 @@ def plot_synthesis_status(metamer: Metamer,
     the second contains the loss, and the third contains the model response
     error.
 
-    There is an optional additional plot: pixel_values, a histogram of pixel
-    values of the synthesized and target images.
+    There is an optional additional plot: ``plot_pixel_values``, a histogram of
+    pixel values of the metamer and target image.
 
-    All of these (including the default plots) can be toggled using their
-    corresponding boolean flags, and can be created separately using the
-    method with the name `plot_{flag}`.
+    The plots to include are specified by including their name in the
+    ``included_plots`` list. All plots can be created separately using the
+    method with the same name.
 
     Parameters
     ----------
@@ -1211,16 +1176,16 @@ def plot_synthesis_status(metamer: Metamer,
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
     ylim :
-        The ylimit to use for the model_response_error plot. We pass
-        this value directly to ``plot_model_response_error``
+        The ylimit to use for the representation_error plot. We pass
+        this value directly to ``plot_representation_error``
     vrange :
-        The vrange option to pass to ``display_synthesized_signal()``. See
+        The vrange option to pass to ``display_metamer()``. See
         docstring of ``imshow`` for possible values.
     zoom :
-        How much to zoom in / enlarge the synthesized image, the ratio
+        How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If None (the default), we
         attempt to find the best value ourselves.
-    plot_model_response_error_as_rgb : bool, optional
+    plot_representation_error_as_rgb : bool, optional
         The model response can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
@@ -1234,31 +1199,25 @@ def plot_synthesis_status(metamer: Metamer,
     axes_idx :
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'synthesized_signal',
-        'loss', 'model_response_error', 'pixel_values', 'misc'``. Values should
-        all be ints. If you tell this function to create a plot that doesn't
-        have a corresponding key, we find the lowest int that is not already in
-        the dict, so if you have axes that you want unchanged, place their idx
-        in ``'misc'``.
+        helpful if fig is also defined. Possible keys: ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values',
+        'misc'``. Values should all be ints. If you tell this function to
+        create a plot that doesn't have a corresponding key, we find the lowest
+        int that is not already in the dict, so if you have axes that you want
+        unchanged, place their idx in ``'misc'``.
     figsize :
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have each axis be of size (5, 5)
-    synthesized_signal :
-        Whether to display the synthesized image or not.
-    loss :
-        Whether to plot the loss or not.
-    model_response_error :
-        Whether to plot the model response ratio or not.
-    pixel_values :
-        Whether to plot the histograms of image pixel intensities or
-        not.
+    included_plots :
+        Which plots to include. Must be some subset of ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
     width_ratios :
         By default, all plots axes will have the same width. To change
-        that, specify their relative widths using the keys:
-        ['synthesized_signal', 'loss', 'model_response_error', 'pixel_values']
-        and floats specifying their relative width. Any not included will be
-        assumed to be 1.
+        that, specify their relative widths using the keys: ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
+        specifying their relative width. Any not included will be assumed to be
+        1.
 
     Returns
     -------
@@ -1272,15 +1231,12 @@ def plot_synthesis_status(metamer: Metamer,
         raise Exception("synthesis() was run with store_progress=False, "
                         "cannot specify which iteration to plot (only"
                         " last one, with iteration=None)")
-    if metamer.synthesized_signal.ndim not in [3, 4]:
-        raise Exception("plot_synthesis_status() expects 3 or 4d data;"
-                        "unexpected behavior will result otherwise!")
+    if metamer.metamer.ndim not in [3, 4]:
+        raise ValueError("plot_synthesis_status() expects 3 or 4d data;"
+                         "unexpected behavior will result otherwise!")
     width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
     fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
-                                               synthesized_signal,
-                                               loss,
-                                               model_response_error,
-                                               pixel_values,
+                                               included_plots,
                                                **width_ratios)
 
     def check_iterables(i, vals):
@@ -1294,30 +1250,30 @@ def plot_synthesis_status(metamer: Metamer,
                 if i == j:
                     return True
 
-    if synthesized_signal:
-        display_synthesized_signal(metamer, batch_idx=batch_idx,
-                                   channel_idx=channel_idx,
-                                   iteration=iteration,
-                                   ax=axes[axes_idx['synthesized_signal']],
-                                   zoom=zoom, vrange=vrange)
-    if loss:
-        plot_loss(metamer, iteration=iteration, ax=axes[axes_idx['loss']])
-    if model_response_error:
-        plot_model_response_error(metamer, batch_idx=batch_idx,
+    if "display_metamer" in included_plots:
+        display_metamer(metamer, batch_idx=batch_idx,
+                        channel_idx=channel_idx,
+                        iteration=iteration,
+                        ax=axes[axes_idx['display_metamer']],
+                        zoom=zoom, vrange=vrange)
+    if "plot_loss" in included_plots:
+        plot_loss(metamer, iteration=iteration, ax=axes[axes_idx['plot_loss']])
+    if "plot_representation_error" in included_plots:
+        plot_representation_error(metamer, batch_idx=batch_idx,
                                   iteration=iteration,
-                                  ax=axes[axes_idx['model_response_error']],
+                                  ax=axes[axes_idx['plot_representation_error']],
                                   ylim=ylim,
-                                  as_rgb=plot_model_response_error_as_rgb)
+                                  as_rgb=plot_representation_error_as_rgb)
         # this can add a bunch of axes, so this will try and figure
         # them out
         new_axes = [i for i, _ in enumerate(fig.axes) if not
-                    check_iterables(i, axes_idx.values())] + [axes_idx['model_response_error']]
-        axes_idx['model_response_error'] = new_axes
-    if pixel_values:
+                    check_iterables(i, axes_idx.values())] + [axes_idx['plot_representation_error']]
+        axes_idx['plot_representation_error'] = new_axes
+    if "plot_pixel_values" in included_plots:
         plot_pixel_values(metamer, batch_idx=batch_idx,
                           channel_idx=channel_idx,
                           iteration=iteration,
-                          ax=axes[axes_idx['pixel_values']])
+                          ax=axes[axes_idx['plot_pixel_values']])
     return fig, axes_idx
 
 
@@ -1328,14 +1284,13 @@ def animate(metamer: Metamer,
             ylim: Union[str, Tuple[float], Literal[False]] = None,
             vrange: Union[Tuple[float], str] = (0, 1),
             zoom: Union[float, None] = None,
-            plot_model_response_error_as_rgb: bool = False,
+            plot_representation_error_as_rgb: bool = False,
             fig: Union[mpl.figure.Figure, None] = None,
             axes_idx: Dict[str, int] = {},
             figsize: Union[Tuple[float], None] = None,
-            synthesized_signal: bool = True,
-            loss: bool = True,
-            model_response_error: bool = True,
-            pixel_values: bool = False,
+            included_plots: List[str] = ['display_metamer',
+                                         'plot_loss',
+                                         'plot_representation_error'],
             width_ratios: Dict[str, float] = {},
             ) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
@@ -1364,14 +1319,14 @@ def animate(metamer: Metamer,
         Which index to take from the channel dimension. If None, we use all
         channels (assumed use-case is RGB(A) image).
     ylim :
-        The y-limits of the model_response_error plot:
+        The y-limits of the representation_error plot:
 
         * If a tuple, then this is the ylim of all plots
 
         * If None, then all plots have the same limits, all
           symmetric about 0 with a limit of
-          ``np.abs(model_response_error).max()`` (for the initial
-          model_response_error)
+          ``np.abs(representation_error).max()`` (for the initial
+          representation_error)
 
         * If False, don't modify limits.
 
@@ -1382,18 +1337,18 @@ def animate(metamer: Metamer,
           animation
 
     vrange :
-        The vrange option to pass to ``display_synthesized_signal()``. See
+        The vrange option to pass to ``display_metamer()``. See
         docstring of ``imshow`` for possible values.
     zoom :
-        How much to zoom in / enlarge the synthesized image, the ratio
+        How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If None (the default), we
         attempt to find the best value ourselves.
-    plot_model_response_error_as_rgb :
-        The model_response can be image-like with multiple channels, and we
+    plot_representation_error_as_rgb :
+        The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
-        ignored if the model_response doesn't look image-like or if the
-        model has its own plot_model_response_error() method. Else, it will
+        ignored if the representation doesn't look image-like or if the
+        model has its own plot_representation_error() method. Else, it will
         be passed to `po.imshow()`, see that methods docstring for details.
         since plot_synthesis_status normally sets it up for us
     fig :
@@ -1403,30 +1358,25 @@ def animate(metamer: Metamer,
     axes_idx :
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'synthesized_signal',
-        'loss', 'model_response_error', 'pixel_values', 'misc'``. Values should
-        all be ints. If you tell this function to create a plot that doesn't
-        have a corresponding key, we find the lowest int that is not already in
-        the dict, so if you have axes that you want unchanged, place their idx
-        in ``'misc'``.
+        helpful if fig is also defined. Possible keys: ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values',
+        'misc'``. Values should all be ints. If you tell this function to
+        create a plot that doesn't have a corresponding key, we find the lowest
+        int that is not already in the dict, so if you have axes that you want
+        unchanged, place their idx in ``'misc'``.
     figsize :
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have each axis be of size (5, 5)
-    synthesized_signal :
-        Whether to display the synthesized image or not.
-    loss :
-        Whether to plot the loss or not.
-    model_response_error :
-        Whether to plot the model response ratio or not.
-    pixel_values :
-        Whether to plot the histograms of image pixel intensities or
-        not.
+    included_plots :
+        Which plots to include. Must be some subset of ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
+    width_ratios :
         By default, all plots axes will have the same width. To change
-        that, specify their relative widths using the keys:
-        ['synthesized_signal', 'loss', 'model_response_error', 'pixel_values']
-        and floats specifying their relative width. Any not included will be
-        assumed to be 1.
+        that, specify their relative widths using the keys: ``'display_metamer',
+        'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
+        specifying their relative width. Any not included will be assumed to be
+        1.
 
     Returns
     -------
@@ -1449,13 +1399,10 @@ def animate(metamer: Metamer,
     if not metamer.store_progress:
         raise Exception("synthesize() was run with store_progress=False,"
                         " cannot animate!")
-    if metamer.saved_model_response is not None and len(metamer.saved_signal) != len(metamer.saved_model_response):
-        raise Exception("saved_signal and saved_model_response need to be the same length in "
-                        "order for this to work!")
-    if metamer.synthesized_signal.ndim not in [3, 4]:
-        raise Exception("animate() expects 3 or 4d data; unexpected"
-                        " behavior will result otherwise!")
-    if metamer.target_model_response.ndimension() == 4:
+    if metamer.metamer.ndim not in [3, 4]:
+        raise ValueError("animate() expects 3 or 4d data; unexpected"
+                         " behavior will result otherwise!")
+    if metamer.target_representation.ndimension() == 4:
         # we have to do this here so that we set the
         # ylim_rescale_interval such that we never rescale ylim
         # (rescaling ylim messes up an image axis)
@@ -1466,51 +1413,49 @@ def animate(metamer: Metamer,
                 ylim_rescale_interval = int(ylim.replace('rescale', ''))
             except ValueError:
                 # then there's nothing we can convert to an int there
-                ylim_rescale_interval = int((metamer.saved_model_response.shape[0] - 1) // 10)
+                ylim_rescale_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
                 if ylim_rescale_interval == 0:
-                    ylim_rescale_interval = int(metamer.saved_model_response.shape[0] - 1)
+                    ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
             ylim = None
         else:
             raise Exception("Don't know how to handle ylim %s!" % ylim)
     except AttributeError:
         # this way we'll never rescale
-        ylim_rescale_interval = len(metamer.saved_signal)+1
+        ylim_rescale_interval = len(metamer.saved_metamer)+1
     # we run plot_synthesis_status to initialize the figure if either fig is
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure
     if fig is None or not any([ax.get_title() for ax in fig.axes]):
-        fig, axes_idx = plot_synthesis_status(metamer=metamer,
+        fig, axes_idx = plot_synthesis_status(metamer_obj=metamer_obj,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
                                               ylim=ylim, vrange=vrange,
                                               loss=loss,
-                                              model_response_error=model_response_error,
                                               zoom=zoom, fig=fig,
-                                              synthesized_signal=synthesized_signal,
-                                              pixel_values=pixel_values,
                                               axes_idx=axes_idx,
-                                              plot_model_response_error_as_rgb=plot_model_response_error_as_rgb,
+                                              included_plots=included_plots,
+                                              plot_representation_error_as_rgb=plot_representation_error_as_rgb,
                                               width_ratios=width_ratios)
     # grab the artist for the second plot (we don't need to do this for the
-    # synthesized image or model_response plot, because we use the update_plot
+    # metamer or representation plot, because we use the update_plot
     # function for that)
-    if loss:
+    if 'plot_loss' in included_plots:
         scat = fig.axes[axes_idx['loss']].collections[0]
     # can have multiple plots
-    if model_response_error:
+    if 'plot_representation_error' in included_plots:
         try:
-            model_resp_error_axes = [fig.axes[i] for i in axes_idx['model_response_error']]
+            model_resp_error_axes = [fig.axes[i] for i in axes_idx['plot_representation_error']]
         except TypeError:
-            # in this case, axes_idx['model_response_error'] is not iterable and so is
+            # in this case, axes_idx['plot_representation_error'] is not iterable and so is
             # a single value
-            model_resp_error_axes = [fig.axes[axes_idx['model_response_error']]]
+            model_resp_error_axes = [fig.axes[axes_idx['plot_representation_error']]]
     else:
         model_resp_error_axes = []
     # can also have multiple plots
 
-    if metamer.target_model_response.ndimension() == 4:
-        warnings.warn("Looks like model_response is image-like, haven't fully thought out how"
+    if metamer.target_representation.ndimension() == 4:
+        warnings.warn("Looks like representation is image-like, haven't fully thought out how"
                       " to best handle rescaling color ranges yet!")
         # replace the bit of the title that specifies the range,
         # since we don't make any promises about that. we have to do
@@ -1520,12 +1465,12 @@ def animate(metamer: Metamer,
 
     def movie_plot(i):
         artists = []
-        if synthesized_signal:
-            artists.extend(display.update_plot(fig.axes[axes_idx['synthesized_signal']],
-                                               data=metamer.saved_signal[i],
+        if metamer:
+            artists.extend(display.update_plot(fig.axes[axes_idx['display_metamer']],
+                                               data=metamer.saved_metamer[i],
                                                batch_idx=batch_idx))
-        if model_response_error:
-            model_resp_error = _model_response_error(metamer,
+        if 'plot_representation_error' in included_plots:
+            model_resp_error = _representation_error(metamer,
                                                      iteration=i)
 
             # we pass model_resp_error_axes to update, and we've grabbed
@@ -1535,20 +1480,20 @@ def animate(metamer: Metamer,
                                                model=metamer.model,
                                                data=model_resp_error))
             # again, we know that model_resp_error_axes contains all the axes
-            # with the model_response ratio info
+            # with the representation ratio info
             if ((i+1) % ylim_rescale_interval) == 0:
-                if metamer.target_model_response.ndimension() == 3:
+                if metamer.target_representation.ndimension() == 3:
                     display.rescale_ylim(model_resp_error_axes,
                                          model_resp_error)
-        if pixel_values:
+        if 'plot_pixel_values' in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for
             # example, changed the tick locator or formatter. not sure how
             # to handle this best right now
-            fig.axes[axes_idx['pixel_values']].clear()
+            fig.axes[axes_idx['plot_pixel_values']].clear()
             plot_pixel_values(metamer, batch_idx=batch_idx,
                               channel_idx=channel_idx, iteration=i,
-                              ax=fig.axes[axes_idx['pixel_values']])
+                              ax=fig.axes[axes_idx['plot_pixel_values']])
         if loss:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
@@ -1560,7 +1505,7 @@ def animate(metamer: Metamer,
 
     # don't need an init_func, since we handle initialization ourselves
     anim = mpl.animation.FuncAnimation(fig, movie_plot,
-                                       frames=len(metamer.saved_signal),
+                                       frames=len(metamer.saved_metamer),
                                        blit=True, interval=1000./framerate,
                                        repeat=False)
     plt.close(fig)
