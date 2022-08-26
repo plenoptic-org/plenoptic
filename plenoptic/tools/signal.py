@@ -1,11 +1,9 @@
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import numpy.typing as npt
 import torch
 from torch import Tensor
 import torch.fft as fft
-from torchvision.transforms.functional import center_crop
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
@@ -192,7 +190,9 @@ def raised_cosine(
     return X, Y
 
 
-def interpolate1d(x_new: Tensor, Y: npt.ArrayLike, X: npt.ArrayLike) -> Tensor:
+def interpolate1d(
+    x_new: Tensor, Y: Union[Tensor, np.ndarray], X: Union[Tensor, np.ndarray]
+) -> Tensor:
     r"""One-dimensional linear interpolation.
 
     Returns the one-dimensional piecewise linear interpolant to a
@@ -334,10 +334,10 @@ def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
 
 
 def steer(
-    basis: npt.ArrayLike,
-    angle: Union[npt.ArrayLike, int],
+    basis: Tensor,
+    angle: Union[np.ndarray, Tensor, int],
     harmonics: Optional[List[int]] = None,
-    steermtx: Optional[npt.ArrayLike] = None,
+    steermtx: Optional[Union[Tensor, np.ndarray]] = None,
     return_weights: bool = False,
     even_phase: bool = True,
 ):
