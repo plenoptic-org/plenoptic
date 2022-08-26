@@ -11,7 +11,7 @@ from einops import rearrange
 from scipy.special import factorial
 
 
-complex_types = [torch.complex64, torch.cdouble, torch.complex32, torch.cfloat]
+complex_types = [torch.cdouble, torch.cfloat]
 
 class Steerable_Pyramid_Freq(nn.Module):
     r"""Steerable frequency pyramid in Torch

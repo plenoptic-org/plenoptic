@@ -282,7 +282,7 @@ class Eigendistortion:
 
         J = self.compute_jacobian()
         F = J.T @ J
-        eig_vals, eig_vecs = torch.symeig(F, eigenvectors=True)
+        eig_vals, eig_vecs = torch.linalg.eigh(F, UPLO="U")
         eig_vecs = eig_vecs.flip(dims=(1,))
         eig_vals = eig_vals.flip(dims=(0,))
         return eig_vals, eig_vecs
@@ -353,7 +353,7 @@ class Eigendistortion:
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
-            v_new = torch.qr(Fv)[0]  # (ortho)normalize vector(s)
+            v_new, _ = torch.linalg.qr(Fv, "reduced")  # (ortho)normalize vector(s)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
@@ -399,16 +399,17 @@ class Eigendistortion:
         n = len(x)
 
         P = torch.randn(n, k + p).to(x.device)
-        P, _ = torch.qr(P)  # orthogonalize first for numerical stability
+        P, _ = torch.linalg.qr(P, "reduced")  # orthogonalize first for numerical stability
         _dummy_vec = torch.ones_like(y, requires_grad=True)
         Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
         for _ in range(q):  # optional power iteration to squeeze the spectrum for more accurate estimate
             Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
-        Q, _ = torch.qr(Z)
+        Q, _ = torch.linalg.qr(Z, "reduced")
         B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)  # B = Q.T @ A @ Q
-        _, S, V = torch.svd(B, some=True)  # eigendecomp of small matrix
+        _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
+        V = Vh.T
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space

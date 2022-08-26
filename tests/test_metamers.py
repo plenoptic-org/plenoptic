@@ -30,7 +30,7 @@ class TestMetamers(object):
             if fail == 'img':
                 einstein_img = torch.rand_like(einstein_img)
             elif fail == 'model':
-                model = po.simul.Gaussian(30)
+                model = po.simul.Gaussian(30).to(DEVICE)
             elif fail == 'loss':
                 loss = lambda *args, **kwargs: 1
             elif fail == 'range_penalty':
@@ -49,7 +49,7 @@ class TestMetamers(object):
                           map_location=DEVICE)
             for k in ['target_signal', 'saved_model_response', 'saved_signal',
                       'synthesized_signal', 'target_model_response']:
-                if not getattr(met, k).allclose(getattr(met_copy, k)):
+                if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
                     raise Exception("Something went wrong with saving and loading! %s not the same"
                                     % k)
             # check loss functions correctly saved
@@ -57,7 +57,7 @@ class TestMetamers(object):
                                          met.target_model_response)
             met_copy_loss = met_copy.loss_function(met.model(met.synthesized_signal),
                                                    met_copy.target_model_response)
-            if met_loss != met_copy_loss:
+            if not torch.allclose(met_loss, met_copy_loss, rtol=1E-2):
                 raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
                                 f"after loading was {met_copy_loss}")
             # check that can resume
@@ -116,3 +116,35 @@ class TestMetamers(object):
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         met.synthesize(max_iter=5, optimizer=optimizer,
                        scheduler=scheduler)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_map_location(self, curie_img, model, tmp_path):
+        # only run this test if we have a gpu available
+        if DEVICE.type != 'cpu':
+            curie_img = curie_img.to(DEVICE)
+            model.to(DEVICE)
+            met = po.synth.Metamer(curie_img, model)
+            met.synthesize(max_iter=4, store_progress=True)
+            met.save(op.join(tmp_path, 'test_metamer_map_location.pt'))
+            # calling load with map_location effectively switches everything
+            # over to that device
+            met_copy = po.synth.Metamer(curie_img, model)
+            met_copy.load(op.join(tmp_path, 'test_metamer_map_location.pt'),
+                          map_location='cpu')
+            assert met_copy.synthesized_signal.device.type == 'cpu'
+            assert met_copy.target_signal.device.type == 'cpu'
+            met.synthesize(max_iter=4, store_progress=True)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, curie_img, model, to_type):
+        met = po.synth.Metamer(curie_img, model)
+        met.synthesize(max_iter=5)
+        if to_type == 'dtype':
+            met.to(torch.float16)
+            assert met.target_signal.dtype == torch.float16
+            assert met.synthesized_signal.dtype == torch.float16
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == 'device' and DEVICE.type != 'cpu':
+            met.to('cpu')
+        met.synthesized_signal - met.target_signal
