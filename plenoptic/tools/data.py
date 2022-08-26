@@ -1,43 +1,48 @@
-import torch
-import numpy as np
-from pyrtools import synthetic_images, blurDn
-import matplotlib.pyplot as plt
-import os.path as op
-from .signal import rescale
-import imageio
-from skimage import color
-import warnings
 from glob import glob
+from typing import List, Optional, Union, Tuple
+import warnings
 
+import imageio
+import numpy as np
+import os.path as op
+from pyrtools import synthetic_images
+from skimage import color
+import torch
+from torch import Tensor
 
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), '..', '..', 'data/256')
+from .signal import rescale
+
+DATA_PATH = op.join(op.dirname(op.realpath(__file__)), "..", "..", "data/256")
 
 NUMPY_TO_TORCH_TYPES = {
-        bool       : torch.bool,  # np.bool deprecated in fav of built-in
-        np.uint8      : torch.uint8,
-        np.int8       : torch.int8,
-        np.int16      : torch.int16,
-        np.int32      : torch.int32,
-        np.int64      : torch.int64,
-        np.float16    : torch.float16,
-        np.float32    : torch.float32,
-        np.float64    : torch.float64,
-        np.complex64  : torch.complex64,
-        np.complex128 : torch.complex128
-    }
+    bool: torch.bool,  # np.bool deprecated in fav of built-in
+    np.uint8: torch.uint8,
+    np.int8: torch.int8,
+    np.int16: torch.int16,
+    np.int32: torch.int32,
+    np.int64: torch.int64,
+    np.float16: torch.float16,
+    np.float32: torch.float32,
+    np.float64: torch.float64,
+    np.complex64: torch.complex64,
+    np.complex128: torch.complex128,
+}
 
-TORCH_TO_NUMPY_TYPES = {value : key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
+TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
-def to_numpy(x, squeeze=False):
+
+def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
-    ----------------
-    x: `torch.Tensor`
-       Tensor to be converted to `numpy.ndarray` on CPU.
+    ----------
+    x: Tensor to be converted to `numpy.ndarray` on CPU.
 
-    squeeze: bool, optional
-        removes all dummy dimensions of the tensor
+    squeeze: Removes all dummy dimensions of the tensor
+
+    Returns
+    -------
+    Converted tensor as `numpy.ndarray` on CPU.
     """
 
     try:
@@ -50,7 +55,7 @@ def to_numpy(x, squeeze=False):
     return x
 
 
-def load_images(paths, as_gray=True):
+def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     r"""Correctly load in images
 
     Our models and synthesis methods expect their inputs to be 4d
@@ -65,39 +70,40 @@ def load_images(paths, as_gray=True):
 
     Parameters
     ----------
-    paths : str or list
-        A str or list of strs. If a list, must contain paths of image
+    paths : A str or list of strs. If a list, must contain paths of image
         files. If a str, can either be the path of a single image file
         or of a single directory. If a directory, we try to load every
         file it contains (using imageio.imwrite) and skip those we
         cannot (thus, for efficiency you should not point this to a
         directory with lots of non-image files). This is NOT recursive.
-    as_gray : bool, optional
-        Whether to convert the images into grayscale or not after
+    as_gray : Whether to convert the images into grayscale or not after
         loading them. If False, we do nothing. If True, we call
         skimage.color.rgb2gray on them.
 
     Returns
     -------
-    images : torch.Tensor
-        4d tensor containing the images
+    images : 4d tensor containing the images.
     """
     if isinstance(paths, str):
         if op.isfile(paths):
             paths = [paths]
         elif op.isdir(paths):
-            paths = glob(op.join(paths, '*'))
+            paths = glob(op.join(paths, "*"))
         else:
-            raise Exception("paths must either a single file, a list of "
-                            "files, or a single directory, unsure what "
-                            "to do with %s!" % paths)
+            raise Exception(
+                "paths must either a single file, a list of "
+                "files, or a single directory, unsure what "
+                "to do with %s!" % paths
+            )
     images = []
     for p in paths:
         try:
             im = imageio.imread(p)
         except ValueError:
-            warnings.warn("Unable to load in file %s, it's probably not "
-                          "an image, skipping..." % p)
+            warnings.warn(
+                "Unable to load in file %s, it's probably not "
+                "an image, skipping..." % p
+            )
             continue
         # make it a float32 array with values between 0 and 1
         im = im / np.iinfo(im.dtype).max
@@ -114,13 +120,16 @@ def load_images(paths, as_gray=True):
     try:
         images = torch.tensor(images, dtype=torch.float32)
     except ValueError:
-        raise Exception("Concatenating the images into a tensor raised"
-                        " a ValueError! This probably"
-                        " means that not all images are the same size.")
+        raise Exception(
+            "Concatenating the images into a tensor raised"
+            " a ValueError! This probably"
+            " means that not all images are the same size."
+        )
     if as_gray:
         if images.ndimension() != 3:
-            raise Exception("For loading in images as grayscale, this "
-                            "should be a 3d tensor!")
+            raise Exception(
+                "For loading in images as grayscale, this " "should be a 3d tensor!"
+            )
         images = images.unsqueeze(1)
     else:
         if images.ndimension() == 3:
@@ -132,12 +141,13 @@ def load_images(paths, as_gray=True):
                 # then multiple grayscales ones, so add channel dimension
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
-        raise Exception("Somehow ended up with other than 4 dimensions! "
-                        "Not sure how we got here")
+        raise Exception(
+            "Somehow ended up with other than 4 dimensions! " "Not sure how we got here"
+        )
     return images
 
 
-def convert_float_to_int(im, dtype=np.uint8):
+def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     r"""Convert image from float to 8 or 16 bit image
 
     We work with float images that lie between 0 and 1, but for saving
@@ -151,62 +161,58 @@ def convert_float_to_int(im, dtype=np.uint8):
 
     Parameters
     ----------
-    im : np.ndarray
-        The image to convert
-    dtype : {np.uint8, np.uint16}
-        The target data type
+    im : The image to convert
+    dtype : The target data type.  {np.uint8, np.uint16}
 
     Returns
     -------
-    im : np.ndarray
-        The converted image, now with dtype=dtype
-
+    im : The converted image, now with dtype=dtype
     """
     if im.max() > 1:
-        raise Exception("all values of im must lie between 0 and 1, "
-                        f"but max is {im.max()}")
+        raise Exception(
+            "all values of im must lie between 0 and 1, " f"but max is {im.max()}"
+        )
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
-
-def make_synthetic_stimuli(size=256, requires_grad=True):
-    r""" Make a set of basic stimuli, useful for developping and debugging models
+def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
+    r"""Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
     ----------
-    size: `int`
-        the stimuli will have `torch.Size([size, size])`
-    requires_grad: `bool`
-        weather to initialize the simuli with gradients
+    size: The stimuli will have `torch.Size([size, size])`.
+    requires_grad: Whether to initialize the simuli with gradients.
 
     Returns
     -------
-    stimuli: `torch.FloatTensor` of shape [11, 1, size, size]
-        the set of basic stiuli: [impulse, step_edge, ramp, bar, curv_edge,
-                sine_grating, square_grating, polar_angle, angular_sine,
-                zone_plate, fractal]
+    stimuli: Tensor of shape [11, 1, size, size]. The set of basic stiuli:
+        [impulse, step_edge, ramp, bar, curv_edge, sine_grating, square_grating,
+        polar_angle, angular_sine, zone_plate, fractal]
     """
 
     impulse = np.zeros((size, size))
     impulse[size // 2, size // 2] = 1
 
-    step_edge = synthetic_images.square_wave(size=size, period=size + 1,
-                                             direction=0, amplitude=1, phase=0)
+    step_edge = synthetic_images.square_wave(
+        size=size, period=size + 1, direction=0, amplitude=1, phase=0
+    )
 
     ramp = synthetic_images.ramp(size=size, direction=np.pi / 2, slope=1)
 
     bar = np.zeros((size, size))
-    bar[size // 2 - size//10:size // 2 + size//10,
-        size // 2 - 1:size // 2 + 1] = 1
+    bar[
+        size // 2 - size // 10 : size // 2 + size // 10, size // 2 - 1 : size // 2 + 1
+    ] = 1
 
-    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2,
-                                      origin=(size, size))
+    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
 
-    sine_grating = (synthetic_images.sine(size) * 
-        synthetic_images.gaussian(size, covariance=size))
+    sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(
+        size, covariance=size
+    )
 
-    square_grating = synthetic_images.square_wave(size, frequency=(.5, .5),
-                                                  phase=2 * np.pi / 3.)
+    square_grating = synthetic_images.square_wave(
+        size, frequency=(0.5, 0.5), phase=2 * np.pi / 3.0
+    )
     square_grating *= synthetic_images.gaussian(size, covariance=size)
 
     polar_angle = synthetic_images.polar_angle(size)
@@ -215,57 +221,70 @@ def make_synthetic_stimuli(size=256, requires_grad=True):
 
     zone_plate = synthetic_images.zone_plate(size)
 
-    fract = synthetic_images.pink_noise(size, fract_dim=.8)
+    fract = synthetic_images.pink_noise(size, fract_dim=0.8)
 
-    stim = [impulse, step_edge, ramp, bar, curv_edge,
-            sine_grating, square_grating, polar_angle, angular_sine,
-            zone_plate, fract]
+    stim = [
+        impulse,
+        step_edge,
+        ramp,
+        bar,
+        curv_edge,
+        sine_grating,
+        square_grating,
+        polar_angle,
+        angular_sine,
+        zone_plate,
+        fract,
+    ]
     stim = [rescale(s) for s in stim]
 
     stimuli = torch.cat(
-        [torch.tensor(s, dtype=torch.float32,
-                      requires_grad=requires_grad).unsqueeze(0).unsqueeze(0)
-         for s in stim],
-        dim=0)
+        [
+            torch.tensor(s, dtype=torch.float32, requires_grad=requires_grad)
+            .unsqueeze(0)
+            .unsqueeze(0)
+            for s in stim
+        ],
+        dim=0,
+    )
 
     return stimuli
 
 
-def polar_radius(size, exponent=1, origin=None, device=None):
-    '''make distance-from-origin (r) matrix
+def polar_radius(
+    size: Union[int, Tuple[int, int]],
+    exponent: float = 1.0,
+    origin: Optional[Union[int, Tuple[int, int]]] = None,
+    device: Optional[Union[str, torch.device]] = None,
+) -> Tensor:
+    """Make distance-from-origin (r) matrix
 
     Compute a matrix of given size containing samples of a radial ramp
     function, raised to given exponent, centered at given origin.
 
-    Arguments
+    Parameters
     ---------
-    size : `int` or `tuple`
-        if an int, we assume the image should be of dimensions `(size,
+    size : If an int, we assume the image should be of dimensions `(size,
         size)`. if a tuple, must be a 2-tuple of ints specifying the
-        dimensions
-    exponent : `float`
-        the exponent of the radial ramp function.
-    origin : `int`, `tuple`, or None
-        the center of the image. if an int, we assume the origin is at
+        dimensions.
+    exponent : The exponent of the radial ramp function.
+    origin : The center of the image. if an int, we assume the origin is at
         `(origin, origin)`. if a tuple, must be a 2-tuple of ints
         specifying the origin (where `(0, 0)` is the upper left).  if
         None, we assume the origin lies at the center of the matrix,
         `(size+1)/2`.
-    device : str or torch.device
-        the device to create this tensor on
+    device : The device to create this tensor on.
 
     Returns
     -------
-    res : torch.Tensor
-        the polar radius matrix
-
-    '''
-    if not hasattr(size, '__iter__'):
+    res : The polar radius matrix.
+    """
+    if not hasattr(size, "__iter__"):
         size = (size, size)
 
     if origin is None:
-        origin = ((size[0]+1)/2., (size[1]+1)/2.)
-    elif not hasattr(origin, '__iter__'):
+        origin = ((size[0] + 1) / 2.0, (size[1] + 1) / 2.0)
+    elif not hasattr(origin, "__iter__"):
         origin = (origin, origin)
 
     # for some reason, torch.meshgrid returns them in the opposite order
@@ -273,34 +292,39 @@ def polar_radius(size, exponent=1, origin=None, device=None):
     # grab them as (yramp, xramp) instead of (xramp, yramp). similarly,
     # we have to reverse the order from (size[1], size[0]) to (size[0],
     # size[1])
-    yramp, xramp = torch.meshgrid(torch.arange(1, size[0]+1, device=device)-origin[0],
-                                  torch.arange(1, size[1]+1, device=device)-origin[1])
+    yramp, xramp = torch.meshgrid(
+        torch.arange(1, size[0] + 1, device=device) - origin[0],
+        torch.arange(1, size[1] + 1, device=device) - origin[1],
+    )
 
     if exponent <= 0:
         # zero to a negative exponent raises:
         # ZeroDivisionError: 0.0 cannot be raised to a negative power
-        r = xramp ** 2 + yramp ** 2
+        r = xramp**2 + yramp**2
         res = np.power(r, exponent / 2.0, where=(r != 0))
     else:
-        res = (xramp ** 2 + yramp ** 2) ** (exponent / 2.0)
+        res = (xramp**2 + yramp**2) ** (exponent / 2.0)
     return res
 
 
-def polar_angle(size, phase=0, origin=None, device=None):
-    '''make polar angle matrix (in radians)
+def polar_angle(
+    size: Union[int, Tuple[int, int]],
+    phase: float = 0.0,
+    origin: Optional[Union[int, Tuple[float, float]]] = None,
+    device: Optional[torch.device] = None,
+) -> Tensor:
+    """Make polar angle matrix (in radians).
 
     Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
     X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
 
-    Arguments
+    Parameters
     ---------
-    size : `int` or `tuple`
-        if an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
+    size : If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
         a 2-tuple of ints specifying the dimensions
-    phase : `float`
+    phase :
         the phase of the polar angle function (in radians, clockwise from the X-axis)
-    origin : `int`, `tuple`, or None
-        the center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
+    origin : The center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
         tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
         if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
     device : str or torch.device
@@ -310,14 +334,13 @@ def polar_angle(size, phase=0, origin=None, device=None):
     -------
     res : torch.Tensor
         the polar angle matrix
-
-    '''
-    if not hasattr(size, '__iter__'):
+    """
+    if not hasattr(size, "__iter__"):
         size = (size, size)
 
     if origin is None:
-        origin = ((size[0]+1)/2., (size[1]+1)/2.)
-    elif not hasattr(origin, '__iter__'):
+        origin = ((size[0] + 1) / 2.0, (size[1] + 1) / 2.0)
+    elif not hasattr(origin, "__iter__"):
         origin = (origin, origin)
 
     # for some reason, torch.meshgrid returns them in the opposite order
@@ -325,12 +348,14 @@ def polar_angle(size, phase=0, origin=None, device=None):
     # grab them as (yramp, xramp) instead of (xramp, yramp). similarly,
     # we have to reverse the order from (size[1], size[0]) to (size[0],
     # size[1])
-    yramp, xramp = torch.meshgrid(torch.arange(1, size[0]+1, device=device)-origin[0],
-                                  torch.arange(1, size[1]+1, device=device)-origin[1])
+    yramp, xramp = torch.meshgrid(
+        torch.arange(1, size[0] + 1, device=device) - origin[0],
+        torch.arange(1, size[1] + 1, device=device) - origin[1],
+    )
 
     res = torch.atan2(yramp, xramp)
 
-    res = ((res+(np.pi-phase)) % (2*np.pi)) - np.pi
+    res = ((res + (np.pi - phase)) % (2 * np.pi)) - np.pi
 
     return res
 
@@ -357,7 +382,7 @@ def _find_min_int(vals):
             flat_vals.append(v)
     flat_vals = set(flat_vals)
     try:
-        poss_vals = set(np.arange(max(flat_vals)+1))
+        poss_vals = set(np.arange(max(flat_vals) + 1))
     except ValueError:
         # then this is empty sequence and thus we should return 0
         return 0
@@ -368,5 +393,5 @@ def _find_min_int(vals):
     return min_int
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     make_synthetic_stimuli()

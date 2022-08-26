@@ -1,12 +1,17 @@
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
+import numpy.typing as npt
 import torch
+from torch import Tensor
 import torch.fft as fft
-from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torchvision.transforms.functional import center_crop
-from typing import Union, Tuple
+from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
-def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, even_phase=True):
+def steer(
+    basis, angle, harmonics=None, steermtx=None, return_weights=False, even_phase=True
+):
     """Steer BASIS to the specfied ANGLE.
 
     Parameters
@@ -44,7 +49,9 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:
-            raise Exception("""ANGLE must be a scalar, or a column vector the size of the basis elements""")
+            raise Exception(
+                """ANGLE must be a scalar, or a column vector the size of the basis elements"""
+            )
 
     # If HARMONICS is not specified, assume derivatives.
     if harmonics is None:
@@ -54,14 +61,16 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
         # reshape to column matrix
         harmonics = harmonics.reshape(harmonics.shape[0], 1)
     elif harmonics.shape[0] != 1 and harmonics.shape[1] != 1:
-        raise Exception('input parameter HARMONICS must be 1D!')
+        raise Exception("input parameter HARMONICS must be 1D!")
 
     if 2 * harmonics.shape[0] - (harmonics == 0).sum() != num:
-        raise Exception('harmonics list is incompatible with basis size!')
+        raise Exception("harmonics list is incompatible with basis size!")
 
     # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
     if steermtx is None:
-        steermtx = steer_to_harmonics_mtx(harmonics, np.pi * np.arange(num) / num, even_phase=even_phase)
+        steermtx = steer_to_harmonics_mtx(
+            harmonics, np.pi * np.arange(num) / num, even_phase=even_phase
+        )
 
     steervect = np.zeros((angle.shape[0], num))
     arg = angle * harmonics[np.nonzero(harmonics)[0]].T
@@ -86,23 +95,21 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False, eve
     else:
         return res
 
-def minimum(x, dim=None, keepdim=False):
+
+def minimum(
+    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
+) -> Tensor:
     r"""compute minimum in torch over any axis or combination of axes in tensor
 
     Parameters
     ----------
-    x: torch.Tensor
-        input tensor
-    dim: list of ints
-        dimensions over which you would like to compute the minimum
-    keepdim: bool
-        keep original dimensions of tensor when returning result
+    x: Input tensor.
+    dim: Dimensions over which you would like to compute the minimum.
+    keepdim: Keep original dimensions of tensor when returning result.
 
     Returns
     -------
-    min_x : torch.Tensor
-        Minimum value of x.
-
+    min_x : Minimum value of x.
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -113,22 +120,20 @@ def minimum(x, dim=None, keepdim=False):
     return min_x
 
 
-def maximum(x, dim=None, keepdim=False):
+def maximum(
+    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
+) -> Tensor:
     r"""compute maximum in torch over any dim or combination of axes in tensor
 
     Parameters
     ----------
-    x: torch.Tensor
-        input tensor
-    dim: list of ints
-        dimensions over which you would like to compute the minimum
-    keepdim: bool
-        keep original dimensions of tensor when returning result
+    x: Input tensor
+    dim: Dimensions over which you would like to compute the minimum
+    keepdim: Keep original dimensions of tensor when returning result
 
     Returns
     -------
-    max_x : torch.Tensor
-        Maximum value of x.
+    max_x : Maximum value of x.
 
     """
     if dim is None:
@@ -140,61 +145,55 @@ def maximum(x, dim=None, keepdim=False):
     return max_x
 
 
-def rescale(x, a=0, b=1):
-    r"""Linearly rescale the dynamic range of the input x to [a,b]
-    """
+def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
+    r"""Linearly rescale the dynamic range of the input x to [a,b]."""
     v = x.max() - x.min()
-    g = (x - x.min())
+    g = x - x.min()
     if v > 0:
         g = g / v
-    return a + g * (b-a)
+    return a + g * (b - a)
 
 
-
-def raised_cosine(width=1, position=0, values=(0, 1)):
-    """Return a lookup table containing a "raised cosine" soft threshold
-    function
+def raised_cosine(
+    width: float = 1, position: float = 0, values: Tuple[float, float] = (0, 1)
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Return a lookup table containing a "raised cosine" soft threshold function.
 
     Y =  VALUES(1)
         + (VALUES(2)-VALUES(1))
         * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
 
-    this lookup table is suitable for use by `interpolate1d`
+    This lookup table is suitable for use by `interpolate1d`
 
     Parameters
     ---------
-    width : float
-        the width of the region over which the transition occurs
-    position : float
-        the location of the center of the threshold
-    values : tuple
-        2-tuple specifying the values to the left and right of the transition.
+    width : The width of the region over which the transition occurs.
+    position : The location of the center of the threshold.
+    values : 2-tuple specifying the values to the left and right of the transition.
 
     Returns
     -------
-    X : `np.ndarray`
-        the x values of this raised cosine
-    Y : `np.ndarray`
-        the y values of this raised cosine
+    X : The x values of this raised cosine.
+    Y : The y values of this raised cosine.
     """
 
-    sz = 256   # arbitrary!
+    sz = 256  # arbitrary!
 
-    X = np.pi * np.arange(-sz-1, 2) / (2*sz)
+    X = np.pi * np.arange(-sz - 1, 2) / (2 * sz)
 
-    Y = values[0] + (values[1]-values[0]) * np.cos(X) ** 2
+    Y = values[0] + (values[1] - values[0]) * np.cos(X) ** 2
 
     # make sure end values are repeated, for extrapolation...
     Y[0] = Y[1]
-    Y[sz+2] = Y[sz+1]
+    Y[sz + 2] = Y[sz + 1]
 
-    X = position + (2*width/np.pi) * (X + np.pi / 4)
+    X = position + (2 * width / np.pi) * (X + np.pi / 4)
 
     return X, Y
 
 
-def interpolate1d(x_new, Y, X):
-    r""" One-dimensional linear interpolation.
+def interpolate1d(x_new: Tensor, Y: npt.ArrayLike, X: npt.ArrayLike) -> Tensor:
+    r"""One-dimensional linear interpolation.
 
     Returns the one-dimensional piecewise linear interpolant to a
     function with given discrete data points (X, Y), evaluated at x_new.
@@ -203,12 +202,9 @@ def interpolate1d(x_new, Y, X):
 
     Parameters
     ----------
-    x_new: torch.Tensor
-        The x-coordinates at which to evaluate the interpolated values.
-    Y: array_like
-        The y-coordinates of the data points.
-    X: array_like
-        The x-coordinates of the data points, same length as X.
+    x_new: The x-coordinates at which to evaluate the interpolated values.
+    Y: The y-coordinates of the data points.
+    X: The x-coordinates of the data points, same length as X.
 
     Returns
     -------
@@ -224,20 +220,17 @@ def interpolate1d(x_new, Y, X):
     return np.reshape(out, x_new.shape)
 
 
-def rectangular_to_polar(x):
+def rectangular_to_polar(x: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Rectangular to polar coordinate transform
 
     Parameters
     --------
-    x: torch.ComplexTensor
+    x: Complex tensor.
 
     Returns
     -------
-    amplitude: torch.Tensor
-        tensor containing the amplitude (aka. complex modulus)
-    phase: torch.Tensor
-        tensor containing the phase
-
+    amplitude: Tensor containing the amplitude (aka. complex modulus).
+    phase: Tensor containing the phase.
     """
 
     amplitude = torch.abs(x)
@@ -245,21 +238,17 @@ def rectangular_to_polar(x):
     return amplitude, phase
 
 
-def polar_to_rectangular(amplitude, phase):
+def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     r"""Polar to rectangular coordinate transform
 
     Parameters
     ----------
-    amplitude: torch.Tensor
-        tensor containing the amplitude (aka. complex modulus). Must be > 0.
-    phase: torch.Tensor
-        tensor containing the phase
+    amplitude: Tensor containing the amplitude (aka. complex modulus). Must be > 0.
+    phase: Tensor containing the phase
 
     Returns
     -------
-    torch.Tensor 
-        complex tensor
-
+    Complex tensor.
     """
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be strictly positive.")
@@ -295,20 +284,19 @@ def polar_to_rectangular(amplitude, phase):
 #     else:
 #         return power
 
-def autocorr(x, n_shifts=7):
+
+def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
     """Compute the autocorrelation of `x` up to `n_shifts` shifts,
     the calculation is performed in the frequency domain.
     Parameters
     ---------
-    x: torch.Tensor
-        input signal of shape [b, c, h, w]
-    n_shifts: integer
-        Sets the length scale of the auto-correlation
-        (ie. maximum offset or lag)
+    x: Input signal of shape [b, c, h, w]
+    n_shifts: Sets the length scale of the auto-correlation (ie. maximum offset or lag).
+
     Returns
     -------
-    autocorr: torch.tensor
-        computed autocorrelation
+    autocorr: Computed autocorrelation.
+
     Notes
     -----
     - By the Einstein-Wiener-Khinchin theorem:
@@ -332,49 +320,51 @@ def autocorr(x, n_shifts=7):
     zero_phase = torch.zeros_like(energy_spectrum)
     energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
 
-    autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None,
-                          s=(H, W))
-    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H*W)
+    autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None, s=(H, W))
+    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H * W)
 
     if n_shifts is not None:
-        autocorr = autocorr[:, :, (H//2-n_shifts//2):(H//2+(n_shifts+1)//2),
-                                  (W//2-n_shifts//2):(W//2+(n_shifts+1)//2)]
+        autocorr = autocorr[
+            :,
+            :,
+            (H // 2 - n_shifts // 2) : (H // 2 + (n_shifts + 1) // 2),
+            (W // 2 - n_shifts // 2) : (W // 2 + (n_shifts + 1) // 2),
+        ]
     return autocorr
 
-def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
-          even_phase=True):
+
+def steer(
+    basis: npt.ArrayLike,
+    angle: Union[npt.ArrayLike, int],
+    harmonics: Optional[List[int]] = None,
+    steermtx: Optional[npt.ArrayLike] = None,
+    return_weights: bool = False,
+    even_phase: bool = True,
+):
     """Steer BASIS to the specfied ANGLE.
 
     Parameters
     ----------
-    basis : array_like
-        array whose columns are vectorized rotated copies of a steerable
+    basis : Array whose columns are vectorized rotated copies of a steerable
         function, or the responses of a set of steerable filters.
-    angle : array_like or int
-        scalar or column vector the size of the basis. specifies the angle(s)
+    angle : Scalar or column vector the size of the basis. specifies the angle(s)
         (in radians) to steer to
-    harmonics : list or None
-        a list of harmonic numbers indicating the angular harmonic content of
+    harmonics : A list of harmonic numbers indicating the angular harmonic content of
         the basis. if None (default), N even or odd low frequencies, as for
         derivative filters
-    steermtx : array_like or None
-        matrix which maps the filters onto Fourier series components (ordered
+    steermtx : Matrix which maps the filters onto Fourier series components (ordered
         [cos0 cos1 sin1 cos2 sin2 ... sinN]). See steer_to_harmonics_mtx
         function for more details. If None (default), assumes cosine phase
         harmonic components, and filter positions at 2pi*n/N.
-    return_weights : bool
-        whether to return the weights or not.
-    even_phase : bool
-        specifies whether the harmonics are cosine or sine phase aligned about
+    return_weights : Whether to return the weights or not.
+    even_phase : Specifies whether the harmonics are cosine or sine phase aligned about
         those positions.
 
     Returns
     -------
-    res : np.ndarray
-        the resteered basis
-    steervect : np.ndarray
-        the weights used to resteer the basis. only returned if
-        ``return_weights`` is True
+    res : The resteered basis.
+    steervect : The weights used to resteer the basis. only returned if
+        ``return_weights`` is True.
     """
 
     num = basis.shape[-1]
@@ -384,8 +374,10 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:
-            raise Exception("ANGLE must be a scalar, or a column vector the"
-                            "size of the basis elements")
+            raise Exception(
+                "ANGLE must be a scalar, or a column vector the"
+                "size of the basis elements"
+            )
 
     # If HARMONICS is not specified, assume derivatives.
     if harmonics is None:
@@ -395,15 +387,16 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
         # reshape to column matrix
         harmonics = harmonics.reshape(harmonics.shape[0], 1)
     elif harmonics.shape[0] != 1 and harmonics.shape[1] != 1:
-        raise Exception('input parameter HARMONICS must be 1D!')
+        raise Exception("input parameter HARMONICS must be 1D!")
 
     if 2 * harmonics.shape[0] - (harmonics == 0).sum() != num:
-        raise Exception('harmonics list is incompatible with basis size!')
+        raise Exception("harmonics list is incompatible with basis size!")
 
     # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
     if steermtx is None:
         steermtx = steer_to_harmonics_mtx(
-            harmonics, np.pi * np.arange(num) / num, even_phase=even_phase)
+            harmonics, np.pi * np.arange(num) / num, even_phase=even_phase
+        )
 
     steervect = np.zeros((angle.shape[0], num))
     arg = angle * harmonics[np.nonzero(harmonics)[0]].T
@@ -429,29 +422,26 @@ def steer(basis, angle, harmonics=None, steermtx=None, return_weights=False,
         return res
 
 
-def make_disk(img_size: Union[int, Tuple[int, int], torch.Size],
-              outer_radius: float = None,
-              inner_radius: float = None) -> torch.Tensor:
-    r""" Create a circular mask with softened edges to  an image.
+def make_disk(
+    img_size: Union[int, Tuple[int, int], torch.Size],
+    outer_radius: Optional[float] = None,
+    inner_radius: Optional[float] = None,
+) -> Tensor:
+    r"""Create a circular mask with softened edges to  an image.
     All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
     to ``outer_radius`` will decay smoothly to 0.
 
     Parameters
     ----------
-    img_size:
-        Size of image in pixels.
-    outer_radius:
-        Total radius of disk. Values from ``inner_radius`` to ``outer_radius`` will
-        decay smoothly to zero.
-    inner_radius:
-        Radius of inner disk. All elements from the origin to ``inner_radius`` will be
-        set to 1.
+    img_size: Size of image in pixels.
+    outer_radius: Total radius of disk. Values from ``inner_radius`` to ``outer_radius``
+        will decay smoothly to zero.
+    inner_radius: Radius of inner disk. All elements from the origin to ``inner_radius``
+        will be set to 1.
 
     Returns
     -------
-    mask:
-        Tensor mask with torch.Size(img_size).
-
+    mask: Tensor mask with torch.Size(img_size).
     """
 
     if isinstance(img_size, int):
@@ -459,7 +449,7 @@ def make_disk(img_size: Union[int, Tuple[int, int], torch.Size],
     assert len(img_size) == 2
 
     if outer_radius is None:
-        outer_radius = (min(img_size)-1) / 2
+        outer_radius = (min(img_size) - 1) / 2
 
     if inner_radius is None:
         inner_radius = outer_radius / 2
@@ -470,7 +460,7 @@ def make_disk(img_size: Union[int, Tuple[int, int], torch.Size],
     for i in range(img_size[0]):  # height
         for j in range(img_size[1]):  # width
 
-            r = np.sqrt((i-i0)**2 + (j-j0)**2)
+            r = np.sqrt((i - i0) ** 2 + (j - j0) ** 2)
 
             if r > outer_radius:
                 mask[i][j] = 0
@@ -483,7 +473,7 @@ def make_disk(img_size: Union[int, Tuple[int, int], torch.Size],
     return mask
 
 
-def add_noise(img, noise_mse):
+def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
     """Add normally distributed noise to an image
 
     This adds normally-distributed noise to an image so that the resulting
@@ -491,16 +481,13 @@ def add_noise(img, noise_mse):
 
     Parameters
     ----------
-    img : torch.Tensor
-        the image to make noisy
-    noise_mse : float or list
-        the target MSE value / variance of the noise. More than one value is
-        allowed
+    img : The image to make noisy.
+    noise_mse : The target MSE value / variance of the noise. More than one value is
+        allowed.
 
     Returns
     -------
-    noisy_img : torch.Tensor
-        the noisy image. If `noise_mse` contains only one element, this will be
+    noisy_img : The noisy image. If `noise_mse` contains only one element, this will be
         the same size as `img`. Else, each separate value from `noise_mse` will
         be along the batch dimension.
 
@@ -509,11 +496,15 @@ def add_noise(img, noise_mse):
     parametrize in terms of SNR
 
     """
-    noise_mse = torch.tensor(noise_mse, dtype=torch.float32, device=img.device).unsqueeze(0)
+    noise_mse = torch.tensor(
+        noise_mse, dtype=torch.float32, device=img.device
+    ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
-    noise = 200 * torch.randn(max(noise_mse.shape[0], img.shape[0]), *img.shape[1:], device=img.device)
+    noise = 200 * torch.randn(
+        max(noise_mse.shape[0], img.shape[0]), *img.shape[1:], device=img.device
+    )
     noise = noise - noise.mean()
-    noise = noise * \
-        torch.sqrt(noise_mse / (noise**2).mean((-1, -2)
-                                               ).unsqueeze(-1).unsqueeze(-1))
+    noise = noise * torch.sqrt(
+        noise_mse / (noise**2).mean((-1, -2)).unsqueeze(-1).unsqueeze(-1)
+    )
     return img + noise
