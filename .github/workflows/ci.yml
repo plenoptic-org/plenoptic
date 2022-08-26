@@ -122,7 +122,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Check same number of nblink and notebooks
         shell: bash
-        run: if "$(ls docs/tutorials/*nblink | wc -l)" == "$(ls examples/*ipynb | wc -l)" ; then exit 1; fi
+        run: |
+          n_nblink=0; for file in docs/tutorials/*nblink; do let "n_nblink+=1"; done;
+          n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
+          if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
 
   check:
     if: always()
