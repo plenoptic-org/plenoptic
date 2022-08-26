@@ -31,6 +31,7 @@ def update_ps_synthesis_test_file():
     """
     # for now, we want to compare against the one that worked for pytorch version 1.11
     ps_synth_file = osf_download(get_portilla_simoncelli_synthesize_filename('1.11'))
+    print(f'Loading from {ps_synth_file}')
 
     with np.load(ps_synth_file) as f:
         im = f['im']
@@ -49,7 +50,7 @@ def update_ps_synthesis_test_file():
     rep = po.to_numpy(met.model(met.synthesized_signal)).squeeze()
     np.savez(output_file_name, im=im, im_init=im_init, im_synth=output,
              rep_synth=rep)
-    fig = pt.imshow([output, im_synth], title=[f'New metamer (torch {torch_v})',
-                                               'Old metamer'])
+    fig = pt.imshow([output, im_synth.squeeze()],
+                    title=[f'New metamer (torch {torch_v})', 'Old metamer'])
     fig.savefig(output_file_name.replace('.npz', '.png'))
     return met

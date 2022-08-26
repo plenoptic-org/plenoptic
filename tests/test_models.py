@@ -47,8 +47,10 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
         torch_version = torch.__version__.split('+')[0]
     # following https://stackoverflow.com/a/11887885 for how to compare version
     # strings
-    if version.parse(torch_version) < version.parse('1.12'):
+    if version.parse(torch_version) < version.parse('1.12') or DEVICE.type == 'cuda':
         torch_version = ''
+    # going from 1.11 to 1.12 only changes this synthesis output on cpu, not
+    # gpu
     else:
         torch_version = '_torch_v1.12.0'
     # synthesis gives differnet outputs on cpu vs gpu, so we have two different
