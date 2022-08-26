@@ -70,6 +70,17 @@ class TestSignal(object):
                 / (x.shape[-2]*x.shape[-1])
                 - a[..., n//2, n//2+w])
                 < 1e-5).all()
+    
+    @pytest.mark.parametrize('size_A', [1, 3])
+    @pytest.mark.parametrize('size_B', [1, 2, 3])
+    def test_add_noise(self, einstein_img, size_A, size_B):
+        A = einstein_img.repeat(size_A, 1, 1, 1)
+        B = size_B * [4]
+        if size_A != size_B and size_A != 1 and size_B != 1:
+            with pytest.raises(Exception):
+                po.tools.add_noise(A, B)
+        else:
+            assert po.tools.add_noise(A, B).shape[0] == max(size_A, size_B)
 
 
 class TestStats(object):

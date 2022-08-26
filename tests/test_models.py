@@ -77,20 +77,20 @@ class TestLaplacianPyramid(object):
 
     def test_grad(self, basic_stim):
         lpyr = po.simul.LaplacianPyramid().to(DEVICE)
-        y = lpyr.analysis(basic_stim)
+        y = lpyr.forward(basic_stim)
         assert y[0].requires_grad
 
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_synthesis(self, curie_img, n_scales):
-        img = curie_img[0:253, 0:234]  # Original 256x256 shape is not good for testing padding
+        img = curie_img[:, :, 0:253, 0:234]  # Original 256x256 shape is not good for testing padding
         lpyr = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
-        y = lpyr.analysis(img)
-        img_recon = lpyr.synthesis(y)
+        y = lpyr.forward(img)
+        img_recon = lpyr.recon_pyr(y)
         assert torch.allclose(img, img_recon)
 
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_match_pyrtools(self, curie_img, n_scales):
-        img = curie_img[0:253, 0:234]
+        img = curie_img[:, :, 0:253, 0:234]
         lpyr_po = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y_po = lpyr_po(img)
         lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)

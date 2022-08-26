@@ -11,7 +11,7 @@ from ..tools.conv import same_padding
 import os
 import pickle
 
-dirname = os.path.dirname(__file__)
+DIRNAME = os.path.dirname(__file__)
 
 
 def _ssim_parts(img1, img2, dynamic_range, pad=False):
@@ -22,11 +22,14 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
 
     Parameters
     ----------
-    img1 : torch.Tensor
-        4d tensor with first image to compare
-    img2 : torch.Tensor
-        4d tensor with second image to compare. Must have the same height and
-        width (last two dimensions) as `img1`
+    img1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images.
+    img2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. The heights and widths of `img1`
+        and `img2` must be the same. The numbers of batches and channels of
+        `img1` and `img2` need to be broadcastable: either they are the same
+        or one of them is 1. The output will be computed separately for each
+        channel (so channels are treated in the same way as batches).
     dynamic_range : int, optional.
         dynamic range of the images. Note we assume that both images have the
         same dynamic range. 1, the default, is appropriate for float images
@@ -56,30 +59,30 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
             warnings.warn("dynamic_range is 255 but image range falls outside [0, 255]"
                           f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
                           "Continuing anyway...")
-    (n_batches, n_channels, height, width) = img1.shape
-    if n_channels > 1 or img2.shape[1] > 1:
-        warnings.warn("SSIM was developed on grayscale images, so the channel dimension "
-                      "is treated as another batch dimension.")
-    if img2.shape[-2:] != (height, width):
+    if not img1.ndim == img2.ndim == 4:
+        raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
+    if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
-    if n_batches != img2.shape[0]:
-        if n_batches != 1 and img2.shape[0] != 1:
-            raise Exception("Either img1 and img2 should have the same of "
-                            "elements in the batch dimension, or one of "
+    for i in range(2):
+        if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
+            raise Exception("Either img1 and img2 should have the same number of "
+                            "elements in each dimension, or one of "
                             "them should be 1! But got shapes "
                             f"{img1.shape}, {img2.shape} instead")
+    if img1.shape[1] > 1 or img2.shape[1] > 1:
+        warnings.warn("SSIM was designed for grayscale images and here it will be computed separately for each "
+                      "channel (so channels are treated in the same way as batches).")
 
-    real_size = min(11, height, width)
+    real_size = min(11, img1.shape[2], img1.shape[3])
     std = torch.tensor(1.5).to(img1.device)
     window = circular_gaussian2d(real_size, std=std)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
-    window_sum = window.sum((-1, -2))
+    window_sum = window.sum((-1, -2), keepdim=True)
     if not torch.allclose(window_sum, torch.ones_like(window_sum)):
-        print(window.sum((-1, -2)))
         warnings.warn("window should have sum of 1! normalizing...")
-        window = window / window.sum((-1, -2), keepdim=True)
+        window = window / window_sum
     if window.ndim != 4:
         raise Exception("window must have 4 dimensions!")
 
@@ -146,11 +149,14 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
 
     Parameters
     ----------
-    img1 : torch.Tensor
-        4d tensor with first image to compare
-    img2 : torch.Tensor
-        4d tensor with second image to compare. Must have the same height and
-        width (last two dimensions) as `img1`
+    img1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images.
+    img2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. The heights and widths of `img1`
+        and `img2` must be the same. The numbers of batches and channels of
+        `img1` and `img2` need to be broadcastable: either they are the same
+        or one of them is 1. The output will be computed separately for each
+        channel (so channels are treated in the same way as batches).
     weighted : bool, optional
         whether to use the original, unweighted SSIM version (`False`) as used
         in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
@@ -236,11 +242,14 @@ def ssim_map(img1, img2, dynamic_range=1):
 
     Parameters
     ----------
-    img1 : torch.Tensor
-        4d tensor with first image to compare
-    img2 : torch.Tensor
-        4d tensor with second image to compare. Must have the same height and
-        width (last two dimensions) as `img1`
+    img1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images.
+    img2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. The heights and widths of `img1`
+        and `img2` must be the same. The numbers of batches and channels of
+        `img1` and `img2` need to be broadcastable: either they are the same
+        or one of them is 1. The output will be computed separately for each
+        channel (so channels are treated in the same way as batches).
     weighted : bool, optional
         whether to use the original, unweighted SSIM version (`False`) as used
         in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
@@ -307,11 +316,14 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
 
     Parameters
     ----------
-    img1 : torch.Tensor
-        4d tensor with first image to compare
-    img2 : torch.Tensor
-        4d tensor with second image to compare. Must have the same height and
-        width (last two dimensions) as `img1`
+    img1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images.
+    img2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. The heights and widths of `img1`
+        and `img2` must be the same. The numbers of batches and channels of
+        `img1` and `img2` need to be broadcastable: either they are the same
+        or one of them is 1. The output will be computed separately for each
+        channel (so channels are treated in the same way as batches).
     dynamic_range : int, optional.
         dynamic range of the images. Note we assume that both images have the
         same dynamic range. 1, the default, is appropriate for float images
@@ -362,13 +374,15 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
     return msssim
 
 
-def normalized_laplacian_pyramid(im):
+def normalized_laplacian_pyramid(img):
     """Compute the normalized Laplacian Pyramid using pre-optimized parameters
 
     Arguments
     --------
-    im: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+    img: torch.Tensor of shape (batch, channel, height, width)
+        Image, or batch of images. This representation is designed
+        for grayscale images and will be computed separately for each
+        channel (so channels are treated in the same way as batches).
 
     Returns
     -------
@@ -376,27 +390,27 @@ def normalized_laplacian_pyramid(im):
         The normalized Laplacian Pyramid with six scales
     """
 
-    (_, channel, height, width) = im.size()
+    (_, channel, height, width) = img.size()
 
     N_scales = 6
-    spatialpooling_filters = np.load(dirname + '/DN_filts.npy')
-    sigmas = np.load(dirname + '/DN_sigmas.npy')
+    spatialpooling_filters = np.load(os.path.join(DIRNAME, 'DN_filts.npy'))
+    sigmas = np.load(os.path.join(DIRNAME, 'DN_sigmas.npy'))
 
     L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
-    laplacian_activations = L.analysis(im)
+    laplacian_activations = L.forward(img)
 
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
         filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32,
-                            device=im.device).repeat(channel, 1, 1, 1)
+                            device=img.device).repeat(channel, 1, 1, 1)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
 
     return normalized_laplacian_activations
 
 
-def nlpd(IM_1, IM_2):
+def nlpd(img1, img2):
     """Normalized Laplacian Pyramid Distance
 
     As described in  [1]_, this is an image quality metric based on the transformations associated with the early
@@ -415,10 +429,15 @@ def nlpd(IM_1, IM_2):
 
     Parameters
     ----------
-    IM_1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images. Channels are also treated as batches.
-    IM_2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. Channels are also treated as batches.
+    img1: torch.Tensor of shape (batch, channel, height, width)
+        The first image or batch of images.
+    img2: torch.Tensor of shape (batch, channel, height, width)
+        The second image or batch of images. The heights and widths of `img1`
+        and `img2` must be the same. The numbers of batches and channels of
+        `img1` and `img2` need to be broadcastable: either they are the same
+        or one of them is 1. The output will be computed separately for each
+        channel (so channels are treated in the same way as batches).
+
     Returns
     -------
     distance: torch.Tensor of shape (batch, channel)
@@ -430,11 +449,22 @@ def nlpd(IM_1, IM_2):
        assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
     """
 
-    if IM_1.shape[1] > 1 or IM_2.shape[1] > 1:
-        warnings.warn("NLPD was developed on grayscale images, so the channel dimension "
-                      "is treated as another batch dimension.")
-    y1 = normalized_laplacian_pyramid(IM_1)
-    y2 = normalized_laplacian_pyramid(IM_2)
+    if not img1.ndim == img2.ndim == 4:
+        raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
+    if img1.shape[-2:] != img2.shape[-2:]:
+        raise Exception("img1 and img2 must have the same height and width!")
+    for i in range(2):
+        if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
+            raise Exception("Either img1 and img2 should have the same number of "
+                            "elements in each dimension, or one of "
+                            "them should be 1! But got shapes "
+                            f"{img1.shape}, {img2.shape} instead")
+    if img1.shape[1] > 1 or img2.shape[1] > 1:
+        warnings.warn("NLPD was designed for grayscale images and here it will be computed separately for each "
+                      "channel (so channels are treated in the same way as batches).")
+    
+    y1 = normalized_laplacian_pyramid(img1)
+    y2 = normalized_laplacian_pyramid(img2)
 
     epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
@@ -444,13 +474,15 @@ def nlpd(IM_1, IM_2):
     return torch.stack(dist).mean(dim=0)
 
 
-def normalized_steerable_pyramid(im, sigmas=None):
+def normalized_steerable_pyramid(img, sigmas=None):
     """Compute the normalized Steerable Pyramid using pre-optimized parameters. (under construction)
 
     Arguments
     --------
-    im: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+    img: torch.Tensor of shape (batch, channel, height, width)
+        Image, or batch of images. This representation is designed
+        for grayscale images and will be computed separately for each
+        channel (so channels are treated in the same way as batches).
 
     Returns
     -------
@@ -460,9 +492,9 @@ def normalized_steerable_pyramid(im, sigmas=None):
     """
 
     if sigmas is None:
-        sigmas = pickle.load(open(dirname + "/nspd_sigmas.pickle", mode="rb"))
-    spyr = Steerable_Pyramid_Freq(im.shape[-2:], height=5, order=3, is_complex=False, downsample=True).to(im.device)
-    spyr_coeffs = spyr.forward(im)
+        sigmas = pickle.load(open(os.path.join(DIRNAME, "nspd_sigmas.pickle"), mode="rb"))
+    spyr = Steerable_Pyramid_Freq(img.shape[-2:], height=5, order=3, is_complex=False, downsample=True).to(img.device)
+    spyr_coeffs = spyr.forward(img)
     normalized_spyr_coeffs = {}
     for key in spyr_coeffs.keys():
         if key == "residual_lowpass":
@@ -474,7 +506,7 @@ def normalized_steerable_pyramid(im, sigmas=None):
     return normalized_spyr_coeffs
 
 
-def nspd(IM_1, IM_2, sigmas=None):
+def nspd(img1, img2, sigmas=None):
     """Normalized steerable pyramid distance
 
     spatially local normalization pool
@@ -482,11 +514,22 @@ def nspd(IM_1, IM_2, sigmas=None):
     under construction
     """
 
-    if IM_1.shape[1] > 1 or IM_2.shape[1] > 1:
-        warnings.warn("NSPD was developed on grayscale images, so the channel dimension "
-                      "is treated as another batch dimension.")
-    y1 = normalized_steerable_pyramid(IM_1, sigmas=sigmas)
-    y2 = normalized_steerable_pyramid(IM_2, sigmas=sigmas)
+    if not img1.ndim == img2.ndim == 4:
+        raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
+    if img1.shape[-2:] != img2.shape[-2:]:
+        raise Exception("img1 and img2 must have the same height and width!")
+    for i in range(2):
+        if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
+            raise Exception("Either img1 and img2 should have the same number of "
+                            "elements in each dimension, or one of "
+                            "them should be 1! But got shapes "
+                            f"{img1.shape}, {img2.shape} instead")
+    if img1.shape[1] > 1 or img2.shape[1] > 1:
+        warnings.warn("NSPD was designed for grayscale images and here it will be computed separately for each "
+                      "channel (so channels are treated in the same way as batches).")
+    
+    y1 = normalized_steerable_pyramid(img1, sigmas=sigmas)
+    y2 = normalized_steerable_pyramid(img2, sigmas=sigmas)
 
     epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []

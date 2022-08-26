@@ -128,33 +128,37 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
 
-    @pytest.mark.parametrize('func_name', ['mse', 'ssim', 'ms-ssim', 'nlpd', 'nspd'])
-    @pytest.mark.parametrize('size_A', [(1, 1), (5, 3), (5, 3), (5, 1), (5, 1), (5, 3)])
-    @pytest.mark.parametrize('size_B', [(1, 1), (5, 3), (1, 1), (1, 3), (3, 1), (5, 2)])
+    @pytest.mark.parametrize('func_name', ['ssim', 'ms-ssim', 'nlpd', 'nspd'])
+    @pytest.mark.parametrize('size_A', [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)])
+    @pytest.mark.parametrize('size_B', [(), (3,), (1, 1), (6, 3), (3, 1), (1, 4)])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
-        func = {'mse': po.metric.mse,
-                'ssim': po.metric.ssim,
+        func = {'ssim': po.metric.ssim,
                 'ms-ssim': po.metric.ms_ssim,
                 'nlpd': po.metric.nlpd,
                 'nspd': po.metric.nspd}[func_name]
-        A = einstein_img.repeat(*size_A, 1, 1)
-        B = curie_img.repeat(*size_B, 1, 1)
-
-        tgt_size = []
-        for i in range(2):
-            if size_A[i] == size_B[i] or size_A[i] == 1 or size_B[i] == 1:
-                tgt_size.append(max(size_A[i], size_B[i]))
-            else:
-                tgt_size = None
-                break
-        if tgt_size is None:
-            with pytest.raises(Exception):
+        A = einstein_img[0, 0].repeat(*size_A, 1, 1)
+        B = curie_img[0, 0].repeat(*size_B, 1, 1)
+        
+        if not len(size_A) == len(size_B) == 2:
+            with pytest.raises(Exception, match="Input images should have four dimensions"):
                 func(A, B)
-        elif tgt_size[1] > 1 and func_name != "mse":
-            with pytest.warns(Warning, match="the channel dimension is treated as another batch dimension."):
-                assert list(func(A, B).shape[0:2]) == tgt_size
         else:
-            assert list(func(A, B).shape[0:2]) == tgt_size
+            tgt_size = []
+            for i in range(len(size_A)):
+                if size_A[i] == size_B[i] or size_A[i] == 1 or size_B[i] == 1:
+                    tgt_size.append(max(size_A[i], size_B[i]))
+                else:
+                    tgt_size = None
+                    break
+            if tgt_size is None:
+                with pytest.raises(Exception, match="Either img1 and img2 should have the same number of "
+                                                    "elements in each dimension, or one of them should be 1"):
+                    func(A, B)
+            elif tgt_size[1] > 1:
+                with pytest.warns(Warning, match="computed separately for each channel"):
+                    assert func(A, B).shape == tuple(tgt_size)
+            else:
+                assert func(A, B).shape == tuple(tgt_size)
 
     @pytest.mark.parametrize('mode', ['many-to-one', 'one-to-many'])
     def test_noise_independence(self, einstein_img, mode):

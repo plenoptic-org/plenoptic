@@ -12,7 +12,7 @@ def correlate_downsample(image, filt, padding_mode="reflect"):
     Parameters
     ----------
     image: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+        Image, or batch of images. Channels are treated in the same way as batches.
     filt: 2-D torch.Tensor
         The filter to correlate with the input image
     padding_mode: string, optional
@@ -34,7 +34,7 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
     Parameters
     ----------
     image: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+        Image, or batch of images. Channels are treated in the same way as batches.
     odd: tuple, list or numpy.ndarray
         This should contain two integers of value 0 or 1, which determines whether
         the output height and width should be even (0) or odd (1).
@@ -75,7 +75,7 @@ def blur_downsample(x, n_scales=1, order_plus_one=5, scale_filter=True):
     Parameters
     ----------
     x: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+        Image, or batch of images. Channels are treated in the same way as batches.
     n_scales: int, optional
         Apply the blur and downsample procedure recursively `n_scales` times.
     order_plus_one: int, optional
@@ -109,7 +109,7 @@ def upsample_blur(x, odd, order_plus_one=5, scale_filter=True):
     Parameters
     ----------
     x: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. Channels are also treated as batches.
+        Image, or batch of images. Channels are treated in the same way as batches.
     odd: tuple, list or numpy.ndarray
         This should contain two integers of value 0 or 1, which determines whether
         the output height and width should be even (0) or odd (1).

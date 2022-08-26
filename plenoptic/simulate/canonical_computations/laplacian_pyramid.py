@@ -31,7 +31,7 @@ class LaplacianPyramid(nn.Module):
         self.n_scales = n_scales
         self.scale_filter = scale_filter
 
-    def analysis(self, x):
+    def forward(self, x):
         """Build the Laplacian pyramid of an image.
 
         Arguments
@@ -58,7 +58,7 @@ class LaplacianPyramid(nn.Module):
 
         return y
 
-    def synthesis(self, y):
+    def recon_pyr(self, y):
         """Reconstruct the image from its Laplacian pyramid.
 
         Arguments
@@ -80,6 +80,3 @@ class LaplacianPyramid(nn.Module):
             x = y[scale - 1] + y_up
 
         return x
-
-    def forward(self, x):
-        return self.analysis(x)
