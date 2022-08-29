@@ -14,13 +14,17 @@ def minimum(
 
     Parameters
     ----------
-    x: Input tensor.
-    dim: Dimensions over which you would like to compute the minimum.
-    keepdim: Keep original dimensions of tensor when returning result.
+    x
+        Input tensor.
+    dim 
+        Dimensions over which you would like to compute the minimum.
+    keepdim 
+        Keep original dimensions of tensor when returning result.
 
     Returns
     -------
-    min_x : Minimum value of x.
+    min_x 
+        Minimum value of x.
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -38,14 +42,17 @@ def maximum(
 
     Parameters
     ----------
-    x: Input tensor
-    dim: Dimensions over which you would like to compute the minimum
-    keepdim: Keep original dimensions of tensor when returning result
+    x
+        Input tensor
+    dim
+        Dimensions over which you would like to compute the minimum
+    keepdim
+        Keep original dimensions of tensor when returning result
 
     Returns
     -------
-    max_x : Maximum value of x.
-
+    max_x
+        Maximum value of x.
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -78,14 +85,19 @@ def raised_cosine(
 
     Parameters
     ---------
-    width : The width of the region over which the transition occurs.
-    position : The location of the center of the threshold.
-    values : 2-tuple specifying the values to the left and right of the transition.
+    width
+        The width of the region over which the transition occurs.
+    position
+        The location of the center of the threshold.
+    values
+        2-tuple specifying the values to the left and right of the transition.
 
     Returns
     -------
-    X : The x values of this raised cosine.
-    Y : The y values of this raised cosine.
+    X
+        The x values of this raised cosine.
+    Y
+        The y values of this raised cosine.
     """
 
     sz = 256  # arbitrary!
@@ -115,9 +127,12 @@ def interpolate1d(
 
     Parameters
     ----------
-    x_new: The x-coordinates at which to evaluate the interpolated values.
-    Y: The y-coordinates of the data points.
-    X: The x-coordinates of the data points, same length as X.
+    x_new
+        The x-coordinates at which to evaluate the interpolated values.
+    Y
+        The y-coordinates of the data points.
+    X
+        The x-coordinates of the data points, same length as X.
 
     Returns
     -------
@@ -138,12 +153,15 @@ def rectangular_to_polar(x: Tensor) -> Tuple[Tensor, Tensor]:
 
     Parameters
     --------
-    x: Complex tensor.
+    x
+        Complex tensor.
 
     Returns
     -------
-    amplitude: Tensor containing the amplitude (aka. complex modulus).
-    phase: Tensor containing the phase.
+    amplitude
+        Tensor containing the amplitude (aka. complex modulus).
+    phase
+        Tensor containing the phase.
     """
 
     amplitude = torch.abs(x)
@@ -156,8 +174,10 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     Parameters
     ----------
-    amplitude: Tensor containing the amplitude (aka. complex modulus). Must be > 0.
-    phase: Tensor containing the phase
+    amplitude
+        Tensor containing the amplitude (aka. complex modulus). Must be > 0.
+    phase
+        Tensor containing the phase
 
     Returns
     -------
@@ -203,12 +223,15 @@ def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
     the calculation is performed in the frequency domain.
     Parameters
     ---------
-    x: Input signal of shape [b, c, h, w]
-    n_shifts: Sets the length scale of the auto-correlation (ie. maximum offset or lag).
+    x
+        Input signal of shape [b, c, h, w]
+    n_shifts
+        Sets the length scale of the auto-correlation (ie. maximum offset or lag).
 
     Returns
     -------
-    autocorr: Computed autocorrelation.
+    autocorr
+        Computed autocorrelation.
 
     Notes
     -----
@@ -258,25 +281,33 @@ def steer(
 
     Parameters
     ----------
-    basis : Array whose columns are vectorized rotated copies of a steerable
+    basis
+        Array whose columns are vectorized rotated copies of a steerable
         function, or the responses of a set of steerable filters.
-    angle : Scalar or column vector the size of the basis. specifies the angle(s)
+    angle
+        Scalar or column vector the size of the basis. specifies the angle(s)
         (in radians) to steer to
-    harmonics : A list of harmonic numbers indicating the angular harmonic content of
+    harmonics
+        A list of harmonic numbers indicating the angular harmonic content of
         the basis. if None (default), N even or odd low frequencies, as for
         derivative filters
-    steermtx : Matrix which maps the filters onto Fourier series components (ordered
+    steermtx
+        Matrix which maps the filters onto Fourier series components (ordered
         [cos0 cos1 sin1 cos2 sin2 ... sinN]). See steer_to_harmonics_mtx
         function for more details. If None (default), assumes cosine phase
         harmonic components, and filter positions at 2pi*n/N.
-    return_weights : Whether to return the weights or not.
-    even_phase : Specifies whether the harmonics are cosine or sine phase aligned about
+    return_weights
+        Whether to return the weights or not.
+    even_phase
+        Specifies whether the harmonics are cosine or sine phase aligned about
         those positions.
 
     Returns
     -------
-    res : The resteered basis.
-    steervect : The weights used to resteer the basis. only returned if
+    res
+        The resteered basis.
+    steervect
+        The weights used to resteer the basis. only returned if
         ``return_weights`` is True.
     """
 
@@ -346,15 +377,19 @@ def make_disk(
 
     Parameters
     ----------
-    img_size: Size of image in pixels.
-    outer_radius: Total radius of disk. Values from ``inner_radius`` to ``outer_radius``
+    img_size
+        Size of image in pixels.
+    outer_radius
+        Total radius of disk. Values from ``inner_radius`` to ``outer_radius``
         will decay smoothly to zero.
-    inner_radius: Radius of inner disk. All elements from the origin to ``inner_radius``
+    inner_radius
+        Radius of inner disk. All elements from the origin to ``inner_radius``
         will be set to 1.
 
     Returns
     -------
-    mask: Tensor mask with torch.Size(img_size).
+    mask
+        Tensor mask with torch.Size(img_size).
     """
 
     if isinstance(img_size, int):
@@ -394,20 +429,22 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
 
     Parameters
     ----------
-    img : The image to make noisy.
-    noise_mse : The target MSE value / variance of the noise. More than one value is
+    img
+        The image to make noisy.
+    noise_mse
+        The target MSE value / variance of the noise. More than one value is
         allowed.
 
     Returns
     -------
-    noisy_img : The noisy image. If `noise_mse` contains only one element, this will be
+    noisy_img
+        The noisy image. If `noise_mse` contains only one element, this will be
         the same size as `img`. Else, each separate value from `noise_mse` will
         be along the batch dimension.
 
     TODO
     ----
     parametrize in terms of SNR
-
     """
     noise_mse = torch.tensor(
         noise_mse, dtype=torch.float32, device=img.device

@@ -82,7 +82,8 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
 
     Returns
     -------
-    images : 4d tensor containing the images.
+    images
+        4d tensor containing the images.
     """
     if isinstance(paths, str):
         if op.isfile(paths):
@@ -161,12 +162,15 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
 
     Parameters
     ----------
-    im : The image to convert
-    dtype : The target data type.  {np.uint8, np.uint16}
+    im
+        The image to convert
+    dtype
+        The target data type.  {np.uint8, np.uint16}
 
     Returns
     -------
-    im : The converted image, now with dtype=dtype
+    im
+        The converted image, now with dtype=dtype
     """
     if im.max() > 1:
         raise Exception(
@@ -180,12 +184,15 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
     Parameters
     ----------
-    size: The stimuli will have `torch.Size([size, size])`.
-    requires_grad: Whether to initialize the simuli with gradients.
+    size
+        The stimuli will have `torch.Size([size, size])`.
+    requires_grad
+        Whether to initialize the simuli with gradients.
 
     Returns
     -------
-    stimuli: Tensor of shape [11, 1, size, size]. The set of basic stiuli:
+    stimuli
+        Tensor of shape [11, 1, size, size]. The set of basic stiuli:
         [impulse, step_edge, ramp, bar, curv_edge, sine_grating, square_grating,
         polar_angle, angular_sine, zone_plate, fractal]
     """
@@ -264,20 +271,25 @@ def polar_radius(
 
     Parameters
     ---------
-    size : If an int, we assume the image should be of dimensions `(size,
+    size
+        If an int, we assume the image should be of dimensions `(size,
         size)`. if a tuple, must be a 2-tuple of ints specifying the
         dimensions.
-    exponent : The exponent of the radial ramp function.
-    origin : The center of the image. if an int, we assume the origin is at
+    exponent
+        The exponent of the radial ramp function.
+    origin
+        The center of the image. if an int, we assume the origin is at
         `(origin, origin)`. if a tuple, must be a 2-tuple of ints
         specifying the origin (where `(0, 0)` is the upper left).  if
         None, we assume the origin lies at the center of the matrix,
         `(size+1)/2`.
-    device : The device to create this tensor on.
+    device
+        The device to create this tensor on.
 
     Returns
     -------
-    res : The polar radius matrix.
+    res
+        The polar radius matrix.
     """
     if not hasattr(size, "__iter__"):
         size = (size, size)
@@ -320,20 +332,22 @@ def polar_angle(
 
     Parameters
     ---------
-    size : If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
+    size
+        If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
         a 2-tuple of ints specifying the dimensions
-    phase :
-        the phase of the polar angle function (in radians, clockwise from the X-axis)
-    origin : The center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
+    phase
+        The phase of the polar angle function (in radians, clockwise from the X-axis)
+    origin
+        The center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
         tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
         if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
-    device : str or torch.device
-        the device to create this tensor on
+    device
+        The device to create this tensor on.
 
     Returns
     -------
-    res : torch.Tensor
-        the polar angle matrix
+    res
+        The polar angle matrix
     """
     if not hasattr(size, "__iter__"):
         size = (size, size)

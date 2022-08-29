@@ -14,14 +14,19 @@ def variance(
 
     Parameters
     ----------
-    x: The input tensor
-    mean: Reuse a precomputed mean
-    dim: The dimension or dimensions to reduce.
-    keepdim: Whether the output tensor has dim retained or not.
+    x
+        The input tensor
+    mean
+        Reuse a precomputed mean
+    dim
+        The dimension or dimensions to reduce.
+    keepdim
+        Whether the output tensor has dim retained or not.
 
     Returns
     -------
-    out: The variance tensor.
+    out
+        The variance tensor.
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -41,15 +46,21 @@ def skew(
 
     Parameters
     ----------
-    x: The input tensor
-    mean: Reuse a precomputed mean
-    var: Reuse a precomputed variance
-    dim: The dimension or dimensions to reduce.
-    keepdim: Whether the output tensor has dim retained or not.
+    x
+        The input tensor
+    mean
+        Reuse a precomputed mean
+    var
+        Reuse a precomputed variance
+    dim
+        The dimension or dimensions to reduce.
+    keepdim
+        Whether the output tensor has dim retained or not.
 
     Returns
     -------
-    out: The skewness tensor.
+    out
+        The skewness tensor.
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -74,15 +85,21 @@ def kurtosis(
 
     Parameters
     ----------
-    x: The input tensor.
-    mean: Reuse a precomputed mean.
-    var: Reuse a precomputed variance.
-    dim: The dimension or dimensions to reduce.
-    keepdim: Whether the output tensor has dim retained or not.
+    x
+        The input tensor.
+    mean
+        Reuse a precomputed mean.
+    var
+        Reuse a precomputed variance.
+    dim
+        The dimension or dimensions to reduce.
+    keepdim
+        Whether the output tensor has dim retained or not.
 
     Returns
     -------
-    out: The kurtosis tensor.
+    out
+        The kurtosis tensor.
     """
     if dim is None:
         dim = tuple(range(x.ndim))

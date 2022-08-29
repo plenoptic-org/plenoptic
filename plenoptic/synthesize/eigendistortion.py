@@ -19,14 +19,19 @@ def fisher_info_matrix_vector_product(
 
     Parameters
     ----------
-    y: Output tensor with gradient attached
-    x: Input tensor with gradient attached
-    v: The vectors with which to compute Fisher vector products
-    dummy_vec: Dummy vector for Jacobian vector product trick
+    y
+        Output tensor with gradient attached
+    x
+        Input tensor with gradient attached
+    v
+        The vectors with which to compute Fisher vector products
+    dummy_vec
+        Dummy vector for Jacobian vector product trick
 
     Returns
     -------
-    Fv: Vector, Fisher vector product
+    Fv
+        Vector, Fisher vector product
 
     Notes
     -----
@@ -76,11 +81,12 @@ class Eigendistortion:
 
     Parameters
     -----------
-    base_signal: Tensor
-        image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+    base_signal
+        Image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.
-    model: torch class
-        torch model with defined forward and backward operations
+    model
+        Torch model with defined forward and backward operations.
+
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
@@ -178,37 +184,37 @@ class Eigendistortion:
 
         Parameters
         ----------
-        method: {'exact', 'power', 'randomized_svd'}, optional
-            Eigensolver method. Jacobian tries to do eigendecomposition directly (
+        method:
+            {'exact', 'power', 'randomized_svd'} Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large inputs). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'randomized_svd' uses
             randomized SVD to approximate the top k eigendistortions and their corresponding eigenvalues.
-        k: int
+        k
             How many vectors to return using block power method or svd.
-        max_steps: int, optional
+        max_steps
             Maximum number of steps to run for ``method='power'`` in eigenvalue computation N/A for 'randomized_svd'.
-        p: int, optional
+        p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled, and k will be returned. See
             docstring of ``_synthesize_randomized_svd`` for more details including algorithm reference.
-        q: int, optional
+        q
             Matrix power parameter for randomized SVD. This is an effective trick for the algorithm to converge to
             the correct eigenvectors when the eigenspectrum does not decay quickly. See
             ``_synthesize_randomized_svd`` for more details including algorithm reference.
-        tol: float, optional
+        tol
             Tolerance for error criterion in power iteration.
-        seed: int, optional
+        seed
             Control the random seed for reproducibility. Defaults to ``None``, with no seed being set.
 
         Returns
         -------
-        eigendistortions: Tensor
+        eigendistortions
             Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. This tensor points to
             the `synthesized_signal` attribute of the object. Tensor has Size((num_distortions,
             num_channels, img_height, img_width)).
-        eigenvalues: Tensor
+        eigenvalues
             Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
             `synthesized_eigenvalue` attribute of the object.
-        eigen_index: Tensor
+        eigen_index
             Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
@@ -283,13 +289,13 @@ class Eigendistortion:
 
         Parameters
         ----------
-        vecs: Tensor
+        vecs
             Eigendistortion tensor with ``torch.Size([N, num_distortions])``. Each distortion will be reshaped into the
             original image shape and placed in a list.
 
         Returns
         -------
-        imgs: List
+        imgs
             List of Tensor images, each with ``torch.Size(img_height, im_width)``.
         """
 
@@ -304,7 +310,7 @@ class Eigendistortion:
 
         Returns
         -------
-        J: Tensor
+        J
             Jacobian of representation wrt input.
         """
         if self.jacobian is None:
@@ -324,8 +330,10 @@ class Eigendistortion:
 
         Returns
         -------
-        eig_vals: Eigenvalues in decreasing order.
-        eig_vecs: Eigenvectors in 2D tensor, whose cols are eigenvectors (i.e. eigendistortions) corresponding to eigenvalues.
+        eig_vals
+            Eigenvalues in decreasing order.
+        eig_vecs
+            Eigenvectors in 2D tensor, whose cols are eigenvectors (i.e. eigendistortions) corresponding to eigenvalues.
         """
 
         J = self.compute_jacobian()
@@ -347,18 +355,24 @@ class Eigendistortion:
 
         Parameters
         ----------
-        k: Number of top and bottom eigendistortions to synthesize; i.e. if k=2, then the top 2 and bottom 2 will
+        k
+            Number of top and bottom eigendistortions to synthesize; i.e. if k=2, then the top 2 and bottom 2 will
             be returned. When `k>1`, multiple eigendistortions are synthesized, and each power iteration step is
             followed by a QR orthogonalization step to ensure the vectors are orthonormal.
-        shift: When `shift=0`, this function estimates the top `k` eigenvalue/vector pairs. When `shift` is set to the
+        shift
+            When `shift=0`, this function estimates the top `k` eigenvalue/vector pairs. When `shift` is set to the
             estimated top eigenvalue this function will estimate the smallest eigenval/eigenvector pairs.
-        tol: Tolerance value.
-        max_steps: Maximum number of steps.
+        tol
+            Tolerance value.
+        max_steps
+            Maximum number of steps.
 
         Returns
         -------
-        lmbda: Eigenvalue corresponding to final vector of power iteration.
-        v: Final eigenvector(s) (i.e. eigendistortions) of power (orthogonal) iteration procedure.
+        lmbda
+            Eigenvalue corresponding to final vector of power iteration.
+        v
+            Final eigenvector(s) (i.e. eigendistortions) of power (orthogonal) iteration procedure.
 
         References
         ----------
@@ -420,21 +434,21 @@ class Eigendistortion:
 
         Parameters
         ----------
-        k: int
+        k
             Number of eigenvecs (rank of factorization) to be returned.
-        p: int
+        p
             Oversampling parameter, recommended to be 5.
-        q: int
+        q
             Matrix power iteration. Used to squeeze the eigen spectrum for more accurate approximation.
             Recommended to be 2.
 
         Returns
         -------
-        S: Tensor
+        S
             Eigenvalues, Size((n, )).
-        V: Tensor
+        V
             Eigendistortions, Size((n, k)).
-        error_approx: Tensor
+        error_approx
             Estimate of the approximation error. Defined as the
 
         References
@@ -504,26 +518,26 @@ class Eigendistortion:
 
         Parameters
         ----------
-        eigen_index: int
+        eigen_index
             Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will index the first one, and
             -1 or 9 will index the last one.
-        alpha: float, optional
+        alpha
             Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
-        process_image: Callable
+        process_image
             A function to process the image+alpha*distortion before clamping between 0,1. E.g. multiplying by the
             stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
-        ax: matplotlib.pyplot.axis, optional
+        ax
             Axis handle on which to plot.
-        plot_complex: str, optional
+        plot_complex
             Parameter for :meth:`plenoptic.imshow` determining how to handle complex values. Defaults to 'rectangular',
             which plots real and complex components as separate images. Can also be 'polar' or 'logpolar'; see that
             method's docstring for details.
-        kwargs:
+        kwargs
             Additional arguments for :meth:`po.imshow()`.
 
         Returns
         -------
-        fig: Figure
+        fig
             matplotlib Figure handle returned by plenoptic.imshow()
         """
         if process_image is None:  # identity transform
