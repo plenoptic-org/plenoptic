@@ -15,6 +15,7 @@ import os.path as op
 from test_metric import osf_download
 from plenoptic.simulate.canonical_computations import (gaussian1d, circular_gaussian2d)
 from conftest import DEVICE, DATA_DIR
+from packaging import version
 
 
 @pytest.fixture()
@@ -32,14 +33,39 @@ def portilla_simoncelli_test_vectors():
     return osf_download('portilla_simoncelli_test_vectors.tar.gz')
 
 
-@pytest.fixture()
-def portilla_simoncelli_synthesize():
+def get_portilla_simoncelli_synthesize_filename(torch_version=None):
+    """Helper function to get pathname.
+
+    We can't call fixtures directly (feature removed in pytest 4.0), so we use
+    this helper function to get the name, which we use in
+    tests/utils.update_ps_synthesis_test_file()
+
+    """
+    if torch_version is None:
+        # the bit after the + defines the CUDA version used (if any), which
+        # doesn't appear to be relevant for this.
+        torch_version = torch.__version__.split('+')[0]
+    # following https://stackoverflow.com/a/11887885 for how to compare version
+    # strings
+    if version.parse(torch_version) < version.parse('1.12') or DEVICE.type == 'cuda':
+        torch_version = ''
+    # going from 1.11 to 1.12 only changes this synthesis output on cpu, not
+    # gpu
+    else:
+        torch_version = '_torch_v1.12.0'
     # synthesis gives differnet outputs on cpu vs gpu, so we have two different
     # versions to test against
+    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}.npz'
     if DEVICE.type == 'cpu':
-        return osf_download('portilla_simoncelli_synthesize.npz')
+        gpu = ''
     elif DEVICE.type == 'cuda':
-        return osf_download('portilla_simoncelli_synthesize_gpu.npz')
+        gpu = '_gpu'
+    return name_template.format(gpu=gpu, torch_version=torch_version)
+
+
+@pytest.fixture()
+def portilla_simoncelli_synthesize(torch_version=None):
+    return osf_download(get_portilla_simoncelli_synthesize_filename(torch_version))
 
 
 @pytest.fixture()
@@ -257,7 +283,21 @@ class TestPortillaSimoncelli(object):
             output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
         )
 
-    def test_ps_synthesis(self, portilla_simoncelli_synthesize):
+    def test_ps_synthesis(self, portilla_simoncelli_synthesize,
+                          run_test=True):
+        """Test PS texture metamer synthesis.
+
+        Parameters
+        ----------
+        portilla_simoncelli_synthesize : str
+            Path to the .npz file to test against
+        run_test : bool, optional
+            If True, we run the test, comparing the current synthesis against
+            the saved results. If False, we don't run the test, and return the
+            Metamer object instead (used when updating the file to test
+            against, as in tests/utils.update_ps_synthesis_test_file)
+
+        """
         # this tests whether the output of metamer synthesis is consistent.
         # this is probably the most likely to fail as our requirements change,
         # because if something in how torch computes its gradients changes,
@@ -299,13 +339,16 @@ class TestPortillaSimoncelli(object):
                                 coarse_to_fine='together',
                                 coarse_to_fine_kwargs=coarse_to_fine_kwargs)
 
-        np.testing.assert_allclose(
-            po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
-        )
+        if run_test:
+            np.testing.assert_allclose(
+                po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
+            )
 
-        np.testing.assert_allclose(
-            po.to_numpy(model(output)).squeeze(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
-        )
+            np.testing.assert_allclose(
+                po.to_numpy(model(output)).squeeze(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
+            )
+        else:
+            return met
 
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
