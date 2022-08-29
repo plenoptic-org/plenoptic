@@ -20,6 +20,7 @@ data/ssim_analysis.mat
 data/msssim_images
 data/MAD_results
 data/imagenet1000_clsidx_to_labels.txt
+data/portilla*
 data/tid2013
 
 logs/
