@@ -79,8 +79,11 @@ def kurtosis(
     keepdim: bool = False,
 ) -> Tensor:
     r"""sample estimate of `x` *tailedness* (presence of outliers)
-    kurtosis of univariate noral is 3
+
+    kurtosis of univariate noral is 3.
+
     smaller than 3: *platykurtic* (eg. uniform distribution)
+
     greater than 3: *leptokurtic* (eg. Laplace distribution)
 
     Parameters
