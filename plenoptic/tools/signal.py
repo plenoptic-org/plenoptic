@@ -191,33 +191,6 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     return torch.complex(real, imaginary)
 
 
-# def power_spectrum(x, log=True):
-#     """ Compute the power spectrum of a spatial signal.
-
-#     Parameters
-#     ----------
-#     x: torch.Tensor
-#         Signal tensor [B, C, H, W]
-#     log: bool
-#         Apply the non-linear contrast function `log(1 + power)`.
-#     Returns
-#     -------
-#     power: torch.Tensor
-#         Power spectrum of signal along H and W
-
-#     TODO: with torch 1.8
-#     """
-#     import torch.fft
-#     spectrum = torch.fft.rfftn(x, dim=(2, 3), norm='ortho')
-#     spectrum = torch.fft.fftshift(spectrum, dim=(2, 3))
-#     amplitude = torch.abs(spectrum)
-#     power = amplitude ** 2
-#     if log:
-#         return torch.log(1 + power)
-#     else:
-#         return power
-
-
 def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
     """Compute the autocorrelation of `x` up to `n_shifts` shifts,
     the calculation is performed in the frequency domain.
