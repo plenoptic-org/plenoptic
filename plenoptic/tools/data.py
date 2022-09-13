@@ -178,7 +178,7 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     """
     if im.max() > 1:
         raise Exception(
-            "all values of im must lie between 0 and 1, " f"but max is {im.max()}"
+            f"all values of im must lie between 0 and 1, but max is {im.max()}"
         )
     return (im * np.iinfo(dtype).max).astype(dtype)
 
