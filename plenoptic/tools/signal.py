@@ -10,7 +10,7 @@ from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 def minimum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
-    r"""compute minimum in torch over any axis or combination of axes in tensor
+    r"""Compute minimum in torch over any axis or combination of axes in tensor.
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ def minimum(
 def maximum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
-    r"""compute maximum in torch over any dim or combination of axes in tensor
+    r"""Compute maximum in torch over any dim or combination of axes in tensor.
 
     Parameters
     ----------
