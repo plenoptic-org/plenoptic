@@ -1,4 +1,3 @@
-# /usr/bin/env python3
 # we do this to enable deterministic behavior on the gpu, see
 # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
 # details
