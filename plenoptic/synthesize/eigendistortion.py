@@ -394,10 +394,8 @@ class Eigendistortion:
 
         d_lambda = torch.tensor(float("inf"))
         lmbda_new, v_new = None, None
-        pbar = tqdm(
-            range(max_steps),
-            desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists",
-        )
+        desc = ("Top" if shift == 0 else "Bottom") + f" k={k} eigendists"
+        pbar = tqdm(range(max_steps), desc=desc)
         postfix_dict = {"delta_eigenval": None}
 
         for _ in pbar:
@@ -405,11 +403,7 @@ class Eigendistortion:
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
-                print(
-                    ("Top" if shift == 0 else "Bottom")
-                    + f" k={k} eigendists computed"
-                    + f" | Tolerance {tol:.2E} reached."
-                )
+                print(f"{desc} computed | Tolerance {tol:.2E} reached.")
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
