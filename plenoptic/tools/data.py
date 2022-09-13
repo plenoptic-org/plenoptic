@@ -36,9 +36,11 @@ def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
 
     Parameters
     ----------
-    x: Tensor to be converted to `numpy.ndarray` on CPU.
+    x
+        Tensor to be converted to `numpy.ndarray` on CPU.
 
-    squeeze: Removes all dummy dimensions of the tensor
+    squeeze
+        Removes all dummy dimensions of the tensor
 
     Returns
     -------
@@ -70,13 +72,15 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
 
     Parameters
     ----------
-    paths : A str or list of strs. If a list, must contain paths of image
+    paths
+        A str or list of strs. If a list, must contain paths of image
         files. If a str, can either be the path of a single image file
         or of a single directory. If a directory, we try to load every
         file it contains (using imageio.imwrite) and skip those we
         cannot (thus, for efficiency you should not point this to a
         directory with lots of non-image files). This is NOT recursive.
-    as_gray : Whether to convert the images into grayscale or not after
+    as_gray
+        Whether to convert the images into grayscale or not after
         loading them. If False, we do nothing. If True, we call
         skimage.color.rgb2gray on them.
 
