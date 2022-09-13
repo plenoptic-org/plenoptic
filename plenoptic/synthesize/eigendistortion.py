@@ -464,21 +464,19 @@ class Eigendistortion:
         n = len(x)
 
         P = torch.randn(n, k + p).to(x.device)
-        P, _ = torch.linalg.qr(
-            P, "reduced"
-        )  # orthogonalize first for numerical stability
+        # orthogonalize first for numerical stability
+        P, _ = torch.linalg.qr(P, "reduced")
         _dummy_vec = torch.ones_like(y, requires_grad=True)
         Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
-        for _ in range(
-            q
-        ):  # optional power iteration to squeeze the spectrum for more accurate estimate
+        # optional power iteration to squeeze the spectrum for more accurate
+        # estimate
+        for _ in range(q):
             Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
         Q, _ = torch.linalg.qr(Z, "reduced")
-        B = Q.T @ fisher_info_matrix_vector_product(
-            y, x, Q, _dummy_vec
-        )  # B = Q.T @ A @ Q
+        # B = Q.T @ A @ Q
+        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
         _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
         V = Vh.T
         V = Q @ V  # lift up to original dimensionality
