@@ -324,6 +324,7 @@ class Eigendistortion:
 
     def _synthesize_exact(self) -> Tuple[Tensor, Tensor]:
         r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
+
         To be used when the input is small (e.g. less than 70x70 image on cluster or 30x30 on your own machine). This
         method obviates the power iteration and its related algorithms (e.g. Lanczos). This method computes the
         Fisher Information Matrix by explicitly computing the Jacobian of the representation wrt the input.
@@ -347,6 +348,7 @@ class Eigendistortion:
         self, k: int, shift: Union[Tensor, float], tol: float, max_steps: int
     ) -> Tuple[Tensor, Tensor]:
         r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
+
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
 
@@ -429,6 +431,7 @@ class Eigendistortion:
         self, k: int, p: int, q: int
     ) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Synthesize eigendistortions using randomized truncated SVD.
+
         This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
         then computes its SVD.
 
