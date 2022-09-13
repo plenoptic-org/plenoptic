@@ -235,17 +235,19 @@ def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
 
     Notes
     -----
-    - By the Einstein-Wiener-Khinchin theorem:
-    The autocorrelation of a wide sense stationary (WSS) process is the
-    inverse Fourier transform of its energy spectrum (ESD) - which itself
-    is the multiplication between FT(x(t)) and FT(x(-t)).
-    In other words, the auto-correlation is convolution of the signal `x` with
-    itself, which corresponds to squaring in the frequency domain.
-    This approach is computationally more efficient than brute force
-    (n log(n) vs n^2).
+
+    - By the Einstein-Wiener-Khinchin theorem: The autocorrelation of a wide
+      sense stationary (WSS) process is the inverse Fourier transform of its
+      energy spectrum (ESD) - which itself is the multiplication between
+      FT(x(t)) and FT(x(-t)). In other words, the auto-correlation is
+      convolution of the signal `x` with itself, which corresponds to squaring
+      in the frequency domain. This approach is computationally more efficient
+      than brute force (n log(n) vs n^2).
+
     - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
-    location (ie. no shift) - that maximum value is the signal's variance
-    (assuming that the input signal is mean centered).
+      location (ie. no shift) - that maximum value is the signal's variance
+      (assuming that the input signal is mean centered).
+
     """
     N, C, H, W = x.shape
     assert n_shifts >= 1
@@ -372,6 +374,7 @@ def make_disk(
     inner_radius: Optional[float] = None,
 ) -> Tensor:
     r"""Create a circular mask with softened edges to  an image.
+
     All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
     to ``outer_radius`` will decay smoothly to 0.
 
