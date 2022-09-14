@@ -22,7 +22,7 @@ plenoptic
 
 |license-shield| |build| |tutorials| |zenodo|
 
-Currently there's nothing here! However, we'll expand it as we go
+plenoptic is currently under development.
 
 If anything is unclear, please `open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_
 
@@ -34,20 +34,11 @@ If anything is unclear, please `open an issue <https://github.com/LabForComputat
    api/modules
 
 .. toctree::
-   :maxdepth: 1
+   :titlesonly:
+   :glob:
    :caption: Tutorials and examples
 
-   tutorials/00_simple_example.nblink
-   tutorials/01_Linear_approximation_of_nonlinear_model.nblink
-   tutorials/02_Eigendistortions.nblink
-   tutorials/03_Steerable_Pyramid.nblink
-   tutorials/04_Perceptual_distance.nblink
-   tutorials/05_Geodesics.nblink
-   tutorials/06_Metamer.nblink
-   tutorials/07_MAD_Competition.nblink
-   tutorials/08_Simple_MAD.nblink
-   tutorials/09_Original_MAD.nblink
-   tutorials/10_Synthesis.nblink
+   tutorials/*
 
 Indices and tables
 ==================
