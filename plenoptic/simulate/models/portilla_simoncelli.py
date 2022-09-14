@@ -51,7 +51,7 @@ class PortillaSimoncelli(nn.Module):
         A dictionary containing the Portilla-Simoncelli statistics
 
     References
-    -----
+    ----------
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
        Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
        Computer Vision. 40(1):49-71, October, 2000.

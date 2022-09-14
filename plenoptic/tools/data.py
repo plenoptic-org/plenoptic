@@ -32,12 +32,16 @@ def to_numpy(x, squeeze=False):
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
-    ----------------
+    ----------
     x: `torch.Tensor`
        Tensor to be converted to `numpy.ndarray` on CPU.
-
     squeeze: bool, optional
         removes all dummy dimensions of the tensor
+
+    Returns
+    -------
+    x
+        converted numpy array
     """
 
     try:
@@ -237,8 +241,8 @@ def polar_radius(size, exponent=1, origin=None, device=None):
     Compute a matrix of given size containing samples of a radial ramp
     function, raised to given exponent, centered at given origin.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     size : `int` or `tuple`
         if an int, we assume the image should be of dimensions `(size,
         size)`. if a tuple, must be a 2-tuple of ints specifying the
@@ -292,8 +296,8 @@ def polar_angle(size, phase=0, origin=None, device=None):
     Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
     X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     size : `int` or `tuple`
         if an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
         a 2-tuple of ints specifying the dimensions

@@ -74,7 +74,7 @@ class Eigendistortion:
         Index of each eigenvector/eigenvalue.
 
     Parameters
-    -----------
+    ----------
     base_signal: Tensor
         image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.

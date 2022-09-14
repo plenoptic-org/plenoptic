@@ -162,7 +162,7 @@ def raised_cosine(width=1, position=0, values=(0, 1)):
     this lookup table is suitable for use by `interpolate1d`
 
     Parameters
-    ---------
+    ----------
     width : float
         the width of the region over which the transition occurs
     position : float
@@ -228,7 +228,7 @@ def rectangular_to_polar(x):
     r"""Rectangular to polar coordinate transform
 
     Parameters
-    --------
+    ----------
     x: torch.ComplexTensor
 
     Returns

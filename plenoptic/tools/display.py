@@ -24,8 +24,8 @@ def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
     image that's 2000 pixels wide on an monitor 1000 pixels wide; the notebook
     handles the rescaling in a way we can't control).
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     image : torch.Tensor or list
         The images to display. Tensors should be 4d (batch, channel, height,
         width). List of tensors should be used for tensors of different height
@@ -189,8 +189,8 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
     ``anim.save(filename)`` (note for this that you'll need the appropriate
     writer installed and on your path, e.g., ffmpeg, imagemagick, etc).
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     video : torch.Tensor or list
         The videos to display. Tensors should be 5d (batch, channel, time,
         height, width). List of tensors should be used for tensors of different
@@ -604,8 +604,8 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     ax : `matplotlib.pyplot.axis`
         The axis with the plot
 
-    Example
-    -------
+    Examples
+    --------
     We allow for breaks in the baseline value if we want to visually
     break up the plot, as we see below.
 

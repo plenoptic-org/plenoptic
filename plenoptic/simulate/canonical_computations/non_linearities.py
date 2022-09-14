@@ -25,8 +25,8 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
         The dictionary of torch.Tensors containing the local phase of
         ``coeff_dict``.
 
-    Note
-    ----
+    Notes
+    -----
     Since complex numbers are not supported by pytorch, we represent
     complex tensors as having an extra dimension with two slices, where
     one contains the real and the other contains the imaginary
