@@ -174,7 +174,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
         these work.
 
     Returns
-    ------
+    -------
     mssim : torch.Tensor
         2d tensor of shape (batch, channel) containing the mean SSIM for each
         image, averaged over the whole image
@@ -263,7 +263,7 @@ def ssim_map(img1, img2, dynamic_range=1):
         not appropriate for `img1` or `img2`, but will calculate it anyway.
 
     Returns
-    ------
+    -------
     ssim_map : torch.Tensor
         4d tensor containing the map of SSIM values.
 
@@ -338,7 +338,7 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
         which is what psychophysical experiments in [1]_ found.
 
     Returns
-    ------
+    -------
     msssim : torch.Tensor
         2d tensor of shape (batch, channel) containing the MS-SSIM for each image
 
@@ -377,8 +377,8 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
 def normalized_laplacian_pyramid(img):
     """Compute the normalized Laplacian Pyramid using pre-optimized parameters
 
-    Arguments
-    --------
+    Parameters
+    ----------
     img: torch.Tensor of shape (batch, channel, height, width)
         Image, or batch of images. This representation is designed
         for grayscale images and will be computed separately for each
@@ -477,8 +477,8 @@ def nlpd(img1, img2):
 def normalized_steerable_pyramid(img, sigmas=None):
     """Compute the normalized Steerable Pyramid using pre-optimized parameters. (under construction)
 
-    Arguments
-    --------
+    Parameters
+    ----------
     img: torch.Tensor of shape (batch, channel, height, width)
         Image, or batch of images. This representation is designed
         for grayscale images and will be computed separately for each
