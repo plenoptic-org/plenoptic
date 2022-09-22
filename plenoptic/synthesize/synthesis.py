@@ -137,7 +137,7 @@ class Synthesis(metaclass=abc.ABCMeta):
                                     f"Saved: {tmp_dict[k]}")
         for k in check_loss_functions:
             # this way, we know it's the right shape
-            tensor_a, tensor_b = torch.rand(2, *self._signal_shape).to(device)
+            tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss, rtol=1e-2):

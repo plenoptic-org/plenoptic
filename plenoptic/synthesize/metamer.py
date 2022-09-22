@@ -102,7 +102,7 @@ class Metamer(Synthesis):
             raise Exception("image must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{image.size()}")
-        self._signal_shape = image.shape
+        self._image_shape = image.shape
         self.target_representation = self.model(self.image).detach()
         self.optimizer = None
         self.scheduler = None
@@ -542,8 +542,8 @@ class Metamer(Synthesis):
                    ) -> Tensor:
         r"""Synthesize a metamer.
 
-        This is the main method, which updates the ``initial_image`` until its
-        representation matches that of ``image``.
+        Update the pixels of ``initial_image`` until its representation matches
+        that of ``image``.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
@@ -954,7 +954,7 @@ def plot_pixel_values(metamer: Metamer,
                       ylim: Union[Tuple[float], Literal[False]] = None,
                       ax: Union[mpl.axes.Axes, None] = None,
                       **kwargs) -> mpl.axes.Axes:
-    r"""Plot histogram of pixel values of target signal and its metamer.
+    r"""Plot histogram of pixel values of target image and its metamer.
 
     As a way to check the distributions of pixel intensities and see
     if there's any values outside the allowed range
@@ -1465,7 +1465,7 @@ def animate(metamer: Metamer,
 
     def movie_plot(i):
         artists = []
-        if metamer:
+        if 'display_metamer' in included_plots:
             artists.extend(display.update_plot(fig.axes[axes_idx['display_metamer']],
                                                data=metamer.saved_metamer[i],
                                                batch_idx=batch_idx))
@@ -1494,7 +1494,7 @@ def animate(metamer: Metamer,
             plot_pixel_values(metamer, batch_idx=batch_idx,
                               channel_idx=channel_idx, iteration=i,
                               ax=fig.axes[axes_idx['plot_pixel_values']])
-        if loss:
+        if 'plot_loss'in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i*metamer.store_progress

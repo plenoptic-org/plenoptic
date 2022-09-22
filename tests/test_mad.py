@@ -78,7 +78,7 @@ class TestMAD(object):
                                       1-po.metric.ssim(*args), 'min')
         scheduler = None
         if optimizer == 'Adam' or optimizer == 'Scheduler':
-            optimizer = torch.optim.Adam([mad.synthesized_signal])
+            optimizer = torch.optim.Adam([mad.mad_image])
             if optimizer == 'Scheduler':
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
@@ -101,16 +101,16 @@ class TestMAD(object):
         mad.synthesize(max_iter=5)
         if to_type == 'dtype':
             mad.to(torch.float16)
-            assert mad.initial_signal.dtype == torch.float16
-            assert mad.reference_signal.dtype == torch.float16
-            assert mad.synthesized_signal.dtype == torch.float16
+            assert mad.initial_image.dtype == torch.float16
+            assert mad.image.dtype == torch.float16
+            assert mad.mad_image.dtype == torch.float16
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == 'device' and DEVICE.type != 'cpu':
             mad.to('cpu')
-        # initial_signal doesn't get used anywhere after init, so check it like
+        # initial_image doesn't get used anywhere after init, so check it like
         # this
-        mad.initial_signal - mad.reference_signal
-        mad.synthesized_signal - mad.reference_signal
+        mad.initial_image - mad.image
+        mad.mad_image - mad.image
 
 
     def test_map_location(self, curie_img, tmp_path):
@@ -124,7 +124,7 @@ class TestMAD(object):
             curie_img = curie_img.to('cpu')
             mad_copy = po.synth.MADCompetition(curie_img, po.metric.mse,
                                                po.tools.optim.l2_norm, 'min')
-            assert mad_copy.reference_signal.device.type == 'cpu'
+            assert mad_copy.image.device.type == 'cpu'
             mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
                           map_location='cpu')
-            assert mad_copy.synthesized_signal.device.type == 'cpu'
+            assert mad_copy.mad_image.device.type == 'cpu'

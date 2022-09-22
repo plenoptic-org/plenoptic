@@ -21,7 +21,7 @@ class MADCompetition(Synthesis):
     maximally-differentiating image for two given metrics, based on a given
     image. We start by adding noise to this image and then iteratively
     adjusting its pixels so as to either minimize or maximize
-    ``synthesis_metric`` while holding the value of ``fixed_metric`` constant.
+    ``optimized_metric`` while holding the value of ``reference_metric`` constant.
 
     MADCompetiton accepts two metrics as its input. These should be callables
     that take two images and return a single number, and that number should be
@@ -34,23 +34,23 @@ class MADCompetition(Synthesis):
 
     Parameters
     ----------
-    reference_signal :
+    image :
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
-    synthesis_metric :
+    optimized_metric :
         The metric whose value you wish to minimize or maximize, which takes
         two tensors and returns a scalar.
-    fixed_metric :
+    reference_metric :
         The metric whose value you wish to keep fixed, which takes two tensors
         and returns a scalar.
-    synthesis_target :
-        Whether you wish to minimize or maximize ``synthesis_metric``.
+    minmax :
+        Whether you wish to minimize or maximize ``optimized_metric``.
     initial_noise :
         Standard deviation of the Gaussian noise used to initialize
-        ``synthesized_signal`` from ``reference_signal``.
+        ``mad_image`` from ``image``.
     metric_tradeoff_lambda :
-        Lambda to multiply by ``fixed_metric`` loss and add to
-        ``synthesis_metric`` loss. If ``None``, we pick a value so the two
+        Lambda to multiply by ``reference_metric`` loss and add to
+        ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
     range_penalty_lambda :
         Lambda to multiply by range penalty and add to loss.
@@ -60,16 +60,18 @@ class MADCompetition(Synthesis):
 
     Attributes
     ----------
-    synthesized_signal : torch.Tensor
-        The metamer. This may be unfinished depending on how many
-        iterations we've run for.
-        generators
+    mad_image : torch.Tensor
+        The Maximally-Differentiating Image. This may be unfinished depending
+        on how many iterations we've run for.
+    initial_image : torch.Tensor
+        The initial ``mad_image``, which we obtain by adding Gaussian noise to
+        ``image``.
     losses : list
         A list of the objective function's loss over iterations.
-    synthesis_metric_loss : list
-        A list of the ``synthesis_metric`` loss over iterations.
-    fixed_metric_loss : list
-        A list of the ``fixed_metric`` loss over iterations.
+    optimized_metric_loss : list
+        A list of the ``optimized_metric`` loss over iterations.
+    reference_metric_loss : list
+        A list of the ``reference_metric`` loss over iterations.
     gradient_norm : list
         A list of the gradient_norm over iterations.
     learning_rate : list
@@ -78,11 +80,11 @@ class MADCompetition(Synthesis):
     pixel_change : list
         A list containing the max pixel change over iterations
         (``pixel_change[i]`` is the max pixel change in
-        ``synthesized_signal`` between iterations ``i`` and ``i-1``). note
+        ``mad_image`` between iterations ``i`` and ``i-1``). note
         this is calculated before any clamping, so may have some very
         large numbers in the beginning
-    saved_signal : torch.Tensor or list
-        Saved ``self.synthesized_signal`` for later examination.
+    saved_mad_image : torch.Tensor or list
+        Saved ``self.mad_image`` for later examination.
 
     References
     ----------
@@ -93,49 +95,49 @@ class MADCompetition(Synthesis):
 
     """
 
-    def __init__(self, reference_signal: Tensor,
-                 synthesis_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
-                 fixed_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
-                 synthesis_target: Literal['min', 'max'],
+    def __init__(self, image: Tensor,
+                 optimized_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                 reference_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                 minmax: Literal['min', 'max'],
                  initial_noise: float = .1,
                  metric_tradeoff_lambda: Union[None, float] = None,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float] = (0, 1),):
-        self.synthesis_metric = synthesis_metric
-        self.fixed_metric = fixed_metric
-        self.reference_signal = reference_signal.detach()
-        if reference_signal.ndimension() < 4:
-            raise Exception("reference_signal must be torch.Size([n_batch, "
+        self.optimized_metric = optimized_metric
+        self.reference_metric = reference_metric
+        self.image = image.detach()
+        if image.ndimension() < 4:
+            raise Exception("image must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
-                            f"{reference_signal.size()}")
-        self._signal_shape = reference_signal.shape
+                            f"{image.size()}")
+        self._image_shape = image.shape
         # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
         # of 5e-7 to check for zero
-        if fixed_metric(reference_signal, reference_signal) > 5e-7:
-            print(fixed_metric(reference_signal, reference_signal))
-            raise Exception("fixed_metric should return 0 on two identical images!")
-        if synthesis_metric(reference_signal, reference_signal) > 5e-7:
-            print(synthesis_metric(reference_signal, reference_signal))
-            raise Exception("synthesis_metric should return 0 on two identical images!")
+        if reference_metric(image, image) > 5e-7:
+            print(reference_metric(image, image))
+            raise Exception("reference_metric should return 0 on two identical images!")
+        if optimized_metric(image, image) > 5e-7:
+            print(optimized_metric(image, image))
+            raise Exception("optimized_metric should return 0 on two identical images!")
         self.optimizer = None
         self.scheduler = None
         self.losses = []
-        self.synthesis_metric_loss = []
-        self.fixed_metric_loss = []
-        if synthesis_target not in ['min', 'max']:
+        self.optimized_metric_loss = []
+        self.reference_metric_loss = []
+        if minmax not in ['min', 'max']:
             raise Exception("synthessi_target must be one of {'min', 'max'}, but got "
-                            f"value {synthesis_target} instead!")
-        self.synthesis_target = synthesis_target
+                            f"value {minmax} instead!")
+        self.minmax = minmax
         self.learning_rate = []
         self.gradient_norm = []
         self.pixel_change = []
         self.range_penalty_lambda = range_penalty_lambda
         self.allowed_range = allowed_range
-        self._init_synthesized_signal(initial_noise)
+        self._init_mad_image(initial_noise)
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
-            loss_ratio = torch.tensor(self.synthesis_metric_loss[-1] / self.fixed_metric_loss[-1],
+            loss_ratio = torch.tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
                                       dtype=torch.float32)
             metric_tradeoff_lambda = torch.pow(torch.tensor(10),
                                                torch.round(torch.log10(loss_ratio)))
@@ -144,46 +146,44 @@ class MADCompetition(Synthesis):
         self.metric_tradeoff_lambda = metric_tradeoff_lambda
         self.losses.append(self.objective_function().item())
         self.store_progress = None
-        self.saved_signal = []
+        self.saved_mad_image = []
 
-    def _init_synthesized_signal(self,
-                                 initial_noise: float = .1):
+    def _init_mad_image(self, initial_noise: float = .1):
         """Initialize the synthesized image.
 
-        Initialize ``self.synthesized_signal`` attribute to be a
-        ``reference_signal`` plus Gaussian noise with user-specified standard
-        deviation.
+        Initialize ``self.mad_image`` attribute to be ``image`` plus
+        Gaussian noise with user-specified standard deviation.
 
         Parameters
         ----------
         initial_noise :
             Standard deviation of the Gaussian noise used to initialize
-            ``synthesized_signal`` from ``reference_signal``.
+            ``mad_image`` from ``image``.
 
         """
-        synthesized_signal = (self.reference_signal + initial_noise *
-                              torch.randn_like(self.reference_signal))
-        synthesized_signal = synthesized_signal.clamp(*self.allowed_range)
-        self.initial_signal = synthesized_signal.clone()
-        synthesized_signal.requires_grad_()
-        self.synthesized_signal = synthesized_signal
-        self._fixed_metric_target = self.fixed_metric(self.reference_signal,
-                                                      self.synthesized_signal).item()
-        self.fixed_metric_loss.append(self._fixed_metric_target)
-        self.synthesis_metric_loss.append(self.synthesis_metric(self.reference_signal,
-                                                                self.synthesized_signal).item())
+        mad_image = (self.image + initial_noise *
+                     torch.randn_like(self.image))
+        mad_image = mad_image.clamp(*self.allowed_range)
+        self.initial_image = mad_image.clone()
+        mad_image.requires_grad_()
+        self.mad_image = mad_image
+        self._reference_metric_target = self.reference_metric(self.image,
+                                                              self.mad_image).item()
+        self.reference_metric_loss.append(self._reference_metric_target)
+        self.optimized_metric_loss.append(self.optimized_metric(self.image,
+                                                                self.mad_image).item())
 
     def _init_optimizer(self, optimizer, scheduler):
         """Initialize optimizer and scheduler."""
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.synthesized_signal],
+                self.optimizer = torch.optim.Adam([self.mad_image],
                                                   lr=.01, amsgrad=True)
         else:
             if self.optimizer is not None:
                 raise Exception("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]['params']
-            if len(params) != 1 or not torch.equal(params[0], self.synthesized_signal):
+            if len(params) != 1 or not torch.equal(params[0], self.mad_image):
                 raise Exception("For metamer synthesis, optimizer must have one "
                                 "parameter, the metamer we're synthesizing.")
             self.optimizer = optimizer
@@ -193,9 +193,8 @@ class MADCompetition(Synthesis):
         """Initialize store_progress-related attributes.
 
         Sets the ``self.store_progress`` attribute, as well as changing
-        ``saved_signal`` and ``saved_model_response`` attibutes to lists so we
-        can append to them. finally, adds first value to ``saved_signal`` and
-        ``saved_model_response`` if they're empty.
+        ``saved_mad_image`` attibute to lists so we can append to them.
+        finally, adds first value to ``saved_mad_image`` and if they're empty.
 
         Parameters
         ----------
@@ -205,31 +204,29 @@ class MADCompetition(Synthesis):
             False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress``
             iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_signal``
-            contains the stored images, and ``self.saved_model_response``
-            contains the stored model response.
+            same as True). If True or int>0, ``self.saved_mad_image``
+            contains the stored images.
 
         """
         if store_progress:
             if store_progress is True:
                 store_progress = 1
             # if this is not the first time synthesize is being run for this
-            # metamer object, saved_signal/saved_model_response will be tensors
-            # instead of lists. This converts them back to lists so we can use
-            # append. If it's the first time, they'll be empty lists and this
-            # does nothing
-            self.saved_signal = list(self.saved_signal)
-            # first time synthesize() is called, add the initial synthesized
-            # signal and model response (on subsequent calls, this is already
-            # part of saved_signal / saved_model_response).
-            if len(self.saved_signal) == 0:
-                self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
+            # metamer object, saved_mad_image will be tensors instead of lists.
+            # This converts them back to lists so we can use append. If it's
+            # the first time, they'll be empty lists and this does nothing
+            self.saved_mad_image = list(self.saved_mad_image)
+            # first time synthesize() is called, append the initial synthesized
+            # image and model response (on subsequent calls, this is already
+            # part of saved_mad_image).
+            if len(self.saved_mad_image) == 0:
+                self.saved_mad_image.append(self.mad_image.clone().to('cpu'))
         if self.store_progress is not None and store_progress != self.store_progress:
             # we require store_progress to be the same because otherwise the
             # subsampling relationship between attrs that are stored every
             # iteration (loss, gradient, etc) and those that are stored every
-            # store_progress iteration (e.g., saved_signal,
-            # saved_model_response) changes partway through and that's annoying
+            # store_progress iteration (e.g., saved_mad_image) changes partway
+            # through and that's annoying
             raise Exception("If you've already run synthesize() before, must "
                             "re-run it with same store_progress arg. You "
                             f"passed {store_progress} instead of "
@@ -239,9 +236,8 @@ class MADCompetition(Synthesis):
     def _check_nan_loss(self, loss: Tensor) -> bool:
         """Check if loss is nan and, if so, return True.
 
-        This checks if loss is NaN and, if so, updates
-        synthesized_signal/model_response to be several iterations ago (so
-        they're meaningful) and then returns True.
+        This checks if loss is NaN and, if so, updates mad_image to be two
+        iterations ago (so it's meaningful) and then returns True.
 
         Parameters
         ----------
@@ -256,25 +252,25 @@ class MADCompetition(Synthesis):
         """
         if np.isnan(loss.item()):
             warnings.warn("Loss is NaN, quitting out! We revert "
-                          "synthesized_signal to our last saved values (which "
+                          "mad_image to our last saved values (which "
                           "means this will throw an IndexError if you're not "
                           "saving anything)!")
             # need to use the -2 index because the last one will be the one
             # full of NaNs. this happens because the loss is computed before
-            # calculating the gradient and updating synthesized_signal;
-            # therefore the iteration where loss is NaN is the one *after* the
-            # iteration where synthesized_signal started to have NaN values.
-            # this will fail if it hits a nan before store_progress iterations
-            # (because then saved_signal only has a length of 1) but in that
-            # case, you have more severe problems
-            self.synthesized_signal = torch.nn.Parameter(self.saved_signal[-2])
+            # calculating the gradient and updating mad_image; therefore the
+            # iteration where loss is NaN is the one *after* the iteration
+            # where mad_image started to have NaN values. this will fail if it
+            # hits a nan before store_progress iterations (because then
+            # saved_mad_image only has a length of 1) but in that case, you
+            # have more severe problems
+            self.mad_image = torch.nn.Parameter(self.saved_mad_image[-2])
             return True
         return False
 
     def _store(self, i: int) -> bool:
-        """Store synthesized_signal anbd model response, if appropriate.
+        """Store mad_image anbd model response, if appropriate.
 
-        if it's the right iteration, we update: ``saved_signal``
+        if it's the right iteration, we update ``saved_mad_image``
 
         Parameters
         ----------
@@ -296,7 +292,7 @@ class MADCompetition(Synthesis):
             # save it three times, at 3, 6, 9)
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
-                self.saved_signal.append(self.synthesized_signal.clone().to('cpu'))
+                self.saved_mad_image.append(self.mad_image.clone().to('cpu'))
                 stored = True
         return stored
 
@@ -338,8 +334,8 @@ class MADCompetition(Synthesis):
         return False
 
     def objective_function(self,
-                           synthesized_signal: Union[Tensor, None] = None,
-                           reference_signal: Union[Tensor, None] = None) -> Tensor:
+                           mad_image: Union[Tensor, None] = None,
+                           image: Union[Tensor, None] = None) -> Tensor:
         r"""Compute the MADCompetition synthesis loss.
 
         This computes:
@@ -350,38 +346,38 @@ class MADCompetition(Synthesis):
                               &+ \lambda_2 \mathcal{B}(\hat{x})
 
 
-        where :math:`t` is 1 if ``self.synthesis_target`` is ``'min'`` and -1
-        if it's ``'max'``, :math:`L_1` is ``self.synthesis_metric``,
-        :math:`L_2` is ``self.fixed_metric``, :math:`x` is
-        ``self.reference_signal``, :math:`\hat{x}` is
-        ``self.synthesized_signal``, :math:`\epsilon` is the initial noise,
-        :math:`\mathcal{B}` is the quadratic bound penalty, :math:`\lambda_1`
-        is ``self.metric_tradeoff_lambda`` and :math:`\lambda_2` is
+        where :math:`t` is 1 if ``self.minmax`` is ``'min'`` and -1
+        if it's ``'max'``, :math:`L_1` is ``self.optimized_metric``,
+        :math:`L_2` is ``self.reference_metric``, :math:`x` is
+        ``self.image``, :math:`\hat{x}` is ``self.mad_image``,
+        :math:`\epsilon` is the initial noise, :math:`\mathcal{B}` is the
+        quadratic bound penalty, :math:`\lambda_1` is
+        ``self.metric_tradeoff_lambda`` and :math:`\lambda_2` is
         ``self.range_penalty_lambda``.
 
         Parameters
         ----------
-        synthesized_signal :
-            Proposed ``synthesized_signal``, :math:`\hat{x}` in the above
-            equation. If None, use ``self.synthesized_signal``.
-        reference_signal :
-            Proposed ``reference_signal``, :math:`x` in the above equation. If
-            None, use ``self.reference_signal``.
+        mad_image :
+            Proposed ``mad_image``, :math:`\hat{x}` in the above equation. If
+            None, use ``self.mad_image``.
+        image :
+            Proposed ``image``, :math:`x` in the above equation. If
+            None, use ``self.image``.
 
         Returns
         -------
         loss
 
         """
-        if reference_signal is None:
-            reference_signal = self.reference_signal
-        if synthesized_signal is None:
-            synthesized_signal = self.synthesized_signal
-        synth_target = {'min': 1, 'max': -1}[self.synthesis_target]
-        synthesis_loss = self.synthesis_metric(reference_signal, synthesized_signal)
-        fixed_loss = (self._fixed_metric_target -
-                      self.fixed_metric(reference_signal, synthesized_signal)).pow(2)
-        range_penalty = optim.penalize_range(synthesized_signal,
+        if image is None:
+            image = self.image
+        if mad_image is None:
+            mad_image = self.mad_image
+        synth_target = {'min': 1, 'max': -1}[self.minmax]
+        synthesis_loss = self.optimized_metric(image, mad_image)
+        fixed_loss = (self._reference_metric_target -
+                      self.reference_metric(image, mad_image)).pow(2)
+        range_penalty = optim.penalize_range(mad_image,
                                              self.allowed_range)
         # print(synthesis_loss, fixed_loss, range_penalty)
         return (synth_target * synthesis_loss +
@@ -409,7 +405,7 @@ class MADCompetition(Synthesis):
         return loss
 
     def _optimizer_step(self, pbar: tqdm) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        r"""Compute and propagate gradients, then step the optimizer to update synthesized_signal.
+        r"""Compute and propagate gradients, then step the optimizer to update mad_image.
 
         Parameters
         ----------
@@ -423,34 +419,34 @@ class MADCompetition(Synthesis):
         -------
         loss : torch.Tensor
             1-element tensor containing the loss on this step
-        synthesis_metric : torch.Tensor
-            1-element tensor containing the synthesis_metric on this step
-        fixed_metric : torch.Tensor
-            1-element tensor containing the fixed_metric on this step
+        optimized_metric : torch.Tensor
+            1-element tensor containing the optimized_metric on this step
+        reference_metric : torch.Tensor
+            1-element tensor containing the reference_metric on this step
         gradient : torch.Tensor
             1-element tensor containing the gradient on this step
         learning_rate : torch.Tensor
             1-element tensor containing the learning rate on this step
         pixel_change : torch.Tensor
             1-element tensor containing the max pixel change in
-            synthesized_signal between this step and the last
+            mad_image between this step and the last
 
         """
-        last_iter_synthesized_signal = self.synthesized_signal.clone()
+        last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
-        grad_norm = self.synthesized_signal.grad.detach().norm()
+        grad_norm = self.mad_image.grad.detach().norm()
         if grad_norm.item() != grad_norm.item():
             raise Exception('found a NaN in the gradients during optimization')
 
-        fm = self.fixed_metric(self.reference_signal, self.synthesized_signal)
-        sm = self.synthesis_metric(self.reference_signal, self.synthesized_signal)
+        fm = self.reference_metric(self.image, self.mad_image)
+        sm = self.optimized_metric(self.image, self.mad_image)
 
         # optionally step the scheduler
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change = torch.max(torch.abs(self.synthesized_signal -
-                                           last_iter_synthesized_signal))
+        pixel_change = torch.max(torch.abs(self.mad_image -
+                                           last_iter_mad_image))
         # for display purposes, always want loss to be positive. add extra info
         # here if you want it to show up in progress bar
         pbar.set_postfix(
@@ -458,8 +454,8 @@ class MADCompetition(Synthesis):
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
                         pixel_change=f"{pixel_change:.04e}",
-                        fixed_metric=f'{fm.item():.04e}',
-                        synthesis_metric=f'{sm.item():.04e}'))
+                        reference_metric=f'{fm.item():.04e}',
+                        optimized_metric=f'{sm.item():.04e}'))
         return loss, sm, fm, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
 
     def synthesize(self, max_iter: int = 100,
@@ -468,10 +464,12 @@ class MADCompetition(Synthesis):
                    store_progress: Union[bool, int] = False,
                    stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
                    ) -> Tensor:
-        r"""Synthesize a metamer.
+        r"""Synthesize a MAD image.
 
-        This is the main method, which updates the ``initial_image`` until its
-        representation matches that of ``target_signal``.
+        Update the pixels of ``initial_image`` to maximize or minimize
+        (depending on the value of ``minmax``) the value of
+        ``optimized_metric(image, mad_image)`` while keeping the value of
+        ``reference_metric(image, mad_image)`` constant.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
@@ -505,8 +503,8 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        synthesized_signal : torch.Tensor
-            The metamer we've created
+        mad_image : torch.Tensor
+            The MAD image we've created
 
         """
         # initialize the optimizer and scheduler
@@ -520,8 +518,8 @@ class MADCompetition(Synthesis):
         for i in pbar:
             loss, sm, fm, g, lr, pixel_change = self._optimizer_step(pbar)
             self.losses.append(loss.item())
-            self.fixed_metric_loss.append(fm.item())
-            self.synthesis_metric_loss.append(sm.item())
+            self.reference_metric_loss.append(fm.item())
+            self.optimized_metric_loss.append(sm.item())
             self.pixel_change.append(pixel_change.item())
             self.gradient_norm.append(g.item())
             self.learning_rate.append(lr)
@@ -539,9 +537,9 @@ class MADCompetition(Synthesis):
 
         # finally, stack the saved_* attributes
         if self.store_progress:
-            self.saved_signal = torch.stack(self.saved_signal)
+            self.saved_mad_image = torch.stack(self.saved_mad_image)
 
-        return self.synthesized_signal
+        return self.mad_image
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
@@ -562,10 +560,10 @@ class MADCompetition(Synthesis):
         attrs = {k: v for k, v in vars(self).items()}
         # if the metrics are Modules, then we don't want to save them. If
         # they're functions then saving them is fine.
-        if isinstance(self.synthesis_metric, torch.nn.Module):
-            attrs.pop('synthesis_metric')
-        if isinstance(self.fixed_metric, torch.nn.Module):
-            attrs.pop('fixed_metric')
+        if isinstance(self.optimized_metric, torch.nn.Module):
+            attrs.pop('optimized_metric')
+        if isinstance(self.reference_metric, torch.nn.Module):
+            attrs.pop('reference_metric')
         super().save(file_path, attrs=attrs)
 
     def to(self, *args, **kwargs):
@@ -604,17 +602,17 @@ class MADCompetition(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['initial_signal', 'reference_signal', 'synthesized_signal',
-                 'saved_signal']
+        attrs = ['initial_image', 'image', 'mad_image',
+                 'saved_mad_image']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
         try:
-            self.fixed_metric.to(*args, **kwargs)
+            self.reference_metric.to(*args, **kwargs)
         except AttributeError:
             pass
         try:
-            self.synthesis_metric.to(*args, **kwargs)
+            self.optimized_metric.to(*args, **kwargs)
         except AttributeError:
             pass
 
@@ -623,9 +621,11 @@ class MADCompetition(Synthesis):
              **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``MADCompetition`` object -- we will
-        ensure that ``target_signal``, ``target_model_response`` (and thus
-        ``model``), and ``loss_function`` are all identical.
+        This should be called by an initialized ``MADCompetition`` object -- we
+        will ensure that ``image``, ``metric_tradeoff_lambda``,
+        ``range_penalty_lambda``, ``allowed_range``, ``minmax`` are all
+        identical, and that ``reference_metric`` and ``optimize_metric`` return
+        identical values.
 
         Note this operates in place and so doesn't return anything.
 
@@ -655,21 +655,21 @@ class MADCompetition(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['reference_signal', 'metric_tradeoff_lambda',
+        check_attributes = ['image', 'metric_tradeoff_lambda',
                             'range_penalty_lambda', 'allowed_range',
-                            'synthesis_target']
-        check_loss_functions = ['fixed_metric', 'synthesis_metric']
+                            'minmax']
+        check_loss_functions = ['reference_metric', 'optimized_metric']
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,
                      check_loss_functions=check_loss_functions,
                      **pickle_load_args)
         # make this require a grad again
-        self.synthesized_signal.requires_grad_()
+        self.mad_image.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if hasattr(self, 'saved_signal') and self.saved_signal.device.type != 'cpu':
-            self.saved_signal = self.saved_signal.to('cpu')
+        if hasattr(self, 'saved_mad_image') and self.saved_mad_image.device.type != 'cpu':
+            self.saved_mad_image = self.saved_mad_image.to('cpu')
 
 
 def plot_loss(mad: MADCompetition,
@@ -678,7 +678,7 @@ def plot_loss(mad: MADCompetition,
               **kwargs) -> mpl.axes.Axes:
     """Plot metric losses.
 
-    Plots ``mad.synthesis_metric_loss`` and ``mad.fixed_metric_loss`` on two
+    Plots ``mad.optimized_metric_loss`` and ``mad.reference_metric_loss`` on two
     separate axes, over all iterations. Also plots a red dot at ``iteration``,
     to highlight the loss there. If ``iteration=None``, then the dot will be at
     the final iteration.
@@ -727,7 +727,7 @@ def plot_loss(mad: MADCompetition,
         gs = axes.get_subplotspec().subgridspec(1, 2)
         fig = axes.figure
         axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
-    losses = [mad.fixed_metric_loss, mad.synthesis_metric_loss]
+    losses = [mad.reference_metric_loss, mad.optimized_metric_loss]
     names = ['Fixed metric loss', 'Synthesis metric loss']
     for ax, loss, name in zip(axes, losses, names):
         ax.plot(loss, **kwargs)
@@ -736,15 +736,15 @@ def plot_loss(mad: MADCompetition,
     return ax
 
 
-def display_synthesized_signal(mad: MADCompetition,
-                               batch_idx: int = 0,
-                               channel_idx: Union[int, None] = None,
-                               zoom: Union[float, None] = None,
-                               iteration: Union[int, None] = None,
-                               ax: Union[mpl.axes.Axes, None] = None,
-                               title: str = 'MADCompetition',
-                               **kwargs) -> mpl.axes.Axes:
-    """Display synthesized_signal.
+def display_mad_image(mad: MADCompetition,
+                      batch_idx: int = 0,
+                      channel_idx: Union[int, None] = None,
+                      zoom: Union[float, None] = None,
+                      iteration: Union[int, None] = None,
+                      ax: Union[mpl.axes.Axes, None] = None,
+                      title: str = 'MADCompetition',
+                      **kwargs) -> mpl.axes.Axes:
+    """Display MAD image.
 
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
@@ -758,7 +758,7 @@ def display_synthesized_signal(mad: MADCompetition,
     Parameters
     ----------
     mad :
-        MADCompetition object whose synthesized signal we want to display.
+        MADCompetition object whose MAD image we want to display.
     batch_idx :
         Which index to take from the batch dimension
     channel_idx :
@@ -785,9 +785,9 @@ def display_synthesized_signal(mad: MADCompetition,
 
     """
     if iteration is None:
-        image = mad.synthesized_signal
+        image = mad.mad_image
     else:
-        image = mad.saved_signal[iteration]
+        image = mad.saved_mad_image[iteration]
     if batch_idx is None:
         raise Exception("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -813,7 +813,7 @@ def plot_pixel_values(mad: MADCompetition,
                       ylim: Union[Tuple[float], Literal[False]] = None,
                       ax: Union[mpl.axes.Axes, None] = None,
                       **kwargs) -> mpl.axes.Axes:
-    r"""Plot histogram of pixel values of reference and synthesized signals.
+    r"""Plot histogram of pixel values of reference and MAD images.
 
     As a way to check the distributions of pixel intensities and see
     if there's any values outside the allowed range
@@ -860,20 +860,20 @@ def plot_pixel_values(mad: MADCompetition,
 
     kwargs.setdefault('alpha', .4)
     if iteration is None:
-        image = mad.synthesized_signal[batch_idx]
+        image = mad.mad_image[batch_idx]
     else:
-        image = mad.saved_signal[iteration, batch_idx]
-    reference_signal = mad.reference_signal[batch_idx]
+        image = mad.saved_mad_image[iteration, batch_idx]
+    image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
-        reference_signal = reference_signal[channel_idx]
+        image = image[channel_idx]
     if ax is None:
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
-    reference_signal = data.to_numpy(reference_signal).flatten()
+    image = data.to_numpy(image).flatten()
     ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
             label='Synthesized image', **kwargs)
-    ax.hist(reference_signal, bins=min(_freedman_diaconis_bins(image), 50),
+    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
             label='reference image', **kwargs)
     ax.legend()
     if ylim:
@@ -885,12 +885,12 @@ def plot_pixel_values(mad: MADCompetition,
 def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
                          axes_idx: Dict[str, int] = {},
                          figsize: Union[Tuple[float], None] = None,
-                         synthesized_signal: bool = True,
-                         loss: bool = True,
-                         pixel_values: bool = False,
-                         synthesized_signal_width: float = 1,
-                         loss_width: float = 2,
-                         pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
+                         included_plots: List[str] = ['display_mad_image',
+                                                      'plot_loss',
+                                                      'plot_representation_error'],
+                         display_mad_image_width: float = 1,
+                         plot_loss_width: float = 2,
+                         plot_pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
     Creates figure with enough axes for the all the plots you want. Will
@@ -918,18 +918,14 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have relative width=1 correspond to 5
-    synthesized_signal :
-        Whether to include axis for plot of the synthesized image or not.
-    loss :
-        Whether to include axis for plot of the loss or not.
-    pixel_values :
-        Whether to include axis for plot of the histograms of image pixel
-        intensities or not.
-    synthesized_signal_width :
+    included_plots :
+        Which plots to include. Must be some subset of ``'display_mad_image',
+        'plot_loss', 'plot_pixel_values'``.
+    display_mad_image_width :
         Relative width of the axis for the synthesized image.
-    loss_width :
+    plot_loss_width :
         Relative width of the axis for loss plot.
-    pixel_values_width :
+    plot_pixel_values_width :
         Relative width of the axis for image pixel intensities histograms.
 
     Returns
@@ -945,21 +941,21 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if synthesized_signal:
+    if display_mad_image in included_plots:
         n_subplots += 1
-        width_ratios.append(synthesized_signal_width)
-        if 'synthesized_signal' not in axes_idx.keys():
-            axes_idx['synthesized_signal'] = data._find_min_int(axes_idx.values())
-    if loss:
+        width_ratios.append(mad_image_width)
+        if 'display_mad_image' not in axes_idx.keys():
+            axes_idx['display_mad_image'] = data._find_min_int(axes_idx.values())
+    if plot_loss in included_plots:
         n_subplots += 1
         width_ratios.append(loss_width)
-        if 'loss' not in axes_idx.keys():
-            axes_idx['loss'] = data._find_min_int(axes_idx.values())
-    if pixel_values:
+        if 'plot_loss' not in axes_idx.keys():
+            axes_idx['plot_loss'] = data._find_min_int(axes_idx.values())
+    if plot_pixel_values in included_plots:
         n_subplots += 1
         width_ratios.append(pixel_values_width)
-        if 'pixel_values' not in axes_idx.keys():
-            axes_idx['pixel_values'] = data._find_min_int(axes_idx.values())
+        if 'plot_pixel_values' not in axes_idx.keys():
+            axes_idx['plot_pixel_values'] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -996,16 +992,16 @@ def plot_synthesis_status(mad: MADCompetition,
                           fig: Union[mpl.figure.Figure, None] = None,
                           axes_idx: Dict[str, int] = {},
                           figsize: Union[Tuple[float], None] = None,
-                          synthesized_signal: bool = True,
-                          loss: bool = True,
-                          pixel_values: bool = False,
+                          included_plots: List[str] = ['display_mad_image',
+                                                       'plot_loss',
+                                                       'plot_representation_error'],
                           width_ratios: Dict[str, float] = {},
                           ) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
     r"""Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create two
-    subplots on a new figure: the first one contains the synthesized signal and
-    the second contains the loss.
+    subplots on a new figure: the first one contains the MAD image and the
+    second contains the loss.
 
     There is an optional additional plot: pixel_values, a histogram of pixel
     values of the synthesized and target images.
@@ -1027,7 +1023,7 @@ def plot_synthesis_status(mad: MADCompetition,
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
     vrange :
-        The vrange option to pass to ``display_synthesized_signal()``. See
+        The vrange option to pass to ``display_mad_image()``. See
         docstring of ``imshow`` for possible values.
     zoom :
         How much to zoom in / enlarge the synthesized image, the ratio
@@ -1040,7 +1036,7 @@ def plot_synthesis_status(mad: MADCompetition,
     axes_idx :
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'synthesized_signal',
+        helpful if fig is also defined. Possible keys: ``'mad_image',
         'loss', 'pixel_values', 'misc'``. Values should all be ints. If you
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
@@ -1049,18 +1045,15 @@ def plot_synthesis_status(mad: MADCompetition,
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have each axis be of size (5, 5)
-    synthesized_signal :
-        Whether to display the synthesized image or not.
-    loss :
-        Whether to plot the loss or not.
-    pixel_values :
-        Whether to plot the histograms of image pixel intensities or
-        not.
+    included_plots :
+        Which plots to include. Must be some subset of ``'display_mad_image',
+        'plot_loss', 'plot_pixel_values'``.
     width_ratios :
         By default, all plots axes will have the same width. To change
         that, specify their relative widths using the keys:
-        ['synthesized_signal', 'loss', 'pixel_values'] and floats specifying
-        their relative width. Any not included will be assumed to be 1.
+        ['display_mad_image', 'plot_loss', 'plot_pixel_values'] and floats
+        specifying their relative width. Any not included will be assumed to be
+        1.
 
     Returns
     -------
@@ -1074,23 +1067,21 @@ def plot_synthesis_status(mad: MADCompetition,
         raise Exception("synthesis() was run with store_progress=False, "
                         "cannot specify which iteration to plot (only"
                         " last one, with iteration=None)")
-    if mad.synthesized_signal.ndim not in [3, 4]:
+    if mad.mad_image.ndim not in [3, 4]:
         raise Exception("plot_synthesis_status() expects 3 or 4d data;"
                         "unexpected behavior will result otherwise!")
     width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
     fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
-                                               synthesized_signal,
-                                               loss,
-                                               pixel_values,
+                                               included_plots,
                                                **width_ratios)
 
-    if synthesized_signal:
-        display_synthesized_signal(mad, batch_idx=batch_idx,
-                                   channel_idx=channel_idx,
-                                   iteration=iteration,
-                                   ax=axes[axes_idx['synthesized_signal']],
-                                   zoom=zoom, vrange=vrange)
-    if loss:
+    if 'display_mad_image' in included_plots:
+        display_mad_image(mad, batch_idx=batch_idx,
+                          channel_idx=channel_idx,
+                          iteration=iteration,
+                          ax=axes[axes_idx['mad_image']],
+                          zoom=zoom, vrange=vrange)
+    if 'plot_loss' in included_plots:
         plot_loss(mad, iteration=iteration, axes=axes[axes_idx['loss']])
         # this function creates a single axis for loss, which plot_loss then
         # split into two. this makes sure the right two axes are present in the
@@ -1105,7 +1096,7 @@ def plot_synthesis_status(mad: MADCompetition,
         new_axes = [i for i, _ in enumerate(fig.axes)
                     if i not in all_axes]
         axes_idx['loss'] = new_axes
-    if pixel_values:
+    if 'plot_pixel_values' in included_plots:
         plot_pixel_values(mad, batch_idx=batch_idx,
                           channel_idx=channel_idx,
                           iteration=iteration,
@@ -1121,9 +1112,9 @@ def animate(mad: MADCompetition,
             fig: Union[mpl.figure.Figure, None] = None,
             axes_idx: Dict[str, int] = {},
             figsize: Union[Tuple[float], None] = None,
-            synthesized_signal: bool = True,
-            loss: bool = True,
-            pixel_values: bool = False,
+            included_plots: List[str] = ['display_mad_image',
+                                         'plot_loss',
+                                         'plot_representation_error'],
             width_ratios: Dict[str, float] = {},
             ) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
@@ -1162,7 +1153,7 @@ def animate(mad: MADCompetition,
     axes_idx :
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'synthesized_signal',
+        helpful if fig is also defined. Possible keys: ``'mad_image',
         'loss', 'pixel_values', 'misc'``. Values should all be ints. If you
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
@@ -1171,17 +1162,12 @@ def animate(mad: MADCompetition,
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If None, we attempt to
         make our best guess, aiming to have each axis be of size (5, 5)
-    synthesized_signal :
-        Whether to display the synthesized image or not.
-    loss :
-        Whether to plot the loss or not.
-    pixel_values :
-        Whether to plot the histograms of image pixel intensities or
-        not.
+    width_ratios :
         By default, all plots axes will have the same width. To change
         that, specify their relative widths using the keys:
-        ['synthesized_signal', 'loss', 'pixel_values'] and floats specifying
-        their relative width. Any not included will be assumed to be 1.
+        ['display_mad_image', 'plot_loss', 'plot_pixel_values'] and floats
+        specifying their relative width. Any not included will be assumed to be
+        1.
 
     Returns
     -------
@@ -1204,7 +1190,7 @@ def animate(mad: MADCompetition,
     if not mad.store_progress:
         raise Exception("synthesize() was run with store_progress=False,"
                         " cannot animate!")
-    if mad.synthesized_signal.ndim not in [3, 4]:
+    if mad.mad_image.ndim not in [3, 4]:
         raise Exception("animate() expects 3 or 4d data; unexpected"
                         " behavior will result otherwise!")
     # we run plot_synthesis_status to initialize the figure if either fig is
@@ -1215,26 +1201,23 @@ def animate(mad: MADCompetition,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
-                                              loss=loss,
                                               zoom=zoom, fig=fig,
-                                              synthesized_signal=synthesized_signal,
-                                              pixel_values=pixel_values,
+                                              included_plots=included_plots,
                                               axes_idx=axes_idx,
                                               width_ratios=width_ratios)
     # grab the artist for the second plot (we don't need to do this for the
-    # synthesized image or model_response plot, because we use the update_plot
-    # function for that)
-    if loss:
+    # MAD image plot, because we use the update_plot function for that)
+    if 'plot_loss' in included_plots:
         scat = [fig.axes[i].collections[0] for i in axes_idx['loss']]
     # can also have multiple plots
 
     def movie_plot(i):
         artists = []
-        if synthesized_signal:
-            artists.extend(display.update_plot(fig.axes[axes_idx['synthesized_signal']],
-                                               data=mad.saved_signal[i],
+        if 'display_mad_image' in included_plots:
+            artists.extend(display.update_plot(fig.axes[axes_idx['mad_image']],
+                                               data=mad.saved_mad_image[i],
                                                batch_idx=batch_idx))
-        if pixel_values:
+        if 'plot_pixel_values' in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for
             # example, changed the tick locator or formatter. not sure how
@@ -1243,33 +1226,33 @@ def animate(mad: MADCompetition,
             plot_pixel_values(mad, batch_idx=batch_idx,
                               channel_idx=channel_idx, iteration=i,
                               ax=fig.axes[axes_idx['pixel_values']])
-        if loss:
+        if 'plot_loss' in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i*mad.store_progress
-            scat[0].set_offsets((x_val, mad.fixed_metric_loss[x_val]))
-            scat[1].set_offsets((x_val, mad.synthesis_metric_loss[x_val]))
+            scat[0].set_offsets((x_val, mad.reference_metric_loss[x_val]))
+            scat[1].set_offsets((x_val, mad.optimized_metric_loss[x_val]))
             artists.extend(scat)
         # as long as blitting is True, need to return a sequence of artists
         return artists
 
     # don't need an init_func, since we handle initialization ourselves
     anim = mpl.animation.FuncAnimation(fig, movie_plot,
-                                       frames=len(mad.saved_signal),
+                                       frames=len(mad.saved_mad_image),
                                        blit=True, interval=1000./framerate,
                                        repeat=False)
     plt.close(fig)
     return anim
 
 
-def display_synthesized_signal_all(mad_metric1_min: MADCompetition,
-                                   mad_metric2_min: MADCompetition,
-                                   mad_metric1_max: MADCompetition,
-                                   mad_metric2_max: MADCompetition,
-                                   metric1_name: Union[str, None] = None,
-                                   metric2_name: Union[str, None] = None,
-                                   zoom: Union[int, float] = 1,
-                                   **kwargs) -> mpl.figure.Figure:
+def display_mad_image_all(mad_metric1_min: MADCompetition,
+                          mad_metric2_min: MADCompetition,
+                          mad_metric1_max: MADCompetition,
+                          mad_metric2_max: MADCompetition,
+                          metric1_name: Union[str, None] = None,
+                          metric2_name: Union[str, None] = None,
+                          zoom: Union[int, float] = 1,
+                          **kwargs) -> mpl.figure.Figure:
     """Display all MAD Competition images.
 
     To generate a full set of MAD Competition images, you need four instances:
@@ -1280,7 +1263,7 @@ def display_synthesized_signal_all(mad_metric1_min: MADCompetition,
     image from `mad_metric1_min`, for comparison.
 
     Note that all four MADCompetition instances must have the same
-    `reference_signal`.
+    `image`.
 
     Parameters
     ----------
@@ -1294,10 +1277,10 @@ def display_synthesized_signal_all(mad_metric1_min: MADCompetition,
         MADCompetition object that maximized the second metric.
     metric1_name :
         Name of the first metric. If None, we use the name of the
-        `synthesis_metric` function from `mad_metric1_min`.
+        `optimized_metric` function from `mad_metric1_min`.
     metric2_name :
         Name of the second metric. If None, we use the name of the
-        `synthesis_metric` function from `mad_metric2_min`.
+        `optimized_metric` function from `mad_metric2_min`.
     zoom :
         Ratio of display pixels to image pixels. See `plenoptic.imshow` for
         details.
@@ -1312,35 +1295,35 @@ def display_synthesized_signal_all(mad_metric1_min: MADCompetition,
     """
     # this is a bit of a hack right now, because they don't all have same
     # initial image
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_min.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric1_max.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_max.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
-        metric1_name = mad_metric1_min.synthesis_metric.__name__
+        metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
-        metric2_name = mad_metric2_min.synthesis_metric.__name__
+        metric2_name = mad_metric2_min.optimized_metric.__name__
     fig = pt_make_figure(3, 2, [zoom * i for i in
-                                mad_metric1_min.reference_signal.shape[-2:]])
+                                mad_metric1_min.image.shape[-2:]])
     mads = [mad_metric1_min, mad_metric1_max, mad_metric2_min, mad_metric2_max]
     titles = [f'Minimize {metric1_name}', f'Maximize {metric1_name}',
               f'Minimize {metric2_name}', f'Maximize {metric2_name}']
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if kwargs.get('channel_idx', None) is None and mad_metric1_min.initial_signal.shape[1] > 1:
+    if kwargs.get('channel_idx', None) is None and mad_metric1_min.initial_image.shape[1] > 1:
         as_rgb = True
     else:
         as_rgb = False
-    display.imshow(mad_metric1_min.reference_signal, ax=fig.axes[0],
+    display.imshow(mad_metric1_min.image, ax=fig.axes[0],
                    title='Reference image', zoom=zoom, as_rgb=as_rgb,
                    **kwargs)
-    display.imshow(mad_metric1_min.initial_signal, ax=fig.axes[1],
+    display.imshow(mad_metric1_min.initial_image, ax=fig.axes[1],
                    title='Initial (noisy) image', zoom=zoom, as_rgb=as_rgb,
                    **kwargs)
     for ax, mad, title in zip(fig.axes[2:], mads, titles):
-        display_synthesized_signal(mad, zoom=zoom, ax=ax, title=title,
+        display_mad_image(mad, zoom=zoom, ax=ax, title=title,
                                    **kwargs)
     return fig
 
@@ -1363,7 +1346,7 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
     a two-axis figure to display the loss for this full set.
 
     Note that all four MADCompetition instances must have the same
-    `reference_signal`.
+    `image`.
 
     Parameters
     ----------
@@ -1377,10 +1360,10 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
         MADCompetition object that maximized the second metric.
     metric1_name :
         Name of the first metric. If None, we use the name of the
-        `synthesis_metric` function from `mad_metric1_min`.
+        `optimized_metric` function from `mad_metric1_min`.
     metric2_name :
         Name of the second metric. If None, we use the name of the
-        `synthesis_metric` function from `mad_metric2_min`.
+        `optimized_metric` function from `mad_metric2_min`.
     metric1_kwargs :
         Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
         synthesis instance where the first metric was being optimized.
@@ -1389,10 +1372,10 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
         synthesis instance where the second metric was being optimized.
     min_kwargs :
         Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
-        synthesis instance where `synthesis_metric` was being minimized.
+        synthesis instance where `optimized_metric` was being minimized.
     max_kwargs :
         Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
-        synthesis instance where `synthesis_metric` was being maximized.
+        synthesis instance where `optimized_metric` was being maximized.
     figsize :
         Size of the figure we create.
 
@@ -1402,16 +1385,16 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
         Figure containing the plot.
 
     """
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_min.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric1_max.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
-    if not torch.allclose(mad_metric1_min.reference_signal, mad_metric2_max.reference_signal):
-        raise Exception("All four instances of MADCompetition should have same reference_image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
+    if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
+        raise Exception("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
-        metric1_name = mad_metric1_min.synthesis_metric.__name__
+        metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
-        metric2_name = mad_metric2_min.synthesis_metric.__name__
+        metric2_name = mad_metric2_min.optimized_metric.__name__
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     plot_loss(mad_metric1_min, axes=axes, label=f'Minimize {metric1_name}',
               **metric1_kwargs, **min_kwargs)
