@@ -1001,9 +1001,9 @@ def plot_pixel_values(metamer: Metamer,
 
     kwargs.setdefault('alpha', .4)
     if iteration is None:
-        image = metamer.metamer[batch_idx]
+        met = metamer.metamer[batch_idx]
     else:
-        image = metamer.saved_metamer[iteration, batch_idx]
+        met = metamer.saved_metamer[iteration, batch_idx]
     image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
@@ -1011,8 +1011,8 @@ def plot_pixel_values(metamer: Metamer,
     if ax is None:
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
-    image = data.to_numpy(image).flatten()
-    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
+    met = data.to_numpy(met).flatten()
+    ax.hist(met, bins=min(_freedman_diaconis_bins(image), 50),
             label='metamer', **kwargs)
     ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
             label='target image', **kwargs)
@@ -1299,13 +1299,12 @@ def animate(metamer: Metamer,
     ``metamer.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
-    We return the matplotlib FuncAnimation object. In order to view
-    it in a Jupyter notebook, use the
-    ``plenoptic.convert_anim_to_html(anim)`` function. In order to
-    save, use ``anim.save(filename)`` (note for this that you'll
-    need the appropriate writer installed and on your path, e.g.,
-    ffmpeg, imagemagick, etc). Either of these will probably take a
-    reasonably long amount of time.
+    We return the matplotlib FuncAnimation object. In order to view it in a
+    Jupyter notebook, use the
+    ``plenoptic.tools.display.convert_anim_to_html(anim)`` function. In order
+    to save, use ``anim.save(filename)`` (note for this that you'll need the
+    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick,
+    etc). Either of these will probably take a reasonably long amount of time.
 
     Parameters
     ----------
@@ -1426,12 +1425,11 @@ def animate(metamer: Metamer,
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure
     if fig is None or not any([ax.get_title() for ax in fig.axes]):
-        fig, axes_idx = plot_synthesis_status(metamer_obj=metamer_obj,
+        fig, axes_idx = plot_synthesis_status(metamer=metamer,
                                               batch_idx=batch_idx,
                                               channel_idx=channel_idx,
                                               iteration=0, figsize=figsize,
                                               ylim=ylim, vrange=vrange,
-                                              loss=loss,
                                               zoom=zoom, fig=fig,
                                               axes_idx=axes_idx,
                                               included_plots=included_plots,
@@ -1441,7 +1439,7 @@ def animate(metamer: Metamer,
     # metamer or representation plot, because we use the update_plot
     # function for that)
     if 'plot_loss' in included_plots:
-        scat = fig.axes[axes_idx['loss']].collections[0]
+        scat = fig.axes[axes_idx['plot_loss']].collections[0]
     # can have multiple plots
     if 'plot_representation_error' in included_plots:
         try:

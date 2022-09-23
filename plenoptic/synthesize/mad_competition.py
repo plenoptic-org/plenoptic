@@ -860,21 +860,21 @@ def plot_pixel_values(mad: MADCompetition,
 
     kwargs.setdefault('alpha', .4)
     if iteration is None:
-        image = mad.mad_image[batch_idx]
+        mad_image = mad.mad_image[batch_idx]
     else:
-        image = mad.saved_mad_image[iteration, batch_idx]
+        mad_image = mad.saved_mad_image[iteration, batch_idx]
     image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
-        image = image[channel_idx]
+        mad_image = mad_image[channel_idx]
     if ax is None:
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
-    image = data.to_numpy(image).flatten()
+    mad_image = data.to_numpy(mad_image).flatten()
     ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
-            label='Synthesized image', **kwargs)
-    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
-            label='reference image', **kwargs)
+            label='Reference image', **kwargs)
+    ax.hist(mad_image, bins=min(_freedman_diaconis_bins(image), 50),
+            label='MAD image', **kwargs)
     ax.legend()
     if ylim:
         ax.set_ylim(ylim)
@@ -887,7 +887,7 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
                          figsize: Union[Tuple[float], None] = None,
                          included_plots: List[str] = ['display_mad_image',
                                                       'plot_loss',
-                                                      'plot_representation_error'],
+                                                      'plot_pixel_values'],
                          display_mad_image_width: float = 1,
                          plot_loss_width: float = 2,
                          plot_pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
@@ -941,19 +941,19 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if display_mad_image in included_plots:
+    if 'display_mad_image' in included_plots:
         n_subplots += 1
-        width_ratios.append(mad_image_width)
+        width_ratios.append(display_mad_image_width)
         if 'display_mad_image' not in axes_idx.keys():
             axes_idx['display_mad_image'] = data._find_min_int(axes_idx.values())
-    if plot_loss in included_plots:
+    if 'plot_loss' in included_plots:
         n_subplots += 1
-        width_ratios.append(loss_width)
+        width_ratios.append(plot_loss_width)
         if 'plot_loss' not in axes_idx.keys():
             axes_idx['plot_loss'] = data._find_min_int(axes_idx.values())
-    if plot_pixel_values in included_plots:
+    if 'plot_pixel_values' in included_plots:
         n_subplots += 1
-        width_ratios.append(pixel_values_width)
+        width_ratios.append(plot_pixel_values_width)
         if 'plot_pixel_values' not in axes_idx.keys():
             axes_idx['plot_pixel_values'] = data._find_min_int(axes_idx.values())
     if fig is None:
@@ -994,7 +994,7 @@ def plot_synthesis_status(mad: MADCompetition,
                           figsize: Union[Tuple[float], None] = None,
                           included_plots: List[str] = ['display_mad_image',
                                                        'plot_loss',
-                                                       'plot_representation_error'],
+                                                       'plot_pixel_values'],
                           width_ratios: Dict[str, float] = {},
                           ) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
     r"""Make a plot showing synthesis status.
@@ -1079,10 +1079,10 @@ def plot_synthesis_status(mad: MADCompetition,
         display_mad_image(mad, batch_idx=batch_idx,
                           channel_idx=channel_idx,
                           iteration=iteration,
-                          ax=axes[axes_idx['mad_image']],
+                          ax=axes[axes_idx['display_mad_image']],
                           zoom=zoom, vrange=vrange)
     if 'plot_loss' in included_plots:
-        plot_loss(mad, iteration=iteration, axes=axes[axes_idx['loss']])
+        plot_loss(mad, iteration=iteration, axes=axes[axes_idx['plot_loss']])
         # this function creates a single axis for loss, which plot_loss then
         # split into two. this makes sure the right two axes are present in the
         # dict
@@ -1095,12 +1095,12 @@ def plot_synthesis_status(mad: MADCompetition,
                 all_axes.append(i)
         new_axes = [i for i, _ in enumerate(fig.axes)
                     if i not in all_axes]
-        axes_idx['loss'] = new_axes
+        axes_idx['plot_loss'] = new_axes
     if 'plot_pixel_values' in included_plots:
         plot_pixel_values(mad, batch_idx=batch_idx,
                           channel_idx=channel_idx,
                           iteration=iteration,
-                          ax=axes[axes_idx['pixel_values']])
+                          ax=axes[axes_idx['plot_pixel_values']])
     return fig, axes_idx
 
 
@@ -1114,7 +1114,7 @@ def animate(mad: MADCompetition,
             figsize: Union[Tuple[float], None] = None,
             included_plots: List[str] = ['display_mad_image',
                                          'plot_loss',
-                                         'plot_representation_error'],
+                                         'plot_pixel_values'],
             width_ratios: Dict[str, float] = {},
             ) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
@@ -1123,13 +1123,12 @@ def animate(mad: MADCompetition,
     ``mad.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
-    We return the matplotlib FuncAnimation object. In order to view
-    it in a Jupyter notebook, use the
-    ``plenoptic.convert_anim_to_html(anim)`` function. In order to
-    save, use ``anim.save(filename)`` (note for this that you'll
-    need the appropriate writer installed and on your path, e.g.,
-    ffmpeg, imagemagick, etc). Either of these will probably take a
-    reasonably long amount of time.
+    We return the matplotlib FuncAnimation object. In order to view it in a
+    Jupyter notebook, use the
+    ``plenoptic.tools.display.convert_anim_to_html(anim)`` function. In order
+    to save, use ``anim.save(filename)`` (note for this that you'll need the
+    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick,
+    etc). Either of these will probably take a reasonably long amount of time.
 
     Parameters
     ----------
@@ -1208,13 +1207,13 @@ def animate(mad: MADCompetition,
     # grab the artist for the second plot (we don't need to do this for the
     # MAD image plot, because we use the update_plot function for that)
     if 'plot_loss' in included_plots:
-        scat = [fig.axes[i].collections[0] for i in axes_idx['loss']]
+        scat = [fig.axes[i].collections[0] for i in axes_idx['plot_loss']]
     # can also have multiple plots
 
     def movie_plot(i):
         artists = []
         if 'display_mad_image' in included_plots:
-            artists.extend(display.update_plot(fig.axes[axes_idx['mad_image']],
+            artists.extend(display.update_plot(fig.axes[axes_idx['display_mad_image']],
                                                data=mad.saved_mad_image[i],
                                                batch_idx=batch_idx))
         if 'plot_pixel_values' in included_plots:
@@ -1222,10 +1221,10 @@ def animate(mad: MADCompetition,
             # clearing the axes can cause problems if the user has, for
             # example, changed the tick locator or formatter. not sure how
             # to handle this best right now
-            fig.axes[axes_idx['pixel_values']].clear()
+            fig.axes[axes_idx['plot_pixel_values']].clear()
             plot_pixel_values(mad, batch_idx=batch_idx,
                               channel_idx=channel_idx, iteration=i,
-                              ax=fig.axes[axes_idx['pixel_values']])
+                              ax=fig.axes[axes_idx['plot_pixel_values']])
         if 'plot_loss' in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
