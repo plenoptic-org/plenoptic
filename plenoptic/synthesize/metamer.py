@@ -218,12 +218,11 @@ class Metamer(Synthesis):
         Parameters
         ----------
         store_progress : bool or int, optional
-            Whether we should store the model response and the metamer image in
-            progress on every iteration. If False, we don't save anything. If
-            True, we save every iteration. If an int, we save every
-            ``store_progress`` iterations (note then that 0 is the same as
-            False and 1 the same as True). If True or int>0,
-            ``self.saved_metamer`` contains the stored images.
+            Whether we should store the metamer image in progress on every
+            iteration. If False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress`` iterations
+            (note then that 0 is the same as False and 1 the same as True). If
+            True or int>0, ``self.saved_metamer`` contains the stored images.
 
         """
         if store_progress:
@@ -876,9 +875,9 @@ def _representation_error(metamer: Metamer,
     Parameters
     ----------
     metamer :
-        Metamer object whose model response error we want to compute.
+        Metamer object whose representation error we want to compute.
     iteration :
-        Which iteration to compute the model response error for. If None, we
+        Which iteration to compute the representation error for. If None, we
         show the most recent one. Negative values are also allowed.
     kwargs :
         Passed to ``metamer.model.forward``
@@ -923,7 +922,7 @@ def plot_representation_error(metamer: Metamer,
     ax :
         Pre-existing axes for plot. If None, we call ``plt.gca()``.
     as_rgb : bool, optional
-        The model response can be image-like with multiple channels, and we
+        The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the model has its
@@ -943,7 +942,7 @@ def plot_representation_error(metamer: Metamer,
     if ax is None:
         ax = plt.gca()
     return display.plot_representation(metamer.model, representation_error, ax,
-                                       title="Model response error", ylim=ylim,
+                                       title="Representation error", ylim=ylim,
                                        batch_idx=batch_idx, as_rgb=as_rgb)
 
 
@@ -1021,6 +1020,36 @@ def plot_pixel_values(metamer: Metamer,
         ax.set_ylim(ylim)
     ax.set_title("Histogram of pixel values")
     return ax
+
+
+def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
+                          to_check_name: str):
+    """Check whether the user wanted us to create plots that we can't.
+
+    Helper function for plot_synthesis_status and animate.
+
+    Raises a ValueError to_check contains any values that are not allowed.
+
+    Parameters
+    ----------
+    to_check :
+        The variable to check. We ensure that it doesn't contain any extra (not
+        allowed) values. If a list, we check its contents. If a dict, we check
+        its keys.
+    to_check_name :
+        Name of the `to_check` variable, used in the error message.
+
+    """
+    allowed_vals = ['display_metamer', 'plot_loss', 'plot_representation_error',
+                    'plot_pixel_values']
+    try:
+        vals = to_check.keys()
+    except AttributeError:
+        vals = to_check
+    not_allowed = [v for v in vals if v not in allowed_vals]
+    if not_allowed:
+        raise ValueError(f'{to_check_name} contained value(s) {not_allowed}! '
+                         f'Only {allowed_vals} are permissible!')
 
 
 def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
@@ -1153,7 +1182,7 @@ def plot_synthesis_status(metamer: Metamer,
 
     We create several subplots to analyze this. By default, we create three
     subplots on a new figure: the first one contains the synthesized metamer,
-    the second contains the loss, and the third contains the model response
+    the second contains the loss, and the third contains the representation
     error.
 
     There is an optional additional plot: ``plot_pixel_values``, a histogram of
@@ -1186,7 +1215,7 @@ def plot_synthesis_status(metamer: Metamer,
         of display pixels to image pixels. If None (the default), we
         attempt to find the best value ourselves.
     plot_representation_error_as_rgb : bool, optional
-        The model response can be image-like with multiple channels, and we
+        The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the
@@ -1234,6 +1263,9 @@ def plot_synthesis_status(metamer: Metamer,
     if metamer.metamer.ndim not in [3, 4]:
         raise ValueError("plot_synthesis_status() expects 3 or 4d data;"
                          "unexpected behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
     width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
     fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
                                                included_plots,
@@ -1401,6 +1433,9 @@ def animate(metamer: Metamer,
     if metamer.metamer.ndim not in [3, 4]:
         raise ValueError("animate() expects 3 or 4d data; unexpected"
                          " behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
     if metamer.target_representation.ndimension() == 4:
         # we have to do this here so that we set the
         # ylim_rescale_interval such that we never rescale ylim
@@ -1443,13 +1478,13 @@ def animate(metamer: Metamer,
     # can have multiple plots
     if 'plot_representation_error' in included_plots:
         try:
-            model_resp_error_axes = [fig.axes[i] for i in axes_idx['plot_representation_error']]
+            rep_error_axes = [fig.axes[i] for i in axes_idx['plot_representation_error']]
         except TypeError:
             # in this case, axes_idx['plot_representation_error'] is not iterable and so is
             # a single value
-            model_resp_error_axes = [fig.axes[axes_idx['plot_representation_error']]]
+            rep_error_axes = [fig.axes[axes_idx['plot_representation_error']]]
     else:
-        model_resp_error_axes = []
+        rep_error_axes = []
     # can also have multiple plots
 
     if metamer.target_representation.ndimension() == 4:
@@ -1458,7 +1493,7 @@ def animate(metamer: Metamer,
         # replace the bit of the title that specifies the range,
         # since we don't make any promises about that. we have to do
         # this here because we need the figure to have been created
-        for ax in model_resp_error_axes:
+        for ax in rep_error_axes:
             ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
 
     def movie_plot(i):
@@ -1468,21 +1503,21 @@ def animate(metamer: Metamer,
                                                data=metamer.saved_metamer[i],
                                                batch_idx=batch_idx))
         if 'plot_representation_error' in included_plots:
-            model_resp_error = _representation_error(metamer,
+            rep_error = _representation_error(metamer,
                                                      iteration=i)
 
-            # we pass model_resp_error_axes to update, and we've grabbed
+            # we pass rep_error_axes to update, and we've grabbed
             # the right things above
-            artists.extend(display.update_plot(model_resp_error_axes,
+            artists.extend(display.update_plot(rep_error_axes,
                                                batch_idx=batch_idx,
                                                model=metamer.model,
-                                               data=model_resp_error))
-            # again, we know that model_resp_error_axes contains all the axes
+                                               data=rep_error))
+            # again, we know that rep_error_axes contains all the axes
             # with the representation ratio info
             if ((i+1) % ylim_rescale_interval) == 0:
                 if metamer.target_representation.ndimension() == 3:
-                    display.rescale_ylim(model_resp_error_axes,
-                                         model_resp_error)
+                    display.rescale_ylim(rep_error_axes,
+                                         rep_error)
         if 'plot_pixel_values' in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for

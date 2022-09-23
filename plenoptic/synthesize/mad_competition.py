@@ -728,7 +728,7 @@ def plot_loss(mad: MADCompetition,
         fig = axes.figure
         axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
     losses = [mad.reference_metric_loss, mad.optimized_metric_loss]
-    names = ['Fixed metric loss', 'Synthesis metric loss']
+    names = ['Reference metric loss', 'Optimized metric loss']
     for ax, loss, name in zip(axes, losses, names):
         ax.plot(loss, **kwargs)
         ax.scatter(loss_idx, loss[loss_idx], c='r')
@@ -880,6 +880,35 @@ def plot_pixel_values(mad: MADCompetition,
         ax.set_ylim(ylim)
     ax.set_title("Histogram of pixel values")
     return ax
+
+
+def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
+                          to_check_name: str):
+    """Check whether the user wanted us to create plots that we can't.
+
+    Helper function for plot_synthesis_status and animate.
+
+    Raises a ValueError to_check contains any values that are not allowed.
+
+    Parameters
+    ----------
+    to_check :
+        The variable to check. We ensure that it doesn't contain any extra (not
+        allowed) values. If a list, we check its contents. If a dict, we check
+        its keys.
+    to_check_name :
+        Name of the `to_check` variable, used in the error message.
+
+    """
+    allowed_vals = ['display_mad_image', 'plot_loss', 'plot_pixel_values']
+    try:
+        vals = to_check.keys()
+    except AttributeError:
+        vals = to_check
+    not_allowed = [v for v in vals if v not in allowed_vals]
+    if not_allowed:
+        raise ValueError(f'{to_check_name} contained value(s) {not_allowed}! '
+                         f'Only {allowed_vals} are permissible!')
 
 
 def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
@@ -1070,6 +1099,9 @@ def plot_synthesis_status(mad: MADCompetition,
     if mad.mad_image.ndim not in [3, 4]:
         raise Exception("plot_synthesis_status() expects 3 or 4d data;"
                         "unexpected behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
     width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
     fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
                                                included_plots,
@@ -1192,6 +1224,9 @@ def animate(mad: MADCompetition,
     if mad.mad_image.ndim not in [3, 4]:
         raise Exception("animate() expects 3 or 4d data; unexpected"
                         " behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
     # we run plot_synthesis_status to initialize the figure if either fig is
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure

@@ -687,6 +687,28 @@ class TestMADDisplay(object):
             func = po.synth.mad_competition.display_mad_image_all
         func(*all_mad)
 
+    @pytest.mark.parametrize('func', ['plot', 'animate'])
+    # plot_representation_error is an allowed value for metamer, but not MAD.
+    # the second is just a typo
+    @pytest.mark.parametrize('val', ['plot_representation_error', 'plot_mad_image'])
+    @pytest.mark.parametrize('variable', ['included_plots', 'width_ratios',
+                                          'axes_idx'])
+    def test_allowed_plots_exception(self, synthesized_mad,
+                                     func, val, variable):
+        if func == 'plot':
+            func = po.synth.mad_competition.plot_synthesis_status
+        elif func == 'animate':
+            func = po.synth.mad_competition.animate
+        kwargs = {}
+        if variable == 'included_plots':
+            kwargs['included_plots'] = [val, 'plot_loss']
+        elif variable == 'width_ratios':
+            kwargs['width_ratios'] = {val: 1, 'plot_loss': 1}
+        elif variable == 'axes_idx':
+            kwargs['axes_idx'] = {val: 0, 'plot_loss': 1}
+        with pytest.raises(ValueError, match=f'{variable} contained value'):
+            func(synthesized_mad, **kwargs)
+
 
 class TestMetamerDisplay(object):
 
@@ -743,3 +765,25 @@ class TestMetamerDisplay(object):
         # locations for the plots
         template_test_synthesis_custom_fig(synthesized_met, func, fig_creation,
                                            tmp_path)
+
+    @pytest.mark.parametrize('func', ['plot', 'animate'])
+    # display_mad_image is an allowed value for MAD but not metamer.
+    # the second is just a typo
+    @pytest.mark.parametrize('val', ['display_mad_image', 'plot_metamer'])
+    @pytest.mark.parametrize('variable', ['included_plots', 'width_ratios',
+                                          'axes_idx'])
+    def test_allowed_plots_exception(self, synthesized_met,
+                                     func, val, variable):
+        if func == 'plot':
+            func = po.synth.metamer.plot_synthesis_status
+        elif func == 'animate':
+            func = po.synth.metamer.animate
+        kwargs = {}
+        if variable == 'included_plots':
+            kwargs['included_plots'] = [val, 'plot_loss']
+        elif variable == 'width_ratios':
+            kwargs['width_ratios'] = {val: 1, 'plot_loss': 1}
+        elif variable == 'axes_idx':
+            kwargs['axes_idx'] = {val: 0, 'plot_loss': 1}
+        with pytest.raises(ValueError, match=f'{variable} contained value'):
+            func(synthesized_met, **kwargs)
