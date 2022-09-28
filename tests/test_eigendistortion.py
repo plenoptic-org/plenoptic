@@ -3,7 +3,7 @@ import pytest
 import torch
 from torch import nn
 from plenoptic.simulate import OnOff
-from plenoptic.synthesize.eigendistortion import Eigendistortion
+from plenoptic.synthesize.eigendistortion import Eigendistortion, display_eigendistortion
 from conftest import get_model, DEVICE
 import matplotlib.pyplot as plt
 
@@ -43,12 +43,12 @@ class TestEigendistortionSynthesis:
         # invert matrix explicitly
         ed.synthesize(method='exact')
 
-        assert len(ed.synthesized_eigenvalues) == n_chans*SMALL_DIM**2
-        assert len(ed.synthesized_signal) == n_chans*SMALL_DIM**2
-        assert len(ed.synthesized_eigenindex) == n_chans*SMALL_DIM**2
+        assert len(ed.eigenvalues) == n_chans*SMALL_DIM**2
+        assert len(ed.eigendistortions) == n_chans*SMALL_DIM**2
+        assert len(ed.eigenindex) == n_chans*SMALL_DIM**2
 
         # test that each eigenvector returned is original img shape
-        assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
+        assert ed.eigendistortions.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
     def test_method_power(self, model, einstein_img, color_img):
@@ -63,11 +63,11 @@ class TestEigendistortionSynthesis:
         ed.synthesize(method='power', max_steps=3)
 
         # test it should only return two eigenvectors and values
-        assert len(ed.synthesized_eigenvalues) == 2
-        assert len(ed.synthesized_signal) == 2
-        assert len(ed.synthesized_eigenindex) == 2
+        assert len(ed.eigenvalues) == 2
+        assert len(ed.eigendistortions) == 2
+        assert len(ed.eigenindex) == 2
 
-        assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
+        assert ed.eigendistortions.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_orthog_iter(self, model, einstein_img):
@@ -77,9 +77,9 @@ class TestEigendistortionSynthesis:
         ed = Eigendistortion(einstein_img, model)
         ed.synthesize(k=k, method='power', max_steps=10)
 
-        assert ed.synthesized_signal.shape == (k*2, n_chans, n, n)
-        assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
-        assert len(ed.synthesized_eigenvalues) == 2*k
+        assert ed.eigendistortions.shape == (k*2, n_chans, n, n)
+        assert ed.eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
+        assert len(ed.eigenvalues) == 2*k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_randomized_svd(self, model, einstein_img):
@@ -88,9 +88,9 @@ class TestEigendistortionSynthesis:
         einstein_img = einstein_img[..., :n, :n]
         ed = Eigendistortion(einstein_img, model)
         ed.synthesize(k=k, method='randomized_svd')
-        assert ed.synthesized_signal.shape == (k, n_chans, n, n)
-        assert ed.synthesized_eigenindex.allclose(torch.arange(k))
-        assert len(ed.synthesized_eigenvalues) == k
+        assert ed.eigendistortions.shape == (k, n_chans, n, n)
+        assert ed.eigenindex.allclose(torch.arange(k))
+        assert len(ed.eigenvalues) == k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_temp(self, model, einstein_img):
@@ -111,12 +111,12 @@ class TestEigendistortionSynthesis:
         e_pow.synthesize(k=k_pow, method='power', max_steps=2500, seed=0)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        print("synthesized first and last: ", e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[-1])
-        print("exact first and last: ", e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
+        print("synthesized first and last: ", e_pow.eigenvalues[0], e_pow.eigenvalues[-1])
+        print("exact first and last: ", e_jac.eigenvalues[0], e_jac.eigenvalues[-1])
 
-        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
-        assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
-        assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
+        assert e_pow.eigenvalues[0].isclose(e_jac.eigenvalues[0], atol=1e-2)
+        assert e_pow.eigenvalues[-1].isclose(e_jac.eigenvalues[-1], atol=1e-2)
+        assert e_svd.eigenvalues[0].isclose(e_jac.eigenvalues[0], atol=1e-2)
 
     @pytest.mark.parametrize("model", ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
@@ -130,15 +130,15 @@ class TestEigendistortionSynthesis:
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = Eigendistortion(img, model)
         eigendist.synthesize(k=k, method=method, max_steps=10)
-        eigendist.plot_distorted_image(eigen_index=0)
-        eigendist.plot_distorted_image(eigen_index=1)
+        display_eigendistortion(eigendist, eigenindex=0)
+        display_eigendistortion(eigendist, eigenindex=1)
         
         if method == "power":
-            eigendist.plot_distorted_image(eigen_index=-1)
-            eigendist.plot_distorted_image(eigen_index=-2)            
+            display_eigendistortion(eigendist, eigenindex=-1)
+            display_eigendistortion(eigendist,eigenindex=-2)
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
             with pytest.raises(AssertionError):
-                eigendist.plot_distorted_image(eigen_index=-1)
+                display_eigendistortion(eigendist, eigenindex=-1)
         plt.close("all")    
 
 class TestAutodiffFunctions:

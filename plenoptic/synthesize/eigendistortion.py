@@ -58,6 +58,14 @@ def fisher_info_matrix_eigenvalue(y: Tensor, x: Tensor, v: Tensor, dummy_vec: Te
 class Eigendistortion:
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
 
+    Parameters
+    -----------
+    image:
+        torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+        as each image requires its own optimization.
+    model:
+        torch model with defined forward and backward operations
+
     Attributes
     ----------
     batch_size: int
@@ -66,20 +74,13 @@ class Eigendistortion:
     im_width: int
     jacobian: Tensor
         Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``.
-    synthesized_signal: Tensor
+    eigendistortions: Tensor
         Tensor of eigendistortions (eigenvectors of Fisher matrix) with Size((n_distortions, n_channels, h, w)).
-    synthesized_eigenvalues: Tensor
+    eigenvalues: Tensor
         Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order.
-    synthesized_eigenindex: listlike
+    eigenindex: listlike
         Index of each eigenvector/eigenvalue.
 
-    Parameters
-    -----------
-    base_signal: Tensor
-        image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
-        as each image requires its own optimization.
-    model: torch class
-        torch model with defined forward and backward operations
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
@@ -92,39 +93,43 @@ class Eigendistortion:
     The Fisher Information Matrix (FIM) at x, under white Gaussian noise in the response space, is:
         :math:`F = J^T J`
     It is a quadratic approximation of the discriminability of distortions relative to :math:`x`.
-    Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
-    Eigen-distortions of hierarchical representations.
-    In Advances in neural information processing systems (pp. 3530-3539).
-    http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
-    http://www.cns.nyu.edu/~lcv/eigendistortions/
+
+    References
+    ----------
+    .. [1] Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
+           Eigen-distortions of hierarchical representations. In Advances in
+           neural information processing systems (pp. 3530-3539).
+           http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
+           http://www.cns.nyu.edu/~lcv/eigendistortions/
+
     """
 
-    def __init__(self, base_signal: Tensor, model: torch.nn.Module):
-        assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
-        assert base_signal.shape[0] == 1, "Batch dim must be 1. Image batch synthesis is not available."
+    def __init__(self, image: Tensor, model: torch.nn.Module):
+        assert len(image.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
+        assert image.shape[0] == 1, "Batch dim must be 1. Image batch synthesis is not available."
 
-        self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
+        self.batch_size, self.n_channels, self.im_height, self.im_width = image.shape
 
         self.model = model
         # flatten and attach gradient and reshape to image
-        self._input_flat = base_signal.flatten().unsqueeze(1).requires_grad_(True)
+        self._input_flat = image.flatten().unsqueeze(1).requires_grad_(True)
 
-        self.base_signal = self._input_flat.view(*base_signal.shape)
-        self.base_representation = self.model(self.base_signal)
+        self.image = self._input_flat.view(*image.shape)
+        image_representation = self.model(self.image)
 
-        if len(self.base_representation) > 1:
-            self._representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
+        if len(image_representation) > 1:
+            self._representation_flat = torch.cat([s.squeeze().view(-1) for s in image_representation]).unsqueeze(1)
         else:
-            self._representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
+            self._representation_flat = image_representation.squeeze().view(-1).unsqueeze(1)
 
         print(f"\nInitializing Eigendistortion -- "
               f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
 
         self.jacobian = None
 
-        self.synthesized_signal = None  # eigendistortion
-        self.synthesized_eigenvalues = None
-        self.synthesized_eigenindex = None
+        self.eigendistortions = None
+        self.eigenvalues = None
+        self.eigenindex = None
 
     @classmethod
     def load(file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
@@ -177,13 +182,13 @@ class Eigendistortion:
         -------
         eigendistortions: Tensor
             Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. This tensor points to
-            the `synthesized_signal` attribute of the object. Tensor has Size((num_distortions,
+            the `eigendistortions` attribute of the object. Tensor has Size((num_distortions,
             num_channels, img_height, img_width)).
         eigenvalues: Tensor
             Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
-            `synthesized_eigenvalue` attribute of the object.
-        eigen_index: Tensor
-            Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
+            `eigenvalue` attribute of the object.
+        eigenindex: Tensor
+            Index of each eigendistortion/eigenvalue. This points to the `eigenindex` attribute of the
             object.
         """
         if seed is not None:
@@ -224,12 +229,12 @@ class Eigendistortion:
             eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n - k, n)))
 
         # reshape to (n x num_chans x h x w)
-        self.synthesized_signal = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
+        self.eigendistortions = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
 
-        self.synthesized_eigenvalues = torch.abs(eig_vals.detach())
-        self.synthesized_eigenindex = eig_vecs_ind
+        self.eigenvalues = torch.abs(eig_vals.detach())
+        self.eigenindex = eig_vecs_ind
 
-        return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
+        return self.eigendistortions, self.eigenvalues, self.eigenindex
 
     def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
         r""" Reshapes eigenvectors back into correct image dimensions.
@@ -425,57 +430,60 @@ class Eigendistortion:
         idx_range = range(n)
         i = idx_range[idx]
 
-        all_idx = self.synthesized_eigenindex
+        all_idx = self.eigenindex
         assert i in all_idx, "eigenindex must be the index of one of the vectors"
         assert all_idx is not None and len(all_idx) != 0, "No eigendistortions synthesized"
         return int(np.where(all_idx == i)[0])
 
-    def plot_distorted_image(self,
-                             eigen_index: int = 0,
-                             alpha: float = 5.,
-                             process_image: Callable = None,
-                             ax: matplotlib.pyplot.axis = None,
-                             plot_complex: str = 'rectangular',
-                             **kwargs) -> Figure:
-        r""" Displays specified eigendistortions alone, and added to the image.
+def display_eigendistortion(eigendistortion: Eigendistortion,
+                            eigenindex: int = 0,
+                            alpha: float = 5.,
+                            process_image: Callable = None,
+                            ax: matplotlib.pyplot.axis = None,
+                            plot_complex: str = 'rectangular',
+                            **kwargs) -> Figure:
+    r"""Displays specified eigendistortion added to the image.
 
-        If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
-        grayscale. This is merely for display convenience and may change in the future.
+    If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
+    grayscale. This is merely for display convenience and may change in the future.
 
-        Parameters
-        ----------
-        eigen_index: int
-            Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will index the first one, and
-            -1 or 9 will index the last one.
-        alpha: float, optional
-            Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
-        process_image: Callable
-            A function to process the image+alpha*distortion before clamping between 0,1. E.g. multiplying by the
-            stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
-        ax: matplotlib.pyplot.axis, optional
-            Axis handle on which to plot.
-        plot_complex: str, optional
-            Parameter for :meth:`plenoptic.imshow` determining how to handle complex values. Defaults to 'rectangular',
-            which plots real and complex components as separate images. Can also be 'polar' or 'logpolar'; see that
-            method's docstring for details.
-        kwargs:
-            Additional arguments for :meth:`po.imshow()`.
+    Parameters
+    ----------
+    eigendistortion:
+        Eigendistortion object whose synthesized eigendistortion we want to display
+    eigenindex:
+        Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will index the first one, and
+        -1 or 9 will index the last one.
+    alpha:
+        Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
+    process_image:
+        A function to process the image+alpha*distortion before clamping between 0,1. E.g. multiplying by the
+        stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
+    ax:
+        Axis handle on which to plot.
+    plot_complex:
+        Parameter for :meth:`plenoptic.imshow` determining how to handle complex values. Defaults to 'rectangular',
+        which plots real and complex components as separate images. Can also be 'polar' or 'logpolar'; see that
+        method's docstring for details.
+    kwargs:
+        Additional arguments for :meth:`po.imshow()`.
 
-        Returns
-        -------
-        fig: Figure
-            matplotlib Figure handle returned by plenoptic.imshow()
-        """
-        if process_image is None:  # identity transform
-            def process_image(x): return x
+    Returns
+    -------
+    fig: Figure
+        matplotlib Figure handle returned by plenoptic.imshow()
 
-        # reshape so channel dim is last
-        im_shape = self.n_channels, self.im_height, self.im_width
-        image = self.base_signal.detach().view(1, * im_shape).cpu()
-        dist = self.synthesized_signal[self._indexer(eigen_index)].unsqueeze(0).cpu()
+    """
+    if process_image is None:  # identity transform
+        def process_image(x): return x
 
-        img_processed = process_image(image + alpha * dist)
-        to_plot = torch.clamp(img_processed, 0, 1)
-        fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
+    # reshape so channel dim is last
+    im_shape = eigendistortion.n_channels, eigendistortion.im_height, eigendistortion.im_width
+    image = eigendistortion.image.detach().view(1, * im_shape).cpu()
+    dist = eigendistortion.eigendistortions[eigendistortion._indexer(eigenindex)].unsqueeze(0).cpu()
 
-        return fig
+    img_processed = process_image(image + alpha * dist)
+    to_plot = torch.clamp(img_processed, 0, 1)
+    fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
+
+    return fig
