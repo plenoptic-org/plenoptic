@@ -1,5 +1,6 @@
 .DS_Store
 .ipynb_checkpoints
+*jvsc*
 __pycache__/
 *.egg-info/
 *.pyc
@@ -21,6 +22,7 @@ data/msssim_images
 data/MAD_results
 data/imagenet1000_clsidx_to_labels.txt
 data/portilla*
+data/FASHION_MNIST
 
 logs/
 train/
