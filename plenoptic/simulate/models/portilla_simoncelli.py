@@ -524,8 +524,8 @@ class PortillaSimoncelli(nn.Module):
         """
         im = im.squeeze()
 
-        mx = im.shape[0]
-        my = im.shape[1]
+        mx = im.shape[1]
+        my = im.shape[0]
         my = mult * my
         mx = mult * mx
 
