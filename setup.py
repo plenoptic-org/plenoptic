@@ -39,6 +39,7 @@ setup(
         "plenoptic.synthesize",
         "plenoptic.tools",
     ],
+    package_data={'': ['plenoptic/metric/*.npy']},
     install_requires=readlines('jenkins/requirements.txt'),
     tests="tests",
 )
