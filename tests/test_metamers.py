@@ -11,6 +11,12 @@ import pytest
 from conftest import DEVICE
 
 
+# in order for pickling to work with functions, they must be defined at top of
+# module: https://stackoverflow.com/a/36995008
+def custom_loss(x1, x2):
+    return (x1-x2).sum()
+
+
 class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
@@ -23,8 +29,7 @@ class TestMetamers(object):
         elif loss_func == 'l2':
             loss = po.tools.optim.l2_norm
         elif loss_func == 'custom':
-            def loss(x1, x2):
-                return (x1-x2).sum()
+            loss = custom_loss
         met = po.synth.Metamer(einstein_img, model, loss_function=loss,
                                range_penalty_lambda=range_penalty)
         met.synthesize(max_iter=4, store_progress=True)
