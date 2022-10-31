@@ -40,8 +40,7 @@ class TestMetamers(object):
             elif fail == 'model':
                 model = po.simul.Gaussian(30).to(DEVICE)
             elif fail == 'loss':
-                def loss(*args, **kwargs):
-                    return 1
+                loss = po.metric.ssim
             elif fail == 'range_penalty':
                 range_penalty = .5
             met_copy = po.synth.Metamer(einstein_img, model,
