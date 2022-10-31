@@ -15,4 +15,4 @@ RUN apt-get update && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/
-RUN pip3 install -r /tmp/requirements.txt
+RUN pip3 install --upgrade --upgrade-strategy eager -r /tmp/requirements.txt
