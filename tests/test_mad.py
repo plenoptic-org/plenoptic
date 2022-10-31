@@ -28,20 +28,23 @@ class TestMAD(object):
         mad.synthesize(max_iter=5, store_progress=store_progress)
         if store_progress:
             mad.synthesize(max_iter=5, store_progress=store_progress)
-           
+
     @pytest.mark.parametrize('fail', [False, 'img', 'metric1', 'metric2', 'target'])
     @pytest.mark.parametrize('rgb', [False, True])
     @pytest.mark.parametrize('model', ['ColorModel'], indirect=True)
     def test_save_load(self, curie_img, fail, rgb, model, tmp_path):
         # this works with either rgb or grayscale images
-        metric = lambda *args: po.metric.mse(*args).mean()
+        def metric(*args):
+            return po.metric.mse(*args).mean()
         if rgb:
             curie_img = curie_img.repeat(1, 3, 1, 1)
-            metric2 = lambda x1, x2: po.metric.mse(model(x1), model(x2)).mean()
+            def metric2(x1, x2):
+                return po.metric.mse(model(x1), model(x2)).mean()
         # MAD requires metrics are *dis*-similarity metrics, so that they
         # return 0 if two images are identical (SSIM normally returns 1)
         else:
-            metric2 = lambda *args: 1-po.metric.ssim(*args)
+            def metric2(*args):
+                return 1-po.metric.ssim(*args)
         target = 'min'
         mad = po.synth.MADCompetition(curie_img, metric, metric2, target)
         mad.synthesize(max_iter=4, store_progress=True)
@@ -53,10 +56,12 @@ class TestMAD(object):
                 # this works with either rgb or grayscale images (though note
                 # that SSIM just operates on each RGB channel independently,
                 # which is probably not the right thing to do)
-                metric = lambda x1, x2: 2*(1 - po.metric.ssim(x1, x2)).mean()
+                def metric(x1, x2):
+                    return 2*(1 - po.metric.ssim(x1, x2)).mean()
             elif fail == 'metric2':
                 # this works with either rgb or grayscale images
-                metric2 = lambda *args: po.metric.mse(*args).mean()
+                def metric2(*args):
+                    return po.metric.mse(*args).mean()
             elif fail == 'target':
                 target = 'max'
             mad_copy = po.synth.MADCompetition(curie_img, metric, metric2, target)
@@ -74,8 +79,9 @@ class TestMAD(object):
 
     @pytest.mark.parametrize('optimizer', ['Adam', None, 'Scheduler'])
     def test_optimizer_opts(self, curie_img, optimizer):
-        mad = po.synth.MADCompetition(curie_img, po.metric.mse, lambda *args:
-                                      1-po.metric.ssim(*args), 'min')
+        mad = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                      lambda *args: 1-po.metric.ssim(*args),
+                                      'min')
         scheduler = None
         if optimizer == 'Adam' or optimizer == 'Scheduler':
             optimizer = torch.optim.Adam([mad.synthesized_signal])
