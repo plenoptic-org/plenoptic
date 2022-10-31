@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         # nbclient 0.5.5 is the first version that includes jupyter execute
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager .
           pip install jupyter ipywidgets
           pip install "nbclient>=0.5.5"
       - name: Run notebooks
@@ -86,7 +86,7 @@ jobs:
           # using the --upgrade and --upgrade-strategy eager flags ensures that
           # pip will always install the latest allowed version of all
           # dependencies, to make sure the cache doesn't go stale
-          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager .
           pip install --upgrade --upgrade-strategy eager pytest-cov
 
       - name: Run tests with pytest
