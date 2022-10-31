@@ -125,7 +125,11 @@ class TestLaplacianPyramid(object):
         for x_po, x_pt in zip(y_po, y_pt):
             x_po = x_po.squeeze().detach().cpu().numpy()
             assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
-            # TODO: There is some problem with padding on right and bottom edge, should figure out why
+            # The pyrtools implementation `pt.upConv performs`` padding after upsampling.
+            # Our implementation `po.tools.upsample_convolve`` performs padding before upsampling,
+            # and, depending on the parity of the image, sometimes performs additional zero padding
+            # after upsampling up to one row/column. This causes inconsistency on the right and
+            # bottom edges, so they are exluded in the comparison.
 
 
 class TestFrontEnd:

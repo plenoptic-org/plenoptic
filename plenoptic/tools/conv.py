@@ -16,13 +16,12 @@ def correlate_downsample(image, filt, padding_mode="reflect"):
     filt: 2-D torch.Tensor
         The filter to correlate with the input image
     padding_mode: string, optional
-        One of "constant", "reflect", "replicate", "circular" or "zero" (same as "constant")
+        One of "constant", "reflect", "replicate", "circular". The option "constant"
+        means padding with zeros.
     """
 
-    if padding_mode == "zero":
-        padding_mode = "constant"
     assert isinstance(image, torch.Tensor) and isinstance(filt, torch.Tensor)
-
+    assert image.ndim == 4 and filt.ndim == 2
     n_channels = image.shape[1]
     image_padded = same_padding(image, kernel_size=filt.shape, pad_mode=padding_mode)
     return F.conv2d(image_padded, filt.repeat(n_channels, 1, 1, 1), stride=2, groups=n_channels)
@@ -41,12 +40,12 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
     filt: 2-D torch.Tensor
         The filter to convolve with the upsampled image
     padding_mode: string, optional
-        One of "constant", "reflect", "replicate", "circular" or "zero" (same as "constant")
+        One of "constant", "reflect", "replicate", "circular". The option "constant"
+        means padding with zeros.
     """
 
-    if padding_mode == "zero":
-        padding_mode = "constant"
     assert isinstance(image, torch.Tensor) and isinstance(filt, torch.Tensor)
+    assert image.ndim == 4 and filt.ndim == 2
     filt = filt.flip((0, 1))
 
     n_channels = image.shape[1]

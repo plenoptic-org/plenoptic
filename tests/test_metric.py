@@ -122,14 +122,15 @@ def test_load_images(paths, as_gray):
 class TestPerceptualMetrics(object):
 
     @pytest.mark.parametrize('weighted', [True, False])
-    def test_ssim(self, einstein_img, curie_img, weighted):
+    def test_ssim_grad(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
         curie_img.requires_grad_(False)
 
-    def test_msssim(self, einstein_img, curie_img):
+    def test_msssim_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize('func_name', ['ssim', 'ms-ssim', 'nlpd', 'nspd'])
     @pytest.mark.parametrize('size_A', [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)])
@@ -217,18 +218,18 @@ class TestPerceptualMetrics(object):
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 
-    def test_nlpd(self, einstein_img, curie_img):
+    def test_nlpd_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
         curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
 
-    def test_nspd(self, einstein_img, curie_img):
+    def test_nspd_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nspd(einstein_img, curie_img).requires_grad
         curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
-    def test_model_metric(self, einstein_img, curie_img, model):
+    def test_model_metric_grad(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
         curie_img.requires_grad_(False)
