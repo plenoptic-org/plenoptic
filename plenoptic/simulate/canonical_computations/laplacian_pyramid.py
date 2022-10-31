@@ -4,15 +4,16 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 
 class LaplacianPyramid(nn.Module):
-    """
-    The Laplacian pyramid [1]_ is a multiscale image representation.
-    It decomposes the image by computing the local mean using Gaussian
-    blurring filters and substracting it from the image and repeating this
-    operation on the local mean itself after downsampling. This
-    representation is overcomplete and invertible.
+    """Laplacian Pyramid in Torch.
+   
+    The Laplacian pyramid [1]_ is a multiscale image representation. It
+    decomposes the image by computing the local mean using Gaussian blurring
+    filters and substracting it from the image and repeating this operation on
+    the local mean itself after downsampling. This representation is
+    overcomplete and invertible.
 
-    Argument
-    --------
+    Parameters
+    ----------
     n_scales: int
         number of scales to compute
     scale_filter: bool, optional
@@ -23,7 +24,8 @@ class LaplacianPyramid(nn.Module):
     Reference
     ---------
     .. [1] Burt, P. and Adelson, E., 1983. The Laplacian pyramid as a compact
-    image code. IEEE Transactions on communications, 31(4), pp.532-540.
+       image code. IEEE Transactions on communications, 31(4), pp.532-540.
+
     """
 
     def __init__(self, n_scales=5, scale_filter=False):
@@ -34,8 +36,8 @@ class LaplacianPyramid(nn.Module):
     def forward(self, x):
         """Build the Laplacian pyramid of an image.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         x: torch.Tensor of shape (B, C, H, W)
             Image, or batch of images. If there are multiple channels,
             the Laplacian is computed separately for each of them
@@ -61,8 +63,8 @@ class LaplacianPyramid(nn.Module):
     def recon_pyr(self, y):
         """Reconstruct the image from its Laplacian pyramid.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         y: list of torch.Tensor
             Laplacian pyramid representation, each element of the list
             corresponds to a scale, from fine to coarse
