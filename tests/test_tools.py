@@ -123,9 +123,17 @@ class TestDownsampleUpsample(object):
         img_up = po.tools.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
 
+        img_down = po.tools.blur_downsample(img)
+        img_up = po.tools.upsample_blur(img_down, odd=(odd, 1))
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
+
     def test_multichannel(self):
         img = torch.randn([10, 3, 24, 25], device=DEVICE)
         filt = torch.randn([5, 5], device=DEVICE)
         img_down = po.tools.correlate_downsample(img, filt=filt)
         img_up = po.tools.upsample_convolve(img_down, odd=(0, 1), filt=filt)
+        assert img_up.shape == img.shape
+
+        img_down = po.tools.blur_downsample(img)
+        img_up = po.tools.upsample_blur(img_down, odd=(0, 1))
         assert img_up.shape == img.shape
