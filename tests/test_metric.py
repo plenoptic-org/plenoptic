@@ -132,14 +132,13 @@ class TestPerceptualMetrics(object):
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
         curie_img.requires_grad_(False)
 
-    @pytest.mark.parametrize('func_name', ['ssim', 'ms-ssim', 'nlpd', 'nspd'])
+    @pytest.mark.parametrize('func_name', ['ssim', 'ms-ssim', 'nlpd'])
     @pytest.mark.parametrize('size_A', [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)])
     @pytest.mark.parametrize('size_B', [(), (3,), (1, 1), (6, 3), (3, 1), (1, 4)])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
         func = {'ssim': po.metric.ssim,
                 'ms-ssim': po.metric.ms_ssim,
-                'nlpd': po.metric.nlpd,
-                'nspd': po.metric.nspd}[func_name]
+                'nlpd': po.metric.nlpd}[func_name]
         A = einstein_img[0, 0].repeat(*size_A, 1, 1)
         B = curie_img[0, 0].repeat(*size_B, 1, 1)
         
@@ -222,11 +221,6 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
         curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
-
-    def test_nspd_grad(self, einstein_img, curie_img):
-        curie_img.requires_grad_()
-        assert po.metric.nspd(einstein_img, curie_img).requires_grad
-        curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_metric_grad(self, einstein_img, curie_img, model):
