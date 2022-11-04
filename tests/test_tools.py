@@ -113,12 +113,12 @@ class TestDownsampleUpsample(object):
     @pytest.mark.parametrize('odd', [0, 1])
     @pytest.mark.parametrize('size', [9, 10, 11, 12])
     def test_filter(self, odd, size):
-        img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE)
+        img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE, dtype=torch.float32)
         img[0, 0, 12, 12] = 1
         filt = np.zeros([size, size + 1])
         filt[5, 5] = 1
         filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
-        filt = torch.tensor(filt, dtype=img.dtype, device=DEVICE)
+        filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
         img_down = po.tools.correlate_downsample(img, filt=filt)
         img_up = po.tools.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
@@ -128,8 +128,8 @@ class TestDownsampleUpsample(object):
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
 
     def test_multichannel(self):
-        img = torch.randn([10, 3, 24, 25], device=DEVICE)
-        filt = torch.randn([5, 5], device=DEVICE)
+        img = torch.randn([10, 3, 24, 25], device=DEVICE, dtype=torch.float32)
+        filt = torch.randn([5, 5], device=DEVICE, dtype=torch.float32)
         img_down = po.tools.correlate_downsample(img, filt=filt)
         img_up = po.tools.upsample_convolve(img_down, odd=(0, 1), filt=filt)
         assert img_up.shape == img.shape
