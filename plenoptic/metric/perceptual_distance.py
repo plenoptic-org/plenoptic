@@ -14,7 +14,7 @@ import pickle
 DIRNAME = os.path.dirname(__file__)
 
 
-def _ssim_parts(img1, img2, dynamic_range, pad=False):
+def _ssim_parts(img1, img2, pad=False):
     """Calcluates the various components used to compute SSIM
 
     This should not be called by users directly, but is meant to assist for
@@ -29,14 +29,9 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
         and `img2` must be the same. The numbers of batches and channels of
         `img1` and `img2` need to be broadcastable: either they are the same
         or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches).
-    dynamic_range : int, optional.
-        dynamic range of the images. Note we assume that both images have the
-        same dynamic range. 1, the default, is appropriate for float images
-        between 0 and 1, as is common in synthesis. 2 is appropriate for float
-        images between -1 and 1, and 255 is appropriate for standard 8-bit
-        integer images. We'll raise a warning if it looks like your value is
-        not appropriate for `img1` or `img2`, but will calculate it anyway.
+        channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may
+        be inaccurate, and we will raise a warning (but will still compute it).
     pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
         If not False, how to pad the image for the convolutions computing the
         local average of each image. See `torch.nn.functional.pad` for how
@@ -44,21 +39,11 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
 
     """
     img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
-    if dynamic_range == 1:
-        if (img_ranges > 1).any() or (img_ranges < 0).any():
-            warnings.warn("dynamic_range is 1 but image range falls outside [0, 1]"
-                          f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-                          "Continuing anyway...")
-    elif dynamic_range == 2:
-        if (img_ranges > 1).any() or (img_ranges < -1).any():
-            warnings.warn("dynamic_range is 2 but image range falls outside [-1, 1]"
-                          f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-                          "Continuing anyway...")
-    elif dynamic_range == 255:
-        if (img_ranges > 255).any() or (img_ranges < 0).any():
-            warnings.warn("dynamic_range is 255 but image range falls outside [0, 255]"
-                          f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-                          "Continuing anyway...")
+    if (img_ranges > 1).any() or (img_ranges < 0).any():
+        warnings.warn("Image range falls outside [0, 1]."
+                       f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
+                       "Continuing anyway...")
+
     if not img1.ndim == img2.ndim == 4:
         raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
     if img1.shape[-2:] != img2.shape[-2:]:
@@ -109,8 +94,8 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
     sigma2_sq = windowed_average(img2 * img2) - mu2_sq
     sigma12 = windowed_average(img1 * img2) - mu1_mu2
 
-    C1 = (0.01 * dynamic_range) ** 2
-    C2 = (0.03 * dynamic_range) ** 2
+    C1 = 0.01 ** 2
+    C2 = 0.03 ** 2
 
     # SSIM is the product of a luminance component, a contrast component, and a
     # structure component. The contrast-structure component has to be separated
@@ -124,7 +109,7 @@ def _ssim_parts(img1, img2, dynamic_range, pad=False):
     return map_ssim, contrast_structure_map, weight
 
 
-def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
+def ssim(img1, img2, weighted=False, pad=False):
     r"""Structural similarity index
 
     As described in [1]_, the structural similarity index (SSIM) is a
@@ -156,18 +141,13 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
         and `img2` must be the same. The numbers of batches and channels of
         `img1` and `img2` need to be broadcastable: either they are the same
         or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches).
+        channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may
+        be inaccurate, and we will raise a warning (but will still compute it).
     weighted : bool, optional
         whether to use the original, unweighted SSIM version (`False`) as used
         in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
         section for the weight
-    dynamic_range : int, optional.
-        dynamic range of the images. Note we assume that both images have the
-        same dynamic range. 1, the default, is appropriate for float images
-        between 0 and 1, as is common in synthesis. 2 is appropriate for float
-        images between -1 and 1, and 255 is appropriate for standard 8-bit
-        integer images. We'll raise a warning if it looks like your value is
-        not appropriate for `img1` or `img2`, but will calculate it anyway.
     pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
         If not False, how to pad the image for the convolutions computing the
         local average of each image. See `torch.nn.functional.pad` for how
@@ -187,8 +167,8 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
        \log((1+\frac{\sigma_1^2}{C_2})(1+\frac{\sigma_2^2}{C_2}))
 
     where :math:`sigma_1^2` and :math:`sigma_2^2` are the variances of `img1`
-    and `img2`, respectively, and :math:`C_2` is a constant which depends on
-    `dynamic_range`. See [4]_ for more details.
+    and `img2`, respectively, and :math:`C_2` is a constant. See [4]_ for more
+    details.
 
     References
     ----------
@@ -205,7 +185,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
-    map_ssim, _, weight = _ssim_parts(img1, img2, dynamic_range, pad)
+    map_ssim, _, weight = _ssim_parts(img1, img2, pad)
     if not weighted:
         mssim = map_ssim.mean((-1, -2))
     else:
@@ -218,7 +198,7 @@ def ssim(img1, img2, weighted=False, dynamic_range=1, pad=False):
     return mssim
 
 
-def ssim_map(img1, img2, dynamic_range=1):
+def ssim_map(img1, img2):
     """Structural similarity index map
 
     As described in [1]_, the structural similarity index (SSIM) is a
@@ -249,18 +229,13 @@ def ssim_map(img1, img2, dynamic_range=1):
         and `img2` must be the same. The numbers of batches and channels of
         `img1` and `img2` need to be broadcastable: either they are the same
         or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches).
+        channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may
+        be inaccurate, and we will raise a warning (but will still compute it).
     weighted : bool, optional
         whether to use the original, unweighted SSIM version (`False`) as used
         in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
         section for the weight
-    dynamic_range : int, optional.
-        dynamic range of the images. Note we assume that both images have the
-        same dynamic range. 1, the default, is appropriate for float images
-        between 0 and 1, as is common in synthesis. 2 is appropriate for float
-        images between -1 and 1, and 255 is appropriate for standard 8-bit
-        integer images. We'll raise a warning if it looks like your value is
-        not appropriate for `img1` or `img2`, but will calculate it anyway.
 
     Returns
     -------
@@ -284,10 +259,10 @@ def ssim_map(img1, img2, dynamic_range=1):
         warnings.warn("SSIM uses 11x11 convolutional kernel, but the height and/or "
                       "the width of the input image is smaller than 11, so the "
                       "kernel size is set to be the minimum of these two numbers.")
-    return _ssim_parts(img1, img2, dynamic_range)[0]
+    return _ssim_parts(img1, img2)[0]
 
 
-def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
+def ms_ssim(img1, img2, power_factors=None):
     r"""Multiscale structural similarity index (MS-SSIM)
 
     As described in [1]_, multiscale structural similarity index (MS-SSIM) is
@@ -323,14 +298,9 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
         and `img2` must be the same. The numbers of batches and channels of
         `img1` and `img2` need to be broadcastable: either they are the same
         or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches).
-    dynamic_range : int, optional.
-        dynamic range of the images. Note we assume that both images have the
-        same dynamic range. 1, the default, is appropriate for float images
-        between 0 and 1, as is common in synthesis. 2 is appropriate for float
-        images between -1 and 1, and 255 is appropriate for standard 8-bit
-        integer images. We'll raise a warning if it looks like your value is
-        not appropriate for `img1` or `img2`, but will calculate it anyway.
+        channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may
+        be inaccurate, and we will raise a warning (but will still compute it).
     power_factors : 1D array, optional.
         power exponents for the mean values of maps, for different scales (from
         fine to coarse). The length of this array determines the number of scales.
@@ -359,11 +329,11 @@ def ms_ssim(img1, img2, dynamic_range=1, power_factors=None):
 
     msssim = 1
     for i in range(len(power_factors) - 1):
-        _, contrast_structure_map, _ = _ssim_parts(img1, img2, dynamic_range)
+        _, contrast_structure_map, _ = _ssim_parts(img1, img2)
         msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(power_factors[i])
         img1 = downsample(img1)
         img2 = downsample(img2)
-    map_ssim, _, _ = _ssim_parts(img1, img2, dynamic_range)
+    map_ssim, _, _ = _ssim_parts(img1, img2)
     msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
 
     if min(img1.shape[2], img1.shape[3]) < 11:
@@ -436,7 +406,9 @@ def nlpd(img1, img2):
         and `img2` must be the same. The numbers of batches and channels of
         `img1` and `img2` need to be broadcastable: either they are the same
         or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches).
+        channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may
+        be inaccurate, and we will raise a warning (but will still compute it).
 
     Returns
     -------
@@ -462,6 +434,12 @@ def nlpd(img1, img2):
     if img1.shape[1] > 1 or img2.shape[1] > 1:
         warnings.warn("NLPD was designed for grayscale images and here it will be computed separately for each "
                       "channel (so channels are treated in the same way as batches).")
+        
+    img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
+    if (img_ranges > 1).any() or (img_ranges < 0).any():
+        warnings.warn("Image range falls outside [0, 1]."
+                       f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
+                       "Continuing anyway...")
     
     y1 = normalized_laplacian_pyramid(img1)
     y2 = normalized_laplacian_pyramid(img2)
