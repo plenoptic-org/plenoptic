@@ -6,6 +6,7 @@ import warnings
 from tqdm.auto import tqdm
 from ..tools.display import imshow
 from typing import Tuple, List, Callable, Union
+from typing_extensions import Literal
 import matplotlib.pyplot
 from matplotlib.figure import Figure
 
@@ -146,13 +147,12 @@ class Eigendistortion:
         raise NotImplementedError
 
     def synthesize(self,
-                   method: str = 'power',
+                   method: Literal['exact', 'power', 'randomized_svd'] = 'power',
                    k: int = 1,
-                   max_steps: int = 1000,
+                   max_iter: int = 1000,
                    p: int = 5,
                    q: int = 2,
-                   tol: float = 1e-7,
-                   seed: int = None) -> Tuple[Tensor, Tensor, Tensor]:
+                   tol: float = 1e-7) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
         Parameters
@@ -164,8 +164,9 @@ class Eigendistortion:
             randomized SVD to approximate the top k eigendistortions and their corresponding eigenvalues.
         k: int
             How many vectors to return using block power method or svd.
-        max_steps: int, optional
-            Maximum number of steps to run for ``method='power'`` in eigenvalue computation N/A for 'randomized_svd'.
+        max_iter: int, optional
+            Maximum number of iterations to run for ``method='power'`` in eigenvalue computation. Ignored
+            for other methods.
         p: int, optional
             Oversampling parameter for randomized SVD. k+p vectors will be sampled, and k will be returned. See
             docstring of ``_synthesize_randomized_svd`` for more details including algorithm reference.
@@ -175,8 +176,6 @@ class Eigendistortion:
             ``_synthesize_randomized_svd`` for more details including algorithm reference.
         tol: float, optional
             Tolerance for error criterion in power iteration.
-        seed: int, optional
-            Control the random seed for reproducibility. Defaults to ``None``, with no seed being set.
 
         Returns
         -------
@@ -190,11 +189,8 @@ class Eigendistortion:
         eigenindex: Tensor
             Index of each eigendistortion/eigenvalue. This points to the `eigenindex` attribute of the
             object.
-        """
-        if seed is not None:
-            assert isinstance(seed, int), "random seed must be integer"
-            torch.manual_seed(seed)
 
+        """
         assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'randomized_svd'}"
 
         if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
@@ -218,10 +214,10 @@ class Eigendistortion:
 
         else:  # method == 'power'
 
-            assert max_steps > 0, "max_steps must be greater than zero"
+            assert max_iter > 0, "max_iter must be greater than zero"
 
-            lmbda_max, v_max = self._synthesize_power(k=k, shift=0., tol=tol, max_steps=max_steps)
-            lmbda_min, v_min = self._synthesize_power(k=k, shift=lmbda_max[0], tol=tol, max_steps=max_steps)
+            lmbda_max, v_max = self._synthesize_power(k=k, shift=0., tol=tol, max_iter=max_iter)
+            lmbda_min, v_min = self._synthesize_power(k=k, shift=lmbda_max[0], tol=tol, max_iter=max_iter)
             n = v_max.shape[0]
 
             eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
@@ -296,7 +292,7 @@ class Eigendistortion:
                           k: int,
                           shift: Union[Tensor, float],
                           tol: float,
-                          max_steps: int) -> Tuple[Tensor, Tensor]:
+                          max_iter: int) -> Tuple[Tensor, Tensor]:
         r""" Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
@@ -315,8 +311,8 @@ class Eigendistortion:
             estimated top eigenvalue this function will estimate the smallest eigenval/eigenvector pairs.
         tol: float
             Tolerance value
-        max_steps: int
-            Maximum number of steps
+        max_iter: int
+            Maximum number of iterations.
 
         Returns
         -------
@@ -343,7 +339,7 @@ class Eigendistortion:
 
         d_lambda = torch.tensor(float('inf'))
         lmbda_new, v_new = None, None
-        pbar = tqdm(range(max_steps), desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists")
+        pbar = tqdm(range(max_iter), desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists")
         postfix_dict = {'delta_eigenval': None}
 
         for _ in pbar:

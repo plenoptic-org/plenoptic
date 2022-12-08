@@ -39,7 +39,8 @@ class Metamer(Synthesis):
         the loss function to use to compare the representations of the
         models in order to determine their loss.
     range_penalty_lambda :
-        Lambda to multiply by range penalty and add to loss.
+        strength of the regularizer that enforces the allowable_range. Must be
+        non-negative.
     allowable_range :
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
@@ -98,7 +99,7 @@ class Metamer(Synthesis):
                  initial_image: Union[None, Tensor] = None):
         self.model = model
         self.image = image
-        if image.ndimension() < 4:
+        if image.ndimension() != 4:
             raise Exception("image must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{image.size()}")
@@ -111,6 +112,8 @@ class Metamer(Synthesis):
         self.gradient_norm = []
         self.pixel_change = []
         self.loss_function = loss_function
+        if range_penalty_lambda < 0:
+            raise Exception("range_penalty_lambda must be non-negative!")
         self.range_penalty_lambda = range_penalty_lambda
         self.allowed_range = allowed_range
         self._init_metamer(initial_image)
@@ -153,6 +156,7 @@ class Metamer(Synthesis):
             if metamer.size() != self.image.size():
                 raise Exception("metamer and image must be"
                                 " same size!")
+        # SHOULD THIS BE A PARAMETER?
         self.metamer = metamer
         self.losses.append(self.objective_function(self.model(metamer)).item())
 
@@ -981,7 +985,7 @@ def plot_pixel_values(metamer: Metamer,
     Returns
     -------
     ax :
-        Creates axes.
+        Created axes.
 
     """
     def _freedman_diaconis_bins(a):

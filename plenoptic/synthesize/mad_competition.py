@@ -106,7 +106,7 @@ class MADCompetition(Synthesis):
         self.optimized_metric = optimized_metric
         self.reference_metric = reference_metric
         self.image = image.detach()
-        if image.ndimension() < 4:
+        if image.ndimension() != 4:
             raise Exception("image must be torch.Size([n_batch, "
                             "n_channels, im_height, im_width]) but got "
                             f"{image.size()}")

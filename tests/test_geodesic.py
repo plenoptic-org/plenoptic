@@ -42,3 +42,6 @@ class TestGeodesic(object):
         moog.plot_loss()
         moog.plot_deviation_from_line(video=sequence)
         moog.calculate_jerkiness()
+
+
+# ADD TESTS FOR failed image shape asserts in init

@@ -1,4 +1,5 @@
 import plenoptic.synthesize.autodiff as autodiff
+from plenoptic.tools import set_seed
 import pytest
 import torch
 from torch import nn
@@ -108,7 +109,8 @@ class TestEigendistortionSynthesis:
 
         k_pow, k_svd = 1, 75
         e_jac.synthesize(method='exact')
-        e_pow.synthesize(k=k_pow, method='power', max_steps=2500, seed=0)
+        set_seed(0)
+        e_pow.synthesize(k=k_pow, method='power', max_steps=2500)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
         print("synthesized first and last: ", e_pow.eigenvalues[0], e_pow.eigenvalues[-1])

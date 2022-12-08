@@ -1,11 +1,15 @@
 from collections import OrderedDict
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
+from torch import Tensor
+from tqdm.auto import tqdm
 import warnings
+from typing import Union
+from typing_extensions import Literal
 
 from ..tools.optim import penalize_range
 from ..tools.straightness import (deviation_from_line, make_straight_line,
@@ -20,38 +24,35 @@ class Geodesic(nn.Module):
 
     Parameters
     ----------
-    imgA, imgB: torch.FloatTensor
-        Start (resp. stop) anchor points of the geodesic,
-        of shape [1, C, H, W] in range [0, 1].
-
-    model: nn.Module
-        an analysis model that computes representations on siglals like `imgA`.
-
-    n_steps: int, optional
-        the number of steps in the trajectory between the two anchor points.
-
-    init: {'straight', 'bridge'}, optional
-        initialize the geodesic with pixel linear interpolation (default),
-        or with a brownian bridge between the two anchors.
+    image_a, image_b:
+        Start and stop anchor points of the geodesic, of shape [1, C, H, W]
+        with values in range [0, 1].
+    model:
+        an analysis model that computes representations on signals like `image_a`.
+    n_steps:
+        the number of steps (i.e., transitions) in the trajectory between the
+        two anchor points.
+    init:
+        initialize the geodesic with pixel linear interpolation
+        (``'straight'``), or with a brownian bridge between the two anchors
+        (``'bridge'``).
+    range_penalty_lambda:
+        strength of the regularizer that enforces image range lies in [0, 1].
+        Must be non-negative.
 
     Attributes
     ----------
-    x: torch.FloatTensor
-        the optimization variable of shape: [n_steps-1, D], where D = C x H x W
-
-    geodesic: torch.FloatTensor
+    geodesic: Tensor
         the synthesized sequence of images between the two anchor points that
-        minimizes representation path energy
-
-    pixelfade: torch.FloatTensor
+        minimizes representation path energy, of shape ``(n_steps+1, C, H,
+        W)``. It starts with image_a and ends with image_b.
+    pixelfade: Tensor
         the straight interpolation between the two anchor points,
         used as reference
-
-    step_energy: list of torch.FloatTensor
+    step_energy: list of Tensor
         step lengths in representation space, stored along the optimization
         process
-
-    dev_from_line: list of torch.FloatTensor
+    dev_from_line: list of Tensor
         deviation of the representation to the straight line interpolation,
         measures distance from straight line and distance along straight line,
         stored along the optimization process
@@ -77,23 +78,41 @@ class Geodesic(nn.Module):
         O J Hénaff and E P Simoncelli
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
+
     '''
 
-    def __init__(self, imgA, imgB, model, n_steps=10, init='straight'):
+    def __init__(self, image_a: Tensor, image_b: Tensor,
+                 model: torch.nn.Module, n_steps: int = 10,
+                 init: Literal['straight', 'bridge'] = 'straight',
+                 range_penalty_lambda: float = .1):
         super().__init__()
 
         self.n_steps = n_steps
-        self.image_shape = imgA.shape
-        start = imgA.clone().view(1, -1)
-        stop = imgB.clone().view(1, -1)
+        self.image_shape = image_a.shape
+        for img, title in zip([image_a, image_b], ['a', 'b']):
+            assert len(img.shape) == 4, f"image_{title} must be torch.Size([batch=1, n_channels, im_height, im_width])"
+            assert img.shape[0] == 1, f"image_{title} batch dim must be 1. Geodesic batch synthesis is not available."
+            assert img.min() >= 0 and img.max() <= 1, f"image_{title} range must lie in [0, 1]"
+        start = image_a.clone().view(1, -1)
+        stop = image_b.clone().view(1, -1)
         self.pixelfade = self._initialize('straight', start, stop, n_steps
-                                          ).view(n_steps+1, *imgA.shape[1:])
+                                          ).view(n_steps+1, *image_a.shape[1:])
 
+        if range_penalty_lambda < 0:
+            raise Exception("range_penalty_lambda must be non-negative!")
+        self.range_penalty_lambda = range_penalty_lambda
         xinit = self._initialize(init, start, stop, n_steps
                                  ).view(n_steps+1, -1)
-        self.xA, x, self.xB = torch.split(xinit, [1, n_steps-1, 1])
-        self.x = nn.Parameter(x.requires_grad_())
+        self._xA, x, self._xB = torch.split(xinit, [1, n_steps-1, 1])
+        self._x = nn.Parameter(x.requires_grad_())
+        # HAVE self.geodesic be the optimized variable, and just zero out the
+        # relevant parts of its gradient and reshape in calculate jerkiness.
+        # prevents geodesic and self.x getting out of sync and makes it easier
+        # for user to set the relevant parameter
+        #
+        # self._x = nn.Parameter(xinit.requires_grad_())
 
+        # DECIDE WHAT TOD O WITH THIS
         warn = True
         for p in model.parameters():
             if p.requires_grad:
@@ -106,6 +125,7 @@ class Geodesic(nn.Module):
                     warn = False
         self.model = model.eval()
 
+        self.optimizer = None
         self.loss = []
         self.dev_from_line = []
         self.step_energy = []
@@ -115,17 +135,17 @@ class Geodesic(nn.Module):
 
         Parameters
         ----------
-        init : {'bridge', 'straight', or torch.Tensor}
-            if a tensor is passed it must match the shape of the
-            desired geodesic.
+        init:
+            initialize the geodesic with pixel linear interpolation
+            (``'straight'``), or with a brownian bridge between the two anchors
+            (``'bridge'``).
         """
         if init == 'bridge':
             x = sample_brownian_bridge(start, stop, n_steps)
         elif init == 'straight':
             x = make_straight_line(start, stop, n_steps)
         else:
-            assert init.shape == (n_steps, torch.numel(self.image_shape[1:]))
-            x = init
+            raise Exception(f"Don't know how to handle init={init}")
         return x
 
     def _analyze(self, x):
@@ -167,10 +187,10 @@ class Geodesic(nn.Module):
         - store some information
         - return delta_x, the norm of the step just taken
         """
-        xprev = self.x.clone()
+        xprev = self._x.clone()
         self.optimizer.zero_grad()
 
-        x = torch.cat([self.xA, self.x, self.xB])
+        x = torch.cat([self._xA, self._x, self._xB])
         y = self._analyze(x)
 
         # representation's path energy
@@ -178,19 +198,21 @@ class Geodesic(nn.Module):
         loss = step_energy.mean()
 
         self.loss.append(loss.item())
-        if self.lmbda > 0:
-            loss = loss + self.lmbda * penalize_range(self.x, (0, 1))
+        loss = loss + self.range_penalty_lambda * penalize_range(self._x, (0, 1))
 
         if not torch.isfinite(loss):
             raise Exception('found a NaN in the loss during optimization')
         loss.backward()
+        # self._x.grad[0] = 0
+        # self._x.grad[-1] = 0
 
-        grad_norm = torch.norm(self.x.grad.data)
+        grad_norm = torch.norm(self._x.grad.data)
         if not torch.isfinite(grad_norm):
             raise Exception('found a NaN in the gradients during optimization')
         self.optimizer.step()
 
-        delta_x = torch.norm(self.x - xprev)
+        # NAME THE SAME as metamer
+        delta_x = torch.norm(self._x - xprev)
         # displaying some information
         pbar.update(1)
         pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
@@ -204,45 +226,62 @@ class Geodesic(nn.Module):
 
         return delta_x
 
-    def synthesize(self, max_iter=1000, learning_rate=.001, optimizer='Adam',
-                   lmbda=.1, tol=None, seed=0, verbose=True):
+    def _init_optimizer(self, optimizer):
+        """Initialize optimizer."""
+        if optimizer is None:
+            if self.optimizer is None:
+                self.optimizer = torch.optim.Adam([self._x],
+                                                  lr=.001, amsgrad=True)
+        else:
+            if self.optimizer is not None:
+                raise Exception("When resuming synthesis, optimizer rag must be None!")
+            params = optimizer.param_groups[0]['params']
+            if len(params) != 1 or not torch.equal(params[0], self._x):
+                raise Exception("For geodesic synthesis, optimizer must have one "
+                                "parameter, the metamer we're synthesizing.")
+            self.optimizer = optimizer
+
+    # - CHANGE functionality for renamed arguments
+    def synthesize(self, max_iter: int = 1000,
+                   optimizer: Union[None, torch.optim.Optimizer] = None,
+                   verbose=True, tol=1e-3,
+                   store_progress: Union[bool, int] = False,
+                   stop_criterion: Union[float, None] = None,
+                   stop_iters_to_check: int = 50) -> Tensor:
         """Synthesize a geodesic via optimization.
 
         Parameters
         ----------
         max_iter: int, optional
             maximum number of steps taken by the optimization algorithm.
-        learning_rate: float, optional
-            controls the step sizes of the search algorithm.
-        optimizer: {'Adam', torch.optim.Optimizer}, optional
-            choice of algorithm that will perform the search
-            if an optimizer is passed, its `params` argument should be set to
-            `self.x`, where self refers to a previously initialized Geodesic
-            class.
-        lmbda: float, optional
-            strength of the regularizer that enforces the image range in [0, 1]
-            (strictly positive by default)
-        tol: float, optional
-            tolerance threshold used to terminate algorithm before `max_iter`
-            if the optimization stopped making progress
-        seed: int, optional
-            set the random number generator
-        verbose: bool, optional
-            storing information along the run of the optimization algorithm
+        optimizer :
+            The optimizer to use. If None and this is the first time calling
+            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
+            been called before, this must be None and we reuse the previous
+            optimizer.
+        store_progress :
+            Whether we should store the representation of the metamer
+            and the metamer image in progress on every iteration. If
+            False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress``
+            iterations (note then that 0 is the same as False and 1 the
+            same as True).
+        stop_criterion :
+            If the loss over the past ``stop_iters_to_check`` has changed
+            less than ``stop_criterion``, we terminate synthesis. If None,
+            we pick a default value based on the norm of ``self.pixelfade``.
+        stop_iters_to_check :
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for ``stop_criterion``).
+
         """
-        self.lmbda = lmbda
         self.verbose = verbose
         if tol is None:
             # semi arbitrary default choice of tolerance
             tol = self.pixelfade.norm() / 1e4 * (1 + 5 ** .5) / 2
         print(f"\n threshold for delta_x, tolerance = {tol:.5e}")
 
-        torch.manual_seed(seed)
-        if optimizer == 'Adam':
-            self.optimizer = optim.Adam([self.x],
-                                        lr=learning_rate, amsgrad=True)
-        elif isinstance(optimizer, optim.Optimizer):
-            self.optimizer = optimizer
+        self._init_optimizer(optimizer)
 
         delta_x = torch.ones(1)
         i = 0
@@ -251,30 +290,7 @@ class Geodesic(nn.Module):
             while delta_x > tol and i < max_iter:
                 delta_x = self._optimizer_step(pbar)
                 i += 1
-        self._populate_geodesic()
-
-    def plot_loss(self, ax=None):
-        """Plot synthesis loss.
-
-        Parameters
-        ----------
-        ax : matplotlib.pyplot.axis or None, optional
-            If not None, the axis to plot this representation on. If
-            None, we create our own 1 subplot figure to hold it
-
-        Returns
-        -------
-        fig : matplotlib.pyplot.Figure
-            Figure containing the plot.
-
-        """
-        if ax is None:
-            _, ax = plt.subplots(1, 1)
-        ax.plot(self.loss)
-        ax.set(yscale='log',
-               xlabel='Synthesis iteration',
-               ylabel='loss value')
-        return ax.figure
+        # self._populate_geodesic()
 
     def _populate_geodesic(self):
         """Help format the current optimization variable `x` into a geodesic
@@ -283,71 +299,10 @@ class Geodesic(nn.Module):
         It joins the endpoints, reshapes the variable into a sequence
         of images, detaches the gradients and clips the range to [0, 1].
         """
-        self.geodesic = torch.cat([self.xA, self.x, self.xB]
+        self.geodesic = torch.cat([self._xA, self._x, self._xB]
                                   ).reshape(
                                 (self.n_steps+1, *self.image_shape[1:])
                                             ).clamp(0, 1).detach()
-
-    def plot_deviation_from_line(self, video=None, figsize=(7, 5), ax=None):
-        """Visual diagnostic of geodesic linearity in representation space.
-
-        Parameters
-        ----------
-        video : torch.Tensor, optional
-            Natural video that bridges the anchor points
-        figsize : tuple, optional
-            Dimensions of the figure. Ignored if ax is not None.
-        ax : matplotlib.pyplot.axis or None, optional
-            If not None, the axis to plot this representation on. If
-            None, we create our own 1 subplot figure to hold it
-
-        Returns
-        -------
-        fig: matplotlib.figure.Figure
-            Figure containing the plot
-
-        Notes
-        -----
-        This plot illustrates the deviation from the straight line connecting
-        the representations of a pair of images, for different paths
-        in representation space.
-        Axes are in the same units, normalized by the distance separating
-        the end point representations.
-        Knots along each curve indicate samples used to compute the path.
-
-        When the representation is non-linear it may not be feasible for the
-        geodesic to be straight (for example if the representation is
-        normalized, all paths are constrained to live on a hypershpere).
-        Nevertheless, if the representation is able to linearize the
-        transformation between the anchor images, then we expect that both
-        the ground tuth video sequence and the geodesic will deviate from
-        straight line similarly. By contrast the pixel-based interpolation
-        will deviate significantly more from a straight line.
-        """
-        if not hasattr(self, 'geodesic'):
-            self._populate_geodesic()
-
-        if ax is None:
-            _, ax = plt.subplots(1, 1, figsize=figsize)
-        ax.plot(*deviation_from_line(self.model(self.pixelfade
-                                                ).view(self.n_steps+1, -1)
-                                     ), 'g-o', label='pixelfade')
-
-        deviation = deviation_from_line(
-                        self.model(self.geodesic
-                                   ).view(self.n_steps+1, -1))
-        ax.plot(*deviation, 'r-o', label='geodesic')
-
-        if video is not None:
-            ax.plot(*deviation_from_line(self.model(video
-                                                    ).view(self.n_steps+1, -1)
-                                         ), 'b-o', label='video')
-        ax.set(xlabel='distance along representation line',
-               ylabel='distance from representation line',
-               title='deviation from the straight line')
-        ax.legend(loc=1)
-
-        return ax.figure
 
     def _vector_jacobian_product(self, y, x, a):
         """compute vector-jacobian product: $a^T dy/dx = dy/dx^T a$,
@@ -364,7 +319,7 @@ class Geodesic(nn.Module):
         acceleration = self._finite_difference(velocity)
         acc_magnitude = torch.norm(acceleration, dim=1, keepdim=True)
         acc_direction = torch.div(acceleration, acc_magnitude)
-        accJac = self._vector_jacobian_product(y[1:-1], self.x,
+        accJac = self._vector_jacobian_product(y[1:-1], self._x,
                                                acc_direction)
         step_jerkiness = torch.norm(accJac, dim=1) ** 2
         return step_jerkiness
@@ -376,5 +331,101 @@ class Geodesic(nn.Module):
         and can be used to assess the validity of the solution obtained
         by optimization.
         """
-        y = self._analyze(torch.cat([self.xA, self.x, self.xB]))
+        y = self._analyze(torch.cat([self._xA, self._x, self._xB]))
         return self._step_jerkiness(y).detach()
+
+def plot_loss(geodesic: Geodesic,
+              ax: Union[mpl.axes.Axes, None] = None,
+              **kwargs) -> mpl.axes.Axes:
+    """Plot synthesis loss.
+
+    Parameters
+    ----------
+    geodesic :
+        Geodesic object whose synthesis loss we want to plot.
+    ax :
+        If not None, the axis to plot this representation on. If
+        None, we call ``plt.gca()``
+    kwargs :
+        passed to plt.semilogy
+
+    Returns
+    -------
+    ax :
+        Axes containing the plot.
+
+    """
+    if ax is None:
+        ax = plt.gca()
+    ax.semilogy(geodesic.loss, **kwargs)
+    ax.set(xlabel='Synthesis iteration',
+           ylabel='Loss')
+    return ax
+
+def plot_deviation_from_line(geodesic: Geodesic,
+                             video: Union[Tensor, None] = None,
+                             ax: Union[mpl.axes.Axes, None] = None
+                             ) -> mpl.axes.Axes:
+    """Visual diagnostic of geodesic linearity in representation space.
+
+    This plot illustrates the deviation from the straight line connecting
+    the representations of a pair of images, for different paths
+    in representation space.
+
+    Parameters
+    ----------
+    geodesic :
+        Geodesic object to visualize.
+    video :
+        Natural video that bridges the anchor points
+    ax :
+        If not None, the axis to plot this representation on. If
+        None, we call ``plt.gca()``
+
+    Returns
+    -------
+    ax:
+        Axes containing the plot
+
+    Notes
+    -----
+    Axes are in the same units, normalized by the distance separating
+    the end point representations.
+
+    Knots along each curve indicate samples used to compute the path.
+
+    When the representation is non-linear it may not be feasible for the
+    geodesic to be straight (for example if the representation is
+    normalized, all paths are constrained to live on a hypershpere).
+    Nevertheless, if the representation is able to linearize the
+    transformation between the anchor images, then we expect that both
+    the ground truth video sequence and the geodesic will deviate from
+    straight line similarly. By contrast the pixel-based interpolation
+    will deviate significantly more from a straight line.
+
+    """
+    if not hasattr(geodesic, 'geodesic'):
+        geodesic._populate_geodesic()
+
+    if ax is None:
+        ax = plt.gca()
+
+    ax.plot(*deviation_from_line(geodesic.model(geodesic.pixelfade
+                                                ).view(geodesic.n_steps+1, -1)
+                                 ), 'g-o', label='pixelfade')
+
+    deviation = deviation_from_line(
+        geodesic.model(geodesic.geodesic
+                       ).view(geodesic.n_steps+1, -1))
+    ax.plot(*deviation, 'r-o', label='geodesic')
+
+    if video is not None:
+        ax.plot(*deviation_from_line(geodesic.model(video
+                                                    ).view(geodesic.n_steps+1, -1)
+                                     ), 'b-o', label='video')
+    ax.set(xlabel='distance along representation line',
+           ylabel='distance from representation line',
+           title='deviation from the straight line')
+    ax.legend(loc=1)
+
+    return ax
