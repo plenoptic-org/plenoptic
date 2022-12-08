@@ -2,7 +2,6 @@
 import abc
 import warnings
 import torch
-import dill
 from typing import Union, List
 
 
@@ -55,7 +54,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             if isinstance(attr, torch.Tensor):
                 attr = attr.detach()
             save_dict[k] = attr
-        torch.save(save_dict, file_path, pickle_module=dill)
+        torch.save(save_dict, file_path)
 
     def load(self, file_path: str,
              map_location: Union[str, None] = None,
@@ -99,7 +98,7 @@ class Synthesis(metaclass=abc.ABCMeta):
             ``torch.load``, see that function's docstring for details.
 
         """
-        tmp_dict = torch.load(file_path, pickle_module=dill,
+        tmp_dict = torch.load(file_path,
                               map_location=map_location,
                               **pickle_load_args)
         if map_location is not None:

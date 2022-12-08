@@ -379,6 +379,16 @@ class TestPortillaSimoncelli(object):
         for (oo,ss) in zip(output,saved):
             if str(oo) != ss:
                 raise ValueError("Scales do not match.")
+            
+    @pytest.mark.parametrize("im_shape", [(256,256), (128,256)])
+    def test_ps_expand(self, im_shape):
+        mult = 4
+        
+        im = po.tools.make_synthetic_stimuli().to(DEVICE)
+        im = im[0,0,:im_shape[0], :im_shape[1]]
+        out_im = po.simul.PortillaSimoncelli(im_shape).expand(im, mult)
+        
+        assert out_im.shape == (im_shape[0] * mult, im_shape[1] * mult)
 
 
 class TestFilters:

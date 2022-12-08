@@ -11,10 +11,16 @@ import pytest
 from conftest import DEVICE
 
 
+# in order for pickling to work with functions, they must be defined at top of
+# module: https://stackoverflow.com/a/36995008
+def custom_loss(x1, x2):
+    return (x1-x2).sum()
+
+
 class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
-    @pytest.mark.parametrize('loss_func', ['mse', 'l2'])
+    @pytest.mark.parametrize('loss_func', ['mse', 'l2', 'custom'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty'])
     @pytest.mark.parametrize('range_penalty', [.1, 0])
     def test_metamer_save_load(self, einstein_img, model, loss_func, fail, range_penalty, tmp_path):
@@ -22,6 +28,8 @@ class TestMetamers(object):
             loss = po.tools.optim.mse
         elif loss_func == 'l2':
             loss = po.tools.optim.l2_norm
+        elif loss_func == 'custom':
+            loss = custom_loss
         met = po.synth.Metamer(einstein_img, model, loss_function=loss,
                                range_penalty_lambda=range_penalty)
         met.synthesize(max_iter=4, store_progress=True)
@@ -32,7 +40,7 @@ class TestMetamers(object):
             elif fail == 'model':
                 model = po.simul.Gaussian(30).to(DEVICE)
             elif fail == 'loss':
-                loss = lambda *args, **kwargs: 1
+                loss = po.metric.ssim
             elif fail == 'range_penalty':
                 range_penalty = .5
             met_copy = po.synth.Metamer(einstein_img, model,
