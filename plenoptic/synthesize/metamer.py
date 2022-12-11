@@ -36,8 +36,11 @@ class Metamer(Synthesis):
     model :
         A visual model, see `MAD_Competition` notebook for more details
     loss_function :
-        the loss function to use to compare the representations of the
-        models in order to determine their loss.
+        the loss function to use to compare the representations of the models
+        in order to determine their loss. Because of the limitations of pickle,
+        you cannot use a lambda function for this if you wish to save the
+        Metamer object (i.e., it must be one of our built-in functions or
+        defined using a `def` statement)
     range_penalty_lambda :
         Lambda to multiply by range penalty and add to loss.
     allowable_range :

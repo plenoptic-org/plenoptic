@@ -39,10 +39,16 @@ class MADCompetition(Synthesis):
         match. If this is not a tensor, we try to cast it as one.
     synthesis_metric :
         The metric whose value you wish to minimize or maximize, which takes
-        two tensors and returns a scalar.
+        two tensors and returns a scalar. Because of the limitations of pickle,
+        you cannot use a lambda function for this if you wish to save the
+        Metamer object (i.e., it must be one of our built-in functions or
+        defined using a `def` statement)
     fixed_metric :
         The metric whose value you wish to keep fixed, which takes two tensors
-        and returns a scalar.
+        and returns a scalar. Because of the limitations of pickle, you cannot
+        use a lambda function for this if you wish to save the Metamer object
+        (i.e., it must be one of our built-in functions or defined using a
+        `def` statement)
     synthesis_target :
         Whether you wish to minimize or maximize ``synthesis_metric``.
     initial_noise :

@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         # nbclient 0.5.5 is the first version that includes jupyter execute
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager .
           pip install jupyter ipywidgets
           pip install "nbclient>=0.5.5"
       - name: Run notebooks
@@ -86,7 +86,7 @@ jobs:
           # using the --upgrade and --upgrade-strategy eager flags ensures that
           # pip will always install the latest allowed version of all
           # dependencies, to make sure the cache doesn't go stale
-          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager .
           pip install --upgrade --upgrade-strategy eager pytest-cov
 
       - name: Run tests with pytest
@@ -103,6 +103,30 @@ jobs:
         run: 'pytest --cov=plenoptic ${{ matrix.test_script }}'
       - name: Upload to codecov
         run: 'bash <(curl -s https://codecov.io/bash)'
+  all_tutorials_in_docs:
+    runs-on: ubuntu-latest
+    name: Check that all tutorial notebooks are included in docs
+    needs: [get_notebooks]
+    strategy:
+      matrix:
+        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check for file
+        shell: bash
+        run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" ]] ; then exit 1; fi
+  no_extra_nblinks:
+    runs-on: ubuntu-latest
+    name: Check that we don't have any extra nblink files
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check same number of nblink and notebooks
+        shell: bash
+        run: |
+          n_nblink=0; for file in docs/tutorials/*nblink; do let "n_nblink+=1"; done;
+          n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
+          if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
+
   check:
     if: always()
     needs:
