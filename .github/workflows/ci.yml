@@ -32,7 +32,7 @@ jobs:
     needs: [get_notebooks]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9, '3.10']
         notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
       fail-fast: false
     name: Execute notebooks
@@ -69,7 +69,7 @@ jobs:
     needs: [get_test_scripts]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9, '3.10']
         test_script: ${{fromJson(needs.get_test_scripts.outputs.script)}}
       fail-fast: false
     name: Run pytest scripts

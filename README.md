@@ -1,7 +1,7 @@
 # plenoptic
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE)
-![Python version](https://img.shields.io/badge/python-3.6|3.7|3.8-blue.svg)
+![Python version](https://img.shields.io/badge/python-3.7|3.8|3.9|3.10-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/main/STABILITY-BADGES.md#alpha)
@@ -90,12 +90,6 @@ for a more detailed roadmap, but at the high level:
 - Long term:
   1. Present at conference to advertise to users
   2. Submit paper to Journal of Open Source Software
-
-# NOTE
-
-We currently support python 3.6, 3.7, and 3.8. See [this
-issue](https://github.com/LabForComputationalVision/plenoptic/issues/74) for 3.9
-status
 
 # Setup
 
