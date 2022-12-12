@@ -1,32 +1,36 @@
-import torch
-from torch import Tensor
-from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
-import numpy as np
+from typing import Tuple, List, Callable, Union, Optional
 import warnings
-from tqdm.auto import tqdm
-from ..tools.display import imshow
-from typing import Tuple, List, Callable, Union
+
 import matplotlib.pyplot
 from matplotlib.figure import Figure
+import numpy as np
+import torch
+from torch import Tensor
+from tqdm.auto import tqdm
+
+from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
+from ..tools.display import imshow
 
 
-def fisher_info_matrix_vector_product(y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor) -> Tensor:
+def fisher_info_matrix_vector_product(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
+) -> Tensor:
     r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
 
     Parameters
     ----------
-    y: Tensor
+    y
         Output tensor with gradient attached
-    x: Tensor
+    x
         Input tensor with gradient attached
-    v: Tensor
+    v
         The vectors with which to compute Fisher vector products
-    dummy_vec: Tensor
+    dummy_vec
         Dummy vector for Jacobian vector product trick
 
     Returns
     -------
-    Fv: Tensor
+    Fv
         Vector, Fisher vector product
 
     Notes
@@ -41,7 +45,9 @@ def fisher_info_matrix_vector_product(y: Tensor, x: Tensor, v: Tensor, dummy_vec
     return Fv
 
 
-def fisher_info_matrix_eigenvalue(y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor = None) -> Tensor:
+def fisher_info_matrix_eigenvalue(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Optional[Tensor] = None
+) -> Tensor:
     r"""Compute the eigenvalues of the Fisher Information Matrix corresponding to eigenvectors in v
     :math:`\lambda= v^T F v`
     """
@@ -75,11 +81,12 @@ class Eigendistortion:
 
     Parameters
     -----------
-    base_signal: Tensor
-        image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+    base_signal
+        Image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.
-    model: torch class
-        torch model with defined forward and backward operations
+    model
+        Torch model with defined forward and backward operations.
+
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to explain perceptual sensitivity
@@ -100,10 +107,19 @@ class Eigendistortion:
     """
 
     def __init__(self, base_signal: Tensor, model: torch.nn.Module):
-        assert len(base_signal.shape) == 4, "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
-        assert base_signal.shape[0] == 1, "Batch dim must be 1. Image batch synthesis is not available."
+        assert (
+            len(base_signal.shape) == 4
+        ), "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
+        assert (
+            base_signal.shape[0] == 1
+        ), "Batch dim must be 1. Image batch synthesis is not available."
 
-        self.batch_size, self.n_channels, self.im_height, self.im_width = base_signal.shape
+        (
+            self.batch_size,
+            self.n_channels,
+            self.im_height,
+            self.im_width,
+        ) = base_signal.shape
 
         self.model = model
         # flatten and attach gradient and reshape to image
@@ -113,12 +129,18 @@ class Eigendistortion:
         self.base_representation = self.model(self.base_signal)
 
         if len(self.base_representation) > 1:
-            self._representation_flat = torch.cat([s.squeeze().view(-1) for s in self.base_representation]).unsqueeze(1)
+            self._representation_flat = torch.cat(
+                [s.squeeze().view(-1) for s in self.base_representation]
+            ).unsqueeze(1)
         else:
-            self._representation_flat = self.base_representation.squeeze().view(-1).unsqueeze(1)
+            self._representation_flat = (
+                self.base_representation.squeeze().view(-1).unsqueeze(1)
+            )
 
-        print(f"\nInitializing Eigendistortion -- "
-              f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}")
+        print(
+            f"\nInitializing Eigendistortion -- "
+            f"Input dim: {len(self._input_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}"
+        )
 
         self.jacobian = None
 
@@ -127,11 +149,19 @@ class Eigendistortion:
         self.synthesized_eigenindex = None
 
     @classmethod
-    def load(file_path, model_constructor=None, map_location='cpu', **state_dict_kwargs):
+    def load(
+        file_path, model_constructor=None, map_location="cpu", **state_dict_kwargs
+    ):
         # TODO attribute name *****
         raise NotImplementedError
 
-    def save(self, file_path, save_model_reduced=False, attrs=['model'], model_attr_names=['model']):
+    def save(
+        self,
+        file_path,
+        save_model_reduced=False,
+        attrs=["model"],
+        model_attr_names=["model"],
+    ):
         # TODO
         raise NotImplementedError
 
@@ -140,49 +170,51 @@ class Eigendistortion:
         # TODO
         raise NotImplementedError
 
-    def synthesize(self,
-                   method: str = 'power',
-                   k: int = 1,
-                   max_steps: int = 1000,
-                   p: int = 5,
-                   q: int = 2,
-                   tol: float = 1e-7,
-                   seed: int = None) -> Tuple[Tensor, Tensor, Tensor]:
+    def synthesize(
+        self,
+        method: str = "power",
+        k: int = 1,
+        max_steps: int = 1000,
+        p: int = 5,
+        q: int = 2,
+        tol: float = 1e-7,
+        seed: Optional[int] = None,
+    ) -> Tuple[Union[Tensor, List], Tensor, Tensor]:
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
         Parameters
         ----------
-        method: {'exact', 'power', 'randomized_svd'}, optional
-            Eigensolver method. Jacobian tries to do eigendecomposition directly (
+        method:
+            {'exact', 'power', 'randomized_svd'} Eigensolver method. Jacobian tries to do eigendecomposition directly (
             not recommended for very large inputs). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'randomized_svd' uses
             randomized SVD to approximate the top k eigendistortions and their corresponding eigenvalues.
-        k: int
+        k
             How many vectors to return using block power method or svd.
-        max_steps: int, optional
+        max_steps
             Maximum number of steps to run for ``method='power'`` in eigenvalue computation N/A for 'randomized_svd'.
-        p: int, optional
+        p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled, and k will be returned. See
             docstring of ``_synthesize_randomized_svd`` for more details including algorithm reference.
-        q: int, optional
+        q
             Matrix power parameter for randomized SVD. This is an effective trick for the algorithm to converge to
             the correct eigenvectors when the eigenspectrum does not decay quickly. See
             ``_synthesize_randomized_svd`` for more details including algorithm reference.
-        tol: float, optional
+        tol
             Tolerance for error criterion in power iteration.
-        seed: int, optional
+        seed
             Control the random seed for reproducibility. Defaults to ``None``, with no seed being set.
 
         Returns
         -------
-        eigendistortions: Tensor
+        eigendistortions
             Eigenvectors of the Fisher Information Matrix, ordered by eigenvalue. This tensor points to
             the `synthesized_signal` attribute of the object. Tensor has Size((num_distortions,
             num_channels, img_height, img_width)).
-        eigenvalues: Tensor
+        eigenvalues
             Eigenvalues corresponding to each eigendistortion, listed in decreasing order. This tensor points to the
             `synthesized_eigenvalue` attribute of the object.
-        eigen_index: Tensor
+        eigen_index
             Index of each eigendistortion/eigenvalue. This points to the `synthesized_eigenindex` attribute of the
             object.
         """
@@ -190,33 +222,50 @@ class Eigendistortion:
             assert isinstance(seed, int), "random seed must be integer"
             torch.manual_seed(seed)
 
-        assert method in ['power', 'exact', 'randomized_svd'], "method must be in {'power', 'exact', 'randomized_svd'}"
+        assert method in [
+            "power",
+            "exact",
+            "randomized_svd",
+        ], "method must be in {'power', 'exact', 'randomized_svd'}"
 
-        if method == 'exact' and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6:
-            warnings.warn("Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'randomized_svd'}.")
+        if (
+            method == "exact"
+            and self._representation_flat.size(0) * self._input_flat.size(0) > 1e6
+        ):
+            warnings.warn(
+                "Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'randomized_svd'}."
+            )
 
-        if method == 'exact':  # compute exact Jacobian
+        if method == "exact":  # compute exact Jacobian
             print(f"Computing all eigendistortions")
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = torch.arange(len(eig_vecs))
 
-        elif method == 'randomized_svd':
+        elif method == "randomized_svd":
             print(f"Estimating top k={k} eigendistortions using randomized SVD")
-            lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(k=k, p=p, q=q)
+            lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(
+                k=k, p=p, q=q
+            )
             eig_vecs = self._vector_to_image(v_new.detach())
             eig_vals = lmbda_new.squeeze()
             eig_vecs_ind = torch.arange(k)
 
             # display the approximate estimation error of the range space
-            print(f'Randomized SVD complete! Estimated spectral approximation error = {error_approx:.2f}')
+            print(
+                f"Randomized SVD complete! Estimated spectral approximation error = {error_approx:.2f}"
+            )
 
         else:  # method == 'power'
 
             assert max_steps > 0, "max_steps must be greater than zero"
 
-            lmbda_max, v_max = self._synthesize_power(k=k, shift=0., tol=tol, max_steps=max_steps)
-            lmbda_min, v_min = self._synthesize_power(k=k, shift=lmbda_max[0], tol=tol, max_steps=max_steps)
+            lmbda_max, v_max = self._synthesize_power(
+                k=k, shift=0.0, tol=tol, max_steps=max_steps
+            )
+            lmbda_min, v_min = self._synthesize_power(
+                k=k, shift=lmbda_max[0], tol=tol, max_steps=max_steps
+            )
             n = v_max.shape[0]
 
             eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
@@ -229,24 +278,31 @@ class Eigendistortion:
         self.synthesized_eigenvalues = torch.abs(eig_vals.detach())
         self.synthesized_eigenindex = eig_vecs_ind
 
-        return self.synthesized_signal, self.synthesized_eigenvalues, self.synthesized_eigenindex
+        return (
+            self.synthesized_signal,
+            self.synthesized_eigenvalues,
+            self.synthesized_eigenindex,
+        )
 
     def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
-        r""" Reshapes eigenvectors back into correct image dimensions.
+        r"""Reshapes eigenvectors back into correct image dimensions.
 
         Parameters
         ----------
-        vecs: Tensor
+        vecs
             Eigendistortion tensor with ``torch.Size([N, num_distortions])``. Each distortion will be reshaped into the
             original image shape and placed in a list.
 
         Returns
         -------
-        imgs: List
+        imgs
             List of Tensor images, each with ``torch.Size(img_height, im_width)``.
         """
 
-        imgs = [vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width)) for i in range(vecs.shape[1])]
+        imgs = [
+            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
+            for i in range(vecs.shape[1])
+        ]
         return imgs
 
     def compute_jacobian(self) -> Tensor:
@@ -254,7 +310,7 @@ class Eigendistortion:
 
         Returns
         -------
-        J: Tensor
+        J
             Jacobian of representation wrt input.
         """
         if self.jacobian is None:
@@ -267,16 +323,17 @@ class Eigendistortion:
         return J
 
     def _synthesize_exact(self) -> Tuple[Tensor, Tensor]:
-        r""" Eigendecomposition of explicitly computed Fisher Information Matrix.
+        r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
+
         To be used when the input is small (e.g. less than 70x70 image on cluster or 30x30 on your own machine). This
         method obviates the power iteration and its related algorithms (e.g. Lanczos). This method computes the
         Fisher Information Matrix by explicitly computing the Jacobian of the representation wrt the input.
 
         Returns
         -------
-        eig_vals: Tensor
+        eig_vals
             Eigenvalues in decreasing order.
-        eig_vecs: Tensor
+        eig_vecs
             Eigenvectors in 2D tensor, whose cols are eigenvectors (i.e. eigendistortions) corresponding to eigenvalues.
         """
 
@@ -287,12 +344,11 @@ class Eigendistortion:
         eig_vals = eig_vals.flip(dims=(0,))
         return eig_vals, eig_vecs
 
-    def _synthesize_power(self,
-                          k: int,
-                          shift: Union[Tensor, float],
-                          tol: float,
-                          max_steps: int) -> Tuple[Tensor, Tensor]:
-        r""" Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
+    def _synthesize_power(
+        self, k: int, shift: Union[Tensor, float], tol: float, max_steps: int
+    ) -> Tuple[Tensor, Tensor]:
+        r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
+
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
 
@@ -301,23 +357,23 @@ class Eigendistortion:
 
         Parameters
         ----------
-        k: int
+        k
             Number of top and bottom eigendistortions to synthesize; i.e. if k=2, then the top 2 and bottom 2 will
             be returned. When `k>1`, multiple eigendistortions are synthesized, and each power iteration step is
             followed by a QR orthogonalization step to ensure the vectors are orthonormal.
-        shift: Union([float, Tensor])
+        shift
             When `shift=0`, this function estimates the top `k` eigenvalue/vector pairs. When `shift` is set to the
             estimated top eigenvalue this function will estimate the smallest eigenval/eigenvector pairs.
-        tol: float
-            Tolerance value
-        max_steps: int
-            Maximum number of steps
+        tol
+            Tolerance value.
+        max_steps
+            Maximum number of steps.
 
         Returns
         -------
-        lmbda: Tensor
+        lmbda
             Eigenvalue corresponding to final vector of power iteration.
-        v: Tensor
+        v
             Final eigenvector(s) (i.e. eigendistortions) of power (orthogonal) iteration procedure.
 
         References
@@ -336,18 +392,18 @@ class Eigendistortion:
         v = Fv / torch.norm(Fv, dim=0, keepdim=True)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
-        d_lambda = torch.tensor(float('inf'))
+        d_lambda = torch.tensor(float("inf"))
         lmbda_new, v_new = None, None
-        pbar = tqdm(range(max_steps), desc=("Top" if shift == 0 else "Bottom") + f" k={k} eigendists")
-        postfix_dict = {'delta_eigenval': None}
+        desc = ("Top" if shift == 0 else "Bottom") + f" k={k} eigendists"
+        pbar = tqdm(range(max_steps), desc=desc)
+        postfix_dict = {"delta_eigenval": None}
 
         for _ in pbar:
             postfix_dict.update(dict(delta_eigenval=f"{d_lambda.item():.2E}"))
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
-                print(("Top" if shift == 0 else "Bottom")
-                      + f" k={k} eigendists computed" + f" | Tolerance {tol:.2E} reached.")
+                print(f"{desc} computed | Tolerance {tol:.2E} reached.")
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
@@ -365,28 +421,31 @@ class Eigendistortion:
 
         return lmbda_new, v_new
 
-    def _synthesize_randomized_svd(self, k: int, p: int, q: int) -> Tuple[Tensor, Tensor, Tensor]:
-        r"""  Synthesize eigendistortions using randomized truncated SVD.
+    def _synthesize_randomized_svd(
+        self, k: int, p: int, q: int
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        r"""Synthesize eigendistortions using randomized truncated SVD.
+
         This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
         then computes its SVD.
 
         Parameters
         ----------
-        k: int
+        k
             Number of eigenvecs (rank of factorization) to be returned.
-        p: int
+        p
             Oversampling parameter, recommended to be 5.
-        q: int
+        q
             Matrix power iteration. Used to squeeze the eigen spectrum for more accurate approximation.
             Recommended to be 2.
 
         Returns
         -------
-        S: Tensor
+        S
             Eigenvalues, Size((n, )).
-        V: Tensor
+        V
             Eigendistortions, Size((n, k)).
-        error_approx: Tensor
+        error_approx
             Estimate of the approximation error. Defined as the
 
         References
@@ -399,21 +458,27 @@ class Eigendistortion:
         n = len(x)
 
         P = torch.randn(n, k + p).to(x.device)
-        P, _ = torch.linalg.qr(P, "reduced")  # orthogonalize first for numerical stability
+        # orthogonalize first for numerical stability
+        P, _ = torch.linalg.qr(P, "reduced")
         _dummy_vec = torch.ones_like(y, requires_grad=True)
         Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
-        for _ in range(q):  # optional power iteration to squeeze the spectrum for more accurate estimate
+        # optional power iteration to squeeze the spectrum for more accurate
+        # estimate
+        for _ in range(q):
             Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
         Q, _ = torch.linalg.qr(Z, "reduced")
-        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)  # B = Q.T @ A @ Q
+        # B = Q.T @ A @ Q
+        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
         _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
         V = Vh.T
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
-        omega = fisher_info_matrix_vector_product(y, x, torch.randn(n, 20).to(x.device), _dummy_vec)
+        omega = fisher_info_matrix_vector_product(
+            y, x, torch.randn(n, 20).to(x.device), _dummy_vec
+        )
         error_approx = omega - (Q @ Q.T @ omega)
         error_approx = error_approx.norm(dim=0).mean()
 
@@ -427,51 +492,57 @@ class Eigendistortion:
 
         all_idx = self.synthesized_eigenindex
         assert i in all_idx, "eigenindex must be the index of one of the vectors"
-        assert all_idx is not None and len(all_idx) != 0, "No eigendistortions synthesized"
+        assert (
+            all_idx is not None and len(all_idx) != 0
+        ), "No eigendistortions synthesized"
         return int(np.where(all_idx == i)[0])
 
-    def plot_distorted_image(self,
-                             eigen_index: int = 0,
-                             alpha: float = 5.,
-                             process_image: Callable = None,
-                             ax: matplotlib.pyplot.axis = None,
-                             plot_complex: str = 'rectangular',
-                             **kwargs) -> Figure:
-        r""" Displays specified eigendistortions alone, and added to the image.
+    def plot_distorted_image(
+        self,
+        eigen_index: int = 0,
+        alpha: float = 5.0,
+        process_image: Optional[Callable[[Tensor], Tensor]] = None,
+        ax: matplotlib.pyplot.axis = None,
+        plot_complex: str = "rectangular",
+        **kwargs,
+    ) -> Figure:
+        r"""Displays specified eigendistortions alone, and added to the image.
 
         If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
         grayscale. This is merely for display convenience and may change in the future.
 
         Parameters
         ----------
-        eigen_index: int
+        eigen_index
             Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will index the first one, and
             -1 or 9 will index the last one.
-        alpha: float, optional
+        alpha
             Amount by which to scale eigendistortion for image + (alpha * eigendistortion) for display.
-        process_image: Callable
+        process_image
             A function to process the image+alpha*distortion before clamping between 0,1. E.g. multiplying by the
             stdev ImageNet then adding the mean of ImageNet to undo image preprocessing.
-        ax: matplotlib.pyplot.axis, optional
+        ax
             Axis handle on which to plot.
-        plot_complex: str, optional
+        plot_complex
             Parameter for :meth:`plenoptic.imshow` determining how to handle complex values. Defaults to 'rectangular',
             which plots real and complex components as separate images. Can also be 'polar' or 'logpolar'; see that
             method's docstring for details.
-        kwargs:
+        kwargs
             Additional arguments for :meth:`po.imshow()`.
 
         Returns
         -------
-        fig: Figure
+        fig
             matplotlib Figure handle returned by plenoptic.imshow()
         """
         if process_image is None:  # identity transform
-            def process_image(x): return x
+
+            def process_image(x):
+                return x
 
         # reshape so channel dim is last
         im_shape = self.n_channels, self.im_height, self.im_width
-        image = self.base_signal.detach().view(1, * im_shape).cpu()
+        image = self.base_signal.detach().view(1, *im_shape).cpu()
         dist = self.synthesized_signal[self._indexer(eigen_index)].unsqueeze(0).cpu()
 
         img_processed = process_image(image + alpha * dist)
