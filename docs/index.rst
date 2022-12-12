@@ -1,7 +1,7 @@
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
 			    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
-.. |python-version-shield| image:: https://img.shields.io/badge/python-3.6%7C3.7-blue.svg
+.. |python-version-shield| image:: https://img.shields.io/badge/python-3.7%7C3.8%7C3.9%7C3.10-blue.svg
 
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
@@ -20,7 +20,7 @@
 plenoptic
 =====================================
 
-|license-shield| |build| |tutorials| |zenodo|
+|license-shield| |python-version-shield| |build| |tutorials| |zenodo|
 
 Currently there's nothing here! However, we'll expand it as we go
 
