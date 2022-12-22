@@ -16,8 +16,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - id: get-scripts
-        # it's weird to me, but the quotes around \n should *not* be escaped or it breaks
-      run: "echo \"script=$(ls tests/test*py | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
+        # it's weird to me, but the quotes around \n should *not* be escaped or
+        # it breaks. we cd into tests so that the output of this is just e.g.,
+        # "test_tools.py", not "tests/test_tools.py", because we want to run
+        # pytest from inside the tests/ dir for coverage to work properly (note
+        # this is different than for the notebooks)
+      run: "echo \"script=$(cd tests/ && ls test*py | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
         \ >> $GITHUB_OUTPUT\n"
   get_notebooks:
     runs-on: ubuntu-latest
@@ -92,19 +96,30 @@ jobs:
         pip install --upgrade --upgrade-strategy eager pytest-cov
 
     - name: Run tests with pytest
-      if: ${{ matrix.test_script == 'tests/test_display.py' }}
+      if: ${{ matrix.test_script == 'test_display.py' }}
         # we have two cores on the linux github action runners:
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
       run: |
         pip install --upgrade --upgrade-strategy eager pytest-xdist
-        pytest -n 2 --cov=plenoptic ${{ matrix.test_script }}
+        # for some reason, need to run this in the tests/ dir in order to get
+        # coverage to work (I couldn't get an analogous .coveragerc working in
+        # the root directory)
+        cd tests/ && pytest -n 2 --cov=plenoptic ${{ matrix.test_script }}
+        # generate the xml file and move it to root dir for codecov
+        coverage xml -o ../coverage.xml
     - name: Run tests with pytest
-      if: ${{ matrix.test_script != 'tests/test_display.py' }}
+      if: ${{ matrix.test_script != 'test_display.py' }}
         # only test_display should parallelize across the cores, the others get
         # slowed down by it
-      run: pytest --cov=plenoptic ${{ matrix.test_script }}
-    - name: Upload to codecov
-      run: bash <(curl -s https://codecov.io/bash)
+      run: |
+        # for some reason, need to run this in the tests/ dir in order to get
+        # coverage to work (I couldn't get an analogous .coveragerc working in
+        # the root directory)
+        cd tests/ && pytest --cov=plenoptic ${{ matrix.test_script }}
+        # generate the xml file and move it to root dir for codecov
+        coverage xml -o ../coverage.xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@858dd794fbb81941b6d60b0dca860878cba60fa9 # v3.1.1
   all_tutorials_in_docs:
     runs-on: ubuntu-latest
     name: Check that all tutorial notebooks are included in docs
