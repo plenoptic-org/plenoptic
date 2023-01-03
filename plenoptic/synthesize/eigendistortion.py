@@ -176,14 +176,14 @@ class Eigendistortion:
         raise NotImplementedError
 
     def synthesize(
-            self,
-            method: Literal['exact', 'power', 'randomized_svd'] = 'power',
-            method: str = "power",
-            k: int = 1,
-            max_steps: int = 1000,
-            p: int = 5,
-            q: int = 2,
-            tol: float = 1e-7,
+        self,
+        method: Literal["exact", "power", "randomized_svd"] = "power",
+        method: str = "power",
+        k: int = 1,
+        max_steps: int = 1000,
+        p: int = 5,
+        q: int = 2,
+        tol: float = 1e-7,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
@@ -345,12 +345,10 @@ class Eigendistortion:
         eig_vals = eig_vals.flip(dims=(0,))
         return eig_vals, eig_vecs
 
-    def _synthesize_power(self,
-                          k: int,
-                          shift: Union[Tensor, float],
-                          tol: float,
-                          max_steps: int) -> Tuple[Tensor, Tensor]:
-        r""" Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
+    def _synthesize_power(
+        self, k: int, shift: Union[Tensor, float], tol: float, max_steps: int
+    ) -> Tuple[Tensor, Tensor]:
+        r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
 
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
         Information Matrix, without explicitly representing that matrix.
@@ -500,14 +498,17 @@ class Eigendistortion:
         ), "No eigendistortions synthesized"
         return int(np.where(all_idx == i)[0])
 
-def display_eigendistortion(eigendistortion: Eigendistortion,
-                            eigenindex: int = 0,
-                            alpha: float = 5.,
-                            process_image: Callable = None,
-                            process_image: Optional[Callable[[Tensor], Tensor]] = None,
-                            ax: Optional[matplotlib.pyplot.axis] = None,
-                            plot_complex: str = 'rectangular',
-                            **kwargs) -> Figure:
+
+def display_eigendistortion(
+    eigendistortion: Eigendistortion,
+    eigenindex: int = 0,
+    alpha: float = 5.0,
+    process_image: Callable = None,
+    process_image: Optional[Callable[[Tensor], Tensor]] = None,
+    ax: Optional[matplotlib.pyplot.axis] = None,
+    plot_complex: str = "rectangular",
+    **kwargs,
+) -> Figure:
     r"""Displays specified eigendistortion added to the image.
 
     If image or eigendistortions have 3 channels, then it is assumed to be a color image and it is converted to
@@ -542,14 +543,21 @@ def display_eigendistortion(eigendistortion: Eigendistortion,
     """
     if process_image is None:  # identity transform
 
-
         def process_image(x):
             return x
 
     # reshape so channel dim is last
-    im_shape = eigendistortion.n_channels, eigendistortion.im_height, eigendistortion.im_width
+    im_shape = (
+        eigendistortion.n_channels,
+        eigendistortion.im_height,
+        eigendistortion.im_width,
+    )
     image = eigendistortion.image.detach().view(1, *im_shape).cpu()
-    dist = eigendistortion.eigendistortions[eigendistortion._indexer(eigenindex)].unsqueeze(0).cpu()
+    dist = (
+        eigendistortion.eigendistortions[eigendistortion._indexer(eigenindex)]
+        .unsqueeze(0)
+        .cpu()
+    )
 
     img_processed = process_image(image + alpha * dist)
     to_plot = torch.clamp(img_processed, 0, 1)
