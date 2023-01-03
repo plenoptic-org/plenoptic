@@ -178,7 +178,6 @@ class Eigendistortion:
     def synthesize(
         self,
         method: Literal["exact", "power", "randomized_svd"] = "power",
-        method: str = "power",
         k: int = 1,
         max_steps: int = 1000,
         p: int = 5,
@@ -259,7 +258,7 @@ class Eigendistortion:
 
         else:  # method == 'power'
 
-            assert max_iter > 0, "max_iter must be greater than zero"
+            assert max_steps > 0, "max_steps must be greater than zero"
 
             lmbda_max, v_max = self._synthesize_power(
                 k=k, shift=0.0, tol=tol, max_steps=max_steps
@@ -503,7 +502,6 @@ def display_eigendistortion(
     eigendistortion: Eigendistortion,
     eigenindex: int = 0,
     alpha: float = 5.0,
-    process_image: Callable = None,
     process_image: Optional[Callable[[Tensor], Tensor]] = None,
     ax: Optional[matplotlib.pyplot.axis] = None,
     plot_complex: str = "rectangular",
