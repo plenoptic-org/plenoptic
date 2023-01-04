@@ -41,12 +41,12 @@ class MADCompetition(Synthesis):
         The metric whose value you wish to minimize or maximize, which takes
         two tensors and returns a scalar. Because of the limitations of pickle,
         you cannot use a lambda function for this if you wish to save the
-        Metamer object (i.e., it must be one of our built-in functions or
+        MADCompetition object (i.e., it must be one of our built-in functions or
         defined using a `def` statement)
     reference_metric :
         The metric whose value you wish to keep fixed, which takes two tensors
         and returns a scalar. Because of the limitations of pickle, you cannot
-        use a lambda function for this if you wish to save the Metamer object
+        use a lambda function for this if you wish to save the MADCompetition object
         (i.e., it must be one of our built-in functions or defined using a
         `def` statement)
     minmax :
@@ -190,8 +190,8 @@ class MADCompetition(Synthesis):
                 raise Exception("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]['params']
             if len(params) != 1 or not torch.equal(params[0], self.mad_image):
-                raise Exception("For metamer synthesis, optimizer must have one "
-                                "parameter, the metamer we're synthesizing.")
+                raise Exception("For MAD image synthesis, optimizer must have one "
+                                "parameter, the MAD image we're synthesizing.")
             self.optimizer = optimizer
         self.scheduler = scheduler
 
@@ -205,20 +205,19 @@ class MADCompetition(Synthesis):
         Parameters
         ----------
         store_progress : bool or int, optional
-            Whether we should store the representation of the metamer
-            and the metamer image in progress on every iteration. If
-            False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress``
-            iterations (note then that 0 is the same as False and 1 the
-            same as True). If True or int>0, ``self.saved_mad_image``
-            contains the stored images.
+             Whether we should store the MAD image in progress on every
+             iteration. If False, we don't save anything. If True, we save
+             every iteration. If an int, we save every ``store_progress``
+             iterations (note then that 0 is the same as False and 1 the same
+             as True). If True or int>0, ``self.saved_mad_image`` contains the
+             stored images.
 
         """
         if store_progress:
             if store_progress is True:
                 store_progress = 1
             # if this is not the first time synthesize is being run for this
-            # metamer object, saved_mad_image will be tensors instead of lists.
+            # MADCompetitoni object, saved_mad_image will be tensors instead of lists.
             # This converts them back to lists so we can use append. If it's
             # the first time, they'll be empty lists and this does nothing
             self.saved_mad_image = list(self.saved_mad_image)
@@ -494,12 +493,11 @@ class MADCompetition(Synthesis):
         scheduler :
             The learning rate scheduler to use. If None, we don't use one.
         store_progress :
-            Whether we should store the representation of the metamer
-            and the metamer image in progress on every iteration. If
-            False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress``
-            iterations (note then that 0 is the same as False and 1 the
-            same as True).
+            Whether we should store the representation of the MAD image in
+            progress on every iteration. If False, we don't save anything. If
+            True, we save every iteration. If an int, we save every
+            ``store_progress`` iterations (note then that 0 is the same as
+            False and 1 the same as True).
         stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -558,7 +556,7 @@ class MADCompetition(Synthesis):
         Parameters
         ----------
         file_path : str
-            The path to save the metamer object to
+            The path to save the MADCompetition object to
 
         """
         # this copies the attributes dict so we don't actually remove the
@@ -651,11 +649,11 @@ class MADCompetition(Synthesis):
 
         Examples
         --------
-        >>> metamer = po.synth.MADCompetition(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
-        >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.MADCompetition(img, model)
-        >>> metamer_copy.load('metamers.pt')
+        >>> mad = po.synth.MADCompetition(img, model)
+        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> mad.save('mad.pt')
+        >>> mad_copy = po.synth.MADCompetition(img, model)
+        >>> mad_copy.load('mad.pt')
 
         Note that you must create a new instance of the Synthesis object and
         *then* load.
