@@ -1,5 +1,6 @@
 from math import pi
-
+import numpy as np
+import scipy.ndimage
 import plenoptic as po
 import pytest
 import torch
@@ -69,6 +70,17 @@ class TestSignal(object):
                 / (x.shape[-2]*x.shape[-1])
                 - a[..., n//2, n//2+w])
                 < 1e-5).all()
+    
+    @pytest.mark.parametrize('size_A', [1, 3])
+    @pytest.mark.parametrize('size_B', [1, 2, 3])
+    def test_add_noise(self, einstein_img, size_A, size_B):
+        A = einstein_img.repeat(size_A, 1, 1, 1)
+        B = size_B * [4]
+        if size_A != size_B and size_A != 1 and size_B != 1:
+            with pytest.raises(Exception):
+                po.tools.add_noise(A, B)
+        else:
+            assert po.tools.add_noise(A, B).shape[0] == max(size_A, size_B)
 
 
 class TestStats(object):
@@ -94,3 +106,34 @@ class TestStats(object):
         lap_samples = exp_samples1 - exp_samples2
         k = po.tools.kurtosis(lap_samples, dim=1)
         assert k.mean() > 3
+
+
+class TestDownsampleUpsample(object):
+
+    @pytest.mark.parametrize('odd', [0, 1])
+    @pytest.mark.parametrize('size', [9, 10, 11, 12])
+    def test_filter(self, odd, size):
+        img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE, dtype=torch.float32)
+        img[0, 0, 12, 12] = 1
+        filt = np.zeros([size, size + 1])
+        filt[5, 5] = 1
+        filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
+        filt = torch.tensor(filt, dtype=torch.float32, device=DEVICE)
+        img_down = po.tools.correlate_downsample(img, filt=filt)
+        img_up = po.tools.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
+
+        img_down = po.tools.blur_downsample(img)
+        img_up = po.tools.upsample_blur(img_down, odd=(odd, 1))
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (0, 0, 12, 12)
+
+    def test_multichannel(self):
+        img = torch.randn([10, 3, 24, 25], device=DEVICE, dtype=torch.float32)
+        filt = torch.randn([5, 5], device=DEVICE, dtype=torch.float32)
+        img_down = po.tools.correlate_downsample(img, filt=filt)
+        img_up = po.tools.upsample_convolve(img_down, odd=(0, 1), filt=filt)
+        assert img_up.shape == img.shape
+
+        img_down = po.tools.blur_downsample(img)
+        img_up = po.tools.upsample_blur(img_down, odd=(0, 1))
+        assert img_up.shape == img.shape

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import pytest
 import plenoptic as po
 import os.path as op
