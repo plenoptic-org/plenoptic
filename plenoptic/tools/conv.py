@@ -67,8 +67,8 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
     ----------
     x: torch.Tensor of shape (batch, channel, height, width)
         Image, or batch of images. Channels are treated in the same way as batches.
-    n_scales: int, optional
-        Apply the blur and downsample procedure recursively `n_scales` times.
+    n_scales: int, optional. Should be non-negative.
+        Apply the blur and downsample procedure recursively `n_scales` times. Default to 1.
     filtname: str, optional
         Name of the filter. See `pt.named_filter` for options. Default to "binom5".
     scale_filter: bool, optional
@@ -80,16 +80,9 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
     filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt / 2
-
-    if n_scales > 1:
-        x = blur_downsample(x, n_scales-1, filtname, scale_filter)
-
-    if n_scales >= 1:
-        res = correlate_downsample(x, filt)
-    else:
-        res = x
-
-    return res
+    for _ in range(n_scales):
+        x = correlate_downsample(x, filt)
+    return x
 
 
 def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
