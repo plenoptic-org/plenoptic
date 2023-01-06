@@ -12,6 +12,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyrtools.tools.display import make_figure as pt_make_figure
+from ..tools.validate import validate_input, validate_metric
 
 
 class MADCompetition(Synthesis):
@@ -108,30 +109,21 @@ class MADCompetition(Synthesis):
                  initial_noise: float = .1,
                  metric_tradeoff_lambda: Union[None, float] = None,
                  range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float] = (0, 1),):
+                 allowed_range: Tuple[float, float] = (0, 1),):
+        validate_input(image, allowed_range=allowed_range)
+        validate_metric(optimized_metric)
+        validate_metric(reference_metric)
         self.optimized_metric = optimized_metric
         self.reference_metric = reference_metric
         self.image = image.detach()
-        if image.ndimension() != 4:
-            raise Exception("image must be torch.Size([n_batch, "
-                            "n_channels, im_height, im_width]) but got "
-                            f"{image.size()}")
         self._image_shape = image.shape
-        # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
-        # of 5e-7 to check for zero
-        if reference_metric(image, image) > 5e-7:
-            print(reference_metric(image, image))
-            raise Exception("reference_metric should return 0 on two identical images!")
-        if optimized_metric(image, image) > 5e-7:
-            print(optimized_metric(image, image))
-            raise Exception("optimized_metric should return 0 on two identical images!")
         self.optimizer = None
         self.scheduler = None
         self.losses = []
         self.optimized_metric_loss = []
         self.reference_metric_loss = []
         if minmax not in ['min', 'max']:
-            raise Exception("synthessi_target must be one of {'min', 'max'}, but got "
+            raise Exception("synthesis_target must be one of {'min', 'max'}, but got "
                             f"value {minmax} instead!")
         self.minmax = minmax
         self.learning_rate = []
