@@ -15,22 +15,22 @@ def validate_input(input: Tensor,
 
     - Checks if input is 4d.
 
-    - If `no_batch` is True, check whether `input.shape[0] != 1`
+    - If ``no_batch`` is True, check whether ``input.shape[0] != 1``
 
-    - If `allowed_range` is not None, check whether all values of `input` lie
+    - If ``allowed_range`` is not None, check whether all values of ``input`` lie
       within the specified range.
 
-    If any of the above fail, a `ValueError` is raised.
+    If any of the above fail, a ``ValueError`` is raised.
 
     Parameters
     ----------
     input
         The tensor to validate.
     no_batch
-        If True, raise an Exception if the batch dimension of `input` is greater
+        If True, raise an Exception if the batch dimension of ``input`` is greater
         than 1.
     allowed_range
-        If not None, ensure that all values of `input` lie within allowed_range.
+        If not None, ensure that all values of ``input`` lie within allowed_range.
 
     """
     if input.ndimension() != 4:
@@ -58,29 +58,29 @@ def validate_model(model: torch.nn.Module):
     In particular, this function checks the following (with their associated
     errors raised):
 
-    - If `model` adds a gradient to an input tensor, which implies that some of
-      it is learnable (`ValueError`).
+    - If ``model`` adds a gradient to an input tensor, which implies that some of
+      it is learnable (``ValueError``).
 
-    - If `model` returns a tensor when given a tensor, failure implies that not
-      all computations are done using torch (`ValueError`).
+    - If ``model`` returns a tensor when given a tensor, failure implies that not
+      all computations are done using torch (``ValueError``).
 
-    - If `model` strips gradient from an input with gradient attached
-      (`ValueError`).
+    - If ``model`` strips gradient from an input with gradient attached
+      (``ValueError``).
 
-    - If `model` casts an input tensor to something else and returns it to a
-      tensor before returning it (`ValueError`).
+    - If ``model`` casts an input tensor to something else and returns it to a
+      tensor before returning it (``ValueError``).
 
-    - If `model` changes the precision of the input tensor (`TypeError`).
+    - If ``model`` changes the precision of the input tensor (``TypeError``).
 
-    - If `model` returns a 3d or 4d output when given a 4d input
-      (`ValueError`).
+    - If ``model`` returns a 3d or 4d output when given a 4d input
+      (``ValueError``).
 
-    - If `model` changes the device of the input (`RuntimeError`).
+    - If ``model`` changes the device of the input (``RuntimeError``).
 
-    Finally, we check if `model` is in training mode and raise a warning if so.
-    Note that this is different from having learnable parameters, see `pytorch
+    Finally, we check if ``model`` is in training mode and raise a warning if so.
+    Note that this is different from having learnable parameters, see ``pytorch
     docs
-    <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>`_
+    <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
 
     Parameters
     ----------
@@ -127,12 +127,12 @@ def validate_coarse_to_fine(model: torch.nn.Module):
 
     In particular, this function checks the following (with associated errors):
 
-    - Whether `model` has a `scales` attribute (`AttributeError`).
+    - Whether ``model`` has a ``scales`` attribute (``AttributeError``).
 
-    - Whether `model.forward` accepts a `scales` keyword argument (`TypeError`).
+    - Whether ``model.forward`` accepts a ``scales`` keyword argument (``TypeError``).
 
-    - Whether the output of `model.forward` changes shape when the `scales`
-      keyword argument is set (`ValueError`).
+    - Whether the output of ``model.forward`` changes shape when the ``scales``
+      keyword argument is set (``ValueError``).
 
     Parameters
     ----------
@@ -160,14 +160,14 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
     In particular, this functions checks the following (with associated
     exceptions):
 
-    - Whether `metric` is callable and accepts two 4d tensors as input
-      (`TypeError`).
+    - Whether ``metric`` is callable and accepts two 4d tensors as input
+      (``TypeError``).
 
-    - Whether `metric` returns a scalar when called with two 4d tensors as
-      input (`ValueError`).
+    - Whether ``metric`` returns a scalar when called with two 4d tensors as
+      input (``ValueError``).
 
-    - Whether `metric` returns a value less than 5e-7 when with two identical
-      4d tensors as input (`ValueError`). (This threshold was chosen because
+    - Whether ``metric`` returns a value less than 5e-7 when with two identical
+      4d tensors as input (``ValueError``). (This threshold was chosen because
       1-SSIM of two identical images is 5e-8 on GPU).
 
     Parameters
