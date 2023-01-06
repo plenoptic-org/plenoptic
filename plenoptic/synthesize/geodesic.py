@@ -4,14 +4,14 @@ import matplotlib as mpl
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
-import torch.optim as optim
 from torch import Tensor
 from tqdm.auto import tqdm
 import warnings
-from typing import Union
+from typing import Union, Tuple
 from typing_extensions import Literal
 
 from ..tools.optim import penalize_range
+from ..tools.validate import validate_input, validate_model
 from ..tools.straightness import (deviation_from_line, make_straight_line,
                                   sample_brownian_bridge)
 
@@ -36,9 +36,12 @@ class Geodesic(nn.Module):
         initialize the geodesic with pixel linear interpolation
         (``'straight'``), or with a brownian bridge between the two anchors
         (``'bridge'``).
-    range_penalty_lambda:
-        strength of the regularizer that enforces image range lies in [0, 1].
-        Must be non-negative.
+    range_penalty_lambda :
+        strength of the regularizer that enforces the allowed_range. Must be
+        non-negative.
+    allowed_range :
+        Range (inclusive) of allowed pixel values. Any values outside this
+        range will be penalized.
 
     Attributes
     ----------
@@ -84,15 +87,16 @@ class Geodesic(nn.Module):
     def __init__(self, image_a: Tensor, image_b: Tensor,
                  model: torch.nn.Module, n_steps: int = 10,
                  init: Literal['straight', 'bridge'] = 'straight',
+                 allowed_range: Tuple[float, float] = (0, 1),
                  range_penalty_lambda: float = .1):
         super().__init__()
+        validate_input(image_a, no_batch=True, allowed_range=allowed_range)
+        validate_input(image_b, no_batch=True, allowed_range=allowed_range)
+        validate_model(model)
 
         self.n_steps = n_steps
         self.image_shape = image_a.shape
-        for img, title in zip([image_a, image_b], ['a', 'b']):
-            assert len(img.shape) == 4, f"image_{title} must be torch.Size([batch=1, n_channels, im_height, im_width])"
-            assert img.shape[0] == 1, f"image_{title} batch dim must be 1. Geodesic batch synthesis is not available."
-            assert img.min() >= 0 and img.max() <= 1, f"image_{title} range must lie in [0, 1]"
+        self.model = model.eval()
         start = image_a.clone().view(1, -1)
         stop = image_b.clone().view(1, -1)
         self.pixelfade = self._initialize('straight', start, stop, n_steps
@@ -101,6 +105,7 @@ class Geodesic(nn.Module):
         if range_penalty_lambda < 0:
             raise Exception("range_penalty_lambda must be non-negative!")
         self.range_penalty_lambda = range_penalty_lambda
+        self.allowed_range = allowed_range
         xinit = self._initialize(init, start, stop, n_steps
                                  ).view(n_steps+1, -1)
         self._xA, x, self._xB = torch.split(xinit, [1, n_steps-1, 1])
@@ -110,20 +115,7 @@ class Geodesic(nn.Module):
         # prevents geodesic and self.x getting out of sync and makes it easier
         # for user to set the relevant parameter
         #
-        # self._x = nn.Parameter(xinit.requires_grad_())
-
-        # DECIDE WHAT TOD O WITH THIS
-        warn = True
-        for p in model.parameters():
-            if p.requires_grad:
-                p.detach_()
-                if warn:
-                    warnings.warn("""we detach model parameters in order to
-                                     save time on extraneous gradients
-                                     computations - indeed only pixel values
-                                     should be modified.""")
-                    warn = False
-        self.model = model.eval()
+        self._x = nn.Parameter(xinit.requires_grad_())
 
         self.optimizer = None
         self.loss = []
@@ -198,7 +190,7 @@ class Geodesic(nn.Module):
         loss = step_energy.mean()
 
         self.loss.append(loss.item())
-        loss = loss + self.range_penalty_lambda * penalize_range(self._x, (0, 1))
+        loss = loss + self.range_penalty_lambda * penalize_range(self._x, self.allowed_range)
 
         if not torch.isfinite(loss):
             raise Exception('found a NaN in the loss during optimization')
@@ -234,7 +226,7 @@ class Geodesic(nn.Module):
                                                   lr=.001, amsgrad=True)
         else:
             if self.optimizer is not None:
-                raise Exception("When resuming synthesis, optimizer rag must be None!")
+                raise Exception("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]['params']
             if len(params) != 1 or not torch.equal(params[0], self._x):
                 raise Exception("For geodesic synthesis, optimizer must have one "
