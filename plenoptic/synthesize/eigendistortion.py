@@ -11,6 +11,7 @@ from tqdm.auto import tqdm
 
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 from ..tools.display import imshow
+from ..tools.validate import validate_input, validate_model
 
 
 def fisher_info_matrix_vector_product(
@@ -112,12 +113,8 @@ class Eigendistortion:
     """
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
-        assert (
-            len(image.shape) == 4
-        ), "Input must be torch.Size([batch=1, n_channels, im_height, im_width])"
-        assert (
-            image.shape[0] == 1
-        ), "Batch dim must be 1. Image batch synthesis is not available."
+        validate_input(image, no_batch=True)
+        validate_model(model)
 
         (
             self.batch_size,
