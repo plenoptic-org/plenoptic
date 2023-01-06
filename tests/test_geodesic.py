@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import plenoptic as po
 import pytest
 import torch
