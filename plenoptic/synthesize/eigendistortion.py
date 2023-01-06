@@ -81,7 +81,7 @@ class Eigendistortion:
 
     Parameters
     ----------
-    base_signal: Tensor
+    base_signal
         Image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.
     model
