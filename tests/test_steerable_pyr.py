@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os.path as op
 import imageio
 import torch
