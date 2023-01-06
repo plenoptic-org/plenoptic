@@ -84,7 +84,7 @@ def raised_cosine(
     This lookup table is suitable for use by `interpolate1d`
 
     Parameters
-    ---------
+    ----------
     width
         The width of the region over which the transition occurs.
     position
@@ -152,7 +152,7 @@ def rectangular_to_polar(x: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Rectangular to polar coordinate transform
 
     Parameters
-    --------
+    ----------
     x
         Complex tensor.
 

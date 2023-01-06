@@ -274,7 +274,7 @@ def polar_radius(
     function, raised to given exponent, centered at given origin.
 
     Parameters
-    ---------
+    ----------
     size
         If an int, we assume the image should be of dimensions `(size,
         size)`. if a tuple, must be a 2-tuple of ints specifying the
@@ -335,7 +335,7 @@ def polar_angle(
     X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
 
     Parameters
-    ---------
+    ----------
     size
         If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
         a 2-tuple of ints specifying the dimensions

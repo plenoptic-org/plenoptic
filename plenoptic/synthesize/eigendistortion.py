@@ -67,12 +67,12 @@ class Eigendistortion:
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
 
     Parameters
-    -----------
+    ----------
     image
-        torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
+        Image, torch.Size(batch=1, channel, height, width). We currently do not support batches of images,
         as each image requires its own optimization.
     model
-        torch model with defined forward and backward operations
+        Torch model with defined forward and backward operations.
 
     Attributes
     ----------

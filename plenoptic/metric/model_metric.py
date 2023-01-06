@@ -7,7 +7,7 @@ def model_metric(x, y, model):
     Calculate distance between x and y in model space root mean squared error
 
     Parameters
-    -----------
+    ----------
     image: torch.Tensor
         image, (B x C x H x W)
     model: torch class
