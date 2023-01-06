@@ -47,8 +47,8 @@ def validate_input(input: Tensor,
     if allowed_range is not None:
         if allowed_range[0] >= allowed_range[1]:
             raise ValueError(f"allowed_range[0] must be strictly less than allowed_range[1], but got {allowed_range}")
-        if input.min() < allowed_range[0] or input.max() < allowed_range[1]:
-            raise ValueError(f"input range must lie within {allowed_range}, but got {(input.min(), input.max())}")
+        if input.min() < allowed_range[0] or input.max() > allowed_range[1]:
+            raise ValueError(f"input range must lie within {allowed_range}, but got {(input.min().item(), input.max().item())}")
 
 
 def validate_model(model: torch.nn.Module):
