@@ -1,6 +1,7 @@
 """Functions to validate synthesis inputs. """
 import torch
 import warnings
+import itertools
 from typing import Tuple, Optional, Callable, Union
 from torch import Tensor
 
@@ -143,11 +144,14 @@ def validate_coarse_to_fine(model: torch.nn.Module):
     if not hasattr(model, 'scales'):
         raise AttributeError(f"model has no scales attribute {msg}")
     test_img = torch.rand((1, 1, 16, 16))
-    try:
-        if model(test_img).shape == model(test_img, scales=model.scales[0]):
-            raise ValueError(f"Output of model forward pass doesn't change shape when scales keyword arg is set {msg}")
-    except TypeError:
-        raise TypeError(f"model forward pass does not accept scales argument {msg}")
+    model_output_shape = model(test_img).shape
+    for len_val in range(1, len(model.scales)):
+        for sc in itertools.combinations(model.scales, len_val):
+            try:
+                if model_output_shape == model(test_img, scales=sc):
+                    raise ValueError(f"Output of model forward pass doesn't change shape when scales keyword arg is set to {sc} {msg}")
+            except TypeError:
+                raise TypeError(f"model forward pass does not accept scales argument {sc} {msg}")
 
 
 def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]]):
