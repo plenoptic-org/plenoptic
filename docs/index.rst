@@ -1,5 +1,4 @@
-.. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
-			    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
+.. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.7%7C3.8%7C3.9%7C3.10-blue.svg
 
@@ -31,6 +30,7 @@ If anything is unclear, please `open an issue <https://github.com/LabForComputat
    :caption: Contents:
 
    reproducibility
+   models
    api/modules
 
 .. toctree::
