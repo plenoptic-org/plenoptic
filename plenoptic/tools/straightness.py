@@ -128,7 +128,7 @@ def translation_sequence(image, n_steps=10):
     """make a horizontal translation sequence on `image`
 
     Parameters
-    ---------
+    ----------
     image: torch.Tensor
         Base image of shape, [C, H, W]
     n_steps: int, optional

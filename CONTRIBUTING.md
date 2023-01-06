@@ -320,8 +320,11 @@ make html
 
 We build tutorials as Jupyter notebooks so that they can be launched in Binder
 and people can play with them on their local machine. In order to include them
-in the built docs, add a `nblink` file to the `docs/tutorials/` directory. This
-is a json file that should contain the path to the notebook, like so, for
+in the built docs, add a `nblink` file to the `docs/tutorials/` directory. We
+check for this during the tests, so you won't be able to merge your pull request
+into `main` unless you've done this!
+
+This is a json file that should contain the path to the notebook, like so, for
 `docs/tutorials/my_awesome_tutorial.nblink`:
 
 ```
@@ -334,18 +337,8 @@ note that you *cannot* have a trailing comma there, because json is very
 particular. See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
 page for more details.
 
-Once you've done that, you should add it to our `index.rst`. Towards the bottom
-of that page, you'll find a `toctree` with the caption "Tutorials and examples".
-Add your new tutorial by adding the line `tutorials/my_awesome_tutorial.nblink`
-after the existing ones. Then, once you run `make html`, your tutorial should
-now be included!
-
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
 should have exactly one H1 title (i.e., line starting with a single `#`), but
 you can have as many lower-level titles as you'd like. If you have multiple H1
 titles, they'll each show up as different tutorials. If you don't have an H1
 title, it won't show up at all.
-
-When you add a new tutorial, don't forget to add it to the `treebeard.yml` file
-so it can be tested (see last paragraph of the [testing
-notebooks](#testing-notebooks) section for details).
