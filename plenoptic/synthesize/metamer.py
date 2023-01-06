@@ -5,6 +5,7 @@ import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
 from ..tools import optim, display, signal, data
+from ..tools.validate import validate_input, validate_model, validate_coarse_to_fine
 from typing import Union, Tuple, Callable, List, Dict
 from typing_extensions import Literal
 from .synthesis import Synthesis
@@ -42,9 +43,9 @@ class Metamer(Synthesis):
         Metamer object (i.e., it must be one of our built-in functions or
         defined using a `def` statement)
     range_penalty_lambda :
-        strength of the regularizer that enforces the allowable_range. Must be
+        strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
-    allowable_range :
+    allowed_range :
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
     initial_image :
@@ -98,16 +99,14 @@ class Metamer(Synthesis):
     def __init__(self, image: Tensor, model: torch.nn.Module,
                  loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
                  range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float] = (0, 1),
+                 allowed_range: Tuple[float, float] = (0, 1),
                  initial_image: Union[None, Tensor] = None):
+        validate_input(image, allowed_range=allowed_range)
+        validate_model(model)
         self.model = model
         self.image = image
-        if image.ndimension() != 4:
-            raise Exception("image must be torch.Size([n_batch, "
-                            "n_channels, im_height, im_width]) but got "
-                            f"{image.size()}")
         self._image_shape = image.shape
-        self.target_representation = self.model(self.image).detach()
+        self.target_representation = self.model(self.image)
         self.optimizer = None
         self.scheduler = None
         self.losses = []
@@ -131,7 +130,7 @@ class Metamer(Synthesis):
     def _init_metamer(self, initial_image: Union[None, Tensor] = None):
         """Initialize the metamer.
 
-        Set the ``self.metamer`` attribute to be a parameter with the
+        Set the ``self.metamer`` attribute to be an attribute with the
         user-supplied data, making sure it's the right shape.
 
         Parameters
@@ -159,7 +158,6 @@ class Metamer(Synthesis):
             if metamer.size() != self.image.size():
                 raise Exception("metamer and image must be"
                                 " same size!")
-        # SHOULD THIS BE A PARAMETER?
         self.metamer = metamer
         self.losses.append(self.objective_function(self.model(metamer)).item())
 
@@ -174,12 +172,8 @@ class Metamer(Synthesis):
             # if self.scales is not None, we're continuing a previous version
             # and want to continue. this list comprehension creates a new
             # object, so we don't modify model.scales
-            try:
-                self.scales = [i for i in self.model.scales[:-1]]
-            except AttributeError:
-                raise AttributeError(f"Model '{self.model._get_name()}' has no"
-                                     " attribute " " 'scales', and therefore "
-                                     "we cannot do coarse-to-fine synthesis.")
+            validate_coarse_to_fine(self.model)
+            self.scales = [i for i in self.model.scales[:-1]]
             if coarse_to_fine == 'separate':
                 self.scales += [self.model.scales[-1]]
             self.scales += ['all']
