@@ -16,8 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - id: get-scripts
-        # it's weird to me, but the quotes around \n should *not* be escaped or
-        # it breaks. we cd into tests so that the output of this is just e.g.,
+        # we cd into tests so that the output of this is just e.g.,
         # "test_tools.py", not "tests/test_tools.py", because we want to run
         # pytest from inside the tests/ dir for coverage to work properly (note
         # this is different than for the notebooks)
@@ -30,7 +29,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - id: get-notebooks
-        # it's weird to me, but the quotes around \n should *not* be escaped or it breaks
       run: "echo \"nb=$(ls examples/*ipynb | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
         \ >> $GITHUB_OUTPUT\n"
   notebooks:
