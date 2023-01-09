@@ -53,7 +53,7 @@ class TestEigendistortionSynthesis:
             n_chans = 3
         img = img[..., :LARGE_DIM, :LARGE_DIM]
         ed = Eigendistortion(img, model)
-        ed.synthesize(method='power', max_steps=3)
+        ed.synthesize(method='power', max_iter=3)
 
         # test it should only return two eigenvectors and values
         assert len(ed.eigenvalues) == 2
@@ -68,7 +68,7 @@ class TestEigendistortionSynthesis:
         n_chans = 1  # TODO color
         einstein_img = einstein_img[..., :n, :n]
         ed = Eigendistortion(einstein_img, model)
-        ed.synthesize(k=k, method='power', max_steps=10)
+        ed.synthesize(k=k, method='power', max_iter=10)
 
         assert ed.eigendistortions.shape == (k*2, n_chans, n, n)
         assert ed.eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
@@ -102,7 +102,7 @@ class TestEigendistortionSynthesis:
         k_pow, k_svd = 1, 75
         e_jac.synthesize(method='exact')
         set_seed(0)
-        e_pow.synthesize(k=k_pow, method='power', max_steps=2500)
+        e_pow.synthesize(k=k_pow, method='power', max_iter=2500)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
         print("synthesized first and last: ", e_pow.eigenvalues[0], e_pow.eigenvalues[-1])
@@ -123,7 +123,7 @@ class TestEigendistortionSynthesis:
             img = color_img
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = Eigendistortion(img, model)
-        eigendist.synthesize(k=k, method=method, max_steps=10)
+        eigendist.synthesize(k=k, method=method, max_iter=10)
         display_eigendistortion(eigendist, eigenindex=0)
         display_eigendistortion(eigendist, eigenindex=1)
         

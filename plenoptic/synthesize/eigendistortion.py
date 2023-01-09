@@ -176,7 +176,7 @@ class Eigendistortion:
         self,
         method: Literal["exact", "power", "randomized_svd"] = "power",
         k: int = 1,
-        max_steps: int = 1000,
+        max_iter: int = 1000,
         p: int = 5,
         q: int = 2,
         tol: float = 1e-7,
@@ -192,7 +192,7 @@ class Eigendistortion:
             randomized SVD to approximate the top k eigendistortions and their corresponding eigenvalues.
         k
             How many vectors to return using block power method or svd.
-        max_steps
+        max_iter
             Maximum number of steps to run for ``method='power'`` in eigenvalue computation. Ignored
             for other methods.
         p
@@ -255,13 +255,13 @@ class Eigendistortion:
 
         else:  # method == 'power'
 
-            assert max_steps > 0, "max_steps must be greater than zero"
+            assert max_iter > 0, "max_iter must be greater than zero"
 
             lmbda_max, v_max = self._synthesize_power(
-                k=k, shift=0.0, tol=tol, max_steps=max_steps
+                k=k, shift=0.0, tol=tol, max_iter=max_iter
             )
             lmbda_min, v_min = self._synthesize_power(
-                k=k, shift=lmbda_max[0], tol=tol, max_steps=max_steps
+                k=k, shift=lmbda_max[0], tol=tol, max_iter=max_iter
             )
             n = v_max.shape[0]
 
@@ -342,7 +342,7 @@ class Eigendistortion:
         return eig_vals, eig_vecs
 
     def _synthesize_power(
-        self, k: int, shift: Union[Tensor, float], tol: float, max_steps: int
+        self, k: int, shift: Union[Tensor, float], tol: float, max_iter: int
     ) -> Tuple[Tensor, Tensor]:
         r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
 
@@ -363,7 +363,7 @@ class Eigendistortion:
             estimated top eigenvalue this function will estimate the smallest eigenval/eigenvector pairs.
         tol
             Tolerance value.
-        max_steps
+        max_iter
             Maximum number of steps.
 
         Returns
@@ -392,7 +392,7 @@ class Eigendistortion:
         d_lambda = torch.tensor(float("inf"))
         lmbda_new, v_new = None, None
         desc = ("Top" if shift == 0 else "Bottom") + f" k={k} eigendists"
-        pbar = tqdm(range(max_steps), desc=desc)
+        pbar = tqdm(range(max_iter), desc=desc)
         postfix_dict = {"delta_eigenval": None}
 
         for _ in pbar:
