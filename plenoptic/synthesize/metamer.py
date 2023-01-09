@@ -6,7 +6,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 from ..tools import optim, display, signal, data
 from ..tools.validate import validate_input, validate_model, validate_coarse_to_fine
-from typing import Union, Tuple, Callable, List, Dict
+from typing import Union, Tuple, Callable, List, Dict, Optional
 from typing_extensions import Literal
 from .synthesis import Synthesis
 import warnings
@@ -100,7 +100,7 @@ class Metamer(Synthesis):
                  loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float, float] = (0, 1),
-                 initial_image: Union[None, Tensor] = None):
+                 initial_image: Optional[Tensor] = None):
         validate_input(image, allowed_range=allowed_range)
         validate_model(model, image_shape=image.shape[-2:])
         self.model = model
@@ -127,7 +127,7 @@ class Metamer(Synthesis):
         self.store_progress = None
         self.saved_metamer = []
 
-    def _init_metamer(self, initial_image: Union[None, Tensor] = None):
+    def _init_metamer(self, initial_image: Optional[Tensor] = None):
         """Initialize the metamer.
 
         Set the ``self.metamer`` attribute to be an attribute with the
@@ -162,7 +162,7 @@ class Metamer(Synthesis):
         self.losses.append(self.objective_function(self.model(metamer)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
-                  change_scale_criterion: Union[float, None],
+                  change_scale_criterion: Optional[float],
                   stop_criterion: float):
         """Initialize stuff related to coarse-to-fine."""
         if coarse_to_fine not in [False, 'separate', 'together']:
@@ -315,7 +315,7 @@ class Metamer(Synthesis):
 
     def _check_for_stabilization(self, i: int, stop_criterion: float,
                                  stop_iters_to_check: int,
-                                 ctf_iters_to_check: Union[int, None] = None) -> bool:
+                                 ctf_iters_to_check: Optional[int] = None) -> bool:
         r"""Check whether the loss has stabilized and, if so, return True.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
@@ -367,7 +367,7 @@ class Metamer(Synthesis):
         return False
 
     def objective_function(self, metamer_representation: Tensor,
-                           target_representation: Union[Tensor, None] = None) -> Tensor:
+                           target_representation: Optional[Tensor] = None) -> Tensor:
         """Compute the metamer synthesis loss.
 
         This calls self.loss_function on ``metamer_representation`` and
@@ -532,8 +532,8 @@ class Metamer(Synthesis):
         return loss, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
 
     def synthesize(self, max_iter: int = 100,
-                   optimizer: Union[None, torch.optim.Optimizer] = None,
-                   scheduler: Union[None, torch.optim.lr_scheduler._LRScheduler] = None,
+                   optimizer: Optional[torch.optim.Optimizer] = None,
+                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
                    store_progress: Union[bool, int] = False,
                    stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
                    coarse_to_fine: Literal['together', 'separate', False] = False,
@@ -696,7 +696,7 @@ class Metamer(Synthesis):
         return super().to(*args, attrs=attrs, **kwargs)
 
     def load(self, file_path: str,
-             map_location: Union[str, None] = None,
+             map_location: Optional[str] = None,
              **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
@@ -749,8 +749,8 @@ class Metamer(Synthesis):
 
 
 def plot_loss(metamer: Metamer,
-              iteration: Union[int, None] = None,
-              ax: Union[mpl.axes.Axes, None] = None,
+              iteration: Optional[int] = None,
+              ax: Optional[mpl.axes.Axes] = None,
               **kwargs) -> mpl.axes.Axes:
     """Plot synthesis loss with log-scaled y axis.
 
@@ -799,10 +799,10 @@ def plot_loss(metamer: Metamer,
 
 def display_metamer(metamer: Metamer,
                     batch_idx: int = 0,
-                    channel_idx: Union[int, None] = None,
-                    zoom: Union[float, None] = None,
-                    iteration: Union[int, None] = None,
-                    ax: Union[mpl.axes.Axes, None] = None,
+                    channel_idx: Optional[int] = None,
+                    zoom: Optional[float] = None,
+                    iteration: Optional[int] = None,
+                    ax: Optional[mpl.axes.Axes] = None,
                     **kwargs) -> mpl.axes.Axes:
     """Display metamer.
 
@@ -865,7 +865,7 @@ def display_metamer(metamer: Metamer,
 
 
 def _representation_error(metamer: Metamer,
-                          iteration: Union[int, None] = None,
+                          iteration: Optional[int] = None,
                           **kwargs) -> Tensor:
     r"""Get the representation error.
 
@@ -897,9 +897,9 @@ def _representation_error(metamer: Metamer,
 
 def plot_representation_error(metamer: Metamer,
                               batch_idx: int = 0,
-                              iteration: Union[int, None] = None,
-                              ylim: Union[Tuple[float], None, Literal[False]] = None,
-                              ax: Union[mpl.axes.Axes, None] = None,
+                              iteration: Optional[int] = None,
+                              ylim: Union[Tuple[float, float], None, Literal[False]] = None,
+                              ax: Optional[mpl.axes.Axes] = None,
                               as_rgb: bool = False,
                               **kwargs) -> List[mpl.axes.Axes]:
     r"""Plot distance ratio showing how close we are to convergence.
@@ -949,10 +949,10 @@ def plot_representation_error(metamer: Metamer,
 
 def plot_pixel_values(metamer: Metamer,
                       batch_idx: int = 0,
-                      channel_idx: Union[int, None] = None,
-                      iteration: Union[int, None] = None,
-                      ylim: Union[Tuple[float], Literal[False]] = None,
-                      ax: Union[mpl.axes.Axes, None] = None,
+                      channel_idx: Optional[int] = None,
+                      iteration: Optional[int] = None,
+                      ylim: Union[Tuple[float, float], None, Literal[False]] = None,
+                      ax: Optional[mpl.axes.Axes] = None,
                       **kwargs) -> mpl.axes.Axes:
     r"""Plot histogram of pixel values of target image and its metamer.
 
@@ -1053,9 +1053,9 @@ def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
                          f'Only {allowed_vals} are permissible!')
 
 
-def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
+def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
                          axes_idx: Dict[str, int] = {},
-                         figsize: Union[Tuple[float], None] = None,
+                         figsize: Optional[Tuple[float, float]] = None,
                          included_plots: List[str] = ['display_metamer',
                                                       'plot_loss',
                                                       'plot_representation_error'],
@@ -1165,15 +1165,15 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
 
 def plot_synthesis_status(metamer: Metamer,
                           batch_idx: int = 0,
-                          channel_idx: Union[int, None] = None,
-                          iteration: Union[int, None] = None,
-                          ylim: Union[Tuple[float], Literal[False]] = None,
-                          vrange: Union[Tuple[float], str] = 'indep1',
-                          zoom: Union[float, None] = None,
+                          channel_idx: Optional[int] = None,
+                          iteration: Optional[int] = None,
+                          ylim: Union[Tuple[float, float], None, Literal[False]] = None,
+                          vrange: Union[Tuple[float, float], str] = 'indep1',
+                          zoom: Optional[float] = None,
                           plot_representation_error_as_rgb: bool = False,
-                          fig: Union[mpl.figure.Figure, None] = None,
+                          fig: Optional[mpl.figure.Figure] = None,
                           axes_idx: Dict[str, int] = {},
-                          figsize: Union[Tuple[float], None] = None,
+                          figsize: Optional[Tuple[float, float]] = None,
                           included_plots: List[str] = ['display_metamer',
                                                        'plot_loss',
                                                        'plot_representation_error'],
@@ -1313,14 +1313,14 @@ def plot_synthesis_status(metamer: Metamer,
 def animate(metamer: Metamer,
             framerate: int = 10,
             batch_idx: int = 0,
-            channel_idx: Union[int, None] = None,
-            ylim: Union[str, Tuple[float], Literal[False]] = None,
-            vrange: Union[Tuple[float], str] = (0, 1),
-            zoom: Union[float, None] = None,
+            channel_idx: Optional[int] = None,
+            ylim: Union[str, None, Tuple[float, float], Literal[False]] = None,
+            vrange: Union[Tuple[float, float], str] = (0, 1),
+            zoom: Optional[float] = None,
             plot_representation_error_as_rgb: bool = False,
-            fig: Union[mpl.figure.Figure, None] = None,
+            fig: Optional[mpl.figure.Figure] = None,
             axes_idx: Dict[str, int] = {},
-            figsize: Union[Tuple[float], None] = None,
+            figsize: Optional[Tuple[float, float]] = None,
             included_plots: List[str] = ['display_metamer',
                                          'plot_loss',
                                          'plot_representation_error'],

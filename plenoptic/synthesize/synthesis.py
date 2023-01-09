@@ -2,7 +2,7 @@
 import abc
 import warnings
 import torch
-from typing import Union, List
+from typing import Optional, List
 
 
 class Synthesis(metaclass=abc.ABCMeta):
@@ -20,7 +20,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         r"""Synthesize something."""
         pass
 
-    def save(self, file_path: str, attrs: Union[List[str], None] = None):
+    def save(self, file_path: str, attrs: Optional[List[str]] = None):
         r"""Save all relevant (non-model) variables in .pt file.
 
         If you leave attrs as None, we grab vars(self) and exclude 'model'.
@@ -57,7 +57,7 @@ class Synthesis(metaclass=abc.ABCMeta):
         torch.save(save_dict, file_path)
 
     def load(self, file_path: str,
-             map_location: Union[str, None] = None,
+             map_location: Optional[str] = None,
              check_attributes: List[str] = [],
              check_loss_functions: List[str] = [],
              **pickle_load_args):
