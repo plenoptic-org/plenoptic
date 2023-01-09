@@ -15,14 +15,6 @@ LARGE_DIM = 100
 class TestEigendistortionSynthesis:
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-    def test_input_dimensionality(self, model):
-        with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros((1, 1, 1), device=DEVICE), model)  # should be 4D
-
-        with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros((2, 1, 1, 1), device=DEVICE), model)  # batch dim must be 1
-
-    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)

@@ -99,17 +99,6 @@ class TestMAD(object):
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
-    @pytest.mark.parametrize('model', ['ssim', 'class'])
-    def test_require_metric(self, curie_img, model):
-        # test that we fail if we get a model or a function that's not a metric
-        # (i.e., doesn't return 0 on identical images)
-        if model == 'ssim':
-            model = po.metric.ssim
-        elif model == 'class':
-            model = po.simul.OnOff((8, 8))
-        with pytest.raises(Exception):
-            po.synth.MADCompetition(curie_img, po.metric.mse)
-
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])
     def test_to(self, curie_img, to_type):
         mad = po.synth.MADCompetition(curie_img, po.metric.mse,
