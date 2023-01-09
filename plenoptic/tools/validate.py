@@ -63,7 +63,8 @@ def validate_input(
             )
 
 
-def validate_model(model: torch.nn.Module):
+def validate_model(model: torch.nn.Module,
+                   image_shape: Optional[Tuple[float, float]] = None):
     """Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
@@ -97,6 +98,10 @@ def validate_model(model: torch.nn.Module):
     ----------
     model
         The model to validate.
+    image_shape
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain height and width. If that's the case for ``model``, use this to
+        specify the expected shape. If None, we use height and width of 16.
 
     See also
     --------
@@ -104,7 +109,9 @@ def validate_model(model: torch.nn.Module):
         Helper function for detaching all parameters (in place).
 
     """
-    test_img = torch.rand((1, 1, 16, 16), dtype=torch.float32, requires_grad=False)
+    if image_shape is None:
+        image_shape = (16, 16)
+    test_img = torch.rand((1, 1, *image_shape), dtype=torch.float32, requires_grad=False)
     try:
         if model(test_img).requires_grad:
             raise ValueError(
@@ -150,7 +157,8 @@ def validate_model(model: torch.nn.Module):
         )
 
 
-def validate_coarse_to_fine(model: torch.nn.Module):
+def validate_coarse_to_fine(model: torch.nn.Module,
+                            image_shape: Optional[Tuple[float, float]] = None):
     """Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
@@ -166,28 +174,35 @@ def validate_coarse_to_fine(model: torch.nn.Module):
     ----------
     model
         The model to validate.
+    image_shape
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain height and width. If that's the case for ``model``, use this to
+        specify the expected shape. If None, we use height and width of 16.
 
     """
     msg = "and therefore we cannot do coarse-to-fine synthesis"
     if not hasattr(model, "scales"):
         raise AttributeError(f"model has no scales attribute {msg}")
-    test_img = torch.rand((1, 1, 16, 16))
+    if image_shape is None:
+        image_shape = (16, 16)
+    test_img = torch.rand((1, 1, *image_shape))
     model_output_shape = model(test_img).shape
     for len_val in range(1, len(model.scales)):
         for sc in itertools.combinations(model.scales, len_val):
             try:
-                if model_output_shape == model(test_img, scales=sc):
+                if model_output_shape == model(test_img, scales=sc).shape:
                     raise ValueError(
-                        f"Output of model forward pass doesn't change"
+                        f"Output of model forward method doesn't change"
                         " shape when scales keyword arg is set to {sc} {msg}"
                     )
             except TypeError:
                 raise TypeError(
-                    f"model forward pass does not accept scales argument {sc} {msg}"
+                    f"model forward method does not accept scales argument {sc} {msg}"
                 )
 
 
-def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]]):
+def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                    image_shape: Optional[Tuple[float, float]] = None):
     """Determines whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
@@ -207,22 +222,28 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
     ----------
     metric
         The metric to validate.
+    image_shape
+        Some metrics can only accept inputs of a certain height and width. If
+        that's the case for ``model``, use this to specify the expected shape.
+        If None, we use height and width of 16.
 
     """
-    test_img = torch.rand((1, 1, 16, 16))
+    if image_shape is None:
+        image_shape = (16, 16)
+    test_img = torch.rand((1, 1, *image_shape))
     try:
         same_val = metric(test_img, test_img).item()
-        # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
-        # of 5e-7 to check for zero
-        if same_val > 5e-7:
-            raise ValueError(
-                f"metric should return <= 5e-7 on two identical images but got {same_val}"
-            )
     except TypeError:
         raise TypeError("metric should be callable and accept two 4d tensors as input")
     except ValueError:
         raise ValueError(
             f"metric should return a scalar value but output had shape {metric(test_img, test_img).shape}"
+        )
+    # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
+    # of 5e-7 to check for zero
+    if same_val > 5e-7:
+        raise ValueError(
+            f"metric should return <= 5e-7 on two identical images but got {same_val}"
         )
 
 
