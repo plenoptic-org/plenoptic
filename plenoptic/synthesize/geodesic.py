@@ -92,7 +92,7 @@ class Geodesic(nn.Module):
         super().__init__()
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
         validate_input(image_b, no_batch=True, allowed_range=allowed_range)
-        validate_model(model)
+        validate_model(model, image_shape=image.shape[-2:])
 
         self.n_steps = n_steps
         self.image_shape = image_a.shape

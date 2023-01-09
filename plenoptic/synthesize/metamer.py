@@ -102,7 +102,7 @@ class Metamer(Synthesis):
                  allowed_range: Tuple[float, float] = (0, 1),
                  initial_image: Union[None, Tensor] = None):
         validate_input(image, allowed_range=allowed_range)
-        validate_model(model)
+        validate_model(model, image_shape=image.shape[-2:])
         self.model = model
         self.image = image
         self._image_shape = image.shape
