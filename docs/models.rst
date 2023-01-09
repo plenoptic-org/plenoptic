@@ -17,14 +17,14 @@ way to check whether your model meets the following requirements). Your model:
   custom ``.backward()`` method).
 * must not have any learnable parameters. This is largely to save time by
   avoiding calculation of unnecessary gradients, but synthesis is performed with
-  a **fixed** model -- we are optimizing the input, not the model parameters.
+  a **fixed** model --- we are optimizing the input, not the model parameters.
   You can use the helper function :func:`plenoptic.tools.validate.remove_grad` to detach
   all parameters. Similarly, your model should probably be in evaluation mode
   (i.e., call ``model.eval()``).
 
 Additionally, your model inputs and outputs should be real- or complex-valued
 and should be *interpretable* for all possible values (within some range). The
-intention of stimulus synthesis is to facilitate model understanding -- if the
+intention of stimulus synthesis is to facilitate model understanding --- if the
 synthesized stimulus are meaningless, this defeats the purpose. (Note that
 domain restrictions, such as requiring integer-valued inputs, can probably be
 accomplished by adding a penalty to an objective function, but will make your
@@ -34,6 +34,7 @@ life harder.)
 which have the following requirements (use the
 :func:`plenoptic.tools.validate.validate_metric` function to check whether your
 metric meets the following requirements):
+
 * a metric must be callable, accept two 4d ``torch.Tensor`` objects as inputs,
   and return a scalar as output.
 * when called on two identical inputs, the metric must return a value of 0.
@@ -44,10 +45,8 @@ meet the following additional requirements (use the
 :func:`plenoptic.tools.validate.validate_coarse_to_fine` function to check):
 
 * the model must have a ``scales`` attribute.
-
 * in addition to a ``torch.Tensor``, one must be able to pass a ``scales``
   keyword argument when calling the model.
-
 * that argument should be a list, containing one or more values from
   ``model.scales``, the shape of the output should change when ``scales`` is
   a strict subset of all possible values.
