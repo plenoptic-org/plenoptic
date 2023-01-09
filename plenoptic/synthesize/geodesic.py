@@ -10,13 +10,14 @@ import warnings
 from typing import Union, Tuple
 from typing_extensions import Literal
 
+from .synthesis import Synthesis
 from ..tools.optim import penalize_range
 from ..tools.validate import validate_input, validate_model
 from ..tools.straightness import (deviation_from_line, make_straight_line,
                                   sample_brownian_bridge)
 
 
-class Geodesic(nn.Module):
+class Geodesic(Synthesis):
     r'''Synthesize an approximate geodesic between two images according to a model.
 
     This method can be used to visualize and refine the invariances of a
@@ -89,10 +90,9 @@ class Geodesic(nn.Module):
                  init: Literal['straight', 'bridge'] = 'straight',
                  allowed_range: Tuple[float, float] = (0, 1),
                  range_penalty_lambda: float = .1):
-        super().__init__()
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
         validate_input(image_b, no_batch=True, allowed_range=allowed_range)
-        validate_model(model, image_shape=image.shape[-2:])
+        validate_model(model, image_shape=image_a.shape[-2:])
 
         self.n_steps = n_steps
         self.image_shape = image_a.shape
@@ -115,7 +115,7 @@ class Geodesic(nn.Module):
         # prevents geodesic and self.x getting out of sync and makes it easier
         # for user to set the relevant parameter
         #
-        self._x = nn.Parameter(xinit.requires_grad_())
+        self._x = xinit.requires_grad_()
 
         self.optimizer = None
         self.loss = []

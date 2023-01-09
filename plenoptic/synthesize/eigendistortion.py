@@ -9,6 +9,7 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
+from .synthesis import Synthesis
 from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 from ..tools.display import imshow
 from ..tools.validate import validate_input, validate_model
@@ -63,7 +64,7 @@ def fisher_info_matrix_eigenvalue(
     return lambduh
 
 
-class Eigendistortion:
+class Eigendistortion(Synthesis):
     r"""Synthesis object to compute eigendistortions induced by a model on a given input image.
 
     Parameters
