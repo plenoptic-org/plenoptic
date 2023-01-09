@@ -25,22 +25,22 @@ class Geodesic(Synthesis):
 
     Parameters
     ----------
-    image_a, image_b:
+    image_a, image_b
         Start and stop anchor points of the geodesic, of shape [1, C, H, W]
         with values in range [0, 1].
-    model:
+    model
         an analysis model that computes representations on signals like `image_a`.
-    n_steps:
+    n_steps
         the number of steps (i.e., transitions) in the trajectory between the
         two anchor points.
-    init:
+    initial_sequence
         initialize the geodesic with pixel linear interpolation
         (``'straight'``), or with a brownian bridge between the two anchors
         (``'bridge'``).
-    range_penalty_lambda :
+    range_penalty_lambda
         strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
-    allowed_range :
+    allowed_range
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
 
@@ -87,7 +87,7 @@ class Geodesic(Synthesis):
 
     def __init__(self, image_a: Tensor, image_b: Tensor,
                  model: torch.nn.Module, n_steps: int = 10,
-                 init: Literal['straight', 'bridge'] = 'straight',
+                 initial_sequence: Literal['straight', 'bridge'] = 'straight',
                  allowed_range: Tuple[float, float] = (0, 1),
                  range_penalty_lambda: float = .1):
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
@@ -106,7 +106,7 @@ class Geodesic(Synthesis):
             raise Exception("range_penalty_lambda must be non-negative!")
         self.range_penalty_lambda = range_penalty_lambda
         self.allowed_range = allowed_range
-        xinit = self._initialize(init, start, stop, n_steps
+        xinit = self._initialize(initial_sequence, start, stop, n_steps
                                  ).view(n_steps+1, -1)
         self._xA, x, self._xB = torch.split(xinit, [1, n_steps-1, 1])
         self._x = nn.Parameter(x.requires_grad_())
@@ -122,22 +122,22 @@ class Geodesic(Synthesis):
         self.dev_from_line = []
         self.step_energy = []
 
-    def _initialize(self, init, start, stop, n_steps):
+    def _initialize(self, initial_sequence, start, stop, n_steps):
         """initialize the geodesic
 
         Parameters
         ----------
-        init:
+        initial_sequence
             initialize the geodesic with pixel linear interpolation
             (``'straight'``), or with a brownian bridge between the two anchors
             (``'bridge'``).
         """
-        if init == 'bridge':
+        if initial_sequence == 'bridge':
             x = sample_brownian_bridge(start, stop, n_steps)
-        elif init == 'straight':
+        elif initial_sequence == 'straight':
             x = make_straight_line(start, stop, n_steps)
         else:
-            raise Exception(f"Don't know how to handle init={init}")
+            raise ValueError(f"Don't know how to handle initial_sequence={initial_sequence}")
         return x
 
     def _analyze(self, x):
