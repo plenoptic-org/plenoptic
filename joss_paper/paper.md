@@ -1,5 +1,5 @@
 ---
-title: 'Plenoptic: synthesis methods for analyzing model representations'
+title: 'Plenoptic.py: Synthesizing model-optimized visual stimuli'
 tags:
   - Python
   - PyTorch
@@ -10,7 +10,7 @@ authors:
   - name: Kathryn Bonnen
     orcid: 0000-0002-9210-8275
     affiliation: 1, 2
-  - name: William Broderick
+  - name: William F. Broderick
     orcid: 0000-0002-8999-9003
     affiliation: 1
   - name: Lyndon R. Duong
@@ -22,6 +22,12 @@ authors:
   - name: Nikhil Parthasarathy
     orcid: 0000-0003-2572-6492
     affiliation: 1
+  - name: Xinyuan Zhao
+    orcid: 0000-0003-2572-6492
+    affiliation: 1
+  - name: Thomas E. Yerxa
+    orcid: 0000-0003-2572-6492
+    affiliation: 1
   - name: Eero P. Simoncelli
     orcid: 000-0002-1206-527X
     affiliation: 1, 2
@@ -30,32 +36,30 @@ affiliations:
    index: 1
  - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
    index: 2
-date: April 2021
+date: January 2023
 bibliography: references.bib
 ---
 
 # Summary
 
-
-``Plenoptic`` builds primarily off of ``PyTorch`` [@paszke_pytorch_2019], a Python machine learning library popular in the research community due to its rapid prototyping capability. With ``Plenoptic``, users can build and train models in ``PyTorch``, then use ``Plenoptic`` synthesis methods to assess their internal representations.
-Our library is easily extensible, and allows for great flexibility to those who wish to develop or test their own synthesis methods.
-Within the library, we also provide an extensive suite of ``PyTorch``-implemented models and activation functions canonical to computational neuroscience.
-
-Many of the methods in ``Plenoptic`` have been developed and used across several studies; however, analyses in these studies used disparate languages and frameworks, and some have yet to be made publicly available.
-Here, we have reimplemented the methods central to each of these studies, and unified them under a single, fully-documented API.
-Our library includes several Jupyter notebook tutorials designed to be accessible to researchers in the fields of machine learning, and computational neuroscience, and perceptual science.
-``Plenoptic`` provides an exciting avenue for researchers to probe their models to gain a deeper understanding of their internal representations.
-
-# Statement of Need
-
-# Overview
+In sensory perception and neuroscience, new computational models are most often tested and compared in terms of their ability to fit existing data sets.
+However, experimental data are inherently limited in size, quality, and type, and complex models often saturate their explainable variance.
+Moreover, it is often difficult to use models to guide the development of future experiments.
+Here, building on ideas for optimal experimental stimulus selection  (e.g., QUEST, Watson and Pelli, 1983), we present "Plenoptic", a python software library for generating visual stimuli optimized for testing or comparing models.
+Plenoptic provides a unified framework containing four previously-published synthesis methods -- model metamers (Freeman and Simoncelli, 2011), Maximum Differentiation (MAD) competition (Wang and Simoncelli, 2008), eigen-distortions (Berardino et al. 2017), and representational geodesics (Hénaff and Simoncelli, 2015) -- each of which offers visualization of model representations, and generation of images that can be used to experimentally test alignment with the human visual system.
+Plenoptic leverages modern machine-learning methods to enable application of these synthesis methods to any computational model that satisfies a small set of common requirements.
+The most important of these is that the model must be image-computable, implemented in PyTorch, and end-to-end differentiable.
+The package includes examples of several low- and mid-level visual models, as well as a set of perceptual quality metrics.
+Plenoptic is open source, tested, documented, and extensible, allowing the broader research community to contribute new examples and methods.
+In summary, Plenoptic leverages machine learning tools to tighten the scientific hypothesis-testing loop, facilitating investigation of human visual representations.
 
 # Acknowledgements
 
-KB, WB, LRD, PEF, and NP each contributed equally to this work; and names are listed alphabetically.
-EPS was funded by the Howard Hughes Medical Institute. EPS and KB were funded by Simons Institute.
+All authors contributed equally to this work; and names are listed alphabetically.
+EPS and KB were funded by Simons Institute.
 
 For a quick reference, the following citation commands can be used:
+
 - `@author:2001`  ->  "Author et al. (2001)"
 - `[@author:2001]` -> "(Author et al., 2001)"
 - `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
@@ -69,4 +73,3 @@ For a quick reference, the following citation commands can be used:
 @wang_maximum_2008
 @paszke_pytorch_2019
 @portilla_parametric_2000
-
