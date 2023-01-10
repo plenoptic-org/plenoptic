@@ -10,39 +10,39 @@ authors:
   - name: Kathryn Bonnen
     equal-contrib: true
     orcid: 0000-0002-9210-8275
-    affiliation: 3
+    affiliation: 1
   - name: William F. Broderick
     equal-contrib: true
     orcid: 0000-0002-8999-9003
-    affiliation: 1
+    affiliation: 2
   - name: Lyndon R. Duong
     equal-contrib: true
     orcid: 0000-0003-0575-1033
-    affiliation: 1
+    affiliation: 2
   - name: Pierre-Etienne Fiquet
     equal-contrib: true
     orcid: 0000-0002-8301-2220
-    affiliation: 1
+    affiliation: 2
   - name: Nikhil Parthasarathy
     equal-contrib: true
     orcid: 0000-0003-2572-6492
-    affiliation: 1
+    affiliation: 2
   - name: Thomas E. Yerxa
     equal-contrib: true
     orcid: 0000-0003-2687-0816
-    affiliation: 1
+    affiliation: 2
   - name: Xinyuan Zhao
     equal-contrib: true
-    affiliation: 1
+    affiliation: 2
   - name: Eero P. Simoncelli
     orcid: 000-0002-1206-527X
-    affiliation: 1, 2
+    affiliation: "2, 3"
 affiliations:
- - name: Center for Neural Science, New York University, New York, NY, USA
-   index: 1
- - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
-   index: 2
  - name:  School of Optometry, Indiana University, Bloomington, IN, USA
+   index: 1
+ - name: Center for Neural Science, New York University, New York, NY, USA
+   index: 2
+ - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
    index: 3
 date: January 2023
 bibliography: references.bib
