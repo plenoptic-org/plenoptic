@@ -56,7 +56,7 @@ Moreover, it is often difficult to use models to guide the development of future
 Here, building on ideas for optimal experimental stimulus selection  (e.g., QUEST, Watson and Pelli, 1983), we present "Plenoptic", a python software library for generating visual stimuli optimized for testing or comparing models.
 Plenoptic provides a unified framework containing four previously-published synthesis methods -- model metamers (Freeman and Simoncelli, 2011), Maximum Differentiation (MAD) competition (Wang and Simoncelli, 2008), eigen-distortions (Berardino et al. 2017), and representational geodesics (Hénaff and Simoncelli, 2015) -- each of which offers visualization of model representations, and generation of images that can be used to experimentally test alignment with the human visual system.
 Plenoptic leverages modern machine-learning methods to enable application of these synthesis methods to any computational model that satisfies a small set of common requirements.
-The most important of these is that the model must be image-computable, implemented in PyTorch, and end-to-end differentiable.
+The most important of these is that the model must be image-computable, implemented in PyTorch (Paszke et al. 2019), and end-to-end differentiable.
 The package includes examples of several low- and mid-level visual models, as well as a set of perceptual quality metrics.
 Plenoptic is open source, tested, documented, and extensible, allowing the broader research community to contribute new examples and methods.
 In summary, Plenoptic leverages machine learning tools to tighten the scientific hypothesis-testing loop, facilitating investigation of human visual representations.
