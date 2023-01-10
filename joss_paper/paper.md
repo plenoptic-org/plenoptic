@@ -8,25 +8,31 @@ tags:
   - image synthesis
 authors:
   - name: Kathryn Bonnen
+    equal-contrib: true
     orcid: 0000-0002-9210-8275
-    affiliation: 1, 2
+    affiliation: 3
   - name: William F. Broderick
+    equal-contrib: true
     orcid: 0000-0002-8999-9003
     affiliation: 1
   - name: Lyndon R. Duong
+    equal-contrib: true
     orcid: 0000-0003-0575-1033
     affiliation: 1
   - name: Pierre-Etienne Fiquet
+    equal-contrib: true
     orcid: 0000-0002-8301-2220
     affiliation: 1
   - name: Nikhil Parthasarathy
-    orcid: 0000-0003-2572-6492
-    affiliation: 1
-  - name: Xinyuan Zhao
+    equal-contrib: true
     orcid: 0000-0003-2572-6492
     affiliation: 1
   - name: Thomas E. Yerxa
-    orcid: 0000-0003-2572-6492
+    equal-contrib: true
+    orcid: 0000-0003-2687-0816
+    affiliation: 1
+  - name: Xinyuan Zhao
+    equal-contrib: true
     affiliation: 1
   - name: Eero P. Simoncelli
     orcid: 000-0002-1206-527X
@@ -36,6 +42,8 @@ affiliations:
    index: 1
  - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
    index: 2
+ - name:  School of Optometry, Indiana University, Bloomington, IN, USA
+   index: 3
 date: January 2023
 bibliography: references.bib
 ---
@@ -53,9 +61,10 @@ The package includes examples of several low- and mid-level visual models, as we
 Plenoptic is open source, tested, documented, and extensible, allowing the broader research community to contribute new examples and methods.
 In summary, Plenoptic leverages machine learning tools to tighten the scientific hypothesis-testing loop, facilitating investigation of human visual representations.
 
+# Statement of need
+
 # Acknowledgements
 
-All authors contributed equally to this work; and names are listed alphabetically.
 EPS and KB were funded by Simons Institute.
 
 For a quick reference, the following citation commands can be used:
