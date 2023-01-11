@@ -187,7 +187,7 @@ class Eigendistortion(Synthesis):
         Parameters
         ----------
         method
-            Eigensolver method. Jacobian tries to do eigendecomposition directly (
+            Eigensolver method. 'exact' tries to do eigendecomposition directly (
             not recommended for very large inputs). 'power' (default) uses the power method to compute first and
             last eigendistortions, with maximum number of iterations dictated by n_steps. 'randomized_svd' uses
             randomized SVD to approximate the top k eigendistortions and their corresponding eigenvalues.
