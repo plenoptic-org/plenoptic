@@ -60,8 +60,8 @@ def fisher_info_matrix_eigenvalue(
     Fv = fisher_info_matrix_vector_product(y, x, v, dummy_vec)
 
     # compute eigenvalues for all vectors in v
-    lambduh = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
-    return lambduh
+    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
+    return lmbda
 
 
 class Eigendistortion(Synthesis):
