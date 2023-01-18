@@ -5,12 +5,10 @@ import matplotlib as mpl
 mpl.rcParams['animation.writer'] = 'html'
 mpl.use('agg')
 import pytest
-import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
 import os.path as op
-from conftest import DEVICE, DATA_DIR, get_model
-import numpy as np
+from conftest import DEVICE
 
 
 # in order for pickling to work with functions, they must be defined at top of
@@ -46,10 +44,10 @@ class TestMAD(object):
         if store_progress:
             mad.synthesize(max_iter=5, store_progress=store_progress)
 
-    @pytest.mark.parametrize('fail', [False, 'img', 'metric1', 'metric2', 'target'])
+    @pytest.mark.parametrize('fail', [False, 'img', 'metric1', 'metric2', 'target',
+                                      'tradeoff'])
     @pytest.mark.parametrize('rgb', [False, True])
-    @pytest.mark.parametrize('model', ['ColorModel'], indirect=True)
-    def test_save_load(self, curie_img, fail, rgb, model, tmp_path):
+    def test_save_load(self, curie_img, fail, rgb, tmp_path):
         # this works with either rgb or grayscale images
         metric = rgb_mse
         if rgb:
@@ -58,28 +56,40 @@ class TestMAD(object):
         else:
             metric2 = dis_ssim
         target = 'min'
-        mad = po.synth.MADCompetition(curie_img, metric, metric2, target)
+        tradeoff = 1
+        mad = po.synth.MADCompetition(curie_img, metric, metric2, target,
+                                      metric_tradeoff_lambda=tradeoff)
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         if fail:
+            ## USE expectation
             if fail == 'img':
                 curie_img = torch.rand_like(curie_img)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image are different')
             elif fail == 'metric1':
                 # this works with either rgb or grayscale images (though note
                 # that SSIM just operates on each RGB channel independently,
                 # which is probably not the right thing to do)
                 metric = dis_ssim
+                expectation = pytest.raises(ValueError, match='Saved and initialized optimized_metric are different')
             elif fail == 'metric2':
                 # this works with either rgb or grayscale images
                 metric2 = rgb_mse
+                expectation = pytest.raises(ValueError, match='Saved and initialized reference_metric are different')
             elif fail == 'target':
                 target = 'max'
-            mad_copy = po.synth.MADCompetition(curie_img, metric, metric2, target)
-            with pytest.raises(Exception):
+                expectation = pytest.raises(ValueError, match='Saved and initialized minmax are different')
+            elif fail == 'tradeoff':
+                tradeoff = 10
+                expectation = pytest.raises(ValueError, match='Saved and initialized metric_tradeoff_lambda are different')
+            mad_copy = po.synth.MADCompetition(curie_img, metric, metric2,
+                                               target, metric_tradeoff_lambda=tradeoff)
+            with expectation:
                 mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"),
                               map_location=DEVICE)
         else:
-            mad_copy = po.synth.MADCompetition(curie_img, metric, metric2, target)
+            mad_copy = po.synth.MADCompetition(curie_img, metric, metric2, target,
+                                               metric_tradeoff_lambda=tradeoff)
             mad_copy.load(op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE)
             # check that can resume
             mad_copy.synthesize(max_iter=5, store_progress=True)

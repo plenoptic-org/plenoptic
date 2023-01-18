@@ -6,16 +6,17 @@ from tqdm.auto import tqdm
 from ..tools import optim, display, data
 from typing import Union, Tuple, Callable, List, Dict
 from typing_extensions import Literal
-from .synthesis import Synthesis
+from .synthesis import OptimizedSynthesis
 import warnings
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyrtools.tools.display import make_figure as pt_make_figure
 from ..tools.validate import validate_input, validate_metric
+from ..tools.convergence import loss_convergence
 
 
-class MADCompetition(Synthesis):
+class MADCompetition(OptimizedSynthesis):
     r"""Synthesize a single maximally-differentiating image for two metrics.
 
     Following the basic idea in [1]_, this class synthesizes a
@@ -81,16 +82,11 @@ class MADCompetition(Synthesis):
         A list of the ``reference_metric`` loss over iterations.
     gradient_norm : list
         A list of the gradient_norm over iterations.
-    learning_rate : list
-        A list of the learning_rate over iterations. We use a scheduler
-        that gradually reduces this over time, so it won't be constant.
-    pixel_change : list
-        A list containing the max pixel change over iterations
-        (``pixel_change[i]`` is the max pixel change in
-        ``mad_image`` between iterations ``i`` and ``i-1``). note
-        this is calculated before any clamping, so may have some very
-        large numbers in the beginning
-    saved_mad_image : torch.Tensor or list
+    pixel_change_norm : list
+        A list containing the norm of the pixel change over iterations
+        (``pixel_change[i]`` is the pixel change norm in
+        ``mad_image`` between iterations ``i`` and ``i-1``).
+    saved_mad_image : torch.Tensor
         Saved ``self.mad_image`` for later examination.
 
     References
@@ -110,6 +106,7 @@ class MADCompetition(Synthesis):
                  metric_tradeoff_lambda: Union[None, float] = None,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float, float] = (0, 1),):
+        super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
         validate_metric(optimized_metric, image_shape=image.shape[-2:])
         validate_metric(reference_metric, image_shape=image.shape[-2:])
@@ -117,36 +114,49 @@ class MADCompetition(Synthesis):
         self.reference_metric = reference_metric
         self.image = image.detach()
         self._image_shape = image.shape
-        self.optimizer = None
         self.scheduler = None
-        self.losses = []
-        self.optimized_metric_loss = []
-        self.reference_metric_loss = []
+        self._optimized_metric_loss = []
+        self._reference_metric_loss = []
         if minmax not in ['min', 'max']:
             raise Exception("synthesis_target must be one of {'min', 'max'}, but got "
                             f"value {minmax} instead!")
-        self.minmax = minmax
-        self.learning_rate = []
-        self.gradient_norm = []
-        self.pixel_change = []
-        self.range_penalty_lambda = range_penalty_lambda
-        self.allowed_range = allowed_range
-        self._init_mad_image(initial_noise)
+        self._minmax = minmax
+        self._initialize(initial_noise)
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
             loss_ratio = torch.tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
                                       dtype=torch.float32)
             metric_tradeoff_lambda = torch.pow(torch.tensor(10),
-                                               torch.round(torch.log10(loss_ratio)))
+                                               torch.round(torch.log10(loss_ratio))).item()
             warnings.warn("Since metric_tradeoff_lamda was None, automatically set"
                           f" to {metric_tradeoff_lambda} to roughly balance metrics.")
-        self.metric_tradeoff_lambda = metric_tradeoff_lambda
-        self.losses.append(self.objective_function().item())
-        self.store_progress = None
-        self.saved_mad_image = []
+        self._metric_tradeoff_lambda = metric_tradeoff_lambda
+        self._losses.append(self.objective_function().item())
+        self._store_progress = None
+        self._saved_mad_image = []
 
-    def _init_mad_image(self, initial_noise: float = .1):
+    @property
+    def reference_metric_loss(self):
+        return tuple(self._reference_metric_loss)
+
+    @property
+    def optimized_metric_loss(self):
+        return tuple(self._optimized_metric_loss)
+
+    @property
+    def metric_tradeoff_lambda(self):
+        return self._metric_tradeoff_lambda
+
+    @property
+    def minmax(self):
+        return self._minmax
+
+    @property
+    def saved_mad_image(self):
+        return torch.stack(self._saved_mad_image)
+
+    def _initialize(self, initial_noise: float = .1):
         """Initialize the synthesized image.
 
         Initialize ``self.mad_image`` attribute to be ``image`` plus
@@ -167,68 +177,45 @@ class MADCompetition(Synthesis):
         self.mad_image = mad_image
         self._reference_metric_target = self.reference_metric(self.image,
                                                               self.mad_image).item()
-        self.reference_metric_loss.append(self._reference_metric_target)
-        self.optimized_metric_loss.append(self.optimized_metric(self.image,
-                                                                self.mad_image).item())
+        self._reference_metric_loss.append(self._reference_metric_target)
+        self._optimized_metric_loss.append(self.optimized_metric(self.image,
+                                                                 self.mad_image).item())
 
-    def _init_optimizer(self, optimizer, scheduler):
-        """Initialize optimizer and scheduler."""
-        if optimizer is None:
-            if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.mad_image],
-                                                  lr=.01, amsgrad=True)
-        else:
-            if self.optimizer is not None:
-                raise Exception("When resuming synthesis, optimizer arg must be None!")
-            params = optimizer.param_groups[0]['params']
-            if len(params) != 1 or not torch.equal(params[0], self.mad_image):
-                raise Exception("For MAD image synthesis, optimizer must have one "
-                                "parameter, the MAD image we're synthesizing.")
-            self.optimizer = optimizer
-        self.scheduler = scheduler
+    def _check_convergence(self, stop_criterion, stop_iters_to_check):
+        r"""Check whether the loss has stabilized and, if so, return True.
 
-    def _init_store_progress(self, store_progress: Union[bool, int]):
-        """Initialize store_progress-related attributes.
-
-        Sets the ``self.store_progress`` attribute, as well as changing
-        ``saved_mad_image`` attibute to lists so we can append to them.
-        finally, adds first value to ``saved_mad_image`` and if they're empty.
+         Have we been synthesizing for ``stop_iters_to_check`` iterations?
+         | |
+        no yes
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check] < stop_criterion``?
+         |      no |
+         |       | yes
+         <-------' |
+         |         '------> return ``True``
+         |
+         '---------> return ``False``
 
         Parameters
         ----------
-        store_progress : bool or int, optional
-             Whether we should store the MAD image in progress on every
-             iteration. If False, we don't save anything. If True, we save
-             every iteration. If an int, we save every ``store_progress``
-             iterations (note then that 0 is the same as False and 1 the same
-             as True). If True or int>0, ``self.saved_mad_image`` contains the
-             stored images.
+        stop_criterion :
+            If the loss over the past ``stop_iters_to_check`` has changed
+            less than ``stop_criterion``, we terminate synthesis.
+        stop_iters_to_check :
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for ``stop_criterion``).
+
+        Returns
+        -------
+        loss_stabilized :
+            Whether the loss has stabilized or not.
 
         """
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
-            # if this is not the first time synthesize is being run for this
-            # MADCompetitoni object, saved_mad_image will be tensors instead of lists.
-            # This converts them back to lists so we can use append. If it's
-            # the first time, they'll be empty lists and this does nothing
-            self.saved_mad_image = list(self.saved_mad_image)
-            # first time synthesize() is called, append the initial synthesized
-            # image and model response (on subsequent calls, this is already
-            # part of saved_mad_image).
-            if len(self.saved_mad_image) == 0:
-                self.saved_mad_image.append(self.mad_image.clone().to('cpu'))
-        if self.store_progress is not None and store_progress != self.store_progress:
-            # we require store_progress to be the same because otherwise the
-            # subsampling relationship between attrs that are stored every
-            # iteration (loss, gradient, etc) and those that are stored every
-            # store_progress iteration (e.g., saved_mad_image) changes partway
-            # through and that's annoying
-            raise Exception("If you've already run synthesize() before, must "
-                            "re-run it with same store_progress arg. You "
-                            f"passed {store_progress} instead of "
-                            f"{self.store_progress} (True is equivalent to 1)")
-        self.store_progress = store_progress
+        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+
+    def _initialize_optimizer(self, optimizer, scheduler):
+        """Initialize optimizer and scheduler."""
+        super()._initialize_optimizer(optimizer, 'mad_image')
+        self.scheduler = scheduler
 
     def _check_nan_loss(self, loss: Tensor) -> bool:
         """Check if loss is nan and, if so, return True.
@@ -289,46 +276,10 @@ class MADCompetition(Synthesis):
             # save it three times, at 3, 6, 9)
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
-                self.saved_mad_image.append(self.mad_image.clone().to('cpu'))
+                self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
                 stored = True
         return stored
 
-    def _check_for_stabilization(self, i: int, stop_criterion: float,
-                                 stop_iters_to_check: int) -> bool:
-        r"""Check whether the loss has stabilized and, if so, return True.
-
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
-         |      no |
-         |       | yes
-         <-------' |
-         |         '------> return ``True``
-         |
-         '---------> return ``False``
-
-        Parameters
-        ----------
-        i :
-            The current iteration (0-indexed).
-        stop_criterion :
-            If the loss over the past ``stop_iters_to_check`` has changed
-            less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
-            How many iterations back to check in order to see if the
-            loss has stopped decreasing (for ``stop_criterion``).
-
-        Returns
-        -------
-        loss_stabilized :
-            Whether the loss has stabilized or not.
-
-        """
-        if len(self.losses) > stop_iters_to_check:
-            if abs(self.losses[-stop_iters_to_check] - self.losses[-1]) < stop_criterion:
-                return True
-        return False
 
     def objective_function(self,
                            mad_image: Union[Tensor, None] = None,
@@ -376,7 +327,6 @@ class MADCompetition(Synthesis):
                       self.reference_metric(image, mad_image)).pow(2)
         range_penalty = optim.penalize_range(mad_image,
                                              self.allowed_range)
-        # print(synthesis_loss, fixed_loss, range_penalty)
         return (synth_target * synthesis_loss +
                 self.metric_tradeoff_lambda * fixed_loss +
                 self.range_penalty_lambda * range_penalty)
@@ -401,12 +351,12 @@ class MADCompetition(Synthesis):
         loss.backward(retain_graph=False)
         return loss
 
-    def _optimizer_step(self, pbar: tqdm) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def _optimizer_step(self, pbar: tqdm) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         r"""Compute and propagate gradients, then step the optimizer to update mad_image.
 
         Parameters
         ----------
-        pbar :
+        pbar
             A tqdm progress-bar, which we update with a postfix
             describing the current loss, gradient norm, and learning
             rate (it already tells us which iteration and the time
@@ -414,18 +364,16 @@ class MADCompetition(Synthesis):
 
         Returns
         -------
-        loss : torch.Tensor
+        loss
             1-element tensor containing the loss on this step
-        optimized_metric : torch.Tensor
+        optimized_metric
             1-element tensor containing the optimized_metric on this step
-        reference_metric : torch.Tensor
+        reference_metric
             1-element tensor containing the reference_metric on this step
-        gradient : torch.Tensor
+        gradient
             1-element tensor containing the gradient on this step
-        learning_rate : torch.Tensor
-            1-element tensor containing the learning rate on this step
-        pixel_change : torch.Tensor
-            1-element tensor containing the max pixel change in
+        pixel_change_norm
+            1-element tensor containing the norm of the pixel change in
             mad_image between this step and the last
 
         """
@@ -442,18 +390,17 @@ class MADCompetition(Synthesis):
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change = torch.max(torch.abs(self.mad_image -
-                                           last_iter_mad_image))
+        pixel_change = torch.norm(self.mad_image - last_iter_mad_image)
         # for display purposes, always want loss to be positive. add extra info
         # here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(loss=f"{abs(loss.item()):.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change=f"{pixel_change:.04e}",
+                        pixel_change_norm=f"{pixel_change:.04e}",
                         reference_metric=f'{fm.item():.04e}',
                         optimized_metric=f'{sm.item():.04e}'))
-        return loss, sm, fm, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
+        return loss, sm, fm, grad_norm, pixel_change
 
     def synthesize(self, max_iter: int = 100,
                    optimizer: Union[None, torch.optim.Optimizer] = None,
@@ -504,36 +451,32 @@ class MADCompetition(Synthesis):
 
         """
         # initialize the optimizer and scheduler
-        self._init_optimizer(optimizer, scheduler)
+        self._initialize_optimizer(optimizer, scheduler)
 
         # get ready to store progress
-        self._init_store_progress(store_progress)
+        self.store_progress = store_progress
+        if self.store_progress and len(self._saved_mad_image) == 0:
+            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
 
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss, sm, fm, g, lr, pixel_change = self._optimizer_step(pbar)
-            self.losses.append(loss.item())
-            self.reference_metric_loss.append(fm.item())
-            self.optimized_metric_loss.append(sm.item())
-            self.pixel_change.append(pixel_change.item())
-            self.gradient_norm.append(g.item())
-            self.learning_rate.append(lr)
+            loss, sm, fm, g, pixel_change_norm = self._optimizer_step(pbar)
+            self._losses.append(loss.item())
+            self._reference_metric_loss.append(fm.item())
+            self._optimized_metric_loss.append(sm.item())
+            self._pixel_change_norm.append(pixel_change_norm.item())
+            self._gradient_norm.append(g.item())
             if self._check_nan_loss(loss):
                 break
 
             # update saved_* attrs
             self._store(i)
 
-            if self._check_for_stabilization(i, stop_criterion,
-                                             stop_iters_to_check):
+            if self._check_convergence(stop_criterion, stop_iters_to_check):
                 break
 
         pbar.close()
-
-        # finally, stack the saved_* attributes
-        if self.store_progress:
-            self.saved_mad_image = torch.stack(self.saved_mad_image)
 
         return self.mad_image
 
@@ -599,7 +542,7 @@ class MADCompetition(Synthesis):
             Module: self
         """
         attrs = ['initial_image', 'image', 'mad_image',
-                 'saved_mad_image']
+                 '_saved_mad_image']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
@@ -651,9 +594,9 @@ class MADCompetition(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['image', 'metric_tradeoff_lambda',
-                            'range_penalty_lambda', 'allowed_range',
-                            'minmax']
+        check_attributes = ['image', '_metric_tradeoff_lambda',
+                            '_range_penalty_lambda', '_allowed_range',
+                            '_minmax']
         check_loss_functions = ['reference_metric', 'optimized_metric']
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,
@@ -664,8 +607,8 @@ class MADCompetition(Synthesis):
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if hasattr(self, 'saved_mad_image') and self.saved_mad_image.device.type != 'cpu':
-            self.saved_mad_image = self.saved_mad_image.to('cpu')
+        if len(self._saved_mad_image) and self._saved_mad_image[0].device.type != 'cpu':
+            self._saved_mad_image = [mad.to('cpu') for mad in self._saved_mad_image]
 
 
 def plot_loss(mad: MADCompetition,

@@ -17,7 +17,7 @@ def custom_loss(x1, x2):
 
 class TestMetamers(object):
 
-    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     @pytest.mark.parametrize('loss_func', ['mse', 'l2', 'custom'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty'])
     @pytest.mark.parametrize('range_penalty', [.1, 0])
@@ -35,16 +35,21 @@ class TestMetamers(object):
         if fail:
             if fail == 'img':
                 einstein_img = torch.rand_like(einstein_img)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image are different')
             elif fail == 'model':
                 model = po.simul.Gaussian(30).to(DEVICE)
+                po.tools.remove_grad(model)
+                expectation = pytest.raises(ValueError, match='Saved and initialized target_representation are different')
             elif fail == 'loss':
                 loss = po.metric.ssim
+                expectation = pytest.raises(ValueError, match='Saved and initialized loss_function are different')
             elif fail == 'range_penalty':
                 range_penalty = .5
+                expectation = pytest.raises(ValueError, match='Saved and initialized range_penalty_lambda are different')
             met_copy = po.synth.Metamer(einstein_img, model,
                                         loss_function=loss,
                                         range_penalty_lambda=range_penalty)
-            with pytest.raises(Exception):
+            with expectation:
                 met_copy.load(op.join(tmp_path, "test_metamer_save_load.pt"),
                               map_location=DEVICE)
         else:
@@ -55,20 +60,20 @@ class TestMetamers(object):
                           map_location=DEVICE)
             for k in ['image', 'saved_metamer', 'metamer', 'target_representation']:
                 if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
-                    raise Exception("Something went wrong with saving and loading! %s not the same"
-                                    % k)
+                    raise ValueError("Something went wrong with saving and loading! %s not the same"
+                                     % k)
             # check loss functions correctly saved
             met_loss = met.loss_function(met.model(met.metamer),
                                          met.target_representation)
             met_copy_loss = met_copy.loss_function(met.model(met.metamer),
                                                    met_copy.target_representation)
             if not torch.allclose(met_loss, met_copy_loss, rtol=1E-2):
-                raise Exception(f"Loss function not properly saved! Before saving was {met_loss}, "
-                                f"after loading was {met_copy_loss}")
+                raise ValueError(f"Loss function not properly saved! Before saving was {met_loss}, "
+                                 f"after loading was {met_copy_loss}")
             # check that can resume
             met_copy.synthesize(max_iter=4, store_progress=True,)
 
-    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     @pytest.mark.parametrize('store_progress', [True, 2, 3])
     def test_metamer_store_rep(self, einstein_img, model, store_progress):
         metamer = po.synth.Metamer(einstein_img, model)
@@ -80,7 +85,7 @@ class TestMetamers(object):
         # have 1 extra saved
         assert len(metamer.saved_metamer) == (max_iter//store_progress)+1, "Didn't end up with enough saved signal!"
 
-    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear'], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, store_progress=True)
@@ -103,8 +108,8 @@ class TestMetamers(object):
         for k in ['coarse_to_fine', 'scales', 'scales_loss', 'scales_timing',
                   'scales_finished']:
             if not getattr(metamer, k) == (getattr(metamer_copy, k)):
-                raise Exception("Something went wrong with saving and loading! %s not the same"
-                                % k)
+                raise ValueError("Something went wrong with saving and loading! %s not the same"
+                                 % k)
         # check we can resume
         metamer.synthesize(max_iter=5, stop_iters_to_check=1, coarse_to_fine=coarse_to_fine,
                            coarse_to_fine_kwargs={'change_scale_criterion': 10,

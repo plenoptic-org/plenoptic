@@ -4,6 +4,7 @@ import warnings
 import itertools
 from typing import Tuple, Optional, Callable, Union
 from torch import Tensor
+import warnings
 
 
 def validate_input(
@@ -180,6 +181,7 @@ def validate_coarse_to_fine(model: torch.nn.Module,
         specify the expected shape. If None, we use height and width of 16.
 
     """
+    warnings.warn("Validating whether model can work with coarse-to-fine synthesis -- this can take a while!")
     msg = "and therefore we cannot do coarse-to-fine synthesis"
     if not hasattr(model, "scales"):
         raise AttributeError(f"model has no scales attribute {msg}")

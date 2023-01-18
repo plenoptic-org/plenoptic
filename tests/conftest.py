@@ -88,6 +88,10 @@ def get_model(name):
     # FrontEnd models:
     elif name == 'frontend.LinearNonlinear':
         return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+    elif name == 'frontend.LinearNonlinear.nograd':
+        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
     elif name == 'frontend.LuminanceGainControl':
         return po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
     elif name == 'frontend.LuminanceContrastGainControl':
@@ -96,8 +100,7 @@ def get_model(name):
         return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
     elif name == 'frontend.OnOff.nograd':
         mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        for p in mdl.parameters():
-            p.detach_()
+        po.tools.remove_grad(mdl)
         return mdl
 
 

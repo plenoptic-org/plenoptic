@@ -4,18 +4,20 @@ import re
 import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
+
+from plenoptic.tools.convergence import coarse_to_fine_enough, loss_convergence
 from ..tools import optim, display, signal, data
 from ..tools.validate import validate_input, validate_model, validate_coarse_to_fine
 from typing import Union, Tuple, Callable, List, Dict, Optional
 from typing_extensions import Literal
-from .synthesis import Synthesis
+from .synthesis import OptimizedSynthesis
 import warnings
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 
-class Metamer(Synthesis):
+class Metamer(OptimizedSynthesis):
     r"""Synthesize metamers for image-computable differentiable models.
 
     Following the basic idea in [1]_, this class creates a metamer for a given
@@ -64,15 +66,10 @@ class Metamer(Synthesis):
         A list of our loss over iterations.
     gradient_norm : list
         A list of the gradient_norm over iterations.
-    learning_rate : list
-        A list of the learning_rate over iterations. We use a scheduler
-        that gradually reduces this over time, so it won't be constant.
-    pixel_change : list
-        A list containing the max pixel change over iterations
-        (``pixel_change[i]`` is the max pixel change in
-        ``metamer`` between iterations ``i`` and ``i-1``). note
-        this is calculated before any clamping, so may have some very
-        large numbers in the beginning
+    pixel_change_norm : list
+        A list containing the norm of the pixel change over iterations
+        (``pixel_change[i]`` is the pixel change norm in
+        ``metamer`` between iterations ``i`` and ``i-1``).
     saved_metamer : torch.Tensor or list
         Saved ``self.metamer`` for later examination.
     scales : list or None
@@ -101,33 +98,45 @@ class Metamer(Synthesis):
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float, float] = (0, 1),
                  initial_image: Optional[Tensor] = None):
+        super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
         validate_model(model, image_shape=image.shape[-2:])
         self.model = model
         self.image = image
         self._image_shape = image.shape
         self.target_representation = self.model(self.image)
-        self.optimizer = None
         self.scheduler = None
-        self.losses = []
-        self.learning_rate = []
-        self.gradient_norm = []
-        self.pixel_change = []
         self.loss_function = loss_function
-        if range_penalty_lambda < 0:
-            raise Exception("range_penalty_lambda must be non-negative!")
-        self.range_penalty_lambda = range_penalty_lambda
-        self.allowed_range = allowed_range
-        self._init_metamer(initial_image)
+        self._initialize(initial_image)
         self.coarse_to_fine = False
-        self.scales = None
-        self.scales_loss = None
-        self.scales_timing = None
-        self.scales_finished = None
-        self.store_progress = None
-        self.saved_metamer = []
+        self._scales = []
+        self._scales_loss = []
+        self._scales_timing = {}
+        self._scales_finished = []
+        self._saved_metamer = []
+        self._store_progress = None
 
-    def _init_metamer(self, initial_image: Optional[Tensor] = None):
+    @property
+    def scales(self):
+        return tuple(self._scales)
+
+    @property
+    def scales_loss(self):
+        return tuple(self._scales_loss)
+
+    @property
+    def scales_timing(self):
+        return self._scales_timing
+
+    @property
+    def scales_finished(self):
+        return tuple(self._scales_finished)
+
+    @property
+    def saved_metamer(self):
+        return torch.stack(self._saved_metamer)
+
+    def _initialize(self, initial_image: Optional[Tensor] = None):
         """Initialize the metamer.
 
         Set the ``self.metamer`` attribute to be an attribute with the
@@ -159,7 +168,7 @@ class Metamer(Synthesis):
                 raise Exception("metamer and image must be"
                                 " same size!")
         self.metamer = metamer
-        self.losses.append(self.objective_function(self.model(metamer)).item())
+        self._losses.append(self.objective_function(self.model(metamer)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
                   change_scale_criterion: Optional[float],
@@ -168,87 +177,35 @@ class Metamer(Synthesis):
         if coarse_to_fine not in [False, 'separate', 'together']:
             raise Exception(f"Don't know how to handle value {coarse_to_fine}!"
                             " Must be one of: False, 'separate', 'together'")
-        if coarse_to_fine and self.scales is None:
+        if coarse_to_fine and not self.scales:
+            validate_coarse_to_fine(self.model, image_shape=self.image.shape[-2:])
             # if self.scales is not None, we're continuing a previous version
             # and want to continue. this list comprehension creates a new
             # object, so we don't modify model.scales
-            validate_coarse_to_fine(self.model)
-            self.scales = [i for i in self.model.scales[:-1]]
+            self._scales = [i for i in self.model.scales[:-1]]
             if coarse_to_fine == 'separate':
-                self.scales += [self.model.scales[-1]]
-            self.scales += ['all']
-            self.scales_timing = dict((k, []) for k in self.scales)
-            self.scales_timing[self.scales[0]].append(0)
-            self.scales_finished = []
-            self.scales_loss = []
+                self._scales += [self.model.scales[-1]]
+            self._scales += ['all']
+            self._scales_timing = dict((k, []) for k in self.scales)
+            self._scales_timing[self.scales[0]].append(0)
             if (change_scale_criterion is not None) and (stop_criterion >= change_scale_criterion):
                 raise Exception("stop_criterion must be strictly less than "
                                 "coarse-to-fine's change_scale_criterion, or"
                                 " things get weird!")
         self.coarse_to_fine = coarse_to_fine
 
-    def _init_optimizer(self, optimizer, scheduler):
+    def _initialize_optimizer(self,
+                              optimizer: Optional[torch.optim.Optimizer],
+                              scheduler: Optional[torch.optim.lr_scheduler._LRScheduler]):
         """Initialize optimizer and scheduler."""
-        if optimizer is None:
-            if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.metamer],
-                                                  lr=.01, amsgrad=True)
-        else:
-            if self.optimizer is not None:
-                raise Exception("When resuming synthesis, optimizer arg must be None!")
-            params = optimizer.param_groups[0]['params']
-            if len(params) != 1 or not torch.equal(params[0], self.metamer):
-                raise Exception("For metamer synthesis, optimizer must have one "
-                                "parameter, the metamer we're synthesizing.")
-            self.optimizer = optimizer
+        # this uses the OptimizedSynthesis setter
+        super()._initialize_optimizer(optimizer, 'metamer')
         self.scheduler = scheduler
         for pg in self.optimizer.param_groups:
             # initialize initial_lr if it's not here. Scheduler should add it
             # if it's not None.
             if 'initial_lr' not in pg:
                 pg['initial_lr'] = pg['lr']
-
-
-    def _init_store_progress(self, store_progress: Union[bool, int]):
-        """Initialize store_progress-related attributes.
-
-        Sets the ``self.store_progress`` attribute, as well as changing the
-        ``saved_metamer`` attibute to a list so we can append to them. finally,
-        adds first value to ``saved_metamer`` if it's empty.
-
-        Parameters
-        ----------
-        store_progress : bool or int, optional
-            Whether we should store the metamer image in progress on every
-            iteration. If False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress`` iterations
-            (note then that 0 is the same as False and 1 the same as True). If
-            True or int>0, ``self.saved_metamer`` contains the stored images.
-
-        """
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
-            # if this is not the first time synthesize is being run for this
-            # metamer object, saved_metamer will be a tensor instead of a list.
-            # This converts it back to a list so we can use append. If it's the
-            # first time, it will be an empty list and this does nothing
-            self.saved_metamer = list(self.saved_metamer)
-            # first time synthesize() is called, add the initial metamer (on
-            # subsequent calls, this is already part of saved_metamer).
-            if len(self.saved_metamer) == 0:
-                self.saved_metamer.append(self.metamer.clone().to('cpu'))
-        if self.store_progress is not None and store_progress != self.store_progress:
-            # we require store_progress to be the same because otherwise the
-            # subsampling relationship between attrs that are stored every
-            # iteration (loss, gradient, etc) and those that are stored every
-            # store_progress iteration (e.g., saved_metamer) changes partway
-            # through and that's annoying
-            raise Exception("If you've already run synthesize() before, must "
-                            "re-run it with same store_progress arg. You "
-                            f"passed {store_progress} instead of "
-                            f"{self.store_progress} (True is equivalent to 1)")
-        self.store_progress = store_progress
 
     def _check_nan_loss(self, loss: Tensor) -> bool:
         """Check if loss is nan and, if so, return True.
@@ -280,18 +237,18 @@ class Metamer(Synthesis):
             # hits a nan before store_progress iterations (because then
             # saved_metamer only has a length of 1) but in that case, you have
             # more severe problems
-            self.metamer = torch.nn.Parameter(self.saved_metamer[-2])
+            self.metamer = torch.nn.Parameter(self._saved_metamer[-2])
             return True
         return False
 
     def _store(self, i: int) -> bool:
         """Store metamer, if appropriate.
 
-        if it's the right iteration, we update: ``saved_metamer``.
+        if it's the right iteration, we update ``saved_metamer``.
 
         Parameters
         ----------
-        i :
+        i
             the current iteration (0-indexed)
 
         Returns
@@ -309,14 +266,14 @@ class Metamer(Synthesis):
             # save it three times, at 3, 6, 9)
             if self.store_progress and ((i+1) % self.store_progress == 0):
                 # want these to always be on cpu, to reduce memory use for GPUs
-                self.saved_metamer.append(self.metamer.clone().to('cpu'))
+                self._saved_metamer.append(self.metamer.clone().to('cpu'))
                 stored = True
         return stored
 
-    def _check_for_stabilization(self, i: int, stop_criterion: float,
-                                 stop_iters_to_check: int,
-                                 ctf_iters_to_check: Optional[int] = None) -> bool:
-        r"""Check whether the loss has stabilized and, if so, return True.
+    def _check_convergence(self, i: int, stop_criterion: float,
+                           stop_iters_to_check: int,
+                           ctf_iters_to_check: Optional[int] = None) -> bool:
+        r"""Check whether the loss has stabilized and, if relevant, whether we've synthesized all scales.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
@@ -324,7 +281,7 @@ class Metamer(Synthesis):
          | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
          |      no |
          |       | yes
-         <-------' '---->Is ``coarse_to_fine`` not False?
+         |-------' '---->Is ``coarse_to_fine`` not False?
          |              no  |
          |               |  yes
          |               |  '----> Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
@@ -338,33 +295,29 @@ class Metamer(Synthesis):
 
         Parameters
         ----------
-        i :
+        i
             The current iteration (0-indexed).
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
-        ctf_iters_to_check :
+        ctf_iters_to_check
             Minimum number of iterations coarse-to-fine must run at each scale.
             If self.coarse_to_fine is False, then this is ignored.
 
         Returns
         -------
         loss_stabilized :
-            Whether the loss has stabilized or not.
+            Whether the loss has stabilized and we've synthesized all scales.
 
         """
-        if len(self.losses) > stop_iters_to_check:
-            if abs(self.losses[-stop_iters_to_check] - self.losses[-1]) < stop_criterion:
-                if self.coarse_to_fine:
-                    # only break out if we've been doing for long enough
-                    if self.scales[0] == 'all' and i - self.scales_timing['all'][0] > ctf_iters_to_check:
-                        return True
-                else:
-                    return True
-        return False
+        loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
+        if self.coarse_to_fine:
+            return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
+        else:
+            return loss_conv
 
     def objective_function(self, metamer_representation: Tensor,
                            target_representation: Optional[Tensor] = None) -> Tensor:
@@ -441,7 +394,7 @@ class Metamer(Synthesis):
     def _optimizer_step(self, pbar: tqdm,
                         change_scale_criterion: float,
                         ctf_iters_to_check: int
-                        ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+                        ) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
@@ -465,11 +418,9 @@ class Metamer(Synthesis):
             1-element tensor containing the loss on this step
         gradient : torch.Tensor
             1-element tensor containing the gradient on this step
-        learning_rate : torch.Tensor
-            1-element tensor containing the learning rate on this step
-        pixel_change : torch.Tensor
-            1-element tensor containing the max pixel change in
-            metamer between this step and the last
+        pixel_change_norm : torch.Tensor
+            1-element tensor containing the norm of the pixel change in metamer
+            between this step and the last
 
         """
         last_iter_metamer = self.metamer.clone()
@@ -487,9 +438,9 @@ class Metamer(Synthesis):
                     # and finally we check whether we've been optimizing this
                     # scale for ctf_iters_to_check
                     if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
-                        self.scales_timing[self.scales[0]].append(len(self.losses)-1)
-                        self.scales_finished.append(self.scales.pop(0))
-                        self.scales_timing[self.scales[0]].append(len(self.losses))
+                        self._scales_timing[self.scales[0]].append(len(self.losses)-1)
+                        self._scales_finished.append(self._scales.pop(0))
+                        self._scales_timing[self.scales[0]].append(len(self.losses))
                         # reset optimizer's lr.
                         for pg in self.optimizer.param_groups:
                             pg['lr'] = pg['initial_lr']
@@ -504,7 +455,7 @@ class Metamer(Synthesis):
         if self.coarse_to_fine:
             postfix_dict['current_scale_loss'] = loss.item()
             # and we also want to keep track of this
-            self.scales_loss.append(loss.item())
+            self._scales_loss.append(loss.item())
         grad_norm = self.metamer.grad.detach().norm()
         if grad_norm.item() != grad_norm.item():
             raise Exception('found a NaN in the gradients during optimization')
@@ -521,15 +472,15 @@ class Metamer(Synthesis):
         else:
             loss = self.objective_function(self.model(self.metamer))
 
-        pixel_change = torch.max(torch.abs(self.metamer - last_iter_metamer))
+        pixel_change_norm = torch.norm(self.metamer - last_iter_metamer)
         # for display purposes, always want loss to be positive. add extra info
         # here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(loss=f"{abs(loss.item()):.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change=f"{pixel_change:.04e}", **postfix_dict))
-        return loss, grad_norm, self.optimizer.param_groups[0]['lr'], pixel_change
+                        pixel_change_norm=f"{pixel_change_norm:.04e}", **postfix_dict))
+        return loss, grad_norm, pixel_change_norm
 
     def synthesize(self, max_iter: int = 100,
                    optimizer: Optional[torch.optim.Optimizer] = None,
@@ -562,12 +513,10 @@ class Metamer(Synthesis):
         scheduler :
             The learning rate scheduler to use. If None, we don't use one.
         store_progress :
-            Whether we should store the representation of the metamer
-            and the metamer image in progress on every iteration. If
-            False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress``
-            iterations (note then that 0 is the same as False and 1 the
-            same as True).
+            Whether we should store the metamer image in progress on every
+            iteration. If False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress`` iterations
+            (note then that 0 is the same as False and 1 the same as True).
         stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -605,21 +554,23 @@ class Metamer(Synthesis):
                        stop_criterion)
 
         # initialize the optimizer and scheduler
-        self._init_optimizer(optimizer, scheduler)
+        self._initialize_optimizer(optimizer, scheduler)
 
         # get ready to store progress
-        self._init_store_progress(store_progress)
+        self.store_progress = store_progress
+        if self.store_progress and len(self._saved_metamer) == 0:
+            self._saved_metamer.append(self.metamer.clone().to('cpu'))
+
 
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss, g, lr, pixel_change = self._optimizer_step(pbar,
-                                                             coarse_to_fine_kwargs.get('change_scale_criterion', None),
-                                                             coarse_to_fine_kwargs.get('ctf_iters_to_check', None))
-            self.losses.append(loss.item())
-            self.pixel_change.append(pixel_change.item())
-            self.gradient_norm.append(g.item())
-            self.learning_rate.append(lr)
+            loss, g, pixel_change_norm = self._optimizer_step(pbar,
+                                                              coarse_to_fine_kwargs.get('change_scale_criterion', None),
+                                                              coarse_to_fine_kwargs.get('ctf_iters_to_check', None))
+            self._losses.append(loss.item())
+            self._pixel_change_norm.append(pixel_change_norm.item())
+            self._gradient_norm.append(g.item())
 
             if self._check_nan_loss(loss):
                 break
@@ -627,15 +578,11 @@ class Metamer(Synthesis):
             # update saved_* attrs
             self._store(i)
 
-            if self._check_for_stabilization(i, stop_criterion, stop_iters_to_check,
-                                             coarse_to_fine_kwargs.get('ctf_iters_to_check', None)):
+            if self._check_convergence(i, stop_criterion, stop_iters_to_check,
+                                       coarse_to_fine_kwargs.get('ctf_iters_to_check', None)):
                 break
 
         pbar.close()
-
-        # finally, stack the saved_* attributes
-        if self.store_progress:
-            self.saved_metamer = torch.stack(self.saved_metamer)
 
         return self.metamer
 
@@ -692,7 +639,7 @@ class Metamer(Synthesis):
             Module: self
         """
         attrs = ['image', 'target_representation',
-                 'metamer', 'model', 'saved_metamer']
+                 'metamer', 'model', '_saved_metamer']
         return super().to(*args, attrs=attrs, **kwargs)
 
     def load(self, file_path: str,
@@ -733,7 +680,7 @@ class Metamer(Synthesis):
 
         """
         check_attributes = ['image', 'target_representation',
-                            'range_penalty_lambda', 'allowed_range']
+                            '_range_penalty_lambda', '_allowed_range']
         check_loss_functions = ['loss_function']
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,
@@ -744,8 +691,8 @@ class Metamer(Synthesis):
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if len(self.saved_metamer) and self.saved_metamer.device.type != 'cpu':
-            self.saved_metamer = self.saved_metamer.to('cpu')
+        if len(self._saved_metamer) and self._saved_metamer[0].device.type != 'cpu':
+            self._saved_metamer = [met.to('cpu') for met in self._saved_metamer]
 
 
 def plot_loss(metamer: Metamer,
