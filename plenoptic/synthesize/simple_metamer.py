@@ -19,9 +19,9 @@ class SimpleMetamer(Synthesis):
 
     Parameters
     ----------
-    model :
+    model
         The visual model whose representation we wish to match.
-    image :
+    image
         A 4d tensor, this is the image whose model representation we wish to
         match.
 
@@ -47,16 +47,16 @@ class SimpleMetamer(Synthesis):
 
         Parameters
         ----------
-        max_iter :
+        max_iter
             Number of iterations to run synthesis for.
-        optimizer :
+        optimizer
             The optimizer to use. If None and this is the first time calling
             synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
             been called before, we reuse the previous optimizer.
 
         Returns
         -------
-        metamer :
+        metamer
             The synthesized metamer
 
         """
@@ -110,7 +110,7 @@ class SimpleMetamer(Synthesis):
 
         Parameters
         ----------
-        file_path : str
+        file_path
             The path to load the synthesis object from
         """
         check_attributes = ['target_representation', 'image']
