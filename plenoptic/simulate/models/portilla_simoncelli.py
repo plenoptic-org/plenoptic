@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
+from ...tools.validate import validate_input
 
 
 class PortillaSimoncelli(nn.Module):
@@ -214,10 +215,7 @@ class PortillaSimoncelli(nn.Module):
             A flattened tensor (1d) containing the measured representation statistics.
 
         """
-        while image.ndimension() < 4:
-            image = image.unsqueeze(0)
-        if image.shape[0]>1:
-            raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
+        validate_input(image, no_batch=True)
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
