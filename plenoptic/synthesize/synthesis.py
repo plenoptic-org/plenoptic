@@ -40,11 +40,11 @@ class Synthesis(abc.ABC):
             # this copies the attributes dict so we don't actually remove the
             # model attribute in the next line
             attrs = {k: v for k, v in vars(self).items()}
-            attrs.pop('model', None)
+            attrs.pop('_model', None)
 
         save_dict = {}
         for k in attrs:
-            if k == 'model':
+            if k == '_model':
                 warnings.warn("Models can be quite large and they don't change"
                               " over synthesis. Please be sure that you "
                               "actually want to save the model.")
@@ -109,10 +109,21 @@ class Synthesis(abc.ABC):
                     device = v.device
                     break
         for k in check_attributes:
+            # The only hidden attributes we'd check are those like
+            # range_penalty_lambda, where this function is checking the
+            # hidden version (which starts with '_'), but during
+            # initialization, the user specifies the version without
+            # the initial underscore. This is because this function
+            # needs to be able to set the attribute, which can only be
+            # done with the hidden version.
+            if k.startswith('_'):
+                display_k = k[1:]
+            else:
+                display_k = k
             if not hasattr(self, k):
                 raise AttributeError("All values of `check_attributes` should be "
                                      "attributes set at initialization, but got "
-                                     f"attr {k}!")
+                                     f"attr {display_k}!")
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
                 # the same shape but different values and the second (in the
@@ -120,38 +131,32 @@ class Synthesis(abc.ABC):
                 try:
                     if not torch.allclose(getattr(self, k).to(tmp_dict[k].device),
                                           tmp_dict[k], rtol=5e-2):
-                        raise ValueError(f"Saved and initialized {k} are "
+                        raise ValueError(f"Saved and initialized {display_k} are "
                                          f"different! Initialized: {getattr(self, k)}"
                                          f", Saved: {tmp_dict[k]}, difference: "
                                          f"{getattr(self, k) - tmp_dict[k]}")
                 except RuntimeError:
-                    raise RuntimeError(f"Attribute {k} have different shapes in"
+                    raise RuntimeError(f"Attribute {display_k} have different shapes in"
                                        " saved and initialized versions! Initialized"
                                        f": {getattr(self, k).shape}, Saved: "
                                        f"{tmp_dict[k].shape}")
             else:
                 if getattr(self, k) != tmp_dict[k]:
-                    # The only hidden attributes we'd check are those like
-                    # range_penalty_lambda, where this function is checking the
-                    # hidden version (which starts with '_'), but during
-                    # initialization, the user specifies the version without
-                    # the initial underscore. This is because this function
-                    # needs to be able to set the attribute, which can only be
-                    # done with the hidden version.
-                    if k.startswith('_'):
-                        display_k = k[1:]
-                    else:
-                        display_k = k
                     raise ValueError(f"Saved and initialized {display_k} are different!"
                                      f" Self: {getattr(self, k)}, "
                                      f"Saved: {tmp_dict[k]}")
         for k in check_loss_functions:
+            # same as above
+            if k.startswith('_'):
+                display_k = k[1:]
+            else:
+                display_k = k
             # this way, we know it's the right shape
             tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
-                raise ValueError(f"Saved and initialized {k} are "
+                raise ValueError(f"Saved and initialized {display_k} are "
                                  "different! On two random tensors: "
                                  f"Initialized: {init_loss}, Saved: "
                                  f"{saved_loss}, difference: "

@@ -110,9 +110,9 @@ class MADCompetition(OptimizedSynthesis):
         validate_input(image, allowed_range=allowed_range)
         validate_metric(optimized_metric, image_shape=image.shape[-2:])
         validate_metric(reference_metric, image_shape=image.shape[-2:])
-        self.optimized_metric = optimized_metric
-        self.reference_metric = reference_metric
-        self.image = image.detach()
+        self._optimized_metric = optimized_metric
+        self._reference_metric = reference_metric
+        self._image = image.detach()
         self._image_shape = image.shape
         self.scheduler = None
         self._optimized_metric_loss = []
@@ -135,6 +135,26 @@ class MADCompetition(OptimizedSynthesis):
         self._losses.append(self.objective_function().item())
         self._store_progress = None
         self._saved_mad_image = []
+
+    @property
+    def mad_image(self):
+        return self._mad_image
+
+    @property
+    def optimized_metric(self):
+        return self._optimized_metric
+
+    @property
+    def reference_metric(self):
+        return self._reference_metric
+
+    @property
+    def image(self):
+        return self._image
+
+    @property
+    def initial_image(self):
+        return self._initial_image
 
     @property
     def reference_metric_loss(self):
@@ -172,9 +192,9 @@ class MADCompetition(OptimizedSynthesis):
         mad_image = (self.image + initial_noise *
                      torch.randn_like(self.image))
         mad_image = mad_image.clamp(*self.allowed_range)
-        self.initial_image = mad_image.clone()
+        self._initial_image = mad_image.clone()
         mad_image.requires_grad_()
-        self.mad_image = mad_image
+        self._mad_image = mad_image
         self._reference_metric_target = self.reference_metric(self.image,
                                                               self.mad_image).item()
         self._reference_metric_loss.append(self._reference_metric_target)
@@ -247,7 +267,7 @@ class MADCompetition(OptimizedSynthesis):
             # hits a nan before store_progress iterations (because then
             # saved_mad_image only has a length of 1) but in that case, you
             # have more severe problems
-            self.mad_image = torch.nn.Parameter(self.saved_mad_image[-2])
+            self._mad_image = torch.nn.Parameter(self.saved_mad_image[-2])
             return True
         return False
 
@@ -500,9 +520,9 @@ class MADCompetition(OptimizedSynthesis):
         # if the metrics are Modules, then we don't want to save them. If
         # they're functions then saving them is fine.
         if isinstance(self.optimized_metric, torch.nn.Module):
-            attrs.pop('optimized_metric')
+            attrs.pop('_optimized_metric')
         if isinstance(self.reference_metric, torch.nn.Module):
-            attrs.pop('reference_metric')
+            attrs.pop('_reference_metric')
         super().save(file_path, attrs=attrs)
 
     def to(self, *args, **kwargs):
@@ -541,7 +561,7 @@ class MADCompetition(OptimizedSynthesis):
         Returns:
             Module: self
         """
-        attrs = ['initial_image', 'image', 'mad_image',
+        attrs = ['_initial_image', '_image', '_mad_image',
                  '_saved_mad_image']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
@@ -594,10 +614,10 @@ class MADCompetition(OptimizedSynthesis):
         *then* load.
 
         """
-        check_attributes = ['image', '_metric_tradeoff_lambda',
+        check_attributes = ['_image', '_metric_tradeoff_lambda',
                             '_range_penalty_lambda', '_allowed_range',
                             '_minmax']
-        check_loss_functions = ['reference_metric', 'optimized_metric']
+        check_loss_functions = ['_reference_metric', '_optimized_metric']
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,
                      check_loss_functions=check_loss_functions,

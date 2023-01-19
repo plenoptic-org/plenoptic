@@ -101,10 +101,10 @@ class Metamer(OptimizedSynthesis):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
         validate_model(model, image_shape=image.shape[-2:])
-        self.model = model
-        self.image = image
+        self._model = model
+        self._image = image
         self._image_shape = image.shape
-        self.target_representation = self.model(self.image)
+        self._target_representation = self.model(self.image)
         self.scheduler = None
         self.loss_function = loss_function
         self._initialize(initial_image)
@@ -115,6 +115,22 @@ class Metamer(OptimizedSynthesis):
         self._scales_finished = []
         self._saved_metamer = []
         self._store_progress = None
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def image(self):
+        return self._image
+
+    @property
+    def target_representation(self):
+        return self._target_representation
+
+    @property
+    def metamer(self):
+        return self._metamer
 
     @property
     def scales(self):
@@ -167,7 +183,7 @@ class Metamer(OptimizedSynthesis):
             if metamer.size() != self.image.size():
                 raise Exception("metamer and image must be"
                                 " same size!")
-        self.metamer = metamer
+        self._metamer = metamer
         self._losses.append(self.objective_function(self.model(metamer)).item())
 
     def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False],
@@ -237,7 +253,7 @@ class Metamer(OptimizedSynthesis):
             # hits a nan before store_progress iterations (because then
             # saved_metamer only has a length of 1) but in that case, you have
             # more severe problems
-            self.metamer = torch.nn.Parameter(self._saved_metamer[-2])
+            self._metamer = torch.nn.Parameter(self._saved_metamer[-2])
             return True
         return False
 
@@ -638,8 +654,8 @@ class Metamer(OptimizedSynthesis):
         Returns:
             Module: self
         """
-        attrs = ['image', 'target_representation',
-                 'metamer', 'model', '_saved_metamer']
+        attrs = ['_image', '_target_representation',
+                 '_metamer', '_model', '_saved_metamer']
         return super().to(*args, attrs=attrs, **kwargs)
 
     def load(self, file_path: str,
@@ -679,7 +695,7 @@ class Metamer(OptimizedSynthesis):
         *then* load.
 
         """
-        check_attributes = ['image', 'target_representation',
+        check_attributes = ['_image', '_target_representation',
                             '_range_penalty_lambda', '_allowed_range']
         check_loss_functions = ['loss_function']
         super().load(file_path, map_location=map_location,
