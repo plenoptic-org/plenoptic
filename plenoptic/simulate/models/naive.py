@@ -5,8 +5,8 @@ from torch import Tensor
 import numpy as np
 from torch.nn import functional as F
 
-from plenoptic.tools.conv import same_padding
-from plenoptic.simulate.canonical_computations.filters import circular_gaussian2d
+from ...tools.conv import same_padding
+from ..canonical_computations.filters import circular_gaussian2d
 
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 

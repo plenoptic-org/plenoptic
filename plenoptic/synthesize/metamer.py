@@ -5,9 +5,9 @@ import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from plenoptic.tools.convergence import coarse_to_fine_enough, loss_convergence
 from ..tools import optim, display, signal, data
 from ..tools.validate import validate_input, validate_model, validate_coarse_to_fine
+from ..tools.convergence import coarse_to_fine_enough, loss_convergence
 from typing import Union, Tuple, Callable, List, Dict, Optional
 from typing_extensions import Literal
 from .synthesis import OptimizedSynthesis
