@@ -45,7 +45,7 @@ def validate_input(
         # so it seems reasonable here
         raise ValueError(
             f"input must be torch.Size([{n_batch}, n_channels, "
-            "im_height, im_width]) but got shape {input.size()}"
+            f"im_height, im_width]) but got shape {input.size()}"
         )
     if no_batch and input.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
@@ -54,13 +54,13 @@ def validate_input(
     if allowed_range is not None:
         if allowed_range[0] >= allowed_range[1]:
             raise ValueError(
-                f"allowed_range[0] must be strictly less than"
-                " allowed_range[1], but got {allowed_range}"
+                "allowed_range[0] must be strictly less than"
+                f" allowed_range[1], but got {allowed_range}"
             )
         if input.min() < allowed_range[0] or input.max() > allowed_range[1]:
             raise ValueError(
                 f"input range must lie within {allowed_range}, but got"
-                " {(input.min().item(), input.max().item())}"
+                f" {(input.min().item(), input.max().item())}"
             )
 
 
