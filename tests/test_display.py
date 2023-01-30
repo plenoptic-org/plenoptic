@@ -494,7 +494,7 @@ class TestDisplay(object):
         po.tools.remove_grad(model)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
-        met.metamer = met.metamer.squeeze()
+        met._metamer = met.metamer.squeeze()
         with pytest.raises(ValueError, match='3 or 4d'):
             po.synth.metamer.plot_synthesis_status(met)
         with pytest.raises(ValueError, match='3 or 4d'):
