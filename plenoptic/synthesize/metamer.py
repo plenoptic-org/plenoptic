@@ -534,20 +534,18 @@ class Metamer(OptimizedSynthesis):
 
         # get ready to store progress
         self.store_progress = store_progress
-        if self.store_progress and len(self._saved_metamer) == 0:
-            self._store(0)
 
 
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            loss = self._optimizer_step(pbar, change_scale_crit,
-                                        coarse_to_fine_kwargs.get('ctf_iters_to_check',
-                                                                  None))
-
             # update saved_* attrs. len(losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
             self._store(len(self.losses))
+
+            loss = self._optimizer_step(pbar, change_scale_crit,
+                                        coarse_to_fine_kwargs.get('ctf_iters_to_check',
+                                                                  None))
 
             if not torch.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")

@@ -426,17 +426,15 @@ class MADCompetition(OptimizedSynthesis):
 
         # get ready to store progress
         self.store_progress = store_progress
-        if self.store_progress and len(self._saved_mad_image) == 0:
-            self._store(0)
 
         pbar = tqdm(range(max_iter))
 
         for _ in pbar:
-            loss = self._optimizer_step(pbar)
-
             # update saved_* attrs. len(losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
             self._store(len(self.losses))
+
+            loss = self._optimizer_step(pbar)
 
             if not torch.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")

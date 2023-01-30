@@ -338,14 +338,12 @@ class Geodesic(OptimizedSynthesis):
 
         # get ready to store progress
         self.store_progress = store_progress
-        if self.store_progress and len(self._step_energy) == 0:
-            self._store(0)
 
         pbar = tqdm(range(max_iter))
         for _ in pbar:
-            loss = self._optimizer_step(pbar)
-
             self._store(len(self.losses))
+
+            loss = self._optimizer_step(pbar)
 
             if not torch.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
