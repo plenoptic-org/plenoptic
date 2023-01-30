@@ -583,14 +583,13 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation,
         included_plots.append('plot_representation_error')
         if fig_creation.endswith('extra'):
             included_plots.append('display_metamer')
-        axes_idx = {'display_metamer': 0}
+        axes_idx = {'display_metamer': 0, 'plot_representation_error': 8}
     elif isinstance(synthesis_object, po.synth.MADCompetition):
         containing_file = po.synth.mad_competition
         if fig_creation.endswith('extra'):
             included_plots.append('display_mad_image')
         axes_idx = {'display_mad_image': 0}
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
-    axes_idx['plot_representation_error'] = 8
     if '-' in fig_creation:
         axes_idx['misc'] = [1, 4]
     if not fig_creation.split('-')[-1] in ['without']:

@@ -802,7 +802,7 @@ def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
         Name of the `to_check` variable, used in the error message.
 
     """
-    allowed_vals = ['display_mad_image', 'plot_loss', 'plot_pixel_values']
+    allowed_vals = ['display_mad_image', 'plot_loss', 'plot_pixel_values', 'misc']
     try:
         vals = to_check.keys()
     except AttributeError:
@@ -902,6 +902,8 @@ def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
         axes = fig.axes
     # make sure misc contains all the empty axes
     misc_axes = axes_idx.get('misc', [])
+    if not hasattr(misc_axes, '__iter__'):
+        misc_axes = [misc_axes]
     all_axes = []
     for i in axes_idx.values():
         # so if it's a list of ints
