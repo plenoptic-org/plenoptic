@@ -476,12 +476,8 @@ class TestDisplay(object):
         # update_plot expects 3 or 4d data -- this checks that update_plot
         # fails with 2d data and raises the proper exception
         fig = po.imshow(einstein_img)
-        with pytest.raises(ValueError):
-            try:
-                po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
-            except ValueError as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
+        with pytest.raises(ValueError, match='3 or 4 dimensional'):
+            po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
 
     def test_synthesis_plot_shape_fail(self, einstein_img):
         # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
@@ -495,21 +491,14 @@ class TestDisplay(object):
                 return super().forward(*args, **kwargs)
 
         model = TestModel().to(DEVICE)
+        po.tools.remove_grad(model)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
         met.metamer = met.metamer.squeeze()
-        with pytest.raises(ValueError):
-            try:
-                po.synth.metamer.plot_synthesis_status(met)
-            except ValueError as e:
-                assert '3 or 4d' in e.args[0], "WRONG EXCEPTION"
-                raise e
-        with pytest.raises(ValueError):
-            try:
-                po.synth.metamer.animate(met)
-            except ValueError as e:
-                assert '3 or 4d' in e.args[0], "WRONG EXCEPTION"
-                raise e
+        with pytest.raises(ValueError, match='3 or 4d'):
+            po.synth.metamer.plot_synthesis_status(met)
+        with pytest.raises(ValueError, match='3 or 4d'):
+            po.synth.metamer.animate(met)
 
 
 def template_test_synthesis_all_plot(synthesis_object, iteration,
