@@ -148,7 +148,7 @@ class TestAutodiffFunctions:
         ed = Eigendistortion(einstein_img, get_model('frontend.OnOff.nograd'))
 
 
-        x, y = ed._input_flat, ed._representation_flat
+        x, y = ed._image_flat, ed._representation_flat
 
         x_dim = x.flatten().shape[0]
         y_dim = y.flatten().shape[0]
@@ -217,6 +217,7 @@ class TestAutodiffFunctions:
         x0 = torch.randn((1, 1, 5, 1), requires_grad=True, device=DEVICE)
         x0 = x0 / x0.norm()
         mdl = LM().to(DEVICE)
+        remove_grad(mdl)
 
         k = 10
         x_dim = x0.numel()
@@ -224,7 +225,7 @@ class TestAutodiffFunctions:
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
-        x, y = e._input_flat, e._representation_flat
+        x, y = e._image_flat, e._representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1E-3)

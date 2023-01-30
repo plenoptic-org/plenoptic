@@ -94,8 +94,8 @@ class TestMetamers(object):
     @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
     def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
-        metamer = po.synth.Metamer(einstein_img, model)
-        metamer.synthesize(max_iter=5, stop_iters_to_check=1, coarse_to_fine=coarse_to_fine,
+        metamer = po.synth.Metamer(einstein_img, model, coarse_to_fine=coarse_to_fine)
+        metamer.synthesize(max_iter=5, stop_iters_to_check=1,
                            coarse_to_fine_kwargs={'change_scale_criterion': 10,
                                                   'ctf_iters_to_check': 1})
         assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
@@ -111,7 +111,7 @@ class TestMetamers(object):
                 raise ValueError("Something went wrong with saving and loading! %s not the same"
                                  % k)
         # check we can resume
-        metamer.synthesize(max_iter=5, stop_iters_to_check=1, coarse_to_fine=coarse_to_fine,
+        metamer.synthesize(max_iter=5, stop_iters_to_check=1,
                            coarse_to_fine_kwargs={'change_scale_criterion': 10,
                                                   'ctf_iters_to_check': 1})
 

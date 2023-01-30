@@ -195,8 +195,6 @@ class Synthesis(abc.ABC):
                 dtype and device for all parameters and buffers in this module
             attrs (:class:`list`): list of strs containing the attributes of
                 this object to move to the specified device/dtype
-        Returns:
-            Module: self
         """
         try:
             self.model = self.model.to(*args, **kwargs)
@@ -223,7 +221,6 @@ class Synthesis(abc.ABC):
                     setattr(self, k, attr)
                 elif isinstance(attr, list):
                     setattr(self, k, [move(a, k) for a in attr])
-        return self
 
 
 class OptimizedSynthesis(Synthesis):
@@ -250,15 +247,18 @@ class OptimizedSynthesis(Synthesis):
 
     @property
     def losses(self):
-        return tuple(self._losses)
+        """Synthesis loss over iterations."""
+        return torch.tensor(self._losses)
 
     @property
     def gradient_norm(self):
-        return tuple(self._gradient_norm)
+        """Synthesis gradient's L2 norm over iterations."""
+        return torch.tensor(self._gradient_norm)
 
     @property
     def pixel_change_norm(self):
-        return tuple(self._pixel_change_norm)
+        """L2 norm change in pixel values over iterations."""
+        return torch.tensor(self._pixel_change_norm)
 
     @property
     def store_progress(self):
@@ -303,13 +303,14 @@ class OptimizedSynthesis(Synthesis):
 
     def _initialize_optimizer(self,
                               optimizer: Optional[torch.optim.Optimizer],
-                              synth_name: str):
+                              synth_name: str,
+                              learning_rate: float = .01):
         """Initialize optimizer.
 
         First time this is called, optimizer can be:
 
         - None, in which case we create an Adam optimizer with amsgrad=True and
-          lr=.01 with a single parameter, the synthesis attribute
+          ``lr=learning_rate`` with a single parameter, the synthesis attribute
 
         - torch.optim.Optimizer, in which case it must already have the
           synthesis attribute (e.g., metamer) as its only parameter.
@@ -324,7 +325,7 @@ class OptimizedSynthesis(Synthesis):
         if optimizer is None:
             if self.optimizer is None:
                 self._optimizer = torch.optim.Adam([synth_attr],
-                                                   lr=.01, amsgrad=True)
+                                                   lr=learning_rate, amsgrad=True)
         else:
             if self.optimizer is not None:
                 raise TypeError("When resuming synthesis, optimizer arg must be None!")

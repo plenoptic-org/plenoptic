@@ -8,35 +8,42 @@ import warnings
 
 
 def validate_input(
-    input: Tensor,
+    input_tensor: Tensor,
     no_batch: bool = False,
     allowed_range: Optional[Tuple[float, float]] = None,
 ):
-    """Determine whether input tensor can be used for synthesis.
+    """Determine whether input_tensor tensor can be used for synthesis.
 
     In particular, this function:
 
-    - Checks if input is 4d.
+    - Checks if input_tensor has a float or complex dtype
 
-    - If ``no_batch`` is True, check whether ``input.shape[0] != 1``
+    - Checks if input_tensor is 4d.
 
-    - If ``allowed_range`` is not None, check whether all values of ``input`` lie
+    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] != 1``
+
+    - If ``allowed_range`` is not None, check whether all values of ``input_tensor`` lie
       within the specified range.
 
     If any of the above fail, a ``ValueError`` is raised.
 
     Parameters
     ----------
-    input
+    input_tensor
         The tensor to validate.
     no_batch
-        If True, raise an Exception if the batch dimension of ``input`` is greater
+        If True, raise a ValueError if the batch dimension of ``input_tensor`` is greater
         than 1.
     allowed_range
-        If not None, ensure that all values of ``input`` lie within allowed_range.
+        If not None, ensure that all values of ``input_tensor`` lie within allowed_range.
 
     """
-    if input.ndimension() != 4:
+    # validate dtype
+    if input_tensor.dtype not in [torch.float16, torch.complex32,
+                                  torch.float32, torch.complex64,
+                                  torch.float64, torch.complex128]:
+        raise TypeError(f"Only float or complex dtypes are allowed but got type {input_tensor.dtype}")
+    if input_tensor.ndimension() != 4:
         if no_batch:
             n_batch = 1
         else:
@@ -44,28 +51,29 @@ def validate_input(
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError(
-            f"input must be torch.Size([{n_batch}, n_channels, "
-            f"im_height, im_width]) but got shape {input.size()}"
+            f"input_tensor must be torch.Size([{n_batch}, n_channels, "
+            f"im_height, im_width]) but got shape {input_tensor.size()}"
         )
-    if no_batch and input.shape[0] != 1:
+    if no_batch and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
-        raise ValueError(f"input batch dimension must be 1.")
+        raise ValueError(f"input_tensor batch dimension must be 1.")
     if allowed_range is not None:
         if allowed_range[0] >= allowed_range[1]:
             raise ValueError(
                 "allowed_range[0] must be strictly less than"
                 f" allowed_range[1], but got {allowed_range}"
             )
-        if input.min() < allowed_range[0] or input.max() > allowed_range[1]:
+        if input_tensor.min() < allowed_range[0] or input_tensor.max() > allowed_range[1]:
             raise ValueError(
-                f"input range must lie within {allowed_range}, but got"
-                f" {(input.min().item(), input.max().item())}"
+                f"input_tensor range must lie within {allowed_range}, but got"
+                f" {(input_tensor.min().item(), input_tensor.max().item())}"
             )
 
 
 def validate_model(model: torch.nn.Module,
-                   image_shape: Optional[Tuple[float, float]] = None):
+                   image_shape: Optional[Tuple[int, int, int, int]] = None,
+                   image_dtype: torch.dtype = torch.float32):
     """Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
@@ -101,8 +109,11 @@ def validate_model(model: torch.nn.Module,
         The model to validate.
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
-        certain height and width. If that's the case for ``model``, use this to
-        specify the expected shape. If None, we use height and width of 16.
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If None, we use an image of shape
+        (1,1,16,16)
+    image_dtype
+        What dtype to validate against.
 
     See also
     --------
@@ -111,8 +122,8 @@ def validate_model(model: torch.nn.Module,
 
     """
     if image_shape is None:
-        image_shape = (16, 16)
-    test_img = torch.rand((1, 1, *image_shape), dtype=torch.float32, requires_grad=False)
+        image_shape = (1, 1, 16, 16)
+    test_img = torch.rand(image_shape, dtype=image_dtype, requires_grad=False)
     try:
         if model(test_img).requires_grad:
             raise ValueError(
@@ -141,7 +152,15 @@ def validate_model(model: torch.nn.Module,
             "model tries to cast the input into something other than torch.Tensor"
             " object -- are you sure all computations are performed using torch?"
         )
-    if model(test_img).dtype not in [torch.float32, torch.complex64]:
+    if image_dtype in [torch.float16, torch.complex32]:
+        allowed_dtypes = [torch.float16, torch.complex32]
+    elif image_dtype in [torch.float32, torch.complex64]:
+        allowed_dtypes = [torch.float32, torch.complex64]
+    elif image_dtype in [torch.float64, torch.complex128]:
+        allowed_dtypes = [torch.float64, torch.complex128]
+    else:
+        raise TypeError(f"Only float or complex dtypes are allowed but got type {image_dtype}")
+    if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
     if model(test_img).ndimension() not in [3, 4]:
         raise ValueError(
@@ -159,7 +178,7 @@ def validate_model(model: torch.nn.Module,
 
 
 def validate_coarse_to_fine(model: torch.nn.Module,
-                            image_shape: Optional[Tuple[float, float]] = None):
+                            image_shape: Optional[Tuple[int, int, int, int]] = None):
     """Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
@@ -177,8 +196,9 @@ def validate_coarse_to_fine(model: torch.nn.Module,
         The model to validate.
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
-        certain height and width. If that's the case for ``model``, use this to
-        specify the expected shape. If None, we use height and width of 16.
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If None, we use an image of shape
+        (1,1,16,16)
 
     """
     warnings.warn("Validating whether model can work with coarse-to-fine synthesis -- this can take a while!")
@@ -186,8 +206,8 @@ def validate_coarse_to_fine(model: torch.nn.Module,
     if not hasattr(model, "scales"):
         raise AttributeError(f"model has no scales attribute {msg}")
     if image_shape is None:
-        image_shape = (16, 16)
-    test_img = torch.rand((1, 1, *image_shape))
+        image_shape = (1, 1, 16, 16)
+    test_img = torch.rand(image_shape)
     model_output_shape = model(test_img).shape
     for len_val in range(1, len(model.scales)):
         for sc in itertools.combinations(model.scales, len_val):
@@ -204,7 +224,8 @@ def validate_coarse_to_fine(model: torch.nn.Module,
 
 
 def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
-                    image_shape: Optional[Tuple[float, float]] = None):
+                    image_shape: Optional[Tuple[int, int, int, int]] = None,
+                    image_dtype: torch.dtype = torch.float32):
     """Determines whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
@@ -225,14 +246,17 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
     metric
         The metric to validate.
     image_shape
-        Some metrics can only accept inputs of a certain height and width. If
-        that's the case for ``model``, use this to specify the expected shape.
-        If None, we use height and width of 16.
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If None, we use an image of shape
+        (1,1,16,16)
+    image_dtype
+        What dtype to validate against.
 
     """
     if image_shape is None:
-        image_shape = (16, 16)
-    test_img = torch.rand((1, 1, *image_shape))
+        image_shape = (1, 1, 16, 16)
+    test_img = torch.rand(image_shape, dtype=image_dtype)
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:

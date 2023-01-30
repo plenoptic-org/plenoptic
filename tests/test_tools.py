@@ -148,9 +148,9 @@ class TestValidate(object):
         ((1, 3, 16, 16), does_not_raise()),
         ((2, 1, 16, 16), does_not_raise()),
         ((2, 3, 16, 16), does_not_raise()),
-        ((1, 1, 1, 16, 16), pytest.raises(ValueError, match="input must be torch.Size")),
-        ((1, 16, 16), pytest.raises(ValueError, match="input must be torch.Size")),
-        ((16, 16), pytest.raises(ValueError, match="input must be torch.Size")),
+        ((1, 1, 1, 16, 16), pytest.raises(ValueError, match="input_tensor must be torch.Size")),
+        ((1, 16, 16), pytest.raises(ValueError, match="input_tensor must be torch.Size")),
+        ((16, 16), pytest.raises(ValueError, match="input_tensor must be torch.Size")),
     ])
     def test_input_shape(self, shape, expectation):
         img = torch.rand(*shape)
@@ -159,12 +159,12 @@ class TestValidate(object):
 
     def test_input_no_batch(self):
         img = torch.rand(2, 1, 16, 16)
-        with pytest.raises(ValueError, match="input batch dimension must be 1"):
+        with pytest.raises(ValueError, match="input_tensor batch dimension must be 1"):
             po.tools.validate.validate_input(img, no_batch=True)
 
     @pytest.mark.parametrize('minmax,expectation', [
-        ('min',pytest.raises(ValueError, match="input range must lie within")),
-        ('max',pytest.raises(ValueError, match="input range must lie within")),
+        ('min',pytest.raises(ValueError, match="input_tensor range must lie within")),
+        ('max',pytest.raises(ValueError, match="input_tensor range must lie within")),
         ('range',pytest.raises(ValueError, match=r"allowed_range\[0\] must be strictly less")),
     ])
     def test_input_allowed_range(self, minmax, expectation):
@@ -255,6 +255,11 @@ class TestValidate(object):
         with pytest.raises(RuntimeError, match="model changes device of input"):
             po.tools.validate.validate_model(model)
 
+    @pytest.mark.parametrize("model", ['ColorModel'], indirect=True)
+    def test_model_image_shape(self, model):
+        img_shape = (1, 3, 16, 16)
+        po.tools.validate.validate_model(model, image_shape=img_shape)
+
     def test_validate_ctf_scales(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -292,7 +297,7 @@ class TestValidate(object):
 
     def test_validate_ctf_pass(self):
         model = po.simul.PortillaSimoncelli((64, 64))
-        po.tools.validate.validate_coarse_to_fine(model, image_shape=model.image_shape)
+        po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, *model.image_shape))
 
     def test_validate_metric_inputs(self):
         metric = lambda x: x

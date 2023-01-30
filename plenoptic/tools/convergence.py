@@ -33,7 +33,7 @@ def loss_convergence(synth: "OptimizedSynthesis",
      Have we been synthesizing for ``stop_iters_to_check`` iterations?
      | |
     no yes
-     | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check] < stop_criterion``?
+     | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
      |      no |
      |       | yes
      <-------' |
@@ -93,3 +93,42 @@ def coarse_to_fine_enough(synth: "Metamer", i: int,
         return (i - synth.scales_timing['all'][0]) > ctf_iters_to_check
     else:
         return False
+
+
+def pixel_change_convergence(synth: "OptimizedSynthesis",
+                             stop_criterion: float,
+                             stop_iters_to_check: int) -> bool:
+    """Check whether the pixel change norm has stabilized and, if so, return True.
+
+     Have we been synthesizing for ``stop_iters_to_check`` iterations?
+     | |
+    no yes
+     | '---->Is ``(synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all()``?
+     |      no |
+     |       | yes
+     <-------' |
+     |         '------> return ``True``
+     |
+     '---------> return ``False``
+
+    Parameters
+    ----------
+    synth
+        The OptimizedSynthesis object to check.
+    stop_criterion
+        If the pixel change norm has been less than ``stop_criterion`` for all
+        of the past ``stop_iters_to_check``, we terminate synthesis.
+    stop_iters_to_check
+        How many iterations back to check in order to see if the
+        pixel change norm has stopped decreasing (for ``stop_criterion``).
+
+    Returns
+    -------
+    loss_stabilized :
+        Whether the pixel change norm has stabilized or not.
+
+    """
+    if len(synth.pixel_change_norm) > stop_iters_to_check:
+        if (synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all():
+            return True
+    return False

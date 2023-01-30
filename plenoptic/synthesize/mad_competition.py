@@ -4,7 +4,7 @@ import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
 from ..tools import optim, display, data
-from typing import Union, Tuple, Callable, List, Dict
+from typing import Union, Tuple, Callable, List, Dict, Optional
 from typing_extensions import Literal
 from .synthesis import OptimizedSynthesis
 import warnings
@@ -76,16 +76,16 @@ class MADCompetition(OptimizedSynthesis):
         ``image``.
     losses : list
         A list of the objective function's loss over iterations.
+    gradient_norm : list
+        A list of the gradient's L2 norm over iterations.
+    pixel_change_norm : list
+        A list containing the L2 norm of the pixel change over iterations
+        (``pixel_change_norm[i]`` is the pixel change norm in
+        ``mad_image`` between iterations ``i`` and ``i-1``).
     optimized_metric_loss : list
         A list of the ``optimized_metric`` loss over iterations.
     reference_metric_loss : list
         A list of the ``reference_metric`` loss over iterations.
-    gradient_norm : list
-        A list of the gradient_norm over iterations.
-    pixel_change_norm : list
-        A list containing the norm of the pixel change over iterations
-        (``pixel_change[i]`` is the pixel change norm in
-        ``mad_image`` between iterations ``i`` and ``i-1``).
     saved_mad_image : torch.Tensor
         Saved ``self.mad_image`` for later examination.
 
@@ -103,13 +103,13 @@ class MADCompetition(OptimizedSynthesis):
                  reference_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
                  minmax: Literal['min', 'max'],
                  initial_noise: float = .1,
-                 metric_tradeoff_lambda: Union[None, float] = None,
+                 metric_tradeoff_lambda: Optional[float] = None,
                  range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float, float] = (0, 1),):
+                 allowed_range: Tuple[float, float] = (0, 1)):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
-        validate_metric(optimized_metric, image_shape=image.shape[-2:])
-        validate_metric(reference_metric, image_shape=image.shape[-2:])
+        validate_metric(optimized_metric, image_shape=image.shape, image_dtype=image.dtype)
+        validate_metric(reference_metric, image_shape=image.shape, image_dtype=image.dtype)
         self._optimized_metric = optimized_metric
         self._reference_metric = reference_metric
         self._image = image.detach()
@@ -118,8 +118,8 @@ class MADCompetition(OptimizedSynthesis):
         self._optimized_metric_loss = []
         self._reference_metric_loss = []
         if minmax not in ['min', 'max']:
-            raise Exception("synthesis_target must be one of {'min', 'max'}, but got "
-                            f"value {minmax} instead!")
+            raise ValueError("synthesis_target must be one of {'min', 'max'}, but got "
+                             f"value {minmax} instead!")
         self._minmax = minmax
         self._initialize(initial_noise)
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
@@ -132,7 +132,6 @@ class MADCompetition(OptimizedSynthesis):
             warnings.warn("Since metric_tradeoff_lamda was None, automatically set"
                           f" to {metric_tradeoff_lambda} to roughly balance metrics.")
         self._metric_tradeoff_lambda = metric_tradeoff_lambda
-        self._losses.append(self.objective_function().item())
         self._store_progress = None
         self._saved_mad_image = []
 
@@ -207,7 +206,7 @@ class MADCompetition(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check] < stop_criterion``?
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
          |      no |
          |       | yes
          <-------' |
@@ -237,40 +236,6 @@ class MADCompetition(OptimizedSynthesis):
         super()._initialize_optimizer(optimizer, 'mad_image')
         self.scheduler = scheduler
 
-    def _check_nan_loss(self, loss: Tensor) -> bool:
-        """Check if loss is nan and, if so, return True.
-
-        This checks if loss is NaN and, if so, updates mad_image to be two
-        iterations ago (so it's meaningful) and then returns True.
-
-        Parameters
-        ----------
-        loss :
-            the loss from the most recent iteration
-
-        Returns
-        -------
-        is_nan :
-            True if loss was nan, False otherwise
-
-        """
-        if np.isnan(loss.item()):
-            warnings.warn("Loss is NaN, quitting out! We revert "
-                          "mad_image to our last saved values (which "
-                          "means this will throw an IndexError if you're not "
-                          "saving anything)!")
-            # need to use the -2 index because the last one will be the one
-            # full of NaNs. this happens because the loss is computed before
-            # calculating the gradient and updating mad_image; therefore the
-            # iteration where loss is NaN is the one *after* the iteration
-            # where mad_image started to have NaN values. this will fail if it
-            # hits a nan before store_progress iterations (because then
-            # saved_mad_image only has a length of 1) but in that case, you
-            # have more severe problems
-            self._mad_image = torch.nn.Parameter(self.saved_mad_image[-2])
-            return True
-        return False
-
     def _store(self, i: int) -> bool:
         """Store mad_image anbd model response, if appropriate.
 
@@ -278,8 +243,8 @@ class MADCompetition(OptimizedSynthesis):
 
         Parameters
         ----------
-        i :
-            the current iteration (0-indexed)
+        i
+            the current iteration
 
         Returns
         -------
@@ -287,23 +252,18 @@ class MADCompetition(OptimizedSynthesis):
             True if we stored this iteration, False if not.
 
         """
-        stored = False
-        with torch.no_grad():
-            # i is 0-indexed but in order for the math to work out we want to
-            # be checking a 1-indexed thing against the modulo (e.g., if
-            # max_iter=10 and store_progress=3, then if it's 0-indexed, we'll
-            # try to save this four times, at 0, 3, 6, 9; but we just want to
-            # save it three times, at 3, 6, 9)
-            if self.store_progress and ((i+1) % self.store_progress == 0):
-                # want these to always be on cpu, to reduce memory use for GPUs
-                self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
-                stored = True
+        if self.store_progress and (i % self.store_progress == 0):
+            # want these to always be on cpu, to reduce memory use for GPUs
+            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
+            stored = True
+        else:
+            stored = False
         return stored
 
 
     def objective_function(self,
-                           mad_image: Union[Tensor, None] = None,
-                           image: Union[Tensor, None] = None) -> Tensor:
+                           mad_image: Optional[Tensor] = None,
+                           image: Optional[Tensor] = None) -> Tensor:
         r"""Compute the MADCompetition synthesis loss.
 
         This computes:
@@ -371,7 +331,7 @@ class MADCompetition(OptimizedSynthesis):
         loss.backward(retain_graph=False)
         return loss
 
-    def _optimizer_step(self, pbar: tqdm) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+    def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""Compute and propagate gradients, then step the optimizer to update mad_image.
 
         Parameters
@@ -386,48 +346,44 @@ class MADCompetition(OptimizedSynthesis):
         -------
         loss
             1-element tensor containing the loss on this step
-        optimized_metric
-            1-element tensor containing the optimized_metric on this step
-        reference_metric
-            1-element tensor containing the reference_metric on this step
-        gradient
-            1-element tensor containing the gradient on this step
-        pixel_change_norm
-            1-element tensor containing the norm of the pixel change in
-            mad_image between this step and the last
 
         """
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
-        grad_norm = self.mad_image.grad.detach().norm()
-        if grad_norm.item() != grad_norm.item():
-            raise Exception('found a NaN in the gradients during optimization')
+        self._losses.append(loss.item())
+        grad_norm = torch.linalg.vector_norm(self.mad_image.grad.data,
+                                             ord=2, dim=None)
+        self._gradient_norm.append(grad_norm.item())
 
         fm = self.reference_metric(self.image, self.mad_image)
+        self._reference_metric_loss.append(fm.item())
         sm = self.optimized_metric(self.image, self.mad_image)
+        self._optimized_metric_loss.append(sm.item())
 
         # optionally step the scheduler
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change = torch.norm(self.mad_image - last_iter_mad_image)
-        # for display purposes, always want loss to be positive. add extra info
-        # here if you want it to show up in progress bar
+        pixel_change_norm = torch.linalg.vector_norm(self.mad_image - last_iter_mad_image,
+                                                     ord=2, dim=None)
+        self._pixel_change_norm.append(pixel_change_norm.item())
+
+        # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
-            OrderedDict(loss=f"{abs(loss.item()):.04e}",
+            OrderedDict(loss=f"{loss.item():.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change_norm=f"{pixel_change:.04e}",
+                        pixel_change_norm=f"{pixel_change_norm.item():.04e}",
                         reference_metric=f'{fm.item():.04e}',
                         optimized_metric=f'{sm.item():.04e}'))
-        return loss, sm, fm, grad_norm, pixel_change
+        return loss
 
     def synthesize(self, max_iter: int = 100,
-                   optimizer: Union[None, torch.optim.Optimizer] = None,
-                   scheduler: Union[None, torch.optim.lr_scheduler._LRScheduler] = None,
+                   optimizer: Optional[torch.optim.Optimizer] = None,
+                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
                    store_progress: Union[bool, int] = False,
                    stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
-                   ) -> Tensor:
+                   ):
         r"""Synthesize a MAD image.
 
         Update the pixels of ``initial_image`` to maximize or minimize
@@ -464,11 +420,6 @@ class MADCompetition(OptimizedSynthesis):
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
-        Returns
-        -------
-        mad_image : torch.Tensor
-            The MAD image we've created
-
         """
         # initialize the optimizer and scheduler
         self._initialize_optimizer(optimizer, scheduler)
@@ -476,29 +427,25 @@ class MADCompetition(OptimizedSynthesis):
         # get ready to store progress
         self.store_progress = store_progress
         if self.store_progress and len(self._saved_mad_image) == 0:
-            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
+            self._store(0)
 
         pbar = tqdm(range(max_iter))
 
-        for i in pbar:
-            loss, sm, fm, g, pixel_change_norm = self._optimizer_step(pbar)
-            self._losses.append(loss.item())
-            self._reference_metric_loss.append(fm.item())
-            self._optimized_metric_loss.append(sm.item())
-            self._pixel_change_norm.append(pixel_change_norm.item())
-            self._gradient_norm.append(g.item())
-            if self._check_nan_loss(loss):
-                break
+        for _ in pbar:
+            loss = self._optimizer_step(pbar)
 
-            # update saved_* attrs
-            self._store(i)
+            # update saved_* attrs. len(losses) gives the total number of
+            # iterations and will be correct across calls to `synthesize`
+            self._store(len(self.losses))
+
+            if not torch.isfinite(loss):
+                raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(stop_criterion, stop_iters_to_check):
+                warnings.warn("Loss has converged, stopping synthesis")
                 break
 
         pbar.close()
-
-        return self.mad_image
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
@@ -558,8 +505,6 @@ class MADCompetition(OptimizedSynthesis):
             tensor (torch.Tensor): Tensor whose dtype and device are the desired
                 dtype and device for all parameters and buffers in this module
 
-        Returns:
-            Module: self
         """
         attrs = ['_initial_image', '_image', '_mad_image',
                  '_saved_mad_image']
@@ -576,7 +521,7 @@ class MADCompetition(OptimizedSynthesis):
             pass
 
     def load(self, file_path: str,
-             map_location: Union[str, None] = None,
+             map_location: Optional[None] = None,
              **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
@@ -632,7 +577,7 @@ class MADCompetition(OptimizedSynthesis):
 
 
 def plot_loss(mad: MADCompetition,
-              iteration: Union[int, None] = None,
+              iteration: Optional[int] = None,
               axes: Union[List[mpl.axes.Axes], mpl.axes.Axes, None] = None,
               **kwargs) -> mpl.axes.Axes:
     """Plot metric losses.
@@ -697,10 +642,10 @@ def plot_loss(mad: MADCompetition,
 
 def display_mad_image(mad: MADCompetition,
                       batch_idx: int = 0,
-                      channel_idx: Union[int, None] = None,
-                      zoom: Union[float, None] = None,
-                      iteration: Union[int, None] = None,
-                      ax: Union[mpl.axes.Axes, None] = None,
+                      channel_idx: Optional[int] = None,
+                      zoom: Optional[float] = None,
+                      iteration: Optional[int] = None,
+                      ax: Optional[mpl.axes.Axes] = None,
                       title: str = 'MADCompetition',
                       **kwargs) -> mpl.axes.Axes:
     """Display MAD image.
@@ -748,7 +693,7 @@ def display_mad_image(mad: MADCompetition,
     else:
         image = mad.saved_mad_image[iteration]
     if batch_idx is None:
-        raise Exception("batch_idx must be an integer!")
+        raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
     if channel_idx is None and image.shape[1] > 1:
@@ -767,10 +712,10 @@ def display_mad_image(mad: MADCompetition,
 
 def plot_pixel_values(mad: MADCompetition,
                       batch_idx: int = 0,
-                      channel_idx: Union[int, None] = None,
-                      iteration: Union[int, None] = None,
-                      ylim: Union[Tuple[float], Literal[False]] = None,
-                      ax: Union[mpl.axes.Axes, None] = None,
+                      channel_idx: Optional[int] = None,
+                      iteration: Optional[int] = None,
+                      ylim: Union[Tuple[float], Literal[False]] = False,
+                      ax: Optional[mpl.axes.Axes] = None,
                       **kwargs) -> mpl.axes.Axes:
     r"""Plot histogram of pixel values of reference and MAD images.
 
@@ -870,9 +815,9 @@ def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
                          f'Only {allowed_vals} are permissible!')
 
 
-def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
+def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
                          axes_idx: Dict[str, int] = {},
-                         figsize: Union[Tuple[float], None] = None,
+                         figsize: Optional[Tuple[float]] = None,
                          included_plots: List[str] = ['display_mad_image',
                                                       'plot_loss',
                                                       'plot_pixel_values'],
@@ -973,13 +918,13 @@ def _setup_synthesis_fig(fig: Union[mpl.figure.Figure, None] = None,
 
 def plot_synthesis_status(mad: MADCompetition,
                           batch_idx: int = 0,
-                          channel_idx: Union[int, None] = None,
-                          iteration: Union[int, None] = None,
+                          channel_idx: Optional[int] = None,
+                          iteration: Optional[int] = None,
                           vrange: Union[Tuple[float], str] = 'indep1',
-                          zoom: Union[float, None] = None,
-                          fig: Union[mpl.figure.Figure, None] = None,
+                          zoom: Optional[float] = None,
+                          fig: Optional[mpl.figure.Figure] = None,
                           axes_idx: Dict[str, int] = {},
-                          figsize: Union[Tuple[float], None] = None,
+                          figsize: Optional[Tuple[float]] = None,
                           included_plots: List[str] = ['display_mad_image',
                                                        'plot_loss',
                                                        'plot_pixel_values'],
@@ -1052,12 +997,12 @@ def plot_synthesis_status(mad: MADCompetition,
 
     """
     if iteration is not None and not mad.store_progress:
-        raise Exception("synthesis() was run with store_progress=False, "
-                        "cannot specify which iteration to plot (only"
-                        " last one, with iteration=None)")
+        raise ValueError("synthesis() was run with store_progress=False, "
+                         "cannot specify which iteration to plot (only"
+                         " last one, with iteration=None)")
     if mad.mad_image.ndim not in [3, 4]:
-        raise Exception("plot_synthesis_status() expects 3 or 4d data;"
-                        "unexpected behavior will result otherwise!")
+        raise ValueError("plot_synthesis_status() expects 3 or 4d data;"
+                         "unexpected behavior will result otherwise!")
     _check_included_plots(included_plots, 'included_plots')
     _check_included_plots(width_ratios, 'width_ratios')
     _check_included_plots(axes_idx, 'axes_idx')
@@ -1098,11 +1043,11 @@ def plot_synthesis_status(mad: MADCompetition,
 def animate(mad: MADCompetition,
             framerate: int = 10,
             batch_idx: int = 0,
-            channel_idx: Union[int, None] = None,
-            zoom: Union[float, None] = None,
-            fig: Union[mpl.figure.Figure, None] = None,
+            channel_idx: Optional[int] = None,
+            zoom: Optional[float] = None,
+            fig: Optional[mpl.figure.Figure] = None,
             axes_idx: Dict[str, int] = {},
-            figsize: Union[Tuple[float], None] = None,
+            figsize: Optional[Tuple[float]] = None,
             included_plots: List[str] = ['display_mad_image',
                                          'plot_loss',
                                          'plot_pixel_values'],
@@ -1178,11 +1123,11 @@ def animate(mad: MADCompetition,
 
     """
     if not mad.store_progress:
-        raise Exception("synthesize() was run with store_progress=False,"
-                        " cannot animate!")
+        raise ValueError("synthesize() was run with store_progress=False,"
+                         " cannot animate!")
     if mad.mad_image.ndim not in [3, 4]:
-        raise Exception("animate() expects 3 or 4d data; unexpected"
-                        " behavior will result otherwise!")
+        raise ValueError("animate() expects 3 or 4d data; unexpected"
+                         " behavior will result otherwise!")
     _check_included_plots(included_plots, 'included_plots')
     _check_included_plots(width_ratios, 'width_ratios')
     _check_included_plots(axes_idx, 'axes_idx')
@@ -1242,8 +1187,8 @@ def display_mad_image_all(mad_metric1_min: MADCompetition,
                           mad_metric2_min: MADCompetition,
                           mad_metric1_max: MADCompetition,
                           mad_metric2_max: MADCompetition,
-                          metric1_name: Union[str, None] = None,
-                          metric2_name: Union[str, None] = None,
+                          metric1_name: Optional[str] = None,
+                          metric2_name: Optional[str] = None,
                           zoom: Union[int, float] = 1,
                           **kwargs) -> mpl.figure.Figure:
     """Display all MAD Competition images.
@@ -1289,11 +1234,11 @@ def display_mad_image_all(mad_metric1_min: MADCompetition,
     # this is a bit of a hack right now, because they don't all have same
     # initial image
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
@@ -1325,8 +1270,8 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
                   mad_metric2_min: MADCompetition,
                   mad_metric1_max: MADCompetition,
                   mad_metric2_max: MADCompetition,
-                  metric1_name: Union[str, None] = None,
-                  metric2_name: Union[str, None] = None,
+                  metric1_name: Optional[str] = None,
+                  metric2_name: Optional[str] = None,
                   metric1_kwargs: Dict = {'c': 'C0'},
                   metric2_kwargs: Dict = {'c': 'C1'},
                   min_kwargs: Dict = {'linestyle': '--'},
@@ -1379,11 +1324,11 @@ def plot_loss_all(mad_metric1_min: MADCompetition,
 
     """
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise Exception("All four instances of MADCompetition must have same image!")
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:

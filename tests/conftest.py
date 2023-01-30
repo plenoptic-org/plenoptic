@@ -73,7 +73,9 @@ def get_model(name):
     elif name == 'mse':
         return po.metric.naive.mse
     elif name == 'ColorModel':
-        return ColorModel().to(DEVICE)
+        model = ColorModel().to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
 
     # naive models
     elif name in ['Identity', "naive.Identity"]:

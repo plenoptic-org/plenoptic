@@ -120,12 +120,13 @@ def deviation_from_line(sequence: Tensor,
     y1 = y[-1].view(1, D)
 
     line = (y1 - y0)
-    line_length = torch.norm(line)
+    line_length = torch.linalg.vector_norm(line, ord=2)
     line = line / line_length
     y_centered = y - y0
     dist_along_line = y_centered @ line[0]
     projection = dist_along_line.view(T, 1) * line
-    dist_from_line = torch.norm(y_centered - projection, dim=1)
+    dist_from_line = torch.linalg.vector_norm(y_centered - projection, dim=1,
+                                              ord=2)
 
     if normalize:
         dist_along_line /= line_length
