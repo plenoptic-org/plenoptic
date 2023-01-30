@@ -157,11 +157,11 @@ class MADCompetition(OptimizedSynthesis):
 
     @property
     def reference_metric_loss(self):
-        return tuple(self._reference_metric_loss)
+        return torch.tensor(self._reference_metric_loss)
 
     @property
     def optimized_metric_loss(self):
-        return tuple(self._optimized_metric_loss)
+        return torch.tensor(self._optimized_metric_loss)
 
     @property
     def metric_tradeoff_lambda(self):
