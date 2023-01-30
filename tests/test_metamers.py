@@ -3,6 +3,7 @@
 import matplotlib
 matplotlib.use('agg')
 import os.path as op
+import numpy as np
 import torch
 import plenoptic as po
 import pytest
@@ -81,9 +82,7 @@ class TestMetamers(object):
         if store_progress == 3:
             max_iter = 6
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
-        # we initialize saved_metamer the first time it's called, so it will
-        # have 1 extra saved
-        assert len(metamer.saved_metamer) == (max_iter//store_progress)+1, "Didn't end up with enough saved signal!"
+        assert len(metamer.saved_metamer) == np.ceil(max_iter/store_progress), "Didn't end up with enough saved signal!"
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
@@ -94,14 +93,14 @@ class TestMetamers(object):
     @pytest.mark.parametrize('model', ['SPyr'], indirect=True)
     @pytest.mark.parametrize('coarse_to_fine', ['separate', 'together'])
     def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
-        metamer = po.synth.Metamer(einstein_img, model, coarse_to_fine=coarse_to_fine)
+        metamer = po.synth.MetamerCTF(einstein_img, model, coarse_to_fine=coarse_to_fine)
         metamer.synthesize(max_iter=5, stop_iters_to_check=1,
-                           coarse_to_fine_kwargs={'change_scale_criterion': 10,
-                                                  'ctf_iters_to_check': 1})
+                           change_scale_criterion=10, ctf_iters_to_check=1)
         assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
 
         metamer.save(op.join(tmp_path, 'test_metamer_ctf.pt'))
-        metamer_copy = po.synth.Metamer(einstein_img, model)
+        metamer_copy = po.synth.MetamerCTF(einstein_img, model,
+                                           coarse_to_fine=coarse_to_fine)
         metamer_copy.load(op.join(tmp_path, "test_metamer_ctf.pt"),
                           map_location=DEVICE)
         # check the ctf-related attributes all saved correctly
@@ -112,8 +111,7 @@ class TestMetamers(object):
                                  % k)
         # check we can resume
         metamer.synthesize(max_iter=5, stop_iters_to_check=1,
-                           coarse_to_fine_kwargs={'change_scale_criterion': 10,
-                                                  'ctf_iters_to_check': 1})
+                           change_scale_criterion=10, ctf_iters_to_check=1)
 
     @pytest.mark.parametrize('model', ['NLP'], indirect=True)
     @pytest.mark.parametrize('optimizer', ['Adam', None, 'Scheduler'])

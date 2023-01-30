@@ -37,7 +37,7 @@ class Metamer(OptimizedSynthesis):
         A 4d tensor, this is the image whose representation we wish to
         match. If this is not a tensor, we try to cast it as one.
     model :
-        A visual model, see `MAD_Competition` notebook for more details
+        A visual model, see `Metamer` notebook for more details
     loss_function :
         the loss function to use to compare the representations of the models
         in order to determine their loss. Because of the limitations of pickle,
@@ -53,15 +53,6 @@ class Metamer(OptimizedSynthesis):
     initial_image :
         4d Tensor to initialize our metamer with. If None, will draw a sample
         of uniform noise within ``allowed_range``.
-    coarse_to_fine :
-        If False, don't do coarse-to-fine optimization. Else, there
-        are two options for how to do it:
-        - 'together': start with the coarsest scale, then gradually
-          add each finer scale.
-        - 'separate': compute the gradient with respect to each
-          scale separately (ignoring the others), then with respect
-          to all of them at the end.
-        (see ``Metamer`` tutorial for more details).
 
     Attributes
     ----------
@@ -81,16 +72,6 @@ class Metamer(OptimizedSynthesis):
         ``metamer`` between iterations ``i`` and ``i-1``).
     saved_metamer : torch.Tensor
         Saved ``self.metamer`` for later examination.
-    scales : list or None
-        The list of scales in optimization order (i.e., from coarse to fine).
-        Will be modified during the course of optimization.
-    scales_loss : list or None
-        The scale-specific loss at each iteration
-    scales_timing : dict or None
-        Keys are the values found in ``scales``, values are lists, specifying
-        the iteration where we started and stopped optimizing this scale.
-    scales_finished : list or None
-        List of scales that we've finished optimizing.
 
     References
     ----------
@@ -101,13 +82,11 @@ class Metamer(OptimizedSynthesis):
        http://www.cns.nyu.edu/~lcv/texture/
 
     """
-
     def __init__(self, image: Tensor, model: torch.nn.Module,
                  loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float, float] = (0, 1),
-                 initial_image: Optional[Tensor] = None,
-                 coarse_to_fine: Literal['together', 'separate', False] = False):
+                 initial_image: Optional[Tensor] = None):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
         validate_model(model, image_shape=image.shape, image_dtype=image.dtype)
@@ -118,7 +97,6 @@ class Metamer(OptimizedSynthesis):
         self.scheduler = None
         self.loss_function = loss_function
         self._initialize(initial_image)
-        self._init_ctf(coarse_to_fine)
         self._saved_metamer = []
         self._store_progress = None
 
@@ -138,22 +116,6 @@ class Metamer(OptimizedSynthesis):
     @property
     def metamer(self):
         return self._metamer
-
-    @property
-    def scales(self):
-        return tuple(self._scales)
-
-    @property
-    def scales_loss(self):
-        return tuple(self._scales_loss)
-
-    @property
-    def scales_timing(self):
-        return self._scales_timing
-
-    @property
-    def scales_finished(self):
-        return tuple(self._scales_finished)
 
     @property
     def saved_metamer(self):
@@ -190,28 +152,6 @@ class Metamer(OptimizedSynthesis):
             if metamer.size() != self.image.size():
                 raise ValueError("metamer and image must be same size!")
         self._metamer = metamer
-
-    def _init_ctf(self, coarse_to_fine: Literal['together', 'separate', False]):
-        """Initialize stuff related to coarse-to-fine."""
-        # this will hold the reduced representation of the target image.
-        if coarse_to_fine not in [False, 'separate', 'together']:
-            raise ValueError(f"Don't know how to handle value {coarse_to_fine}!"
-                             " Must be one of: False, 'separate', 'together'")
-        if coarse_to_fine:
-            self._ctf_target_representation = None
-            validate_coarse_to_fine(self.model, image_shape=self.image.shape)
-            # if self.scales is not None, we're continuing a previous version
-            # and want to continue. this list comprehension creates a new
-            # object, so we don't modify model.scales
-            self._scales = [i for i in self.model.scales[:-1]]
-            if coarse_to_fine == 'separate':
-                self._scales += [self.model.scales[-1]]
-            self._scales += ['all']
-            self._scales_timing = dict((k, []) for k in self.scales)
-            self._scales_timing[self.scales[0]].append(0)
-            self._scales_loss = []
-            self._scales_finished = []
-        self.coarse_to_fine = coarse_to_fine
 
     def _initialize_optimizer(self,
                               optimizer: Optional[torch.optim.Optimizer],
@@ -250,54 +190,36 @@ class Metamer(OptimizedSynthesis):
             stored = False
         return stored
 
-    def _check_convergence(self, i: int, stop_criterion: float,
-                           stop_iters_to_check: int,
-                           ctf_iters_to_check: Optional[int] = None) -> bool:
-        r"""Check whether the loss has stabilized and, if relevant, whether we've synthesized all scales.
+    def _check_convergence(self, stop_criterion, stop_iters_to_check):
+        r"""Check whether the loss has stabilized and, if so, return True.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
          |      no |
          |       | yes
-         |-------' '---->Is ``coarse_to_fine`` not False?
-         |              no  |
-         |               |  yes
-         |               |  '----> Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
-         |               |          |                   |
-         |               |          yes                 no
-         |               |          |                   |
-         |               |          v                   |
-         |               '------> return ``True``       |
-         |                                              |
-         '---------> return ``False``<------------------'
+         <-------' |
+         |         '------> return ``True``
+         |
+         '---------> return ``False``
 
         Parameters
         ----------
-        i
-            The current iteration (0-indexed).
-        stop_criterion
+        stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check
+        stop_iters_to_check :
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
-        ctf_iters_to_check
-            Minimum number of iterations coarse-to-fine must run at each scale.
-            If self.coarse_to_fine is False, then this is ignored.
 
         Returns
         -------
         loss_stabilized :
-            Whether the loss has stabilized and we've synthesized all scales.
+            Whether the loss has stabilized or not.
 
         """
-        loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
-        if self.coarse_to_fine:
-            return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
-        else:
-            return loss_conv
+        return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def objective_function(self, metamer_representation: Optional[Tensor] = None,
                            target_representation: Optional[Tensor] = None) -> Tensor:
@@ -337,61 +259,21 @@ class Metamer(OptimizedSynthesis):
         of the gradient before taking a step (ie. second order methods like
         LBFGS).
 
-        Additionally, this is where:
-
-        - ``metamer_representation`` is calculated, and thus any modifications
-          to the model's forward call (e.g., specifying `scale` kwarg for
-          coarse-to-fine) should happen.
-
-        - ``loss`` is calculated and ``loss.backward()`` is called.
+        Additionally, this is where ``loss`` is calculated and
+        ``loss.backward()`` is called.
 
         Returns
         -------
         loss
             Loss of the current objective function
-        overall_loss
-            Loss of the complete model. This differs from ``loss`` if we're
-            doing coarse-to-fine synthesis
 
         """
         self.optimizer.zero_grad()
-        analyze_kwargs = {}
-        if self.coarse_to_fine:
-            # if we've reached 'all', we act the same as if
-            # coarse_to_fine was False
-            if self.scales[0] != 'all':
-                analyze_kwargs['scales'] = [self.scales[0]]
-                # if 'together', then we also want all the coarser
-                # scales
-                if self.coarse_to_fine == 'together':
-                    analyze_kwargs['scales'] += self.scales_finished
-        metamer_representation = self.model(self.metamer, **analyze_kwargs)
-        # if analyze_kwargs is empty, we can just compare
-        # metamer_representation against our cached target_representation
-        if analyze_kwargs:
-            if self._ctf_target_representation is None:
-                target_rep = self.model(self.image, **analyze_kwargs)
-                self._ctf_target_representation = target_rep
-            else:
-                target_rep = self._ctf_target_representation
-            # this is just for display, so don't compute gradients
-            with torch.no_grad():
-                overall_loss = self.objective_function(None, None)
-        else:
-            target_rep = None
-            overall_loss = None
-
-        loss = self.objective_function(metamer_representation, target_rep)
+        loss = self.objective_function()
         loss.backward(retain_graph=False)
-        if overall_loss is None:
-            overall_loss = loss.clone()
+        return loss
 
-        return loss, overall_loss
-
-    def _optimizer_step(self, pbar: tqdm,
-                        change_scale_criterion: float,
-                        ctf_iters_to_check: int
-                        ) -> Tensor:
+    def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
@@ -401,13 +283,6 @@ class Metamer(OptimizedSynthesis):
             describing the current loss, gradient norm, and learning
             rate (it already tells us which iteration and the time
             elapsed).
-        change_scale_criterion :
-            How many iterations back to check to see if the loss has stopped
-            decreasing and we should thus move to the next scale in
-            coarse-to-fine optimization.
-        ctf_iters_to_check :
-            Minimum number of iterations coarse-to-fine must run at each scale.
-            If self.coarse_to_fine is False, then this is ignored.
 
         Returns
         -------
@@ -416,42 +291,8 @@ class Metamer(OptimizedSynthesis):
 
         """
         last_iter_metamer = self.metamer.clone()
-        postfix_dict = {}
-        if self.coarse_to_fine:
-            # The first check here is because the last scale will be 'all', and
-            # we never remove it. Otherwise, check to see if it looks like loss
-            # has stopped declining and, if so, switch to the next scale. Then
-            # we're checking if self.scales_loss is long enough to check
-            # ctf_iters_to_check back.
-            if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
-                # Now we check whether loss has decreased less than
-                # change_scale_criterion
-                if ((change_scale_criterion is None) or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion):
-                    # and finally we check whether we've been optimizing this
-                    # scale for ctf_iters_to_check
-                    if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
-                        self._scales_timing[self.scales[0]].append(len(self.losses)-1)
-                        self._scales_finished.append(self._scales.pop(0))
-                        self._scales_timing[self.scales[0]].append(len(self.losses))
-                        # reset optimizer's lr.
-                        for pg in self.optimizer.param_groups:
-                            pg['lr'] = pg['initial_lr']
-                        # reset ctf target representation, so we update it on
-                        # next pass
-                        self._ctf_target_representation = None
-            # we have some extra info to include in the progress bar if
-            # we're doing coarse-to-fine
-            postfix_dict['current_scale'] = self.scales[0]
-        loss, overall_loss = self.optimizer.step(self._closure)
-        # we have this here because we want to do the above checking at
-        # the beginning of each step, before computing the loss
-        # (otherwise there's an error thrown because self.scales[-1] is
-        # not the same scale we computed metamer_representation using)
-        if self.coarse_to_fine:
-            postfix_dict['current_scale_loss'] = loss.item()
-            # and we also want to keep track of this
-            self._scales_loss.append(loss.item())
-        self._losses.append(overall_loss.item())
+        loss = self.optimizer.step(self._closure)
+        self._losses.append(loss.item())
 
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2,
                                              dim=None)
@@ -466,19 +307,17 @@ class Metamer(OptimizedSynthesis):
         self._pixel_change_norm.append(pixel_change_norm.item())
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
-            OrderedDict(loss=f"{overall_loss.item():.04e}",
+            OrderedDict(loss=f"{loss.item():.04e}",
                         learning_rate=self.optimizer.param_groups[0]['lr'],
                         gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change_norm=f"{pixel_change_norm.item():.04e}", **postfix_dict))
-        return overall_loss
+                        pixel_change_norm=f"{pixel_change_norm.item():.04e}"))
+        return loss
 
     def synthesize(self, max_iter: int = 100,
                    optimizer: Optional[torch.optim.Optimizer] = None,
                    scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
                    store_progress: Union[bool, int] = False,
                    stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
-                   coarse_to_fine_kwargs: Dict[str, float] = {'change_scale_criterion': 1e-2,
-                                                              'ctf_iters_to_check': 50}
                    ):
         r"""Synthesize a metamer.
 
@@ -512,29 +351,13 @@ class Metamer(OptimizedSynthesis):
         stop_iters_to_check :
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
-        coarse_to_fine_kwargs :
-            Dictionary with two keys: ``'change_scale_criterion'`` and
-            ``'ctf_iters_to_check'``. We use these analogously to
-            ``stop_criterion`` and ``stop_iters_to_check``: if the loss has
-            changed less than ``'change_scale_criterion'`` in the past
-            ``'ctf_iters_to_check'`` iterations, we move on to the next scale in
-            coarse-to-fine optimization. `'change_scale_criterion'` can also be
-            `None`, in which case we will change scales as soon as we've spent
-            `ctf_iters_to_check` on a given scale.
 
         """
-        change_scale_crit = coarse_to_fine_kwargs.get('change_scale_criterion', None)
-        if (change_scale_crit is not None) and (stop_criterion >= change_scale_crit):
-            raise ValueError("stop_criterion must be strictly less than "
-                             "coarse-to-fine's change_scale_criterion, or"
-                             " things get weird!")
-
         # initialize the optimizer and scheduler
         self._initialize_optimizer(optimizer, scheduler)
 
         # get ready to store progress
         self.store_progress = store_progress
-
 
         pbar = tqdm(range(max_iter))
 
@@ -543,15 +366,12 @@ class Metamer(OptimizedSynthesis):
             # iterations and will be correct across calls to `synthesize`
             self._store(len(self.losses))
 
-            loss = self._optimizer_step(pbar, change_scale_crit,
-                                        coarse_to_fine_kwargs.get('ctf_iters_to_check',
-                                                                  None))
+            loss = self._optimizer_step(pbar)
 
             if not torch.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
 
-            if self._check_convergence(i, stop_criterion, stop_iters_to_check,
-                                       coarse_to_fine_kwargs.get('ctf_iters_to_check', None)):
+            if self._check_convergence(stop_criterion, stop_iters_to_check):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
 
@@ -611,6 +431,34 @@ class Metamer(OptimizedSynthesis):
                  '_metamer', '_model', '_saved_metamer']
         super().to(*args, attrs=attrs, **kwargs)
 
+    def _load(self, file_path: str,
+              map_location: Optional[str] = None,
+              additional_check_attributes: List[str] = [],
+              additional_check_loss_functions: List[str] = [],
+              **pickle_load_args):
+        r"""Helper function for loading.
+
+        Users interact with ``load`` (without the underscore), this is to allow
+        subclasses to specify additional attributes or loss functions to check.
+
+        """
+        check_attributes = ['_image', '_target_representation',
+                            '_range_penalty_lambda', '_allowed_range']
+        check_attributes += additional_check_attributes
+        check_loss_functions = ['loss_function']
+        check_loss_functions += additional_check_loss_functions
+        super().load(file_path, map_location=map_location,
+                     check_attributes=check_attributes,
+                     check_loss_functions=check_loss_functions,
+                     **pickle_load_args)
+        # make this require a grad again
+        self.metamer.requires_grad_()
+        # these are always supposed to be on cpu, but may get copied over to
+        # gpu on load (which can cause problems when resuming synthesis), so
+        # fix that.
+        if len(self._saved_metamer) and self._saved_metamer[0].device.type != 'cpu':
+            self._saved_metamer = [met.to('cpu') for met in self._saved_metamer]
+
     def load(self, file_path: str,
              map_location: Optional[str] = None,
              **pickle_load_args):
@@ -648,21 +496,425 @@ class Metamer(OptimizedSynthesis):
         *then* load.
 
         """
-        check_attributes = ['_image', '_target_representation',
-                            '_range_penalty_lambda', '_allowed_range']
-        check_loss_functions = ['loss_function']
-        super().load(file_path, map_location=map_location,
-                     check_attributes=check_attributes,
-                     check_loss_functions=check_loss_functions,
-                     **pickle_load_args)
-        # make this require a grad again
-        self.metamer.requires_grad_()
-        # these are always supposed to be on cpu, but may get copied over to
-        # gpu on load (which can cause problems when resuming synthesis), so
-        # fix that.
-        if len(self._saved_metamer) and self._saved_metamer[0].device.type != 'cpu':
-            self._saved_metamer = [met.to('cpu') for met in self._saved_metamer]
+        self._load(file_path, map_location, **pickle_load_args)
 
+
+class MetamerCTF(Metamer):
+    """Synthesize model metamers with coarse-to-fine synthesis.
+
+    This is a special case of ``Metamer``, which uses the coarse-to-fine
+    synthesis procedure described in [1]_: we start by updating metamer with
+    respect to only a subset of the model's representation (generally, that
+    which corresponds to the lowest spatial frequencies), and changing which
+    subset we consider over the course of synthesis. This is similar to
+    optimizing with a blurred version of the objective function and gradually
+    adding in finer details. It improves synthesis performance for some models.
+
+    Parameters
+    ----------
+    image :
+        A 4d tensor, this is the image whose representation we wish to
+        match. If this is not a tensor, we try to cast it as one.
+    model :
+        A visual model, see `Metamer` notebook for more details
+    loss_function :
+        the loss function to use to compare the representations of the models
+        in order to determine their loss. Because of the limitations of pickle,
+        you cannot use a lambda function for this if you wish to save the
+        Metamer object (i.e., it must be one of our built-in functions or
+        defined using a `def` statement)
+    range_penalty_lambda :
+        strength of the regularizer that enforces the allowed_range. Must be
+        non-negative.
+    allowed_range :
+        Range (inclusive) of allowed pixel values. Any values outside this
+        range will be penalized.
+    initial_image :
+        4d Tensor to initialize our metamer with. If None, will draw a sample
+        of uniform noise within ``allowed_range``.
+    coarse_to_fine :
+        - 'together': start with the coarsest scale, then gradually
+          add each finer scale.
+        - 'separate': compute the gradient with respect to each
+          scale separately (ignoring the others), then with respect
+          to all of them at the end.
+        (see ``Metamer`` tutorial for more details).
+    
+    Attributes
+    ----------
+    target_representation : torch.Tensor
+        Whatever is returned by ``model(image)``, this is what we match
+        in order to create a metamer
+    metamer : torch.Tensor
+        The metamer. This may be unfinished depending on how many
+        iterations we've run for.
+    losses : list
+        A list of our loss over iterations.
+    gradient_norm : list
+        A list of the gradient's L2 norm over iterations.
+    pixel_change_norm : list
+        A list containing the L2 norm of the pixel change over iterations
+        (``pixel_change_norm[i]`` is the pixel change norm in
+        ``metamer`` between iterations ``i`` and ``i-1``).
+    saved_metamer : torch.Tensor
+        Saved ``self.metamer`` for later examination.
+    scales : list or None
+        The list of scales in optimization order (i.e., from coarse to fine).
+        Will be modified during the course of optimization.
+    scales_loss : list or None
+        The scale-specific loss at each iteration
+    scales_timing : dict or None
+        Keys are the values found in ``scales``, values are lists, specifying
+        the iteration where we started and stopped optimizing this scale.
+    scales_finished : list or None
+        List of scales that we've finished optimizing.
+    """
+    def __init__(self, image: Tensor, model: torch.nn.Module,
+                 loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
+                 range_penalty_lambda: float = .1,
+                 allowed_range: Tuple[float, float] = (0, 1),
+                 initial_image: Optional[Tensor] = None,
+                 coarse_to_fine: Literal['together', 'separate'] = 'together'):
+        super().__init__(image, model, loss_function, range_penalty_lambda,
+                         allowed_range, initial_image)
+        self._init_ctf(coarse_to_fine)
+
+    @property
+    def coarse_to_fine(self):
+        return self._coarse_to_fine
+
+    @property
+    def scales(self):
+        return tuple(self._scales)
+
+    @property
+    def scales_loss(self):
+        return tuple(self._scales_loss)
+
+    @property
+    def scales_timing(self):
+        return self._scales_timing
+
+    @property
+    def scales_finished(self):
+        return tuple(self._scales_finished)
+
+    def _init_ctf(self, coarse_to_fine: Literal['together', 'separate']):
+        """Initialize stuff related to coarse-to-fine."""
+        # this will hold the reduced representation of the target image.
+        if coarse_to_fine not in ['separate', 'together']:
+            raise ValueError(f"Don't know how to handle value {coarse_to_fine}!"
+                             " Must be one of: 'separate', 'together'")
+        self._ctf_target_representation = None
+        validate_coarse_to_fine(self.model, image_shape=self.image.shape)
+        # if self.scales is not None, we're continuing a previous version
+        # and want to continue. this list comprehension creates a new
+        # object, so we don't modify model.scales
+        self._scales = [i for i in self.model.scales[:-1]]
+        if coarse_to_fine == 'separate':
+            self._scales += [self.model.scales[-1]]
+        self._scales += ['all']
+        self._scales_timing = dict((k, []) for k in self.scales)
+        self._scales_timing[self.scales[0]].append(0)
+        self._scales_loss = []
+        self._scales_finished = []
+        self._coarse_to_fine = coarse_to_fine
+
+    def _check_convergence(self, i: int, stop_criterion: float,
+                           stop_iters_to_check: int,
+                           ctf_iters_to_check: int) -> bool:
+        r"""Check whether the loss has stabilized and whether we've synthesized all scales.
+
+         Have we been synthesizing for ``stop_iters_to_check`` iterations?
+         | |
+        no yes
+         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
+         |      no |
+         |       | yes
+         |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
+         |              no  |
+         |               |  yes
+         |---------------'  '----> return ``True``
+         |
+         |
+         |
+         |
+         |
+         |
+         '---------> return ``False``
+
+        Parameters
+        ----------
+        i
+            The current iteration (0-indexed).
+        stop_criterion
+            If the loss over the past ``stop_iters_to_check`` has changed
+            less than ``stop_criterion``, we terminate synthesis.
+        stop_iters_to_check
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for ``stop_criterion``).
+        ctf_iters_to_check
+            Minimum number of iterations coarse-to-fine must run at each scale.
+
+        Returns
+        -------
+        loss_stabilized :
+            Whether the loss has stabilized and we've synthesized all scales.
+
+        """
+        loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
+
+    def _closure(self) -> Tuple[Tensor, Tensor]:
+        r"""An abstraction of the gradient calculation, before the optimization step.
+
+        This enables optimization algorithms that perform several evaluations
+        of the gradient before taking a step (ie. second order methods like
+        LBFGS).
+
+        Additionally, this is where:
+
+        - ``metamer_representation`` is calculated, and thus any modifications
+          to the model's forward call (e.g., specifying `scale` kwarg for
+          coarse-to-fine) should happen.
+
+        - ``loss`` is calculated and ``loss.backward()`` is called.
+
+        Returns
+        -------
+        loss
+            Loss of the current objective function
+        overall_loss
+            Loss of the complete model. This differs from ``loss`` if we're
+            doing coarse-to-fine synthesis
+
+        """
+        self.optimizer.zero_grad()
+        analyze_kwargs = {}
+        # if we've reached 'all', we use the full model
+        if self.scales[0] != 'all':
+            analyze_kwargs['scales'] = [self.scales[0]]
+            # if 'together', then we also want all the coarser
+            # scales
+            if self.coarse_to_fine == 'together':
+                analyze_kwargs['scales'] += self.scales_finished
+        metamer_representation = self.model(self.metamer, **analyze_kwargs)
+        # if analyze_kwargs is empty, we can just compare
+        # metamer_representation against our cached target_representation
+        if analyze_kwargs:
+            if self._ctf_target_representation is None:
+                target_rep = self.model(self.image, **analyze_kwargs)
+                self._ctf_target_representation = target_rep
+            else:
+                target_rep = self._ctf_target_representation
+            # this is just for display, so don't compute gradients
+            with torch.no_grad():
+                overall_loss = self.objective_function(None, None)
+        else:
+            target_rep = None
+            overall_loss = None
+
+        loss = self.objective_function(metamer_representation, target_rep)
+        loss.backward(retain_graph=False)
+        if overall_loss is None:
+            overall_loss = loss.clone()
+
+        return loss, overall_loss
+
+    def _optimizer_step(self, pbar: tqdm,
+                        change_scale_criterion: float,
+                        ctf_iters_to_check: int
+                        ) -> Tensor:
+        r"""Compute and propagate gradients, then step the optimizer to update metamer.
+
+        Parameters
+        ----------
+        pbar :
+            A tqdm progress-bar, which we update with a postfix
+            describing the current loss, gradient norm, and learning
+            rate (it already tells us which iteration and the time
+            elapsed).
+        change_scale_criterion :
+            How many iterations back to check to see if the loss has stopped
+            decreasing and we should thus move to the next scale in
+            coarse-to-fine optimization.
+        ctf_iters_to_check :
+            Minimum number of iterations coarse-to-fine must run at each scale.
+
+        Returns
+        -------
+        loss : torch.Tensor
+            1-element tensor containing the loss on this step
+
+        """
+        last_iter_metamer = self.metamer.clone()
+        # The first check here is because the last scale will be 'all', and
+        # we never remove it. Otherwise, check to see if it looks like loss
+        # has stopped declining and, if so, switch to the next scale. Then
+        # we're checking if self.scales_loss is long enough to check
+        # ctf_iters_to_check back.
+        if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
+            # Now we check whether loss has decreased less than
+            # change_scale_criterion
+            if ((change_scale_criterion is None) or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion):
+                # and finally we check whether we've been optimizing this
+                # scale for ctf_iters_to_check
+                if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
+                    self._scales_timing[self.scales[0]].append(len(self.losses)-1)
+                    self._scales_finished.append(self._scales.pop(0))
+                    self._scales_timing[self.scales[0]].append(len(self.losses))
+                    # reset optimizer's lr.
+                    for pg in self.optimizer.param_groups:
+                        pg['lr'] = pg['initial_lr']
+                    # reset ctf target representation, so we update it on
+                    # next pass
+                    self._ctf_target_representation = None
+        loss, overall_loss = self.optimizer.step(self._closure)
+        self._scales_loss.append(loss.item())
+        self._losses.append(overall_loss.item())
+
+        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2,
+                                             dim=None)
+        self._gradient_norm.append(grad_norm.item())
+
+        # optionally step the scheduler
+        if self.scheduler is not None:
+            self.scheduler.step(loss.item())
+
+        pixel_change_norm = torch.linalg.vector_norm(self.metamer - last_iter_metamer,
+                                                     ord=2, dim=None)
+        self._pixel_change_norm.append(pixel_change_norm.item())
+        # add extra info here if you want it to show up in progress bar
+        pbar.set_postfix(
+            OrderedDict(loss=f"{overall_loss.item():.04e}",
+                        learning_rate=self.optimizer.param_groups[0]['lr'],
+                        gradient_norm=f"{grad_norm.item():.04e}",
+                        pixel_change_norm=f"{pixel_change_norm.item():.04e}",
+                        current_scale=self.scales[0],
+                        current_scale_loss=f'{loss.item():.04e}'))
+        return overall_loss
+
+    def synthesize(self, max_iter: int = 100,
+                   optimizer: Optional[torch.optim.Optimizer] = None,
+                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+                   store_progress: Union[bool, int] = False,
+                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
+                   change_scale_criterion: Optional[float] = 1e-2,
+                   ctf_iters_to_check: int = 50,
+                   ):
+        r"""Synthesize a metamer.
+
+        Update the pixels of ``initial_image`` until its representation matches
+        that of ``image``.
+
+        We run this until either we reach ``max_iter`` or the change over the
+        past ``stop_iters_to_check`` iterations is less than
+        ``stop_criterion``, whichever comes first
+
+        Parameters
+        ----------
+        max_iter :
+            The maximum number of iterations to run before we end synthesis
+            (unless we hit the stop criterion).
+        optimizer :
+            The optimizer to use. If None and this is the first time calling
+            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
+            been called before, this must be None and we reuse the previous
+            optimizer.
+        scheduler :
+            The learning rate scheduler to use. If None, we don't use one.
+        store_progress :
+            Whether we should store the metamer image in progress on every
+            iteration. If False, we don't save anything. If True, we save every
+            iteration. If an int, we save every ``store_progress`` iterations
+            (note then that 0 is the same as False and 1 the same as True).
+        stop_criterion :
+            If the loss over the past ``stop_iters_to_check`` has changed
+            less than ``stop_criterion``, we terminate synthesis.
+        stop_iters_to_check :
+            How many iterations back to check in order to see if the
+            loss has stopped decreasing (for ``stop_criterion``).
+        change_scale_criterion
+            Scale-specific analogue of ``change_scale_criterion``: we consider
+            a given scale finished (and move onto the next) if the loss has
+            changed less than this in the past ``ctf_iters_to_check``
+            iterations. If ``None``, we'll change scales as soon as we've spent
+            ``ctf_iters_to_check`` on a given scale
+        ctf_iters_to_check
+            Scale-specific analogue of ``stop_iters_to_check``: how many
+            iterations back in order to check in order to see if we should
+            switch scales.
+
+        """
+        if (change_scale_criterion is not None) and (stop_criterion >= change_scale_criterion):
+            raise ValueError("stop_criterion must be strictly less than "
+                             "change_scale_criterion, or things get weird!")
+
+        # initialize the optimizer and scheduler
+        self._initialize_optimizer(optimizer, scheduler)
+
+        # get ready to store progress
+        self.store_progress = store_progress
+
+
+        pbar = tqdm(range(max_iter))
+
+        for i in pbar:
+            # update saved_* attrs. len(losses) gives the total number of
+            # iterations and will be correct across calls to `synthesize`
+            self._store(len(self.losses))
+
+            loss = self._optimizer_step(pbar, change_scale_criterion, ctf_iters_to_check)
+
+            if not torch.isfinite(loss):
+                raise ValueError("Found a NaN in loss during optimization.")
+
+            if self._check_convergence(i, stop_criterion, stop_iters_to_check,
+                                       ctf_iters_to_check):
+                warnings.warn("Loss has converged, stopping synthesis")
+                break
+
+        pbar.close()
+
+    def load(self, file_path: str,
+             map_location: Optional[str] = None,
+             **pickle_load_args):
+        r"""Load all relevant stuff from a .pt file.
+
+        This should be called by an initialized ``Metamer`` object -- we will
+        ensure that ``image``, ``target_representation`` (and thus
+        ``model``), and ``loss_function`` are all identical.
+
+        Note this operates in place and so doesn't return anything.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to load the synthesis object from
+        map_location : str, optional
+            map_location argument to pass to ``torch.load``. If you save
+            stuff that was being run on a GPU and are loading onto a
+            CPU, you'll need this to make sure everything lines up
+            properly. This should be structured like the str you would
+            pass to ``torch.device``
+        pickle_load_args :
+            any additional kwargs will be added to ``pickle_module.load`` via
+            ``torch.load``, see that function's docstring for details.
+
+        Examples
+        --------
+        >>> metamer = po.synth.Metamer(img, model)
+        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.save('metamers.pt')
+        >>> metamer_copy = po.synth.Metamer(img, model)
+        >>> metamer_copy.load('metamers.pt')
+
+        Note that you must create a new instance of the Synthesis object and
+        *then* load.
+
+        """
+        super()._load(file_path, map_location, ['_coarse_to_fine'],
+                      **pickle_load_args)
 
 def plot_loss(metamer: Metamer,
               iteration: Optional[int] = None,
