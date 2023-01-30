@@ -1,5 +1,5 @@
 import plenoptic.synthesize.autodiff as autodiff
-from plenoptic.tools import set_seed
+from plenoptic.tools import set_seed, remove_grad
 import pytest
 import torch
 from torch import nn
