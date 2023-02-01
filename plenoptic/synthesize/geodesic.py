@@ -62,7 +62,7 @@ class Geodesic(OptimizedSynthesis):
         ``geodesic`` between iterations ``i`` and ``i-1``).
     step_energy: Tensor
         step lengths in representation space, stored along the optimization
-        process
+        process.
     dev_from_line: Tensor
         deviation of the representation to the straight line interpolation,
         measures distance from straight line and distance along straight line,
@@ -130,12 +130,26 @@ class Geodesic(OptimizedSynthesis):
 
     @property
     def step_energy(self):
-        """Squared L2 norm of transition between geodesic frames in representation space."""
+        """Squared L2 norm of transition between geodesic frames in representation space.
+
+        Has shape ``(np.ceil(synth_iter/store_progress), n_steps)``, where
+        ``synth_iter`` is the number of iterations of synthesis that have
+        happened.
+
+        """
         return torch.stack(self._step_energy)
 
     @property
     def dev_from_line(self):
-        """Deviation of geodesic representation from a straight line."""
+        """Deviation of representation each from of ``self.geodesic`` from a straight line.
+
+        Has shape ``(np.ceil(synth_iter/store_progress), n_steps+1, 2)``, where
+        ``synth_iter`` is the number of iterations of synthesis that have
+        happened. For final dimension, the first element is the Euclidean
+        distance along the straight line and the second is the Euclidean
+        distance to the line.
+
+        """
         return torch.stack(self._dev_from_line)
 
     def _initialize(self, initial_sequence, start, stop, n_steps):
@@ -210,8 +224,16 @@ class Geodesic(OptimizedSynthesis):
         """
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
-            self._step_energy.append(self._most_recent_step_energy.clone().to('cpu'))
-            self._dev_from_line.append(deviation_from_line(self._geodesic_representation.detach().to('cpu')))
+            try:
+                self._step_energy.append(self._most_recent_step_energy.detach().to('cpu'))
+                self._dev_from_line.append(torch.stack(deviation_from_line(self._geodesic_representation.detach().to('cpu'))).T)
+            except AttributeError:
+                # the first time _store is called (i.e., before optimizer is
+                # stepped for first time) those attributes won't be
+                # initialized
+                geod_rep = self.model(self.geodesic)
+                self._step_energy.append(self._calculate_step_energy(geod_rep).detach().to('cpu'))
+                self._dev_from_line.append(torch.stack(deviation_from_line(geod_rep.detach().to('cpu'))).T)
             stored = True
         else:
             stored = False
@@ -226,7 +248,7 @@ class Geodesic(OptimizedSynthesis):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`.
         """
         velocity = self._finite_difference(z)
-        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=None) ** 2
+        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
         return step_energy
 
     def objective_function(self, geodesic: Optional[Tensor] = None) -> Tensor:
