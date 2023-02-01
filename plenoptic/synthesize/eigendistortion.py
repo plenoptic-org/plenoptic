@@ -589,7 +589,7 @@ def display_eigendistortion(
     eigendistortion: Eigendistortion,
     eigenindex: int = 0,
     alpha: float = 5.0,
-    process_image: Optional[Callable[[Tensor], Tensor]] = None,
+    process_image: Callable[[Tensor], Tensor] = lambda x: x,
     ax: Optional[matplotlib.pyplot.axis] = None,
     plot_complex: str = "rectangular",
     **kwargs,
@@ -626,11 +626,6 @@ def display_eigendistortion(
         matplotlib Figure handle returned by plenoptic.imshow()
 
     """
-    if process_image is None:  # identity transform
-
-        def process_image(x):
-            return x
-
     # reshape so channel dim is last
     im_shape = (
         eigendistortion.n_channels,
