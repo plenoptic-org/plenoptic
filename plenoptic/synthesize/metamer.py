@@ -1191,7 +1191,7 @@ def plot_pixel_values(metamer: Metamer,
     return ax
 
 
-def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
+def _check_included_plots(to_check: Union[List[str], Dict[str, float]],
                           to_check_name: str):
     """Check whether the user wanted us to create plots that we can't.
 
