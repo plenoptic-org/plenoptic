@@ -130,18 +130,7 @@ class Eigendistortion(Synthesis):
         self._model = model
         # flatten and attach gradient and reshape to image
         self._image_flat = image.flatten().unsqueeze(1).requires_grad_(True)
-
-        self._image = self._image_flat.view(*image.shape)
-        image_representation = self.model(self.image)
-
-        if len(image_representation) > 1:
-            self._representation_flat = torch.cat(
-                [s.squeeze().view(-1) for s in image_representation]
-            ).unsqueeze(1)
-        else:
-            self._representation_flat = (
-                image_representation.squeeze().view(-1).unsqueeze(1)
-            )
+        self._init_representation(image)
 
         print(
             f"\nInitializing Eigendistortion -- "
@@ -181,6 +170,21 @@ class Eigendistortion(Synthesis):
         """Index of each eigenvector/eigenvalue. """
         return self._eigenindex
 
+    def _init_representation(self, image):
+        """Set self._representation_flat, based on model and image """
+        self._image = self._image_flat.view(*image.shape)
+        image_representation = self.model(self.image)
+
+        if len(image_representation) > 1:
+            self._representation_flat = torch.cat(
+                [s.squeeze().view(-1) for s in image_representation]
+            ).unsqueeze(1)
+        else:
+            self._representation_flat = (
+                image_representation.squeeze().view(-1).unsqueeze(1)
+            )
+
+    
     def synthesize(
         self,
         method: Literal["exact", "power", "randomized_svd"] = "power",
@@ -581,8 +585,12 @@ class Eigendistortion(Synthesis):
                      check_attributes=check_attributes,
                      check_loss_functions=check_loss_functions,
                      **pickle_load_args)
-        # make this require a grad again
+        # make these require a grad again
         self._image_flat.requires_grad_()
+        # we need _representation_flat and _image_flat to be connected in the
+        # computation graph for the autograd calls to work, so we reinitialize
+        # it here
+        self._init_representation(self.image)
 
 
 def display_eigendistortion(

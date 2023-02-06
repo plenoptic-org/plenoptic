@@ -3,10 +3,12 @@ from plenoptic.tools import set_seed, remove_grad
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate import OnOff
+from plenoptic.simulate import OnOff, Gaussian
+from plenoptic.tools import remove_grad
 from plenoptic.synthesize.eigendistortion import Eigendistortion, display_eigendistortion
 from conftest import get_model, DEVICE
 import matplotlib.pyplot as plt
+import os.path as op
 
 # to be used for default model instantiation
 SMALL_DIM = 20
@@ -18,7 +20,7 @@ class TestEigendistortionSynthesis:
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
-        with pytest.raises(AssertionError) as e_info:
+        with pytest.raises(AssertionError, match="method must be in {'power', 'exact', 'randomized_svd'}"):
             ed.synthesize(method='asdfsdfasf')
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
@@ -134,6 +136,71 @@ class TestEigendistortionSynthesis:
             with pytest.raises(AssertionError):
                 display_eigendistortion(eigendist, eigenindex=-1)
         plt.close("all")    
+
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize('fail', [False, 'img', 'model'])
+    @pytest.mark.parametrize('method', ['exact', 'power', 'randomized_svd'])
+    def test_eigendistortion_save_load(self, einstein_img, model, fail, method, tmp_path):
+        if method in ['exact', 'randomized_svd']:
+            img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
+        else:
+            img = einstein_img
+        ed = Eigendistortion(img, model)
+        ed.synthesize(max_iter=4, method=method)
+        ed.save(op.join(tmp_path, 'test_eigendistortion_save_load.pt'))
+        if fail:
+            if fail == 'img':
+                img = torch.rand_like(img)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image are different')
+            elif fail == 'model':
+                model = Gaussian(30).to(DEVICE)
+                remove_grad(model)
+                expectation = pytest.raises(RuntimeError, match='Attribute representation_flat have different shapes')
+            ed_copy = Eigendistortion(img, model)
+            with expectation:
+                ed_copy.load(op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                             map_location=DEVICE)
+        else:
+            ed_copy = Eigendistortion(img, model)
+            ed_copy.load(op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                         map_location=DEVICE)
+            for k in ['image', '_representation_flat']:
+                if not getattr(ed, k).allclose(getattr(ed_copy, k), rtol=1e-2):
+                    raise ValueError("Something went wrong with saving and loading! %s not the same"
+                                     % k)
+            # check that can resume
+            ed_copy.synthesize(max_iter=4, method=method)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, curie_img, model, to_type):
+        ed = Eigendistortion(curie_img, model)
+        ed.synthesize(max_iter=5, method='power')
+        if to_type == 'dtype':
+            ed.to(torch.float16)
+            assert ed.image.dtype == torch.float16
+            assert ed.eigendistortions.dtype == torch.float16
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == 'device' and DEVICE.type != 'cpu':
+            ed.to('cpu')
+        ed.eigendistortions - ed.image
+
+    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_map_location(self, curie_img, model, tmp_path):
+        curie_img = curie_img.to(DEVICE)
+        model.to(DEVICE)
+        ed = Eigendistortion(curie_img, model)
+        ed.synthesize(max_iter=4, method='power')
+        ed.save(op.join(tmp_path, 'test_eig_map_location.pt'))
+        # calling load with map_location effectively switches everything
+        # over to that device
+        ed_copy = Eigendistortion(curie_img, model)
+        ed_copy.load(op.join(tmp_path, 'test_eig_map_location.pt'),
+                     map_location='cpu')
+        assert ed_copy.eigendistortions.device.type == 'cpu'
+        assert ed_copy.image.device.type == 'cpu'
+        ed.synthesize(max_iter=4, method='power')
 
 class TestAutodiffFunctions:
 
