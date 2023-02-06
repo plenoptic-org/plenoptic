@@ -62,7 +62,6 @@ class TestMAD(object):
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, 'test_mad_save_load.pt'))
         if fail:
-            ## USE expectation
             if fail == 'img':
                 curie_img = torch.rand_like(curie_img)
                 expectation = pytest.raises(ValueError, match='Saved and initialized image are different')
@@ -128,18 +127,17 @@ class TestMAD(object):
         mad.mad_image - mad.image
 
 
+    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
-        # only run this test if we have a gpu available
-        if DEVICE.type != 'cpu':
-            curie_img = curie_img.to(DEVICE)
-            mad = po.synth.MADCompetition(curie_img, po.metric.mse,
-                                          po.tools.optim.l2_norm, 'min')
-            mad.synthesize(max_iter=4, store_progress=True)
-            mad.save(op.join(tmp_path, 'test_mad_map_location.pt'))
-            curie_img = curie_img.to('cpu')
-            mad_copy = po.synth.MADCompetition(curie_img, po.metric.mse,
-                                               po.tools.optim.l2_norm, 'min')
-            assert mad_copy.image.device.type == 'cpu'
-            mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
-                          map_location='cpu')
-            assert mad_copy.mad_image.device.type == 'cpu'
+        curie_img = curie_img.to(DEVICE)
+        mad = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                      po.tools.optim.l2_norm, 'min')
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, 'test_mad_map_location.pt'))
+        curie_img = curie_img.to('cpu')
+        mad_copy = po.synth.MADCompetition(curie_img, po.metric.mse,
+                                           po.tools.optim.l2_norm, 'min')
+        assert mad_copy.image.device.type == 'cpu'
+        mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
+                      map_location='cpu')
+        assert mad_copy.mad_image.device.type == 'cpu'

@@ -125,23 +125,22 @@ class TestMetamers(object):
         met.synthesize(max_iter=5, optimizer=optimizer,
                        scheduler=scheduler)
 
+    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
-        # only run this test if we have a gpu available
-        if DEVICE.type != 'cpu':
-            curie_img = curie_img.to(DEVICE)
-            model.to(DEVICE)
-            met = po.synth.Metamer(curie_img, model)
-            met.synthesize(max_iter=4, store_progress=True)
-            met.save(op.join(tmp_path, 'test_metamer_map_location.pt'))
-            # calling load with map_location effectively switches everything
-            # over to that device
-            met_copy = po.synth.Metamer(curie_img, model)
-            met_copy.load(op.join(tmp_path, 'test_metamer_map_location.pt'),
-                          map_location='cpu')
-            assert met_copy.metamer.device.type == 'cpu'
-            assert met_copy.image.device.type == 'cpu'
-            met.synthesize(max_iter=4, store_progress=True)
+        curie_img = curie_img.to(DEVICE)
+        model.to(DEVICE)
+        met = po.synth.Metamer(curie_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, 'test_metamer_map_location.pt'))
+        # calling load with map_location effectively switches everything
+        # over to that device
+        met_copy = po.synth.Metamer(curie_img, model)
+        met_copy.load(op.join(tmp_path, 'test_metamer_map_location.pt'),
+                      map_location='cpu')
+        assert met_copy.metamer.device.type == 'cpu'
+        assert met_copy.image.device.type == 'cpu'
+        met.synthesize(max_iter=4, store_progress=True)
 
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])
