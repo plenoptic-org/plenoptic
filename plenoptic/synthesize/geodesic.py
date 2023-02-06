@@ -99,7 +99,8 @@ class Geodesic(OptimizedSynthesis):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
         validate_input(image_b, no_batch=True, allowed_range=allowed_range)
-        validate_model(model, image_shape=image_a.shape, image_dtype=image_a.dtype)
+        validate_model(model, image_shape=image_a.shape, image_dtype=image_a.dtype,
+                       device=image_a.device)
 
         self.n_steps = n_steps
         self._model = model

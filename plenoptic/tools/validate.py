@@ -73,7 +73,8 @@ def validate_input(
 
 def validate_model(model: torch.nn.Module,
                    image_shape: Optional[Tuple[int, int, int, int]] = None,
-                   image_dtype: torch.dtype = torch.float32):
+                   image_dtype: torch.dtype = torch.float32,
+                   device: Union[str, torch.device] = 'cpu'):
     """Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
@@ -114,6 +115,8 @@ def validate_model(model: torch.nn.Module,
         (1,1,16,16)
     image_dtype
         What dtype to validate against.
+    device
+        What device to place test image on.
 
     See also
     --------
@@ -123,7 +126,8 @@ def validate_model(model: torch.nn.Module,
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(image_shape, dtype=image_dtype, requires_grad=False)
+    test_img = torch.rand(image_shape, dtype=image_dtype, requires_grad=False,
+                          device=device)
     try:
         if model(test_img).requires_grad:
             raise ValueError(
@@ -178,7 +182,8 @@ def validate_model(model: torch.nn.Module,
 
 
 def validate_coarse_to_fine(model: torch.nn.Module,
-                            image_shape: Optional[Tuple[int, int, int, int]] = None):
+                            image_shape: Optional[Tuple[int, int, int, int]] = None,
+                            device: Union[str, torch.device] = 'cpu'):
     """Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
@@ -199,6 +204,8 @@ def validate_coarse_to_fine(model: torch.nn.Module,
         certain shape. If that's the case for ``model``, use this to
         specify the expected shape. If None, we use an image of shape
         (1,1,16,16)
+    device
+        Which device to place the test image on.
 
     """
     warnings.warn("Validating whether model can work with coarse-to-fine synthesis -- this can take a while!")
@@ -207,7 +214,7 @@ def validate_coarse_to_fine(model: torch.nn.Module,
         raise AttributeError(f"model has no scales attribute {msg}")
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(image_shape)
+    test_img = torch.rand(image_shape, device=device)
     model_output_shape = model(test_img).shape
     for len_val in range(1, len(model.scales)):
         for sc in itertools.combinations(model.scales, len_val):
@@ -225,7 +232,8 @@ def validate_coarse_to_fine(model: torch.nn.Module,
 
 def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
                     image_shape: Optional[Tuple[int, int, int, int]] = None,
-                    image_dtype: torch.dtype = torch.float32):
+                    image_dtype: torch.dtype = torch.float32,
+                    device: Union[str, torch.device] = 'cpu'):
     """Determines whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
@@ -252,11 +260,13 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
         (1,1,16,16)
     image_dtype
         What dtype to validate against.
+    device
+        What device to place the test images on.
 
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(image_shape, dtype=image_dtype)
+    test_img = torch.rand(image_shape, dtype=image_dtype, device=device)
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:

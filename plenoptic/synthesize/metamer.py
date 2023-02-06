@@ -89,7 +89,8 @@ class Metamer(OptimizedSynthesis):
                  initial_image: Optional[Tensor] = None):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
-        validate_model(model, image_shape=image.shape, image_dtype=image.dtype)
+        validate_model(model, image_shape=image.shape, image_dtype=image.dtype,
+                       device=image.device)
         self._model = model
         self._image = image
         self._image_shape = image.shape
@@ -606,7 +607,8 @@ class MetamerCTF(Metamer):
             raise ValueError(f"Don't know how to handle value {coarse_to_fine}!"
                              " Must be one of: 'separate', 'together'")
         self._ctf_target_representation = None
-        validate_coarse_to_fine(self.model, image_shape=self.image.shape)
+        validate_coarse_to_fine(self.model, image_shape=self.image.shape,
+                                device=self.image.device)
         # if self.scales is not None, we're continuing a previous version
         # and want to continue. this list comprehension creates a new
         # object, so we don't modify model.scales

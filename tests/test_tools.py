@@ -182,7 +182,7 @@ class TestValidate(object):
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
     def test_model_learnable(self, model):
         with pytest.raises(ValueError, match="model adds gradient to input"):
-            po.tools.validate.validate_model(model)
+            po.tools.validate.validate_model(model, device=DEVICE)
 
     def test_model_numpy_comp(self):
         class TestModel(torch.nn.Module):
@@ -193,6 +193,8 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(ValueError, match="model does not return a torch.Tensor object"):
+            # don't pass device here because the model just uses numpy, which
+            # only works on cpu
             po.tools.validate.validate_model(model)
 
     def test_model_detach(self):
@@ -204,7 +206,7 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(ValueError, match="model strips gradient from input"):
-            po.tools.validate.validate_model(model)
+            po.tools.validate.validate_model(model, device=DEVICE)
 
     def test_model_numpy_and_back(self):
         class TestModel(torch.nn.Module):
@@ -215,6 +217,8 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(ValueError, match="model tries to cast the input into something other"):
+            # don't pass device here because the model just uses numpy, which
+            # only works on cpu
             po.tools.validate.validate_model(model)
 
     def test_model_precision(self):
@@ -226,7 +230,7 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(TypeError, match="model changes precision of input"):
-            po.tools.validate.validate_model(model)
+            po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.parametrize('direction', ['squeeze', 'unsqueeze'])
     def test_model_output_dim(self, direction):
@@ -241,7 +245,7 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(ValueError, match="When given a 4d input, model output"):
-            po.tools.validate.validate_model(model)
+            po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     def test_model_device(self):
@@ -253,12 +257,12 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(RuntimeError, match="model changes device of input"):
-            po.tools.validate.validate_model(model)
+            po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.parametrize("model", ['ColorModel'], indirect=True)
     def test_model_image_shape(self, model):
         img_shape = (1, 3, 16, 16)
-        po.tools.validate.validate_model(model, image_shape=img_shape)
+        po.tools.validate.validate_model(model, image_shape=img_shape, device=DEVICE)
 
     def test_validate_ctf_scales(self):
         class TestModel(torch.nn.Module):
@@ -269,7 +273,7 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(AttributeError, match="model has no scales attribute"):
-            po.tools.validate.validate_coarse_to_fine(model)
+            po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_arg(self):
         class TestModel(torch.nn.Module):
@@ -281,7 +285,7 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(TypeError, match="model forward method does not accept scales argument"):
-            po.tools.validate.validate_coarse_to_fine(model)
+            po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_shape(self):
         class TestModel(torch.nn.Module):
@@ -293,30 +297,31 @@ class TestValidate(object):
 
         model = TestModel()
         with pytest.raises(ValueError, match="Output of model forward method doesn't change shape"):
-            po.tools.validate.validate_coarse_to_fine(model)
+            po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_pass(self):
-        model = po.simul.PortillaSimoncelli((64, 64))
-        po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, *model.image_shape))
+        model = po.simul.PortillaSimoncelli((64, 64)).to(DEVICE)
+        po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, *model.image_shape),
+                                                  device=DEVICE)
 
     def test_validate_metric_inputs(self):
         metric = lambda x: x
         with pytest.raises(TypeError, match="metric should be callable and accept two"):
-            po.tools.validate.validate_metric(metric)
+            po.tools.validate.validate_metric(metric, device=DEVICE)
 
     def test_validate_metric_output_shape(self):
         metric = lambda x, y: x-y
         with pytest.raises(ValueError, match="metric should return a scalar value but output"):
-            po.tools.validate.validate_metric(metric)
+            po.tools.validate.validate_metric(metric, device=DEVICE)
 
     def test_validate_metric_identical(self):
         metric = lambda x, y : (x+y).mean()
         with pytest.raises(ValueError, match="metric should return <= 5e-7 on two identical"):
-            po.tools.validate.validate_metric(metric)
+            po.tools.validate.validate_metric(metric, device=DEVICE)
 
     def test_remove_grad(self):
         # can't use the conftest version, because remove_grad modifies the
         # model in place
         model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(model)
-        po.tools.validate.validate_model(model)
+        po.tools.validate.validate_model(model, device=DEVICE)

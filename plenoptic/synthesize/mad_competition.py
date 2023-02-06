@@ -108,8 +108,10 @@ class MADCompetition(OptimizedSynthesis):
                  allowed_range: Tuple[float, float] = (0, 1)):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
-        validate_metric(optimized_metric, image_shape=image.shape, image_dtype=image.dtype)
-        validate_metric(reference_metric, image_shape=image.shape, image_dtype=image.dtype)
+        validate_metric(optimized_metric, image_shape=image.shape, image_dtype=image.dtype,
+                        device=image.device)
+        validate_metric(reference_metric, image_shape=image.shape, image_dtype=image.dtype,
+                        device=image.device)
         self._optimized_metric = optimized_metric
         self._reference_metric = reference_metric
         self._image = image.detach()
