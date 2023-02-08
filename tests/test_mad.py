@@ -126,7 +126,6 @@ class TestMAD(object):
         mad.initial_image - mad.image
         mad.mad_image - mad.image
 
-
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
         curie_img = curie_img.to(DEVICE)
@@ -141,3 +140,14 @@ class TestMAD(object):
         mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
                       map_location='cpu')
         assert mad_copy.mad_image.device.type == 'cpu'
+
+    # MAD can accept multiple images on the batch dimension, but the metrics
+    # must return a single number. This means, effectively, that we can do
+    # synthesis for e.g., video metrics, but that we cannot synthesize several
+    # images in parallel
+    def test_batch_synthesis(self, curie_img, einstein_img):
+        img = torch.cat([curie_img, einstein_img], dim=0)
+        mad = po.synth.MADCompetition(img, lambda *args: po.metric.mse(*args).mean(),
+                                      po.tools.optim.l2_norm, 'min')
+        mad.synthesize(max_iter=10)
+        assert mad.mad_image.shape == img.shape, "MAD image should have the same shape as input!"
