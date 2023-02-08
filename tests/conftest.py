@@ -104,6 +104,19 @@ def get_model(name):
         mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(mdl)
         return mdl
+    elif name == 'VideoModel':
+        # super simple model that combines across the batch dimension, as a
+        # model with a temporal component would do
+        class VideoModel(po.simul.OnOff):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            def forward(self, *args, **kwargs):
+                # this will do on/off on each batch separately
+                rep = super().forward(*args, **kwargs)
+                return rep.mean(0)
+        model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
 
 
 @pytest.fixture(scope='package')
