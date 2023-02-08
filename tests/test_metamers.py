@@ -20,7 +20,7 @@ class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     @pytest.mark.parametrize('loss_func', ['mse', 'l2', 'custom'])
-    @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty'])
+    @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty', 'dtype'])
     @pytest.mark.parametrize('range_penalty', [.1, 0])
     def test_metamer_save_load(self, einstein_img, model, loss_func, fail, range_penalty, tmp_path):
         if loss_func == 'mse':
@@ -47,6 +47,14 @@ class TestMetamers(object):
             elif fail == 'range_penalty':
                 range_penalty = .5
                 expectation = pytest.raises(ValueError, match='Saved and initialized range_penalty_lambda are different')
+            elif fail == 'dtype':
+                einstein_img = einstein_img.to(torch.float64)
+                # need to create new instance of model, because otherwise the
+                # version with doubles as weights will persist for other tests
+                model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+                po.tools.remove_grad(model)
+                model.to(torch.float64)
+                expectation = pytest.raises(RuntimeError, match='Attribute image has different dtype')
             met_copy = po.synth.Metamer(einstein_img, model,
                                         loss_function=loss,
                                         range_penalty_lambda=range_penalty)
@@ -82,7 +90,11 @@ class TestMetamers(object):
         if store_progress == 3:
             max_iter = 6
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(metamer.saved_metamer) == np.ceil(max_iter/store_progress), "Didn't end up with enough saved signal!"
+        assert len(metamer.saved_metamer) == np.ceil(max_iter/store_progress), "Didn't end up with enough saved metamer after first synth!"
+        assert len(metamer.losses) == max_iter, "Didn't end up with enough losses after first synth!"
+        metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
+        assert len(metamer.saved_metamer) == np.ceil(2*max_iter/store_progress), "Didn't end up with enough saved metamer after second synth!"
+        assert len(metamer.losses) == 2*max_iter, "Didn't end up with enough losses after second synth!"
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     def test_metamer_continue(self, einstein_img, model):
@@ -155,3 +167,37 @@ class TestMetamers(object):
         elif to_type == 'device' and DEVICE.type != 'cpu':
             met.to('cpu')
         met.metamer - met.image
+
+    # this determines whether we mix across channels or treat them separately,
+    # both of which are supported
+    @pytest.mark.parametrize('model', ['ColorModel', 'Identity'], indirect=True)
+    def test_multichannel(self, model, color_img):
+        met = po.synth.Metamer(color_img, model)
+        met.synthesize(max_iter=5)
+        assert met.metamer.shape == color_img.shape, "Metamer image should have the same shape as input!"
+
+    # this determines whether we mix across batches (e.g., a video model) or
+    # treat them separately, both of which are supported
+    @pytest.mark.parametrize('model', ['VideoModel', 'Identity'], indirect=True)
+    def test_multibatch(self, model, einstein_img, curie_img):
+        img = torch.cat([curie_img, einstein_img], dim=0)
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=5)
+        assert met.metamer.shape == img.shape, "Metamer image should have the same shape as input!"
+
+    # we assume that the target representation has no gradient attached, so
+    # doublecheck that (validate_model should ensure this)
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_rep_no_grad(self, model, einstein_img):
+        met = po.synth.Metamer(einstein_img, model)
+        assert met.target_representation.grad is None, "Target representation has a gradient attached, how?"
+        met.synthesize(max_iter=5)
+        assert met.target_representation.grad is None, "Target representation has a gradient attached, how?"
+
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_nan_loss(self, model, einstein_img):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=5)
+        met.target_representation[..., 0, 0] = torch.nan
+        with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):
+            met.synthesize(max_iter=1)
