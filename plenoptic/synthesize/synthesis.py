@@ -135,11 +135,20 @@ class Synthesis(abc.ABC):
                                          f"different! Initialized: {getattr(self, k)}"
                                          f", Saved: {tmp_dict[k]}, difference: "
                                          f"{getattr(self, k) - tmp_dict[k]}")
-                except RuntimeError:
-                    raise RuntimeError(f"Attribute {display_k} have different shapes in"
-                                       " saved and initialized versions! Initialized"
-                                       f": {getattr(self, k).shape}, Saved: "
-                                       f"{tmp_dict[k].shape}")
+                except RuntimeError as e:
+                    # we end up here if dtype or shape don't match
+                    if 'The size of tensor a' in e.args[0]:
+                        raise RuntimeError(f"Attribute {display_k} have different shapes in"
+                                           " saved and initialized versions! Initialized"
+                                           f": {getattr(self, k).shape}, Saved: "
+                                           f"{tmp_dict[k].shape}")
+                    elif 'did not match' in e.args[0]:
+                        raise RuntimeError(f"Attribute {display_k} has different dtype in "
+                                           "saved and initialized versions! Initialized"
+                                           f": {getattr(self, k).dtype}, Saved: "
+                                           f"{tmp_dict[k].dtype}")
+                    else:
+                        raise e
             else:
                 if getattr(self, k) != tmp_dict[k]:
                     raise ValueError(f"Saved and initialized {display_k} are different!"
