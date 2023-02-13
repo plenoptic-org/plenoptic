@@ -116,4 +116,12 @@ class TestGeodesic(object):
         moog.calculate_jerkiness()
 
 
-# ADD TESTS FOR failed image shape asserts in init
+## ADD TESTS FOR:
+## - geodesic endpoints don't change, middle does
+## - save/load/to
+## - in particular: init, synth, change precision, save; init, change precision, load
+## - whether it works with multi-channel images -- do the straightness functions work with them?
+## - that objective func and calculate jerkiness work with external tensors
+## - stop criterion
+## - use device
+## - continue, amount of saved stuff
