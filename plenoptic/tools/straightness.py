@@ -12,10 +12,9 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     start, stop
         Images of shape [1, C, H, W], the anchor points between which a line
         will be made.
-
     n_steps
         Number of steps (i.e., transitions) to create between the two anchor
-        points.
+        points. Must be positive.
 
     Returns
     -------
@@ -25,7 +24,10 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     """
     validate_input(start, no_batch=True)
     validate_input(stop, no_batch=True)
-    assert start.shape == stop.shape, "Start and stop must be same shape!"
+    if start.shape != stop.shape:
+        raise ValueError(f"start and stop must be same shape, but got {start.shape} and {stop.shape}!")
+    if n_steps <= 0:
+        raise ValueError(f"n_steps must be positive, but got {n_steps}")
     shape = start.shape[1:]
 
     device = start.device
@@ -55,7 +57,7 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
         it veers from the straight line interpolation at the midpoint between
         pylons. each component of the bridge will reach a maximal variability
         with std = max_norm / sqrt(d), where d is the dimension of the signal.
-        (ie. d = C*H*W). Must be positive.
+        (ie. d = C*H*W). Must be non-negative.
 
     Returns
     -------
@@ -66,9 +68,13 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     """
     validate_input(start, no_batch=True)
     validate_input(stop, no_batch=True)
-    assert start.shape == stop.shape, "Start and stop must be same shape!"
+    if start.shape != stop.shape:
+        raise ValueError(f"start and stop must be same shape, but got {start.shape} and {stop.shape}!")
+    if n_steps <= 0:
+        raise ValueError(f"n_steps must be positive, but got {n_steps}")
+    if max_norm < 0:
+        raise ValueError(f"max_norm must be non-negative but got {max_norm}!")
     shape = start.shape[1:]
-    assert max_norm >= 0, "Max norm must be positive!"
 
     device = start.device
     start = start.reshape(1, -1)
@@ -143,15 +149,18 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     image
         Base image of shape, [1, C, H, W]
     n_steps
-        Number of steps in the sequence. Defaults to 10.
-        The length of the sequence is n_steps + 1
+        Number of steps in the sequence. The length of the sequence is n_steps
+        + 1. Must be positive.
 
     Returns
     -------
     sequence
         translation sequence of shape [n_steps+1, C, H, W]
+
     """
     validate_input(image, no_batch=True)
+    if n_steps <= 0:
+        raise ValueError(f"n_steps must be positive, but got {n_steps}")
     sequence = torch.empty(n_steps+1, *image.shape[1:])
 
     for shift in range(n_steps+1):
