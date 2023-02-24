@@ -1,5 +1,6 @@
 import plenoptic as po
 import numpy as np
+import os.path as op
 import pytest
 import torch
 from conftest import DEVICE
@@ -16,13 +17,21 @@ class TestSequences(object):
         t = 2**6
         d = 2**14
         sqrt_d = int(np.sqrt(d))
-        start = torch.randn(1, d).reshape(1, 1, sqrt_d, sqrt_d)
-        stop = torch.randn(1, d).reshape(1, 1, sqrt_d, sqrt_d)
+        start = torch.randn(1, d).reshape(1, 1, sqrt_d, sqrt_d).to(DEVICE)
+        stop = torch.randn(1, d).reshape(1, 1, sqrt_d, sqrt_d).to(DEVICE)
         b = po.tools.sample_brownian_bridge(start, stop,
                                             t, d**.5)
         a, f = po.tools.deviation_from_line(b, normalize=True)
         assert torch.abs(a[t//2] - .5) < 1e-2, f"{a[t//2]}"
         assert torch.abs(f[t//2] - 2**.5/2) < 1e-2, f"{f[t//2]}"
+
+    @pytest.mark.parametrize("normalize", [True, False])
+    def test_deviation_from_line_multichannel(self, normalize, einstein_img):
+        einstein_img = einstein_img.repeat(1, 3, 1, 1)
+        seq = po.tools.translation_sequence(einstein_img)
+        dist_along, dist_from = po.tools.deviation_from_line(seq, normalize)
+        assert dist_along.shape[0] == seq.shape[0], "Distance along line has wrong number of transitions!"
+        assert dist_from.shape[0] == seq.shape[0], "Distance from  line has wrong number of transitions!"
 
     @pytest.mark.parametrize("n_steps", [1, 10])
     @pytest.mark.parametrize("max_norm", [0, 1, 10])
@@ -96,17 +105,29 @@ class TestSequences(object):
             assert torch.equal(shifted[0], einstein_img[0]), "somehow first frame changed!"
             assert torch.equal(shifted[1, 0, :, 1], shifted[0, 0, :, 0]), "wrong dimension was translated!"
 
+    @pytest.mark.parametrize("func", ['make_straight_line', 'translation_sequence',
+                                      'sample_brownian_bridge', 'deviation_from_line'])
+    def test_preserve_device(self, einstein_img, func):
+        kwargs = {}
+        if func != 'deviation_from_line':
+            kwargs['n_steps'] = 5
+            if func != 'translation_sequence':
+                kwargs['stop'] = torch.rand_like(einstein_img)
+        seq = getattr(po.tools, func)(einstein_img, **kwargs)
+        # kinda hacky -- deviation_from_line returns a tuple, all the others
+        # return a 4d tensor. regardless seq[0] will be a tensor
+        assert seq[0].device == einstein_img.device, f'{func} changed device!'
+
 class TestGeodesic(object):
 
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     @pytest.mark.parametrize("init", ["straight", "bridge"])
     @pytest.mark.parametrize("optimizer", [None, "SGD"])
     @pytest.mark.parametrize("n_steps", [5, 10])
-    def test_geodesic_texture(self, einstein_img_small, init, optimizer, n_steps):
+    def test_geodesic_texture(self, einstein_img_small, model, init, optimizer, n_steps):
 
-        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        po.tools.remove_grad(model)
         sequence = po.tools.translation_sequence(einstein_img_small, n_steps)
-        moog = po.synth.Geodesic(sequence[0:1], sequence[-1:],
+        moog = po.synth.Geodesic(sequence[:1], sequence[-1:],
                                  model, n_steps, init)
         if optimizer == "SGD":
             optimizer = torch.optim.SGD([moog._geodesic], lr=.01)
@@ -115,13 +136,104 @@ class TestGeodesic(object):
         po.synth.geodesic.plot_deviation_from_line(moog, natural_video=sequence)
         moog.calculate_jerkiness()
 
+    def test_endpoints_dont_change(self, einstein_img_small):
+        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
+        po.tools.remove_grad(model)
+        sequence = po.tools.translation_sequence(einstein_img_small, 5)
+        moog = po.synth.Geodesic(sequence[:1], sequence[-1:],
+                                 model, 5, 'straight')
+        moog.synthesize(max_iter=5)
+        assert torch.equal(moog.geodesic[0], sequence[0]), "Somehow first endpoint changed!"
+        assert torch.equal(moog.geodesic[-1], sequence[-1]), "Somehow last endpoint changed!"
+        assert not torch.equal(moog.pixelfade[1:-1], moog.geodesic[1:-1]), "Somehow middle of geodesic didn't changed!"
 
-## ADD TESTS FOR:
-## - geodesic endpoints don't change, middle does
-## - save/load/to
-## - in particular: init, synth, change precision, save; init, change precision, load
-## - whether it works with multi-channel images -- do the straightness functions work with them?
-## - that objective func and calculate jerkiness work with external tensors
-## - stop criterion
-## - use device
-## - continue, amount of saved stuff
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize('fail', [False, 'img_a', 'img_b', 'model', 'n_steps', 'init',
+                                      'range_penalty'])
+    def test_geodesic_save_load(self, einstein_img_small, model, fail, tmp_path):
+        seq = po.tools.translation_sequence(einstein_img_small, 5)
+        img_a = seq[:1]
+        img_b = seq[-1:]
+        n_steps = 3
+        init = 'straight'
+        range_penalty = 0
+        moog = po.synth.Geodesic(img_a, img_b, model, n_steps, init, range_penalty_lambda=range_penalty)
+        moog.synthesize(max_iter=4)
+        moog.save(op.join(tmp_path, 'test_geodesic_save_load.pt'))
+        if fail:
+            if fail == 'img_a':
+                img_a = torch.rand_like(img_a)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image_a are different')
+            elif fail == 'img_b':
+                img_b = torch.rand_like(img_b)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image_b are different')
+            elif fail == 'model':
+                model = po.simul.Gaussian(30).to(DEVICE)
+                po.tools.remove_grad(model)
+                expectation = pytest.raises(ValueError, match='objective_function on pixelfade of saved')
+            elif fail == 'n_steps':
+                n_steps = 5
+                expectation = pytest.raises(ValueError, match='Saved and initialized n_steps are different')
+            elif fail == 'init':
+                init = 'bridge'
+                expectation = pytest.raises(ValueError, match='Saved and initialized initial_sequence are different')
+            elif fail == 'range_penalty':
+                range_penalty = .5
+                expectation = pytest.raises(ValueError, match='Saved and initialized range_penalty_lambda are different')
+            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps, init,
+                                          range_penalty_lambda=range_penalty)
+            with expectation:
+                moog_copy.load(op.join(tmp_path, "test_geodesic_save_load.pt"),
+                               map_location=DEVICE)
+        else:
+            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps, init,
+                                          range_penalty_lambda=range_penalty)
+            moog_copy.load(op.join(tmp_path, "test_geodesic_save_load.pt"),
+                         map_location=DEVICE)
+            for k in ['image_a', 'image_b', 'pixelfade', 'geodesic']:
+                if not getattr(moog, k).allclose(getattr(moog_copy, k), rtol=1e-2):
+                    raise ValueError(f"Something went wrong with saving and loading! {k} not the same")
+            # check that can resume
+            moog_copy.synthesize(max_iter=4)
+
+    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_map_location(self, einstein_img_small, model, tmp_path):
+        seq = po.tools.translation_sequence(einstein_img_small, 5).to(DEVICE)
+        model.to(DEVICE)
+        moog = po.synth.Geodesic(seq[:1], seq[-1:], model)
+        moog.synthesize(max_iter=4, store_progress=True)
+        moog.save(op.join(tmp_path, 'test_geodesic_map_location.pt'))
+        # calling load with map_location effectively switches everything
+        # over to that device
+        moog_copy = po.synth.Geodesic(seq[:1], seq[-1:], model)
+        moog_copy.load(op.join(tmp_path, 'test_geodesic_map_location.pt'),
+                      map_location='cpu')
+        assert moog_copy.geodesic.device.type == 'cpu'
+        assert moog_copy.image_a.device.type == 'cpu'
+        moog_copy.synthesize(max_iter=4, store_progress=True)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, einstein_img_small, model, to_type):
+        seq = po.tools.translation_sequence(einstein_img_small, 5).to(DEVICE)
+        model.to(DEVICE)
+        moog = po.synth.Geodesic(seq[:1], seq[-1:], model)
+        moog.synthesize(max_iter=5)
+        if to_type == 'dtype':
+            moog.to(torch.float16)
+            assert moog.image_a.dtype == torch.float16
+            assert moog.geodesic.dtype == torch.float16
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == 'device' and DEVICE.type != 'cpu':
+            moog.to('cpu')
+        moog.geodesic - moog.image_a
+
+### ADD TESTS FOR:
+### - save/load/to
+### - in particular: init, synth, change precision, save; init, change precision, load
+### - whether it works with multi-channel images
+### - that objective func and calculate jerkiness work with external tensors
+### - stop criterion
+### - check that straightness functions preserve device
+### - continue, amount of saved stuff

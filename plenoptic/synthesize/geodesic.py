@@ -91,6 +91,7 @@ class Geodesic(OptimizedSynthesis):
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
     """
+    ## AFTER overhaul, do timing and output comparisons with old version
     def __init__(self, image_a: Tensor, image_b: Tensor,
                  model: torch.nn.Module, n_steps: int = 10,
                  initial_sequence: Literal['straight', 'bridge'] = 'straight',
@@ -388,6 +389,10 @@ class Geodesic(OptimizedSynthesis):
             The path to save the Geodesic object to
 
         """
+        # I don't think any of our existing attributes can be used to check
+        # whether model has changed (unlike Metamer, which stores
+        # target_representation), so we use the following as a proxy
+        self._save_check = self.objective_function(self.pixelfade)
         super().save(file_path, attrs=None)
 
     def to(self, *args, **kwargs):
@@ -434,8 +439,9 @@ class Geodesic(OptimizedSynthesis):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Geodesic`` object -- we will
-        ensure that ``image_a``, ``image_b``, ``range_penalty_lambda``,
-        ``allowed_range`` are all identical.
+        ensure that ``image_a``, ``image_b``, ``model``, ``n_steps``,
+        ``initial_sequence``, ``range_penalty_lambda``, ``allowed_range``, and
+        ``pixelfade`` are all identical.
 
         Note this operates in place and so doesn't return anything.
 
@@ -469,15 +475,15 @@ class Geodesic(OptimizedSynthesis):
                             '_initial_sequence', '_range_penalty_lambda',
                             '_allowed_range', 'pixelfade']
         check_loss_functions = []
-        check_loss = self.objective_function(self.pixelfade)
+        new_loss = self.objective_function(self.pixelfade)
         super().load(file_path, map_location=map_location,
                      check_attributes=check_attributes,
                      check_loss_functions=check_loss_functions,
                      **pickle_load_args)
-        new_loss = self.objective_function(self.pixelfade)
-        if new_loss != check_loss:
-            raise ValueError("Pixelfade loss of saved and initialized geodesic are different! Do they use the same model?"
-                             f" Self: {new_loss}, Saved: {check_loss}")
+        old_loss = self.__dict__.pop('_save_check')
+        if not torch.allclose(new_loss, old_loss, rtol=1e-2):
+            raise ValueError("objective_function on pixelfade of saved and initialized Geodesic object are different! Do they use the same model?"
+                             f" Self: {new_loss}, Saved: {old_loss}")
         # make this require a grad again
         self._geodesic.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
