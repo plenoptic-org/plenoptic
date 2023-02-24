@@ -10,6 +10,7 @@ from typing import Union, Tuple, Optional
 from typing_extensions import Literal
 
 from .synthesis import OptimizedSynthesis
+from ..tools.data import to_numpy
 from ..tools.optim import penalize_range
 from ..tools.validate import validate_input, validate_model
 from ..tools.convergence import pixel_change_convergence
@@ -611,14 +612,14 @@ def plot_deviation_from_line(geodesic: Geodesic,
         ax = plt.gca()
 
     pixelfade_dev = deviation_from_line(geodesic.model(geodesic.pixelfade))
-    ax.plot(*pixelfade_dev, 'g-o', label='pixelfade')
+    ax.plot(*[to_numpy(d) for d in pixelfade_dev], 'g-o', label='pixelfade')
 
     geodesic_dev = deviation_from_line(geodesic.model(geodesic.geodesic).detach())
-    ax.plot(*geodesic_dev, 'r-o', label='geodesic')
+    ax.plot(*[to_numpy(d) for d in geodesic_dev], 'r-o', label='geodesic')
 
     if natural_video is not None:
         video_dev = deviation_from_line(geodesic.model(natural_video))
-        ax.plot(*video_dev, 'b-o', label='natural video')
+        ax.plot(*[to_numpy(d) for d in video_dev], 'b-o', label='natural video')
 
     ax.set(xlabel='Distance along representation line',
            ylabel='Distance from representation line',

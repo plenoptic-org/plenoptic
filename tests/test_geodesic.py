@@ -136,9 +136,8 @@ class TestGeodesic(object):
         po.synth.geodesic.plot_deviation_from_line(moog, natural_video=sequence)
         moog.calculate_jerkiness()
 
-    def test_endpoints_dont_change(self, einstein_img_small):
-        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        po.tools.remove_grad(model)
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_endpoints_dont_change(self, einstein_img_small, model):
         sequence = po.tools.translation_sequence(einstein_img_small, 5)
         moog = po.synth.Geodesic(sequence[:1], sequence[-1:],
                                  model, 5, 'straight')

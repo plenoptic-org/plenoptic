@@ -161,7 +161,7 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     validate_input(image, no_batch=True)
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
-    sequence = torch.empty(n_steps+1, *image.shape[1:])
+    sequence = torch.empty(n_steps+1, *image.shape[1:]).to(image.device)
 
     for shift in range(n_steps+1):
         sequence[shift] = torch.roll(image, shift, [-1])
