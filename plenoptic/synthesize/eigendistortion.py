@@ -547,9 +547,8 @@ class Eigendistortion(Synthesis):
              **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Geodesic`` object -- we will
-        ensure that ``image_a``, ``image_b``, ``range_penalty_lambda``,
-        ``allowed_range`` are all identical.
+        This should be called by an initialized ``Eigendistortion`` object --
+        we will ensure that ``image`` and ``model`` are identical.
 
         Note this operates in place and so doesn't return anything.
 
