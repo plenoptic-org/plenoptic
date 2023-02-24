@@ -152,7 +152,7 @@ class TestMetamers(object):
                       map_location='cpu')
         assert met_copy.metamer.device.type == 'cpu'
         assert met_copy.image.device.type == 'cpu'
-        met.synthesize(max_iter=4, store_progress=True)
+        met_copy.synthesize(max_iter=4)
 
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])

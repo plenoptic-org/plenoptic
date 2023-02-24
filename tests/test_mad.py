@@ -141,6 +141,7 @@ class TestMAD(object):
         mad_copy.load(op.join(tmp_path, 'test_mad_map_location.pt'),
                       map_location='cpu')
         assert mad_copy.mad_image.device.type == 'cpu'
+        mad_copy.synthesize(max_iter=4)
 
     # MAD can accept multiple images on the batch dimension, but the metrics
     # must return a single number. This means, effectively, that we can do

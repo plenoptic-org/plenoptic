@@ -200,7 +200,7 @@ class TestEigendistortionSynthesis:
                      map_location='cpu')
         assert ed_copy.eigendistortions.device.type == 'cpu'
         assert ed_copy.image.device.type == 'cpu'
-        ed.synthesize(max_iter=4, method='power')
+        ed_copy.synthesize(max_iter=4, method='power')
 
 class TestAutodiffFunctions:
 
