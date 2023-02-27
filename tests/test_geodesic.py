@@ -274,7 +274,7 @@ class TestGeodesic(object):
         seq = einstein_small_seq.clone()
         moog = po.synth.Geodesic(seq[:1], seq[-1:], model, 5)
         moog.synthesize(max_iter=5)
-        moog.geodesic[..., 0, 0] = torch.nan
+        moog.image_a[..., 0, 0] = torch.nan
         with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):
             moog.synthesize(max_iter=1)
 
