@@ -56,10 +56,12 @@ def _ssim_parts(img1, img2, pad=False):
     if img1.shape[1] > 1 or img2.shape[1] > 1:
         warnings.warn("SSIM was designed for grayscale images and here it will be computed separately for each "
                       "channel (so channels are treated in the same way as batches).")
+    if img1.dtype != img2.dtype:
+        raise ValueError("Input images must have same dtype!")
 
     real_size = min(11, img1.shape[2], img1.shape[3])
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=std)
+    window = circular_gaussian2d(real_size, std=std).to(img1.dtype)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary

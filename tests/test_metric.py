@@ -227,3 +227,21 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
         curie_img.requires_grad_(False)
+
+    def test_ssim_dtype(self, einstein_img, curie_img):
+        po.metric.ssim(einstein_img.to(torch.float64),
+                       curie_img.to(torch.float64))
+
+    def test_ssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ssim(einstein_img.to(torch.float64),
+                           curie_img)
+
+    def test_msssim_dtype(self, einstein_img, curie_img):
+        po.metric.ms_ssim(einstein_img.to(torch.float64),
+                          curie_img.to(torch.float64))
+
+    def test_msssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ms_ssim(einstein_img.to(torch.float64),
+                              curie_img)
