@@ -196,7 +196,9 @@ class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_nan_loss(self, model, einstein_img):
-        met = po.synth.Metamer(einstein_img, model)
+        # clone to prevent NaN from showing up in other tests
+        img = einstein_img.clone()
+        met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=5)
         met.target_representation[..., 0, 0] = torch.nan
         with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):

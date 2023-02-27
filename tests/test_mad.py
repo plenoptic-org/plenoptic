@@ -177,7 +177,9 @@ class TestMAD(object):
         mad.synthesize(max_iter=3, store_progress=True)
 
     def test_nan_loss(self, einstein_img):
-        mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, 'min')
+        # clone to prevent NaN from showing up in other tests
+        img = einstein_img.clone()
+        mad = po.synth.MADCompetition(img, po.metric.mse, dis_ssim, 'min')
         mad.synthesize(max_iter=5)
         mad.image[..., 0, 0] = torch.nan
         with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):

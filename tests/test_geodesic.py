@@ -269,6 +269,16 @@ class TestGeodesic(object):
         moog.synthesize(max_iter=3, store_progress=True)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_nan_loss(self, model, einstein_small_seq):
+        # clone to prevent NaN from showing up in other tests
+        seq = einstein_small_seq.clone()
+        moog = po.synth.Geodesic(seq[:1], seq[-1:], model, 5)
+        moog.synthesize(max_iter=5)
+        moog.geodesic[..., 0, 0] = torch.nan
+        with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):
+            moog.synthesize(max_iter=1)
+
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     @pytest.mark.parametrize('store_progress', [True, 2, 3])
     def test_store_progress(self, einstein_small_seq, model, store_progress):
         moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:],
