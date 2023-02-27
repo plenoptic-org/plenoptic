@@ -319,9 +319,6 @@ class TestValidate(object):
         with pytest.raises(ValueError, match="metric should return <= 5e-7 on two identical"):
             po.tools.validate.validate_metric(metric, device=DEVICE)
 
-    def test_remove_grad(self):
-        # can't use the conftest version, because remove_grad modifies the
-        # model in place
-        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(model)
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_remove_grad(self, model):
         po.tools.validate.validate_model(model, device=DEVICE)
