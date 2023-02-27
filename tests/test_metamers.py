@@ -152,7 +152,7 @@ class TestMetamers(object):
                       map_location='cpu')
         assert met_copy.metamer.device.type == 'cpu'
         assert met_copy.image.device.type == 'cpu'
-        met_copy.synthesize(max_iter=4)
+        met_copy.synthesize(max_iter=4, store_progress=True)
 
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])
@@ -224,5 +224,12 @@ class TestMetamers(object):
         # for reproducibility
         po.tools.set_seed(0)
         met = po.synth.Metamer(einstein_img, model)
-        met.synthesize(max_iter=10, stop_criterion=1e-5, stop_iters_to_check=5)
-        assert len(met.losses) == 8, "Didn't stop when hit criterion! (or optimization changed)"
+        # takes different numbers of iter to converge on GPU and CPU
+        if DEVICE.type == 'cuda':
+            max_iter = 30
+            check_iter = 25
+        else:
+            max_iter = 10
+            check_iter = 8
+        met.synthesize(max_iter=max_iter, stop_criterion=1e-5, stop_iters_to_check=5)
+        assert len(met.losses) == check_iter, "Didn't stop when hit criterion! (or optimization changed)"

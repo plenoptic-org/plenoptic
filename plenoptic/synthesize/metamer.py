@@ -1059,7 +1059,7 @@ def _representation_error(metamer: Metamer,
 
     """
     if iteration is not None:
-        metamer_rep = metamer.model(metamer.saved_metamer[iteration]).to(metamer.target_representation.device)
+        metamer_rep = metamer.model(metamer.saved_metamer[iteration].to(metamer.target_representation.device))
     else:
         metamer_rep = metamer.model(metamer.metamer, **kwargs)
     return metamer_rep - metamer.target_representation

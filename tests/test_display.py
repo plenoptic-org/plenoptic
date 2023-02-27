@@ -368,12 +368,13 @@ class TestDisplay(object):
             is_complex = True
         elif request.param == 'not-complex':
             is_complex = False
-        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
+        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex).to(DEVICE)
 
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('show_residuals', [True, False])
-    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals,
+                     curie_img):
         fails = False
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
             fails = True
@@ -382,7 +383,7 @@ class TestDisplay(object):
             n_axes *= 2
         if show_residuals:
             n_axes += 2
-        img = po.load_images(op.join(DATA_DIR, '256/curie.pgm'))
+        img = curie_img.clone()
         img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
         if not fails:
