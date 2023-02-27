@@ -155,7 +155,7 @@ class TestMAD(object):
         assert mad.mad_image.shape == img.shape, "MAD image should have the same shape as input!"
 
     @pytest.mark.parametrize('store_progress', [True, 2, 3])
-    def test_metamer_store_rep(self, einstein_img, store_progress):
+    def test_store_rep(self, einstein_img, store_progress):
         mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, 'min')
         max_iter = 3
         if store_progress == 3:
@@ -163,13 +163,15 @@ class TestMAD(object):
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
         assert len(mad.saved_mad_image) == np.ceil(max_iter/store_progress), "Didn't end up with enough saved mad after first synth!"
         assert len(mad.losses) == max_iter, "Didn't end up with enough losses after first synth!"
-        assert len(mad.optimized_metric_loss) == max_iter, "Didn't end up with enough optimized metric losses after first synth!"
-        assert len(mad.reference_metric_loss) == max_iter, "Didn't end up with enough reference metric losses after first synth!"
+        # these have a +1 because we calculate them during initialization as
+        # well (so we know our starting point).
+        assert len(mad.optimized_metric_loss) == max_iter+1, "Didn't end up with enough optimized metric losses after first synth!"
+        assert len(mad.reference_metric_loss) == max_iter+1, "Didn't end up with enough reference metric losses after first synth!"
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
         assert len(mad.saved_mad_image) == np.ceil(2*max_iter/store_progress), "Didn't end up with enough saved mad after second synth!"
         assert len(mad.losses) == 2*max_iter, "Didn't end up with enough losses after second synth!"
-        assert len(mad.optimized_metric_loss) == 2*max_iter, "Didn't end up with enough optimized metric losses after second synth!"
-        assert len(mad.reference_metric_loss) == 2*max_iter, "Didn't end up with enough reference metric losses after second synth!"
+        assert len(mad.optimized_metric_loss) == 2*max_iter+1, "Didn't end up with enough optimized metric losses after second synth!"
+        assert len(mad.reference_metric_loss) == 2*max_iter+1, "Didn't end up with enough reference metric losses after second synth!"
 
     def test_continue(self, einstein_img):
         mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, 'min')
