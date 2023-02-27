@@ -34,6 +34,10 @@ def einstein_img():
     return po.load_images(op.join(DATA_DIR, '256/einstein.pgm')).to(DEVICE)
 
 @pytest.fixture(scope='package')
+def einstein_small_seq(einstein_img_small):
+    return po.tools.translation_sequence(einstein_img_small, 5)
+
+@pytest.fixture(scope='package')
 def einstein_img_small(einstein_img):
     return center_crop(einstein_img, [64]).to(DEVICE)
 

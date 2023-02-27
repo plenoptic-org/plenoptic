@@ -514,7 +514,8 @@ class Geodesic(OptimizedSynthesis):
         Parameters
         ----------
         geodesic
-            Geodesic to check. If None, we use ``self.geodesic``.
+            Geodesic to check. If None, we use ``self.geodesic``. Must have a
+            gradient attached.
 
         Returns
         -------

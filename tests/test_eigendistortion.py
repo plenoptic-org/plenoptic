@@ -140,7 +140,7 @@ class TestEigendistortionSynthesis:
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     @pytest.mark.parametrize('fail', [False, 'img', 'model'])
     @pytest.mark.parametrize('method', ['exact', 'power', 'randomized_svd'])
-    def test_eigendistortion_save_load(self, einstein_img, model, fail, method, tmp_path):
+    def test_save_load(self, einstein_img, model, fail, method, tmp_path):
         if method in ['exact', 'randomized_svd']:
             img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         else:
@@ -201,6 +201,20 @@ class TestEigendistortionSynthesis:
         assert ed_copy.eigendistortions.device.type == 'cpu'
         assert ed_copy.image.device.type == 'cpu'
         ed_copy.synthesize(max_iter=4, method='power')
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_change_precision_save_load(self, einstein_img, model, tmp_path):
+        # Identity model doesn't change when you call .to() with a dtype
+        # (unlike those models that have weights) so we use it here
+        ed = Eigendistortion(einstein_img, model)
+        ed.synthesize(max_iter=5)
+        ed.to(torch.float64)
+        assert ed.image.dtype == torch.float64, "dtype incorrect!"
+        ed.save(op.join(tmp_path, 'test_change_prec_save_load.pt'))
+        ed_copy = Eigendistortion(einstein_img, model)
+        ed_copy.load(op.join(tmp_path, 'test_change_prec_save_load.pt'))
+        ed_copy.synthesize(max_iter=5)
+        assert ed_copy.image.dtype == torch.float64, "dtype incorrect!"
 
 class TestAutodiffFunctions:
 

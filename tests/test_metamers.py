@@ -22,7 +22,7 @@ class TestMetamers(object):
     @pytest.mark.parametrize('loss_func', ['mse', 'l2', 'custom'])
     @pytest.mark.parametrize('fail', [False, 'img', 'model', 'loss', 'range_penalty', 'dtype'])
     @pytest.mark.parametrize('range_penalty', [.1, 0])
-    def test_metamer_save_load(self, einstein_img, model, loss_func, fail, range_penalty, tmp_path):
+    def test_save_load(self, einstein_img, model, loss_func, fail, range_penalty, tmp_path):
         if loss_func == 'mse':
             loss = po.tools.optim.mse
         elif loss_func == 'l2':
@@ -84,7 +84,7 @@ class TestMetamers(object):
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
     @pytest.mark.parametrize('store_progress', [True, 2, 3])
-    def test_metamer_store_rep(self, einstein_img, model, store_progress):
+    def test_store_rep(self, einstein_img, model, store_progress):
         metamer = po.synth.Metamer(einstein_img, model)
         max_iter = 3
         if store_progress == 3:
@@ -97,7 +97,7 @@ class TestMetamers(object):
         assert len(metamer.losses) == 2*max_iter, "Didn't end up with enough losses after second synth!"
 
     @pytest.mark.parametrize('model', ['frontend.LinearNonlinear.nograd'], indirect=True)
-    def test_metamer_continue(self, einstein_img, model):
+    def test_continue(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
         metamer.synthesize(max_iter=3, store_progress=True)
         metamer.synthesize(max_iter=3, store_progress=True)
@@ -201,3 +201,26 @@ class TestMetamers(object):
         met.target_representation[..., 0, 0] = torch.nan
         with pytest.raises(ValueError, match='Found a NaN in loss during optimization'):
             met.synthesize(max_iter=1)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_change_precision_save_load(self, model, einstein_img, tmp_path):
+        # Identity model doesn't change when you call .to() with a dtype
+        # (unlike those models that have weights) so we use it here
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=5)
+        met.to(torch.float64)
+        assert met.metamer.dtype == torch.float64, "dtype incorrect!"
+        met.save(op.join(tmp_path, 'test_metamer_change_prec_save_load.pt'))
+        met_copy = po.synth.Metamer(einstein_img, model)
+        met_copy.load(op.join(tmp_path, 'test_metamer_change_prec_save_load.pt'))
+        met_copy.synthesize(max_iter=5)
+        assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
+
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    def test_stop_criterion(self, einstein_img, model):
+        # checking that this hits the criterion and stops early, so set seed
+        # for reproducibility
+        po.tools.set_seed(0)
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=10, stop_criterion=1e-5, stop_iters_to_check=5)
+        assert len(met.losses) == 8, "Didn't stop when hit criterion! (or optimization changed)"
