@@ -211,7 +211,7 @@ class TestMetamers(object):
         met.to(torch.float64)
         assert met.metamer.dtype == torch.float64, "dtype incorrect!"
         met.save(op.join(tmp_path, 'test_metamer_change_prec_save_load.pt'))
-        met_copy = po.synth.Metamer(einstein_img, model)
+        met_copy = po.synth.Metamer(einstein_img.to(torch.float64), model)
         met_copy.load(op.join(tmp_path, 'test_metamer_change_prec_save_load.pt'))
         met_copy.synthesize(max_iter=5)
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"

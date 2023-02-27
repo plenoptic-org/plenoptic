@@ -191,7 +191,8 @@ class TestMAD(object):
         mad.to(torch.float64)
         assert mad.mad_image.dtype == torch.float64, "dtype incorrect!"
         mad.save(op.join(tmp_path, 'test_change_prec_save_load.pt'))
-        mad_copy = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, 'min')
+        mad_copy = po.synth.MADCompetition(einstein_img.to(torch.float64),
+                                           po.metric.mse, dis_ssim, 'min')
         mad_copy.load(op.join(tmp_path, 'test_change_prec_save_load.pt'))
         mad_copy.synthesize(max_iter=5)
         assert mad_copy.mad_image.dtype == torch.float64, "dtype incorrect!"

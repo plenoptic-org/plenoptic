@@ -211,7 +211,7 @@ class TestEigendistortionSynthesis:
         ed.to(torch.float64)
         assert ed.image.dtype == torch.float64, "dtype incorrect!"
         ed.save(op.join(tmp_path, 'test_change_prec_save_load.pt'))
-        ed_copy = Eigendistortion(einstein_img, model)
+        ed_copy = Eigendistortion(einstein_img.to(torch.float64), model)
         ed_copy.load(op.join(tmp_path, 'test_change_prec_save_load.pt'))
         ed_copy.synthesize(max_iter=5)
         assert ed_copy.image.dtype == torch.float64, "dtype incorrect!"
