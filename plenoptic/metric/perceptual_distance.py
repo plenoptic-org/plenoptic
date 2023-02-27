@@ -3,9 +3,8 @@ import torch
 import torch.nn.functional as F
 import warnings
 
-from ..simulate.canonical_computations import LaplacianPyramid, Steerable_Pyramid_Freq
+from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
-from ..simulate.canonical_computations.non_linearities import local_gain_control
 from ..tools.conv import same_padding
 
 import os
