@@ -3,6 +3,7 @@
 import torch
 from tqdm.auto import tqdm
 from .synthesis import Synthesis
+from ..tools.validate import validate_input, validate_model
 from ..tools import optim
 from typing import Union
 
@@ -19,20 +20,19 @@ class SimpleMetamer(Synthesis):
 
     Parameters
     ----------
-    model
-        The visual model whose representation we wish to match.
     image
         A 4d tensor, this is the image whose model representation we wish to
         match.
+    model
+        The visual model whose representation we wish to match.
 
     """
 
     def __init__(self, image: torch.Tensor, model: torch.nn.Module):
+        validate_model(model, image_shape=image.shape, image_dtype=image.dtype,
+                       device=image.device)
         self.model = model
-        if image.ndimension() < 4:
-            raise Exception("image must be torch.Size([n_batch, "
-                            "n_channels, im_height, im_width]) but got "
-                            f"{image.size()}")
+        validate_input(image)
         self.image = image
         self.metamer = torch.rand_like(self.image, requires_grad=True)
         self.target_representation = self.model(self.image).detach()
@@ -68,7 +68,7 @@ class SimpleMetamer(Synthesis):
             self.optimizer = optimizer
 
         pbar = tqdm(range(max_iter))
-        for step in pbar:
+        for _ in pbar:
 
             def closure():
                 self.optimizer.zero_grad()
@@ -88,8 +88,6 @@ class SimpleMetamer(Synthesis):
                 return loss
 
             self.optimizer.step(closure)
-
-        return self.metamer
 
     def save(self, file_path: str):
         r"""Save all relevant (non-model) variables in .pt file.
