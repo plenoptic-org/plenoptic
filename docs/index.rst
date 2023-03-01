@@ -26,11 +26,12 @@ plenoptic is currently under development.
 If anything is unclear, please `open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    reproducibility
    models
+   synthesis
    api/modules
 
 .. toctree::

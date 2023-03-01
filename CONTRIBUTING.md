@@ -73,6 +73,23 @@ If you're not a member of the LCV github, you'll need to first [create a
 fork](https://docs.github.com/en/enterprise/2.20/user/github/getting-started-with-github/fork-a-repo)
 of the repository to your own github account, and then proceed as above.
 
+### Style guide
+
+- Longer, descriptive names are preferred (e.g., `x` is not an appropriate name
+  for a variable), especially for anything user-facing, such as methods,
+  attributes, or arguments.
+- Any public method or function must have a complete type-annotated docstring
+  (see [below](#docstrings) for details). Hidden ones do not *need* to have
+  complete docstrings, but they probably should.
+
+### Adding models or synthesis methods
+
+In addition to the above, see the documentation for a description of
+[models](https://plenoptic.readthedocs.io/en/latest/models.html) and [synthesis
+objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
+models or synthesis objects will need to meet the requirements outlined in those
+pages.
+
 ## Testing
 
 Before running tests locally, you'll need
