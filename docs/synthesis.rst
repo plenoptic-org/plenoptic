@@ -28,7 +28,7 @@ All synthesis methods
 =====================
 
 To that end, all synthesis methods must inherit the
-:class:`plenoptic.synthesis.Synthesis` class. This requires the synthesis method
+:class:`plenoptic.synthesize.synthesis.Synthesis` class. This requires the synthesis method
 to have a ``synthesize()`` method, and provides helper functions for ``save()``,
 ``load()``, and ``to()``, which must be used when implementing them.
 Furthermore:
@@ -108,17 +108,17 @@ for an example. If possible, this plot should be able to be animated to show
 progress over time. See
 :func:`plenoptic.synthesize.metamer.plot_synthesis_status` for an example.
 
-See `our Display tutorial
-<https://plenoptic.readthedocs.io/en/latest/tutorials/Display.html>`_ for
-description and examples of the included plotting and display code.
+See our :doc:`/tutorials/Display` notebook for description and examples of the
+included plotting and display code.
 
 Optimized synthesis
 ===================
 
 Many synthesis methods will use an optimizer to generate their outputs. If the
 method makes use of a ``torch.optim.Optimizer`` object, it must inherit
-:class:`plenoptic.synthesis.OptimizedSynthesis` class (this is a subclass
-of:class:`plenoptic.synthesis.Synthesis`, so the above all still applies).
+:class:`plenoptic.synthesize.synthesis.OptimizedSynthesis` class (this is a
+subclass of:class:`plenoptic.synthesize.synthesis.Synthesis`, so the above all
+still applies).
 
 Currently, the following are required (if not all of these are applicable to new
 methods, we may modify ``OptimizedSynthesis``):
