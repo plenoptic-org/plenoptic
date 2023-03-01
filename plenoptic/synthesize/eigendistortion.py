@@ -192,7 +192,7 @@ class Eigendistortion(Synthesis):
         max_iter: int = 1000,
         p: int = 5,
         q: int = 2,
-        tol: float = 1e-7,
+        stop_criterion: float = 1e-7,
     ):
         r"""Compute eigendistortions of Fisher Information Matrix with given input image.
 
@@ -215,8 +215,10 @@ class Eigendistortion(Synthesis):
             Matrix power parameter for randomized SVD. This is an effective trick for the algorithm to converge to
             the correct eigenvectors when the eigenspectrum does not decay quickly. See
             ``_synthesize_randomized_svd`` for more details including algorithm reference.
-        tol
-            Tolerance for error criterion in power iteration.
+        stop_criterion
+            Used if ``method='power'`` to check for convergence. If the L2-norm
+            of the eigenvalues has changed by less than this value from one
+            iteration to the next, we terminate synthesis.
 
         """
 
@@ -259,10 +261,10 @@ class Eigendistortion(Synthesis):
             assert max_iter > 0, "max_iter must be greater than zero"
 
             lmbda_max, v_max = self._synthesize_power(
-                k=k, shift=0.0, tol=tol, max_iter=max_iter
+                k=k, shift=0.0, tol=stop_criterion, max_iter=max_iter
             )
             lmbda_min, v_min = self._synthesize_power(
-                k=k, shift=lmbda_max[0], tol=tol, max_iter=max_iter
+                k=k, shift=lmbda_max[0], tol=stop_criterion, max_iter=max_iter
             )
             n = v_max.shape[0]
 
@@ -394,7 +396,7 @@ class Eigendistortion(Synthesis):
             pbar.set_postfix(**postfix_dict)
 
             if d_lambda <= tol:
-                print(f"{desc} computed | Tolerance {tol:.2E} reached.")
+                print(f"{desc} computed | Stop criterion {tol:.2E} reached.")
                 break
 
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
