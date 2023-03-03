@@ -92,7 +92,6 @@ class Geodesic(OptimizedSynthesis):
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
     """
-    ## AFTER overhaul, do timing and output comparisons with old version
     def __init__(self, image_a: Tensor, image_b: Tensor,
                  model: torch.nn.Module, n_steps: int = 10,
                  initial_sequence: Literal['straight', 'bridge'] = 'straight',
