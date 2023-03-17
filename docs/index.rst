@@ -30,6 +30,7 @@ If anything is unclear, please `open an issue <https://github.com/LabForComputat
    :maxdepth: 2
    :caption: Contents:
 
+   conceptual_intro
    reproducibility
    api/modules
 
