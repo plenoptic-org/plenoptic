@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+np.random.seed(0)
+
 # set the style
 plt.style.use('fivethirtyeight')
 plt.rcParams['axes.facecolor'] = 'white'
@@ -52,11 +54,135 @@ CONES = {"nm": [400, 405, 410, 415, 420, 425, 430, 435, 440, 445, 450, 455,
                np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
                np.nan]}
 
+# for matrix multiplication
+CONES_MATRIX = np.stack([CONES['S'], CONES['M'], CONES['L']])
+CONES_MATRIX[np.isnan(CONES_MATRIX)] = 0
 
-def plot_cone_fundamentals():
-    _, ax = plt.subplots(1, 1, figsize=(8, 5))
-    ax.plot(CONES['nm'], CONES['S'], c='b')
-    ax.plot(CONES['nm'], CONES['M'], c='g')
-    ax.plot(CONES['nm'], CONES['L'], c='r')
-    ax.set(xlabel='Wavelength (nm)',
-           ylabel='Cone sensitivity (arbitrary units)')
+# from math tools homework, interpolated to have same number of entries as
+# CONES
+PRIMARIES = np.array([[3.72665317e-06, 4.57833362e-01, 4.39369336e-02],
+                      [1.11955611e-05, 5.32182011e-01, 2.75229651e-02],
+                      [1.86644691e-05, 6.06530660e-01, 1.11089965e-02],
+                      [5.11564081e-05, 6.80685131e-01, 6.64824381e-03],
+                      [8.36483472e-05, 7.54839602e-01, 2.18749112e-03],
+                      [2.09555488e-04, 8.18668252e-01, 1.26147687e-03],
+                      [3.35462628e-04, 8.82496903e-01, 3.35462628e-04],
+                      [7.69661309e-04, 9.25865069e-01, 1.87763963e-04],
+                      [1.20385999e-03, 9.69233234e-01, 4.00652974e-05],
+                      [2.53489006e-03, 9.84616617e-01, 2.18959753e-05],
+                      [3.86592014e-03, 1.00000000e+00, 3.72665317e-06],
+                      [7.48745832e-03, 9.84616617e-01, 1.99830551e-06],
+                      [1.11089965e-02, 9.69233234e-01, 2.69957850e-07],
+                      [1.98372487e-02, 9.25865069e-01, 1.42593915e-07],
+                      [2.85655008e-02, 8.82496903e-01, 1.52299797e-08],
+                      [4.71470147e-02, 8.18668252e-01, 7.94956915e-09],
+                      [6.57285286e-02, 7.54839602e-01, 6.69158609e-10],
+                      [1.00531906e-01, 6.80685131e-01, 3.46027979e-10],
+                      [1.35335283e-01, 6.06530660e-01, 2.28973485e-11],
+                      [1.92343746e-01, 5.32182011e-01, 1.17537711e-11],
+                      [2.49352209e-01, 4.57833362e-01, 6.10193668e-13],
+                      [3.30232250e-01, 3.91242915e-01, 6.10193668e-13],
+                      [4.11112291e-01, 3.24652467e-01, 6.10193668e-13],
+                      [5.08821476e-01, 2.70458817e-01, 1.17537711e-11],
+                      [6.06530660e-01, 2.16265167e-01, 2.28973485e-11],
+                      [7.03634032e-01, 1.75800225e-01, 3.46027979e-10],
+                      [8.00737403e-01, 1.35335283e-01, 6.69158609e-10],
+                      [8.73348436e-01, 1.07447396e-01, 7.94956915e-09],
+                      [9.45959469e-01, 7.95595087e-02, 1.52299797e-08],
+                      [9.72979734e-01, 6.17482212e-02, 1.42593915e-07],
+                      [1.00000000e+00, 4.39369336e-02, 2.69957850e-07],
+                      [9.72979734e-01, 3.33655572e-02, 1.99830551e-06],
+                      [9.45959469e-01, 2.27941809e-02, 3.72665317e-06],
+                      [8.73348436e-01, 1.69515887e-02, 2.18959753e-05],
+                      [8.00737403e-01, 1.11089965e-02, 4.00652974e-05],
+                      [7.03634032e-01, 8.09753286e-03, 1.87763963e-04],
+                      [6.06530660e-01, 5.08606923e-03, 3.35462628e-04],
+                      [5.08821476e-01, 3.63678018e-03, 1.26147687e-03],
+                      [4.11112291e-01, 2.18749112e-03, 2.18749112e-03],
+                      [3.30232250e-01, 1.53565871e-03, 6.64824381e-03],
+                      [2.49352209e-01, 8.83826307e-04, 1.11089965e-02],
+                      [1.92343746e-01, 8.83826307e-04, 2.75229650e-02],
+                      [1.35335283e-01, 8.83826307e-04, 4.39369336e-02],
+                      [1.00531906e-01, 1.53565871e-03, 8.96361083e-02],
+                      [6.57285286e-02, 2.18749112e-03, 1.35335283e-01],
+                      [4.71470147e-02, 3.63678018e-03, 2.29993875e-01],
+                      [2.85655008e-02, 5.08606923e-03, 3.24652467e-01],
+                      [1.98372487e-02, 8.09753286e-03, 4.65591563e-01],
+                      [1.11089965e-02, 1.11089965e-02, 6.06530660e-01],
+                      [7.48745832e-03, 1.69515887e-02, 7.44513782e-01],
+                      [3.86592014e-03, 2.27941809e-02, 8.82496903e-01],
+                      [2.53489006e-03, 3.33655572e-02, 9.41248452e-01],
+                      [1.20385999e-03, 4.39369336e-02, 1.00000000e+00],
+                      [7.69661309e-04, 6.17482212e-02, 9.41248452e-01],
+                      [3.35462628e-04, 7.95595087e-02, 8.82496903e-01],
+                      [2.09555488e-04, 1.07447396e-01, 7.44513782e-01],
+                      [8.36483472e-05, 1.35335283e-01, 6.06530660e-01],
+                      [5.11564081e-05, 1.75800225e-01, 4.65591563e-01],
+                      [1.86644691e-05, 2.16265167e-01, 3.24652467e-01],
+                      [1.11955611e-05, 2.70458817e-01, 2.29993875e-01],
+                      [3.72665317e-06, 3.24652467e-01, 1.35335283e-01]])
+
+RANDOM_LIGHT = np.random.random(len(PRIMARIES))
+
+
+def cones():
+    _, axes = plt.subplots(1, 2, figsize=(10, 5))
+    axes[0].plot(CONES['nm'], CONES['S'], c='b')
+    axes[0].plot(CONES['nm'], CONES['M'], c='g')
+    axes[0].plot(CONES['nm'], CONES['L'], c='r')
+    axes[0].set(xlabel='Wavelength (nm)',
+                ylabel='Cone sensitivity (arbitrary units)',
+                title='Cone sensitivity curves')
+    random_light_weights = CONES_MATRIX @ RANDOM_LIGHT
+    x = np.arange(len(random_light_weights))
+    axes[1].bar(x, random_light_weights,
+                width=.4, color=['b', 'g', 'r'])
+    axes[1].set(xlabel='Cone class',
+                ylabel='Cone response (arbitrary units)',
+                xticks=x, xticklabels=['S', 'M', 'L'],
+                title='Cone responses to random light')
+
+
+def primaries():
+    _, axes = plt.subplots(1, 2, figsize=(10, 5))
+    axes[0].plot(CONES['nm'], RANDOM_LIGHT)
+    for p, c in zip(PRIMARIES.T, ['g', 'b', 'r']):
+        axes[1].plot(CONES['nm'], p, c=c)
+    axes[0].set(xlabel='Wavelength (nm)',
+                ylabel='Energy (arbitrary units)',
+                title='Random light')
+    axes[1].set(xlabel='Wavelength (nm)',
+                title='Primaries')
+
+def matched_light():
+    _, axes = plt.subplots(1, 2, figsize=(10, 5))
+    cones_to_primaries = np.linalg.inv(CONES_MATRIX @ PRIMARIES)
+    matched_light = PRIMARIES @ cones_to_primaries @ CONES_MATRIX @ RANDOM_LIGHT
+    axes[0].plot(CONES['nm'], RANDOM_LIGHT, label='Random light')
+    axes[0].plot(CONES['nm'], matched_light, '--', label='Matched light')
+    axes[0].set(xlabel='Wavelength (nm)',
+                ylabel='Energy (arbitrary units)',
+                title='Random and matched light')
+    axes[0].legend(loc='upper left')
+    random_light_weights = CONES_MATRIX @ RANDOM_LIGHT
+    matched_light_weights = CONES_MATRIX @ matched_light
+    x = np.arange(len(random_light_weights))
+    # from https://matplotlib.org/stable/gallery/lines_bars_and_markers/barchart.html
+    multiplier = 0
+    width = .4
+    styles = [{'color': ['b', 'g', 'r'], 'edgecolor': ['b', 'g', 'r'],
+               'linewidth': plt.rcParams['lines.linewidth']},
+              {'color': 'w', 'edgecolor': ['b', 'g', 'r'],
+               'linestyle': '--',
+               'linewidth': plt.rcParams['lines.linewidth']}]
+    for name, wts, sty in zip(['Random light', 'Matched light'],
+                              [random_light_weights, matched_light_weights],
+                              styles) :
+        offset = width * multiplier
+        axes[1].bar(x+offset, wts, label=name,
+                    width=width, **sty)
+        multiplier += 1
+    axes[1].set(xlabel='Cone class',
+                ylabel='Cone response (arbitrary units)',
+                xticks=x+width/2, xticklabels=['S', 'M', 'L'],
+                title='Cone responses')
