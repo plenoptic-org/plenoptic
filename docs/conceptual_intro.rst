@@ -112,8 +112,15 @@ cone responses and thus would be perceived identically.
 
 In this example, the model was a simple linear system of cone responses, and
 thus we can generate a metamer, a physically different input with identical
-output, via some simple linear algebra. However, while this same idea can be
-applied to any model, generating such metamers gets complicated.
+output, via some simple linear algebra. Metamers can be useful for understanding
+other systems as well, because discarding information is useful: the human
+visual system is discarding information at every stage of processing, not just
+at the cones' absorption of light, and any computational system that seeks to
+classify images must discard a lot of information about unnecessary differences
+between images in the same clas. However, generating metamer for other systems
+gets complicated: when a system is nonlinear, linear algebra no longer suffices.
+
+Let's take foveated example....
 
 NOTES:
 ======
@@ -179,6 +186,7 @@ Color matching experiments demonstrate human trichromacy, but...
   * but deeper... copy/adapt part of my thesis that discussed this (p136)
 * make point that this helps tighten the model-experiment loop, makes theorists
   participants in that cycle, to help direct further experiments.
+* and generalize to other synthesis methods
 
 .. [1] Helmholtz, H. (1852). LXXXI. on the theory of compound colours.
   The London, Edinburgh, and Dublin Philosophical Magazine and Journal of
