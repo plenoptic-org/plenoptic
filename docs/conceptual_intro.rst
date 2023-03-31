@@ -99,7 +99,7 @@ by the cone fundamentals, shown below.
 .. plot:: scripts/conceptual_intro.py cones
 
    Left: the cone sensitivity curves. Right: the response of each cone class to
-   the random light in :numref:`primaries`
+   the random light shown in :ref:`the previous figure <primaries>`.
 
 With some linear algebra, we can compute another light that has very different
 amounts of energy at each wavelength but identical cone responses, shown below.
@@ -117,77 +117,85 @@ other systems as well, because discarding information is useful: the human
 visual system is discarding information at every stage of processing, not just
 at the cones' absorption of light, and any computational system that seeks to
 classify images must discard a lot of information about unnecessary differences
-between images in the same clas. However, generating metamer for other systems
-gets complicated: when a system is nonlinear, linear algebra no longer suffices.
+between images in the same class. However, generating metamer for other systems
+gets complicated: when a system gets more complex, linear algebra no longer
+suffices.
 
-Let's take foveated example....
+Let's consider a slightly more complex example. Human vision is very finely
+detailed at the center of gaze, but gradually discards this detailed spatial
+information as distance to the center of gaze increases. This phenomenon is
+known as **foveation**, and can be easily seen by the difficulty in reading a
+paragraph of text or recognizing a face out of the corner of your eye (see [2]_
+for an accessible discussion with examples). The simplest possible model of
+foveation would be to average pixel intensities in windows whose width grows
+linearly with distance from the center of an image, as shown in
+:numref:`model-schematic`:
 
-NOTES:
-======
+.. _model-schematic:
+.. figure:: images/model_schematic.svg
+   :figwidth: 100%
+   :alt: Foveated pixel intensity model.
 
-Color matching experiments demonstrate human trichromacy, but...
+   The foveated pixel intensity model averages pixel values in elliptical windows that grow in size as you move away from the center of the image. It only cares about the average in these regions, not the fine details.
 
-* following MathTools trichromacy HW question, step through an example of the
-  above: random light, any three primaries, can make the perception match
-  * before we answer this, what does it mean for percpetion to match? here, we
-    mean that the two colors are indistinguishable.
-  * in this situation, that happens when the outputs of the cones match. the
-    human visual system throws out a lot of information about wavelengths
-    because we only have three cone classes sensitive to visible light. they are
-    sensitive to a particular range (which is why some birds, insects can
-    respond to ultraviolet light, while we cannot) but they also limit our
-    ability to distinguish between physical stimuli *within* our sensitivity
-    range
-  * analogy is with color blindness. most folks who are colorblind only have two
-    cone classes (there are other types of colorblindness), and so throw away
-    more information than folks with three classes; they are thus are unable to
-    distinguish some colors that folks with three classes are able to, such as
-    red and green
-  * similarly, people with three classes are unable to distinguish between two
-    colors that **are** physically different, e.g., a blue shirt and a picture
-    of that shirt.
-  * demonstrate with tihs worked example: random light, matrix multiply through
-    cone fundamentals to get these three numbers. any light that matches those
-    three numbers is indistinguishable. for example, say we had a screen with
-    these three primaries. the only thing we can do is multiply these by some
-    numbers
-  * and we do some linear algebra and get the following light! can see that it
-    leads to the same output from the cone fundamentals and thus the same
-    perception.
-  * nothing special about these primaries, let's change the primaries and try
-    again: these are actual CRT monitor phosphors. show same result
-* point out this is because the outputs of the cones match, show cone
-  fundamentals
-* point out this is simple in this case (though I'm not showing the math)
-  because it's a linear system and so we can do it with linear algebra / matrix
-  math
-* but the point holds generally: visual system is constantly throwing out
-  information (just like all models) and once info is thrown out, it cannot be
-  recovered
-* and so we can match a representation at some other point. switch to foveated
-  metamers
-  * here, throwing out spatial information, depends on where you focus your eyes
-    (so you can see the effect by moving your eyes), and we end up with images
-    that look blurry
-  * just luminance one, point out that model is just a bunch of gaussians that
-    grow in size with distance from center of image. this means that it's
-    basically low-pass filters, with the cutoff shifting to lower and lower
-    frequencies as you get more peripheral
-  * thus, you can have any information in there: show "blurred" version, plus
-    init-white and init-nat?
-* here, things are nonlinear and so we need a different way to generate them.
-  * actually , luminance is linear -- but don't really want to explain the
-    energy one...
-* why do this?
-  * it can allow for applications: compression of information. in color example,
-    we can represent all visible colors with only three pieces of information
-    (rather than storing the complete power spectra), which is exploited by
-    cameras, digital screens, etc.
-  * but deeper... copy/adapt part of my thesis that discussed this (p136)
-* make point that this helps tighten the model-experiment loop, makes theorists
-  participants in that cycle, to help direct further experiments.
-* and generalize to other synthesis methods
+This model cares about the average pixel intensity in a given area, but doesn't
+care how that average is reached. If the pixels in one of the ellipses above all
+have a value of 0.5, if they're half 0s and half 1s, if they're randomly
+distributed around 0.5 --- those are all identical, as far as the model is
+concerned. A more concrete example is shown in :numref:`fov-met`:
 
-.. [1] Helmholtz, H. (1852). LXXXI. on the theory of compound colours.
-  The London, Edinburgh, and Dublin Philosophical Magazine and Journal of
-  Science, 4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
+.. _fov-met:
+.. figure:: images/foveated_mets.svg
+   :figwidth: 100%
+   :alt: Three images, all identical as far as the foveated pixel intensity model is concerned.
+
+   Three images that the foveated pixel intensity model considers identical. They all have the same average pixel values within the foveated elliptical regions (an example of which is shown on each), but differ greatly in their fine details.
+
+These three images are all identical for the foveated pixel intensity model
+described above (the red ellipse shows the size of the averaging region at that
+location). These three images all have identical average pixel intensities in
+small regions whose size grows as they move away from the center of the image.
+However, like the color metamers discussed earlier, they are all very physically
+different: the leftmost image is a natural image, the rightmost one has lots of
+high-frequency noise, while the center one looks somewhat blurry. You might
+think that, because the model only cares about average pixel intensities, you
+can throw away all the fine details and the model won't notice. And you can! But
+you can also add whatever kind of fine details you'd like, including random
+noise --- the model is completely insensitive to them.
+
+With relatively simple linear models like human trichromacy and the foveated
+pixel intensity model, this way of thinking about models may seem unnecessary.
+But it is very difficult to understand how models will perform on unexpected or
+out-of-distribution data! The burgeoning literature on adversarial examples and
+robustness in machine learning provides many of examples of this, such as the
+addition of a small amount of noise (invisible to humans) changing the predicted
+category [3]_ or the addition of a small elephant to a picture completely
+changing detected objects' identities and boundaries [4]_. Exploring model
+behavior on *all* possible inputs is impossible --- the space of all possible
+images is far too vast --- but image synthesis provides one mechanism for
+exploration in a targeted manner.
+
+``plenoptic`` provides a set of methods for performing image synthesis. They all
+allow exploration of the image features that a given model considers important
+or unimportant (for more details on each method, see `package-contents`_), and
+work with any model that ``torch`` can optimize.
+
+The goal of this package is to facilitate model exploration and understanding.
+We hope that providing these tools helps tighten the model-experiment loop: when
+a decent model is arrived at, whether by importing from a related field or
+earlier experiments, ``plenoptic`` enables scientists to make targeted
+exploration of the model's representational space, generating stimuli that will
+provide most informative. We hope to help theorists become more active
+participants in directing future experiments by efficiently finding new
+predictions to test.
+
+.. [1] Helmholtz, H. (1852). LXXXI. on the theory of compound colours. The
+   London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science,
+   4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
+.. [2] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4), 10–20.
+   http://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
+.. [3] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
+   Goodfellow, I., & Fergus, R. (2013). Intriguing properties of neural
+   networks. https://arxiv.org/abs/1312.6199
+.. [4] Rosenfeld, A., Zemel, R., & Tsotsos, J.~K. (2018). The elephant in the
+   room. https://arxiv.org/abs/1808.03305
