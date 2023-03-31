@@ -22,7 +22,23 @@ plenoptic
 
 |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
 
-plenoptic is currently under development.
+``plenoptic`` is a python library for model-based stimulus synthesis. It
+provides tools to help researchers understand their model by synthesizing novel
+informative stimuli, which help build intuition for what features the model
+ignores and what it is sensitive to. They can be used in future experiments for
+further investigation.
+
+If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
+for a more in-depth introduction.
+
+If you understand the basics of synthesis and want to get started using
+``plenoptic`` quickly, see the :ref:`Quickstart <tutorials/00_quickstart.html>`
+tutorial.
+
+- quickstart
+- contents
+- quick "why do this?"
+- quickstart: merge with thesis example, bring in Eero's notes
 
 If anything is unclear, please `open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_
 
