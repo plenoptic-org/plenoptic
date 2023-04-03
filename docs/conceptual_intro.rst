@@ -177,8 +177,9 @@ exploration in a targeted manner.
 
 ``plenoptic`` provides a set of methods for performing image synthesis. They all
 allow exploration of the image features that a given model considers important
-or unimportant (for more details on each method, see `package-contents`_), and
-work with any model that ``torch`` can optimize.
+or unimportant (for more details on each method, see :ref:`the
+contents<package-contents>` and the synthesis methods' respective tutorials),
+and work with any model that ``torch`` can optimize.
 
 The goal of this package is to facilitate model exploration and understanding.
 We hope that providing these tools helps tighten the model-experiment loop: when
