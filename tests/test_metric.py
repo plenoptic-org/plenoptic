@@ -17,6 +17,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr', 
            'portilla_simoncelli_matlab_test_vectors.tar.gz':'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
+           'portilla_simoncelli_images.tar.gz':'eqr3t',
            # synthesis gives different outputs on GPU vs CPU, so we have
            # separate versions to test against
            'portilla_simoncelli_synthesize.npz': 'a7p9r',
@@ -37,6 +38,7 @@ def osf_download(filename):
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
                 'ssim_analysis.mat', 'msssim_images.tar.gz',
                 'MAD_results.tar.gz',
+                'portilla_simoncelli_images.tar.gz',
                 'portilla_simoncelli_matlab_test_vectors.tar.gz',
                 'portilla_simoncelli_test_vectors.tar.gz',
                 'portilla_simoncelli_synthesize.npz'}

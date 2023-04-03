@@ -110,7 +110,7 @@ class PortillaSimoncelli(nn.Module):
         The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
         # values from 0 to self.n_scales-1 """
 
-        # There are 6 pixel statistics by defulat
+        # There are 6 pixel statistics by default
         pixel_statistics = ["pixel_statistics"] * 6
 
         # magnitude_means
@@ -338,14 +338,6 @@ class PortillaSimoncelli(nn.Module):
             for ii,s in enumerate(self.representation_scales):
                 if s not in scales:
                     representation_vector[:,:,ii]=0
-            # ind = torch.tensor(
-            #     [
-            #         i
-            #         for i, s in enumerate(self.representation_scales)
-            #         if s in scales
-            #     ]
-            # ).to(image.device)
-            # return representation_vector.index_select(-1, ind)
 
         return representation_vector
 
