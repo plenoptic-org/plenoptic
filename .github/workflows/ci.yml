@@ -62,10 +62,10 @@ jobs:
         wget https://osf.io/7nfkz/download -O ./data/tid2013.rar
         7z x ./data/tid2013.rar -o./data/tid2013/
     - name: Run notebooks
-      if: !contains(['examples/Demo_Eigendistortion.ipynb', 'examples/Metamer-Portilla-Simoncelli.ipynb'], matrix.notebook)
+      if: ${{ !contains(['examples/Demo_Eigendistortion.ipynb', 'examples/Metamer-Portilla-Simoncelli.ipynb'], matrix.notebook) }}
       run: jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3
     - name: Run notebooks
-      if: matrix.notebook == 'examples/Metamer-Portilla-Simoncelli.ipynb'
+      if: ${{ matrix.notebook == 'examples/Metamer-Portilla-Simoncelli.ipynb' }}
       # this notebook takes much longer than the rest (if run to completion,
       # ~2hr on a laptop). We use papermill's parameters to reduce the max
       # number of steps for metamer synthesis here (we want to test that each
@@ -74,7 +74,7 @@ jobs:
         pip install --upgrade --upgrade-strategy eager papermill
         papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd examples/
     - name: Run notebooks
-      if: matrix.notebook == 'examples/Demo_Eigendistortion.ipynb'
+      if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
       # this notebook takes much longer than the rest (if run to completion,
       # ~1hr on a laptop, more than 5 hours on the Github runners). We use
       # papermill's parameters to reduce the max number of steps for
