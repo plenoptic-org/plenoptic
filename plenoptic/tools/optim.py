@@ -1,22 +1,20 @@
-"""tools related to optimization
-
-such as more objective functions
+"""Tools related to optimization such as more objective functions.
 """
 import torch
-from typing import Union
+from torch import Tensor
+from typing import Optional, Tuple
 import numpy as np
 
 
-def set_seed(seed: Union[int, None] = None):
+def set_seed(seed: Optional[int] = None) -> None:
     """Set the seed.
 
     We call both ``torch.manual_seed()`` and ``np.random.seed()``.
 
     Parameters
     ----------
-    seed :
+    seed
         The seed to set. If None, do nothing.
-
     """
     if seed is not None:
         # random initialization
@@ -24,7 +22,7 @@ def set_seed(seed: Union[int, None] = None):
         np.random.seed(seed)
 
 
-def mse(synth_rep, ref_rep, **kwargs):
+def mse(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
     r"""return the MSE between synth_rep and ref_rep
 
     For two tensors, :math:`x` and :math:`y`, with :math:`n` values
@@ -38,49 +36,47 @@ def mse(synth_rep, ref_rep, **kwargs):
 
     Parameters
     ----------
-    synth_rep : torch.Tensor
+    synth_rep
         The first tensor to compare, model representation of the
         synthesized image
-    ref_rep : torch.Tensor
+    ref_rep
         The second tensor to compare, model representation of the
         reference image. must be same size as ``synth_rep``,
-    kwargs :
-        ignored, only present to absorb extra arguments
+    kwargs
+        Ignored, only present to absorb extra arguments
 
     Returns
     -------
-    loss : torch.float
-        the mean-squared error between ``synth_rep`` and ``ref_rep``
-
+    loss
+        The mean-squared error between ``synth_rep`` and ``ref_rep``
     """
     return torch.pow(synth_rep - ref_rep, 2).mean()
 
 
-def l2_norm(synth_rep, ref_rep, **kwargs):
+def l2_norm(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
     r"""l2-norm of the difference between ref_rep and synth_rep
 
     Parameters
     ----------
-    synth_rep : torch.Tensor
+    synth_rep
         The first tensor to compare, model representation of the
-        synthesized image
-    ref_rep : torch.Tensor
+        synthesized image.
+    ref_rep
         The second tensor to compare, model representation of the
-        reference image. must be same size as ``synth_rep``,
-    kwargs :
-        ignored, only present to absorb extra arguments
+        reference image. must be same size as ``synth_rep``.
+    kwargs
+        Ignored, only present to absorb extra arguments.
 
     Returns
     -------
-    loss : torch.float
-        the L2-norm of the difference between ``ref_rep`` and ``synth_rep``
-
+    loss
+        The L2-norm of the difference between ``ref_rep`` and ``synth_rep``.
     """
     return torch.norm(ref_rep - synth_rep, p=2)
 
 
-def relative_MSE(synth_rep, ref_rep, **kwargs):
-    r"""squared l2-norm of the difference between reference representation
+def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
+    r"""Squared l2-norm of the difference between reference representation
     and synthesized representation relative to the squared l2-norm of the
     reference representation:
 
@@ -88,26 +84,27 @@ def relative_MSE(synth_rep, ref_rep, **kwargs):
 
     Parameters
     ----------
-    synth_rep : torch.Tensor
+    synth_rep
         The first tensor to compare, model representation of the
-        synthesized image
-    ref_rep : torch.Tensor
+        synthesized image.
+    ref_rep
         The second tensor to compare, model representation of the
-        reference image. must be same size as ``synth_rep``,
-    kwargs :
-        ignored, only present to absorb extra arguments
+        reference image. must be same size as ``synth_rep``.
+    kwargs
+        Ignored, only present to absorb extra arguments
 
     Returns
     -------
-    loss : torch.float
-        ratio of the squared l2-norm of the difference between ``ref_rep`` and
+    loss
+        Ratio of the squared l2-norm of the difference between ``ref_rep`` and
         ``synth_rep`` to the squared l2-norm of ``ref_rep``
-
     """
     return torch.norm(ref_rep - synth_rep, p=2) ** 2 / torch.norm(ref_rep, p=2) ** 2
 
 
-def penalize_range(synth_img, allowed_range=(0, 1), **kwargs):
+def penalize_range(
+    synth_img: Tensor, allowed_range: Tuple[float, float] = (0.0, 1.0), **kwargs
+) -> Tensor:
     r"""penalize values outside of allowed_range
 
     instead of clamping values to exactly fall in a range, this provides
@@ -117,18 +114,17 @@ def penalize_range(synth_img, allowed_range=(0, 1), **kwargs):
 
     Parameters
     ----------
-    synth_img : torch.Tensor
-        the tensor to penalize. the synthesized image.
-    allowed_range : tuple, optional
+    synth_img
+        The tensor to penalize. the synthesized image.
+    allowed_range
         2-tuple of values giving the (min, max) allowed values
-    kwargs :
-        ignored, only present to absorb extra arguments
+    kwargs
+        Ignored, only present to absorb extra arguments
 
     Returns
     -------
-    penalty : torch.float
-        penalty for values outside range
-
+    penalty
+        Penalty for values outside range
     """
     # the indexing should flatten it
     below_min = synth_img[synth_img < allowed_range[0]]
