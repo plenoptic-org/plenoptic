@@ -62,7 +62,7 @@ jobs:
         wget https://osf.io/7nfkz/download -O ./data/tid2013.rar
         7z x ./data/tid2013.rar -o./data/tid2013/
     - name: Run notebooks
-      if: ${{ !contains(fromJSON("['examples/Demo_Eigendistortion.ipynb', 'examples/Metamer-Portilla-Simoncelli.ipynb']"), matrix.notebook) }}
+      if: ${{ !contains(fromJSON('["examples/Demo_Eigendistortion.ipynb", "examples/Metamer-Portilla-Simoncelli.ipynb"]'), matrix.notebook) }}
       run: jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3
     - name: Run notebooks
       if: ${{ matrix.notebook == 'examples/Metamer-Portilla-Simoncelli.ipynb' }}
