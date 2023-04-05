@@ -69,8 +69,12 @@ jobs:
       # this notebook takes much longer than the rest (if run to completion,
       # ~2hr on a laptop). We use papermill's parameters to reduce the max
       # number of steps for metamer synthesis here (we want to test that each
-      # cell runs, but we don't need synthesis to go to completion)
+      # cell runs, but we don't need synthesis to go to completion). also,
+      # download images required for notebook
       run: |
+        mkdir -p data
+        wget https://osf.io/eqr3t/download -O ./data/portilla_simoncelli_images.tar.gz
+        tar xfz ./data/portilla_simoncelli_images.tar.gz --directory=./data/
         pip install --upgrade --upgrade-strategy eager papermill
         papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd examples/
     - name: Run notebooks
