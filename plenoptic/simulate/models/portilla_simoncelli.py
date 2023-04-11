@@ -51,7 +51,7 @@ class PortillaSimoncelli(nn.Module):
         A dictionary containing the Portilla-Simoncelli statistics
 
     References
-    -----
+    ----------
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
        Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
        Computer Vision. 40(1):49-71, October, 2000.
@@ -519,8 +519,8 @@ class PortillaSimoncelli(nn.Module):
         """
         im = im.squeeze()
 
-        mx = im.shape[0]
-        my = im.shape[1]
+        mx = im.shape[1]
+        my = im.shape[0]
         my = mult * my
         mx = mult * mx
 

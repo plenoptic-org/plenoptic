@@ -440,7 +440,7 @@ class Steerable_Pyramid_Freq(nn.Module):
             channel. This should be True if you intend to use a convolutional layer on top of the output. 
 
         Returns
-        -----------
+        -------
         pyr_tensor: `torch.Tensor` (BxCxHxW)
             pyramid coefficients reshaped into tensor. The first channel will be the residual highpass and the last will be
             the residual lowpass. Each band is then a separate channel. 
@@ -521,7 +521,7 @@ class Steerable_Pyramid_Freq(nn.Module):
            pyr_dict = convert_tensor_to_pyr(pyr_tensor, *pyr_info)
 
         Returns
-        ----------
+        -------
         pyr_coeffs: `OrderedDict`
             pyramid coefficients in dictionary format
         """

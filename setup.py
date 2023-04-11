@@ -25,6 +25,9 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     keywords=[
         "Visual Information Processing",
@@ -39,6 +42,7 @@ setup(
         "plenoptic.synthesize",
         "plenoptic.tools",
     ],
+    package_data={'plenoptic.metric': ['DN_sigmas.npy', 'DN_filts.npy']},
     install_requires=readlines('jenkins/requirements.txt'),
     tests="tests",
 )

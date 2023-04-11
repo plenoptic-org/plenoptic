@@ -108,9 +108,9 @@ test functions should be named `test_something` in snakecase.
 
 If you're adding a substantial bunch of tests that are separate from the
 existing ones, you can create a new test script. Its name must begin with
-`test_` and it must be contained within the `tests` directory. Assuming you do
-that, our github actions will automatically find it and add it to the
-tests-to-run.
+`test_`, it must have an `.py` extension, and it must be contained within the
+`tests` directory. Assuming you do that, our github actions will automatically
+find it and add it to the tests-to-run.
 
 ### Testing notebooks
 
@@ -121,10 +121,45 @@ try and debug some errors (though errors that result from environment issues
 obviously will be harder to figure out locally); `jupyter execute` is part of
 the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
-Similar to adding new [test scripts](#adding-tests), you need to add new
-tutorials to the corresponding build matrix so they can be tested. As long as
-your notebook is in the `examples/` directory, our github actions will
-automatically find it and test it.
+Similar to adding new [test scripts](#adding-tests), you don't need to
+explicitly add new tutorials to `ci.yml` to be tested: as long as your notebook
+is in the `examples/` directory and has an `ipynb` extension, our github actions
+will automatically find it and test it.
+
+If your notebook needs additional files to run, you should add a [conditional
+job](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution)
+to download them. We recommend uploading a tarball to the [Open Science
+Framework](https://osf.io/), and they can then be downloaded using `wget` and
+extracted. See `Download TID2013 dataset` in `ci.yml` for an example.
+
+If your notebook takes more than ~10 minutes on a github runner, you should find
+a way to use reduce it for tests. The goal of the tests is only to check that
+each cell runs successfully. For example, the Portilla-Simoncelli texture model
+notebook runs several metamer syntheses to completion. This allows the user to
+better understand how the model works and confirm that we are able to reproduce
+the paper, as well as serving as a convenient way for the developers to ensure
+that we maintain this over time. However, the tests are *only intended* to
+ensure that everything runs, so we can reduce the number of iterations those
+metamer instances run for. We do this using
+[papermill](https://papermill.readthedocs.io/), which requires several steps:
+
+- Add a cell to the top of the notebook (under the import cell), add the
+  parameter tag (see [papermill
+  documentation]https://papermill.readthedocs.io/en/latest/usage-parameterize.html()),
+  and create a variable for each synthesis duration (e.g., `vgg16_synth_max_iter
+  = 1000`).
+- Where synthesis is called later in the notebook, replace the number with the
+  variable (e.g., `metamer.synthesize(max_iter=vgg16_max_iter)`).
+- Add a conditional job to `ci.yml` for your notebook which installs papermill
+  and calls it with the syntax: `papermill ${{ matrix.notebook }} ${{
+  matrix.notebook }}_output.ipynb -p PARAM1 VAL1 -p PARAM2 VAL2 -k python3 --cwd
+  examples/`, replacing `PARAM1 VAL1` and `PARAM2 VAL2` as appropriate (e.g.,
+  `vgg16_synth_max_iter 10`; note that you need a `-p` for each parameter and
+  you should change nothing else about that line). See the block with `if: ${{
+  matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}` for an example.
+  
+A similar procedure could be used to reduce the size of an image or other steps
+that could similarly reduce the total time necessary to run a notebook.
 
 ### Test parameterizations and fixtures
 
@@ -320,8 +355,11 @@ make html
 
 We build tutorials as Jupyter notebooks so that they can be launched in Binder
 and people can play with them on their local machine. In order to include them
-in the built docs, add a `nblink` file to the `docs/tutorials/` directory. This
-is a json file that should contain the path to the notebook, like so, for
+in the built docs, add a `nblink` file to the `docs/tutorials/` directory. We
+check for this during the tests, so you won't be able to merge your pull request
+into `main` unless you've done this!
+
+This is a json file that should contain the path to the notebook, like so, for
 `docs/tutorials/my_awesome_tutorial.nblink`:
 
 ```
@@ -334,18 +372,8 @@ note that you *cannot* have a trailing comma there, because json is very
 particular. See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
 page for more details.
 
-Once you've done that, you should add it to our `index.rst`. Towards the bottom
-of that page, you'll find a `toctree` with the caption "Tutorials and examples".
-Add your new tutorial by adding the line `tutorials/my_awesome_tutorial.nblink`
-after the existing ones. Then, once you run `make html`, your tutorial should
-now be included!
-
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
 should have exactly one H1 title (i.e., line starting with a single `#`), but
 you can have as many lower-level titles as you'd like. If you have multiple H1
 titles, they'll each show up as different tutorials. If you don't have an H1
 title, it won't show up at all.
-
-When you add a new tutorial, don't forget to add it to the `treebeard.yml` file
-so it can be tested (see last paragraph of the [testing
-notebooks](#testing-notebooks) section for details).

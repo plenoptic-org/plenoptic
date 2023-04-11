@@ -56,8 +56,8 @@ class Geodesic(nn.Module):
         measures distance from straight line and distance along straight line,
         stored along the optimization process
 
-    Note
-    ----
+    Notes
+    -----
     Manifold prior hypothesis: natural images form a manifold 𝑀ˣ embedded
     in signal space (ℝⁿ), a model warps this manifold to another manifold 𝑀ʸ
     embedded in representation space (ℝᵐ), and thereby induces a different
