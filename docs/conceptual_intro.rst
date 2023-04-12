@@ -12,17 +12,7 @@ that we can create stimuli, not just rely on existing ones. Computational models
 take a stimulus as input, perform some computations based on parameters, and
 return an output. In visual models, the focus of ``plenoptic``, the inputs are
 typically images and the outputs are some abstractions of representation, which
-are used to predict neural activity or behavior of some kind. Most commonly,
-researchers use these models alongside experiments, simulating model responses
-(with fixed parameters) to a variety of stimuli that are compared against other
-models, neural responses, or animal behavior. Researchers also often fit the
-parameters of their model, using optimization to find the parameter values that
-best align model responses with the output of interest for the tested set of
-inputs. However, stimuli are not special, and researchers can similarly hold
-parameters and responses fixed, while using optimization to generate new stimuli
-(see :numref:`synthesis-schematic` for a schematic comparing these procedures).
-We refer to this process as **synthesis** and it facilitates the exploration of
-input space to improve our understanding of a model's representation space.
+are used to predict neural activity or behavior of some kind.
 
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
@@ -30,6 +20,29 @@ input space to improve our understanding of a model's representation space.
    :alt: Schematic describing relationship between simulate, fit, and synthesis.
 
    Schematic describing relationship between simulate, fit, and synthesis.
+
+Computational models transform some stimulus :math:`s` to a response :math:`r`
+(we often refer to :math:`r` as the model's representation of :math:`s`), based
+on some parameters :math:`\theta`. For example, a trained neural network that
+classifies images has specific weights :math:`\theta`, accepts an image
+:math:`s` and returns a one-hot vector :math:`r` that specifies the image class.
+Or we have a linear-nonlinear Gabor filter model of a simple cell in primary
+visual cortex, where :math:`\theta` defines the filter's orientation, size, and
+spatial frequency, the model accepts an image :math:`s` and returns a scalar
+:math:`r` that gives the neuron's firing rate.
+
+The most common scientific uses for a model are to simulate responses or to fit
+parameters, as shown in :numref:`synthesis-schematic`. For simulating, we hold
+the parameters constant while presenting the model with some input that we're
+interested in, such as a picture of a dog or a sine-wave grating, and we run the
+model forward to gets its response. For fitting, we use optimization to find the
+parameter values that best account for the observed responses to some known
+stimuli. In both of these cases, we are holding two of :math:`r`, :math:`s`,
+:math:`\theta` constant while generating the third. We can do the same thing to
+generate novel stimuli, :math:`s`, while holding the parameters and responses
+constant. We refer to this process as **synthesis** and it facilitates the
+exploration of input space to improve our understanding of a model's
+representation space.
 
 This is related to a long and fruitful thread of research in vision science that
 focuses on what humans cannot see, that is, the information they are insensitive
