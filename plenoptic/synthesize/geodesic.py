@@ -259,12 +259,15 @@ class Geodesic(OptimizedSynthesis):
         This is the path energy (i.e., squared L2 norm of each step) of the
         geodesic's model representation, with the weighted range penalty.
 
-        Additionally, caches (because we might want to store them):
+        Additionally, caches:
 
         - ``self._geodesic_representation = self.model(geodesic)``
 
         - ``self._most_recent_step_energy = self._calculate_step_energy(self._geodesic_representation)``
-`
+
+        These are cached because we might store them (if ``self.store_progress
+        is True``) and don't want to recalcualte them
+
         Parameters
         ----------
         geodesic
