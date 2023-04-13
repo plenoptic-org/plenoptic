@@ -271,7 +271,10 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
         same_val = metric(test_img, test_img).item()
     except TypeError:
         raise TypeError("metric should be callable and accept two 4d tensors as input")
-    except ValueError:
+    # as of torch 2.0.0, this is a RuntimeError (a Tensor with X elements
+    # cannot be converted to Scalar); previously it was a ValueError (only one
+    # element tensors can be converted to Python scalars)
+    except (ValueError, RuntimeError):
         raise ValueError(
             f"metric should return a scalar value but output had shape {metric(test_img, test_img).shape}"
         )
