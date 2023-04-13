@@ -221,12 +221,8 @@ class Eigendistortion(Synthesis):
             iteration to the next, we terminate synthesis.
 
         """
-
-        assert method in [
-            "power",
-            "exact",
-            "randomized_svd",
-        ], "method must be in {'power', 'exact', 'randomized_svd'}"
+        allowed_methods = ["power", "exact", "randomized_svd"]
+        assert method in allowed_methods, f"method must be in {allowed_methods}"
 
         if (
             method == "exact"

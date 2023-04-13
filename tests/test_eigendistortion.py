@@ -20,7 +20,7 @@ class TestEigendistortionSynthesis:
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
-        with pytest.raises(AssertionError, match="method must be in {'power', 'exact', 'randomized_svd'}"):
+        with pytest.raises(AssertionError, match="method must be in "):
             ed.synthesize(method='asdfsdfasf')
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
