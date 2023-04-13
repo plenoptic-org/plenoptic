@@ -282,8 +282,10 @@ def ms_ssim(img1, img2, power_factors=None):
     for all but the coarsest scales, and the overall SSIM map is only computed
     for the coarsest scale. Their mean values are raised to exponents and
     multiplied to produce MS-SSIM:
+
     .. math::
         MSSSIM = {SSIM}_M^{a_M} \prod_{i=1}^{M-1} ({CS}_i)^{a_i}
+
     Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
     of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
     is the mean value of the SSIM map for the coarsest scale. If at least one
