@@ -55,6 +55,10 @@ provide longer discussions of this, but the following are some reasons:
   of information that their models disregard and the information that it
   consider essential, facilitating model comprehension.
 
+.. figure:: images/example_synth.svg
+   :figwidth: 100%
+   :alt: The four synthesis methods included in plenoptic
+
 .. _package-contents:
 ``plenoptic`` includes the following synthesis methods:
 
