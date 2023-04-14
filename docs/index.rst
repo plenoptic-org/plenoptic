@@ -62,11 +62,13 @@ provide longer discussions of this, but the following are some reasons:
   stochastically generate a new image whose model representation is identical to
   that of the reference image. This method investigates what image features the
   model disregards entirely.
+
   - Example papers: [Portilla2000]_, [Freeman2011]_
 - `Eigendistortions <tutorials/02_Eigendistortions.html>`_: given a model and a
   reference image, compute the image perturbation that produces the smallest and
   largest changes in the model response space. This method investigates the
   image features the model considers the least and most important.
+
   - Example papers: [Berardino2017]_
 - `Maximal differentiation (MAD) competition
   <tutorials/07_MAD_Competition.html>`_: given two metrics that measure distance
@@ -77,11 +79,13 @@ provide longer discussions of this, but the following are some reasons:
   a second pair with the roles of the two models reversed. This method allows
   for efficient comparison of two metrics, highlighting the aspects in which
   their sensitivities differ.
+
   - Example papers: [Wang2008]_
 - `Geodesics <tutorials/05_Geodesics.html>`_: given a model and two images,
   synthesize a sequence of images that lie on the shortest ("geodesic") path in
   the model's representation space. This method investigates how a model
   represents motion and what changes to an image it consider reasonable.
+
   - Example papers: [Henaff2016]_, [Henaff2020]_
 
 ``plenoptic`` also contains the following models, metrics, and model components
