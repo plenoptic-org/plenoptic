@@ -126,6 +126,7 @@ If anything is unclear, please `open an issue
 
    conceptual_intro
    reproducibility
+   tips
    api/modules
 
 .. toctree::
