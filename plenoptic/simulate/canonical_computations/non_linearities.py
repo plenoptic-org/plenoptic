@@ -3,9 +3,9 @@ from ...tools.conv import blur_downsample, upsample_blur
 from ...tools.signal import rectangular_to_polar, polar_to_rectangular
 
 
-def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
-    """Return the complex modulus and the phase of each complex tensor
-    in a dictionary.
+def rectangular_to_polar_dict(coeff_dict, residuals=False):
+    """Return the complex modulus and the phase of each complex tensor in a dictionary.
+
     Parameters
     ----------
     coeff_dict : dict
@@ -23,19 +23,6 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
         The dictionary of torch.Tensors containing the local phase of
         ``coeff_dict``.
 
-    Notes
-    -----
-    Since complex numbers are not supported by pytorch, we represent
-    complex tensors as having an extra dimension with two slices, where
-    one contains the real and the other contains the imaginary
-    components. E.g., ``1+2j`` would be represented as
-    ``torch.tensor([1, 2])`` and ``[1+2j, 4+5j]`` would be
-    ``torch.tensor([[1, 2], [4, 5]])``. In the cases represented here,
-    this "complex dimension" is the last one, and so the default
-    argument ``dim=-1`` would work.
-    Note that energy and state is not computed on the residuals.
-    Computing the state is local gain control in disguise, see
-    ``rectangular_to_polar_real`` and ``local_gain_control``.
     """
     energy = {}
     state = {}
@@ -52,7 +39,8 @@ def rectangular_to_polar_dict(coeff_dict, dim=-1, residuals=False):
 
 
 def polar_to_rectangular_dict(energy, state, residuals=True):
-    """Return the real and imaginary part  tensor in a dictionary.
+    """Return the real and imaginary parts of tensor in a dictionary.
+
     Parameters
     ----------
     energy : dict
@@ -64,6 +52,7 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
        The dimension that contains the real and imaginary components.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
+
     Returns
     -------
     coeff_dict : dict
@@ -93,6 +82,7 @@ def local_gain_control(x, epsilon=1e-8):
         Tensor of shape (B,C,H,W)
     epsilon: float, optional
         Small constant to avoid division by zero.
+
     Returns
     -------
     norm : torch.Tensor
@@ -102,10 +92,11 @@ def local_gain_control(x, epsilon=1e-8):
         The local phase of ``x`` (aka. local unit vector, or local
         state)
 
-    Note
-    ----
+    Notes
+    -----
     This function is an analogue to rectangular_to_polar for
     real valued signals.
+
     Norm and direction (analogous to complex modulus and phase) are
     defined using blurring operator and division.  Indeed blurring the
     responses removes high frequencies introduced by the squaring
@@ -145,10 +136,11 @@ def local_gain_release(norm, direction, epsilon=1e-8):
     x : torch.Tensor
         Tensor of shape (B,C,H,W)
 
-    Note
-    ----
+    Notes
+    -----
     This function is an analogue to polar_to_rectangular for
     real valued signals.
+
     Norm and direction (analogous to complex modulus and phase) are
     defined using blurring operator and division.  Indeed blurring the
     responses removes high frequencies introduced by the squaring
