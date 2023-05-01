@@ -109,7 +109,7 @@ that might be useful:
   metric, returning a number between -1 (totally different) and 1 (identical)
   reflecting how similar two images are. This is based on the images' luminance,
   contrast, and structure, which are computed convolutionally across the images.
-- Multiscale Structrual Similarity Index (MS-SSIM), [Wang2003]_, is a percpetual
+- Multiscale Structrual Similarity Index (MS-SSIM), [Wang2003]_, is a perceptual
   similarity metric similar to SSIM, except it operates at multiple scales
   (i.e., spatial frequencies).
 - Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is an
