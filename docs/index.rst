@@ -28,15 +28,31 @@ informative stimuli, which help build intuition for what features the model
 ignores and what it is sensitive to. They can be used in future experiments for
 further investigation.
 
-If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
-for a more in-depth introduction.
+Getting started
+---------------
 
-If you understand the basics of synthesis and want to get started using
-``plenoptic`` quickly, see the `Quickstart <tutorials/00_quickstart.html>`_
-tutorial.
+- If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
+  for a more in-depth introduction.
+- If you understand the basics of synthesis and want to get started using
+  ``plenoptic`` quickly, see the `Quickstart <tutorials/00_quickstart.html>`_
+  tutorial.
 
-Why perform stimulus synthesis? The :ref:`conceptual-intro` and tutorials
-provide longer discussions of this, but the following are some reasons:
+Installation
+^^^^^^^^^^^^
+
+.. highlight:: bash
+
+The best way to install ``plenoptic`` is via ``pip``. For now, you must do this
+from github directly::
+
+$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+
+See the `README
+<https://github.com/LabForComputationalVision/plenoptic/#setup>`_ for more
+details, including how to set up an isolated virtual environment.
+
+Why perform stimulus synthesis?
+-------------------------------
 
 - scientific models are normally evaluated on their ability to fit data or
   perform a task, such as how well a model performs on ImageNet or how closely a
@@ -55,11 +71,17 @@ provide longer discussions of this, but the following are some reasons:
   of information that their models disregard and the information that it
   consider essential, facilitating model comprehension.
 
+See :ref:`conceptual-intro` and tutorials for longer discussions of the
+scientific reasoning enabled by stimulus synthesis.
+
+.. _package-contents:
+Contents
+--------
+
 .. figure:: images/example_synth.svg
    :figwidth: 100%
    :alt: The four synthesis methods included in plenoptic
 
-.. _package-contents:
 ``plenoptic`` includes the following synthesis methods:
 
 - `Metamers <tutorials/06_Metamer.html>`_: given a model and a reference image,
