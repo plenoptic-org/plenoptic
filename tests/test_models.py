@@ -306,6 +306,22 @@ class TestPortillaSimoncelli(object):
             output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
         )
 
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    def test_ps_convert(self, n_scales, n_orientations, spatial_corr_width,
+                        use_true_correlations, einstein_img):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations,
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        assert torch.all(rep == ps.convert_to_vector(ps.convert_to_dict(rep))), "Convert to vector or dict is broken!"
+
     def test_ps_synthesis(self, portilla_simoncelli_synthesize,
                           run_test=True):
         """Test PS texture metamer synthesis.

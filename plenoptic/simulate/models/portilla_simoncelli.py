@@ -206,12 +206,14 @@ class PortillaSimoncelli(nn.Module):
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's ``scales`` attribute, and
+            the returned vector will then contain the subset of the full
+            representation corresponding to those scales.
 
         Returns
         -------
         representation_vector: torch.Tensor
-            A flattened tensor (1d) containing the measured representation statistics.
+            3d tensor containing the measured representation statistics.
 
         """
         while image.ndimension() < 4:
@@ -332,34 +334,67 @@ class PortillaSimoncelli(nn.Module):
             self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
         )
 
-        representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
+        representation_vector = self.convert_to_vector()
         
         if scales is not None:
-            for ii,s in enumerate(self.representation_scales):
-                if s not in scales:
-                    representation_vector[:,:,ii]=0
+            representation_vector = self._remove_scales(representation_vector,
+                                                        scales, image.device)
 
         return representation_vector
 
-    def convert_to_vector(self):
+    def _remove_scales(self, stats_vec, scales, device):
+        """
+        """
+        ind = torch.tensor(
+            [i for i, s in enumerate(self.representation_scales)
+             if s in scales]
+        ).to(device)
+        return stats_vec.index_select(-1, ind)
+
+    def convert_to_vector(self, stats_dict=None):
         r"""Converts dictionary of statistics to a vector (for synthesis).
+
+        Parameters
+        ----------
+        stats_dict : optional
+            If None, we use self.representation. Dictionary of representation.
 
         Returns
         -------
-         -- : torch.Tensor
-            Flattened 1d vector of statistics.
+        Flattened 1d vector of statistics.
 
         """
+        if stats_dict is None:
+            stats_dict = self.representation
+
         list_of_stats = [
             torch.cat([vv.flatten() for vv in val.values()])
             if isinstance(val, OrderedDict)
             else val.flatten()
-            for (key, val) in self.representation.items()
+            for (_, val) in stats_dict.items()
         ]
-        return torch.cat(list_of_stats)
+        return torch.cat(list_of_stats).unsqueeze(0).unsqueeze(0)
 
     def convert_to_dict(self, vec):
+        """Converts vector of statistics to a dictionary.
+
+        Parameters
+        ----------
+        vec
+            Flattened 1d vector of statistics.
+
+        Returns
+        -------
+        Dictionary of representation, with informative keys.
+
+        """
         vec = vec.squeeze()
+        if len(vec) != len(self.representation_scales):
+            raise ValueError("representation vector is the wrong length (expected "
+                             f"{len(self.representation_scales)} but got {len(vec)})!"
+                             " Did you remove some of the scales? (i.e., by setting "
+                             "scales in the forward pass)? convert_to_dict does not "
+                             "support such vectors.")
         rep = OrderedDict()
         rep["pixel_statistics"] = OrderedDict()
         rep["pixel_statistics"]["mean"] = vec[0]
