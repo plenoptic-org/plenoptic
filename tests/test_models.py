@@ -250,10 +250,9 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("im_shape", [(256, 256)])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_ps_torch_v_matlab(self, n_scales, n_orientations,
-                               spatial_corr_width, im_shape, im,
+                               spatial_corr_width, im,
                                portilla_simoncelli_matlab_test_vectors):
 
         torch.set_default_dtype(torch.float64)
