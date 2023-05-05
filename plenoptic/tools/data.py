@@ -106,8 +106,8 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             im = imageio.imread(p)
         except ValueError:
             warnings.warn(
-                "Unable to load in file %s, it's probably not "
-                "an image, skipping..." % p
+                f"Unable to load in file {p}, it's probably not "
+                "an image, skipping..."
             )
             continue
         # make it a float32 array with values between 0 and 1
@@ -117,10 +117,17 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
                 # From scikit-image 0.19 on, it will treat 2d signals as 1d
                 # images with 3 channels, so only call rgb2gray when it's more
                 # than 2d
-                im = color.rgb2gray(im)
+                try:
+                    im = color.rgb2gray(im)
+                except ValueError:
+                    # then maybe this is an rgba image instead
+                    im = color.rgb2gray(color.rgba2rgb(im))
             else:
-                # RGB dimension ends up on the last one, so we rearrange
+                # RGB(A) dimension ends up on the last one, so we rearrange
                 im = np.moveaxis(im, -1, 0)
+        elif im.ndim == 2 and not as_gray:
+            # then expand this grayscale image to the rgb representation
+            im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
     try:
         images = torch.tensor(images, dtype=torch.float32)
@@ -133,7 +140,7 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     if as_gray:
         if images.ndimension() != 3:
             raise Exception(
-                "For loading in images as grayscale, this " "should be a 3d tensor!"
+                "For loading in images as grayscale, this should be a 3d tensor!"
             )
         images = images.unsqueeze(1)
     else:
