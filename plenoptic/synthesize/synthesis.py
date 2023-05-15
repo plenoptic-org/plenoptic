@@ -275,7 +275,7 @@ class OptimizedSynthesis(Synthesis):
         """
         pass
 
-    def _closure(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _closure(self) -> torch.Tensor:
         r"""An abstraction of the gradient calculation, before the optimization step.
 
         This enables optimization algorithms that perform several evaluations
