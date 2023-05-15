@@ -250,13 +250,8 @@ class Geodesic(OptimizedSynthesis):
         - return pixel_change_norm, the norm of the step just taken
         """
         last_iter_geodesic = self._geodesic.clone()
-        self.optimizer.zero_grad()
-
-        loss = self.objective_function()
+        loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
-        loss.backward()
-
-        self.optimizer.step()
 
         grad_norm = torch.linalg.vector_norm(self._geodesic.grad.data,
                                              ord=2, dim=None)

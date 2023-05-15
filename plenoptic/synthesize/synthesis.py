@@ -254,6 +254,27 @@ class OptimizedSynthesis(Synthesis):
         self._range_penalty_lambda = range_penalty_lambda
         self._allowed_range = allowed_range
 
+    def _closure(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""An abstraction of the gradient calculation, before the optimization step.
+
+        This enables optimization algorithms that perform several evaluations
+        of the gradient before taking a step (ie. second order methods like
+        LBFGS).
+
+        Additionally, this is where ``loss`` is calculated and
+        ``loss.backward()`` is called.
+
+        Returns
+        -------
+        loss
+            Loss of the current objective function
+
+        """
+        self.optimizer.zero_grad()
+        loss = self.objective_function()
+        loss.backward(retain_graph=False)
+        return loss
+
     @property
     def losses(self):
         """Synthesis loss over iterations."""

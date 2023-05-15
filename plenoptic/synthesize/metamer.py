@@ -253,27 +253,6 @@ class Metamer(OptimizedSynthesis):
                                              self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
-    def _closure(self) -> Tuple[Tensor, Tensor]:
-        r"""An abstraction of the gradient calculation, before the optimization step.
-
-        This enables optimization algorithms that perform several evaluations
-        of the gradient before taking a step (ie. second order methods like
-        LBFGS).
-
-        Additionally, this is where ``loss`` is calculated and
-        ``loss.backward()`` is called.
-
-        Returns
-        -------
-        loss
-            Loss of the current objective function
-
-        """
-        self.optimizer.zero_grad()
-        loss = self.objective_function()
-        loss.backward(retain_graph=False)
-        return loss
-
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""Compute and propagate gradients, then step the optimizer to update metamer.
 

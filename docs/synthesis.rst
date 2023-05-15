@@ -153,6 +153,11 @@ methods, we may modify ``OptimizedSynthesis``):
   correct object if the user did.
 * during synthesis, the object should update the ``_losses``,
   ``_gradient_norm``, and ``_pixel_change_norm`` attributes on each iteration.
+* the object may have a ``_closure()`` method, which performs the gradient
+  calculation. This (when passed to ``optimizer.step()`` during the synthesis
+  loop in ``synthesize()``) enables optimization algorithms that perform several
+  evaluations of the gradient before taking a step (e.g., second-order methods).
+  See ``OptimizedSynthesis._closure()`` for the simplest version of this.
 * the ``synthesize()`` method should accept a ``store_progress`` argument, which
   optionally stores additional information over iteration, such as the synthesis
   output-in-progress. ``OptimizedSynthesis`` has a setter method for this
