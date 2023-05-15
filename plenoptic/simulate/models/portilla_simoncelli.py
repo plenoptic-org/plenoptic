@@ -150,7 +150,8 @@ class PortillaSimoncelli(nn.Module):
             self.n_orientations * self.n_orientations
         ) * scales_with_lowpass
         cross_orientation_correlation_real = (
-            4 * self.n_orientations * self.n_orientations
+            max(2 * self.n_orientations, 5)
+            * max(2 * self.n_orientations, 5)
         ) * scales_with_lowpass
 
         cross_scale_correlation_magnitude = (
