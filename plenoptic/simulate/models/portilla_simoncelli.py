@@ -202,8 +202,7 @@ class PortillaSimoncelli(nn.Module):
         image : torch.Tensor
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
-            channel, height, width). If it has fewer than 4 dimensions,
-            we will unsqueeze it until its 4d
+            channel, height, width).
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
