@@ -241,15 +241,10 @@ class Geodesic(OptimizedSynthesis):
             stored = False
         return stored
 
-    def _finite_difference(self, z):
-        """calculate a discrete approximation to the derivative operator.
-        """
-        return z[1:] - z[:-1]
-
     def _calculate_step_energy(self, z):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`.
         """
-        velocity = self._finite_difference(z)
+        velocity = torch.diff(z, dim=0)
         step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
         return step_energy
 
@@ -527,8 +522,8 @@ class Geodesic(OptimizedSynthesis):
         if geodesic is None:
             geodesic = self.geodesic
         geodesic_representation = self.model(geodesic)
-        velocity = self._finite_difference(geodesic_representation)
-        acceleration = self._finite_difference(velocity)
+        velocity = torch.diff(geodesic_representation, dim=0)
+        acceleration = torch.diff(velocity, dim=0)
         acc_magnitude = torch.linalg.vector_norm(acceleration, ord=2, dim=[1,2,3],
                                                  keepdim=True)
         acc_direction = torch.div(acceleration, acc_magnitude)
