@@ -24,6 +24,9 @@ class Geodesic(OptimizedSynthesis):
     This method can be used to visualize and refine the invariances of a
     model's representation as described in [1]_.
 
+    NOTE: This synthesis method is still under construction. It will run, but
+    it might not find the most informative geodesic.
+
     Parameters
     ----------
     image_a, image_b
