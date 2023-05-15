@@ -97,7 +97,6 @@ class MADCompetition(OptimizedSynthesis):
            http://dx.doi.org/10.1167/8.12.8
 
     """
-
     def __init__(self, image: Tensor,
                  optimized_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
                  reference_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
@@ -137,46 +136,6 @@ class MADCompetition(OptimizedSynthesis):
         self._store_progress = None
         self._saved_mad_image = []
 
-    @property
-    def mad_image(self):
-        return self._mad_image
-
-    @property
-    def optimized_metric(self):
-        return self._optimized_metric
-
-    @property
-    def reference_metric(self):
-        return self._reference_metric
-
-    @property
-    def image(self):
-        return self._image
-
-    @property
-    def initial_image(self):
-        return self._initial_image
-
-    @property
-    def reference_metric_loss(self):
-        return torch.tensor(self._reference_metric_loss)
-
-    @property
-    def optimized_metric_loss(self):
-        return torch.tensor(self._optimized_metric_loss)
-
-    @property
-    def metric_tradeoff_lambda(self):
-        return self._metric_tradeoff_lambda
-
-    @property
-    def minmax(self):
-        return self._minmax
-
-    @property
-    def saved_mad_image(self):
-        return torch.stack(self._saved_mad_image)
-
     def _initialize(self, initial_noise: float = .1):
         """Initialize the synthesized image.
 
@@ -202,22 +161,41 @@ class MADCompetition(OptimizedSynthesis):
         self._optimized_metric_loss.append(self.optimized_metric(self.image,
                                                                  self.mad_image).item())
 
-    def _check_convergence(self, stop_criterion, stop_iters_to_check):
-        r"""Check whether the loss has stabilized and, if so, return True.
+    def synthesize(self, max_iter: int = 100,
+                   optimizer: Optional[torch.optim.Optimizer] = None,
+                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+                   store_progress: Union[bool, int] = False,
+                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
+                   ):
+        r"""Synthesize a MAD image.
 
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
-         |      no |
-         |       | yes
-         <-------' |
-         |         '------> return ``True``
-         |
-         '---------> return ``False``
+        Update the pixels of ``initial_image`` to maximize or minimize
+        (depending on the value of ``minmax``) the value of
+        ``optimized_metric(image, mad_image)`` while keeping the value of
+        ``reference_metric(image, mad_image)`` constant.
+
+        We run this until either we reach ``max_iter`` or the change over the
+        past ``stop_iters_to_check`` iterations is less than
+        ``stop_criterion``, whichever comes first
 
         Parameters
         ----------
+        max_iter :
+            The maximum number of iterations to run before we end synthesis
+            (unless we hit the stop criterion).
+        optimizer :
+            The optimizer to use. If None and this is the first time calling
+            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
+            been called before, this must be None and we reuse the previous
+            optimizer.
+        scheduler :
+            The learning rate scheduler to use. If None, we don't use one.
+        store_progress :
+            Whether we should store the representation of the MAD image in
+            progress on every iteration. If False, we don't save anything. If
+            True, we save every iteration. If an int, we save every
+            ``store_progress`` iterations (note then that 0 is the same as
+            False and 1 the same as True).
         stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -225,43 +203,30 @@ class MADCompetition(OptimizedSynthesis):
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
-        Returns
-        -------
-        loss_stabilized :
-            Whether the loss has stabilized or not.
-
         """
-        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+        # initialize the optimizer and scheduler
+        self._initialize_optimizer(optimizer, scheduler)
 
-    def _initialize_optimizer(self, optimizer, scheduler):
-        """Initialize optimizer and scheduler."""
-        super()._initialize_optimizer(optimizer, 'mad_image')
-        self.scheduler = scheduler
+        # get ready to store progress
+        self.store_progress = store_progress
 
-    def _store(self, i: int) -> bool:
-        """Store mad_image anbd model response, if appropriate.
+        pbar = tqdm(range(max_iter))
 
-        if it's the right iteration, we update ``saved_mad_image``
+        for _ in pbar:
+            # update saved_* attrs. len(losses) gives the total number of
+            # iterations and will be correct across calls to `synthesize`
+            self._store(len(self.losses))
 
-        Parameters
-        ----------
-        i
-            the current iteration
+            loss = self._optimizer_step(pbar)
 
-        Returns
-        -------
-        stored :
-            True if we stored this iteration, False if not.
+            if not torch.isfinite(loss):
+                raise ValueError("Found a NaN in loss during optimization.")
 
-        """
-        if self.store_progress and (i % self.store_progress == 0):
-            # want these to always be on cpu, to reduce memory use for GPUs
-            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
-            stored = True
-        else:
-            stored = False
-        return stored
+            if self._check_convergence(stop_criterion, stop_iters_to_check):
+                warnings.warn("Loss has converged, stopping synthesis")
+                break
 
+        pbar.close()
 
     def objective_function(self,
                            mad_image: Optional[Tensor] = None,
@@ -360,41 +325,22 @@ class MADCompetition(OptimizedSynthesis):
                         optimized_metric=f'{sm.item():.04e}'))
         return loss
 
-    def synthesize(self, max_iter: int = 100,
-                   optimizer: Optional[torch.optim.Optimizer] = None,
-                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-                   store_progress: Union[bool, int] = False,
-                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
-                   ):
-        r"""Synthesize a MAD image.
+    def _check_convergence(self, stop_criterion, stop_iters_to_check):
+        r"""Check whether the loss has stabilized and, if so, return True.
 
-        Update the pixels of ``initial_image`` to maximize or minimize
-        (depending on the value of ``minmax``) the value of
-        ``optimized_metric(image, mad_image)`` while keeping the value of
-        ``reference_metric(image, mad_image)`` constant.
-
-        We run this until either we reach ``max_iter`` or the change over the
-        past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first
+         Have we been synthesizing for ``stop_iters_to_check`` iterations?
+         | |
+        no yes
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
+         |      no |
+         |       | yes
+         <-------' |
+         |         '------> return ``True``
+         |
+         '---------> return ``False``
 
         Parameters
         ----------
-        max_iter :
-            The maximum number of iterations to run before we end synthesis
-            (unless we hit the stop criterion).
-        optimizer :
-            The optimizer to use. If None and this is the first time calling
-            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
-            been called before, this must be None and we reuse the previous
-            optimizer.
-        scheduler :
-            The learning rate scheduler to use. If None, we don't use one.
-        store_progress :
-            Whether we should store the representation of the MAD image in
-            progress on every iteration. If False, we don't save anything. If
-            True, we save every iteration. If an int, we save every
-            ``store_progress`` iterations (note then that 0 is the same as
-            False and 1 the same as True).
         stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -402,30 +348,42 @@ class MADCompetition(OptimizedSynthesis):
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
+        Returns
+        -------
+        loss_stabilized :
+            Whether the loss has stabilized or not.
+
         """
-        # initialize the optimizer and scheduler
-        self._initialize_optimizer(optimizer, scheduler)
+        return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
-        # get ready to store progress
-        self.store_progress = store_progress
+    def _initialize_optimizer(self, optimizer, scheduler):
+        """Initialize optimizer and scheduler."""
+        super()._initialize_optimizer(optimizer, 'mad_image')
+        self.scheduler = scheduler
 
-        pbar = tqdm(range(max_iter))
+    def _store(self, i: int) -> bool:
+        """Store mad_image anbd model response, if appropriate.
 
-        for _ in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
-            # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+        if it's the right iteration, we update ``saved_mad_image``
 
-            loss = self._optimizer_step(pbar)
+        Parameters
+        ----------
+        i
+            the current iteration
 
-            if not torch.isfinite(loss):
-                raise ValueError("Found a NaN in loss during optimization.")
+        Returns
+        -------
+        stored :
+            True if we stored this iteration, False if not.
 
-            if self._check_convergence(stop_criterion, stop_iters_to_check):
-                warnings.warn("Loss has converged, stopping synthesis")
-                break
-
-        pbar.close()
+        """
+        if self.store_progress and (i % self.store_progress == 0):
+            # want these to always be on cpu, to reduce memory use for GPUs
+            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
+            stored = True
+        else:
+            stored = False
+        return stored
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
@@ -554,6 +512,46 @@ class MADCompetition(OptimizedSynthesis):
         # fix that.
         if len(self._saved_mad_image) and self._saved_mad_image[0].device.type != 'cpu':
             self._saved_mad_image = [mad.to('cpu') for mad in self._saved_mad_image]
+
+    @property
+    def mad_image(self):
+        return self._mad_image
+
+    @property
+    def optimized_metric(self):
+        return self._optimized_metric
+
+    @property
+    def reference_metric(self):
+        return self._reference_metric
+
+    @property
+    def image(self):
+        return self._image
+
+    @property
+    def initial_image(self):
+        return self._initial_image
+
+    @property
+    def reference_metric_loss(self):
+        return torch.tensor(self._reference_metric_loss)
+
+    @property
+    def optimized_metric_loss(self):
+        return torch.tensor(self._optimized_metric_loss)
+
+    @property
+    def metric_tradeoff_lambda(self):
+        return self._metric_tradeoff_lambda
+
+    @property
+    def minmax(self):
+        return self._minmax
+
+    @property
+    def saved_mad_image(self):
+        return torch.stack(self._saved_mad_image)
 
 
 def plot_loss(mad: MADCompetition,
