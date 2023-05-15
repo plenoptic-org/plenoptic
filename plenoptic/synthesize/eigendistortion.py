@@ -142,34 +142,6 @@ class Eigendistortion(Synthesis):
         self._eigenvalues = None
         self._eigenindex = None
 
-    @property
-    def model(self):
-        return self._model
-
-    @property
-    def image(self):
-        return self._image
-
-    @property
-    def jacobian(self):
-        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``. """
-        return self._jacobian
-
-    @property
-    def eigendistortions(self):
-        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue. """
-        return self._eigendistortions
-
-    @property
-    def eigenvalues(self):
-        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order. """
-        return self._eigenvalues
-
-    @property
-    def eigenindex(self):
-        """Index of each eigenvector/eigenvalue. """
-        return self._eigenindex
-
     def _init_representation(self, image):
         """Set self._representation_flat, based on model and image """
         self._image = self._image_flat.view(*image.shape)
@@ -184,7 +156,6 @@ class Eigendistortion(Synthesis):
                 image_representation.squeeze().view(-1).unsqueeze(1)
             )
 
-    
     def synthesize(
         self,
         method: Literal["exact", "power", "randomized_svd"] = "power",
@@ -273,44 +244,6 @@ class Eigendistortion(Synthesis):
         self._eigenvalues = torch.abs(eig_vals.detach())
         self._eigenindex = eig_vecs_ind
 
-    def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
-        r"""Reshapes eigenvectors back into correct image dimensions.
-
-        Parameters
-        ----------
-        vecs
-            Eigendistortion tensor with ``torch.Size([N, num_distortions])``. Each distortion will be reshaped into the
-            original image shape and placed in a list.
-
-        Returns
-        -------
-        imgs
-            List of Tensor images, each with ``torch.Size(img_height, im_width)``.
-        """
-
-        imgs = [
-            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
-            for i in range(vecs.shape[1])
-        ]
-        return imgs
-
-    def compute_jacobian(self) -> Tensor:
-        r"""Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
-
-        Returns
-        -------
-        J
-            Jacobian of representation wrt input.
-        """
-        if self.jacobian is None:
-            J = jacobian(self._representation_flat, self._image_flat)
-            self._jacobian = J
-        else:
-            print("Jacobian already computed, returning self.jacobian")
-            J = self.jacobian
-
-        return J
-
     def _synthesize_exact(self) -> Tuple[Tensor, Tensor]:
         r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
 
@@ -332,6 +265,23 @@ class Eigendistortion(Synthesis):
         eig_vecs = eig_vecs.flip(dims=(1,))
         eig_vals = eig_vals.flip(dims=(0,))
         return eig_vals, eig_vecs
+
+    def compute_jacobian(self) -> Tensor:
+        r"""Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
+
+        Returns
+        -------
+        J
+            Jacobian of representation wrt input.
+        """
+        if self.jacobian is None:
+            J = jacobian(self._representation_flat, self._image_flat)
+            self._jacobian = J
+        else:
+            print("Jacobian already computed, returning self.jacobian")
+            J = self.jacobian
+
+        return J
 
     def _synthesize_power(
         self, k: int, shift: Union[Tensor, float], tol: float, max_iter: int
@@ -475,6 +425,27 @@ class Eigendistortion(Synthesis):
 
         return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
+    def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
+        r"""Reshapes eigenvectors back into correct image dimensions.
+
+        Parameters
+        ----------
+        vecs
+            Eigendistortion tensor with ``torch.Size([N, num_distortions])``. Each distortion will be reshaped into the
+            original image shape and placed in a list.
+
+        Returns
+        -------
+        imgs
+            List of Tensor images, each with ``torch.Size(img_height, im_width)``.
+        """
+
+        imgs = [
+            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
+            for i in range(vecs.shape[1])
+        ]
+        return imgs
+
     def _indexer(self, idx: int) -> int:
         """Maps eigenindex to arg index (0-indexed)"""
         n = len(self._image_flat)
@@ -588,6 +559,34 @@ class Eigendistortion(Synthesis):
         # computation graph for the autograd calls to work, so we reinitialize
         # it here
         self._init_representation(self.image)
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def image(self):
+        return self._image
+
+    @property
+    def jacobian(self):
+        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``. """
+        return self._jacobian
+
+    @property
+    def eigendistortions(self):
+        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue. """
+        return self._eigendistortions
+
+    @property
+    def eigenvalues(self):
+        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order. """
+        return self._eigenvalues
+
+    @property
+    def eigenindex(self):
+        """Index of each eigenvector/eigenvalue. """
+        return self._eigenindex
 
 
 def display_eigendistortion(
