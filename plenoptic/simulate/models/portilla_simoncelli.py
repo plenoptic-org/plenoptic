@@ -203,7 +203,8 @@ class PortillaSimoncelli(nn.Module):
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
-            we will unsqueeze it until its 4d
+            we will unsqueeze it until its 4d. Currently, only
+            single-batch and single-channel images are supported.
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
@@ -221,6 +222,8 @@ class PortillaSimoncelli(nn.Module):
             image = image.unsqueeze(0)
         if image.shape[0]>1:
             raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
+        if image.shape[1] > 1:
+            raise ValueError("Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images.")
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
@@ -585,7 +588,12 @@ class PortillaSimoncelli(nn.Module):
         # finish this
         im_large = torch.fft.ifft2(fourier_large)
 
-        return im_large.type(im.dtype)
+        # if input was real-valued, output should be real-valued, but
+        # using fft/ifft above means im_large will always be complex,
+        # so make sure they aling.
+        if not im.is_complex():
+            im_large = torch.real(im_large)
+        return im_large
 
     def _calculate_autocorrelation_skew_kurtosis(self):
         r"""Calculate the autocorrelation for the real parts and magnitudes of the
