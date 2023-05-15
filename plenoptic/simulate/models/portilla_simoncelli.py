@@ -118,8 +118,8 @@ class PortillaSimoncelli(nn.Module):
             ["residual_highpass"]
             + [
                 s
-                for s in range(0, self.n_scales)
-                for i in range(0, self.n_orientations)
+                for s in range(self.n_scales)
+                for _ in range(self.n_orientations)
             ]
             + ["residual_lowpass"]
         )
@@ -127,7 +127,7 @@ class PortillaSimoncelli(nn.Module):
         # These (`scales` and `scales_with_lowpass`) are the basic building 
         # blocks of the scale assignments for many of the statistics calculated 
         # by the PortillaSimoncelli model.
-        scales = [s for s in range(0, self.n_scales)]
+        scales = [s for s in range(self.n_scales)]
         scales_with_lowpass = scales + ["residual_lowpass"]
 
         # skew_reconstructed
@@ -144,7 +144,7 @@ class PortillaSimoncelli(nn.Module):
         ) * scales_with_lowpass
         auto_correlation_magnitude = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * [s for s in scales for i in range(0, self.n_orientations)]
+        ) * [s for s in scales for i in range(self.n_orientations)]
 
         cross_orientation_correlation_magnitude = (
             self.n_orientations * self.n_orientations
@@ -618,7 +618,7 @@ class PortillaSimoncelli(nn.Module):
             self.representation["std_reconstructed"][self.n_scales] = vari ** 0.5
 
         for this_scale in range(self.n_scales - 1, -1, -1):
-            for nor in range(0, self.n_orientations):
+            for nor in range(self.n_orientations):
                 ch = self.magnitude_pyr_coeffs[(this_scale, nor)]
                 channel_size = np.min((ch.shape[-1], ch.shape[-2]))
                 le = int(np.min((channel_size / 2.0 - 1, center)))
@@ -641,7 +641,7 @@ class PortillaSimoncelli(nn.Module):
             # reconstruct the unoriented band for this scale
             unoriented_band_pyr = self.unoriented_band_pyrs[this_scale]
             unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
-            for ii in range(0, self.n_orientations):
+            for ii in range(self.n_orientations):
                 unoriented_pyr_coeffs[(0, ii)] = (
                     self.real_pyr_coeffs[(this_scale, ii)].unsqueeze(0).unsqueeze(0)
                 )
@@ -673,7 +673,7 @@ class PortillaSimoncelli(nn.Module):
 
         """
 
-        for this_scale in range(0, self.n_scales):
+        for this_scale in range(self.n_scales):
             band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
             if this_scale < self.n_scales - 1:
                 next_scale_mag = torch.empty((band_num_el, self.n_orientations),
@@ -681,7 +681,7 @@ class PortillaSimoncelli(nn.Module):
                 next_scale_real = torch.empty((band_num_el, self.n_orientations * 2),
                                               device=self.pyr.hi0mask.device)
 
-                for nor in range(0, self.n_orientations):
+                for nor in range(self.n_orientations):
                     
                     upsampled = (
                         self.__class__.expand(
@@ -735,7 +735,7 @@ class PortillaSimoncelli(nn.Module):
                             aa.t()
                             for aa in [
                                 self.magnitude_pyr_coeffs[(this_scale, ii)]
-                                for ii in range(0, self.n_orientations)
+                                for ii in range(self.n_orientations)
                             ]
                         ]
                     )
@@ -775,7 +775,7 @@ class PortillaSimoncelli(nn.Module):
                             aa.t()
                             for aa in [
                                 self.real_pyr_coeffs[(this_scale, ii)].squeeze()
-                                for ii in range(0, self.n_orientations)
+                                for ii in range(self.n_orientations)
                             ]
                         ]
                     )
@@ -1074,7 +1074,7 @@ class PortillaSimoncelli(nn.Module):
 
                 if not isinstance(v, dict) and v.squeeze().dim() >= 3:
                     vals = OrderedDict()
-                    for ss in range(0, v.shape[2]):
+                    for ss in range(v.shape[2]):
                         tmp = torch.norm(v[:, :, ss, ...], p=2, dim=[0, 1])
                         if len(tmp.shape) == 0:
                             tmp = tmp.unsqueeze(0)
