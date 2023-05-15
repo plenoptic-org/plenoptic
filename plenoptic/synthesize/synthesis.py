@@ -254,6 +254,27 @@ class OptimizedSynthesis(Synthesis):
         self._range_penalty_lambda = range_penalty_lambda
         self._allowed_range = allowed_range
 
+    @abc.abstractmethod
+    def _initialize(self):
+        r"""What to start synthesis with."""
+        pass
+
+    @abc.abstractmethod
+    def objective_function(self):
+        r"""How good is the current synthesized object.
+
+        See ``plenoptic.tools.optim`` for some examples.
+        """
+        pass
+
+    @abc.abstractmethod
+    def _check_convergence(self):
+        r"""How to determine if synthesis has finished.
+
+        See ``plenoptic.tools.convergence`` for some examples.
+        """
+        pass
+
     def _closure(self) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""An abstraction of the gradient calculation, before the optimization step.
 
@@ -274,6 +295,48 @@ class OptimizedSynthesis(Synthesis):
         loss = self.objective_function()
         loss.backward(retain_graph=False)
         return loss
+
+    def _initialize_optimizer(self,
+                              optimizer: Optional[torch.optim.Optimizer],
+                              synth_name: str,
+                              learning_rate: float = .01):
+        """Initialize optimizer.
+
+        First time this is called, optimizer can be:
+
+        - None, in which case we create an Adam optimizer with amsgrad=True and
+          ``lr=learning_rate`` with a single parameter, the synthesis attribute
+
+        - torch.optim.Optimizer, in which case it must already have the
+          synthesis attribute (e.g., metamer) as its only parameter.
+
+        The synthesis attribute is the one with the name ``synth_name``
+
+        Every subsequent time (so, when resuming synthesis), optimizer must be
+        None (and we use the original optimizer object).
+
+        """
+        synth_attr = getattr(self, synth_name)
+        if optimizer is None:
+            if self.optimizer is None:
+                self._optimizer = torch.optim.Adam([synth_attr],
+                                                   lr=learning_rate, amsgrad=True)
+        else:
+            if self.optimizer is not None:
+                raise TypeError("When resuming synthesis, optimizer arg must be None!")
+            params = optimizer.param_groups[0]['params']
+            if len(params) != 1 or not torch.equal(params[0], synth_attr):
+                raise ValueError(f"For {synth_name} synthesis, optimizer must have one "
+                                 f"parameter, the {synth_name} we're synthesizing.")
+            self._optimizer = optimizer
+
+    @property
+    def range_penalty_lambda(self):
+        return self._range_penalty_lambda
+
+    @property
+    def allowed_range(self):
+        return self._allowed_range
 
     @property
     def losses(self):
@@ -331,65 +394,3 @@ class OptimizedSynthesis(Synthesis):
     def optimizer(self):
         return self._optimizer
 
-    def _initialize_optimizer(self,
-                              optimizer: Optional[torch.optim.Optimizer],
-                              synth_name: str,
-                              learning_rate: float = .01):
-        """Initialize optimizer.
-
-        First time this is called, optimizer can be:
-
-        - None, in which case we create an Adam optimizer with amsgrad=True and
-          ``lr=learning_rate`` with a single parameter, the synthesis attribute
-
-        - torch.optim.Optimizer, in which case it must already have the
-          synthesis attribute (e.g., metamer) as its only parameter.
-
-        The synthesis attribute is the one with the name ``synth_name``
-
-        Every subsequent time (so, when resuming synthesis), optimizer must be
-        None (and we use the original optimizer object).
-
-        """
-        synth_attr = getattr(self, synth_name)
-        if optimizer is None:
-            if self.optimizer is None:
-                self._optimizer = torch.optim.Adam([synth_attr],
-                                                   lr=learning_rate, amsgrad=True)
-        else:
-            if self.optimizer is not None:
-                raise TypeError("When resuming synthesis, optimizer arg must be None!")
-            params = optimizer.param_groups[0]['params']
-            if len(params) != 1 or not torch.equal(params[0], synth_attr):
-                raise ValueError(f"For {synth_name} synthesis, optimizer must have one "
-                                 f"parameter, the {synth_name} we're synthesizing.")
-            self._optimizer = optimizer
-
-    @property
-    def range_penalty_lambda(self):
-        return self._range_penalty_lambda
-
-    @property
-    def allowed_range(self):
-        return self._allowed_range
-
-    @abc.abstractmethod
-    def objective_function(self):
-        r"""How good is the current synthesized object.
-
-        See ``plenoptic.tools.optim`` for some examples.
-        """
-        pass
-
-    @abc.abstractmethod
-    def _initialize(self):
-        r"""What to start synthesis with."""
-        pass
-
-    @abc.abstractmethod
-    def _check_convergence(self):
-        r"""How to determine if synthesis has finished.
-
-        See ``plenoptic.tools.convergence`` for some examples.
-        """
-        pass
