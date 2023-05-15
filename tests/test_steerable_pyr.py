@@ -1,15 +1,13 @@
 import os.path as op
-import imageio
+from contextlib import nullcontext as does_not_raise
 import torch
 import plenoptic as po
-import matplotlib.pyplot as plt
 import pytest
 import pyrtools as pt
 import numpy as np
 from itertools import product
 from plenoptic.tools.data import to_numpy
-from conftest import DEVICE, DATA_DIR, DTYPE
-
+from conftest import DEVICE, DATA_DIR
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
@@ -282,3 +280,13 @@ class TestSteerablePyramid(object):
             spyr.recon_pyr()
         with pytest.raises(Exception):
             spyr.recon_pyr(scales)
+
+    @pytest.mark.parametrize('order', range(17))
+    def test_order_values(self, img, order):
+        if order in [0, 16]:
+            expectation = pytest.raises(ValueError, match='order must be an integer in the range')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], order=order)
+            pyr(img)
