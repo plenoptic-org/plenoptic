@@ -165,3 +165,29 @@ methods, we may modify ``OptimizedSynthesis``):
   ``optimizer`` must be ``None`` (this is checked by
   ``OptimizedSynthesis._initialize_optimizer()``) and ``store_progress``,
   ``stop_criterion``, and ``stop_iters_to_check`` must have the same values.
+
+How to order methods
+====================
+
+Python doesn't care how you order any of the methods or properties of a class,
+but doing so in a consistent manner will make reading the code easier, so try to
+follow these guidelines:
+
+* The caller should (almost always) be above the callee and related concepts
+  should be close together.
+* ``__init__()`` should be first, followed by any methods called within it. This
+  will probably include ``_initialize()``, for those classes that have it.
+* After all those initialization-related methods, ``synthesize()`` should come
+  next. Again, this should be followed by most of the the methods called within
+  it, ordered roughly by importance. Thus, the first methods should probably be
+  ``objective_function()`` and ``_optimizer_step()``, followed by
+  ``_check_convergence()``. What shouldn't be included in this section are
+  helper methods that aren't scientifically interesting (e.g.,
+  ``_initialize_optimizer()``, ``_store()``).
+* Next, any other content-related methods, such as helper methods that perform
+  useful computations that are not called by ``__init__()`` or ``synthesize()``
+  (e.g., :class:`plenoptic.synthesize.geodesic.Geodesic.calculate_jerkiness`).
+* Next, the helper functions we ignored from earlier, such as
+  ``_initialize_optimizer()`` and ``_store()``.
+* Next, ``save()``, ``load()``, ``to()``.
+* Finally, all the properties.
