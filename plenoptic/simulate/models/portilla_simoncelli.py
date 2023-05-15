@@ -678,9 +678,11 @@ class PortillaSimoncelli(nn.Module):
             band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
             if this_scale < self.n_scales - 1:
                 next_scale_mag = torch.empty((band_num_el, self.n_orientations),
-                                             device=self.pyr.hi0mask.device)
+                                             device=self.pyr.hi0mask.device,
+                                             dtype=self.pyr.hi0mask.dtype)
                 next_scale_real = torch.empty((band_num_el, self.n_orientations * 2),
-                                              device=self.pyr.hi0mask.device)
+                                              device=self.pyr.hi0mask.device,
+                                              dtype=self.pyr.hi0mask.dtype)
 
                 for nor in range(self.n_orientations):
                     
