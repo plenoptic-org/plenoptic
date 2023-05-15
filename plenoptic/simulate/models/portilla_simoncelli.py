@@ -588,7 +588,12 @@ class PortillaSimoncelli(nn.Module):
         # finish this
         im_large = torch.fft.ifft2(fourier_large)
 
-        return im_large.type(im.dtype)
+        # if input was real-valued, output should be real-valued, but
+        # using fft/ifft above means im_large will always be complex,
+        # so make sure they aling.
+        if not im.is_complex():
+            im_large = torch.real(im_large)
+        return im_large
 
     def _calculate_autocorrelation_skew_kurtosis(self):
         r"""Calculate the autocorrelation for the real parts and magnitudes of the
