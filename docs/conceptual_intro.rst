@@ -49,9 +49,9 @@ focuses on what humans cannot see, that is, the information they are insensitive
 to. Perceptual metamers --- images that are physically distinct but perceptually
 indistinguishable --- provide direct evidence of such information loss in visual
 representations. Color metamers were instrumental in the development of the
-Young-Helmholtz theory of trichromacy [1]_. In this context, metamers
-demonstrate that the human visual system projects the infinite dimensionality of
-the physical signal to three dimensions.
+Young-Helmholtz theory of trichromacy [Helmholtz1852]_. In this context,
+metamers demonstrate that the human visual system projects the infinite
+dimensionality of the physical signal to three dimensions.
 
 To make this more concrete, let's walk through an example. Humans can see
 visible light, which is electromagnetic radiation with wavelengths between 400
@@ -138,11 +138,11 @@ Let's consider a slightly more complex example. Human vision is very finely
 detailed at the center of gaze, but gradually discards this detailed spatial
 information as distance to the center of gaze increases. This phenomenon is
 known as **foveation**, and can be easily seen by the difficulty in reading a
-paragraph of text or recognizing a face out of the corner of your eye (see [2]_
-for an accessible discussion with examples). The simplest possible model of
-foveation would be to average pixel intensities in windows whose width grows
-linearly with distance from the center of an image, as shown in
-:numref:`model-schematic`:
+paragraph of text or recognizing a face out of the corner of your eye (see
+[Lettvin1976]_ for an accessible discussion with examples). The simplest
+possible model of foveation would be to average pixel intensities in windows
+whose width grows linearly with distance from the center of an image, as shown
+in :numref:`model-schematic`:
 
 .. _model-schematic:
 .. figure:: images/model_schematic.svg
@@ -162,7 +162,7 @@ concerned. A more concrete example is shown in :numref:`fov-met`:
    :figwidth: 100%
    :alt: Three images, all identical as far as the foveated pixel intensity model is concerned.
 
-   Three images that the foveated pixel intensity model considers identical. They all have the same average pixel values within the foveated elliptical regions (an example of which is shown on each), but differ greatly in their fine details.
+   Three images that the foveated pixel intensity model considers identical. They all have the same average pixel values within the foveated elliptical regions (the red ellipse shows an example averaging region at that location), but differ greatly in their fine details.
 
 These three images are all identical for the foveated pixel intensity model
 described above (the red ellipse shows the size of the averaging region at that
@@ -182,34 +182,60 @@ But it is very difficult to understand how models will perform on unexpected or
 out-of-distribution data! The burgeoning literature on adversarial examples and
 robustness in machine learning provides many of examples of this, such as the
 addition of a small amount of noise (invisible to humans) changing the predicted
-category [3]_ or the addition of a small elephant to a picture completely
-changing detected objects' identities and boundaries [4]_. Exploring model
-behavior on *all* possible inputs is impossible --- the space of all possible
-images is far too vast --- but image synthesis provides one mechanism for
-exploration in a targeted manner.
+category [Szegedy2013]_ or the addition of a small elephant to a picture
+completely changing detected objects' identities and boundaries
+[Rosenfeld2018]_. Exploring model behavior on *all* possible inputs is
+impossible --- the space of all possible images is far too vast --- but image
+synthesis provides one mechanism for exploration in a targeted manner.
 
-``plenoptic`` provides a set of methods for performing image synthesis. They all
-allow exploration of the image features that a given model considers important
-or unimportant (for more details on each method, see :ref:`the
-contents<package-contents>` and the synthesis methods' respective tutorials),
-and work with any model that ``torch`` can optimize.
+Furthermore, image synthesis provides a complementary method of comparing models
+to the standard procedure. Generally, scientific models are evaluated on their
+ability to fit data or perform a task, such as how well a model performs on
+ImageNet or how closely a model tracks firing rate in some collected data.
+However, many models can perform a task equally or comparably well [#]_. By
+using image synthesis to explore models' representational spaces, we can gain a
+fuller understanding of how models succeed and how they fail to capture the
+phenomena under study.
+
+Beyond Metamers
+^^^^^^^^^^^^^^^
+
+``plenoptic`` contains more than just metamers --- it provides a set of methods
+for performing image synthesis. Each method allows for different exploration of
+a model's representational space:
+
+- `Metamers <tutorials/06_Metamer.nblink>`_ investigate what features the model
+  disregards entirely.
+- `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_ investigates which
+  features the model considers the least and which it considers the most
+  important
+- `Maximal differentiation (MAD) competition
+  <tutorials/07_MAD_Competition.nblink>`_ enables efficient comparison of two
+  metrics, highlighting the aspects in which their sensitivities differ.
+- `Geodesics <tutorials/05_Geodesics.nblink>`_ investigates how a model represents
+  motion and what changes to an image it considers reasonable.
 
 The goal of this package is to facilitate model exploration and understanding.
 We hope that providing these tools helps tighten the model-experiment loop: when
 a decent model is arrived at, whether by importing from a related field or
 earlier experiments, ``plenoptic`` enables scientists to make targeted
 exploration of the model's representational space, generating stimuli that will
-provide most informative. We hope to help theorists become more active
+provide the most information. We hope to help theorists become more active
 participants in directing future experiments by efficiently finding new
 predictions to test.
 
-.. [1] Helmholtz, H. (1852). LXXXI. on the theory of compound colours. The
-   London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science,
-   4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
-.. [2] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4), 10–20.
-   http://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
-.. [3] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
+.. [#] for example, as of February 2022, more than 100 models have above 95% top
+  5 accuracy on ImageNet, with 9 models within a percent of the top performer at
+  99.02%. Furthermore, the state of the art top 5 accuracy has been at or above
+  95% since 2016, with an improvement of only 4% in the past six years.
+
+.. [Helmholtz1852] Helmholtz, H. (1852). LXXXI. on the theory of compound
+   colours. The London, Edinburgh, and Dublin Philosophical Magazine and Journal
+   of Science, 4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
+.. [Lettvin1976] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4),
+   10–20. http://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
+.. [Szegedy2013] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
    Goodfellow, I., & Fergus, R. (2013). Intriguing properties of neural
    networks. https://arxiv.org/abs/1312.6199
-.. [4] Rosenfeld, A., Zemel, R., & Tsotsos, J.~K. (2018). The elephant in the
-   room. https://arxiv.org/abs/1808.03305
+.. [Rosenfeld2018] Rosenfeld, A., Zemel, R., & Tsotsos, J.~K. (2018). The
+   elephant in the room. https://arxiv.org/abs/1808.03305

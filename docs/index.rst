@@ -25,16 +25,16 @@ plenoptic
 ``plenoptic`` is a python library for model-based stimulus synthesis. It
 provides tools to help researchers understand their model by synthesizing novel
 informative stimuli, which help build intuition for what features the model
-ignores and what it is sensitive to. They can be used in future experiments for
-further investigation.
+ignores and what it is sensitive to. These synthetic images can then be used in
+future behavioral or neural experiments for further investigation.
 
 Getting started
 ---------------
 
 - If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
-  for a more in-depth introduction.
+  for an in-depth introduction.
 - If you understand the basics of synthesis and want to get started using
-  ``plenoptic`` quickly, see the `Quickstart <tutorials/00_quickstart.html>`_
+  ``plenoptic`` quickly, see the `Quickstart <tutorials/00_quickstart.nblink>`_
   tutorial.
 
 Installation
@@ -51,53 +51,31 @@ See the `README
 <https://github.com/LabForComputationalVision/plenoptic/#setup>`_ for more
 details, including how to set up an isolated virtual environment.
 
-Why perform stimulus synthesis?
--------------------------------
-
-- scientific models are normally evaluated on their ability to fit data or
-  perform a task, such as how well a model performs on ImageNet or how closely a
-  model tracks firing rate in some collected data. However, many models can
-  perform a task equally or comparably well [#]_. Stimulus synthesis provides
-  another method for discriminating between competing models.
-- models perform unexpectedly on out-of-distribution data, as adversarial
-  examples show [Szegedy2013]_. It's impossible to evaluate models on *all*
-  possible images, but stimulus synthesis allows for an exploration of image
-  space in a targeted manner.
-- both of the above are specific examples of a general point: stimulus synthesis
-  allows for the generation of novel, informative stimuli, which can be used in
-  further experiments. These stimuli can emphasize where models succeed or fail
-  to capture the phenomena under study.
-- investigating synthesized stimuli can help scientists reason about the types
-  of information that their models disregard and the information that it
-  consider essential, facilitating model comprehension.
-
-See :ref:`conceptual-intro` and tutorials for longer discussions of the
-scientific reasoning enabled by stimulus synthesis.
-
 .. _package-contents:
 Contents
 --------
+
+Synthesis methods
+^^^^^^^^^^^^^^^^^
 
 .. figure:: images/example_synth.svg
    :figwidth: 100%
    :alt: The four synthesis methods included in plenoptic
 
-``plenoptic`` includes the following synthesis methods:
-
-- `Metamers <tutorials/06_Metamer.html>`_: given a model and a reference image,
+- `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
   that of the reference image. This method investigates what image features the
   model disregards entirely.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_
-- `Eigendistortions <tutorials/02_Eigendistortions.html>`_: given a model and a
+- `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_: given a model and a
   reference image, compute the image perturbation that produces the smallest and
   largest changes in the model response space. This method investigates the
   image features the model considers the least and most important.
 
   - Example papers: [Berardino2017]_
 - `Maximal differentiation (MAD) competition
-  <tutorials/07_MAD_Competition.html>`_: given two metrics that measure distance
+  <tutorials/07_MAD_Competition.nblink>`_: given two metrics that measure distance
   between images and a reference image, generate pairs of images that optimally
   differentiate the models. Specifically, synthesize a pair of images that the
   first model says are equi-distant from the reference while the second model
@@ -107,15 +85,15 @@ Contents
   their sensitivities differ.
 
   - Example papers: [Wang2008]_
-- `Geodesics <tutorials/05_Geodesics.html>`_: given a model and two images,
+- `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
   synthesize a sequence of images that lie on the shortest ("geodesic") path in
   the model's representation space. This method investigates how a model
   represents motion and what changes to an image it consider reasonable.
 
   - Example papers: [Henaff2016]_, [Henaff2020]_
 
-``plenoptic`` also contains the following models, metrics, and model components
-that might be useful:
+Models, Metrics, and Model Components
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Portilla-Simoncelli texture model, [Portilla2000]_, which measures the
   statistical properties of visual textures, here defined as "repeating visual
@@ -139,8 +117,28 @@ that might be useful:
   visual system: local luminance subtraction and local contrast gain control, at
   six scales.
 
-If anything is unclear, please `open an issue
-<https://github.com/LabForComputationalVision/plenoptic/issues>`_
+Getting help
+------------
+
+We communicate via several channels on Github:
+
+- `Discussions
+  <https://github.com/LabForComputationalVision/plenoptic/discussions>`_ is the
+  place to ask usage questions, discuss issues too broad for a single issue, or
+  show off what you've made with plenoptic.
+- If you've come across a bug, open an `issue
+  <https://github.com/LabForComputationalVision/plenoptic/issues>`_.
+- If you have an idea for an extension or enhancement, please post in the `ideas
+  section
+  <https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas>`_
+  of discussions first. We'll discuss it there and, if we decide to pursue it,
+  open an issue to track progress.
+- See the `contributing guide
+  <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_
+  for how to get involved.
+
+In all cases, please follow our `code of conduct
+<https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 .. toctree::
    :maxdepth: 2
@@ -164,11 +162,6 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-.. [#] for example, as of February 2022, more than 100 models have above 95% top
-  5 accuracy on ImageNet, with 9 models within a percent of the top performer at
-  99.02%. Furthermore, the state of the art top 5 accuracy has been at or above
-  95% since 2016, with an improvement of only 4% in the past six years.
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.
@@ -217,6 +210,3 @@ Indices and tables
    E.P., 2016. Perceptual image quality assessment using a normalized Laplacian
    pyramid. Electronic Imaging, 2016(16), pp.1-6.
    http://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
-.. [Szegedy2013] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
-   Goodfellow, I., & Fergus, R. (2013). Intriguing properties of neural
-   networks. https://arxiv.org/abs/1312.6199
