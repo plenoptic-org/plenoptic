@@ -13,7 +13,7 @@ from scipy.special import factorial
 
 complex_types = [torch.cdouble, torch.cfloat]
 
-class Steerable_Pyramid_Freq(nn.Module):
+class SteerablePyramidFreq(nn.Module):
     r"""Steerable frequency pyramid in Torch
 
     Construct a steerable pyramid on matrix two dimensional signals, in the

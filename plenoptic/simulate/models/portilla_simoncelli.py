@@ -1,7 +1,7 @@
 import torch
 import torch.fft
 import torch.nn as nn
-from ..canonical_computations.steerable_pyramid_freq import Steerable_Pyramid_Freq
+from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 from ...tools.conv import blur_downsample
 import numpy as np
 from collections import OrderedDict
@@ -35,7 +35,7 @@ class PortillaSimoncelli(nn.Module):
 
     Attributes
     ----------
-    pyr: Steerable_Pyramid_Freq
+    pyr: SteerablePyramidFreq
         The complex steerable pyramid object used to calculate the portilla-simoncelli representation
     pyr_coeffs: OrderedDict
         The coefficients of the complex steerable pyramid.
@@ -74,19 +74,19 @@ class PortillaSimoncelli(nn.Module):
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
-        self.pyr = Steerable_Pyramid_Freq(
+        self.pyr = SteerablePyramidFreq(
             self.image_shape,
             height=self.n_scales,
             order=self.n_orientations - 1,
             is_complex=True,
             tight_frame=False,
         )
-        self.filterPyr = Steerable_Pyramid_Freq(
+        self.filterPyr = SteerablePyramidFreq(
             self.pyr._lomasks[-1].shape[-2:], height=0, order=1,
             tight_frame=False
         )
         self.unoriented_band_pyrs = [
-            Steerable_Pyramid_Freq(
+            SteerablePyramidFreq(
                 himask.shape[-2:],
                 height=1,
                 order=self.n_orientations - 1,

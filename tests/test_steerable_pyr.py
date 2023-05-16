@@ -119,7 +119,7 @@ class TestSteerablePyramid(object):
             pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, int(order), is_complex=eval(is_complex),
+        pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height, int(order), is_complex=eval(is_complex),
                                               downsample=eval(downsample), tight_frame=eval(tightframe))
         pyr.to(DEVICE)
         return pyr
@@ -134,7 +134,7 @@ class TestSteerablePyramid(object):
             pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.Steerable_Pyramid_Freq(multichannel_img.shape[-2:], height, int(order), is_complex=eval(is_complex),
+        pyr = po.simul.SteerablePyramidFreq(multichannel_img.shape[-2:], height, int(order), is_complex=eval(is_complex),
                                               downsample=eval(downsample), tight_frame=eval(tightframe))
         pyr.to(DEVICE)
         return pyr
@@ -148,7 +148,7 @@ class TestSteerablePyramid(object):
     def test_pyramid(self, basic_stim, height, order, is_complex, im_shape):
         if im_shape is not None:
             basic_stim = basic_stim[..., :im_shape[0], :im_shape[1]]
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=height, order=order,
+        spc = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=height, order=order,
                                               is_complex=is_complex).to(DEVICE)
         spc(basic_stim)
 
@@ -172,7 +172,7 @@ class TestSteerablePyramid(object):
         height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
-        spyr_not_downsample = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, spyr.order,
+        spyr_not_downsample = po.simul.SteerablePyramidFreq(img.shape[-2:], height, spyr.order,
                                                               is_complex=spyr.is_complex,
                                                               downsample=False, tight_frame=spyr.tight_frame)
         spyr_not_downsample.to(DEVICE)
