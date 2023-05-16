@@ -26,7 +26,7 @@ plenoptic
 provides tools to help researchers understand their model by synthesizing novel
 informative stimuli, which help build intuition for what features the model
 ignores and what it is sensitive to. These synthetic images can then be used in
-future behavioral or neural experiments for further investigation.
+future perceptual or neural experiments for further investigation.
 
 Getting started
 ---------------
