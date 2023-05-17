@@ -23,8 +23,7 @@ plenoptic
 
 |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
 
-.. image:: images/plenoptic_large_logo.svg
-   :width: 30%
+.. image:: images/plenoptic_logo_wide.svg
    :align: center
    :alt: plenoptic logo
 
