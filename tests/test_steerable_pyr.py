@@ -288,5 +288,5 @@ class TestSteerablePyramid(object):
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], order=order).to(DEVICE)
+            pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
