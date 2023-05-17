@@ -54,13 +54,13 @@ def get_model(name):
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
-        class spyr(po.simul.Steerable_Pyramid_Freq):
+        class spyr(po.simul.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 kwargs.pop('downsample', None)
                 super().__init__(*args, downsample=False, **kwargs)
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = po.simul.Steerable_Pyramid_Freq.convert_pyr_to_tensor(coeffs)
+                pyr_tensor, _ = po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(coeffs)
                 return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
