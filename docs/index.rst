@@ -170,7 +170,7 @@ In all cases, please follow our `code of conduct
    synthesis
    tips
    reproducibility
-   api/modules
+   Modules <api/modules>
 
 .. toctree::
    :titlesonly:
@@ -178,13 +178,6 @@ In all cases, please follow our `code of conduct
    :caption: Tutorials and examples
 
    tutorials/*
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.
