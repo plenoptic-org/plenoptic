@@ -11,6 +11,8 @@ dependencies:
   - python
   - pip
   - ipython
+  # to avoid https://github.com/matplotlib/matplotlib/issues/20656
+  - matplotlib >= 3.7
   - pip:
     - nbsphinx
     - nbsphinx_link
