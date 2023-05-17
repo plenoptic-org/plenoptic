@@ -161,23 +161,46 @@ In all cases, please follow our `code of conduct
 <https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Contents:
+   :titlesonly:
+   :caption: Basic concepts
+   :glob:
 
    install
    conceptual_intro
    models
-   synthesis
-   tips
-   reproducibility
-   Modules <api/modules>
+   tutorials/*
 
 .. toctree::
    :titlesonly:
    :glob:
-   :caption: Tutorials and examples
+   :caption: Synthesis method introductions
 
-   tutorials/*
+   tutorials/intro/*
+
+.. toctree::
+   :titlesonly:
+   :glob:
+   :caption: Models and metrics
+
+   tutorials/models/*
+
+.. toctree::
+   :titlesonly:
+   :glob:
+   :caption: Synthesis method examples
+
+   tutorials/applications/*
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+   :caption: Advanced usage
+
+   synthesis
+   tips
+   reproducibility
+   Modules <api/modules>
+   tutorials/advanced/*
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.

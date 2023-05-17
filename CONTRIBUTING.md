@@ -416,9 +416,9 @@ make html
 
 We build tutorials as Jupyter notebooks so that they can be launched in Binder
 and people can play with them on their local machine. In order to include them
-in the built docs, add a `nblink` file to the `docs/tutorials/` directory. We
-check for this during the tests, so you won't be able to merge your pull request
-into `main` unless you've done this!
+in the built docs, add a `nblink` file to the `docs/tutorials/` directory or one
+of its sub-directories. We check for this during the tests, so you won't be able
+to merge your pull request into `main` unless you've done this!
 
 This is a json file that should contain the path to the notebook, like so, for
 `docs/tutorials/my_awesome_tutorial.nblink`:
@@ -430,7 +430,9 @@ This is a json file that should contain the path to the notebook, like so, for
 ```
 
 note that you *cannot* have a trailing comma there, because json is very
-particular.
+particular. And note that the number of `../` you need will depend on whether
+the `nblink` file lives in `docs/tutorials/` or one of its sub-directories.
+
 If you have extra media (such as images) that are rendered in the notebook, you
 need to specify them as well, otherwise they won't render in the documentation:
 
@@ -444,8 +446,13 @@ need to specify them as well, otherwise they won't render in the documentation:
 
 note that `extra-media` must be a list, even with a single path.
 
-See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
-page for more details.
+See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link) page for more
+details.
+
+The location of the `.nblink` file (in `docs/tutorials`, `docs/tutorials/intro`,
+etc.) determines which of the sub-headings it appears under in the table of
+contents. View the `toctree` directives at the bottom of `index.rst` to see
+which subfolders corresponds to which
 
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
 should have exactly one H1 title (i.e., line starting with a single `#`), but

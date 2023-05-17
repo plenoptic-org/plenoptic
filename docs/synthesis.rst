@@ -1,7 +1,7 @@
 .. _synthesis-objects:
 
-Synthesis objects
-*****************
+Synthesis object design
+***********************
 
 The following describes how synthesis objects are structured. This is probably
 most useful if you are creating a new synthesis method that you would like to
@@ -17,7 +17,7 @@ testing), but we want to avoid forcing too much similarity.
 
 In the following description:
 
-* *must* connotes a requirement; any synthesis object not meeting this property
+** *must* connotes a requirement; any synthesis object not meeting this property
   will not be merged and is not considered "plenoptic-compliant".
 * *should* connotes a suggestion; a compelling reason is required if the
   property is not met.
@@ -108,7 +108,7 @@ for an example. If possible, this plot should be able to be animated to show
 progress over time. See
 :func:`plenoptic.synthesize.metamer.plot_synthesis_status` for an example.
 
-See our :doc:`/tutorials/Display` notebook for description and examples of the
+See our :doc:`/tutorials/advanced/Display` notebook for description and examples of the
 included plotting and display code.
 
 Optimized synthesis
