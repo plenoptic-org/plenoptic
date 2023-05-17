@@ -18,6 +18,9 @@
    contain the root `toctree` directive.
 
 
+plenoptic
+*********
+
 |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
 
 .. image:: images/plenoptic_large_logo.svg
@@ -231,3 +234,10 @@ Indices and tables
    E.P., 2016. Perceptual image quality assessment using a normalized Laplacian
    pyramid. Electronic Imaging, 2016(16), pp.1-6.
    http://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
+
+This package is supported by the Simons Foundation Flatiron Institute's Center
+for Computational Neuroscience.
+
+.. image:: images/CCN-logo-wText.png
+   :align: center
+   :alt: Flatiron Institute Center for Computational Neuroscience logo

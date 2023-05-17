@@ -127,3 +127,9 @@ We communicate via several channels on Github:
 
 In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 
+## Support
+
+This package is supported by the Simons Foundation Flatiron Institute's Center
+for Computational Neuroscience.
+
+![](docs/images/CCN-logo-wText.png)
