@@ -368,7 +368,7 @@ class TestDisplay(object):
             is_complex = True
         elif request.param == 'not-complex':
             is_complex = False
-        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex).to(DEVICE)
+        return po.simul.SteerablePyramidFreq((32, 32), height=2, order=1, is_complex=is_complex).to(DEVICE)
 
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
@@ -715,12 +715,12 @@ class TestMetamerDisplay(object):
         #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
         #  we'd have the residuals and one filter output for each channel,
         #  and our code doesn't know how to handle that)
-        class SPyr(po.simul.Steerable_Pyramid_Freq):
+        class SPyr(po.simul.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
             def forward(self, *args, **kwargs):
                 return super().forward(*args, **kwargs)[(0, 0)]
-        model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
         met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=2, store_progress=True)
         return met
