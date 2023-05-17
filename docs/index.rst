@@ -17,10 +17,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-plenoptic
-=====================================
 
 |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
+
+.. image:: images/plenoptic_large_logo.svg
+   :width: 30%
+   :align: center
+   :alt: plenoptic logo
 
 ``plenoptic`` is a python library for model-based stimulus synthesis. It
 provides tools to help researchers understand their model by synthesizing novel

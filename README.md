@@ -9,6 +9,8 @@
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
 [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)
 
+![](docs/images/plenoptic_large_logo.svg)
+
 `plenoptic` is a python library for model-based stimulus synthesis. It
 provides tools to help researchers understand their model by
 synthesizing novel informative stimuli, which help build intuition for
