@@ -38,7 +38,7 @@ class SteerablePyramidFreq(nn.Module):
         The height of the pyramid. If 'auto', will automatically determine
         based on the size of `image`.
     order : `int`.
-        The Gaussian derivative order used for the steerable filters. Default value is 3.
+        The Gaussian derivative order used for the steerable filters, in [1, 15].
         Note that to achieve steerability the minimum number of orientation is `order` + 1,
         and is used here. To get more orientations at the same order, use the method `steer_coeffs`
     twidth : `int`
@@ -109,20 +109,17 @@ class SteerablePyramidFreq(nn.Module):
         if height == 'auto':
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise Exception(
+            raise ValueError(
                 "Cannot build pyramid higher than %d levels." % (max_ht))
         else:
             self.num_scales = int(height)
 
         if self.order > 15 or self.order <= 0:
-            warnings.warn(
-                "order must be an integer in the range [1,15]. Truncating.")
-            self.order = min(max(self.order, 1), 15)
+            raise ValueError("order must be an integer in the range [1,15].")
         self.num_orientations = int(self.order + 1)
 
         if twidth <= 0:
-            warnings.warn("twidth must be positive. Setting to 1.")
-            twidth = 1
+            raise ValueError("twidth must be positive.")
         twidth = int(twidth)
 
         dims = np.array(self.image_shape)

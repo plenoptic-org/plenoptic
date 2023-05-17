@@ -250,22 +250,26 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("im_shape", [(256, 256)])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_ps_torch_v_matlab(self, n_scales, n_orientations,
-                               spatial_corr_width, im_shape, im,
+                               spatial_corr_width, im,
                                portilla_simoncelli_matlab_test_vectors):
 
-        torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy()
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
+        # the matlab outputs were computed on images with values between 0 and
+        # 255 (not 0 and 1, which is what po.load_images does by default). Note
+        # that for the einstein-9-2-4, einstein-9-3-4, einstein-9-4-4,
+        # multiplying by 255 before converting to float64 (rather than
+        # converting to float64 and then multiplying by 255) matters, because
+        # floating points are fun.
+        im0 = 255 * po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
+            im0.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=False,
-        ).to(DEVICE)
+        ).to(DEVICE).to(torch.float64)
         python_vector = po.to_numpy(ps(im0))
 
         matlab = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
@@ -287,16 +291,15 @@ class TestPortillaSimoncelli(object):
                              spatial_corr_width, im, use_true_correlations,
                              portilla_simoncelli_test_vectors):
 
-        torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy() / 255
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
+        im0 = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
+            im0.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=use_true_correlations,
-        ).to(DEVICE)
+        ).to(DEVICE).to(torch.float64)
         output = po.to_numpy(ps(im0))
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
@@ -306,6 +309,22 @@ class TestPortillaSimoncelli(object):
         np.testing.assert_allclose(
             output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
         )
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    def test_ps_convert(self, n_scales, n_orientations, spatial_corr_width,
+                        use_true_correlations, einstein_img):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations,
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        assert torch.all(rep == ps.convert_to_vector(ps.convert_to_dict(rep))), "Convert to vector or dict is broken!"
 
     def test_ps_synthesis(self, portilla_simoncelli_synthesize,
                           run_test=True):
@@ -333,19 +352,18 @@ class TestPortillaSimoncelli(object):
         # versions change. you probably only need to store the most recent
         # version, because that's what we test against.
         torch.use_deterministic_algorithms(True)
-        torch.set_default_dtype(torch.float64)
         with np.load(portilla_simoncelli_synthesize) as f:
             im = f['im']
             im_init = f['im_init']
             im_synth = f['im_synth']
             rep_synth = f['rep_synth']
 
-        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE)
+        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
         model = po.simul.PortillaSimoncelli(im0.shape[-2:],
                                             n_scales=4,
                                             n_orientations=4,
                                             spatial_corr_width=9,
-                                            use_true_correlations=True).to(DEVICE)
+                                            use_true_correlations=True).to(DEVICE).to(torch.float64)
 
         po.tools.set_seed(1)
         im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
@@ -388,7 +406,7 @@ class TestPortillaSimoncelli(object):
         portilla_simoncelli_scales
     ):
         with np.load(portilla_simoncelli_scales) as f:
-            key = f'scale_{n_scales}_ori_{n_orientations}_width_{spatial_corr_width}_corr_{use_true_correlations}'
+            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}_corr-{use_true_correlations}'
             saved = f[key]
 
         model = po.simul.PortillaSimoncelli(

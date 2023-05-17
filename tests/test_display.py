@@ -705,7 +705,7 @@ class TestMetamerDisplay(object):
                 super().__init__(*args, **kwargs)
             def forward(self, *args, **kwargs):
                 return super().forward(*args, **kwargs)[(0, 0)]
-        model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
         met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=2, store_progress=True)
         return met

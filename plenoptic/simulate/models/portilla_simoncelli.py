@@ -110,7 +110,7 @@ class PortillaSimoncelli(nn.Module):
         The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
         # values from 0 to self.n_scales-1 """
 
-        # There are 6 pixel statistics by defulat
+        # There are 6 pixel statistics by default
         pixel_statistics = ["pixel_statistics"] * 6
 
         # magnitude_means
@@ -118,8 +118,8 @@ class PortillaSimoncelli(nn.Module):
             ["residual_highpass"]
             + [
                 s
-                for s in range(0, self.n_scales)
-                for i in range(0, self.n_orientations)
+                for s in range(self.n_scales)
+                for _ in range(self.n_orientations)
             ]
             + ["residual_lowpass"]
         )
@@ -127,7 +127,7 @@ class PortillaSimoncelli(nn.Module):
         # These (`scales` and `scales_with_lowpass`) are the basic building 
         # blocks of the scale assignments for many of the statistics calculated 
         # by the PortillaSimoncelli model.
-        scales = [s for s in range(0, self.n_scales)]
+        scales = [s for s in range(self.n_scales)]
         scales_with_lowpass = scales + ["residual_lowpass"]
 
         # skew_reconstructed
@@ -144,13 +144,14 @@ class PortillaSimoncelli(nn.Module):
         ) * scales_with_lowpass
         auto_correlation_magnitude = (
             self.spatial_corr_width * self.spatial_corr_width
-        ) * [s for s in scales for i in range(0, self.n_orientations)]
+        ) * [s for s in scales for i in range(self.n_orientations)]
 
         cross_orientation_correlation_magnitude = (
             self.n_orientations * self.n_orientations
         ) * scales_with_lowpass
         cross_orientation_correlation_real = (
-            4 * self.n_orientations * self.n_orientations
+            max(2 * self.n_orientations, 5)
+            * max(2 * self.n_orientations, 5)
         ) * scales_with_lowpass
 
         cross_scale_correlation_magnitude = (
@@ -202,22 +203,27 @@ class PortillaSimoncelli(nn.Module):
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). If it has fewer than 4 dimensions,
-            we will unsqueeze it until its 4d
+            we will unsqueeze it until its 4d. Currently, only
+            single-batch and single-channel images are supported.
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's ``scales`` attribute, and
+            the returned vector will then contain the subset of the full
+            representation corresponding to those scales.
 
         Returns
         -------
         representation_vector: torch.Tensor
-            A flattened tensor (1d) containing the measured representation statistics.
+            3d tensor containing the measured representation statistics.
 
         """
         while image.ndimension() < 4:
             image = image.unsqueeze(0)
         if image.shape[0]>1:
             raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
+        if image.shape[1] > 1:
+            raise ValueError("Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images.")
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
@@ -332,39 +338,67 @@ class PortillaSimoncelli(nn.Module):
             self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
         )
 
-        representation_vector = self.convert_to_vector().unsqueeze(0).unsqueeze(0)
-
+        representation_vector = self.convert_to_vector()
+        
         if scales is not None:
-            ind = torch.tensor(
-                [
-                    i
-                    for i, s in enumerate(self.representation_scales)
-                    if s in scales
-                ]
-            ).to(image.device)
-            return representation_vector.index_select(-1, ind)
+            representation_vector = self._remove_scales(representation_vector,
+                                                        scales, image.device)
 
         return representation_vector
 
-    def convert_to_vector(self):
+    def _remove_scales(self, stats_vec, scales, device):
+        """
+        """
+        ind = torch.tensor(
+            [i for i, s in enumerate(self.representation_scales)
+             if s in scales]
+        ).to(device)
+        return stats_vec.index_select(-1, ind)
+
+    def convert_to_vector(self, stats_dict=None):
         r"""Converts dictionary of statistics to a vector (for synthesis).
+
+        Parameters
+        ----------
+        stats_dict : optional
+            If None, we use self.representation. Dictionary of representation.
 
         Returns
         -------
-         -- : torch.Tensor
-            Flattened 1d vector of statistics.
+        Flattened 1d vector of statistics.
 
         """
+        if stats_dict is None:
+            stats_dict = self.representation
+
         list_of_stats = [
             torch.cat([vv.flatten() for vv in val.values()])
             if isinstance(val, OrderedDict)
             else val.flatten()
-            for (key, val) in self.representation.items()
+            for (_, val) in stats_dict.items()
         ]
-        return torch.cat(list_of_stats)
+        return torch.cat(list_of_stats).unsqueeze(0).unsqueeze(0)
 
     def convert_to_dict(self, vec):
+        """Converts vector of statistics to a dictionary.
+
+        Parameters
+        ----------
+        vec
+            Flattened 1d vector of statistics.
+
+        Returns
+        -------
+        Dictionary of representation, with informative keys.
+
+        """
         vec = vec.squeeze()
+        if len(vec) != len(self.representation_scales):
+            raise ValueError("representation vector is the wrong length (expected "
+                             f"{len(self.representation_scales)} but got {len(vec)})!"
+                             " Did you remove some of the scales? (i.e., by setting "
+                             "scales in the forward pass)? convert_to_dict does not "
+                             "support such vectors.")
         rep = OrderedDict()
         rep["pixel_statistics"] = OrderedDict()
         rep["pixel_statistics"]["mean"] = vec[0]
@@ -554,7 +588,12 @@ class PortillaSimoncelli(nn.Module):
         # finish this
         im_large = torch.fft.ifft2(fourier_large)
 
-        return im_large.type(im.dtype)
+        # if input was real-valued, output should be real-valued, but
+        # using fft/ifft above means im_large will always be complex,
+        # so make sure they aling.
+        if not im.is_complex():
+            im_large = torch.real(im_large)
+        return im_large
 
     def _calculate_autocorrelation_skew_kurtosis(self):
         r"""Calculate the autocorrelation for the real parts and magnitudes of the
@@ -588,7 +627,7 @@ class PortillaSimoncelli(nn.Module):
             self.representation["std_reconstructed"][self.n_scales] = vari ** 0.5
 
         for this_scale in range(self.n_scales - 1, -1, -1):
-            for nor in range(0, self.n_orientations):
+            for nor in range(self.n_orientations):
                 ch = self.magnitude_pyr_coeffs[(this_scale, nor)]
                 channel_size = np.min((ch.shape[-1], ch.shape[-2]))
                 le = int(np.min((channel_size / 2.0 - 1, center)))
@@ -611,7 +650,7 @@ class PortillaSimoncelli(nn.Module):
             # reconstruct the unoriented band for this scale
             unoriented_band_pyr = self.unoriented_band_pyrs[this_scale]
             unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
-            for ii in range(0, self.n_orientations):
+            for ii in range(self.n_orientations):
                 unoriented_pyr_coeffs[(0, ii)] = (
                     self.real_pyr_coeffs[(this_scale, ii)].unsqueeze(0).unsqueeze(0)
                 )
@@ -643,15 +682,17 @@ class PortillaSimoncelli(nn.Module):
 
         """
 
-        for this_scale in range(0, self.n_scales):
+        for this_scale in range(self.n_scales):
             band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
             if this_scale < self.n_scales - 1:
                 next_scale_mag = torch.empty((band_num_el, self.n_orientations),
-                                             device=self.pyr.hi0mask.device)
+                                             device=self.pyr.hi0mask.device,
+                                             dtype=self.pyr.hi0mask.dtype)
                 next_scale_real = torch.empty((band_num_el, self.n_orientations * 2),
-                                              device=self.pyr.hi0mask.device)
+                                              device=self.pyr.hi0mask.device,
+                                              dtype=self.pyr.hi0mask.dtype)
 
-                for nor in range(0, self.n_orientations):
+                for nor in range(self.n_orientations):
                     
                     upsampled = (
                         self.__class__.expand(
@@ -705,7 +746,7 @@ class PortillaSimoncelli(nn.Module):
                             aa.t()
                             for aa in [
                                 self.magnitude_pyr_coeffs[(this_scale, ii)]
-                                for ii in range(0, self.n_orientations)
+                                for ii in range(self.n_orientations)
                             ]
                         ]
                     )
@@ -745,7 +786,7 @@ class PortillaSimoncelli(nn.Module):
                             aa.t()
                             for aa in [
                                 self.real_pyr_coeffs[(this_scale, ii)].squeeze()
-                                for ii in range(0, self.n_orientations)
+                                for ii in range(self.n_orientations)
                             ]
                         ]
                     )
@@ -1044,7 +1085,7 @@ class PortillaSimoncelli(nn.Module):
 
                 if not isinstance(v, dict) and v.squeeze().dim() >= 3:
                     vals = OrderedDict()
-                    for ss in range(0, v.shape[2]):
+                    for ss in range(v.shape[2]):
                         tmp = torch.norm(v[:, :, ss, ...], p=2, dim=[0, 1])
                         if len(tmp.shape) == 0:
                             tmp = tmp.unsqueeze(0)
