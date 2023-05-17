@@ -2,12 +2,20 @@ from math import pi
 import numpy as np
 import scipy.ndimage
 import plenoptic as po
+import os.path as op
 import pytest
 import torch
 from numpy.random import randint
 from contextlib import nullcontext as does_not_raise
+from conftest import DEVICE, DATA_DIR
 
-from conftest import DEVICE
+
+class TestData(object):
+
+    def test_load_images_fail(self):
+        with pytest.raises(ValueError, match='All images must be the same shape'):
+            po.load_images([op.join(DATA_DIR, '256', 'einstein.pgm'),
+                            op.join(DATA_DIR, '512', 'bubbles.png')])
 
 
 class TestSignal(object):

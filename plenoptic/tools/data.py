@@ -129,17 +129,13 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             # then expand this grayscale image to the rgb representation
             im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
-    try:
-        images = torch.tensor(images, dtype=torch.float32)
-    except ValueError:
-        raise Exception(
-            "Concatenating the images into a tensor raised"
-            " a ValueError! This probably"
-            " means that not all images are the same size."
-        )
+    if len(set([i.shape for i in images])) > 1:
+        raise ValueError("All images must be the same shape but got the following: "
+                         f"{[i.shape for i in images]}")
+    images = torch.tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
-            raise Exception(
+            raise ValueError(
                 "For loading in images as grayscale, this should be a 3d tensor!"
             )
         images = images.unsqueeze(1)
@@ -153,8 +149,8 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
                 # then multiple grayscales ones, so add channel dimension
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
-        raise Exception(
-            "Somehow ended up with other than 4 dimensions! " "Not sure how we got here"
+        raise ValueError(
+            "Somehow ended up with other than 4 dimensions! Not sure how we got here"
         )
     return images
 

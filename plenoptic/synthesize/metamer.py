@@ -1641,8 +1641,9 @@ def animate(metamer: Metamer,
     # can also have multiple plots
 
     if metamer.target_representation.ndimension() == 4:
-        warnings.warn("Looks like representation is image-like, haven't fully thought out how"
-                      " to best handle rescaling color ranges yet!")
+        if 'plot_representation_error' in included_plots:
+            warnings.warn("Looks like representation is image-like, haven't fully thought out how"
+                          " to best handle rescaling color ranges yet!")
         # replace the bit of the title that specifies the range,
         # since we don't make any promises about that. we have to do
         # this here because we need the figure to have been created
