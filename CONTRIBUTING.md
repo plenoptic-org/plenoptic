@@ -422,7 +422,21 @@ This is a json file that should contain the path to the notebook, like so, for
 ```
 
 note that you *cannot* have a trailing comma there, because json is very
-particular. See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
+particular.
+If you have extra media (such as images) that are rendered in the notebook, you
+need to specify them as well, otherwise they won't render in the documentation:
+
+```
+{
+    "path": "../../examples/my_tutorial.ipynb",
+    "extra-media": ["../../examples/assets/my_folder"]
+}
+
+```
+
+note that `extra-media` must be a list, even with a single path.
+
+See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
 page for more details.
 
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook

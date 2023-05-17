@@ -30,5 +30,6 @@ train/
 
 docs/_build
 docs/api
+docs/tutorials/assets
 
 *.mypy_cache
