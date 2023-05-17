@@ -177,8 +177,9 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     state: dict
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
-    Note
-    ----
+
+    Notes
+    -----
     Note that energy and state is not computed on the residuals.
 
     The inverse operation is achieved by `local_gain_release_dict`.
@@ -220,8 +221,8 @@ def local_gain_release_dict(energy, state, residuals=True):
     coeff_dict : dict
         A dictionary containing tensors of shape (B,C,H,W)
 
-    Note
-    ----
+    Notes
+    -----
     The inverse operation to `local_gain_control_dict`.
     This function is  an analogue to polar_to_rectangular_dict for real
     valued signals. For more details, see :meth:`local_gain_release`

@@ -214,11 +214,6 @@ class TestNaive(object):
         model = po.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
 
-    def test_linear_metamer(self, einstein_img):
-        model = po.simul.Linear().to(DEVICE)
-        M = po.synth.Metamer(einstein_img, model)
-        M.synthesize(max_iter=3)
-
 
 class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
@@ -231,20 +226,16 @@ class TestPortillaSimoncelli(object):
         n_orientations,
         spatial_corr_width,
         use_true_correlations,
+        einstein_img,
     ):
-        im_shape = (256, 256)
-        x = po.tools.make_synthetic_stimuli().to(DEVICE)
-        x = x.unsqueeze(0).unsqueeze(0)
-        if im_shape is not None:
-            x = x[0, 0, : im_shape[0], : im_shape[1]]
         ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
+            einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
             use_true_correlations=use_true_correlations,
         ).to(DEVICE)
-        ps(x[0, :, :, :])
+        ps(einstein_img)
 
     # tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
@@ -367,20 +358,20 @@ class TestPortillaSimoncelli(object):
 
         po.tools.set_seed(1)
         im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
-        met = po.synth.Metamer(im0, model, initial_image=im_init,
-                               loss_function=po.tools.optim.l2_norm,
-                               range_penalty_lambda=0)
+        met = po.synth.MetamerCTF(im0, model, initial_image=im_init,
+                                  loss_function=po.tools.optim.l2_norm,
+                                  range_penalty_lambda=0,
+                                  coarse_to_fine='together')
 
-        coarse_to_fine_kwargs = {'change_scale_criterion': None,
-                                 'ctf_iters_to_check': 15}
         # this is the same as the default optimizer, but we explicitly
         # instantiate it anyway, in case we change the defaults at some point
-        optim = torch.optim.Adam([met.synthesized_signal], lr=.01,
+        optim = torch.optim.Adam([met.metamer], lr=.01,
                                  amsgrad=True)
-        output = met.synthesize(max_iter=200, optimizer=optim,
-                                coarse_to_fine='together',
-                                coarse_to_fine_kwargs=coarse_to_fine_kwargs)
+        met.synthesize(max_iter=200, optimizer=optim,
+                       change_scale_criterion=None,
+                       ctf_iters_to_check=15)
 
+        output = met.metamer
         if run_test:
             np.testing.assert_allclose(
                 po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,

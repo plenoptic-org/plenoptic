@@ -311,7 +311,7 @@ class SteerablePyramidFreq(nn.Module):
 
         """
         pyr_coeffs = OrderedDict()
-        if not isinstance(scales, list):
+        if not isinstance(scales, list) and not isinstance(scales, tuple):
             raise Exception("scales must be a list!")
         if not scales:
             scales = self.scales

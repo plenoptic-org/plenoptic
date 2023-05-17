@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
+from ...tools.validate import validate_input
 
 
 class PortillaSimoncelli(nn.Module):
@@ -202,9 +203,8 @@ class PortillaSimoncelli(nn.Module):
         image : torch.Tensor
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
-            channel, height, width). If it has fewer than 4 dimensions,
-            we will unsqueeze it until its 4d. Currently, only
-            single-batch and single-channel images are supported.
+            channel, height, width). Currently, only single-batch and
+            single-channel images are supported.
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
@@ -218,10 +218,7 @@ class PortillaSimoncelli(nn.Module):
             3d tensor containing the measured representation statistics.
 
         """
-        while image.ndimension() < 4:
-            image = image.unsqueeze(0)
-        if image.shape[0]>1:
-            raise ValueError("Batch size should be 1. Portilla Simoncelli doesn't support batch operations.")
+        validate_input(image, no_batch=True)
         if image.shape[1] > 1:
             raise ValueError("Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images.")
 

@@ -81,12 +81,12 @@ jobs:
       if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
       # this notebook takes much longer than the rest (if run to completion,
       # ~1hr on a laptop, more than 5 hours on the Github runners). We use
-      # papermill's parameters to reduce the max number of steps for
+      # papermill's parameters to reduce the max number of iters for
       # eigendistortion synthesis here (we want to test that each cell runs,
       # but we don't need synthesis to go to completion)
       run: |
         pip install --upgrade --upgrade-strategy eager papermill
-        papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p max_steps_frontend 10 -p max_steps_vgg 10 -k python3 --cwd examples/
+        papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd examples/
   tests:
     runs-on: ubuntu-latest
     needs: [get_test_scripts]

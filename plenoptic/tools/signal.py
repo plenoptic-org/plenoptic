@@ -138,9 +138,6 @@ def interpolate1d(
     -------
     Interpolated values of shape identical to `x_new`.
 
-    TODO
-    ----
-    rename and reorder arguments, refactor corresponding use in SteerablePyr
     """
 
     out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
@@ -418,9 +415,6 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
         the same size as `img`. Else, each separate value from `noise_mse` will
         be along the batch dimension.
 
-    TODO
-    ----
-    parametrize in terms of SNR
     """
     noise_mse = torch.tensor(
         noise_mse, dtype=torch.float32, device=img.device

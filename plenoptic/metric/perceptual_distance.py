@@ -3,9 +3,8 @@ import torch
 import torch.nn.functional as F
 import warnings
 
-from ..simulate.canonical_computations import LaplacianPyramid, SteerablePyramidFreq
+from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
-from ..simulate.canonical_computations.non_linearities import local_gain_control
 from ..tools.conv import same_padding
 
 import os
@@ -57,10 +56,12 @@ def _ssim_parts(img1, img2, pad=False):
     if img1.shape[1] > 1 or img2.shape[1] > 1:
         warnings.warn("SSIM was designed for grayscale images and here it will be computed separately for each "
                       "channel (so channels are treated in the same way as batches).")
+    if img1.dtype != img2.dtype:
+        raise ValueError("Input images must have same dtype!")
 
     real_size = min(11, img1.shape[2], img1.shape[3])
     std = torch.tensor(1.5).to(img1.device)
-    window = circular_gaussian2d(real_size, std=std)
+    window = circular_gaussian2d(real_size, std=std).to(img1.dtype)
 
     # these two checks are guaranteed with our above bits, but if we add
     # ability for users to set own window, they'll be necessary
@@ -281,8 +282,10 @@ def ms_ssim(img1, img2, power_factors=None):
     for all but the coarsest scales, and the overall SSIM map is only computed
     for the coarsest scale. Their mean values are raised to exponents and
     multiplied to produce MS-SSIM:
+
     .. math::
         MSSSIM = {SSIM}_M^{a_M} \prod_{i=1}^{M-1} ({CS}_i)^{a_i}
+
     Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
     of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
     is the mean value of the SSIM map for the coarsest scale. If at least one
