@@ -17,10 +17,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
 plenoptic
-=====================================
+*********
 
 |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
+
+.. image:: images/plenoptic_logo_wide.svg
+   :align: center
+   :alt: plenoptic logo
 
 ``plenoptic`` is a python library for model-based stimulus synthesis. It
 provides tools to help researchers understand their model by synthesizing novel
@@ -47,9 +52,24 @@ from github directly::
 
 $ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
 
-See the `README
-<https://github.com/LabForComputationalVision/plenoptic/#setup>`_ for more
-details, including how to set up an isolated virtual environment.
+See the :ref:`install` page for more details, including how to set up an isolated
+virtual environment (recommended).
+
+ffmpeg and videos
+^^^^^^^^^^^^^^^^^
+
+Several methods in this package generate videos. There are several backends
+possible for saving the animations to file, see `matplotlib documentation
+<https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
+details. In order convert them to HTML5 for viewing (and thus, to view in a
+jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
+installed and on your path as well. Depending on your system, this might already
+be installed.
+
+To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
+before calling any of the animate functions. If you try to set that ``rcParam``
+with a random string, ``matplotlib`` will tell you the available choices.
+
 
 .. _package-contents:
 Contents
@@ -112,7 +132,7 @@ Models, Metrics, and Model Components
 - Multiscale Structrual Similarity Index (MS-SSIM), [Wang2003]_, is a perceptual
   similarity metric similar to SSIM, except it operates at multiple scales
   (i.e., spatial frequencies).
-- Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is an
+- Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is a
   perceptual distance metric based on transformations associated with the early
   visual system: local luminance subtraction and local contrast gain control, at
   six scales.
@@ -144,6 +164,7 @@ In all cases, please follow our `code of conduct
    :maxdepth: 1
    :caption: Contents:
 
+   install
    conceptual_intro
    models
    synthesis
@@ -212,3 +233,10 @@ Indices and tables
    E.P., 2016. Perceptual image quality assessment using a normalized Laplacian
    pyramid. Electronic Imaging, 2016(16), pp.1-6.
    http://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
+
+This package is supported by the Simons Foundation Flatiron Institute's Center
+for Computational Neuroscience.
+
+.. image:: images/CCN-logo-wText.png
+   :align: center
+   :alt: Flatiron Institute Center for Computational Neuroscience logo

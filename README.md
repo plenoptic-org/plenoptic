@@ -4,267 +4,132 @@
 ![Python version](https://img.shields.io/badge/python-3.7|3.8|3.9|3.10-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
-[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/main/STABILITY-BADGES.md#alpha)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
 [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)
 
-In recent years, [adversarial
-examples](https://openai.com/blog/adversarial-example-research/) have
-demonstrated how difficult it is to understand how complex models process
-images. The space of all possible images is impossibly vast and difficult to
-explore: even when training on millions of images, a dataset only represents a
-tiny fraction of all images.
+![](docs/images/plenoptic_logo_wide.svg)
 
-`plenoptic` is a python library that provides tools to help researchers
-better understand their models by using optimization to synthesize novel 
-informative images. These images allow us to build our intuition for what
-features the model ignores and what it is sensitive to. These synthetic 
-images can then be used in psychophysics experiments for further investigation.
+`plenoptic` is a python library for model-based stimulus synthesis. It
+provides tools to help researchers understand their model by
+synthesizing novel informative stimuli, which help build intuition for
+what features the model ignores and what it is sensitive to. These
+synthetic images can then be used in future perceptual or neural
+experiments for further investigation.
 
-More specifically, all models have three components,
-inputs `x`, outputs `y`, and parameters `θ`. When working with models,
-we typically either simulate, by holding `x` and `θ` constant, and
-generating predictions for `y`, or fit, by holding `x` and `y`
-constant and using optimization to find the best-fitting `θ`. However,
-for optimization purposes, there's nothing special about `x`, so we
-can instead hold `y` and `θ` constant and use optimization to
-synthesize new inputs `x`. Synthesis methods do exactely that: they
-take a model with set parameters, set outputs and generate new inputs.
-They allow for better understanding of the model by assessing what
-it is sensitive to and, crucially, what it is not sensitive to,
-as well as generating novel stimuli for testing the model.
+## Getting started
 
-Here's a table summarizing this:
+-   If you are unfamiliar with stimulus synthesis, see the [conceptual
+    introduction](https://plenoptic.readthedocs.io/en/latest/conceptual_intro.html)
+    for an in-depth introduction.
+-   If you understand the basics of synthesis and want to get started
+    using `plenoptic` quickly, see the
+    [Quickstart](tutorials/00_quickstart.nblink) tutorial.
 
-**{x, y, θ}** : inputs, outputs, parameters
+### Installation
 
-|            	|   fixed  	| variable  |
-|:----------:	|:------:	|:------:	|
-|  simulate  	| {x, θ} 	|   {y}  	|
-|   learn    	| {x, y} 	|   {θ}  	|
-| synthesize 	| {y, θ} 	|   {x}  	|
+The best way to install `plenoptic` is via `pip`. For now, you must do
+this from github directly:
 
-`plenoptic` contains the following four synthesis methods (with links
-to examples that make use of them):
-
-- [Metamers](http://www.cns.nyu.edu/~lcv/texture/):
-  given a model and a reference image, stochastically generate a new image whose
-  model representation is identical to that of the reference image.
-- [Eigendistortions](https://www.cns.nyu.edu/~lcv/eigendistortions/):
-  given a model and a reference image, compute the image perturbation that produces
-  the smallest and largest changes in the model response space.  These correspond to the
-  minimal/maximal eigenvectors of the Fisher Information matrix of the representation (for deterministic models, 
-  the minimal/maximal singular vectors of the Jacobian).
-- [Maximal differentiation (MAD)
-  competition](https://ece.uwaterloo.ca/~z70wang/research/mad/):
-  given two models that measure distance between images and a reference image, generate pairs of 
-  images that optimally differentiate the models.  Specifically, synthesize a pair of images 
-  that the first model says are equi-distant from the reference while the second model says they 
-  are maximally/minimally distant from the reference. Synthesize a second pair with the roles of the two models reversed.
-- [Geodesics](https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf):
-  given a model and two images, synthesize a sequence of images that lie on 
-  the shortest ("geodesic") path in the model's representation space. 
-  
-# Status
-
-This project is currently under heavy development. Not all features
-have been implemented, and there will be breaking changes.
-
-# Roadmap
-
-See the [github
-project](https://github.com/LabForComputationalVision/plenoptic/projects/1)
-for a more detailed roadmap, but at the high level:
-
-- Short term:
-  1. Finalize Portilla-Simoncelli texture model
-  2. Recreate existing `MADCompetition` examples.
-- Medium term:
-  1. Finalize geodesics
-  2. Get eigendistortion and geodesics to use `Synthesis` superclass
-  3. Write more documentation and tutorials
-  4. Finalize model API, create superclass
-  5. Add more models
-- Long term:
-  1. Present at conference to advertise to users
-  2. Submit paper to Journal of Open Source Software
-
-# Setup
-
-These are instructions for how to install and run the development
-version of the `plenoptic` package (we are currently pre-release and
-not on `pip`, so this is the only way to use `plenoptic`).
-
-The following instructions will work on Linux or Mac. If you're on
-Windows, I recommend looking into the [Windows Subsystem for
-Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
-
-## System
-
-If you have not setup python on your system before: install
-[miniconda](https://conda.io/miniconda.html) (this just contains
-python and `conda`, a very nifty package manager; choose python
-3.7). Conda is separate from python: it's a package manager, which
-makes it easy to install a variety of python libraries. If you've ever
-used `apt` on Ubuntu or [`brew` on Macs](https://brew.sh/), then
-you've used a package manager before. Python has its own package
-manager, `pip`, which generally works very well, but in my experience
-I've found conda tends to work with fewer issues. [See
-here](https://stackoverflow.com/questions/20994716/what-is-the-difference-between-pip-and-conda)
-for some more details, but the gist seems to be: conda can handle
-external (non-python) dependencies, whereas pip cannot, and conda can
-create virtual environments (see item 3 in this list), whereas pip
-cannot (the standard python way is to use `virtualenv`, which also
-works well). See
-[here](https://jakevdp.github.io/blog/2016/08/25/conda-myths-and-misconceptions/)
-for a blog post from Jake VanderPlas with more details on conda.
-
-You will probably need to restart your terminal for this to take
-effect. You should see `base` somewhere on your command line prompt.
-
-Once you've done that, open the command-line and navigate to wherever
-you want to download this repository (for example, `~/Documents`), and
-check that you have `git` installed on your system:
-
-```
-cd ~/Documents
-which git
+``` bash
+$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
 ```
 
-assuming the second command returns something (e.g., `/usr/bin/git`),
-`git` is installed and you're good to go. If nothing gets printed out,
-then you need to [install
-git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git). See
-[this cheatsheet](https://neuroplausible.com/github) for some more
-explanation of git, Github, and the associated terminology.
+See the [installation
+page](https://plenoptic.readthedocs.io/en/latest/install.html) for more details,
+including how to set up a virtual environment and jupyter.
 
-### ffmpeg
+### ffmpeg and videos
 
 Several methods in this package generate videos. There are several backends
-possible for saving the animations to file, see (matplotlib
-documentation)[https://matplotlib.org/stable/api/animation_api.html#writer-classes]
+possible for saving the animations to file, see [matplotlib
+documentation](https://matplotlib.org/stable/api/animation_api.html#writer-classes)
 for more details. In order convert them to HTML5 for viewing (and thus, to view
 in a jupyter notebook), you'll need [ffmpeg](https://ffmpeg.org/download.html)
-installed and on your path as well.
+installed and on your path as well. Depending on your system, this might already
+be installed.
 
 To change the backend, run `matplotlib.rcParams['animation.writer'] = writer`
 before calling any of the animate functions. If you try to set that `rcParam`
 with a random string, `matplotlib` will tell you the available choices.
 
-## plenoptic
+## Contents
 
-Once git is installed, you can clone the repository:
+### Synthesis methods
 
-```
-git clone https://github.com/LabForComputationalVision/plenoptic.git
-```
+![](docs/images/example_synth.svg)
 
-Enter your username and password and, after a bit of a wait, you
-should have a brand new plenoptic folder, `plenoptic`. Let's navigate
-to that folder, create a new virtual environment, and install the
-package:
+-   [Metamers](tutorials/06_Metamer.nblink): given a model and a
+    reference image, stochastically generate a new image whose model
+    representation is identical to that of the reference image. This
+    method investigates what image features the model disregards
+    entirely.
+-   [Eigendistortions](tutorials/02_Eigendistortions.nblink): given a
+    model and a reference image, compute the image perturbation that
+    produces the smallest and largest changes in the model response
+    space. This method investigates the image features the model
+    considers the least and most important.
+-   [Maximal differentiation (MAD)
+    competition](tutorials/07_MAD_Competition.nblink): given two metrics
+    that measure distance between images and a reference image, generate
+    pairs of images that optimally differentiate the models.
+    Specifically, synthesize a pair of images that the first model says
+    are equi-distant from the reference while the second model says they
+    are maximally/minimally distant from the reference. Then synthesize
+    a second pair with the roles of the two models reversed. This method
+    allows for efficient comparison of two metrics, highlighting the
+    aspects in which their sensitivities differ.
+-   [Geodesics](tutorials/05_Geodesics.nblink): given a model and two
+    images, synthesize a sequence of images that lie on the shortest
+    ("geodesic") path in the model's representation space. This
+    method investigates how a model represents motion and what changes
+    to an image it consider reasonable.
 
-```
-cd plenoptic
-conda create -n plenoptic python==3.7
-conda activate plenoptic
-pip install -e .
-```
+### Models, Metrics, and Model Components
 
-We have now created a new virtual environment called `plenoptic`,
-which originally contains only the bare requirements (`python`, `pip`,
-etc.). We then activate it (which means that everything we do to
-interact with python will use this virtual environment, so only the
-python version and packages included there; you should see `plenoptic`
-somewhere on your command line prompt) and install `plenoptic`. This
-will install all the requirements necessary for plenoptic to run.
+-   Portilla-Simoncelli texture model, which measures the statistical properties
+    of visual textures, here defined as "repeating visual patterns."
+-   Steerable pyramid, a multi-scale oriented image decomposition. The basis are
+    oriented (steerable) filters, localized in space and frequency. Among other
+    uses, the steerable pyramid serves as a good representation from which to
+    build a primary visual cortex model. See the [pyrtools
+    documentation](https://pyrtools.readthedocs.io/en/latest/index.html) for
+    more details on image pyramids in general and the steerable pyramid in
+    particular.
+-   Structural Similarity Index (SSIM), is a perceptual similarity metric,
+    returning a number between -1 (totally different) and 1 (identical)
+    reflecting how similar two images are. This is based on the images'
+    luminance, contrast, and structure, which are computed convolutionally
+    across the images.
+-   Multiscale Structrual Similarity Index (MS-SSIM), is a perceptual similarity
+    metric similar to SSIM, except it operates at multiple scales (i.e.,
+    spatial frequencies).
+-   Normalized Laplacian distance, is a perceptual distance metric based on
+    transformations associated with the early visual system: local luminance
+    subtraction and local contrast gain control, at six scales.
 
-## Jupyter
+## Getting help
 
-If you wish to locally run the notebooks, you will need to install `jupyter` and
-`ipywidgets` (you can also run them in the cloud using
-[Binder](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)).
-There are two main ways of getting a local `jupyter` install` working with this
-package:
+We communicate via several channels on Github:
 
-1. Install jupyter in the same environment as `plenoptic`. If you followed the
-   [instructions above](#plenoptic) to create a `conda` environment named
-   `plenoptic`, do the following:
+-   [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+    is the place to ask usage questions, discuss issues too broad for a
+    single issue, or show off what you've made with plenoptic.
+-   If you've come across a bug, open an
+    [issue](https://github.com/LabForComputationalVision/plenoptic/issues).
+-   If you have an idea for an extension or enhancement, please post in the
+    [ideas
+    section](https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas)
+    of discussions first. We'll discuss it there and, if we decide to pursue it,
+    open an issue to track progress.
+-   See the [contributing guide](CONTRIBUTING.md) for how to get involved.
 
-``` sh
-conda activate plenoptic
-conda install -c conda-forge jupyterlab ipywidgets
-```
+In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 
-   This is easy but, if you have multiple conda environments and want to use
-   Jupyter notebooks in each of them, it will take up a lot of space.
-   
-2. Use
-   [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels).
-   Again, if you followed the instructions above:
+## Support
 
-``` sh
-# activate your 'base' environment, the default one created by miniconda
-conda activate 
-# install jupyter lab and nb_conda_kernels in your base environment
-conda install -c conda-forge jupyterlab ipywidgets
-conda install nb_conda_kernels
-# install ipykernel in the calibration environment
-conda install -n plenoptic ipykernel
-```
+This package is supported by the Simons Foundation Flatiron Institute's Center
+for Computational Neuroscience.
 
-   This is a bit more complicated, but means you only have one installation of
-   jupyter lab on your machine.
-   
-In either case, to open the notebooks, navigate to the `examples/` directory
-under this one on your terminal and activate the environment you install jupyter
-into (`plenoptic` for 1, `base` for 2), then run `jupyter` and open up the
-notebooks. If you followed the second method, you should be prompted to select
-your kernel the first time you open a notebook: select the one named
-"plenoptic".
-
-## Keeping up-to-date
-
-Once you've downloaded and set up plenoptic for the first time, you can use `git
-pull` to keep it up-to-date. Navigate to the directory (if you downloaded
-plenoptic into your Documents folder above, that's `cd ~/Documents/plenoptic`)
-and run `git pull origin main`. git may yell at you if you've made local
-changes it can't figure out how to resolve. You'll have a merge conflict on your
-hands, see
-[here](https://www.atlassian.com/git/tutorials/using-branches/merge-conflicts)
-for more information and how to proceed.
-
-If you'd like to contribute any of the changes you've made, view the
-[Contributing](#contributing) section.
-
-# Getting started
-
-Once you've set everything up appropriately, navigate to the example
-directory, start up JupyterLab (which will open in a new browser tab),
-and start exploring the notebooks!
-
-```
-cd examples/
-jupyter lab
-```
-
-The notebooks contain examples and tutorials, and have been numbered
-in a recommended order. They're all very much under development, and
-we would appreciate any feedback!
-
-# Contributing
-
-For info on how to contribute, see the [CONTRIBUTING](CONTRIBUTING.md)
-file, including info on how to test the package and build its
-documentation.
-
-### Research notice
-
-Please note that this repository is participating in a study into sustainability of open source projects. Data will be gathered about this repository for approximately the next 12 months, starting from June 2021.
-
-Data collected will include number of contributors, number of PRs, time taken to close/merge these PRs, and issues closed.
-
-For more information, please visit [the informational page](https://sustainable-open-science-and-software.github.io/) or download the [participant information sheet](https://sustainable-open-science-and-software.github.io/assets/PIS_sustainable_software.pdf).
-
+![](docs/images/CCN-logo-wText.png)
