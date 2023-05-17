@@ -3,6 +3,7 @@
 import torch
 from tqdm.auto import tqdm
 from .synthesis import Synthesis
+from ..tools.validate import validate_input, validate_model
 from ..tools import optim
 from typing import Union
 
@@ -19,25 +20,22 @@ class SimpleMetamer(Synthesis):
 
     Parameters
     ----------
-    model :
-        The visual model whose representation we wish to match.
-    target_signal :
+    image
         A 4d tensor, this is the image whose model representation we wish to
         match.
+    model
+        The visual model whose representation we wish to match.
 
     """
 
-    def __init__(self, target_signal: torch.Tensor, model: torch.nn.Module):
+    def __init__(self, image: torch.Tensor, model: torch.nn.Module):
+        validate_model(model, image_shape=image.shape, image_dtype=image.dtype,
+                       device=image.device)
         self.model = model
-        if target_signal.ndimension() < 4:
-            raise Exception("target_signal must be torch.Size([n_batch, "
-                            "n_channels, im_height, im_width]) but got "
-                            f"{target_signal.size()}")
-        self.target_signal = target_signal
-        self._signal_shape = target_signal.shape
-        self.synthesized_signal = torch.rand_like(self.target_signal,
-                                                  requires_grad=True)
-        self.target_model_response = self.model(self.target_signal).detach()
+        validate_input(image)
+        self.image = image
+        self.metamer = torch.rand_like(self.image, requires_grad=True)
+        self.target_representation = self.model(self.image).detach()
         self.optimizer = None
         self.losses = []
 
@@ -49,40 +47,40 @@ class SimpleMetamer(Synthesis):
 
         Parameters
         ----------
-        max_iter :
+        max_iter
             Number of iterations to run synthesis for.
-        optimizer :
+        optimizer
             The optimizer to use. If None and this is the first time calling
             synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
             been called before, we reuse the previous optimizer.
 
         Returns
         -------
-        synthesized_image :
+        metamer
             The synthesized metamer
 
         """
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.synthesized_signal],
+                self.optimizer = torch.optim.Adam([self.metamer],
                                                   lr=.01, amsgrad=True)
         else:
             self.optimizer = optimizer
 
         pbar = tqdm(range(max_iter))
-        for step in pbar:
+        for _ in pbar:
 
             def closure():
                 self.optimizer.zero_grad()
-                synthesized_model_response = self.model(self.synthesized_signal)
-                # We want to make sure our synthesized signal ends up in the
-                # range [0, 1], so we penalize all values outside that range in
-                # the loss function. You could theoretically also just clamp
-                # synthesized_signal on each step of the iteration, but the
-                # penalty in the loss seems to work better in practice
-                loss = optim.mse(synthesized_model_response,
-                                 self.target_model_response)
-                loss = loss + .1 * optim.penalize_range(self.synthesized_signal,
+                metamer_representation = self.model(self.metamer)
+                # We want to make sure our metamer ends up in the range [0, 1],
+                # so we penalize all values outside that range in the loss
+                # function. You could theoretically also just clamp metamer on
+                # each step of the iteration, but the penalty in the loss seems
+                # to work better in practice
+                loss = optim.mse(metamer_representation,
+                                 self.target_representation)
+                loss = loss + .1 * optim.penalize_range(self.metamer,
                                                         (0, 1))
                 self.losses.append(loss.item())
                 loss.backward(retain_graph=False)
@@ -90,8 +88,6 @@ class SimpleMetamer(Synthesis):
                 return loss
 
             self.optimizer.step(closure)
-
-        return self.synthesized_signal
 
     def save(self, file_path: str):
         r"""Save all relevant (non-model) variables in .pt file.
@@ -112,10 +108,10 @@ class SimpleMetamer(Synthesis):
 
         Parameters
         ----------
-        file_path : str
+        file_path
             The path to load the synthesis object from
         """
-        check_attributes = ['target_model_response', 'target_signal']
+        check_attributes = ['target_representation', 'image']
         super().load(file_path, check_attributes=check_attributes,
                      map_location=map_location)
 
@@ -150,7 +146,7 @@ class SimpleMetamer(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['model', 'target_signal', 'target_model_response',
-                 'synthesized_signal']
+        attrs = ['model', 'image', 'target_representation',
+                 'metamer']
         super().to(*args, attrs=attrs, **kwargs)
         return self

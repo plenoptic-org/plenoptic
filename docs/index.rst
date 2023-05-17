@@ -1,5 +1,5 @@
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
-			    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
+                    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.7%7C3.8%7C3.9%7C3.10-blue.svg
 
@@ -141,12 +141,14 @@ In all cases, please follow our `code of conduct
 <https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    conceptual_intro
-   reproducibility
+   models
+   synthesis
    tips
+   reproducibility
    api/modules
 
 .. toctree::
