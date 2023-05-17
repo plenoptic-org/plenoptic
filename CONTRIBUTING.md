@@ -1,25 +1,23 @@
 # CONTRIBUTING
 
-`plenoptic` is a python library of tools to help researchers better
-understand their models. While the majority of authors are from NYU's
-[Lab for Computational Vision](https://www.cns.nyu.edu/~lcv/), we
-welcome other contributors!
+`plenoptic` is a python library of tools to help researchers better understand
+their models. While the majority of authors are members or alumni of NYU's [Lab
+for Computational Vision](https://www.cns.nyu.edu/~lcv/), we welcome other
+contributors!
 
-First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and
-read it before going any further. You may also want to check out the
-[README](README.md) for a longer overview of the project and how to
-get everything installed, the tutorials (Jupyter notebooks found in
-the `examples/` folder) for some examples of how to interact with the
-library, and the
-[Roadmap](https://github.com/LabForComputationalVision/plenoptic/projects/1)
-for our current plans.
+First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
+before going any further. You may also want to check out the [README](README.md)
+for a longer overview of the project and how to get everything installed, the
+tutorials (Jupyter notebooks found in the `examples/` folder) for some examples
+of how to interact with the library, and the
+[documentation](https://plenoptic.readthedocs.io/).
 
 If you encounter any issues with `plenoptic`, please open an
 [issue](https://github.com/LabForComputationalVision/plenoptic/issues)!
 We have a template for bug reports, following it (so you provide the
 necessary details) will make solving it easier. Right now, we have
 enough on our plate that we're not considering any enhancements or new
-features -- we're focusing on implementing what we plan to do.
+features --- we're focusing on implementing what we plan to do.
 
 If you'd like to help improve `plenoptic`, we have a bunch of issues
 we're working through. For people who are not already familiar with
@@ -42,22 +40,29 @@ documentation (if you create a branch on the main repo, Github Actions will run
 tests automatically whenever you push, so you don't need to worry about running
 them locally).
 
-COMMUNICATION CHANNELS?
+We try to keep all our communication on Github, and we use several channels:
 
-RECOGNITION MODEL?
-
-CONTACT INFO?
+-   [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+    is the place to ask usage questions, discuss issues too broad for a
+    single issue, or show off what you've made with plenoptic.
+-   If you've come across a bug, open an
+    [issue](https://github.com/LabForComputationalVision/plenoptic/issues).
+-   If you have an idea for an extension or enhancement, please post in the
+    [ideas
+    section](https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas)
+    of discussions first. We'll discuss it there and, if we decide to pursue it,
+    open an issue to track progress.
 
 ## Contributing to the code
 
-We welcome contributions to `plenoptic`! In order to contribute, please createb
+We welcome contributions to `plenoptic`! In order to contribute, please create
 your own branch, make sure the tests pass, and open a Pull Request. If you're a
 member of the [LCV github](https://github.com/LabForComputationalVision/), you
 can create a branch directly in the repository: from within the `plenoptic`
 repository:
 
 ```
-git checkout -b my_cool_branch # create the branch
+git checkout -b my_cool_branch # create and switch to the branch
 # make some changes
 git commit -a -m "A helpful message explaining my changes" # commit your changes
 git push origin my_cool_branch # push to the origin remote
@@ -70,8 +75,8 @@ request (see [here](https://yangsu.github.io/pull-request-tutorial/) for a
 tutorial).
 
 If you're not a member of the LCV github, you'll need to first [create a
-fork](https://docs.github.com/en/enterprise/2.20/user/github/getting-started-with-github/fork-a-repo)
-of the repository to your own github account, and then proceed as above.
+fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) of the
+repository to your own github account, and then proceed as above.
 
 ### Style guide
 
@@ -145,9 +150,12 @@ will automatically find it and test it.
 
 If your notebook needs additional files to run, you should add a [conditional
 job](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution)
-to download them. We recommend uploading a tarball to the [Open Science
-Framework](https://osf.io/), and they can then be downloaded using `wget` and
-extracted. See `Download TID2013 dataset` in `ci.yml` for an example.
+to download them. If you need to upload them, we recommend uploading a tarball
+to the [Open Science Framework](https://osf.io/), and they can then be
+downloaded using `wget` and extracted. See `Download TID2013 dataset` in
+`ci.yml` for an example. We have a [single OSF project](https://osf.io/ts37w/)
+containing all the files we've uploaded and will probably want to include yours
+there as well.
 
 If your notebook takes more than ~10 minutes on a github runner, you should find
 a way to use reduce it for tests. The goal of the tests is only to check that
