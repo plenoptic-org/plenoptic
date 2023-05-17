@@ -816,14 +816,14 @@ def update_plot(axes, data, model=None, batch_idx=0):
     if isinstance(data, dict):
         for v in data.values():
             if v.ndim not in [3, 4]:
-                raise Exception("update_plot expects 3 or 4 dimensional data"
-                                "; unexpected behavior will result otherwise!"
-                                f" Got data of shape {v.shape}")
+                raise ValueError("update_plot expects 3 or 4 dimensional data"
+                                 "; unexpected behavior will result otherwise!"
+                                 f" Got data of shape {v.shape}")
     else:
         if data.ndim not in [3, 4]:
-            raise Exception("update_plot expects 3 or 4 dimensional data"
-                            "; unexpected behavior will result otherwise!"
-                            f" Got data of shape {data.shape}")
+            raise ValueError("update_plot expects 3 or 4 dimensional data"
+                             "; unexpected behavior will result otherwise!"
+                             f" Got data of shape {data.shape}")
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:

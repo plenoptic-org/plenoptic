@@ -350,6 +350,9 @@ class OnOff(nn.Module):
         useful for synthesis methods like Eigendistortions to ensure that the
         synthesized distortion will not appear in the periphery. See
         `plenoptic.tools.signal.make_disk()` for details on how mask is created.
+    cache_filt:
+        Whether or not to cache the filter. Avoids regenerating filt with each
+        forward pass. Cached to `self._filt`.
 
     Notes
     -----
