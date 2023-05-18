@@ -148,7 +148,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Check for file
       shell: bash
-      run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" ]] ; then
+      # there are two levels that the notebooks can be in
+      run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" && -z "$(grep ${{ matrix.notebook }} docs/tutorials/*/*nblink)" ]] ; then
         exit 1; fi
   no_extra_nblinks:
     runs-on: ubuntu-latest
@@ -159,6 +160,7 @@ jobs:
       shell: bash
       run: |
         n_nblink=0; for file in docs/tutorials/*nblink; do let "n_nblink+=1"; done;
+        for file in docs/tutorials/*/*nblink; do let "n_nblink+=1"; done;
         n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
         if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
 

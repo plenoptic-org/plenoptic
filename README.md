@@ -25,7 +25,7 @@ experiments for further investigation.
     for an in-depth introduction.
 -   If you understand the basics of synthesis and want to get started
     using `plenoptic` quickly, see the
-    [Quickstart](tutorials/00_quickstart.nblink) tutorial.
+    [Quickstart](examples/00_quickstart.ipynb) tutorial.
 
 ### Installation
 
@@ -60,18 +60,18 @@ with a random string, `matplotlib` will tell you the available choices.
 
 ![](docs/images/example_synth.svg)
 
--   [Metamers](tutorials/06_Metamer.nblink): given a model and a
+-   [Metamers](examples/06_Metamer.ipynb): given a model and a
     reference image, stochastically generate a new image whose model
     representation is identical to that of the reference image. This
     method investigates what image features the model disregards
     entirely.
--   [Eigendistortions](tutorials/02_Eigendistortions.nblink): given a
+-   [Eigendistortions](examples/02_Eigendistortions.ipynb): given a
     model and a reference image, compute the image perturbation that
     produces the smallest and largest changes in the model response
     space. This method investigates the image features the model
     considers the least and most important.
 -   [Maximal differentiation (MAD)
-    competition](tutorials/07_MAD_Competition.nblink): given two metrics
+    competition](examples/07_MAD_Competition.ipynb): given two metrics
     that measure distance between images and a reference image, generate
     pairs of images that optimally differentiate the models.
     Specifically, synthesize a pair of images that the first model says
@@ -80,7 +80,7 @@ with a random string, `matplotlib` will tell you the available choices.
     a second pair with the roles of the two models reversed. This method
     allows for efficient comparison of two metrics, highlighting the
     aspects in which their sensitivities differ.
--   [Geodesics](tutorials/05_Geodesics.nblink): given a model and two
+-   [Geodesics](examples/05_Geodesics.ipynb): given a model and two
     images, synthesize a sequence of images that lie on the shortest
     ("geodesic") path in the model's representation space. This
     method investigates how a model represents motion and what changes
