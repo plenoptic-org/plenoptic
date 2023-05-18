@@ -109,17 +109,17 @@ versioning](https://semver.org/):
 When doing a new release, the following steps must be taken:
 1. In a new PR:
   - Update the string in `version.py`. This will update the value used in
-    `setup.py`. It should be of the format `X.Y.Z`, where `X,Y,Z` are all
+    `setup.py`. It should be of the format `X.Y.Z`, where `X`, `Y`, `Z` are all
     integers.
   - Update all the [binder](https://mybinder.org) links, which are of the form
-    `https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/v{X.Y.Z}?filepath=examples`,
+    `https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/X.Y.Z?filepath=examples`,
     which are found in `README.md`, `index.rst`, `examples/README.md`, and some
     of the tutorial notebooks found in `examples/`. Note that the version tag
-    has to match the github tag (specified in the next step), which should match
-    the value found in `version.py` with `v` prepended.
+    must match the github tag (specified in the next step) or the link won't
+    work, and this github tag should match the value found in `version.py`.
 2. After merging the above PR into the `main` branch, [create a Github
    release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
-   with a new tag matching that used in the binder link above: `v{X.Y.Z}`.
+   with a new tag matching that used in the binder link above: `X.Y.Z`.
    Creating the release will trigger the deployment to pypi, via our `deploy`
    action (found in `.github/workflows/deploy.yml`).
 
