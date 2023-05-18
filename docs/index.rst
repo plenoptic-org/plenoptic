@@ -1,3 +1,6 @@
+.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
+			 :target: https://pypi.org/project/plenoptic/
+
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
                     :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
@@ -21,7 +24,7 @@
 plenoptic
 *********
 
-|license-shield| |python-version-shield| |build| |tutorials| |zenodo|
+|pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo|
 
 .. image:: images/plenoptic_logo_wide.svg
    :align: center
