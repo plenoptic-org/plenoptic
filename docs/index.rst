@@ -87,7 +87,8 @@ Synthesis methods
   that of the reference image. This method investigates what image features the
   model disregards entirely.
 
-  - Example papers: [Portilla2000]_, [Freeman2011]_
+  - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
+    [Feather2019]_, [Wallis2019]_
 - `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_: given a model and a
   reference image, compute the image perturbation that produces the smallest and
   largest changes in the model response space. This method investigates the
@@ -210,6 +211,15 @@ In all cases, please follow our `code of conduct
 .. [Freeman2011] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
    ventral stream. Nature Neuroscience, 14(9), 1195–1201.
    http://www.cns.nyu.edu/pub/eero/freeman10-reprint.pdf
+.. [Deza2019] Deza, A., Jonnalagadda, A., & Eckstein, M. P. (2019). Towards
+   metamerism via foveated style transfer. In , International Conference on
+   Learning Representations.
+.. [Feather2019] Feather, J., Durango, A., Gonzalez, R., & McDermott, J. (2019).
+   Metamers of neural networks reveal divergence from human perceptual systems.
+   In NeurIPS (pp. 10078–10089).
+.. [Wallis2019] Wallis, T. S., Funke, C. M., Ecker, A. S., Gatys, L. A.,
+   Wichmann, F. A., & Bethge, M. (2019). Image content is more important than
+   bouma's law for scene metamers. eLife. http://dx.doi.org/10.7554/elife.42512
 .. [Berardino2017] Berardino, A., Laparra, V., J Ball\'e, & Simoncelli, E. P.
    (2017). Eigen-distortions of hierarchical representations. In I. Guyon, U.
    Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, & R. Garnett,
