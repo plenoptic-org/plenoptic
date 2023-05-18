@@ -14,7 +14,7 @@ installed on your machine, I recommend starting with `miniconda
 
 $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
-$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+$ pip install plenoptic
 
 You can also install it directly from source::
 

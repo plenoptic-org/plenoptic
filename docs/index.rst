@@ -53,10 +53,9 @@ Installation
 
 .. highlight:: bash
 
-The best way to install ``plenoptic`` is via ``pip``. For now, you must do this
-from github directly::
+The best way to install ``plenoptic`` is via ``pip``.
 
-$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+$ pip install plenoptic
 
 See the :ref:`install` page for more details, including how to set up an isolated
 virtual environment (recommended).
