@@ -17,8 +17,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr',
            'portilla_simoncelli_matlab_test_vectors.tar.gz': 'qtn5y',
            'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
-           # synthesis gives different outputs on GPU vs CPU (and some pytorch
-           # versions), so we have separate versions to test against
+           'portilla_simoncelli_images.tar.gz':'eqr3t',
            'portilla_simoncelli_synthesize.npz': 'a7p9r',
            'portilla_simoncelli_synthesize_torch_v1.12.0.npz': 'gbv8e',
            'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
@@ -38,6 +37,7 @@ def osf_download(filename):
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
                 'ssim_analysis.mat', 'msssim_images.tar.gz',
                 'MAD_results.tar.gz',
+                'portilla_simoncelli_images.tar.gz',
                 'portilla_simoncelli_matlab_test_vectors.tar.gz',
                 'portilla_simoncelli_test_vectors.tar.gz',
                 'portilla_simoncelli_synthesize.npz',
@@ -227,3 +227,21 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
         curie_img.requires_grad_(False)
+
+    def test_ssim_dtype(self, einstein_img, curie_img):
+        po.metric.ssim(einstein_img.to(torch.float64),
+                       curie_img.to(torch.float64))
+
+    def test_ssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ssim(einstein_img.to(torch.float64),
+                           curie_img)
+
+    def test_msssim_dtype(self, einstein_img, curie_img):
+        po.metric.ms_ssim(einstein_img.to(torch.float64),
+                          curie_img.to(torch.float64))
+
+    def test_msssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ms_ssim(einstein_img.to(torch.float64),
+                              curie_img)

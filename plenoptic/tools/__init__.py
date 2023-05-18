@@ -7,3 +7,6 @@ from .straightness import *
 
 from .optim import *
 from .external import *
+from .validate import remove_grad
+
+from . import validate

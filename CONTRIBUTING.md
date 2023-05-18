@@ -1,25 +1,23 @@
 # CONTRIBUTING
 
-`plenoptic` is a python library of tools to help researchers better
-understand their models. While the majority of authors are from NYU's
-[Lab for Computational Vision](https://www.cns.nyu.edu/~lcv/), we
-welcome other contributors!
+`plenoptic` is a python library of tools to help researchers better understand
+their models. While the majority of authors are members or alumni of NYU's [Lab
+for Computational Vision](https://www.cns.nyu.edu/~lcv/), we welcome other
+contributors!
 
-First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and
-read it before going any further. You may also want to check out the
-[README](README.md) for a longer overview of the project and how to
-get everything installed, the tutorials (Jupyter notebooks found in
-the `examples/` folder) for some examples of how to interact with the
-library, and the
-[Roadmap](https://github.com/LabForComputationalVision/plenoptic/projects/1)
-for our current plans.
+First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
+before going any further. You may also want to check out the [README](README.md)
+for a longer overview of the project and how to get everything installed, the
+tutorials (Jupyter notebooks found in the `examples/` folder) for some examples
+of how to interact with the library, and the
+[documentation](https://plenoptic.readthedocs.io/).
 
 If you encounter any issues with `plenoptic`, please open an
 [issue](https://github.com/LabForComputationalVision/plenoptic/issues)!
 We have a template for bug reports, following it (so you provide the
 necessary details) will make solving it easier. Right now, we have
 enough on our plate that we're not considering any enhancements or new
-features -- we're focusing on implementing what we plan to do.
+features --- we're focusing on implementing what we plan to do.
 
 If you'd like to help improve `plenoptic`, we have a bunch of issues
 we're working through. For people who are not already familiar with
@@ -42,22 +40,29 @@ documentation (if you create a branch on the main repo, Github Actions will run
 tests automatically whenever you push, so you don't need to worry about running
 them locally).
 
-COMMUNICATION CHANNELS?
+We try to keep all our communication on Github, and we use several channels:
 
-RECOGNITION MODEL?
-
-CONTACT INFO?
+-   [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+    is the place to ask usage questions, discuss issues too broad for a
+    single issue, or show off what you've made with plenoptic.
+-   If you've come across a bug, open an
+    [issue](https://github.com/LabForComputationalVision/plenoptic/issues).
+-   If you have an idea for an extension or enhancement, please post in the
+    [ideas
+    section](https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas)
+    of discussions first. We'll discuss it there and, if we decide to pursue it,
+    open an issue to track progress.
 
 ## Contributing to the code
 
-We welcome contributions to `plenoptic`! In order to contribute, please createb
+We welcome contributions to `plenoptic`! In order to contribute, please create
 your own branch, make sure the tests pass, and open a Pull Request. If you're a
 member of the [LCV github](https://github.com/LabForComputationalVision/), you
 can create a branch directly in the repository: from within the `plenoptic`
 repository:
 
 ```
-git checkout -b my_cool_branch # create the branch
+git checkout -b my_cool_branch # create and switch to the branch
 # make some changes
 git commit -a -m "A helpful message explaining my changes" # commit your changes
 git push origin my_cool_branch # push to the origin remote
@@ -70,8 +75,25 @@ request (see [here](https://yangsu.github.io/pull-request-tutorial/) for a
 tutorial).
 
 If you're not a member of the LCV github, you'll need to first [create a
-fork](https://docs.github.com/en/enterprise/2.20/user/github/getting-started-with-github/fork-a-repo)
-of the repository to your own github account, and then proceed as above.
+fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) of the
+repository to your own github account, and then proceed as above.
+
+### Style guide
+
+- Longer, descriptive names are preferred (e.g., `x` is not an appropriate name
+  for a variable), especially for anything user-facing, such as methods,
+  attributes, or arguments.
+- Any public method or function must have a complete type-annotated docstring
+  (see [below](#docstrings) for details). Hidden ones do not *need* to have
+  complete docstrings, but they probably should.
+
+### Adding models or synthesis methods
+
+In addition to the above, see the documentation for a description of
+[models](https://plenoptic.readthedocs.io/en/latest/models.html) and [synthesis
+objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
+models or synthesis objects will need to meet the requirements outlined in those
+pages.
 
 ## Testing
 
@@ -108,9 +130,9 @@ test functions should be named `test_something` in snakecase.
 
 If you're adding a substantial bunch of tests that are separate from the
 existing ones, you can create a new test script. Its name must begin with
-`test_` and it must be contained within the `tests` directory. Assuming you do
-that, our github actions will automatically find it and add it to the
-tests-to-run.
+`test_`, it must have an `.py` extension, and it must be contained within the
+`tests` directory. Assuming you do that, our github actions will automatically
+find it and add it to the tests-to-run.
 
 ### Testing notebooks
 
@@ -121,10 +143,48 @@ try and debug some errors (though errors that result from environment issues
 obviously will be harder to figure out locally); `jupyter execute` is part of
 the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
-Similar to adding new [test scripts](#adding-tests), you need to add new
-tutorials to the corresponding build matrix so they can be tested. As long as
-your notebook is in the `examples/` directory, our github actions will
-automatically find it and test it.
+Similar to adding new [test scripts](#adding-tests), you don't need to
+explicitly add new tutorials to `ci.yml` to be tested: as long as your notebook
+is in the `examples/` directory and has an `ipynb` extension, our github actions
+will automatically find it and test it.
+
+If your notebook needs additional files to run, you should add a [conditional
+job](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution)
+to download them. If you need to upload them, we recommend uploading a tarball
+to the [Open Science Framework](https://osf.io/), and they can then be
+downloaded using `wget` and extracted. See `Download TID2013 dataset` in
+`ci.yml` for an example. We have a [single OSF project](https://osf.io/ts37w/)
+containing all the files we've uploaded and will probably want to include yours
+there as well.
+
+If your notebook takes more than ~10 minutes on a github runner, you should find
+a way to use reduce it for tests. The goal of the tests is only to check that
+each cell runs successfully. For example, the Portilla-Simoncelli texture model
+notebook runs several metamer syntheses to completion. This allows the user to
+better understand how the model works and confirm that we are able to reproduce
+the paper, as well as serving as a convenient way for the developers to ensure
+that we maintain this over time. However, the tests are *only intended* to
+ensure that everything runs, so we can reduce the number of iterations those
+metamer instances run for. We do this using
+[papermill](https://papermill.readthedocs.io/), which requires several steps:
+
+- Add a cell to the top of the notebook (under the import cell), add the
+  parameter tag (see [papermill
+  documentation]https://papermill.readthedocs.io/en/latest/usage-parameterize.html()),
+  and create a variable for each synthesis duration (e.g., `vgg16_synth_max_iter
+  = 1000`).
+- Where synthesis is called later in the notebook, replace the number with the
+  variable (e.g., `metamer.synthesize(max_iter=vgg16_max_iter)`).
+- Add a conditional job to `ci.yml` for your notebook which installs papermill
+  and calls it with the syntax: `papermill ${{ matrix.notebook }} ${{
+  matrix.notebook }}_output.ipynb -p PARAM1 VAL1 -p PARAM2 VAL2 -k python3 --cwd
+  examples/`, replacing `PARAM1 VAL1` and `PARAM2 VAL2` as appropriate (e.g.,
+  `vgg16_synth_max_iter 10`; note that you need a `-p` for each parameter and
+  you should change nothing else about that line). See the block with `if: ${{
+  matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}` for an example.
+  
+A similar procedure could be used to reduce the size of an image or other steps
+that could similarly reduce the total time necessary to run a notebook.
 
 ### Test parameterizations and fixtures
 
@@ -251,6 +311,42 @@ header (you can have as many sub-headers as you'd like).
 You should [build the docs yourself](#build-the-documentation) to ensure it
 looks correct before pushing.
  
+#### Images and plots
+
+You can include images in `.rst` files in the documentation as well. Simply
+place them in the `docs/images/` folder and use the `figure` role, e.g.,:
+
+```rst
+.. figure:: images/path_to_my_image.svg
+   :figwidth: 100%
+   :alt: Alt-text describing my image.
+   
+   Caption describing my image.
+   
+```
+
+To refer to it directly, you may want to use the [numref
+role](https://docs.readthedocs.io/en/stable/guides/cross-referencing-with-sphinx.html#the-numref-role)
+(which has been enabled for our documentation).
+
+If you have plots or other images generated by code that you wish to include,
+you can include them in the file directly without either saving the output in
+`docs/images/` or turning the page into a notebook. This is useful if you want
+to show something generated by code but the code itself isn't the point. We
+handle this with [matplotlib plot
+directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html)
+(which has already been enabled). Add a python script to `docs/scripts/` and
+write a function that creates the matplotlib figure you wish to display. Then,
+in your documentation, add:
+
+```rst
+.. plot:: scripts/path_to_my_script.py my_useful_plotting_function
+
+   Caption describing what is in my plot.
+```
+
+Similar to figures, you can use `numref` to refer to plots as well.
+
 ### Docstrings
 
 All public-facing functions and classes should have complete docstrings, which
@@ -320,9 +416,9 @@ make html
 
 We build tutorials as Jupyter notebooks so that they can be launched in Binder
 and people can play with them on their local machine. In order to include them
-in the built docs, add a `nblink` file to the `docs/tutorials/` directory. We
-check for this during the tests, so you won't be able to merge your pull request
-into `main` unless you've done this!
+in the built docs, add a `nblink` file to the `docs/tutorials/` directory or one
+of its sub-directories. We check for this during the tests, so you won't be able
+to merge your pull request into `main` unless you've done this!
 
 This is a json file that should contain the path to the notebook, like so, for
 `docs/tutorials/my_awesome_tutorial.nblink`:
@@ -334,8 +430,29 @@ This is a json file that should contain the path to the notebook, like so, for
 ```
 
 note that you *cannot* have a trailing comma there, because json is very
-particular. See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link)
-page for more details.
+particular. And note that the number of `../` you need will depend on whether
+the `nblink` file lives in `docs/tutorials/` or one of its sub-directories.
+
+If you have extra media (such as images) that are rendered in the notebook, you
+need to specify them as well, otherwise they won't render in the documentation:
+
+```
+{
+    "path": "../../examples/my_tutorial.ipynb",
+    "extra-media": ["../../examples/assets/my_folder"]
+}
+
+```
+
+note that `extra-media` must be a list, even with a single path.
+
+See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link) page for more
+details.
+
+The location of the `.nblink` file (in `docs/tutorials`, `docs/tutorials/intro`,
+etc.) determines which of the sub-headings it appears under in the table of
+contents. View the `toctree` directives at the bottom of `index.rst` to see
+which subfolders corresponds to which
 
 *NOTE*: In order for the `toctree` formatting to work correctly, your notebook
 should have exactly one H1 title (i.e., line starting with a single `#`), but

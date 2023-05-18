@@ -34,6 +34,10 @@ def einstein_img():
     return po.load_images(op.join(DATA_DIR, '256/einstein.pgm')).to(DEVICE)
 
 @pytest.fixture(scope='package')
+def einstein_small_seq(einstein_img_small):
+    return po.tools.translation_sequence(einstein_img_small, 5)
+
+@pytest.fixture(scope='package')
 def einstein_img_small(einstein_img):
     return center_crop(einstein_img, [64]).to(DEVICE)
 
@@ -54,13 +58,13 @@ def get_model(name):
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
-        class spyr(po.simul.Steerable_Pyramid_Freq):
+        class spyr(po.simul.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 kwargs.pop('downsample', None)
                 super().__init__(*args, downsample=False, **kwargs)
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = po.simul.Steerable_Pyramid_Freq.convert_pyr_to_tensor(coeffs)
+                pyr_tensor, _ = po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(coeffs)
                 return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
@@ -73,7 +77,9 @@ def get_model(name):
     elif name == 'mse':
         return po.metric.naive.mse
     elif name == 'ColorModel':
-        return ColorModel().to(DEVICE)
+        model = ColorModel().to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
 
     # naive models
     elif name in ['Identity', "naive.Identity"]:
@@ -88,6 +94,10 @@ def get_model(name):
     # FrontEnd models:
     elif name == 'frontend.LinearNonlinear':
         return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+    elif name == 'frontend.LinearNonlinear.nograd':
+        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
     elif name == 'frontend.LuminanceGainControl':
         return po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
     elif name == 'frontend.LuminanceContrastGainControl':
@@ -96,9 +106,21 @@ def get_model(name):
         return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
     elif name == 'frontend.OnOff.nograd':
         mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        for p in mdl.parameters():
-            p.detach_()
+        po.tools.remove_grad(mdl)
         return mdl
+    elif name == 'VideoModel':
+        # super simple model that combines across the batch dimension, as a
+        # model with a temporal component would do
+        class VideoModel(po.simul.OnOff):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            def forward(self, *args, **kwargs):
+                # this will do on/off on each batch separately
+                rep = super().forward(*args, **kwargs)
+                return rep.mean(0)
+        model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.tools.remove_grad(model)
+        return model
 
 
 @pytest.fixture(scope='package')

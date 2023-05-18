@@ -3,7 +3,7 @@
 Reproducibility
 ***************
 
-plenoptic includes several results reproduced from the literature and aims to
+``plenoptic`` includes several results reproduced from the literature and aims to
 facilitate reproducible research. However, we are limited by our dependencies
 and PyTorch, in particular, comes with the `caveat
 <https://pytorch.org/docs/stable/notes/randomness.html>`_ that "Completely
