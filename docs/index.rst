@@ -16,7 +16,7 @@
             :target: https://doi.org/10.5281/zenodo.3995057
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
-		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/v0.2?filepath=examples
+		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/v1.0.0?filepath=examples
 
 .. plenoptic documentation master file, created by
    sphinx-quickstart on Thu Jun 20 15:56:27 2019.

@@ -46,7 +46,7 @@ Jupyter
 
 If you wish to locally run the notebooks, you will need to install ``jupyter``
 and ``ipywidgets`` (you can also run them in the cloud using `Binder
-<https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/v0.2?filepath=examples>`_).
+<https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/v1.0.0?filepath=examples>`_).
 There are two main ways of getting a local `jupyter` install` working with this
 package:
 
