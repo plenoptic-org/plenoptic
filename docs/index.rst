@@ -1,3 +1,6 @@
+.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
+			 :target: https://pypi.org/project/plenoptic/
+
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
                     :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
@@ -12,6 +15,9 @@
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
             :target: https://doi.org/10.5281/zenodo.3995057
 
+.. |binder| image:: https://mybinder.org/badge_logo.svg
+		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.0?filepath=examples
+
 .. plenoptic documentation master file, created by
    sphinx-quickstart on Thu Jun 20 15:56:27 2019.
    You can adapt this file completely to your liking, but it should at least
@@ -21,7 +27,7 @@
 plenoptic
 *********
 
-|license-shield| |python-version-shield| |build| |tutorials| |zenodo|
+|pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo| |binder|
 
 .. image:: images/plenoptic_logo_wide.svg
    :align: center
@@ -47,10 +53,9 @@ Installation
 
 .. highlight:: bash
 
-The best way to install ``plenoptic`` is via ``pip``. For now, you must do this
-from github directly::
+The best way to install ``plenoptic`` is via ``pip``.
 
-$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+$ pip install plenoptic
 
 See the :ref:`install` page for more details, including how to set up an isolated
 virtual environment (recommended).

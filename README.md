@@ -1,5 +1,6 @@
 # plenoptic
 
+[![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE)
 ![Python version](https://img.shields.io/badge/python-3.7|3.8|3.9|3.10-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
@@ -7,7 +8,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
-[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples)
+[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.0?filepath=examples)
 
 ![](docs/images/plenoptic_logo_wide.svg)
 
@@ -29,11 +30,10 @@ experiments for further investigation.
 
 ### Installation
 
-The best way to install `plenoptic` is via `pip`. For now, you must do
-this from github directly:
+The best way to install `plenoptic` is via `pip`.
 
 ``` bash
-$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+$ pip install plenoptic
 ```
 
 See the [installation

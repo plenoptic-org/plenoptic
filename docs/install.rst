@@ -14,7 +14,7 @@ installed on your machine, I recommend starting with `miniconda
 
 $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
-$ pip install git+https://github.com/LabForComputationalVision/plenoptic.git
+$ pip install plenoptic
 
 You can also install it directly from source::
 
@@ -46,7 +46,7 @@ Jupyter
 
 If you wish to locally run the notebooks, you will need to install ``jupyter``
 and ``ipywidgets`` (you can also run them in the cloud using `Binder
-<https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/main?filepath=examples>`_).
+<https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.0?filepath=examples>`_).
 There are two main ways of getting a local `jupyter` install` working with this
 package:
 

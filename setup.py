@@ -18,7 +18,9 @@ def readlines(fn):
 setup(
     name="plenoptic",
     version=VERSION,
-    description="Visual Information Processing",
+    long_description=open('README.md', 'r').read(),
+    long_description_content_type='text/markdown',
+    description="Python library for model-based stimulus synthesis.",
     license="MIT",
     url="https://github.com/LabForComputationalVision/plenoptic",
     author="LabForComputationalVision",

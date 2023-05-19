@@ -95,6 +95,40 @@ objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
 models or synthesis objects will need to meet the requirements outlined in those
 pages.
 
+### Releases
+
+We create releases on Github, deploy on / distribute via
+[pypi](https://pypi.org/), and try to follow [semantic
+versioning](https://semver.org/):
+
+> Given a version number MAJOR.MINOR.PATCH, increment the:
+> 1. MAJOR version when you make incompatible API changes
+> 2. MINOR version when you add functionality in a backward compatible manner
+> 3. PATCH version when you make backward compatible bug fixes
+
+When doing a new release, the following steps must be taken:
+1. In a new PR:
+  - Update the string in `version.py`. This will update the value used in
+    `setup.py`. It should be of the format `X.Y.Z`, where `X`, `Y`, `Z` are all
+    integers.
+  - Update all the [binder](https://mybinder.org) links, which are of the form
+    `https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/X.Y.Z?filepath=examples`,
+    which are found in `README.md`, `index.rst`, `examples/README.md`, and some
+    of the tutorial notebooks found in `examples/`. Note that the version tag
+    must match the github tag (specified in the next step) or the link won't
+    work, and this github tag should match the value found in `version.py`.
+2. After merging the above PR into the `main` branch, [create a Github
+   release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
+   with a new tag matching that used in the binder link above: `X.Y.Z`.
+   Creating the release will trigger the deployment to pypi, via our `deploy`
+   action (found in `.github/workflows/deploy.yml`).
+
+Note that the binder link must match the GitHub tag, but the pypi version is
+based on `version.py`. I have been unable to find a way to link them directly
+(or make [binder](https://mybinder.org) use a `latest` tag, like
+[readthedocs](https://readthedocs.org/) does), so we need to manually ensure
+they match.
+
 ## Testing
 
 Before running tests locally, you'll need
