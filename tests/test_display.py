@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
 import matplotlib as mpl
@@ -370,12 +368,13 @@ class TestDisplay(object):
             is_complex = True
         elif request.param == 'not-complex':
             is_complex = False
-        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
+        return po.simul.SteerablePyramidFreq((32, 32), height=2, order=1, is_complex=is_complex).to(DEVICE)
 
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
     @pytest.mark.parametrize('show_residuals', [True, False])
-    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals,
+                     curie_img):
         fails = False
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
             fails = True
@@ -384,7 +383,7 @@ class TestDisplay(object):
             n_axes *= 2
         if show_residuals:
             n_axes += 2
-        img = po.load_images(op.join(DATA_DIR, '256/curie.pgm'))
+        img = curie_img.clone()
         img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
         if not fails:
@@ -404,6 +403,10 @@ class TestDisplay(object):
             with pytest.raises(TypeError):
                 po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
 
+    def test_display_test_signals(self):
+        po.imshow(po.tools.make_synthetic_stimuli(128));
+        po.imshow(po.load_images(DATA_DIR + '/512'));
+        po.imshow(po.load_images(DATA_DIR + '/256'));
 
     @pytest.mark.parametrize('as_rgb', [True, False])
     @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
@@ -474,12 +477,8 @@ class TestDisplay(object):
         # update_plot expects 3 or 4d data -- this checks that update_plot
         # fails with 2d data and raises the proper exception
         fig = po.imshow(einstein_img)
-        with pytest.raises(Exception):
-            try:
-                po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
+        with pytest.raises(ValueError, match='3 or 4 dimensional'):
+            po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
 
     def test_synthesis_plot_shape_fail(self, einstein_img):
         # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
@@ -490,113 +489,115 @@ class TestDisplay(object):
                 super().__init__((7, 7))
 
             def forward(self, *args, **kwargs):
-                output = super().forward(*args, **kwargs)
-                return output.reshape(output.numel())
+                return super().forward(*args, **kwargs)
 
         model = TestModel().to(DEVICE)
+        po.tools.remove_grad(model)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
-        with pytest.raises(Exception):
-            try:
-                met.plot_synthesis_status()
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
-        with pytest.raises(Exception):
-            try:
-                met.animate()
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
+        met._metamer = met.metamer.squeeze()
+        with pytest.raises(ValueError, match='3 or 4d'):
+            po.synth.metamer.plot_synthesis_status(met)
+        with pytest.raises(ValueError, match='3 or 4d'):
+            po.synth.metamer.animate(met)
 
 
 def template_test_synthesis_all_plot(synthesis_object, iteration,
-                                     plot_synthesized_image, plot_loss,
-                                     plot_representation_error,
-                                     plot_image_hist, plot_rep_comparison,
-                                     plot_signal_comparison, fig_creation):
+                                     display_synth, loss,
+                                     representation_error,
+                                     pixel_values, fig_creation):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
-    if sum([plot_synthesized_image, plot_loss, plot_representation_error,
-            plot_image_hist, plot_rep_comparison, bool(plot_signal_comparison)]) == 0:
+    if sum([display_synth, loss, representation_error, pixel_values]) == 0:
         # then there's nothing to plot here
         return
-    as_rgb = synthesis_object.base_signal.shape[1] > 1
-    plot_func = 'scatter'
-    plot_choices = {'plot_synthesized_image': plot_synthesized_image,
-                    'plot_loss': plot_loss,
-                    'plot_representation_error': plot_representation_error,
-                    'plot_image_hist': plot_image_hist,
-                    'plot_rep_comparison': plot_rep_comparison,
-                    'plot_signal_comparison': plot_signal_comparison}
-    if plot_signal_comparison:
-        plot_func = plot_signal_comparison
-        plot_signal_comparison = True
+    included_plots = []
+    plot_kwargs = {}
+    # need to figure out which plotting function to call
+    if isinstance(synthesis_object, po.synth.Metamer):
+        containing_file = po.synth.metamer
+        as_rgb = synthesis_object.image.shape[1] > 1
+        plot_kwargs['plot_representation_error_as_rgb'] = as_rgb
+        if display_synth:
+            included_plots.append('display_metamer')
+    elif isinstance(synthesis_object, po.synth.MADCompetition):
+        containing_file = po.synth.mad_competition
+        if display_synth:
+            included_plots.append('display_mad_image')
+    if loss:
+        included_plots.append('plot_loss')
+    if representation_error:
+        included_plots.append('plot_representation_error')
+    if pixel_values:
+        included_plots.append('plot_pixel_values')
     width_ratios = {}
     if fig_creation.startswith('auto'):
         fig = None
         axes_idx = {}
         if fig_creation.endswith('ratios'):
-            if plot_loss:
-                width_ratios['loss_width'] = 2
-            elif plot_synthesized_image:
-                width_ratios['synthesized_image_width'] = 2
+            if loss:
+                width_ratios['plot_loss'] = 2
+            elif display_synth:
+                if isinstance(synthesis_object, po.synth.Metamer):
+                    width_ratios['display_metamer'] = 2
+                elif isinstance(synthesis_object, po.synth.MADCompetition):
+                    width_ratios['display_mad_image'] = 2
     elif fig_creation.startswith('pass'):
-        fig, axes, axes_idx = synthesis_object._setup_synthesis_fig(None, {}, None,
-                                                                    representation_error_width=2,
-                                                                    rep_comparison_width=2,
-                                                                    **plot_choices)
+        fig, axes, axes_idx = containing_file._setup_synthesis_fig(None, {}, None,
+                                                                   included_plots=included_plots)
         if fig_creation.endswith('without'):
             axes_idx = {}
-    synthesis_object.plot_synthesis_status(iteration=iteration, **plot_choices,
-                                           signal_comp_func=plot_func, fig=fig,
-                                           axes_idx=axes_idx,
-                                           plot_representation_error_as_rgb=as_rgb,
-                                           width_ratios=width_ratios)
+    containing_file.plot_synthesis_status(synthesis_object, iteration=iteration,
+                                          included_plots=included_plots,
+                                          fig=fig,
+                                          axes_idx=axes_idx,
+                                          **plot_kwargs,
+                                          width_ratios=width_ratios)
     plt.close('all')
 
 
-def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
+def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation,
+                                       tmp_path):
     # template function to test whether we can create our own figure and pass
     # it to the plotting and animating functions, specifying some or all of the
     # locations for the plots. Any synthesis object that has had synthesis()
     # called should work with this
-    as_rgb = synthesis_object.base_signal.shape[1] > 1
-    init_fig = True
+    plot_kwargs = {}
+    included_plots = ['plot_loss', 'plot_pixel_values']
+    # need to figure out which plotting function to call
+    if isinstance(synthesis_object, po.synth.Metamer):
+        containing_file = po.synth.metamer
+        as_rgb = synthesis_object.image.shape[1] > 1
+        plot_kwargs['plot_representation_error_as_rgb'] = as_rgb
+        included_plots.append('plot_representation_error')
+        if fig_creation.endswith('extra'):
+            included_plots.append('display_metamer')
+        axes_idx = {'display_metamer': 0, 'plot_representation_error': 8}
+    elif isinstance(synthesis_object, po.synth.MADCompetition):
+        containing_file = po.synth.mad_competition
+        if fig_creation.endswith('extra'):
+            included_plots.append('display_mad_image')
+        axes_idx = {'display_mad_image': 0}
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
-    axes_idx = {'image': 0, 'signal_comp': 2, 'rep_comp': 3,
-                'rep_error': 8}
     if '-' in fig_creation:
         axes_idx['misc'] = [1, 4]
     if not fig_creation.split('-')[-1] in ['without']:
-        axes_idx.update({'loss': 6, 'hist': 7})
-    if fig_creation.endswith('extra'):
-        plot_synthesized_image = False
-    else:
-        plot_synthesized_image = True
-    if fig_creation.endswith('preplot'):
-        init_fig = False
+        axes_idx.update({'plot_loss': 6, 'plot_pixel_values': 7})
     if func == 'plot' or fig_creation.endswith('preplot'):
-        fig = synthesis_object.plot_synthesis_status(plot_synthesized_image=plot_synthesized_image,
-                                                     plot_loss=True,
-                                                     plot_representation_error=True,
-                                                     plot_image_hist=True,
-                                                     plot_rep_comparison=True,
-                                                     plot_signal_comparison=True, fig=fig,
-                                                     axes_idx=axes_idx,
-                                                     plot_representation_error_as_rgb=as_rgb)
-        # axes_idx gets updated by plot_synthesis_status
-        axes_idx = synthesis_object._axes_idx
+        fig, axes_idx = containing_file.plot_synthesis_status(synthesis_object,
+                                                              included_plots=included_plots,
+                                                              fig=fig,
+                                                              axes_idx=axes_idx,
+                                                              **plot_kwargs)
     if func == 'animate':
         path = op.join(tmp_path, 'test_anim.html')
-        synthesis_object.animate(plot_synthesized_image=plot_synthesized_image,
-                                 plot_loss=True, plot_representation_error=True,
-                                 plot_image_hist=True, plot_rep_comparison=True,
-                                 plot_signal_comparison=True, fig=fig,
-                                 axes_idx=axes_idx, init_figure=init_fig,
-                                 plot_representation_error_as_rgb=as_rgb).save(path)
-    plt.close('all')
+        containing_file.animate(synthesis_object,
+                                fig=fig,
+                                axes_idx=axes_idx,
+                                included_plots=included_plots,
+                                **plot_kwargs).save(path)
+        plt.close('all')
 
 
 class TestMADDisplay(object):
@@ -610,36 +611,32 @@ class TestMADDisplay(object):
         else:
             img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
-        model1 = po.simul.Identity().to(DEVICE)
-        # to serve as a metric, need to return a single value, but SSIM
-        # will return a separate value for each RGB channel
+        # to serve as a metric, need to return a single value, but SSIM and MSE
+        # will return a separate value for each RGB channel. Additionally, MAD
+        # requires metrics are *dis*-similarity metrics, so that they return 0
+        # if two images are identical (SSIM normally returns 1)
         def rgb_ssim(*args, **kwargs):
-            return po.metric.ssim(*args, **kwargs).mean()
-        model2 = rgb_ssim
-        mad = po.synth.MADCompetition(img, model1, model2)
-        mad.synthesize('model_1_min', max_iter=2, store_progress=True)
+            return 1 - po.metric.ssim(*args, **kwargs).mean()
+        def rgb_mse(*args, **kwargs):
+            return po.metric.mse(*args, **kwargs).mean()
+        mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, 'min')
+        mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
     @pytest.mark.parametrize('iteration', [None, 1, -1])
-    @pytest.mark.parametrize('plot_synthesized_image', [True, False])
-    @pytest.mark.parametrize('plot_loss', [True, False])
-    @pytest.mark.parametrize('plot_representation_error', [True, False])
-    @pytest.mark.parametrize('plot_image_hist', [True, False])
-    @pytest.mark.parametrize('plot_rep_comparison', [True, False])
-    @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
+    @pytest.mark.parametrize('display_mad', [True, False])
+    @pytest.mark.parametrize('loss', [True, False])
+    @pytest.mark.parametrize('pixel_values', [True, False])
     @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
                                               'pass-with', 'pass-without'])
     def test_all_plot(self, synthesized_mad, iteration,
-                      plot_synthesized_image, plot_loss,
-                      plot_representation_error, plot_image_hist,
-                      plot_rep_comparison, plot_signal_comparison,
-                      fig_creation):
+                      display_mad, loss,
+                      pixel_values, fig_creation):
         # tests whether we can plot all possible combinations of plots.
         # test_custom_fig tests whether these animate correctly.
         template_test_synthesis_all_plot(synthesized_mad, iteration,
-                                         plot_synthesized_image, plot_loss, plot_representation_error,
-                                         plot_image_hist, plot_rep_comparison, plot_signal_comparison,
-                                         fig_creation)
+                                         display_mad, loss, False,
+                                         pixel_values, fig_creation)
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
     @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
@@ -650,13 +647,61 @@ class TestMADDisplay(object):
         # all of the locations for the plots
         template_test_synthesis_custom_fig(synthesized_mad, func, fig_creation, tmp_path)
 
+    @pytest.fixture(scope='class')
+    def all_mad(self):
+        # run synthesis for all 4 MAD images.
+        img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
+        img = img[..., :16, :16]
+        model1 = po.metric.mse
+        # MAD requires metrics are *dis*-similarity metrics, so that they
+        # return 0 if two images are identical (SSIM normally returns 1)
+        model2 = lambda *args: 1 - po.metric.ssim(*args).mean()
+        mad = po.synth.MADCompetition(img, model1, model2, 'min')
+        mad.synthesize(max_iter=2)
+        mad2 = po.synth.MADCompetition(img, model1, model2, 'max')
+        mad2.synthesize(max_iter=2)
+        mad3 = po.synth.MADCompetition(img, model2, model1, 'min')
+        mad3.synthesize(max_iter=2)
+        mad4 = po.synth.MADCompetition(img, model2, model1, 'max')
+        mad4.synthesize(max_iter=2)
+        return mad, mad2, mad3, mad4
+
+    @pytest.mark.parametrize('func', ['loss', 'image'])
+    def test_helper_funcs(self, all_mad, func):
+        if func == 'loss':
+            func = po.synth.mad_competition.plot_loss_all
+        elif func == 'image':
+            func = po.synth.mad_competition.display_mad_image_all
+        func(*all_mad)
+
+    @pytest.mark.parametrize('func', ['plot', 'animate'])
+    # plot_representation_error is an allowed value for metamer, but not MAD.
+    # the second is just a typo
+    @pytest.mark.parametrize('val', ['plot_representation_error', 'plot_mad_image'])
+    @pytest.mark.parametrize('variable', ['included_plots', 'width_ratios',
+                                          'axes_idx'])
+    def test_allowed_plots_exception(self, synthesized_mad,
+                                     func, val, variable):
+        if func == 'plot':
+            func = po.synth.mad_competition.plot_synthesis_status
+        elif func == 'animate':
+            func = po.synth.mad_competition.animate
+        kwargs = {}
+        if variable == 'included_plots':
+            kwargs['included_plots'] = [val, 'plot_loss']
+        elif variable == 'width_ratios':
+            kwargs['width_ratios'] = {val: 1, 'plot_loss': 1}
+        elif variable == 'axes_idx':
+            kwargs['axes_idx'] = {val: 0, 'plot_loss': 1}
+        with pytest.raises(ValueError, match=f'{variable} contained value'):
+            func(synthesized_mad, **kwargs)
+
 
 class TestMetamerDisplay(object):
 
-    @pytest.fixture(scope='class', params=['rgb-class', 'grayscale-class',
-                                           'rgb-func', 'grayscale-func'])
+    @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
     def synthesized_met(self, request):
-        img, model = request.param.split('-')
+        img= request.param
         # make the images really small so nothing takes as long
         if img == 'rgb':
             img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
@@ -664,25 +709,18 @@ class TestMetamerDisplay(object):
         else:
             img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
             img = img[..., :16, :16]
-        if model == 'class':
-            #  height=1 and order=0 to limit the time this takes, and then we
-            #  only return one of the tensors so that everything is easy for
-            #  plotting code to figure out (if we downsampled and were on an
-            #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
-            #  we'd have the residuals and one filter output for each channel,
-            #  and our code doesn't know how to handle that)
-            class SPyr(po.simul.Steerable_Pyramid_Freq):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                def forward(self, *args, **kwargs):
-                    return super().forward(*args, **kwargs)[(0, 0)]
-            model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)
-        else:
-            # to serve as a metric, need to return a single value, but SSIM
-            # will return a separate value for each RGB channel
-            def rgb_ssim(*args, **kwargs):
-                return po.metric.ssim(*args, **kwargs).mean()
-            model = rgb_ssim
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.simul.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[(0, 0)]
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
         met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=2, store_progress=True)
         return met
@@ -690,23 +728,19 @@ class TestMetamerDisplay(object):
     # mix together func and iteration, because iteration doesn't make sense to
     # pass to animate
     @pytest.mark.parametrize('iteration', [None, 1, -1])
-    @pytest.mark.parametrize('plot_synthesized_image', [True, False])
-    @pytest.mark.parametrize('plot_loss', [True, False])
-    @pytest.mark.parametrize('plot_representation_error', [True, False])
-    @pytest.mark.parametrize('plot_image_hist', [True, False])
-    @pytest.mark.parametrize('plot_rep_comparison', [True, False])
-    @pytest.mark.parametrize('plot_signal_comparison', [False, 'scatter', 'hist2d'])
+    @pytest.mark.parametrize('display_metamer', [True, False])
+    @pytest.mark.parametrize('loss', [True, False])
+    @pytest.mark.parametrize('representation_error', [True, False])
+    @pytest.mark.parametrize('pixel_values', [True, False])
     @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
                                               'pass-with', 'pass-without'])
-    def test_all_plot(self, synthesized_met, iteration, plot_synthesized_image, plot_loss,
-                      plot_representation_error, plot_image_hist,
-                      plot_rep_comparison, plot_signal_comparison,
-                      fig_creation):
+    def test_all_plot(self, synthesized_met, iteration, display_metamer, loss,
+                      representation_error, pixel_values, fig_creation):
         # tests whether we can plot all possible combinations of plots.
         # test_custom_fig tests whether these animate correctly.
         template_test_synthesis_all_plot(synthesized_met, iteration,
-                                         plot_synthesized_image, plot_loss, plot_representation_error,
-                                         plot_image_hist, plot_rep_comparison, plot_signal_comparison,
+                                         display_metamer, loss,
+                                         representation_error, pixel_values,
                                          fig_creation)
 
     @pytest.mark.parametrize('func', ['plot', 'animate'])
@@ -716,4 +750,27 @@ class TestMetamerDisplay(object):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
         # locations for the plots
-        template_test_synthesis_custom_fig(synthesized_met, func, fig_creation, tmp_path)
+        template_test_synthesis_custom_fig(synthesized_met, func, fig_creation,
+                                           tmp_path)
+
+    @pytest.mark.parametrize('func', ['plot', 'animate'])
+    # display_mad_image is an allowed value for MAD but not metamer.
+    # the second is just a typo
+    @pytest.mark.parametrize('val', ['display_mad_image', 'plot_metamer'])
+    @pytest.mark.parametrize('variable', ['included_plots', 'width_ratios',
+                                          'axes_idx'])
+    def test_allowed_plots_exception(self, synthesized_met,
+                                     func, val, variable):
+        if func == 'plot':
+            func = po.synth.metamer.plot_synthesis_status
+        elif func == 'animate':
+            func = po.synth.metamer.animate
+        kwargs = {}
+        if variable == 'included_plots':
+            kwargs['included_plots'] = [val, 'plot_loss']
+        elif variable == 'width_ratios':
+            kwargs['width_ratios'] = {val: 1, 'plot_loss': 1}
+        elif variable == 'axes_idx':
+            kwargs['axes_idx'] = {val: 0, 'plot_loss': 1}
+        with pytest.raises(ValueError, match=f'{variable} contained value'):
+            func(synthesized_met, **kwargs)

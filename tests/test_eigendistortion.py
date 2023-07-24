@@ -1,31 +1,26 @@
 import plenoptic.synthesize.autodiff as autodiff
+from plenoptic.tools import set_seed, remove_grad
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate import OnOff
-from plenoptic.synthesize.eigendistortion import Eigendistortion
+from plenoptic.simulate import OnOff, Gaussian
+from plenoptic.tools import remove_grad
+from plenoptic.synthesize.eigendistortion import Eigendistortion, display_eigendistortion
 from conftest import get_model, DEVICE
+import matplotlib.pyplot as plt
+import os.path as op
 
 # to be used for default model instantiation
 SMALL_DIM = 20
 LARGE_DIM = 100
 
-
 class TestEigendistortionSynthesis:
-
-    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-    def test_input_dimensionality(self, model):
-        with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros((1, 1, 1), device=DEVICE), model)  # should be 4D
-
-        with pytest.raises(AssertionError) as e_info:
-            e = Eigendistortion(torch.zeros((2, 1, 1, 1), device=DEVICE), model)  # batch dim must be 1
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
-        with pytest.raises(AssertionError) as e_info:
+        with pytest.raises(AssertionError, match="method must be in "):
             ed.synthesize(method='asdfsdfasf')
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
@@ -43,12 +38,12 @@ class TestEigendistortionSynthesis:
         # invert matrix explicitly
         ed.synthesize(method='exact')
 
-        assert len(ed.synthesized_eigenvalues) == n_chans*SMALL_DIM**2
-        assert len(ed.synthesized_signal) == n_chans*SMALL_DIM**2
-        assert len(ed.synthesized_eigenindex) == n_chans*SMALL_DIM**2
+        assert len(ed.eigenvalues) == n_chans*SMALL_DIM**2
+        assert len(ed.eigendistortions) == n_chans*SMALL_DIM**2
+        assert len(ed.eigenindex) == n_chans*SMALL_DIM**2
 
         # test that each eigenvector returned is original img shape
-        assert ed.synthesized_signal.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
+        assert ed.eigendistortions.shape[-3:] == (n_chans, SMALL_DIM, SMALL_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
     def test_method_power(self, model, einstein_img, color_img):
@@ -60,14 +55,14 @@ class TestEigendistortionSynthesis:
             n_chans = 3
         img = img[..., :LARGE_DIM, :LARGE_DIM]
         ed = Eigendistortion(img, model)
-        ed.synthesize(method='power', max_steps=3)
+        ed.synthesize(method='power', max_iter=3)
 
         # test it should only return two eigenvectors and values
-        assert len(ed.synthesized_eigenvalues) == 2
-        assert len(ed.synthesized_signal) == 2
-        assert len(ed.synthesized_eigenindex) == 2
+        assert len(ed.eigenvalues) == 2
+        assert len(ed.eigendistortions) == 2
+        assert len(ed.eigenindex) == 2
 
-        assert ed.synthesized_signal.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
+        assert ed.eigendistortions.shape[-3:] == (n_chans, LARGE_DIM, LARGE_DIM)
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_orthog_iter(self, model, einstein_img):
@@ -75,11 +70,11 @@ class TestEigendistortionSynthesis:
         n_chans = 1  # TODO color
         einstein_img = einstein_img[..., :n, :n]
         ed = Eigendistortion(einstein_img, model)
-        ed.synthesize(k=k, method='power', max_steps=10)
+        ed.synthesize(k=k, method='power', max_iter=10)
 
-        assert ed.synthesized_signal.shape == (k*2, n_chans, n, n)
-        assert ed.synthesized_eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
-        assert len(ed.synthesized_eigenvalues) == 2*k
+        assert ed.eigendistortions.shape == (k*2, n_chans, n, n)
+        assert ed.eigenindex.allclose(torch.cat((torch.arange(k), torch.arange(n**2 - k, n**2))))
+        assert len(ed.eigenvalues) == 2*k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_randomized_svd(self, model, einstein_img):
@@ -88,9 +83,9 @@ class TestEigendistortionSynthesis:
         einstein_img = einstein_img[..., :n, :n]
         ed = Eigendistortion(einstein_img, model)
         ed.synthesize(k=k, method='randomized_svd')
-        assert ed.synthesized_signal.shape == (k, n_chans, n, n)
-        assert ed.synthesized_eigenindex.allclose(torch.arange(k))
-        assert len(ed.synthesized_eigenvalues) == k
+        assert ed.eigendistortions.shape == (k, n_chans, n, n)
+        assert ed.eigenindex.allclose(torch.arange(k))
+        assert len(ed.eigenvalues) == k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_temp(self, model, einstein_img):
@@ -108,15 +103,16 @@ class TestEigendistortionSynthesis:
 
         k_pow, k_svd = 1, 75
         e_jac.synthesize(method='exact')
-        e_pow.synthesize(k=k_pow, method='power', max_steps=2500, seed=0)
+        set_seed(0)
+        e_pow.synthesize(k=k_pow, method='power', max_iter=2500)
         e_svd.synthesize(k=k_svd, method='randomized_svd')
 
-        print("synthesized first and last: ", e_pow.synthesized_eigenvalues[0], e_pow.synthesized_eigenvalues[-1])
-        print("exact first and last: ", e_jac.synthesized_eigenvalues[0], e_jac.synthesized_eigenvalues[-1])
+        print("synthesized first and last: ", e_pow.eigenvalues[0], e_pow.eigenvalues[-1])
+        print("exact first and last: ", e_jac.eigenvalues[0], e_jac.eigenvalues[-1])
 
-        assert e_pow.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
-        assert e_pow.synthesized_eigenvalues[-1].isclose(e_jac.synthesized_eigenvalues[-1], atol=1e-2)
-        assert e_svd.synthesized_eigenvalues[0].isclose(e_jac.synthesized_eigenvalues[0], atol=1e-2)
+        assert e_pow.eigenvalues[0].isclose(e_jac.eigenvalues[0], atol=1e-2)
+        assert e_pow.eigenvalues[-1].isclose(e_jac.eigenvalues[-1], atol=1e-2)
+        assert e_svd.eigenvalues[0].isclose(e_jac.eigenvalues[0], atol=1e-2)
 
     @pytest.mark.parametrize("model", ['frontend.OnOff.nograd', 'ColorModel'], indirect=True)
     @pytest.mark.parametrize("method", ['power', 'randomized_svd'])
@@ -129,33 +125,111 @@ class TestEigendistortionSynthesis:
             img = color_img
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = Eigendistortion(img, model)
-        eigendist.synthesize(k=k, method=method, max_steps=10)
-        eigendist.plot_distorted_image(eigen_index=0)
-        eigendist.plot_distorted_image(eigen_index=1)
+        eigendist.synthesize(k=k, method=method, max_iter=10)
+        display_eigendistortion(eigendist, eigenindex=0)
+        display_eigendistortion(eigendist, eigenindex=1)
         
         if method == "power":
-            eigendist.plot_distorted_image(eigen_index=-1)
-            eigendist.plot_distorted_image(eigen_index=-2)            
+            display_eigendistortion(eigendist, eigenindex=-1)
+            display_eigendistortion(eigendist,eigenindex=-2)
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
             with pytest.raises(AssertionError):
-                eigendist.plot_distorted_image(eigen_index=-1)
-                   
+                display_eigendistortion(eigendist, eigenindex=-1)
+        plt.close("all")    
+
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize('fail', [False, 'img', 'model'])
+    @pytest.mark.parametrize('method', ['exact', 'power', 'randomized_svd'])
+    def test_save_load(self, einstein_img, model, fail, method, tmp_path):
+        if method in ['exact', 'randomized_svd']:
+            img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
+        else:
+            img = einstein_img
+        ed = Eigendistortion(img, model)
+        ed.synthesize(max_iter=4, method=method)
+        ed.save(op.join(tmp_path, 'test_eigendistortion_save_load.pt'))
+        if fail:
+            if fail == 'img':
+                img = torch.rand_like(img)
+                expectation = pytest.raises(ValueError, match='Saved and initialized image are different')
+            elif fail == 'model':
+                model = Gaussian(30).to(DEVICE)
+                remove_grad(model)
+                expectation = pytest.raises(RuntimeError, match='Attribute representation_flat have different shapes')
+            ed_copy = Eigendistortion(img, model)
+            with expectation:
+                ed_copy.load(op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                             map_location=DEVICE)
+        else:
+            ed_copy = Eigendistortion(img, model)
+            ed_copy.load(op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                         map_location=DEVICE)
+            for k in ['image', '_representation_flat']:
+                if not getattr(ed, k).allclose(getattr(ed_copy, k), rtol=1e-2):
+                    raise ValueError("Something went wrong with saving and loading! %s not the same"
+                                     % k)
+            # check that can resume
+            ed_copy.synthesize(max_iter=4, method=method)
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, curie_img, model, to_type):
+        ed = Eigendistortion(curie_img, model)
+        ed.synthesize(max_iter=5, method='power')
+        if to_type == 'dtype':
+            ed.to(torch.float16)
+            assert ed.image.dtype == torch.float16
+            assert ed.eigendistortions.dtype == torch.float16
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == 'device' and DEVICE.type != 'cpu':
+            ed.to('cpu')
+        ed.eigendistortions - ed.image
+
+    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_map_location(self, curie_img, model, tmp_path):
+        curie_img = curie_img.to(DEVICE)
+        model.to(DEVICE)
+        ed = Eigendistortion(curie_img, model)
+        ed.synthesize(max_iter=4, method='power')
+        ed.save(op.join(tmp_path, 'test_eig_map_location.pt'))
+        # calling load with map_location effectively switches everything
+        # over to that device
+        ed_copy = Eigendistortion(curie_img, model)
+        ed_copy.load(op.join(tmp_path, 'test_eig_map_location.pt'),
+                     map_location='cpu')
+        assert ed_copy.eigendistortions.device.type == 'cpu'
+        assert ed_copy.image.device.type == 'cpu'
+        ed_copy.synthesize(max_iter=4, method='power')
+
+    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    def test_change_precision_save_load(self, einstein_img, model, tmp_path):
+        # Identity model doesn't change when you call .to() with a dtype
+        # (unlike those models that have weights) so we use it here
+        ed = Eigendistortion(einstein_img, model)
+        ed.synthesize(max_iter=5)
+        ed.to(torch.float64)
+        assert ed.image.dtype == torch.float64, "dtype incorrect!"
+        ed.save(op.join(tmp_path, 'test_change_prec_save_load.pt'))
+        ed_copy = Eigendistortion(einstein_img.to(torch.float64), model)
+        ed_copy.load(op.join(tmp_path, 'test_change_prec_save_load.pt'))
+        ed_copy.synthesize(max_iter=5)
+        assert ed_copy.image.dtype == torch.float64, "dtype incorrect!"
 
 class TestAutodiffFunctions:
 
     @pytest.fixture(scope='class')
     def state(self, einstein_img):
         """variables to be reused across tests in this class"""
-        torch.manual_seed(0)
 
         k = 2  # num vectors with which to compute vjp, jvp, Fv
-        einstein_img = einstein_img[..., :16, :16]  # reduce image size
+        einstein_img = einstein_img[..., 100:100+16, 100:100+16]  # reduce image size
 
         # eigendistortion object
         ed = Eigendistortion(einstein_img, get_model('frontend.OnOff.nograd'))
 
 
-        x, y = ed._input_flat, ed._representation_flat
+        x, y = ed._image_flat, ed._representation_flat
 
         x_dim = x.flatten().shape[0]
         y_dim = y.flatten().shape[0]
@@ -193,16 +267,17 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V = torch.randn((x_dim, k), device=DEVICE)
+        V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
+        U = V.clone()
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
         jac = autodiff.jacobian(y, x)
 
-        Fv2 = jac.T @ jac @ V  # manually compute product to compare accuracy
+        Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
-        assert Fv2.allclose(Fv, rtol=1E-2)
+        assert Fv2.allclose(Fv, atol=1E-6)
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
@@ -223,6 +298,7 @@ class TestAutodiffFunctions:
         x0 = torch.randn((1, 1, 5, 1), requires_grad=True, device=DEVICE)
         x0 = x0 / x0.norm()
         mdl = LM().to(DEVICE)
+        remove_grad(mdl)
 
         k = 10
         x_dim = x0.numel()
@@ -230,8 +306,7 @@ class TestAutodiffFunctions:
         V = V / V.norm(dim=0, p=2)
 
         e = Eigendistortion(x0, mdl)
-        x, y = e._input_flat, e._representation_flat
+        x, y = e._image_flat, e._representation_flat
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)
-
-        assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value)
+        assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1E-3)

@@ -5,8 +5,8 @@ from torch import Tensor
 import numpy as np
 from torch.nn import functional as F
 
-from plenoptic.tools.conv import same_padding
-from plenoptic.simulate.canonical_computations.filters import circular_gaussian2d
+from ...tools.conv import same_padding
+from ..canonical_computations.filters import circular_gaussian2d
 
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 
@@ -137,6 +137,7 @@ class Gaussian(nn.Module):
             return self._filt
         else:  # create new filter, optionally cache it
             filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
+
             if self.cache_filt:
                 self._filt = filt
             return filt
@@ -242,20 +243,20 @@ class CenterSurround(nn.Module):
         if self._filt is not None:  # use cached filt
             return self._filt
         else:  # generate new filt and optionally cache
+            on_amp = self.amplitude_ratio
+            device = on_amp.device
+
             filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels)
             filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels)
-            on_amp = self.amplitude_ratio
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor([1. if x else -1. for x in self.on_center])
+            sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(device)
             sign = sign.view(self.out_channels, 1, 1, 1)
-            filt = on_amp * (sign * (filt_center - filt_surround))
 
-            filt = filt / filt.sum()
+            filt = on_amp * (sign * (filt_center - filt_surround))
 
             if self.cache_filt:
                 self._filt = filt
-
         return filt
 
     def _clamp_surround_std(self):
@@ -267,5 +268,6 @@ class CenterSurround(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         self._clamp_surround_std()  # clip the surround stdev
+
         y = F.conv2d(x, self.filt, bias=None)
         return y

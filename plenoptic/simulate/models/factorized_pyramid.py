@@ -3,8 +3,7 @@ from plenoptic.simulate.canonical_computations.non_linearities import (
     local_gain_control, local_gain_control_dict, local_gain_release,
     local_gain_release_dict, polar_to_rectangular_dict,
     rectangular_to_polar_dict)
-from plenoptic.simulate.canonical_computations.steerable_pyramid_freq import \
-    Steerable_Pyramid_Freq
+from plenoptic.simulate.canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 from plenoptic.tools.signal import polar_to_rectangular, rectangular_to_polar
 
 
@@ -44,7 +43,7 @@ class Factorized_Pyramid(nn.Module):
         self.downsample_dict = downsample_dict
         self.is_complex = is_complex
 
-        pyr = Steerable_Pyramid_Freq(image_size,
+        pyr = SteerablePyramidFreq(image_size,
                                      order=n_ori-1,
                                      height=n_scale,
                                      is_complex=is_complex,

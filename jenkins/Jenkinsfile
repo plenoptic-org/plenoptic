@@ -1,0 +1,86 @@
+pipeline {
+  agent none
+  options {
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
+    timeout(time: 2, unit: 'HOURS')
+  }
+  triggers {
+    cron '@weekly'
+  }
+  stages {
+    stage('weekly') {
+      when {
+	triggeredBy 'TimerTrigger'
+	branch 'main'
+      }
+      agent {
+        dockerfile {
+	  dir 'jenkins'
+	  args '--gpus 1'
+        }
+      }
+      environment {
+        HOME = pwd(tmp:true)
+	OMP_NUM_THREADS = 4
+      }
+      steps {
+	sh 'python3 -c "import torch; torch.cuda.current_device()"'
+	sh 'python3 -m venv --system-site-packages $HOME'
+	sh '''#!/bin/bash -ex
+	  source $HOME/bin/activate
+	  pip3 install -U .
+	  python3 -m pytest tests
+	'''
+      }
+    }
+    stage('commit') {
+      when {
+	not {
+	  triggeredBy 'TimerTrigger'
+	}
+      }
+      agent {
+        dockerfile {
+	  dir 'jenkins'
+	  args '--gpus 1'
+        }
+      }
+      environment {
+        HOME = pwd(tmp:true)
+	OMP_NUM_THREADS = 4
+      }
+      steps {
+	sh 'python3 -c "import torch; torch.cuda.current_device()"'
+	sh 'python3 -m venv --system-site-packages $HOME'
+	sh '''#!/bin/bash -ex
+	  source $HOME/bin/activate
+	  pip3 install .
+	  python3 -m pytest tests
+	'''
+      }
+    }
+  }
+  post {
+    failure {
+      emailext subject: '$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS',
+	       body: '''$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS
+
+Check console output at $BUILD_URL to view full results.
+
+Building $BRANCH_NAME for $CAUSE
+$JOB_DESCRIPTION
+
+Chages:
+$CHANGES
+
+End of build log:
+${BUILD_LOG,maxLines=200}
+''',
+	       recipientProviders: [
+		 [$class: 'DevelopersRecipientProvider'],
+	       ],
+	       replyTo: '$DEFAULT_REPLYTO'
+    }
+  }
+}

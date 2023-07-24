@@ -1,5 +1,6 @@
 .DS_Store
 .ipynb_checkpoints
+*jvsc*
 __pycache__/
 *.egg-info/
 *.pyc
@@ -10,17 +11,25 @@ __pycache__/
 .idea/
 .vscode/
 
+*.npz
+*.mat
+*.npy
+
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
 data/msssim_images
 data/MAD_results
 data/imagenet1000_clsidx_to_labels.txt
+data/portilla*
+data/FashionMNIST
+data/tid2013
 
 logs/
 train/
 
 docs/_build
 docs/api
+docs/tutorials/assets
 
 *.mypy_cache

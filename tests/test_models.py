@@ -1,16 +1,20 @@
-#!/usr/bin/env python3
-from math import pi
-
-import matplotlib.pyplot as plt
-# import plenoptic.simulate.models.naive
-import plenoptic
-import plenoptic as po
-import pytest
-import torch
-from plenoptic.simulate.canonical_computations import (circular_gaussian2d,
-                                                       gaussian1d)
-
 from conftest import DEVICE, DATA_DIR
+from test_metric import osf_download
+import os.path as op
+import scipy.io as sio
+import pyrtools as pt
+from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
+import plenoptic as po
+import torch
+import numpy as np
+import pytest
+import matplotlib.pyplot as plt
+from packaging import version
+import os
+# we do this to enable deterministic behavior on the gpu, see
+# https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
+# details
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 
 @pytest.fixture()
@@ -18,11 +22,60 @@ def image_input():
     return torch.rand(1, 1, 100, 100)
 
 
-class TestNonLinearities(object):
+@pytest.fixture()
+def portilla_simoncelli_matlab_test_vectors():
+    return osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
+
+@pytest.fixture()
+def portilla_simoncelli_test_vectors():
+    return osf_download('portilla_simoncelli_test_vectors.tar.gz')
+
+
+def get_portilla_simoncelli_synthesize_filename(torch_version=None):
+    """Helper function to get pathname.
+
+    We can't call fixtures directly (feature removed in pytest 4.0), so we use
+    this helper function to get the name, which we use in
+    tests/utils.update_ps_synthesis_test_file()
+
+    """
+    if torch_version is None:
+        # the bit after the + defines the CUDA version used (if any), which
+        # doesn't appear to be relevant for this.
+        torch_version = torch.__version__.split('+')[0]
+    # following https://stackoverflow.com/a/11887885 for how to compare version
+    # strings
+    if version.parse(torch_version) < version.parse('1.12') or DEVICE.type == 'cuda':
+        torch_version = ''
+    # going from 1.11 to 1.12 only changes this synthesis output on cpu, not
+    # gpu
+    else:
+        torch_version = '_torch_v1.12.0'
+    # synthesis gives differnet outputs on cpu vs gpu, so we have two different
+    # versions to test against
+    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}.npz'
+    if DEVICE.type == 'cpu':
+        gpu = ''
+    elif DEVICE.type == 'cuda':
+        gpu = '_gpu'
+    return name_template.format(gpu=gpu, torch_version=torch_version)
+
+
+@pytest.fixture()
+def portilla_simoncelli_synthesize(torch_version=None):
+    return osf_download(get_portilla_simoncelli_synthesize_filename(torch_version))
+
+
+@pytest.fixture()
+def portilla_simoncelli_scales():
+    return osf_download('portilla_simoncelli_scales.npz')
+
+
+class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=True).to(DEVICE)
+        spc = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=True, tight_frame=True).to(DEVICE)
         y = spc(basic_stim)
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
@@ -36,8 +89,8 @@ class TestNonLinearities(object):
         assert torch.norm(x - x_hat) < 1e-4
 
     def test_local_gain_control_dict(self, basic_stim):
-        spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=False).to(DEVICE)
+        spr = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=5,
+                                              order=1, is_complex=False, tight_frame=True).to(DEVICE)
         y = spr(basic_stim)
         energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
@@ -48,27 +101,34 @@ class TestNonLinearities(object):
 class TestLaplacianPyramid(object):
 
     def test_grad(self, basic_stim):
-        L = po.simul.Laplacian_Pyramid().to(DEVICE)
-        y = L.analysis(basic_stim)
+        lpyr = po.simul.LaplacianPyramid().to(DEVICE)
+        y = lpyr.forward(basic_stim)
         assert y[0].requires_grad
 
+    @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
+    def test_synthesis(self, curie_img, n_scales):
+        img = curie_img[:, :, 0:253, 0:234]  # Original 256x256 shape is not good for testing padding
+        lpyr = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        y = lpyr.forward(img)
+        img_recon = lpyr.recon_pyr(y)
+        assert torch.allclose(img, img_recon)
 
-class TestFactorizedPyramid(object):
-
-    @pytest.mark.parametrize("downsample_dict", [True, False])
-    @pytest.mark.parametrize("is_complex", [True, False])
-    def test_factpyr(self, basic_stim, downsample_dict, is_complex):
-        x = basic_stim
-        # x = po.load_images(DATA_DIR + "/512/")
-        model = po.simul.Factorized_Pyramid(x.shape[-2:],
-                                            downsample_dict=downsample_dict,
-                                            is_complex=is_complex)
-        x_hat = model.synthesis(*model.analysis(x))
-
-        relative_MSE = (torch.norm(x - x_hat, dim=(2, 3))**2 /
-                        torch.norm(x, dim=(2, 3))**2)
-        print(relative_MSE)
-        assert (relative_MSE < 1e-10).all()
+    @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
+    def test_match_pyrtools(self, curie_img, n_scales):
+        img = curie_img[:, :, 0:253, 0:234]
+        lpyr_po = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        y_po = lpyr_po(img)
+        lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)
+        y_pt = [lpyr_pt.pyr_coeffs[(i, 0)] for i in range(n_scales)]
+        assert len(y_po) == len(y_pt)
+        for x_po, x_pt in zip(y_po, y_pt):
+            x_po = x_po.squeeze().detach().cpu().numpy()
+            assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
+            # The pyrtools implementation `pt.upConv performs`` padding after upsampling.
+            # Our implementation `po.tools.upsample_convolve`` performs padding before upsampling,
+            # and, depending on the parity of the image, sometimes performs additional zero padding
+            # after upsampling up to one row/column. This causes inconsistency on the right and
+            # bottom edges, so they are exluded in the comparison.
 
 
 class TestFrontEnd:
@@ -129,9 +189,9 @@ class TestNaive(object):
     def test_cache_filt(self, cache_filt, mdl):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt)
+            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt)
+            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
 
         y = model(img)  # forward pass should cache filt if True
 
@@ -151,22 +211,225 @@ class TestNaive(object):
             model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
 
     def test_linear(self, basic_stim):
-        model = plenoptic.simul.Linear().to(DEVICE)
+        model = po.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
 
-    def test_linear_metamer(self, einstein_img):
-        model = plenoptic.simul.Linear().to(DEVICE)
-        M = po.synth.Metamer(einstein_img, model)
-        M.synthesize(max_iter=3, learning_rate=1, seed=1)
+
+class TestPortillaSimoncelli(object):
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [True, False])
+    def test_portilla_simoncelli(
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        use_true_correlations,
+        einstein_img,
+    ):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations,
+        ).to(DEVICE)
+        ps(einstein_img)
+
+    # tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_ps_torch_v_matlab(self, n_scales, n_orientations,
+                               spatial_corr_width, im,
+                               portilla_simoncelli_matlab_test_vectors):
+
+        # the matlab outputs were computed on images with values between 0 and
+        # 255 (not 0 and 1, which is what po.load_images does by default). Note
+        # that for the einstein-9-2-4, einstein-9-3-4, einstein-9-4-4,
+        # multiplying by 255 before converting to float64 (rather than
+        # converting to float64 and then multiplying by 255) matters, because
+        # floating points are fun.
+        im0 = 255 * po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = im0.to(torch.float64).to(DEVICE)
+        ps = po.simul.PortillaSimoncelli(
+            im0.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=False,
+        ).to(DEVICE).to(torch.float64)
+        python_vector = po.to_numpy(ps(im0))
+
+        matlab = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
+                             f"{im}-scales{n_scales}-ori{n_orientations}"
+                             f"-spat{spatial_corr_width}.mat")
+        matlab_vector = matlab["params_vector"].flatten()
+
+        np.testing.assert_allclose(
+            python_vector.squeeze(), matlab_vector.squeeze(), rtol=1e-4, atol=1e-4
+        )
+
+    # tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_ps_torch_output(self, n_scales, n_orientations,
+                             spatial_corr_width, im, use_true_correlations,
+                             portilla_simoncelli_test_vectors):
+
+        im0 = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = im0.to(torch.float64).to(DEVICE)
+        ps = po.simul.PortillaSimoncelli(
+            im0.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations,
+        ).to(DEVICE).to(torch.float64)
+        output = po.to_numpy(ps(im0))
+
+        saved = np.load(f"{portilla_simoncelli_test_vectors}/"
+                        f"{im}-scales{n_scales}-ori{n_orientations}-"
+                        f"spat{spatial_corr_width}-corr{use_true_correlations}.npy")
+
+        np.testing.assert_allclose(
+            output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
+        )
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    def test_ps_convert(self, n_scales, n_orientations, spatial_corr_width,
+                        use_true_correlations, einstein_img):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations,
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        assert torch.all(rep == ps.convert_to_vector(ps.convert_to_dict(rep))), "Convert to vector or dict is broken!"
+
+    def test_ps_synthesis(self, portilla_simoncelli_synthesize,
+                          run_test=True):
+        """Test PS texture metamer synthesis.
+
+        Parameters
+        ----------
+        portilla_simoncelli_synthesize : str
+            Path to the .npz file to test against
+        run_test : bool, optional
+            If True, we run the test, comparing the current synthesis against
+            the saved results. If False, we don't run the test, and return the
+            Metamer object instead (used when updating the file to test
+            against, as in tests/utils.update_ps_synthesis_test_file)
+
+        """
+        # this tests whether the output of metamer synthesis is consistent.
+        # this is probably the most likely to fail as our requirements change,
+        # because if something in how torch computes its gradients changes,
+        # then our outputs will change. for example, in release 1.10
+        # (https://github.com/pytorch/pytorch/releases/tag/v1.10.0), they fixed
+        # the sub-gradient for torch.a{max,min}, which resulted in our PS
+        # synthesis getting worse, somehow. this is just a note to keep an eye
+        # on this; you might need to update the output to test against as
+        # versions change. you probably only need to store the most recent
+        # version, because that's what we test against.
+        torch.use_deterministic_algorithms(True)
+        with np.load(portilla_simoncelli_synthesize) as f:
+            im = f['im']
+            im_init = f['im_init']
+            im_synth = f['im_synth']
+            rep_synth = f['rep_synth']
+
+        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
+        model = po.simul.PortillaSimoncelli(im0.shape[-2:],
+                                            n_scales=4,
+                                            n_orientations=4,
+                                            spatial_corr_width=9,
+                                            use_true_correlations=True).to(DEVICE).to(torch.float64)
+
+        po.tools.set_seed(1)
+        im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
+        met = po.synth.MetamerCTF(im0, model, initial_image=im_init,
+                                  loss_function=po.tools.optim.l2_norm,
+                                  range_penalty_lambda=0,
+                                  coarse_to_fine='together')
+
+        # this is the same as the default optimizer, but we explicitly
+        # instantiate it anyway, in case we change the defaults at some point
+        optim = torch.optim.Adam([met.metamer], lr=.01,
+                                 amsgrad=True)
+        met.synthesize(max_iter=200, optimizer=optim,
+                       change_scale_criterion=None,
+                       ctf_iters_to_check=15)
+
+        output = met.metamer
+        if run_test:
+            np.testing.assert_allclose(
+                po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
+            )
+
+            np.testing.assert_allclose(
+                po.to_numpy(model(output)).squeeze(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
+            )
+        else:
+            return met
+
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    def test_portilla_simoncelli_scales(
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        use_true_correlations,
+        portilla_simoncelli_scales
+    ):
+        with np.load(portilla_simoncelli_scales) as f:
+            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}_corr-{use_true_correlations}'
+            saved = f[key]
+
+        model = po.simul.PortillaSimoncelli(
+            [256, 256],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            use_true_correlations=use_true_correlations).to(DEVICE)
+
+        output = model._get_representation_scales()
+
+        for (oo, ss) in zip(output, saved):
+            if str(oo) != ss:
+                raise ValueError("Scales do not match.")
+            
+    @pytest.mark.parametrize("im_shape", [(256,256), (128,256)])
+    def test_ps_expand(self, im_shape):
+        mult = 4
+        
+        im = po.tools.make_synthetic_stimuli().to(DEVICE)
+        im = im[0,0,:im_shape[0], :im_shape[1]]
+        out_im = po.simul.PortillaSimoncelli(im_shape).expand(im, mult)
+        
+        assert out_im.shape == (im_shape[0] * mult, im_shape[1] * mult)
 
 
 class TestFilters:
-    @pytest.mark.parametrize("std", [5., torch.tensor(1.), -1., 0.])
+    @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
-
-        if std <=0.:
+        if std <= 0.:
             with pytest.raises(AssertionError):
                 circular_gaussian2d((7, 7), std)
         else:
@@ -174,19 +437,18 @@ class TestFilters:
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
             assert filt.shape == (out_channels, 1, *kernel_size)
-            assert filt.sum().isclose(torch.ones(1) * out_channels)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE) * out_channels)
 
     def test_circular_gaussian2d_wrong_std_length(self):
-        std = torch.tensor([1., 2.])
+        std = torch.tensor([1., 2.], device=DEVICE)
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)
 
-
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
     @pytest.mark.parametrize("std", [1., 20., 0.])
     def test_gaussian1d(self, kernel_size, std):
-        if std <=0:
+        if std <= 0:
             with pytest.raises(AssertionError):
                 gaussian1d(kernel_size, std)
         else:

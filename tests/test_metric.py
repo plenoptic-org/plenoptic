@@ -14,7 +14,14 @@ from conftest import DATA_DIR, DEVICE
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr'}
+           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr',
+           'portilla_simoncelli_matlab_test_vectors.tar.gz': 'qtn5y',
+           'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
+           'portilla_simoncelli_images.tar.gz':'eqr3t',
+           'portilla_simoncelli_synthesize.npz': 'a7p9r',
+           'portilla_simoncelli_synthesize_torch_v1.12.0.npz': 'gbv8e',
+           'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
+           'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
 def osf_download(filename):
@@ -28,7 +35,14 @@ def osf_download(filename):
     Parameters
     ----------
     filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz', 'MAD_results.tar.gz'}
+                'ssim_analysis.mat', 'msssim_images.tar.gz',
+                'MAD_results.tar.gz',
+                'portilla_simoncelli_images.tar.gz',
+                'portilla_simoncelli_matlab_test_vectors.tar.gz',
+                'portilla_simoncelli_test_vectors.tar.gz',
+                'portilla_simoncelli_synthesize.npz',
+                'portilla_simoncelli_synthesize_torch_v1.12.0.npz',
+                'portilla_simoncelli_synthesize_gpu.npz'}
         Which file to download.
 
     Returns
@@ -72,6 +86,7 @@ def test_files_dir():
 def test_find_files(test_files_dir):
     assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
 
+
 @pytest.fixture()
 def ssim_images():
     return osf_download('ssim_images.tar.gz')
@@ -86,6 +101,7 @@ def msssim_images():
 def ssim_analysis():
     ssim_analysis = osf_download('ssim_analysis.mat')
     return sio.loadmat(ssim_analysis, squeeze_me=True)
+
 
 @pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, '256/einstein.png'),
                                    op.join(DATA_DIR, '256'),
@@ -102,43 +118,50 @@ def test_load_images(paths, as_gray):
         images = po.tools.data.load_images(paths, as_gray)
         assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
+
 class TestPerceptualMetrics(object):
 
     @pytest.mark.parametrize('weighted', [True, False])
-    def test_ssim(self, einstein_img, curie_img, weighted):
+    def test_ssim_grad(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()
         assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
+        curie_img.requires_grad_(False)
 
-    def test_msssim(self, einstein_img, curie_img):
+    def test_msssim_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.ms_ssim(einstein_img, curie_img).requires_grad
+        curie_img.requires_grad_(False)
 
-    @pytest.mark.parametrize('func_name', ['noise', 'mse', 'ssim', 'ms-ssim'])
-    @pytest.mark.parametrize('size_A', [1, 3])
-    @pytest.mark.parametrize('size_B', [1, 2, 3])
+    @pytest.mark.parametrize('func_name', ['ssim', 'ms-ssim', 'nlpd'])
+    @pytest.mark.parametrize('size_A', [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)])
+    @pytest.mark.parametrize('size_B', [(), (3,), (1, 1), (6, 3), (3, 1), (1, 4)])
     def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
-        if func_name == 'noise':
-            func = po.tools.add_noise
-            A = einstein_img.repeat(size_A, 1, 1, 1)
-            B = size_B * [4]
-        else:
-            if func_name == 'mse':
-                func = po.metric.mse
-            elif func_name == 'ssim':
-                func = po.metric.ssim
-            elif func_name == 'ms-ssim':
-                func = po.metric.ms_ssim
-            A = einstein_img.repeat(size_A, 1, 1, 1)
-            B = curie_img.repeat(size_B, 1, 1, 1)
-        if size_A != size_B and size_A != 1 and size_B != 1:
-            with pytest.raises(Exception):
+        func = {'ssim': po.metric.ssim,
+                'ms-ssim': po.metric.ms_ssim,
+                'nlpd': po.metric.nlpd}[func_name]
+        A = einstein_img[0, 0].repeat(*size_A, 1, 1)
+        B = curie_img[0, 0].repeat(*size_B, 1, 1)
+        
+        if not len(size_A) == len(size_B) == 2:
+            with pytest.raises(Exception, match="Input images should have four dimensions"):
                 func(A, B)
         else:
-            if size_A > size_B:
-                tgt_size = size_A
+            tgt_size = []
+            for i in range(len(size_A)):
+                if size_A[i] == size_B[i] or size_A[i] == 1 or size_B[i] == 1:
+                    tgt_size.append(max(size_A[i], size_B[i]))
+                else:
+                    tgt_size = None
+                    break
+            if tgt_size is None:
+                with pytest.raises(Exception, match="Either img1 and img2 should have the same number of "
+                                                    "elements in each dimension, or one of them should be 1"):
+                    func(A, B)
+            elif tgt_size[1] > 1:
+                with pytest.warns(Warning, match="computed separately for each channel"):
+                    assert func(A, B).shape == tuple(tgt_size)
             else:
-                tgt_size = size_B
-            assert func(A, B).shape[0] == tgt_size
+                assert func(A, B).shape == tuple(tgt_size)
 
     @pytest.mark.parametrize('mode', ['many-to-one', 'one-to-many'])
     def test_noise_independence(self, einstein_img, mode):
@@ -194,23 +217,31 @@ class TestPerceptualMetrics(object):
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 
-    def test_nlpd(self, einstein_img, curie_img):
+    def test_nlpd_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
-
-    def test_nspd(self, einstein_img, curie_img):
-        curie_img.requires_grad_()
-        assert po.metric.nspd(einstein_img, curie_img).requires_grad
-
-    def test_nspd2(self, einstein_img, curie_img):
-        curie_img.requires_grad_()
-        assert po.metric.nspd(einstein_img, curie_img, O=3, S=5, complex=True).requires_grad
-
-    def test_nspd3(self, einstein_img, curie_img):
-        curie_img.requires_grad_()
-        assert po.metric.nspd(einstein_img, curie_img, O=1, S=5, complex=False).requires_grad
+        curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
 
     @pytest.mark.parametrize('model', ['frontend.OnOff'], indirect=True)
-    def test_model_metric(self, einstein_img, curie_img, model):
+    def test_model_metric_grad(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
         assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
+        curie_img.requires_grad_(False)
+
+    def test_ssim_dtype(self, einstein_img, curie_img):
+        po.metric.ssim(einstein_img.to(torch.float64),
+                       curie_img.to(torch.float64))
+
+    def test_ssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ssim(einstein_img.to(torch.float64),
+                           curie_img)
+
+    def test_msssim_dtype(self, einstein_img, curie_img):
+        po.metric.ms_ssim(einstein_img.to(torch.float64),
+                          curie_img.to(torch.float64))
+
+    def test_msssim_dtype_exception(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match='must have same dtype'):
+            po.metric.ms_ssim(einstein_img.to(torch.float64),
+                              curie_img)

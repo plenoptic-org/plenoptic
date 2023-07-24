@@ -11,16 +11,25 @@ plenoptic_version_module = util.module_from_spec(plenoptic_version_spec)
 plenoptic_version_spec.loader.exec_module(plenoptic_version_module)
 VERSION = plenoptic_version_module.version
 
+def readlines(fn):
+    with open(fn) as f:
+        return f.readlines()
+
 setup(
     name="plenoptic",
     version=VERSION,
-    description="Visual Information Processing",
+    long_description=open('README.md', 'r').read(),
+    long_description_content_type='text/markdown',
+    description="Python library for model-based stimulus synthesis.",
     license="MIT",
     url="https://github.com/LabForComputationalVision/plenoptic",
     author="LabForComputationalVision",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     keywords=[
         "Visual Information Processing",
@@ -35,19 +44,7 @@ setup(
         "plenoptic.synthesize",
         "plenoptic.tools",
     ],
-    install_requires=[
-        "numpy>=1.1",
-        "torch>=1.8",
-        "pyrtools>=1.0.0",
-        "scipy>=1.0",
-        "matplotlib>=3.1",
-        "torchvision>=0.3",
-        "tqdm>=4.29",
-        "requests>=2.21",
-        "imageio>=2.5",
-        "pytest>=5.1.2",
-        "scikit-image>=0.15.0",
-        "dill",
-    ],
+    package_data={'plenoptic.metric': ['DN_sigmas.npy', 'DN_filts.npy']},
+    install_requires=readlines('jenkins/requirements.txt'),
     tests="tests",
 )
