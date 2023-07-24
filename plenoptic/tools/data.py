@@ -10,6 +10,8 @@ from skimage import color
 import torch
 from torch import Tensor
 
+from .signal import rescale
+
 
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in

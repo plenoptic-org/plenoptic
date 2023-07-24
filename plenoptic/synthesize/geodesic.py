@@ -242,7 +242,6 @@ class Geodesic(OptimizedSynthesis):
         - compute the loss as a sum of:
             - representation's path energy
             - range constraint (weighted by lambda)
-            - if regularized: signal's path energy (weighted by mu)
         - compute the gradients
         - make sure that neither the loss or the gradients are NaN
         - let the optimizer take a step in the direction of the gradients

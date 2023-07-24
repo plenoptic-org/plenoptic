@@ -120,43 +120,6 @@ class TestSequences(object):
 
 class TestGeodesic(object):
 
-    def test_conditional_geodesic(self, einstein_img_small):
-        n_steps = 10
-        sequence = po.tools.translation_sequence(einstein_img_small[0],
-                                                 n_steps)
-        vid = po.tools.rescale(sequence, 0, 1)
-        imgA = vid[0:1]
-        imgB = vid[-1:]
-
-        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        moog_conditional = po.synth.Geodesic(imgA, imgB, model, n_steps,
-                                             init='bridge')
-        moog_conditional.synthesize(max_iter=100, conditional=True,
-                                    regularized=False, tol=None)
-        moog_conditional.plot_loss()
-        moog_conditional.plot_deviation_from_line(video=vid)
-        moog_conditional.plot_PC_projections(video=vid)
-        moog_conditional.calculate_jerkiness()
-
-    def test_regularized_geodesic(self, einstein_img_small):
-        n_steps = 10
-        sequence = po.tools.translation_sequence(einstein_img_small[0],
-                                                 n_steps)
-        vid = po.tools.rescale(sequence, 0, 1)
-        imgA = vid[0:1]
-        imgB = vid[-1:]
-
-        model = po.simul.OnOff(kernel_size=(31, 31), pretrained=True)
-        moog_regularized = po.synth.Geodesic(imgA, imgB, model, n_steps,
-                                             init='bridge')
-        moog_regularized.synthesize(max_iter=100, conditional=False,
-                                    regularized=True, tol=0)
-
-        moog_regularized.plot_loss()
-        moog_regularized.plot_deviation_from_line(video=vid)
-        moog_regularized.plot_PC_projections(video=vid)
-        moog_regularized.calculate_jerkiness()
-
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     @pytest.mark.parametrize("init", ["straight", "bridge"])
     @pytest.mark.parametrize("optimizer", [None, "SGD"])
@@ -170,7 +133,6 @@ class TestGeodesic(object):
         moog.synthesize(max_iter=5, optimizer=optimizer)
         po.synth.geodesic.plot_loss(moog)
         po.synth.geodesic.plot_deviation_from_line(moog, natural_video=sequence)
-        moog.plot_PC_projections(video=sequence)
         moog.calculate_jerkiness()
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
