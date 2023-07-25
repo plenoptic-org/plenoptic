@@ -33,11 +33,11 @@ plenoptic
    :align: center
    :alt: plenoptic logo
 
-``plenoptic`` is a python library for model-based stimulus synthesis. It
-provides tools to help researchers understand their model by synthesizing novel
-informative stimuli, which help build intuition for what features the model
-ignores and what it is sensitive to. These synthetic images can then be used in
-future perceptual or neural experiments for further investigation.
+``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. Most examples are visual,
+but the tools can also be used for auditory models. Generated stimuli
+provide intuitive understanding of model properties, through examination of features that are 
+preserved or lost by the model.  They also can be used in percepetual or neural experiments 
+to verify/validate model predictions.
 
 Getting started
 ---------------
@@ -45,7 +45,7 @@ Getting started
 - If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
   for an in-depth introduction.
 - If you understand the basics of synthesis and want to get started using
-  ``plenoptic`` quickly, see the `Quickstart <tutorials/00_quickstart.nblink>`_
+  ``plenoptic``, see the `Quickstart <tutorials/00_quickstart.nblink>`_
   tutorial.
 
 Installation
@@ -63,7 +63,7 @@ virtual environment (recommended).
 ffmpeg and videos
 ^^^^^^^^^^^^^^^^^
 
-Several methods in this package generate videos. There are several backends
+Some methods in this package generate videos. There are several backends
 possible for saving the animations to file, see `matplotlib documentation
 <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
 details. In order convert them to HTML5 for viewing (and thus, to view in a
@@ -89,34 +89,35 @@ Synthesis methods
 
 - `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
-  that of the reference image. This method investigates what image features the
-  model disregards entirely.
+  that of the reference image (from the literature on Trichromacy, a ``metamer''). 
+  This method makes explicit those features that the model 
+  disregards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
     [Feather2019]_, [Wallis2019]_
 - `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_: given a model and a
-  reference image, compute the image perturbation that produces the smallest and
-  largest changes in the model response space. This method investigates the
-  image features the model considers the least and most important.
+  reference image, compute the image perturbations that produce the smallest/largest 
+  change (Euclidean distance) in the model response space. These are the 
+  image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
-- `Maximal differentiation (MAD) competition
-  <tutorials/07_MAD_Competition.nblink>`_: given two metrics that measure distance
-  between images and a reference image, generate pairs of images that optimally
-  differentiate the models. Specifically, synthesize a pair of images that the
-  first model says are equi-distant from the reference while the second model
-  says they are maximally/minimally distant from the reference. Then synthesize
-  a second pair with the roles of the two models reversed. This method allows
-  for efficient comparison of two metrics, highlighting the aspects in which
-  their sensitivities differ.
-
-  - Example papers: [Wang2008]_
 - `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
   synthesize a sequence of images that lie on the shortest ("geodesic") path in
-  the model's representation space. This method investigates how a model
-  represents motion and what changes to an image it consider reasonable.
+  the model's representation space. This method visualizes the larger-scale geometric
+  properties of model representation (in contrast with the local properties captured by 
+  the eigendistortions).
 
   - Example papers: [Henaff2016]_, [Henaff2020]_
+- `Maximal differentiation (MAD) competition
+  <tutorials/07_MAD_Competition.nblink>`_: given two models that measure distance
+  between images, and a reference image, generate pairs of images that optimally
+  differentiate the models. Specifically, synthesize a pair of images that are equi-distant from
+  the reference image according to model-1, but maximally/minimally distant according to model-2.  Synthesize
+  a second pair with the roles of the two models reversed. This method allows
+  for efficient comparison of two metrics, highlighting the aspects in which
+  their sensitivities most differ.
+
+  - Example papers: [Wang2008]_
 
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
