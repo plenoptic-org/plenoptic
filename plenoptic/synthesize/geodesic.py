@@ -199,7 +199,8 @@ class Geodesic(OptimizedSynthesis):
         """Compute geodesic synthesis loss.
 
         This is the path energy (i.e., squared L2 norm of each step) of the
-        geodesic's model representation, with the weighted range penalty.
+        geodesic's model representation (summed across frames), with the
+        weighted range penalty.
 
         Additionally, caches:
 
@@ -224,7 +225,7 @@ class Geodesic(OptimizedSynthesis):
             geodesic = self.geodesic
         self._geodesic_representation = self.model(geodesic)
         self._most_recent_step_energy = self._calculate_step_energy(self._geodesic_representation)
-        loss = self._most_recent_step_energy.mean()
+        loss = self._most_recent_step_energy.sum()
         range_penalty = penalize_range(self.geodesic, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
