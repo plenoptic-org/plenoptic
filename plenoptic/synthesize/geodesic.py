@@ -233,7 +233,7 @@ class Geodesic(OptimizedSynthesis):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`.
         """
         velocity = torch.diff(z, dim=0)
-        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
+        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[2, 3]) ** 2
         return step_energy
 
     def _optimizer_step(self, pbar):
