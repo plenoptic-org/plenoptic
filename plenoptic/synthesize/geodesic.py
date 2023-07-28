@@ -624,3 +624,90 @@ def plot_deviation_from_line(geodesic: Geodesic,
     ax.legend(loc=1)
 
     return ax
+
+
+def plot_PC_projections(geodesic: Geodesic,
+                        natural_video: Union[Tensor, None] = None,
+                        concatenated: bool = False,
+                        figsize: Tuple[float, float] = (10., 5.),
+                        ) -> mpl.figure.Figure:
+    """Plot projection onto first 2 PCs for visualization
+
+    Parameters
+    ----------
+    geodesic :
+        Geodesic object to visualize.
+    natural_video :
+        Natural video that bridges the anchor points, for comparison.
+    concatenated :
+        Whether to take the SVD on the concatenation of all visualized
+        sequences, or just the relevant one (pixel space: geodesic.pixelfade,
+        representational space: geodesic.geodesic)
+
+    Returns
+    -------
+    fig :
+        Figure containing the plot
+
+    """
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    pixelfade = geodesic.pixelfade.view(geodesic.n_steps+1, -1)
+    geo = geodesic.geodesic.view(geodesic.n_steps+1, -1).detach()
+    if natural_video is not None:
+        natural_video_response = geodesic.model(natural_video).view(geodesic.n_steps+1, -1)
+    if not concatenated:
+        pxf_mean = pixelfade.mean(0)
+        pixelfade = pixelfade - pxf_mean
+        geo = geo - pxf_mean
+        if natural_video is not None:
+            natural_video = natural_video - pxf_mean
+        _, s, V = torch.linalg.svd(pixelfade, full_matrices=False)
+    else:
+        X = torch.cat([geo, pixelfade], dim=0)
+        X_mean = X.mean(0)
+        if natural_video is not None:
+            X = torch.cat([X, natural_video.view(geodesic.n_steps+1, -1)], dim=0)
+            X_mean = X.mean(0)
+            natural_video = natural_video - X_mean
+        X = X - X_mean
+        pixelfade = pixelfade - X_mean
+        geo = geo - X_mean
+        _, s, V = torch.linalg.svd(X, full_matrices=False)
+
+    print(s/s.sum())
+    axes[0].plot(*torch.matmul(pixelfade, V[:2].T).T, '-o', label='pixelfade')
+    axes[0].plot(*torch.matmul(geo, V[:2].T).T, '-o', label='geodesic')
+    if natural_video is not None:
+        axes[0].plot(*torch.matmul(natural_video, V[:2].T).T, '-o', label='geodesic')
+    axes[0].set(xlabel='PC1', ylabel='PC2', title='Pixel space')
+
+    pixelfade = geodesic.model(geodesic.pixelfade).view(geodesic.n_steps+1, -1)
+    geo = geodesic.model(geodesic.geodesic).view(geodesic.n_steps+1, -1).detach()
+    if not concatenated:
+        geo_mean = geo.mean(0)
+        pixelfade = pixelfade - geo_mean
+        geo = geo - geo_mean
+        if natural_video is not None:
+            natural_video_response = natural_video_response - geo_mean
+        _, s, V = torch.linalg.svd(geo, full_matrices=False)
+    else:
+        X = torch.cat([geo, pixelfade], dim=0)
+        X_mean = X.mean(0)
+        if natural_video is not None:
+            X = torch.cat([X, natural_video_response.view(geodesic.n_steps+1, -1)], dim=0)
+            X_mean = X.mean(0)
+            natural_video_response = natural_video_response - X_mean
+        X = X - X_mean
+        pixelfade = pixelfade - X_mean
+        geo = geo - X_mean
+        _, s, V = torch.linalg.svd(X, full_matrices=False)
+
+    print(s/s.sum())
+    axes[1].plot(*torch.matmul(pixelfade, V[:2].T).T, '-o', label='pixelfade')
+    axes[1].plot(*torch.matmul(geo, V[:2].T).T, '-o', label='geodesic')
+    if natural_video is not None:
+        axes[0].plot(*torch.matmul(natural_video_response, V[:2].T).T, '-o', label='geodesic')
+    axes[1].set(xlabel='PC1', ylabel='PC2', title='Representational space')
+    axes[1].legend(loc='best')
+
+    return fig, V
