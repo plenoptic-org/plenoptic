@@ -99,13 +99,6 @@ Synthesis methods
   image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
-- `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
-  synthesize a sequence of images that lie on the shortest ("geodesic") path in
-  the model's representation space. This method allows examination of the larger-scale geometric
-  properties of model representation (as opposed to the local properties captured by 
-  the eigendistortions).
-
-  - Example papers: [Henaff2016]_, [Henaff2020]_
 - `Maximal differentiation (MAD) competition
   <tutorials/07_MAD_Competition.nblink>`_: given a reference image and two models that measure distance
   between images, generate pairs of images that optimally
@@ -116,6 +109,13 @@ Synthesis methods
   their sensitivities most differ.
 
   - Example papers: [Wang2008]_
+- `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
+  synthesize a sequence of images that lie on the shortest ("geodesic") path in
+  the model's representation space. This method allows examination of the larger-scale geometric
+  properties of model representation (as opposed to the local properties captured by 
+  the eigendistortions).
+
+  - Example papers: [Henaff2016]_, [Henaff2020]_
 
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -125,30 +125,26 @@ Models, Metrics, and Model Components
   and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
   The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
   (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation 
-  ('further info <https://www.cns.nyu.edu/~eero/STEERPYR/>'_ ). See the`pyrtools documentation
+  (`further info <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the`pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
   python tools for image pyramids in general and the steerable pyramid in particular.
 - Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
-  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~lcv/texture/>'_).
+  that capture the appearance of visual textures (description at `<https://www.cns.nyu.edu/~lcv/texture/>`_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
   metric, that takes two images and returns a value between -1 (totally different) and 1 (identical)
-  reflecting their similarity. 'See <https://www.cns.nyu.edu/~lcv/ssim>'_ .
+  reflecting their similarity. `See <https://www.cns.nyu.edu/~lcv/ssim>`_.
 - Multiscale Structural Similarity Index (MS-SSIM), [Wang2003]_, is an extension of SSIM
   that operates jointly over multiple scales.
 - Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is a
   perceptual distance metric based on transformations associated with the early
   visual system: local luminance subtraction and local contrast gain control, at
-  six scales. 'Further info <https://www.cns.nyu.edu/~lcv/NLPyr/>'_ .
+  six scales. `See <https://www.cns.nyu.edu/~lcv/NLPyr/>`_.
 
 Getting help
 ------------
 
 We communicate via several channels on Github:
 
-- `Discussions
-  <https://github.com/LabForComputationalVision/plenoptic/discussions>`_ is the
-  place to ask usage questions, discuss broad issues, or
-  show off what you've made with plenoptic.
 - To report a bug, open an `issue
   <https://github.com/LabForComputationalVision/plenoptic/issues>`_.
 - To send suggestions for extensions or enhancements, please post in the `ideas
@@ -156,6 +152,9 @@ We communicate via several channels on Github:
   <https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas>`_
   of discussions first. We'll discuss it there and, if we decide to pursue it,
   open an issue to track progress.
+- To ask usage questions, discuss broad issues, or
+  show off what you've made with plenoptic, go to `Discussions
+  <https://github.com/LabForComputationalVision/plenoptic/discussions>`_.
 - To contribute to the project, see the `contributing guide
   <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_.
 
