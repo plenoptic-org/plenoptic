@@ -65,11 +65,11 @@ ffmpeg and videos
 
 Some methods in this package generate videos. There are several backends
 available for saving the animations to file (see `matplotlib documentation
-<https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_).
+<https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_
+).
 To convert them to HTML5 for viewing (for example, in a
 jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
 installed. 
-
 To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
 before calling any of the animate functions. If you try to set that ``rcParam``
 with a random string, ``matplotlib`` will list the available choices.
@@ -120,27 +120,25 @@ Synthesis methods
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Steerable pyramid, [Simoncelli1995]_, a multi-scale oriented image
+- Steerable pyramid, [Simoncelli1992]_, a multi-scale oriented image
   decomposition. Images are decomposed with a family of oriented filters, localized in space
   and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
   The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
-  (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation
-  See the`pyrtools documentation
+  (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation 
+  ('further info <https://www.cns.nyu.edu/~eero/STEERPYR/>'_ ). See the`pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
-  image pyramids in general and the steerable pyramid in particular.
+  python tools for image pyramids in general and the steerable pyramid in particular.
 - Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
-  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~eero/texture/>'_).
+  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~lcv/texture/>'_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
-  metric, returning a number between -1 (totally different) and 1 (identical)
-  reflecting how similar two images are. This is based on the images' luminance,
-  contrast, and structure, which are computed convolutionally across the images.
-- Multiscale Structural Similarity Index (MS-SSIM), [Wang2003]_, is a perceptual
-  similarity metric similar to SSIM, except it operates at multiple scales
-  (i.e., spatial frequencies).
+  metric, that takes two images and returns a value between -1 (totally different) and 1 (identical)
+  reflecting their similarity. 'See <https://www.cns.nyu.edu/~lcv/ssim>'_ .
+- Multiscale Structural Similarity Index (MS-SSIM), [Wang2003]_, is an extension of SSIM
+  that operates jointly over multiple scales.
 - Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is a
   perceptual distance metric based on transformations associated with the early
   visual system: local luminance subtraction and local contrast gain control, at
-  six scales.
+  six scales. 'Further info <https://www.cns.nyu.edu/~lcv/NLPyr/>'_ .
 
 Getting help
 ------------
