@@ -125,11 +125,11 @@ Models, Metrics, and Model Components
   and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
   The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
   (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation 
-  (`further info <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the`pyrtools documentation
+  (`further info <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the `pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
   python tools for image pyramids in general and the steerable pyramid in particular.
 - Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
-  that capture the appearance of visual textures (further info `<https://www.cns.nyu.edu/~lcv/texture/>`_).
+  that capture the appearance of visual textures (`further info <https://www.cns.nyu.edu/~lcv/texture/>`_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
   metric, that takes two images and returns a value between -1 (totally different) and 1 (identical)
   reflecting their similarity (`further info <https://www.cns.nyu.edu/~lcv/ssim>`_).
