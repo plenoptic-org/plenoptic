@@ -79,12 +79,12 @@ with a random string, ``matplotlib`` will list the available choices.
 Contents
 --------
 
-Synthesis methods
-^^^^^^^^^^^^^^^^^
-
 .. figure:: images/example_synth.svg
    :figwidth: 100%
    :alt: The four synthesis methods included in plenoptic
+
+Synthesis methods
+^^^^^^^^^^^^^^^^^
 
 - `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
