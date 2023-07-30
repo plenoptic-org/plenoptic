@@ -120,8 +120,6 @@ Synthesis methods
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
-  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~eero/texture/>'_).
 - Steerable pyramid, [Simoncelli1995]_, a multi-scale oriented image
   decomposition. Images are decomposed with a family of oriented filters, localized in space
   and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
@@ -130,11 +128,13 @@ Models, Metrics, and Model Components
   See the`pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
   image pyramids in general and the steerable pyramid in particular.
+- Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
+  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~eero/texture/>'_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
   metric, returning a number between -1 (totally different) and 1 (identical)
   reflecting how similar two images are. This is based on the images' luminance,
   contrast, and structure, which are computed convolutionally across the images.
-- Multiscale Structrual Similarity Index (MS-SSIM), [Wang2003]_, is a perceptual
+- Multiscale Structural Similarity Index (MS-SSIM), [Wang2003]_, is a perceptual
   similarity metric similar to SSIM, except it operates at multiple scales
   (i.e., spatial frequencies).
 - Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is a
@@ -149,20 +149,19 @@ We communicate via several channels on Github:
 
 - `Discussions
   <https://github.com/LabForComputationalVision/plenoptic/discussions>`_ is the
-  place to ask usage questions, discuss issues too broad for a single issue, or
+  place to ask usage questions, discuss broad issues, or
   show off what you've made with plenoptic.
-- If you've come across a bug, open an `issue
+- To report a bug, open an `issue
   <https://github.com/LabForComputationalVision/plenoptic/issues>`_.
-- If you have an idea for an extension or enhancement, please post in the `ideas
+- To send suggestions for extensions or enhancements, please post in the `ideas
   section
   <https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas>`_
   of discussions first. We'll discuss it there and, if we decide to pursue it,
   open an issue to track progress.
-- See the `contributing guide
-  <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_
-  for how to get involved.
+- To contribute to the project, see the `contributing guide
+  <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_.
 
-In all cases, please follow our `code of conduct
+In all cases, we request that you respect our `code of conduct
 <https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 .. toctree::
@@ -263,9 +262,13 @@ In all cases, please follow our `code of conduct
    E.P., 2016. Perceptual image quality assessment using a normalized Laplacian
    pyramid. Electronic Imaging, 2016(16), pp.1-6.
    http://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
+.. [Ziemba2021] Ziemba, C.M., and Simoncelli, E.P. (2021). Opposing effects of selectivity and invariance in peripheral vision.
+   Nature Communications, vol.12(4597).
+   https://dx.doi.org/10.1038/s41467-021-24880-5
 
-This package is supported by the Simons Foundation Flatiron Institute's Center
-for Computational Neuroscience.
+This package is supported by the 'Center for Computational Neuroscience 
+<https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/>'_, 
+in the Flatiron Institute of the Simons Foundation.
 
 .. image:: images/CCN-logo-wText.png
    :align: center
