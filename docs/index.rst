@@ -29,6 +29,7 @@ plenoptic
 
 |pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo| |binder|
 
+
 .. image:: images/plenoptic_logo_wide.svg
    :align: center
    :alt: plenoptic logo
