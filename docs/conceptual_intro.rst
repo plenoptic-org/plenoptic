@@ -7,12 +7,12 @@ Conceptual Introduction
 you've never heard this phrase before, it may seem mysterious: what is stimulus
 synthesis and what types of scientific investigation does it facilitate?
 
-Synthesis is a framework for exploring models that takes advantage of the fact
-that we can create stimuli, not just rely on existing ones. Computational models
+Synthesis is a framework for exploring models by using them to create new stimuli, 
+rather than examining their responses to existing ones. Computational models
 take a stimulus as input, perform some computations based on parameters, and
-return an output. In visual models, the focus of ``plenoptic``, the inputs are
-typically images and the outputs are some abstractions of representation, which
-are used to predict neural activity or behavior of some kind.
+return an output. In visual models (the focus of ``plenoptic``) the inputs are
+typically images and the outputs are some vector-valued abstract representation, which
+is used to predict neural activity or behavior of some kind.
 
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
@@ -21,28 +21,28 @@ are used to predict neural activity or behavior of some kind.
 
    Schematic describing relationship between simulate, fit, and synthesis.
 
-Computational models transform some stimulus :math:`s` to a response :math:`r`
+Computational models transform a stimulus :math:`s` to a response :math:`r`
 (we often refer to :math:`r` as the model's representation of :math:`s`), based
-on some parameters :math:`\theta`. For example, a trained neural network that
+on some model parameters :math:`\theta`. For example, a trained neural network that
 classifies images has specific weights :math:`\theta`, accepts an image
 :math:`s` and returns a one-hot vector :math:`r` that specifies the image class.
-Or we have a linear-nonlinear Gabor filter model of a simple cell in primary
+Another example: a linear-nonlinear oriented filter model of a simple cell in primary
 visual cortex, where :math:`\theta` defines the filter's orientation, size, and
 spatial frequency, the model accepts an image :math:`s` and returns a scalar
-:math:`r` that gives the neuron's firing rate.
+:math:`r` that represents the neuron's firing rate.
 
 The most common scientific uses for a model are to simulate responses or to fit
-parameters, as shown in :numref:`synthesis-schematic`. For simulating, we hold
-the parameters constant while presenting the model with some input that we're
-interested in, such as a picture of a dog or a sine-wave grating, and we run the
-model forward to gets its response. For fitting, we use optimization to find the
-parameter values that best account for the observed responses to some known
-stimuli. In both of these cases, we are holding two of :math:`r`, :math:`s`,
-:math:`\theta` constant while generating the third. We can do the same thing to
+parameters, as illustrated in :numref:`synthesis-schematic`. For simulation, we hold
+the parameters constant while presenting the model with inputs (e.g, photographs of dogs, 
+or a set of sine-wave gratings) and we run the
+model to compute responses. For fitting, we use optimization to find the
+parameter values that best account for the observed responses to a set of training
+stimuli. In both of these cases, we are holding two of the three variables (:math:`r`, :math:`s`,
+:math:`\theta`) constant while computing or estimating the third. We can do the same thing to
 generate novel stimuli, :math:`s`, while holding the parameters and responses
 constant. We refer to this process as **synthesis** and it facilitates the
 exploration of input space to improve our understanding of a model's
-representation space.
+representations.
 
 This is related to a long and fruitful thread of research in vision science that
 focuses on what humans cannot see, that is, the information they are insensitive
@@ -66,15 +66,15 @@ only use three numbers, often called RGB (red, green, and blue) --- why can we
 get away with throwing away so much information? Trichromacy and color metamers
 can help explain.
 
-One demonstration of trichromacy is the standard color-matching experiment, as
-visualized in :numref:`trichromacy`: an observer matches a monochromatic test
+Researchers studying color percpetion arrived at a standard procedure -- the bipartite color-matching experiment -- for 
+constraining a model for trichromatic metamers, illustrated in :numref:`trichromacy`. An observer matches a monochromatic test
 color (i.e., a light with energy at only a single wavelength) with the physical
 mixture of three different monochromatic stimuli, called **primaries**. Thus,
-the goal is to create two perceptually-indistinguishable stimuli, known as
-**metamers**. Perhaps surprisingly, not only is this possible for any test
-color, it is also possible for just about any selection of primaries (within the
-visible light spectrum). Generally, this requires three primaries: for most
-people, there are many colors that cannot be matched with only two primaries.
+the goal is to create two perceptually-indistinguishable stimuli (**metamers**). 
+Perhaps surprisingly, not only is this possible for any test
+color, it is also possible for just about any selection of primaries (as long as they're within the
+visible light spectrum and sufficiently different from each other). For most human observers, three 
+primaries are required: there are many colors that cannot be matched with only two primaries, and four yields non-unique responses.
 However, there are some people, for whom two primaries are sufficient.
 
 .. _trichromacy:
@@ -84,11 +84,10 @@ However, there are some people, for whom two primaries are sufficient.
 
    Color matching experiment
 
-Requiring three primaries for most people, but two for some might hint at the
-reason why this is possible: most people have three cone classes (generally
-referred to as S, M, and L, for "short", "medium", and "long"), while some only
-have two (which two depends on the type of colorblindness). From the results of
-the color matching, we can infer that color metamers are created when cone
+Requiring three primaries for most people, but two for some provided a hint regarding the underlying mechanisms: 
+most people have cone photorecpetors from three distinct classes (generally
+referred to as S, M, and L, for "short", "medium", and "long").  But some forms of color blindness arise from genetic 
+deviations in which only two classes are represented. Color metamers are created when cone
 responses have been matched. Human cones transform colors from a
 high-dimensional space (i.e., a vector describing the energy at each wavelength)
 to a three-dimensional one (i.e., a vector describing how active each cone class
