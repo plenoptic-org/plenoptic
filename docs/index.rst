@@ -36,7 +36,7 @@ plenoptic
 ``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. 
 Most examples are visual, but the tools can also be used for auditory models. 
 The generated stimuli enable interpretation of model properties through examination of features that are 
-enhanced, suppressed, or descarded by the model.  
+enhanced, suppressed, or descarded.
 More importantly, they can facilitate the scientific proceess, through use in perceptual or neural experiments 
 aimed at validating/falsifying model predictions.
 
@@ -129,16 +129,16 @@ Models, Metrics, and Model Components
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
   python tools for image pyramids in general and the steerable pyramid in particular.
 - Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
-  that capture the appearance of visual textures (description at `<https://www.cns.nyu.edu/~lcv/texture/>`_).
+  that capture the appearance of visual textures (further info `<https://www.cns.nyu.edu/~lcv/texture/>`_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
   metric, that takes two images and returns a value between -1 (totally different) and 1 (identical)
-  reflecting their similarity. `See <https://www.cns.nyu.edu/~lcv/ssim>`_.
+  reflecting their similarity (`further info <https://www.cns.nyu.edu/~lcv/ssim>`_).
 - Multiscale Structural Similarity Index (MS-SSIM), [Wang2003]_, is an extension of SSIM
   that operates jointly over multiple scales.
 - Normalized Laplacian distance, [Laparra2016]_ and [Laparra2017]_, is a
   perceptual distance metric based on transformations associated with the early
   visual system: local luminance subtraction and local contrast gain control, at
-  six scales. `See <https://www.cns.nyu.edu/~lcv/NLPyr/>`_.
+  six scales (`further info <https://www.cns.nyu.edu/~lcv/NLPyr/>`_).
 
 Getting help
 ------------
