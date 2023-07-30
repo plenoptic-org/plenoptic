@@ -1,4 +1,4 @@
-.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
+f.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
 			 :target: https://pypi.org/project/plenoptic/
 
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
@@ -33,19 +33,19 @@ plenoptic
    :align: center
    :alt: plenoptic logo
 
-``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. Most examples are visual,
-but the tools can also be used for auditory models. Generated stimuli
-provide intuitive understanding of model properties, through examination of features that are 
-preserved or lost by the model.  They also can be used in percepetual or neural experiments 
-to verify/validate model predictions.
+``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. 
+Most examples are visual, but the tools can also be used for auditory models. 
+The generated stimuli enable interpretation of model properties through examination of features that are 
+enhanced, suppressed, or descarded by the model.  
+More importantly, they can facilitate the scientific proceess, through use in perceptual or neural experiments 
+aimed at validating/falsifying model predictions.
 
 Getting started
 ---------------
 
 - If you are unfamiliar with stimulus synthesis, see the :ref:`conceptual-intro`
   for an in-depth introduction.
-- If you understand the basics of synthesis and want to get started using
-  ``plenoptic``, see the `Quickstart <tutorials/00_quickstart.nblink>`_
+- Otherwise, see the `Quickstart <tutorials/00_quickstart.nblink>`_
   tutorial.
 
 Installation
@@ -64,16 +64,15 @@ ffmpeg and videos
 ^^^^^^^^^^^^^^^^^
 
 Some methods in this package generate videos. There are several backends
-possible for saving the animations to file, see `matplotlib documentation
-<https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
-details. In order convert them to HTML5 for viewing (and thus, to view in a
+available for saving the animations to file (see `matplotlib documentation
+<https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_).
+To convert them to HTML5 for viewing (for example, in a
 jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
-installed and on your path as well. Depending on your system, this might already
-be installed.
+installed. 
 
 To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
 before calling any of the animate functions. If you try to set that ``rcParam``
-with a random string, ``matplotlib`` will tell you the available choices.
+with a random string, ``matplotlib`` will list the available choices.
 
 
 .. _package-contents:
@@ -89,28 +88,27 @@ Synthesis methods
 
 - `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
-  that of the reference image (from the literature on Trichromacy, a ``metamer''). 
-  This method makes explicit those features that the model 
-  disregards.
+  that of the reference image (a ``metamer'', as originally defined in the literature on Trichromacy). 
+  This method makes explicit those features that the model retains/discards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
-    [Feather2019]_, [Wallis2019]_
+    [Feather2019]_, [Wallis2019]_, [Ziemba2021]_
 - `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_: given a model and a
   reference image, compute the image perturbations that produce the smallest/largest 
-  change (Euclidean distance) in the model response space. These are the 
+  change in the model response space. These are the 
   image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
 - `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
   synthesize a sequence of images that lie on the shortest ("geodesic") path in
-  the model's representation space. This method visualizes the larger-scale geometric
-  properties of model representation (in contrast with the local properties captured by 
+  the model's representation space. This method allows examination of the larger-scale geometric
+  properties of model representation (as opposed to the local properties captured by 
   the eigendistortions).
 
   - Example papers: [Henaff2016]_, [Henaff2020]_
 - `Maximal differentiation (MAD) competition
-  <tutorials/07_MAD_Competition.nblink>`_: given two models that measure distance
-  between images, and a reference image, generate pairs of images that optimally
+  <tutorials/07_MAD_Competition.nblink>`_: given a reference image and two models that measure distance
+  between images, generate pairs of images that optimally
   differentiate the models. Specifically, synthesize a pair of images that are equi-distant from
   the reference image according to model-1, but maximally/minimally distant according to model-2.  Synthesize
   a second pair with the roles of the two models reversed. This method allows
@@ -122,14 +120,14 @@ Synthesis methods
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Portilla-Simoncelli texture model, [Portilla2000]_, which measures the
-  statistical properties of visual textures, here defined as "repeating visual
-  patterns."
+- Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
+  that capture the appearance of visual textures (description at '<https://www.cns.nyu.edu/~eero/texture/>'_).
 - Steerable pyramid, [Simoncelli1995]_, a multi-scale oriented image
-  decomposition. The basis are oriented (steerable) filters, localized in space
-  and frequency. Among other uses, the steerable pyramid serves as a good
-  representation from which to build a primary visual cortex model. See the
-  `pyrtools documentation
+  decomposition. Images are decomposed with a family of oriented filters, localized in space
+  and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
+  The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
+  (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation
+  See the`pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
   image pyramids in general and the steerable pyramid in particular.
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
