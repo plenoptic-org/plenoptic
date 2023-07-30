@@ -17,9 +17,9 @@ is used to predict neural activity or behavior of some kind.
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
    :figwidth: 100%
-   :alt: Schematic describing relationship between simulate, fit, and synthesis.
+   :alt: Schematic describing relationship between simulate, fit, and synthesize.
 
-   Schematic describing relationship between simulate, fit, and synthesis.
+   Schematic describing relationship between simulate, fit, and synthesize.
 
 Computational models transform a stimulus :math:`s` to a response :math:`r`
 (we often refer to :math:`r` as the model's representation of :math:`s`), based
@@ -216,7 +216,7 @@ a model's representational space:
 
 The goal of this package is to facilitate model exploration and understanding.
 We hope that providing these tools helps tighten the model-experiment loop: when
-a decent model is arrived at, whether by importing from a related field or
+a model is proposed, whether by importing from a related field or
 earlier experiments, ``plenoptic`` enables scientists to make targeted
 exploration of the model's representational space, generating stimuli that will
 provide the most information. We hope to help theorists become more active
