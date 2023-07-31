@@ -609,14 +609,14 @@ def plot_deviation_from_line(geodesic: Geodesic,
         ax = plt.gca()
 
     pixelfade_dev = deviation_from_line(geodesic.model(geodesic.pixelfade))
-    ax.plot(*[to_numpy(d) for d in pixelfade_dev], '-o', label='pixelfade')
+    ax.plot(*[to_numpy(d) for d in pixelfade_dev], marker='o', label='pixelfade')
 
     geodesic_dev = deviation_from_line(geodesic.model(geodesic.geodesic).detach())
-    ax.plot(*[to_numpy(d) for d in geodesic_dev], '-o', label='geodesic')
+    ax.plot(*[to_numpy(d) for d in geodesic_dev], marker='o', label='geodesic')
 
     if natural_video is not None:
         video_dev = deviation_from_line(geodesic.model(natural_video))
-        ax.plot(*[to_numpy(d) for d in video_dev], '-o', label='natural video')
+        ax.plot(*[to_numpy(d) for d in video_dev], marker='o', label='natural video')
 
     ax.set(xlabel='Distance along representation line',
            ylabel='Distance from representation line',
