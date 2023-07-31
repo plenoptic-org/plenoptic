@@ -1,4 +1,4 @@
-f.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
+.. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
 			 :target: https://pypi.org/project/plenoptic/
 
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
