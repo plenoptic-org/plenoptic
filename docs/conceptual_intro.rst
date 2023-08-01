@@ -12,7 +12,7 @@ rather than examining their responses to existing ones. Computational models
 take a stimulus as input, perform some computations based on parameters, and
 return an output. In visual models (the focus of ``plenoptic``) the inputs are
 typically images and the outputs are some vector-valued abstract representation, which
-is used to predict neural activity or behavior of some kind.
+are used to predict neural activity or behavior of some kind.
 
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
@@ -66,7 +66,7 @@ only use three numbers, often called RGB (red, green, and blue) --- why can we
 get away with throwing away so much information? Trichromacy and color metamers
 can help explain.
 
-Researchers studying color percpetion arrived at a standard procedure -- the bipartite color-matching experiment -- for 
+Researchers studying color perception arrived at a standard procedure -- the bipartite color-matching experiment -- for 
 constraining a model for trichromatic metamers, illustrated in :numref:`trichromacy`. An observer matches a monochromatic test
 color (i.e., a light with energy at only a single wavelength) with the physical
 mixture of three different monochromatic stimuli, called **primaries**. Thus,

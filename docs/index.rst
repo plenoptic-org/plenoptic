@@ -89,7 +89,7 @@ Synthesis methods
 
 - `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
-  that of the reference image (a ``metamer'', as originally defined in the literature on Trichromacy). 
+  that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). 
   This method makes explicit those features that the model retains/discards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
@@ -123,7 +123,7 @@ Models, Metrics, and Model Components
 
 - Steerable pyramid, [Simoncelli1992]_, a multi-scale oriented image
   decomposition. Images are decomposed with a family of oriented filters, localized in space
-  and frequency, similar to the ``Gabor functions'' commonly used to model receptive fields in primary visual cortex.  
+  and frequency, similar to the "Gabor functions" commonly used to model receptive fields in primary visual cortex.  
   The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
   (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation 
   (`further info <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the `pyrtools documentation
