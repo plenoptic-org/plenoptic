@@ -9,19 +9,6 @@ on:
 
 jobs:
   # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
-  get_test_scripts:
-    runs-on: ubuntu-latest
-    outputs:
-      script: ${{ steps.get-scripts.outputs.script }}
-    steps:
-    - uses: actions/checkout@v3
-    - id: get-scripts
-        # we cd into tests so that the output of this is just e.g.,
-        # "test_tools.py", not "tests/test_tools.py", because we want to run
-        # pytest from inside the tests/ dir for coverage to work properly (note
-        # this is different than for the notebooks)
-      run: "echo \"script=$(cd tests/ && ls test*py | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
-        \ >> $GITHUB_OUTPUT\n"
   get_notebooks:
     runs-on: ubuntu-latest
     outputs:
@@ -50,11 +37,8 @@ jobs:
     - name: Setup FFmpeg
       uses: FedericoCarboni/setup-ffmpeg@v2
     - name: Install dependencies
-      # nbclient 0.5.5 is the first version that includes jupyter execute
       run: |
-        pip install --upgrade --upgrade-strategy eager .
-        pip install jupyter ipywidgets
-        pip install "nbclient>=0.5.5"
+        pip install --upgrade --upgrade-strategy eager .[dev,nb]
     - name: Download TID2013 dataset
       if: ${{ matrix.notebook == 'examples/04_Perceptual_distance.ipynb' }}
       run: |
@@ -89,11 +73,9 @@ jobs:
         papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd examples/
   tests:
     runs-on: ubuntu-latest
-    needs: [get_test_scripts]
     strategy:
       matrix:
         python-version: [3.7, 3.8, 3.9, '3.10']
-        test_script: ${{fromJson(needs.get_test_scripts.outputs.script)}}
       fail-fast: false
     name: Run pytest scripts
     steps:
@@ -109,30 +91,14 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .
-        pip install --upgrade --upgrade-strategy eager pytest-cov
+        pip install --upgrade --upgrade-strategy eager .[dev]
 
     - name: Run tests with pytest
-      if: ${{ matrix.test_script == 'test_display.py' }}
-        # we have two cores on the linux github action runners:
-        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
-      run: |
-        pip install --upgrade --upgrade-strategy eager pytest-xdist
-        # for some reason, need to run this in the tests/ dir in order to get
-        # coverage to work (I couldn't get an analogous .coveragerc working in
-        # the root directory)
-        cd tests/ && pytest -n 2 --cov=plenoptic ${{ matrix.test_script }}
-        # generate the xml file and move it to root dir for codecov
-        coverage xml -o ../coverage.xml
-    - name: Run tests with pytest
-      if: ${{ matrix.test_script != 'test_display.py' }}
-        # only test_display should parallelize across the cores, the others get
-        # slowed down by it
       run: |
         # for some reason, need to run this in the tests/ dir in order to get
         # coverage to work (I couldn't get an analogous .coveragerc working in
         # the root directory)
-        cd tests/ && pytest --cov=plenoptic ${{ matrix.test_script }}
+        cd tests/ && pytest
         # generate the xml file and move it to root dir for codecov
         coverage xml -o ../coverage.xml
     - name: Upload coverage to Codecov
