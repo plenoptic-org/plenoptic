@@ -412,7 +412,3 @@ def _find_min_int(vals):
     except ValueError:
         min_int = max(flat_vals) + 1
     return min_int
-
-
-if __name__ == "__main__":
-    make_synthetic_stimuli()
