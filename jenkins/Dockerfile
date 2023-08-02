@@ -13,6 +13,3 @@ RUN apt-get update && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/*
-
-COPY requirements.txt /tmp/
-RUN pip3 install --upgrade --upgrade-strategy eager -r /tmp/requirements.txt
