@@ -92,15 +92,9 @@ jobs:
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
         pip install --upgrade --upgrade-strategy eager .[dev]
-
     - name: Run tests with pytest
       run: |
-        # for some reason, need to run this in the tests/ dir in order to get
-        # coverage to work (I couldn't get an analogous .coveragerc working in
-        # the root directory)
-        cd tests/ && pytest
-        # generate the xml file and move it to root dir for codecov
-        coverage xml -o ../coverage.xml
+        pytest -n auto --cov-report xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@858dd794fbb81941b6d60b0dca860878cba60fa9 # v3.1.1
   all_tutorials_in_docs:
