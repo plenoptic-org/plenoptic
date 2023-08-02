@@ -28,6 +28,10 @@ dependencies = [
     "einops>=0.3.0",
 ]
 
+[build-system]
+requires = ["setuptools", "setuptools-scm[toml]"]
+build-backend = "setuptools.build_meta"
+
 [project.optional-dependencies]
 docs = [
      'sphinx',
