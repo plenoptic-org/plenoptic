@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('./tutorials/'))
 
 project = 'plenoptic'
 copyright = '2019, Lab for Computational Vision'
-author = 'Lab for Computational Vision'
+author = 'Plenoptic authors'
 
 # The short X.Y version
 version = ''
