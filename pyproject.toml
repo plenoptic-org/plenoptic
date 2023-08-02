@@ -19,11 +19,8 @@ dependencies = [
     "pyrtools>=1.0.1",
     "scipy>=1.0",
     "matplotlib>=3.1",
-    "torchvision>=0.3",
     "tqdm>=4.29",
-    "requests>=2.21",
     "imageio>=2.5",
-    "pytest>=5.1.2",
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
 ]
@@ -44,9 +41,11 @@ docs = [
 ]
 
 dev = [
-    'pytest',
+    "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
+    "torchvision>=0.3",
+    "requests>=2.21",
 ]
 
 nb = [
