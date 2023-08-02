@@ -1,0 +1,69 @@
+[project]
+name = "plenoptic"
+dynamic = ["version"]
+authors = [{name="Plenoptic authors"}]
+description = "Python library for model-based stimulus synthesis."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+]
+keywords = ['neuroscience', 'pytorch', 'visual information processing', 'machine learning', 'explainability', 'computational models']
+
+dependencies = [
+    "numpy>=1.1",
+    "torch>=1.8,!=1.12.0",
+    "pyrtools>=1.0.1",
+    "scipy>=1.0",
+    "matplotlib>=3.1",
+    "torchvision>=0.3",
+    "tqdm>=4.29",
+    "requests>=2.21",
+    "imageio>=2.5",
+    "pytest>=5.1.2",
+    "scikit-image>=0.15.0",
+    "einops>=0.3.0",
+]
+
+[project.optional-dependencies]
+docs = [
+     'sphinx',
+     'sphinx_rtd_theme',
+     'numpydoc',
+     'nbsphinx',
+     'nbsphinx_link',
+     'sphinxcontrib-apidoc',
+     'sphinx-autodoc-typehints',
+]
+
+dev = [
+    'pytest',
+    'pytest-cov',
+    'pytest-xdist',
+]
+
+nb = [
+    'jupyter',
+    'ipywidgets',
+    'nbclient>=0.5.5',
+]
+
+[project.urls]
+"Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
+"Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
+"Download" = "https://zenodo.org/record/3995056"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+write_to = "src/plenoptic/version.py"
+version_scheme = 'python-simplified-semver'
+local_scheme = 'no-local-version'
+
+[tool.pytest.ini_options]
+addopts = "--cov=plenoptic -n auto"
+testpaths = ["tests"]
