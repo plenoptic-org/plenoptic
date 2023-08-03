@@ -9,6 +9,7 @@ RUN apt-get update && \
       python3-venv \
       python3-yaml \
       ffmpeg \
+      git \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
