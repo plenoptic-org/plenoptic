@@ -312,8 +312,6 @@ class SteerablePyramidFreq(nn.Module):
         pyr_coeffs = OrderedDict()
         if scales is None:
             scales = self.scales
-        if not isinstance(scales, list):
-            raise Exception("scales must be a list or None!")
         scale_ints = [s for s in scales if isinstance(s, int)]
         if len(scale_ints) != 0:
             assert (max(scale_ints) < self.num_scales) and (
