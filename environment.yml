@@ -1,0 +1,15 @@
+# this environment is intended for user with binderhub. the preferred way to
+# install plenoptic itself is via pip.
+name: plenoptic_binder
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - ffmpeg
+  - pip
+  - python
+  - ipywidgets
+  - pytorch
+  - torchvision
+  - pip:
+      - .
