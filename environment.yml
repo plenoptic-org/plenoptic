@@ -7,7 +7,7 @@ channels:
 dependencies:
   - ffmpeg
   - pip
-  - python
+  - python=3.10
   - ipywidgets
   - pytorch
   - torchvision
