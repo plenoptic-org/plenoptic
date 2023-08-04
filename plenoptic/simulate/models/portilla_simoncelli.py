@@ -32,7 +32,8 @@ class PortillaSimoncelli(nn.Module):
         that are labelled correlations were actually covariance matrices (i.e. not properly
         scaled).  In order to match the original statistics use_true_correlations must be
         set to false. But in order to synthesize metamers from this model use_true_correlations
-        must be set to true (default).
+        must be set to true (note that, in this case, the diagonal entries are
+        not rescaled, i.e., they're the covariances).
 
     Attributes
     ----------
