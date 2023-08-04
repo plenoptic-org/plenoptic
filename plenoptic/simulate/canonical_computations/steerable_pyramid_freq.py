@@ -279,7 +279,7 @@ class SteerablePyramidFreq(nn.Module):
         self._anglemasks_recon = angles_recon
         return self
 
-    def forward(self, x, scales=[]):
+    def forward(self, x, scales=None):
         r"""Generate the steerable pyramid coefficients for an image
 
         Parameters
@@ -289,14 +289,13 @@ class SteerablePyramidFreq(nn.Module):
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width).
         scales : list, optional
-            Which scales to include in the returned representation. If
-            an empty list (the default), we include all
-            scales. Otherwise, can contain subset of values present in
-            this model's ``scales`` attribute (ints from 0 up to
+            Which scales to include in the returned representation. If None, we
+            include all scales. Otherwise, can contain subset of values present
+            in this model's ``scales`` attribute (ints from 0 up to
             ``self.num_scales-1`` and the strs 'residual_highpass' and
-            'residual_lowpass'. Can contain a single value or multiple
-            values. If it's an int, we include all orientations from
-            that scale. Order within the list does not matter.
+            'residual_lowpass'. Can contain a single value or multiple values.
+            If it's an int, we include all orientations from that scale. Order
+            within the list does not matter.
 
         Returns
         -------
@@ -311,10 +310,10 @@ class SteerablePyramidFreq(nn.Module):
 
         """
         pyr_coeffs = OrderedDict()
-        if not isinstance(scales, list) and not isinstance(scales, tuple):
-            raise Exception("scales must be a list!")
-        if not scales:
+        if scales is None:
             scales = self.scales
+        if not isinstance(scales, list):
+            raise Exception("scales must be a list or None!")
         scale_ints = [s for s in scales if isinstance(s, int)]
         if len(scale_ints) != 0:
             assert (max(scale_ints) < self.num_scales) and (
