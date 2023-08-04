@@ -32,7 +32,8 @@ build-backend = "setuptools.build_meta"
 [project.optional-dependencies]
 docs = [
      'sphinx',
-     'sphinx_rtd_theme',
+     # fix sphinx 7 incompatibility issue
+     'sphinx_rtd_theme>=1.3.0rc1',
      'numpydoc',
      'nbsphinx',
      'nbsphinx_link',
