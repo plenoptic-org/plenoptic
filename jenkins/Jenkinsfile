@@ -28,8 +28,6 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-      ls
-      pwd
 	  pip3 install -U .[dev]
 	  python3 -m pytest
 	'''
@@ -56,8 +54,6 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-      ls
-      pwd
 	  pip3 install .[dev]
 	  python3 -m pytest
 	'''
