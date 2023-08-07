@@ -28,8 +28,8 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-      pip3 --version
-	  pip3 install -U .[dev] --verbose
+      pip install -U pip
+	  pip install -U .[dev] --verbose
 	  python3 -m pytest
 	'''
 	sh 'python3 -c "import torch; torch.cuda.current_device()"'
@@ -55,8 +55,8 @@ pipeline {
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-      pip3 --version
-	  pip3 install .[dev] --verbose
+      pip install -U pip
+	  pip install .[dev]
 	  python3 -m pytest
 	'''
 	sh 'python3 -c "import torch; torch.cuda.current_device()"'
