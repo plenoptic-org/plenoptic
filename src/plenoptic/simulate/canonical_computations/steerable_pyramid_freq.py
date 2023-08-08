@@ -707,13 +707,13 @@ class SteerablePyramidFreq(nn.Module):
                 if s not in pyr_coeffs.keys():
                     raise Exception(f"scale {s} not in pyr_coeffs! pyr_coeffs must include"
                                     " all scales, so make sure forward() was called with arg "
-                                    "scales=[]")
+                                    "scales=None")
             else:
                 for b in range(self.num_orientations):
                     if (s, b) not in pyr_coeffs.keys():
                         raise Exception(f"scale {s} not in pyr_coeffs! pyr_coeffs must "
                                         "include all scales, so make sure forward() was called "
-                                        "with arg scales=[]")
+                                        "with arg scales=None")
 
         if twidth <= 0:
             warnings.warn("twidth must be positive. Setting to 1.")
