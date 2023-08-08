@@ -25,12 +25,13 @@ pipeline {
 	OMP_NUM_THREADS = 4
       }
       steps {
-	sh 'python3 -c "import torch; torch.cuda.current_device()"'
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-	  pip3 install -U .
-	  python3 -m pytest tests
+      pip install -U pip
+	  pip install -U .[dev] --verbose
+      python3 -c "import torch; print(torch.cuda.current_device())"
+	  python3 -m pytest
 	'''
       }
     }
@@ -51,12 +52,13 @@ pipeline {
 	OMP_NUM_THREADS = 4
       }
       steps {
-	sh 'python3 -c "import torch; torch.cuda.current_device()"'
 	sh 'python3 -m venv --system-site-packages $HOME'
 	sh '''#!/bin/bash -ex
 	  source $HOME/bin/activate
-	  pip3 install .
-	  python3 -m pytest tests
+      pip install -U pip
+	  pip install .[dev]
+      python3 -c "import torch; print(torch.cuda.current_device())"
+	  python3 -m pytest
 	'''
       }
     }
