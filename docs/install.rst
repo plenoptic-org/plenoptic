@@ -44,8 +44,9 @@ with a random string, ``matplotlib`` will tell you the available choices.
 Jupyter
 -------
 
-If you wish to locally run the notebooks, you will need to install ``jupyter``
-and ``ipywidgets`` (you can also run them in the cloud using `Binder
+If you wish to locally run the notebooks, you will need to install ``jupyter``,
+``ipywidgets``, and (for some of the notebooks) ``torchvision`` (you can also
+run them in the cloud using `Binder
 <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_).
 There are two main ways of getting a local `jupyter` install` working with this
 package:
@@ -55,7 +56,7 @@ package:
    the following::
 
    $ conda activate plenoptic
-   $ conda install -c conda-forge jupyterlab ipywidgets
+   $ conda install -c conda-forge jupyterlab ipywidgets torchvision
 
    This is easy but, if you have multiple conda environments and want to use
    Jupyter notebooks in each of them, it will take up a lot of space.
@@ -70,8 +71,8 @@ package:
    $ # install jupyter lab and nb_conda_kernels in your base environment
    $ conda install -c conda-forge jupyterlab ipywidgets
    $ conda install nb_conda_kernels
-   $ # install ipykernel in the plenoptic environment
-   $ conda install -n plenoptic ipykernel
+   $ # install ipykernel and torchvision in the plenoptic environment
+   $ conda install -n plenoptic ipykernel torchvision
 
    This is a bit more complicated, but means you only have one installation of
    jupyter lab on your machine.

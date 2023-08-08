@@ -19,8 +19,8 @@ sys.path.insert(0, os.path.abspath('./tutorials/'))
 # -- Project information -----------------------------------------------------
 
 project = 'plenoptic'
-copyright = '2019, Lab for Computational Vision'
-author = 'Lab for Computational Vision'
+copyright = '2019, Plenoptic authors'
+author = 'Plenoptic authors'
 
 # The short X.Y version
 version = ''
@@ -140,7 +140,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'plenoptic.tex', 'plenoptic Documentation',
-     'Lab for Computational Vision', 'manual'),
+     'Plenoptic authors', 'manual'),
 ]
 
 
