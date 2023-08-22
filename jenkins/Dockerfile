@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
+FROM nvidia/cuda:12.2.0-devel-ubuntu20.04
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -9,10 +9,8 @@ RUN apt-get update && \
       python3-venv \
       python3-yaml \
       ffmpeg \
+      git \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/*
-
-COPY requirements.txt /tmp/
-RUN pip3 install --upgrade --upgrade-strategy eager -r /tmp/requirements.txt
