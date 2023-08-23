@@ -37,9 +37,8 @@ class Geodesic(OptimizedSynthesis):
         the number of steps (i.e., transitions) in the trajectory between the
         two anchor points.
     initial_sequence
-        initialize the geodesic with pixel linear interpolation
-        (``'straight'``), or with a brownian bridge between the two anchors
-        (``'bridge'``).
+        initialize the geodesic with user-supplied sequence of shape
+        [n_steps+1, C, H, W] or pixel linear interpolation (``None``).
     range_penalty_lambda
         strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
@@ -97,7 +96,7 @@ class Geodesic(OptimizedSynthesis):
     """
     def __init__(self, image_a: Tensor, image_b: Tensor,
                  model: torch.nn.Module, n_steps: int = 10,
-                 initial_sequence: Literal['straight', 'bridge'] = 'straight',
+                 initial_sequence: Optional[Tensor] = None,
                  range_penalty_lambda: float = .1,
                  allowed_range: Tuple[float, float] = (0, 1)):
         super().__init__(range_penalty_lambda, allowed_range)
@@ -115,24 +114,41 @@ class Geodesic(OptimizedSynthesis):
         self._dev_from_line = []
         self._step_energy = []
 
-    def _initialize(self, initial_sequence, start, stop, n_steps):
+    def _initialize(self, initial_sequence: Optional[Tensor],
+                    start: Tensor, stop: Tensor, n_steps: int):
         """initialize the geodesic
 
         Parameters
         ----------
         initial_sequence
-            initialize the geodesic with pixel linear interpolation
-            (``'straight'``), or with a brownian bridge between the two anchors
-            (``'bridge'``).
+            initialize the geodesic with user-supplied sequence of shape
+            [n_steps+1, C, H, W] or pixel linear interpolation (``None``).
+        start, stop
+            Start and stop anchor points of the geodesic, of shape [1, C, H, W].
+        n_steps
+            the number of steps (i.e., transitions) in the trajectory between the
+            two anchor points.
+
         """
-        if initial_sequence == 'bridge':
-            geodesic = sample_brownian_bridge(start, stop, n_steps)
-        elif initial_sequence == 'straight':
+        if initial_sequence is None:
             geodesic = make_straight_line(start, stop, n_steps)
         else:
-            raise ValueError(f"Don't know how to handle initial_sequence={initial_sequence}")
+            if initial_sequence.ndimension() < 4 or initial_sequence.shape[0] != n_steps+1:
+                raise ValueError("initial_sequence must be torch.Size([n_steps+1"
+                                 ", n_channels, im_height, im_width]) but got "
+                                 f"{initial_sequence.size()}")
+            if initial_sequence.size()[1:] != start.size()[1:] or initial_sequence.size()[1:] != stop.size()[1:]:
+                raise ValueError("initial_sequence, image_a, and image_b must have same"
+                                 " number of channels, height and width, but got"
+                                 f"initial_sequence: {initial_sequence.size()}, "
+                                 f"image_a: {start.size()}, image_b: {stop.size()}.")
+            if not torch.equal(initial_sequence[0], start[0]):
+                raise ValueError("First frame of initial_sequence must be the same as image_a!")
+            if not torch.equal(initial_sequence[-1], stop[0]):
+                raise ValueError("Last frame of initial_sequence must be the same as image_b!")
+            geodesic = initial_sequence.clone().detach()
+            geodesic = geodesic.to(dtype=start.dtype, device=start.device)
         _, geodesic, _ = torch.split(geodesic, [1, n_steps-1, 1])
-        self._initial_sequence = initial_sequence
         geodesic.requires_grad_()
         self._geodesic = geodesic
 
@@ -438,7 +454,7 @@ class Geodesic(OptimizedSynthesis):
 
         This should be called by an initialized ``Geodesic`` object -- we will
         ensure that ``image_a``, ``image_b``, ``model``, ``n_steps``,
-        ``initial_sequence``, ``range_penalty_lambda``, ``allowed_range``, and
+        ``range_penalty_lambda``, ``allowed_range``, and
         ``pixelfade`` are all identical.
 
         Note this operates in place and so doesn't return anything.
@@ -470,7 +486,7 @@ class Geodesic(OptimizedSynthesis):
 
         """
         check_attributes = ['_image_a', '_image_b', 'n_steps',
-                            '_initial_sequence', '_range_penalty_lambda',
+                            '_range_penalty_lambda',
                             '_allowed_range', 'pixelfade']
         check_loss_functions = []
         new_loss = self.objective_function(self.pixelfade)
