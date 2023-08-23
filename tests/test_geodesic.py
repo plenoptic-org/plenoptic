@@ -121,13 +121,12 @@ class TestSequences(object):
 class TestGeodesic(object):
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-    @pytest.mark.parametrize("init", ["straight", "bridge"])
     @pytest.mark.parametrize("optimizer", [None, "SGD"])
     @pytest.mark.parametrize("n_steps", [5, 10])
-    def test_texture(self, einstein_img_small, model, init, optimizer, n_steps):
+    def test_texture(self, einstein_img_small, model, optimizer, n_steps):
         sequence = po.tools.translation_sequence(einstein_img_small, n_steps)
         moog = po.synth.Geodesic(sequence[:1], sequence[-1:],
-                                 model, n_steps, init)
+                                 model, n_steps)
         if optimizer == "SGD":
             optimizer = torch.optim.SGD([moog._geodesic], lr=.01)
         moog.synthesize(max_iter=5, optimizer=optimizer)
@@ -138,7 +137,7 @@ class TestGeodesic(object):
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_endpoints_dont_change(self, einstein_small_seq, model):
         moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:],
-                                 model, 5, 'straight')
+                                 model, 5)
         moog.synthesize(max_iter=5)
         assert torch.equal(moog.geodesic[0], einstein_small_seq[0]), "Somehow first endpoint changed!"
         assert torch.equal(moog.geodesic[-1], einstein_small_seq[-1]), "Somehow last endpoint changed!"
@@ -151,9 +150,8 @@ class TestGeodesic(object):
         img_a = einstein_small_seq[:1]
         img_b = einstein_small_seq[-1:]
         n_steps = 3
-        init = 'straight'
         range_penalty = 0
-        moog = po.synth.Geodesic(img_a, img_b, model, n_steps, init, range_penalty_lambda=range_penalty)
+        moog = po.synth.Geodesic(img_a, img_b, model, n_steps, range_penalty_lambda=range_penalty)
         moog.synthesize(max_iter=4)
         moog.save(op.join(tmp_path, 'test_geodesic_save_load.pt'))
         if fail:
@@ -173,13 +171,13 @@ class TestGeodesic(object):
             elif fail == 'range_penalty':
                 range_penalty = .5
                 expectation = pytest.raises(ValueError, match='Saved and initialized range_penalty_lambda are different')
-            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps, init,
+            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps,
                                           range_penalty_lambda=range_penalty)
             with expectation:
                 moog_copy.load(op.join(tmp_path, "test_geodesic_save_load.pt"),
                                map_location=DEVICE)
         else:
-            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps, init,
+            moog_copy = po.synth.Geodesic(img_a, img_b, model, n_steps,
                                           range_penalty_lambda=range_penalty)
             moog_copy.load(op.join(tmp_path, "test_geodesic_save_load.pt"),
                          map_location=DEVICE)
@@ -302,7 +300,6 @@ class TestGeodesic(object):
         moog.synthesize(max_iter=10, stop_criterion=.06, stop_iters_to_check=1)
         assert len(moog.pixel_change_norm) == 6, "Didn't stop when hit criterion! (or optimization changed)"
 
-        ## ADD TESTS for setting initialization directly, remove bridge
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     @pytest.mark.parametrize('init', [None, 'succeed', 'fail-start', 'fail-stop',
                                       'fail-len', 'fail-shape', 'fail-dim'])
