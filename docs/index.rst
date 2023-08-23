@@ -9,9 +9,6 @@
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
 
-.. |tutorials| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg
-		         :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials
-
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
             :target: https://doi.org/10.5281/zenodo.3995057
 
@@ -27,7 +24,7 @@
 plenoptic
 *********
 
-|pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo| |binder|
+|pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |binder|
 
 
 .. image:: images/plenoptic_logo_wide.svg
