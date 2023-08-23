@@ -120,7 +120,6 @@ class Metamer(OptimizedSynthesis):
             # rescale metamer to lie within the interval
             # self.allowed_range
             metamer = signal.rescale(metamer, *self.allowed_range)
-            metamer.requires_grad_()
         else:
             if initial_image.ndimension() < 4:
                 raise ValueError("initial_image must be torch.Size([n_batch"
@@ -130,7 +129,7 @@ class Metamer(OptimizedSynthesis):
                 raise ValueError("initial_image and image must be same size!")
             metamer = initial_image.clone().detach()
             metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
-            metamer.requires_grad_()
+        metamer.requires_grad_()
         self._metamer = metamer
 
     def synthesize(self, max_iter: int = 100,
