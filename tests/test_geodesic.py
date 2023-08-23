@@ -145,7 +145,7 @@ class TestGeodesic(object):
         assert not torch.equal(moog.pixelfade[1:-1], moog.geodesic[1:-1]), "Somehow middle of geodesic didn't changed!"
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-    @pytest.mark.parametrize('fail', [False, 'img_a', 'img_b', 'model', 'n_steps', 'init',
+    @pytest.mark.parametrize('fail', [False, 'img_a', 'img_b', 'model', 'n_steps',
                                       'range_penalty'])
     def test_save_load(self, einstein_small_seq, model, fail, tmp_path):
         img_a = einstein_small_seq[:1]
@@ -170,9 +170,6 @@ class TestGeodesic(object):
             elif fail == 'n_steps':
                 n_steps = 5
                 expectation = pytest.raises(ValueError, match='Saved and initialized n_steps are different')
-            elif fail == 'init':
-                init = 'bridge'
-                expectation = pytest.raises(ValueError, match='Saved and initialized initial_sequence are different')
             elif fail == 'range_penalty':
                 range_penalty = .5
                 expectation = pytest.raises(ValueError, match='Saved and initialized range_penalty_lambda are different')
@@ -304,3 +301,36 @@ class TestGeodesic(object):
                                  model, 5)
         moog.synthesize(max_iter=10, stop_criterion=.06, stop_iters_to_check=1)
         assert len(moog.pixel_change_norm) == 6, "Didn't stop when hit criterion! (or optimization changed)"
+
+        ## ADD TESTS for setting initialization directly, remove bridge
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize('init', [None, 'succeed', 'fail-start', 'fail-stop',
+                                      'fail-len', 'fail-shape', 'fail-dim'])
+    def test_initialization(self, einstein_small_seq, model, init):
+        expectation = does_not_raise()
+        if init == 'succeed':
+            init = po.tools.make_straight_line(einstein_small_seq[:1],
+                                               einstein_small_seq[-1:], 5)
+        elif init == 'fail-start':
+            init = po.tools.make_straight_line(einstein_small_seq[1:2],
+                                               einstein_small_seq[-1:], 5)
+            expectation = pytest.raises(ValueError, match='First frame of initial_sequence')
+        elif init == 'fail-stop':
+            init = po.tools.make_straight_line(einstein_small_seq[:1],
+                                               einstein_small_seq[-2:-1], 5)
+            expectation = pytest.raises(ValueError, match='Last frame of initial_sequence')
+        elif init == 'fail-len':
+            init = po.tools.make_straight_line(einstein_small_seq[:1],
+                                               einstein_small_seq[-1:], 6)
+            expectation = pytest.raises(ValueError, match='initial_sequence must be torch.Size')
+        elif init == 'fail-shape':
+            init = po.tools.make_straight_line(einstein_small_seq[:1],
+                                               einstein_small_seq[-1:], 5).repeat(1,3,1,1)
+            expectation = pytest.raises(ValueError, match='initial_sequence, image_a, and image_b')
+        elif init == 'fail-dim':
+            init = po.tools.make_straight_line(einstein_small_seq[:1],
+                                               einstein_small_seq[-1:], 5).unsqueeze(0)
+            expectation = pytest.raises(ValueError, match='initial_sequence must be torch.Size')
+        with expectation:
+            moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:],
+                                     model, 5, initial_sequence=init)
