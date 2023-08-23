@@ -474,8 +474,10 @@ def unwrap(p: Tensor, dim: int = -1) -> Tensor:
     # https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     # for why pad is constructed this way
     pad = p.ndim * [0, 0]
-    if dim >= p.ndim or dim <= -p.ndim:
-        raise ValueError("dim must lie within [-p.ndim-1, p.ndim-1], but got "
+    # the check if dim!=-1 here is because otherwise we fail when dim=-1 and
+    # p.ndim=1, but the computation works regardless
+    if dim >= p.ndim or dim <= -p.ndim and dim != -1:
+        raise ValueError("dim must lie within [-(p.ndim-1), p.ndim-1], but got "
                          f"dim={dim} and p.ndim={p.ndim} instead!")
     elif dim >= 0:
         idx = 2 * (p.ndim - dim - 1)
