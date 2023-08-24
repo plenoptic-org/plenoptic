@@ -110,6 +110,9 @@ class TestSignal(object):
             angles = angles.view(*target_shape)
             if not np.allclose(po.tools.unwrap(angles, target_dim).squeeze(), target_angles):
                 raise ValueError(f"Unwrap failed for ndim: {ndim} and target_dim: {target_dim}")
+        for fail_dim in list(range(ndim, 2*ndim)) + list(range(-2*ndim, -ndim)):
+            with pytest.raises(ValueError, match="dim must lie within"):
+                po.tools.unwrap(angles, fail_dim)
 
 
 class TestStats(object):
