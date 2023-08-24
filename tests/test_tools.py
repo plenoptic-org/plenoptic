@@ -104,7 +104,7 @@ class TestSignal(object):
         target_angles = np.unwrap(angles)
         while angles.ndim < ndim:
             angles = angles.unsqueeze(0)
-        for target_dim in range(ndim):
+        for target_dim in list(range(ndim)) + list(range(-ndim, 0)):
             target_shape = [1] * ndim
             target_shape[target_dim] = 11
             angles = angles.view(*target_shape)
