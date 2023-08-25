@@ -243,7 +243,7 @@ def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
 
 def steer(
     basis: Tensor,
-    angle: Union[np.ndarray, Tensor, int],
+    angle: Union[np.ndarray, Tensor, float],
     harmonics: Optional[List[int]] = None,
     steermtx: Optional[Union[Tensor, np.ndarray]] = None,
     return_weights: bool = False,

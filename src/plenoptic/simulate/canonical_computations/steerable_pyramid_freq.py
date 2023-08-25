@@ -6,11 +6,14 @@ from ...tools.signal import interpolate1d, raised_cosine, steer
 import torch
 import torch.fft as fft
 import torch.nn as nn
+from torch import Tensor
 from einops import rearrange
 from scipy.special import factorial
-
+from typing import Tuple, Union, Literal, List, Optional
 
 complex_types = [torch.cdouble, torch.cfloat]
+SCALES_TYPE = List[Union[int, Literal["residual_lowpass", "residual_highpass"]]]
+KEYS_TYPE = Union[Tuple[int, int], Literal["residual_lowpass", "residual_highpass"]]
 
 
 class SteerablePyramidFreq(nn.Module):
@@ -38,30 +41,34 @@ class SteerablePyramidFreq(nn.Module):
         The height of the pyramid. If 'auto', will automatically determine
         based on the size of `image`.
     order : `int`.
-        The Gaussian derivative order used for the steerable filters, in [1, 15].
-        Note that to achieve steerability the minimum number of orientation is `order` + 1,
-        and is used here. To get more orientations at the same order, use the method `steer_coeffs`
+        The Gaussian derivative order used for the steerable filters, in [1,
+        15]. Note that to achieve steerability the minimum number of
+        orientation is `order` + 1, and is used here. To get more orientations
+        at the same order, use the method `steer_coeffs`
     twidth : `int`
-        The width of the transition region of the radial lowpass function, in octaves
+        The width of the transition region of the radial lowpass function, in
+        octaves
     is_complex : `bool`
-        Whether the pyramid coefficients should be complex or not. If True, the real and imaginary
-        parts correspond to a pair of even and odd symmetric filters. If False, the coefficients
-        only include the real part / even symmetric filter.
+        Whether the pyramid coefficients should be complex or not. If True, the
+        real and imaginary parts correspond to a pair of even and odd symmetric
+        filters. If False, the coefficients only include the real part / even
     downsample: `bool`
-        Whether to downsample each scale in the pyramid or keep the output pyramid coefficients
-        in fixed bands of size imshapeximshape. When downsample is False, the forward method returns a tensor.
+        Whether to downsample each scale in the pyramid or keep the output
+        pyramid coefficients in fixed bands of size imshapeximshape. When
+        downsample is False, the forward method returns a tensor.
     tight_frame: `bool` default: False
-        Whether the pyramid obeys the generalized parseval theorem or not (i.e. is a tight frame).
-        If True, the energy of the pyr_coeffs = energy of the image. If not this is not true.
-        In order to match the matlabPyrTools or pyrtools pyramids, this must be set to False
+        Whether the pyramid obeys the generalized parseval theorem or not (i.e.
+        is a tight frame). If True, the energy of the pyr_coeffs = energy of
+        the image. If not this is not true. In order to match the
+        matlabPyrTools or pyrtools pyramids, this must be set to False
 
     Attributes
     ----------
     image_shape : `list or tuple`
         shape of input image
     pyr_size : `dict`
-        Dictionary containing the sizes of the pyramid coefficients. Keys are `(level, band)`
-        tuples and values are tuples.
+        Dictionary containing the sizes of the pyramid coefficients. Keys are
+        `(level, band)` tuples and values are tuples.
     fft_norm : `str`
         The way the ffts are normalized, see pytorch documentation for more details.
     is_complex : `bool`
@@ -69,24 +76,24 @@ class SteerablePyramidFreq(nn.Module):
 
     References
     ----------
-    .. [1] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible Architecture for
-       Multi-Scale Derivative Computation," Second Int'l Conf on Image Processing, Washington, DC,
-       Oct 1995.
-    .. [2] A Karasaridis and E P Simoncelli, "A Filter Design Technique for Steerable Pyramid
-       Image Transforms", ICASSP, Atlanta, GA, May 1996.
-    .. _webpage: https://www.cns.nyu.edu/~eero/steerpyr/
+    .. [1] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
+       Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
+       on Image Processing, Washington, DC, Oct 1995.
+    .. [2] A Karasaridis and E P Simoncelli, "A Filter Design Technique for
+       Steerable Pyramid Image Transforms", ICASSP, Atlanta, GA, May 1996. ..
+       _webpage: https://www.cns.nyu.edu/~eero/steerpyr/
 
     """
 
     def __init__(
         self,
-        image_shape,
-        height="auto",
-        order=3,
-        twidth=1,
-        is_complex=False,
-        downsample=True,
-        tight_frame=False,
+        image_shape: Tuple[int, int],
+        height: Union[Literal["auto"], int] = "auto",
+        order: int = 3,
+        twidth: int = 1,
+        is_complex: bool = False,
+        downsample: bool = True,
+        tight_frame: bool = False,
     ):
 
         super().__init__()
@@ -299,16 +306,20 @@ class SteerablePyramidFreq(nn.Module):
         self._anglemasks_recon = angles_recon
         return self
 
-    def forward(self, x, scales=[]):
+    def forward(
+        self,
+        x: Tensor,
+        scales: SCALES_TYPE = [],
+    ) -> OrderedDict:
         r"""Generate the steerable pyramid coefficients for an image
 
         Parameters
         ----------
-        x : torch.Tensor
+        x :
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width).
-        scales : list, optional
+        scales :
             Which scales to include in the returned representation. If
             an empty list (the default), we include all
             scales. Otherwise, can contain subset of values present in
@@ -320,14 +331,8 @@ class SteerablePyramidFreq(nn.Module):
 
         Returns
         -------
-        representation: torch.Tensor or OrderedDict
-            if the not downsampled version is used, representation is returned
-            as a torch tensor with each band as a channel in BxCxHxW. The order
-            of the channels is the same order as the keys in the pyr_coeffs dictonary.
-            If the pyramid is complex, the channels are ordered such that for each band,
-            the real channel comes first, followed by the imaginary channel.
-
-            If downsample is true, representation is an OrderedDict of the coefficients.
+        representation:
+            Pyramid coefficients
 
         """
         pyr_coeffs = OrderedDict()
@@ -435,45 +440,59 @@ class SteerablePyramidFreq(nn.Module):
         return pyr_coeffs
 
     @staticmethod
-    def convert_pyr_to_tensor(pyr_coeffs, split_complex=False):
-        r"""
-        Function that takes a torch pyramid (without downsampling) dictonary
-        and converts the output into a single tensor of BxCxHxW for use in an
-        nn module downstream. In the multichannel case, all bands for each channel will be
-        stacked together (i.e. if there are 2 channels and 18 bands per channel,
-        pyr_tensor[:,0:18,...] will contain the pyr responses for channel 1 and
-        pyr_tensor[:, 18:36, ...] will contain the responses for channel 2).
-        In the case of a complex, multichannel pyramid with split_complex=True,
-        the real/imaginary bands will be intereleaved so that they appear as pairs with
-        neighboring indices in the channel dimension of the tensor (Note: the residual bands are always
-        real so they will only ever have a single band even when split_complex=True.)
+    def convert_pyr_to_tensor(
+        pyr_coeffs: OrderedDict, split_complex: bool = False
+    ) -> Tuple[Tensor, Tuple[int, bool, SCALES_TYPE]]:
+        r"""Convert coefficient dictionary to a tensor.
+
+        The output tensor has shape (B,C,H,W) and is intended to be used in an
+        ``torch.nn.Module`` downstream. In the multichannel case, all bands for
+        each channel will be stacked together (i.e. if there are 2 channels and
+        18 bands per channel, pyr_tensor[:,0:18,...] will contain the pyr
+        responses for channel 1 and pyr_tensor[:, 18:36, ...] will contain the
+        responses for channel 2). In the case of a complex, multichannel
+        pyramid with split_complex=True, the real/imaginary bands will be
+        intereleaved so that they appear as pairs with neighboring indices in
+        the channel dimension of the tensor (Note: the residual bands are
+        always real so they will only ever have a single band even when
+        split_complex=True.)
+
+        This only works if ``pyr_coeffs`` was created with a pyramid with
+        ``downsample=False``
 
         Parameters
         ----------
-        pyr_coeffs: `OrderedDict`
+        pyr_coeffs:
             the pyramid coefficients
-        split_complex: `bool`
-            indicates whether the output should split complex bands into real/imag channels or keep them as a single
-            channel. This should be True if you intend to use a convolutional layer on top of the output.
+        split_complex:
+            indicates whether the output should split complex bands into
+            real/imag channels or keep them as a single channel. This should be
+            True if you intend to use a convolutional layer on top of the
+            output.
 
         Returns
         -------
-        pyr_tensor: `torch.Tensor` (BxCxHxW)
-            pyramid coefficients reshaped into tensor. The first channel will be the residual highpass and the last will be
-            the residual lowpass. Each band is then a separate channel.
-        pyr_info: `List`
-            containing the number of channels, if split_complex was used
-            in the convert_pyr_to_tensor, and the list of pyramid keys for the dictionary
+        pyr_tensor:
+            shape (B,C,H,W). pyramid coefficients reshaped into
+            tensor. The first channel will be the residual highpass and the
+            last will be the residual lowpass. Each band is then a separate
+            channel.
+        pyr_info:
+            Information required to recreate the dictionary, containing the
+            number of channels, if split_complex was used in this function
+            call, and the list of pyramid keys for the dictionary
 
+        See also
+        --------
+        convert_tensor_to_pyr:
+            The inverse function.
 
-        Note:conversion to tensor only works for pyramids without downsampling of feature maps
         """
 
         pyr_keys = tuple(pyr_coeffs.keys())
         test_band = pyr_coeffs[pyr_keys[0]]
         num_channels = test_band.size(1)
         coeff_list = []
-        key_list = []
         for ch in range(num_channels):
             coeff_list_resid = []
             coeff_list_bands = []
@@ -509,38 +528,48 @@ class SteerablePyramidFreq(nn.Module):
         return pyr_tensor, pyr_info
 
     @staticmethod
-    def convert_tensor_to_pyr(pyr_tensor, num_channels, split_complex, pyr_keys):
-        r"""
-        Function that takes a torch pyramid coefficient tensor and converts
-        the output into the dictionary format where
+    def convert_tensor_to_pyr(
+        pyr_tensor: Tensor,
+        num_channels: int,
+        split_complex: bool,
+        pyr_keys: SCALES_TYPE,
+    ) -> OrderedDict:
+        r"""Convert pyramid coefficient tensor to dictionary format.
 
-        Parameters
-        ----------
-        pyr_tensor: `torch.Tensor` or `torch.ComplexTensor` (BxCxHxW)
-            the pyramid coefficients
-
-        num_channels: `int`
-            number of channels in the original input tensor the pyramid was created for (i.e. if the input was
-            an RGB image, this would be 3)
-        split_complex: `bool`
-            true or false, specifying whether the pyr_tensor was created with complex channels split
-            or not (if the pyramid was a complex pyramid).
-        pyr_keys: `tuple`
-            tuple containing the list of keys for the original pyramid dictionary
-
-        Note: num_channels, split_complex, and pyr_keys are elements of the ``pyr_info`` tuple returned by
-        ``convert_pyr_to_tensor``. You should always unpack the arguments for this function from that ``pyr_info`` tuple.
-        Example Usage:
+        ``num_channels``, ``split_complex``, and ``pyr_keys`` are elements of
+        the ``pyr_info`` tuple returned by ``convert_pyr_to_tensor``. You
+        should always unpack the arguments for this function from that
+        ``pyr_info`` tuple. Example Usage:
 
         .. code-block:: python
 
            pyr_tensor, pyr_info = convert_pyr_to_tensor(pyr_coeffs, split_complex=True)
            pyr_dict = convert_tensor_to_pyr(pyr_tensor, *pyr_info)
 
+        Parameters
+        ----------
+        pyr_tensor:
+            Shape (B,C,H,W). The pyramid coefficients
+        num_channels:
+            number of channels in the original input tensor the pyramid was
+            created for (i.e. if the input was an RGB image, this would be 3)
+        split_complex:
+            true or false, specifying whether the pyr_tensor was created with
+            complex channels split or not (if the pyramid was a complex
+            pyramid).
+        pyr_keys:
+            tuple containing the list of keys for the original pyramid dictionary
+
         Returns
         -------
-        pyr_coeffs: `OrderedDict`
+        pyr_coeffs:
             pyramid coefficients in dictionary format
+
+        See also
+        --------
+        convert_tensor_to_pyr:
+            The inverse function.
+
         """
 
         pyr_coeffs = OrderedDict()
@@ -570,25 +599,29 @@ class SteerablePyramidFreq(nn.Module):
 
         return pyr_coeffs
 
-    def _recon_levels_check(self, levels):
+    def _recon_levels_check(
+        self, levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]]
+    ) -> List[SCALES_TYPE]:
         r"""Check whether levels arg is valid for reconstruction and return valid version
 
-        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
-        which levels to include. This makes sure those levels are valid and gets them in the form
-        we expect for the rest of the reconstruction. If the user passes `'all'`, this constructs
-        the appropriate list (based on the values of `pyr_coeffs`).
+        When reconstructing the input image (i.e., when calling `recon_pyr()`),
+        the user specifies which levels to include. This makes sure those
+        levels are valid and gets them in the form we expect for the rest of
+        the reconstruction. If the user passes `'all'`, this constructs the
+        appropriate list (based on the values of `pyr_coeffs`).
 
         Parameters
         ----------
-        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`, or `'residual_lowpass'`}
-            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
-            (inclusive) and `'residual_highpass'` and `'residual_lowpass'` (if appropriate for the
-            pyramid). If `'all'`, returned value will contain all valid levels. Otherwise, must be
+        levels :
+            If `list` should contain some subset of integers from `0` to
+            `self.num_scales-1` (inclusive) and `'residual_highpass'` and
+            `'residual_lowpass'` (if appropriate for the pyramid). If `'all'`,
+            returned value will contain all valid levels. Otherwise, must be
             one of the valid levels.
 
         Returns
         -------
-        levels : `list`
+        levels :
             List containing the valid levels for reconstruction.
 
         """
@@ -631,7 +664,9 @@ class SteerablePyramidFreq(nn.Module):
             levels.pop(0)
         return levels
 
-    def _recon_bands_check(self, bands):
+    def _recon_bands_check(
+        self, bands: Union[int, Literal["all"], List[int]]
+    ) -> List[int]:
         """Check whether bands arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
@@ -641,16 +676,17 @@ class SteerablePyramidFreq(nn.Module):
 
         Parameters
         ----------
-        bands : `list`, `int`, or `'all'`.
+        bands :
             If list, should contain some subset of integers from `0` to
-            `self.num_orientations-1`.
-            If `'all'`, returned value will contain all valid orientations.
-            Otherwise, must be one of the valid orientations.
+            `self.num_orientations-1`. If `'all'`, returned value will contain
+            all valid orientations. Otherwise, must be one of the valid
+            orientations.
 
         Returns
         -------
-        bands: `list`
+        bands:
             List containing the valid orientations for reconstruction.
+
         """
         if isinstance(bands, str) and bands == "all":
             bands = np.arange(self.num_orientations)
@@ -664,34 +700,43 @@ class SteerablePyramidFreq(nn.Module):
             )
         return bands
 
-    def _recon_keys(self, levels, bands, max_orientations=None):
+    def _recon_keys(
+        self,
+        levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]],
+        bands: Union[int, Literal["all"], List[int]],
+        max_orientations=Optional[int],
+    ) -> List[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
 
-        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
-        some subset of the pyramid coefficients to include in the reconstruction. This function
-        takes in those specifications, checks that they're valid, and returns a list of tuples
-        that are keys into the `pyr_coeffs` dictionary.
+        When reconstructing the input image (i.e., when calling `recon_pyr()`),
+        the user specifies some subset of the pyramid coefficients to include
+        in the reconstruction. This function takes in those specifications,
+        checks that they're valid, and returns a list of tuples that are keys
+        into the `pyr_coeffs` dictionary.
 
         Parameters
         ----------
-        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`, `'residual_lowpass'`}
-            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
-            (inclusive) and `'residual_highpass'` and `'residual_lowpass'` (if appropriate for the
-            pyramid). If `'all'`, returned value will contain all valid levels. Otherwise, must be
+        levels:
+            If `list` should contain some subset of integers from `0` to
+            `self.num_scales-1` (inclusive) and `'residual_highpass'` and
+            `'residual_lowpass'` (if appropriate for the pyramid). If `'all'`,
+            returned value will contain all valid levels. Otherwise, must be
             one of the valid levels.
-        bands : `list`, `int`, or `'all'`.
-            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
-            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
-            of the valid orientations.
-        max_orientations: `None` or `int`.
-            The maximum number of orientations we allow in the reconstruction. when we determine
-            which ints are allowed for bands, we ignore all those greater than max_orientations.
+        bands:
+            If list, should contain some subset of integers from `0` to
+            `self.num_orientations-1`. If `'all'`, returned value will contain
+            all valid orientations. Otherwise, must be one of the valid
+            orientations.
+        max_orientations:
+            The maximum number of orientations we allow in the reconstruction.
+            when we determine which ints are allowed for bands, we ignore all
+            those greater than max_orientations.
 
         Returns
         -------
-        recon_keys : `list`
-            List of `tuples`, all of which are keys in `pyr_coeffs`. These are the coefficients to
-            include in the reconstruction of the image.
+        recon_keys :
+            List of `tuples`, all of which are keys in `pyr_coeffs`. These are
+            the coefficients to include in the reconstruction of the image.
 
         """
         levels = self._recon_levels_check(levels)
@@ -718,7 +763,12 @@ class SteerablePyramidFreq(nn.Module):
                 recon_keys.extend([(level, band) for band in bands])
         return recon_keys
 
-    def recon_pyr(self, pyr_coeffs, levels="all", bands="all", twidth=1):
+    def recon_pyr(
+        self,
+        pyr_coeffs: OrderedDict,
+        levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]] = "all",
+        bands: Union[int, Literal["all"], List[int]] = "all",
+    ) -> Tensor:
         """Reconstruct the image or batch of images, optionally using subset of pyramid coefficients.
 
         NOTE: in order to call this function, you need to have
@@ -728,24 +778,23 @@ class SteerablePyramidFreq(nn.Module):
 
         Parameters
         ----------
-        pyr_coeffs : `OrderedDict`
+        pyr_coeffs:
             pyramid coefficients to reconstruct from
-        levels : `list`, `int`,  or {`'all'`, `'residual_highpass'`}
-            If `list` should contain some subset of integers from `0` to `self.num_scales-1`
-            (inclusive) and `'residual_lowpass'`. If `'all'`, returned value will contain all
+        levels:
+            If `list` should contain some subset of integers from `0` to
+            `self.num_scales-1` (inclusive), `'residual_lowpass'`, and
+            `'residual_highpass'`. If `'all'`, returned value will contain all
             valid levels. Otherwise, must be one of the valid levels.
-        bands : `list`, `int`, or `'all'`.
-            If list, should contain some subset of integers from `0` to `self.num_orientations-1`.
-            If `'all'`, returned value will contain all valid orientations. Otherwise, must be one
-            of the valid orientations.
-        twidth : `int`
-            The width of the transition region of the radial lowpass function, in octaves
+        bands :
+            If list, should contain some subset of integers from `0` to
+            `self.num_orientations-1`. If `'all'`, returned value will contain
+            all valid orientations. Otherwise, must be one of the valid
+            orientations.
 
         Returns
         -------
-        recon : `torch.Tensor`
-            The reconstructed image or batch of images.
-            Output is of size BxCxHxW
+        recon:
+            The reconstructed image, of shape (B,C,H,W)
 
         """
         # For reconstruction to work, last time we called forward needed
@@ -766,10 +815,6 @@ class SteerablePyramidFreq(nn.Module):
                             "include all scales, so make sure forward() was called "
                             "with arg scales=[]"
                         )
-
-        if twidth <= 0:
-            warnings.warn("twidth must be positive. Setting to 1.")
-            twidth = 1
 
         recon_keys = self._recon_keys(levels, bands)
         scale = 0
@@ -807,25 +852,29 @@ class SteerablePyramidFreq(nn.Module):
 
         return reconstruction
 
-    def _recon_levels(self, pyr_coeffs, recon_keys, scale):
+    def _recon_levels(
+        self, pyr_coeffs: OrderedDict, recon_keys: List[KEYS_TYPE], scale: int
+    ) -> Tensor:
         """Recursive function used to build the reconstruction. Called by recon_pyr
 
         Parameters
         ----------
-        pyr_coeffs : `dict`
-            Dictionary containing the coefficients of the pyramid. Keys are `(level, band)` tuples and
-            values are 1d or 2d numpy arrays (same number of dimensions as the input image)
-        recon_keys : `list of tuples and/or strings`
+        pyr_coeffs :
+            Dictionary containing the coefficients of the pyramid. Keys are
+            `(level, band)` tuples and the strings `'residual_lowpass'` and
+            `'residual_highpass'` and values are Tensors of shape (B,C,H,W).
+        recon_keys :
             list of the keys that index into the pyr_coeffs Dictionary
-        scale : `int`
+        scale :
             current scale that is being used to build the reconstruction
             scale is incremented by 1 on each call of the function
 
         Returns
         -------
-        recondft : `torch.Tensor`
-            Current reconstruction based on the orientation band dft from the current scale
-            summed with the output of recursive call with the next scale incremented
+        recondft :
+            Current reconstruction based on the orientation band dft from the
+            current scale summed with the output of recursive call with the
+            next scale incremented
 
         """
         # base case, return the low-pass residual
@@ -888,7 +937,9 @@ class SteerablePyramidFreq(nn.Module):
         # add orientation interpolated and added images to the lowpass image
         return recondft
 
-    def steer_coeffs(self, pyr_coeffs, angles, even_phase=True):
+    def steer_coeffs(
+        self, pyr_coeffs: OrderedDict, angles: List[float], even_phase: bool = True
+    ) -> Tuple[dict, dict]:
         """Steer pyramid coefficients to the specified angles
 
         This allows you to have filters that have the Gaussian derivative order specified in
@@ -896,23 +947,24 @@ class SteerablePyramidFreq(nn.Module):
 
         Parameters
         ----------
-        pyr_coeffs : `OrderedDict`
+        pyr_coeffs :
             the pyramid coefficients to steer
-        angles : `list`
+        angles :
             list of angles (in radians) to steer the pyramid coefficients to
-        even_phase : `bool`
+        even_phase :
             specifies whether the harmonics are cosine or sine phase aligned about those positions.
 
         Returns
         -------
-        resteered_coeffs : `dict`
-            dictionary of re-steered pyramid coefficients. will have the same number of scales as
-            the original pyramid (though it will not contain the residual highpass or lowpass).
-            like `pyr_coeffs`, keys are 2-tuples of ints indexing the scale and orientation,
-            but now we're indexing `angles` instead of `self.num_orientations`.
-        resteering_weights : `dict`
-            dictionary of weights used to re-steer the pyramid coefficients. will have the same
-            keys as `resteered_coeffs`.
+        resteered_coeffs :
+            dictionary of re-steered pyramid coefficients. will have the same
+            number of scales as the original pyramid (though it will not
+            contain the residual highpass or lowpass). like `pyr_coeffs`, keys
+            are 2-tuples of ints indexing the scale and orientation, but now
+            we're indexing `angles` instead of `self.num_orientations`.
+        resteering_weights :
+            dictionary of weights used to re-steer the pyramid coefficients.
+            will have the same keys as `resteered_coeffs`.
 
         """
         assert (
