@@ -704,7 +704,7 @@ class SteerablePyramidFreq(nn.Module):
         self,
         levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]],
         bands: Union[int, Literal["all"], List[int]],
-        max_orientations=Optional[int],
+        max_orientations: Optional[int] = None,
     ) -> List[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
 
