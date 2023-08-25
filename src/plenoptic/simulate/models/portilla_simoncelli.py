@@ -9,7 +9,11 @@ import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
 from ...tools.validate import validate_input
-from typing import Tuple
+from typing import Tuple, List, Literal, Union
+
+SCALES_TYPE = Union[
+    int, Literal["pixel_statistics", "residual_lowpass", "residual_highpass"]
+]
 
 
 class PortillaSimoncelli(nn.Module):
@@ -121,10 +125,10 @@ class PortillaSimoncelli(nn.Module):
         )
         self.representation_scales = self._get_representation_scales()
 
-    def _get_representation_scales(self):
+    def _get_representation_scales(self) -> List[SCALES_TYPE]:
         r"""Get the vector indicating the scale of each statistic, for coarse-to-fine synthesis.
 
-        The vector is composed of the following values: 'pixel statistics',
+        The vector is composed of the following values: 'pixel_statistics',
         'residual_lowpass', 'residual_highpass' and integer values from 0 to
         self.n_scales-1. It is the same size as the representation vector
         returned by this object's forward method.
@@ -200,17 +204,19 @@ class PortillaSimoncelli(nn.Module):
 
         return scales
 
-    def forward(self, image, scales=None):
+    def forward(
+        self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
+    ) -> Tensor:
         r"""Generate Texture Statistics representation of an image (see reference [1]_)
 
         Parameters
         ----------
-        image : torch.Tensor
+        image :
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width). Currently, only single-batch and
             single-channel images are supported.
-        scales : list, optional
+        scales :
             Which scales to include in the returned representation. If None, we
             include all scales. Otherwise, can contain subset of values present
             in this model's ``scales`` attribute, and the returned vector will
@@ -219,8 +225,9 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        representation_vector: torch.Tensor
-            3d tensor containing the measured representation statistics.
+        representation_vector:
+            3d tensor of shape (B,C,S) containing the measured representation
+            statistics.
 
         """
         validate_input(image, no_batch=True)
