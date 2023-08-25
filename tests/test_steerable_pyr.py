@@ -177,7 +177,7 @@ class TestSteerablePyramid(object):
         pyr_coeffs_nd = spyr_not_downsample.forward(img)
         check_band_energies(pyr_coeffs, pyr_coeffs_nd)
 
-    @pytest.mark.parametrize("scales", [[0], [1], [0, 1, 2], [2], [], ['residual_highpass', 'residual_lowpass'],
+    @pytest.mark.parametrize("scales", [[0], [1], [0, 1, 2], [2], None, ['residual_highpass', 'residual_lowpass'],
                                         ['residual_highpass', 0, 1, 'residual_lowpass']])
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-False-False' for h, o, c in product([3, 4, 5],
                                                                                         [1, 2, 3],
@@ -192,7 +192,7 @@ class TestSteerablePyramid(object):
         for val in split_complex:
             pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(pyr_coeff_dict, split_complex=val)
             pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
-            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
 
     @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
                                                                                        [1, 2, 3],

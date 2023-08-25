@@ -309,7 +309,7 @@ class SteerablePyramidFreq(nn.Module):
     def forward(
         self,
         x: Tensor,
-        scales: SCALES_TYPE = [],
+        scales: Optional[SCALES_TYPE] = None,
     ) -> OrderedDict:
         r"""Generate the steerable pyramid coefficients for an image
 
@@ -320,14 +320,13 @@ class SteerablePyramidFreq(nn.Module):
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width).
         scales :
-            Which scales to include in the returned representation. If
-            an empty list (the default), we include all
-            scales. Otherwise, can contain subset of values present in
-            this model's ``scales`` attribute (ints from 0 up to
+            Which scales to include in the returned representation. If None, we
+            include all scales. Otherwise, can contain subset of values present
+            in this model's ``scales`` attribute (ints from 0 up to
             ``self.num_scales-1`` and the strs 'residual_highpass' and
-            'residual_lowpass'. Can contain a single value or multiple
-            values. If it's an int, we include all orientations from
-            that scale. Order within the list does not matter.
+            'residual_lowpass'. Can contain a single value or multiple values.
+            If it's an int, we include all orientations from that scale. Order
+            within the list does not matter.
 
         Returns
         -------
@@ -336,9 +335,7 @@ class SteerablePyramidFreq(nn.Module):
 
         """
         pyr_coeffs = OrderedDict()
-        if not isinstance(scales, list) and not isinstance(scales, tuple):
-            raise Exception("scales must be a list!")
-        if not scales:
+        if scales is None:
             scales = self.scales
         scale_ints = [s for s in scales if isinstance(s, int)]
         if len(scale_ints) != 0:
@@ -805,7 +802,7 @@ class SteerablePyramidFreq(nn.Module):
                     raise Exception(
                         f"scale {s} not in pyr_coeffs! pyr_coeffs must include"
                         " all scales, so make sure forward() was called with arg "
-                        "scales=[]"
+                        "scales=None"
                     )
             else:
                 for b in range(self.num_orientations):
@@ -813,7 +810,7 @@ class SteerablePyramidFreq(nn.Module):
                         raise Exception(
                             f"scale {s} not in pyr_coeffs! pyr_coeffs must "
                             "include all scales, so make sure forward() was called "
-                            "with arg scales=[]"
+                            "with arg scales=None"
                         )
 
         recon_keys = self._recon_keys(levels, bands)
