@@ -13,7 +13,7 @@ from ...tools.validate import validate_input
 
 
 class PortillaSimoncelli(nn.Module):
-    r"""Model for measuring texture statistics originally proposed in [1] for the purpose of 
+    r"""Model for measuring texture statistics originally proposed in [1] for the purpose of
     synthesizing texture metamers. These statistics are proposed in [1] as a sufficient set
     measurements for describing and synthesizing a given visual texture.
 
@@ -83,8 +83,7 @@ class PortillaSimoncelli(nn.Module):
             tight_frame=False,
         )
         self.filterPyr = SteerablePyramidFreq(
-            self.pyr._lomasks[-1].shape[-2:], height=0, order=1,
-            tight_frame=False
+            self.pyr._lomasks[-1].shape[-2:], height=0, order=1, tight_frame=False
         )
         self.unoriented_band_pyrs = [
             SteerablePyramidFreq(
@@ -109,7 +108,7 @@ class PortillaSimoncelli(nn.Module):
     def _get_representation_scales(self):
         r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)
         The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
-        # values from 0 to self.n_scales-1 """
+        # values from 0 to self.n_scales-1"""
 
         # There are 6 pixel statistics by default
         pixel_statistics = ["pixel_statistics"] * 6
@@ -117,16 +116,12 @@ class PortillaSimoncelli(nn.Module):
         # magnitude_means
         magnitude_means = (
             ["residual_highpass"]
-            + [
-                s
-                for s in range(self.n_scales)
-                for _ in range(self.n_orientations)
-            ]
+            + [s for s in range(self.n_scales) for _ in range(self.n_orientations)]
             + ["residual_lowpass"]
         )
 
-        # These (`scales` and `scales_with_lowpass`) are the basic building 
-        # blocks of the scale assignments for many of the statistics calculated 
+        # These (`scales` and `scales_with_lowpass`) are the basic building
+        # blocks of the scale assignments for many of the statistics calculated
         # by the PortillaSimoncelli model.
         scales = [s for s in range(self.n_scales)]
         scales_with_lowpass = scales + ["residual_lowpass"]
@@ -151,8 +146,7 @@ class PortillaSimoncelli(nn.Module):
             self.n_orientations * self.n_orientations
         ) * scales_with_lowpass
         cross_orientation_correlation_real = (
-            max(2 * self.n_orientations, 5)
-            * max(2 * self.n_orientations, 5)
+            max(2 * self.n_orientations, 5) * max(2 * self.n_orientations, 5)
         ) * scales_with_lowpass
 
         cross_scale_correlation_magnitude = (
@@ -220,7 +214,9 @@ class PortillaSimoncelli(nn.Module):
         """
         validate_input(image, no_batch=True)
         if image.shape[1] > 1:
-            raise ValueError("Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images.")
+            raise ValueError(
+                "Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images."
+            )
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
@@ -230,12 +226,10 @@ class PortillaSimoncelli(nn.Module):
         self.representation["pixel_statistics"] = OrderedDict()
         self.representation["pixel_statistics"]["mean"] = torch.mean(image)
         self.representation["pixel_statistics"]["var"] = torch.var(image)
-        self.representation["pixel_statistics"]["skew"] = self.__class__.skew(
+        self.representation["pixel_statistics"]["skew"] = self.__class__.skew(image)
+        self.representation["pixel_statistics"]["kurtosis"] = self.__class__.kurtosis(
             image
         )
-        self.representation["pixel_statistics"][
-            "kurtosis"
-        ] = self.__class__.kurtosis(image)
         self.representation["pixel_statistics"]["min"] = torch.min(image)
         self.representation["pixel_statistics"]["max"] = torch.max(image)
 
@@ -253,7 +247,7 @@ class PortillaSimoncelli(nn.Module):
         #                          kurtosis_reconstructed,
         #                          auto_correlation_reconstructed) #####
         #
-        # Calculates: 
+        # Calculates:
         # 1) the central auto-correlation of the magnitude of each
         # orientation/scale band.
         #
@@ -266,9 +260,9 @@ class PortillaSimoncelli(nn.Module):
         #
         # 3) the skew and the kurtosis of the reconstructed
         # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
-        # The skew and kurtosis are calculated with the auto-correlation 
+        # The skew and kurtosis are calculated with the auto-correlation
         # statistics because like #2 (above) they rely on the reconstructed
-        # low-pass residuals, making it more efficient (in terms of memory 
+        # low-pass residuals, making it more efficient (in terms of memory
         # and/or compute time) to calculate it at the same time.
         #
         #
@@ -282,21 +276,23 @@ class PortillaSimoncelli(nn.Module):
                 self.n_scales,
                 self.n_orientations,
             ],
-            device=image.device
+            device=image.device,
         )
-        self.representation["skew_reconstructed"] = torch.empty((self.n_scales + 1, 1),
-                                                                device=image.device)
+        self.representation["skew_reconstructed"] = torch.empty(
+            (self.n_scales + 1, 1), device=image.device
+        )
         self.representation["kurtosis_reconstructed"] = torch.empty(
             (self.n_scales + 1, 1), device=image.device
         )
         self.representation["auto_correlation_reconstructed"] = torch.zeros(
             [self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1],
-            device=image.device
+            device=image.device,
         )
 
         if self.use_true_correlations:
-            self.representation["std_reconstructed"] = torch.empty(self.n_scales + 1, 1,
-                                                                   device=image.device)
+            self.representation["std_reconstructed"] = torch.empty(
+                self.n_scales + 1, 1, device=image.device
+            )
 
         self._calculate_autocorrelation_skew_kurtosis()
 
@@ -310,22 +306,25 @@ class PortillaSimoncelli(nn.Module):
 
         # Initialize statistics
         self.representation["cross_orientation_correlation_magnitude"] = torch.zeros(
-            self.n_orientations, self.n_orientations, self.n_scales + 1,
-            device=image.device
+            self.n_orientations,
+            self.n_orientations,
+            self.n_scales + 1,
+            device=image.device,
         )
         self.representation["cross_scale_correlation_magnitude"] = torch.zeros(
-            self.n_orientations, self.n_orientations, self.n_scales,
-            device=image.device
+            self.n_orientations, self.n_orientations, self.n_scales, device=image.device
         )
         self.representation["cross_orientation_correlation_real"] = torch.zeros(
             max(2 * self.n_orientations, 5),
             max(2 * self.n_orientations, 5),
             self.n_scales + 1,
-            device=image.device
+            device=image.device,
         )
         self.representation["cross_scale_correlation_real"] = torch.zeros(
-            2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales,
-            device=image.device
+            2 * self.n_orientations,
+            max(2 * self.n_orientations, 5),
+            self.n_scales,
+            device=image.device,
         )
 
         self._calculate_crosscorrelations()
@@ -336,19 +335,18 @@ class PortillaSimoncelli(nn.Module):
         )
 
         representation_vector = self.convert_to_vector()
-        
+
         if scales is not None:
-            representation_vector = self._remove_scales(representation_vector,
-                                                        scales, image.device)
+            representation_vector = self._remove_scales(
+                representation_vector, scales, image.device
+            )
 
         return representation_vector
 
     def _remove_scales(self, stats_vec, scales, device):
-        """
-        """
+        """ """
         ind = torch.tensor(
-            [i for i, s in enumerate(self.representation_scales)
-             if s in scales]
+            [i for i, s in enumerate(self.representation_scales) if s in scales]
         ).to(device)
         return stats_vec.index_select(-1, ind)
 
@@ -391,11 +389,13 @@ class PortillaSimoncelli(nn.Module):
         """
         vec = vec.squeeze()
         if len(vec) != len(self.representation_scales):
-            raise ValueError("representation vector is the wrong length (expected "
-                             f"{len(self.representation_scales)} but got {len(vec)})!"
-                             " Did you remove some of the scales? (i.e., by setting "
-                             "scales in the forward pass)? convert_to_dict does not "
-                             "support such vectors.")
+            raise ValueError(
+                "representation vector is the wrong length (expected "
+                f"{len(self.representation_scales)} but got {len(vec)})!"
+                " Did you remove some of the scales? (i.e., by setting "
+                "scales in the forward pass)? convert_to_dict does not "
+                "support such vectors."
+            )
         rep = OrderedDict()
         rep["pixel_statistics"] = OrderedDict()
         rep["pixel_statistics"]["mean"] = vec[0]
@@ -560,9 +560,8 @@ class PortillaSimoncelli(nn.Module):
         my = mult * my
         mx = mult * mx
 
-        fourier = mult ** 2 * torch.fft.fftshift(torch.fft.fftn(im))
-        fourier_large = torch.zeros(my, mx, device=fourier.device,
-                                    dtype=fourier.dtype)
+        fourier = mult**2 * torch.fft.fftshift(torch.fft.fftn(im))
+        fourier_large = torch.zeros(my, mx, device=fourier.device, dtype=fourier.dtype)
 
         y1 = int(my / 2 + 1 - my / (2 * mult))
         y2 = int(my / 2 + my / (2 * mult))
@@ -621,7 +620,7 @@ class PortillaSimoncelli(nn.Module):
         ) = self.compute_skew_kurtosis(reconstructed_image, vari)
 
         if self.use_true_correlations:
-            self.representation["std_reconstructed"][self.n_scales] = vari ** 0.5
+            self.representation["std_reconstructed"][self.n_scales] = vari**0.5
 
         for this_scale in range(self.n_scales - 1, -1, -1):
             for nor in range(self.n_orientations):
@@ -639,9 +638,7 @@ class PortillaSimoncelli(nn.Module):
                     vari,
                 ) = self.compute_autocorrelation(ch)
 
-            reconstructed_image = (
-                self.__class__.expand(reconstructed_image, 2) / 4.0
-            )
+            reconstructed_image = self.__class__.expand(reconstructed_image, 2) / 4.0
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
             # reconstruct the unoriented band for this scale
@@ -651,7 +648,9 @@ class PortillaSimoncelli(nn.Module):
                 unoriented_pyr_coeffs[(0, ii)] = (
                     self.real_pyr_coeffs[(this_scale, ii)].unsqueeze(0).unsqueeze(0)
                 )
-            unoriented_band = unoriented_band_pyr.recon_pyr(unoriented_pyr_coeffs,levels=[0])
+            unoriented_band = unoriented_band_pyr.recon_pyr(
+                unoriented_pyr_coeffs, levels=[0]
+            )
 
             # Add the unoriented band to the image reconstruction
             reconstructed_image = reconstructed_image + unoriented_band
@@ -666,7 +665,7 @@ class PortillaSimoncelli(nn.Module):
                 vari,
             ) = self.compute_autocorrelation(reconstructed_image)
             if self.use_true_correlations:
-                self.representation["std_reconstructed"][this_scale] = vari ** 0.5
+                self.representation["std_reconstructed"][this_scale] = vari**0.5
             # Find skew and kurtosis of the reconstructed image
             (
                 self.representation["skew_reconstructed"][this_scale],
@@ -682,15 +681,19 @@ class PortillaSimoncelli(nn.Module):
         for this_scale in range(self.n_scales):
             band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
             if this_scale < self.n_scales - 1:
-                next_scale_mag = torch.empty((band_num_el, self.n_orientations),
-                                             device=self.pyr.hi0mask.device,
-                                             dtype=self.pyr.hi0mask.dtype)
-                next_scale_real = torch.empty((band_num_el, self.n_orientations * 2),
-                                              device=self.pyr.hi0mask.device,
-                                              dtype=self.pyr.hi0mask.dtype)
+                next_scale_mag = torch.empty(
+                    (band_num_el, self.n_orientations),
+                    device=self.pyr.hi0mask.device,
+                    dtype=self.pyr.hi0mask.dtype,
+                )
+                next_scale_real = torch.empty(
+                    (band_num_el, self.n_orientations * 2),
+                    device=self.pyr.hi0mask.device,
+                    dtype=self.pyr.hi0mask.dtype,
+                )
 
                 for nor in range(self.n_orientations):
-                    
+
                     upsampled = (
                         self.__class__.expand(
                             self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
@@ -713,7 +716,7 @@ class PortillaSimoncelli(nn.Module):
                     next_scale_real[:, nor + self.n_orientations] = Y.t().flatten()
 
                     # Save the magnitude
-                    mag = (X ** 2 + Y ** 2) ** 0.5
+                    mag = (X**2 + Y**2) ** 0.5
                     next_scale_mag[:, nor] = (mag - mag.mean()).t().flatten()
 
             else:
@@ -759,7 +762,9 @@ class PortillaSimoncelli(nn.Module):
 
             self.representation["cross_orientation_correlation_magnitude"][
                 0 : self.n_orientations, 0 : self.n_orientations, this_scale
-            ] = self.compute_crosscorrelation( orientation_bands_mag.t(), orientation_bands_mag, band_num_el)
+            ] = self.compute_crosscorrelation(
+                orientation_bands_mag.t(), orientation_bands_mag, band_num_el
+            )
 
             if np0 > 0:
                 self.representation["cross_scale_correlation_magnitude"][
@@ -887,7 +892,7 @@ class PortillaSimoncelli(nn.Module):
 
         Skew and kurtosis of ch are computed.  If the ratio of its variance (vari)
         and the pixel variance of the original image are below a certain
-        threshold (1e-6) skew and kurtosis are assigned the default values (0,3). 
+        threshold (1e-6) skew and kurtosis are assigned the default values (0,3).
 
         Parameters
         ----------
@@ -938,7 +943,7 @@ class PortillaSimoncelli(nn.Module):
         if var is None:
             var = X.var()
         return torch.mean((X - mu).pow(3)) / (var.pow(1.5))
-    
+
     @staticmethod
     def kurtosis(X, mu=None, var=None):
         r"""Computes the kurtosis of a matrix X.
@@ -965,17 +970,14 @@ class PortillaSimoncelli(nn.Module):
             var = X.var()
         return torch.mean(torch.abs(X - mu).pow(4)) / (var.pow(2))
 
-
-
-
     def plot_representation(
         self, data=None, ax=None, figsize=(15, 15), ylim=None, batch_idx=0, title=None
     ):
 
-        r""" Plot the representation in a human viewable format -- stem
+        r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
-        
+
         Parameters
         ----------
         data : torch.Tensor, dict, or None, optional
@@ -984,7 +986,7 @@ class PortillaSimoncelli(nn.Module):
             ``self.representation``, with the exact same structure
             (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
-        ax : 
+        ax :
             axis where we will plot the data
         figsize : (int, int), optional
             the size of the figure
@@ -997,8 +999,8 @@ class PortillaSimoncelli(nn.Module):
         Returns
         -------
         data : torch.Tensor, dict, or None, optional
-            The data that was plotted. 
-            
+            The data that was plotted.
+
 
         """
 
@@ -1037,8 +1039,9 @@ class PortillaSimoncelli(nn.Module):
             if isinstance(v, OrderedDict):
                 # need to make sure these are not tensors when we call the
                 # plotting function
-                ax = clean_stem_plot([to_numpy(v_) for v_ in v.values()], ax, k,
-                                     ylim=ylim)
+                ax = clean_stem_plot(
+                    [to_numpy(v_) for v_ in v.values()], ax, k, ylim=ylim
+                )
             else:
                 ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
 
@@ -1046,10 +1049,8 @@ class PortillaSimoncelli(nn.Module):
 
         return fig, axes
 
-
-
     def _representation_for_plotting(self, rep, batch_idx=0):
-        r""" Converts the data into a dictionary representation that is more convenient for plotting.  Intended
+        r"""Converts the data into a dictionary representation that is more convenient for plotting.  Intended
         as a helper function for plot_representation.
 
         """
@@ -1193,6 +1194,7 @@ class PortillaSimoncelli(nn.Module):
         """
         self.pyr = self.pyr.to(*args, **kwargs)
         self.filterPyr = self.filterPyr.to(*args, **kwargs)
-        self.unoriented_band_pyrs = [pyr.to(*args, **kwargs) for pyr in
-                                     self.unoriented_band_pyrs]
+        self.unoriented_band_pyrs = [
+            pyr.to(*args, **kwargs) for pyr in self.unoriented_band_pyrs
+        ]
         return self
