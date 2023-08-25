@@ -2,7 +2,6 @@ import torch
 import torch.fft
 import torch.nn as nn
 from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
-from ...tools.conv import blur_downsample
 import numpy as np
 from collections import OrderedDict
 import matplotlib.pyplot as plt
@@ -10,6 +9,7 @@ import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
 from ...tools.validate import validate_input
+from typing import Tuple
 
 
 class PortillaSimoncelli(nn.Module):
@@ -31,18 +31,20 @@ class PortillaSimoncelli(nn.Module):
 
     Parameters
     ----------
-    n_scales: int, optional
+    image_shape:
+        Shape of input image.
+    n_scales:
         The number of pyramid scales used to measure the statistics (default=4)
-    n_orientations: int, optional
+    n_orientations:
         The number of orientations used to measure the statistics (default=4)
-    spatial_corr_width: int, optional
+    spatial_corr_width:
         The width of the spatial cross- and auto-correlation statistics in the representation
-    use_true_correlations: bool
+    use_true_correlations:
         In the original Portilla-Simoncelli model the statistics in the representation
         that are labelled correlations were actually covariance matrices (i.e. not properly
         scaled).  In order to match the original statistics use_true_correlations must be
         set to false. But in order to synthesize metamers from this model use_true_correlations
-        must be set to true (default).
+        must be set to True.
 
     Attributes
     ----------
@@ -76,15 +78,15 @@ class PortillaSimoncelli(nn.Module):
 
     def __init__(
         self,
-        im_shape,
-        n_scales=4,
-        n_orientations=4,
-        spatial_corr_width=9,
-        use_true_correlations=True,
+        image_shape: Tuple[int, int],
+        n_scales: int = 4,
+        n_orientations: int = 4,
+        spatial_corr_width: int = 9,
+        use_true_correlations: bool = True,
     ):
         super().__init__()
 
-        self.image_shape = im_shape
+        self.image_shape = image_shape
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
