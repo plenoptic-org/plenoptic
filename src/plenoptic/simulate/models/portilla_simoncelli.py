@@ -119,25 +119,28 @@ class PortillaSimoncelli(nn.Module):
         self.representation_scales = self._get_representation_scales()
 
     def _get_representation_scales(self):
-        r"""returns a vector that indicates the scale of each value in the representation (Portilla-Simoncelli statistics)
-        The vector is composed of the following values: 'pixel statistics', 'residual_lowpass', 'residual_highpass' and integer
-        # values from 0 to self.n_scales-1"""
+        r"""Get the vector indicating the scale of each statistic, for coarse-to-fine synthesis.
 
+        The vector is composed of the following values: 'pixel statistics',
+        'residual_lowpass', 'residual_highpass' and integer values from 0 to
+        self.n_scales-1. It is the same size as the representation vector
+        returned by this object's forward method.
+
+        """
         # There are 6 pixel statistics by default
         pixel_statistics = ["pixel_statistics"] * 6
-
-        # magnitude_means
-        magnitude_means = (
-            ["residual_highpass"]
-            + [s for s in range(self.n_scales) for _ in range(self.n_orientations)]
-            + ["residual_lowpass"]
-        )
 
         # These (`scales` and `scales_with_lowpass`) are the basic building
         # blocks of the scale assignments for many of the statistics calculated
         # by the PortillaSimoncelli model.
         scales = [s for s in range(self.n_scales)]
         scales_with_lowpass = scales + ["residual_lowpass"]
+        # this repeats the first element of scales n_orientations times, then
+        # the second, etc. e.g., [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, ...]
+        scales_by_ori = [s for s in scales for _ in range(self.n_orientations)]
+
+        # magnitude_means
+        magnitude_means = ["residual_highpass"] + scales_by_ori + ["residual_lowpass"]
 
         # skew_reconstructed
         skew_reconstructed = scales_with_lowpass
@@ -148,55 +151,47 @@ class PortillaSimoncelli(nn.Module):
         # variance_reconstructed
         std_reconstructed = scales_with_lowpass
 
-        auto_correlation = (
-            self.spatial_corr_width * self.spatial_corr_width
-        ) * scales_with_lowpass
-        auto_correlation_magnitude = (
-            self.spatial_corr_width * self.spatial_corr_width
-        ) * [s for s in scales for i in range(self.n_orientations)]
+        auto_corr = self.spatial_corr_width**2 * scales_with_lowpass
+        auto_corr_mag = self.spatial_corr_width**2 * scales_by_ori
 
-        cross_orientation_correlation_magnitude = (
-            self.n_orientations * self.n_orientations
-        ) * scales_with_lowpass
-        cross_orientation_correlation_real = (
-            max(2 * self.n_orientations, 5) * max(2 * self.n_orientations, 5)
-        ) * scales_with_lowpass
+        cross_orientation_corr_mag = self.n_orientations**2 * scales_with_lowpass
+        ori_crossed = max(2 * self.n_orientations, 5)
+        cross_orientation_corr_real = ori_crossed**2 * scales_with_lowpass
 
-        cross_scale_correlation_magnitude = (
-            self.n_orientations * self.n_orientations
-        ) * scales
-        cross_scale_correlation_real = (
-            2 * self.n_orientations * max(2 * self.n_orientations, 5)
-        ) * scales
+        cross_scale_corr_mag = self.n_orientations**2 * scales
+        cross_scale_corr_real = (2 * self.n_orientations * ori_crossed) * scales
         var_highpass_residual = ["residual_highpass"]
 
         if self.use_true_correlations:
             scales = (
                 pixel_statistics
                 + magnitude_means
-                + auto_correlation_magnitude
+                + auto_corr_mag
                 + skew_reconstructed
                 + kurtosis_reconstructed
-                + auto_correlation
+                + auto_corr
+                # if we're using true correlations, want to include the std of
+                # the reconstructed images (this is implicitly included in the
+                # unscaled correlations if use_true_correlations=False)
                 + std_reconstructed
-                + cross_orientation_correlation_magnitude
-                + cross_scale_correlation_magnitude
-                + cross_orientation_correlation_real
-                + cross_scale_correlation_real
+                + cross_orientation_corr_mag
+                + cross_scale_corr_mag
+                + cross_orientation_corr_real
+                + cross_scale_corr_real
                 + var_highpass_residual
             )
         else:
             scales = (
                 pixel_statistics
                 + magnitude_means
-                + auto_correlation_magnitude
+                + auto_corr_mag
                 + skew_reconstructed
                 + kurtosis_reconstructed
-                + auto_correlation
-                + cross_orientation_correlation_magnitude
-                + cross_scale_correlation_magnitude
-                + cross_orientation_correlation_real
-                + cross_scale_correlation_real
+                + auto_corr
+                + cross_orientation_corr_mag
+                + cross_scale_corr_mag
+                + cross_orientation_corr_real
+                + cross_scale_corr_real
                 + var_highpass_residual
             )
 
