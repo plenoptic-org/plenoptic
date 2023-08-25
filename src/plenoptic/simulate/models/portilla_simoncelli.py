@@ -13,11 +13,21 @@ from ...tools.validate import validate_input
 
 
 class PortillaSimoncelli(nn.Module):
-    r"""Model for measuring texture statistics originally proposed in [1] for the purpose of
-    synthesizing texture metamers. These statistics are proposed in [1] as a sufficient set
-    measurements for describing and synthesizing a given visual texture.
+    r"""Portila-Simoncelli texture statistics.
 
-    Currently we do not support batch measurement of images.
+    The Portilla-Simoncelli (PS) texture statistics are a set of image
+    statistics, first described in [1]_, that are proposed as a sufficient set
+    of measurements for describing visual textures. That is, if two texture
+    images have the same values for all PS texture stats, humans should
+    consider them as belonging to the same family of texture.
+
+    The PS stats are computed based on the steerable pyramid [2]_. They consist
+    of the local auto-correlations, cross-scale (within-orientation)
+    correlations, and cross-orientation (within-scale) correlations of both the
+    pyramid coefficients and the local energy (as computed by those
+    coefficients). Additionally, they include the first four global moments
+    (mean, variance, skew, and kurtosis) of the image and down-sampled versions
+    of that image. See the paper and notebook for more description.
 
     Parameters
     ----------
@@ -58,6 +68,9 @@ class PortillaSimoncelli(nn.Module):
        Computer Vision. 40(1):49-71, October, 2000.
        http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        http://www.cns.nyu.edu/~lcv/texture/
+    .. [2] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
+       Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
+       on Image Processing, Washington, DC, Oct 1995.
 
     """
 
