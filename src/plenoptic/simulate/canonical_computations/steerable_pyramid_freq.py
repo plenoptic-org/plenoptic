@@ -482,7 +482,7 @@ class SteerablePyramidFreq(nn.Module):
         See also
         --------
         convert_tensor_to_pyr:
-            The inverse function.
+            Convert tensor representation to pyramid dictionary.
 
         """
 
@@ -564,8 +564,8 @@ class SteerablePyramidFreq(nn.Module):
 
         See also
         --------
-        convert_tensor_to_pyr:
-            The inverse function.
+        convert_pyr_to_tensor:
+            Convert pyramid dictionary representation to tensor.
 
         """
 
