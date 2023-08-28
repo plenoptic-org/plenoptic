@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 import torch.fft
 import torch.nn as nn
 from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
@@ -9,7 +10,7 @@ import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
 from ...tools.validate import validate_input
-from typing import Tuple, List, Literal, Union
+from typing import Tuple, List, Literal, Union, Optional
 
 SCALES_TYPE = Union[
     int, Literal["pixel_statistics", "residual_lowpass", "residual_highpass"]
@@ -207,15 +208,15 @@ class PortillaSimoncelli(nn.Module):
     def forward(
         self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
     ) -> Tensor:
-        r"""Generate Texture Statistics representation of an image (see reference [1]_)
+        r"""Generate Texture Statistics representation of an image.
+
+        Note that separate batches and channels are analyzed in parallel.
 
         Parameters
         ----------
         image :
-            A tensor containing the image to analyze. We want to operate
-            on this in the pytorch-y way, so we want it to be 4d (batch,
-            channel, height, width). Currently, only single-batch and
-            single-channel images are supported.
+            A 4d tensor (batch, channel, height, width) containing the image(s) to
+            analyze.
         scales :
             Which scales to include in the returned representation. If None, we
             include all scales. Otherwise, can contain subset of values present
@@ -226,7 +227,7 @@ class PortillaSimoncelli(nn.Module):
         Returns
         -------
         representation_vector:
-            3d tensor of shape (B,C,S) containing the measured representation
+            3d tensor of shape (B,C,S) containing the measured texture
             statistics.
 
         """
@@ -359,7 +360,9 @@ class PortillaSimoncelli(nn.Module):
 
         return representation_vector
 
-    def remove_scales(self, representation_vector, scales_to_keep):
+    def remove_scales(
+        self, representation_vector: Tensor, scales_to_keep: List[SCALES_TYPE]
+    ) -> Tensor:
         """Remove statistics not associated with scales
 
         For a given representation_vector and a list of scales_to_keep, this
@@ -369,9 +372,9 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        representation_vector: torch.Tensor
+        representation_vector:
             3d tensor containing the measured representation statistics.
-        scales_to_keep : list, optional
+        scales_to_keep:
             Which scales to include in the returned representation. Can contain
             subset of values present in this model's ``scales`` attribute, and
             the returned vector will then contain the subset of the full
@@ -379,7 +382,7 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         ------
-        limited_representation_vector : torch.Tensor
+        limited_representation_vector :
             Representation vector with some statistics removed.
 
         """
@@ -388,17 +391,25 @@ class PortillaSimoncelli(nn.Module):
         ).to(representation_vector.device)
         return representation_vector.index_select(-1, ind)
 
-    def convert_to_vector(self, stats_dict=None):
-        r"""Converts dictionary of statistics to a vector (for synthesis).
+    def convert_to_vector(self, stats_dict: Optional[OrderedDict] = None) -> Tensor:
+        r"""Converts dictionary of statistics to a vector.
+
+        While the dictionary representation is easier to manually inspect, the
+        vector representation is required by plenoptic's synthesis objects.
 
         Parameters
         ----------
-        stats_dict : optional
-            If None, we use self.representation. Dictionary of representation.
+        stats_dict :
+             Dictionary of representation. If None, we use self.representation.
 
         Returns
         -------
-        Flattened 1d vector of statistics.
+        3d vector of statistics.
+
+        See also
+        --------
+        convert_to_dict:
+            Convert vector representation to dictionary.
 
         """
         if stats_dict is None:
@@ -412,17 +423,25 @@ class PortillaSimoncelli(nn.Module):
         ]
         return torch.cat(list_of_stats).unsqueeze(0).unsqueeze(0)
 
-    def convert_to_dict(self, vec):
+    def convert_to_dict(self, vec: Tensor) -> OrderedDict:
         """Converts vector of statistics to a dictionary.
+
+        While the vector representation is required by plenoptic's synthesis
+        objects, the dictionary representation is easier to manually inspect.
 
         Parameters
         ----------
         vec
-            Flattened 1d vector of statistics.
+            3d vector of statistics.
 
         Returns
         -------
         Dictionary of representation, with informative keys.
+
+        See also
+        --------
+        convert_to_vector:
+            Convert dictionary representation to vector.
 
         """
         vec = vec.squeeze()
@@ -1009,8 +1028,14 @@ class PortillaSimoncelli(nn.Module):
         return torch.mean(torch.abs(X - mu).pow(4)) / (var.pow(2))
 
     def plot_representation(
-        self, data=None, ax=None, figsize=(15, 15), ylim=None, batch_idx=0, title=None
-    ):
+        self,
+        data: Optional[Union[Tensor, OrderedDict]] = None,
+        ax: Optional[mpl.axes.Axes] = None,
+        figsize: Tuple[float, float] = (15, 15),
+        ylim: Optional[Tuple[float, float]] = None,
+        batch_idx: int = 0,
+        title: Optional[str] = None,
+    ) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes]]:
 
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
@@ -1018,27 +1043,30 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        data : torch.Tensor, dict, or None, optional
+        data :
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
             (e.g., as returned by ``metamer.representation_error()`` or
             another instance of this class).
         ax :
-            axis where we will plot the data
-        figsize : (int, int), optional
-            the size of the figure
-        ylim : (int,int) or None, optional
-        batch_idx : int, optional
+            Axes where we will plot the data. If an ``mpl.axes.Axes``, will
+            subdivide into 9 new axes. If None, we create a new figure.
+        figsize :
+            The size of the figure. Ignored if ax is not None.
+        ylim :
+            The ylimits of the plot.
+        batch_idx :
             Which index to take from the batch dimension (the first one)
         title : string
-            title for the plot
+            Title for the plot
 
         Returns
         -------
-        data : torch.Tensor, dict, or None, optional
-            The data that was plotted.
-
+        fig:
+            Figure containing the plot
+        axes:
+            List of 9 axes containing the plot
 
         """
 
@@ -1087,9 +1115,12 @@ class PortillaSimoncelli(nn.Module):
 
         return fig, axes
 
-    def _representation_for_plotting(self, rep, batch_idx=0):
-        r"""Converts the data into a dictionary representation that is more convenient for plotting.  Intended
-        as a helper function for plot_representation.
+    def _representation_for_plotting(
+        self, rep: OrderedDict, batch_idx: int = 0
+    ) -> OrderedDict:
+        r"""Converts the data into a dictionary representation that is more convenient for plotting.
+
+        Intended as a helper function for plot_representation.
 
         """
         data = OrderedDict()
@@ -1134,7 +1165,12 @@ class PortillaSimoncelli(nn.Module):
 
         return data
 
-    def update_plot(self, axes, batch_idx=0, data=None):
+    def update_plot(
+        self,
+        axes: List[mpl.axes.Axes],
+        data: Optional[Union[Tensor, OrderedDict]] = None,
+        batch_idx: int = 0,
+    ) -> List[mpl.artist.Artists]:
         r"""Update the information in our representation plot
 
         This is used for creating an animation of the representation
@@ -1160,13 +1196,13 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        axes : list
+        axes :
             A list of axes to update. We assume that these are the axes
             created by ``plot_representation`` and so contain stem plots
             in the correct order.
-        batch_idx : int, optional
+        batch_idx :
             Which index to take from the batch dimension (the first one)
-        data : torch.Tensor, dict, or None, optional
+        data :
             The data to show on the plot. If None, we use
             ``self.representation``. Else, should look like
             ``self.representation``, with the exact same structure
@@ -1175,14 +1211,16 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        stem_artists : list
+        stem_artists :
             A list of the artists used to update the information on the
             stem plots
 
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        if not isinstance(data, dict):
+        if data is None:
+            data = self.representation
+        else:
             data = self.convert_to_dict(data)
         rep = self._representation_for_plotting(data)
         for ax, d in zip(axes, rep.values()):
