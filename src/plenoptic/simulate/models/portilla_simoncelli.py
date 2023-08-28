@@ -1170,7 +1170,7 @@ class PortillaSimoncelli(nn.Module):
         axes: List[mpl.axes.Axes],
         data: Optional[Union[Tensor, OrderedDict]] = None,
         batch_idx: int = 0,
-    ) -> List[mpl.artist.Artists]:
+    ) -> List[mpl.artist.Artist]:
         r"""Update the information in our representation plot
 
         This is used for creating an animation of the representation
