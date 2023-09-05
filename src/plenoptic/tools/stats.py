@@ -6,11 +6,14 @@ from torch import Tensor
 
 def variance(
     x: Tensor,
-    mean: Optional[Tensor] = None,
+    mean: Optional[Union[float, Tensor]] = None,
     dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""sample estimate of `x` *variability*
+    r"""Calculate sample variance.
+
+    Note that this is the uncorrected, or sample, variance, corresponding to
+    ``torch.var(*, correction=1)``
 
     Parameters
     ----------
@@ -27,6 +30,7 @@ def variance(
     -------
     out
         The variance tensor.
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -37,8 +41,8 @@ def variance(
 
 def skew(
     x: Tensor,
-    mean: Optional[Tensor] = None,
-    var: Optional[Tensor] = None,
+    mean: Optional[Union[float, Tensor]] = None,
+    var: Optional[Union[float, Tensor]] = None,
     dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
@@ -73,8 +77,8 @@ def skew(
 
 def kurtosis(
     x: Tensor,
-    mean: Optional[Tensor] = None,
-    var: Optional[Tensor] = None,
+    mean: Optional[Union[float, Tensor]] = None,
+    var: Optional[Union[float, Tensor]] = None,
     dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
