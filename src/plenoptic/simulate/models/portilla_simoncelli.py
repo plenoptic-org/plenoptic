@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
+from ...tools import stats
 from ...tools.validate import validate_input
 from typing import Tuple, List, Literal, Union, Optional
 
@@ -245,9 +246,15 @@ class PortillaSimoncelli(nn.Module):
         self.representation["pixel_statistics"] = OrderedDict()
         self.representation["pixel_statistics"]["mean"] = torch.mean(image)
         self.representation["pixel_statistics"]["var"] = torch.var(image)
-        self.representation["pixel_statistics"]["skew"] = self.__class__.skew(image)
-        self.representation["pixel_statistics"]["kurtosis"] = self.__class__.kurtosis(
-            image
+        self.representation["pixel_statistics"]["skew"] = stats.skew(
+            image,
+            mean=self.representation["pixel_statistics"]["mean"],
+            var=self.representation["pixel_statistics"]["var"],
+        )
+        self.representation["pixel_statistics"]["kurtosis"] = stats.kurtosis(
+            image,
+            mean=self.representation["pixel_statistics"]["mean"],
+            var=self.representation["pixel_statistics"]["var"],
         )
         self.representation["pixel_statistics"]["min"] = torch.min(image)
         self.representation["pixel_statistics"]["max"] = torch.max(image)
@@ -419,7 +426,7 @@ class PortillaSimoncelli(nn.Module):
             torch.cat([vv.flatten() for vv in val.values()])
             if isinstance(val, OrderedDict)
             else val.flatten()
-            for (_, val) in stats_dict.items()
+            for val in stats_dict.values()
         ]
         return torch.cat(list_of_stats).unsqueeze(0).unsqueeze(0)
 
@@ -649,8 +656,16 @@ class PortillaSimoncelli(nn.Module):
         return im_large
 
     def _calculate_autocorrelation_skew_kurtosis(self):
-        r"""Calculate the autocorrelation for the real parts and magnitudes of the
-        coefficients. Calculate the skew and kurtosis at each scale.
+        r"""Calculate the autocorrelations, skew, and kurtosis at each scale.
+
+        This computes the autocorrelation for the magnitudes of the
+        coefficients at each orientation and scale, as well as the
+        autocorrelation, skew, and kurtosis of the reconstructed lowpass images
+        at each scale.
+
+        These stats are all done in the same function because the variance is
+        computed at the same time as the autocorrelation and is used to save
+        time when computing the skew and kurtosis.
 
         """
 
@@ -660,15 +675,8 @@ class PortillaSimoncelli(nn.Module):
         reconstructed_image = filter_pyr_coeffs["residual_lowpass"].squeeze()
 
         # Find the auto-correlation of the low-pass residual
-        channel_size = torch.min(torch.tensor(lowpass.shape[-2:])).to(float)
-        center = int(np.floor([(self.spatial_corr_width - 1) / 2]))
-        le = int(np.min((channel_size / 2 - 1, center)))
         (
-            self.representation["auto_correlation_reconstructed"][
-                center - le : center + le + 1,
-                center - le : center + le + 1,
-                self.n_scales,
-            ],
+            self.representation["auto_correlation_reconstructed"][..., self.n_scales],
             vari,
         ) = self.compute_autocorrelation(reconstructed_image)
         (
@@ -679,18 +687,14 @@ class PortillaSimoncelli(nn.Module):
         if self.use_true_correlations:
             self.representation["std_reconstructed"][self.n_scales] = vari**0.5
 
+        # go through the scales backwards
         for this_scale in range(self.n_scales - 1, -1, -1):
             for nor in range(self.n_orientations):
                 ch = self.magnitude_pyr_coeffs[(this_scale, nor)]
-                channel_size = np.min((ch.shape[-1], ch.shape[-2]))
-                le = int(np.min((channel_size / 2.0 - 1, center)))
                 # Find the auto-correlation of the magnitude band
                 (
                     self.representation["auto_correlation_magnitude"][
-                        center - le : center + le + 1,
-                        center - le : center + le + 1,
-                        this_scale,
-                        nor,
+                        ..., this_scale, nor
                     ],
                     vari,
                 ) = self.compute_autocorrelation(ch)
@@ -714,11 +718,7 @@ class PortillaSimoncelli(nn.Module):
 
             # Find auto-correlation of the reconstructed image
             (
-                self.representation["auto_correlation_reconstructed"][
-                    center - le : center + le + 1,
-                    center - le : center + le + 1,
-                    this_scale,
-                ],
+                self.representation["auto_correlation_reconstructed"][..., this_scale],
                 vari,
             ) = self.compute_autocorrelation(reconstructed_image)
             if self.use_true_correlations:
@@ -949,7 +949,7 @@ class PortillaSimoncelli(nn.Module):
 
         Skew and kurtosis of ch are computed.  If the ratio of its variance (vari)
         and the pixel variance of the original image are below a certain
-        threshold (1e-6) skew and kurtosis are assigned the default values (0,3).
+        threshold (1e-6), skew and kurtosis are assigned the default values (0,3).
 
         Parameters
         ----------
@@ -968,64 +968,13 @@ class PortillaSimoncelli(nn.Module):
 
         # Find the skew and the kurtosis of the low-pass residual
         if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
-            skew = self.__class__.skew(ch, mu=0, var=vari)
-            kurtosis = self.__class__.kurtosis(ch, mu=0, var=vari)
+            skew = stats.skew(ch, mean=0, var=vari)
+            kurtosis = stats.kurtosis(ch, mean=0, var=vari)
         else:
             skew = 0
             kurtosis = 3
 
         return skew, kurtosis
-
-    @staticmethod
-    def skew(X, mu=None, var=None):
-        r"""Computes the skew of a matrix X.
-
-        Parameters
-        ----------
-        X: torch.Tensor
-            matrix to compute the skew of.
-        mu: torch.Tensor or None, optional
-            pre-computed mean. If None, we compute it.
-        var: torch.Tensor or None, optional
-            pre-computed variance. If None, we compute it.
-
-        Returns
-        -------
-        skew: torch.Tensor
-            skew of the matrix X
-
-        """
-        if mu is None:
-            mu = X.mean()
-        if var is None:
-            var = X.var()
-        return torch.mean((X - mu).pow(3)) / (var.pow(1.5))
-
-    @staticmethod
-    def kurtosis(X, mu=None, var=None):
-        r"""Computes the kurtosis of a matrix X.
-
-        Parameters
-        ----------
-        X: torch.Tensor
-            matrix to compute the kurtosis of.
-        mu: torch.Tensor
-            pre-computed mean. If None, we compute it.
-        var: torch.Tensor
-            pre-computed variance. If None, we compute it.
-
-        Returns
-        -------
-        kurtosis: torch.Tensor
-            kurtosis of the matrix X
-
-        """
-        # implementation is only for real components
-        if mu is None:
-            mu = X.mean()
-        if var is None:
-            var = X.var()
-        return torch.mean(torch.abs(X - mu).pow(4)) / (var.pow(2))
 
     def plot_representation(
         self,
