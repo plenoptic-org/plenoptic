@@ -163,6 +163,12 @@ We communicate via several channels on Github:
 In all cases, we request that you respect our `code of conduct
 <https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
+Citing us
+---------
+
+If you use ``plenoptic`` in a published academic article or presentation, please
+cite us! See the :ref:`citation` for more details.
+
 .. toctree::
    :titlesonly:
    :caption: Basic concepts
@@ -172,6 +178,7 @@ In all cases, we request that you respect our `code of conduct
    conceptual_intro
    models
    tutorials/*
+   citation
 
 .. toctree::
    :titlesonly:
