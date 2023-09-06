@@ -13,7 +13,7 @@
             :target: https://doi.org/10.5281/zenodo.3995057
 
 .. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
-             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic)
+             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
 		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples
