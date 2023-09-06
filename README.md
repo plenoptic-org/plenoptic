@@ -47,7 +47,9 @@ documentation](https://matplotlib.org/stable/api/animation_api.html#writer-class
 for more details. In order convert them to HTML5 for viewing (and thus, to view
 in a jupyter notebook), you'll need [ffmpeg](https://ffmpeg.org/download.html)
 installed and on your path as well. Depending on your system, this might already
-be installed.
+be installed, but if not, the easiest way is probably through [conda]
+(https://anaconda.org/conda-forge/ffmpeg): `conda install -c conda-forge
+ffmpeg`.
 
 To change the backend, run `matplotlib.rcParams['animation.writer'] = writer`
 before calling any of the animate functions. If you try to set that `rcParam`

@@ -68,7 +68,10 @@ available for saving the animations to file (see `matplotlib documentation
 ).
 To convert them to HTML5 for viewing (for example, in a
 jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
-installed. 
+installed. Depending on your system, this might already
+be installed, but if not, the easiest way is probably through `conda
+<https://anaconda.org/conda-forge/ffmpeg>`_: ``conda install -c conda-forge
+ffmpeg``.
 To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
 before calling any of the animate functions. If you try to set that ``rcParam``
 with a random string, ``matplotlib`` will list the available choices.
