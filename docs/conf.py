@@ -48,7 +48,9 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     'matplotlib.sphinxext.mathmpl',
     'sphinx.ext.autodoc',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.intersphinx',
+    'sphinx_copybutton',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
