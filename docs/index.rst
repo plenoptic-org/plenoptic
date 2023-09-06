@@ -52,9 +52,7 @@ Getting started
 Installation
 ^^^^^^^^^^^^
 
-.. highlight:: bash
-
-The best way to install ``plenoptic`` is via ``pip``.
+The best way to install ``plenoptic`` is via ``pip``::
 
 $ pip install plenoptic
 
