@@ -185,4 +185,4 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
-apidoc_module_dir = "../plenoptic"
+apidoc_module_dir = "../src/plenoptic"
