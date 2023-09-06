@@ -9,11 +9,11 @@
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
 
-.. |tutorials| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg
-		         :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials
-
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
             :target: https://doi.org/10.5281/zenodo.3995057
+
+.. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
+             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic)
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
 		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples
@@ -27,7 +27,7 @@
 plenoptic
 *********
 
-|pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo| |binder|
+|pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
 
 
 .. image:: images/plenoptic_logo_wide.svg
