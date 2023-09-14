@@ -39,6 +39,7 @@ docs = [
      'nbsphinx_link',
      'sphinxcontrib-apidoc',
      'sphinx-autodoc-typehints',
+     'sphinx-copybutton',
 ]
 
 dev = [

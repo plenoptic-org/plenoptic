@@ -7,7 +7,6 @@
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg)](https://doi.org/10.5281/zenodo.3995057)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
-[![Tutorials Status](https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials)
 [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples)
 
 ![](docs/images/plenoptic_logo_wide.svg)
@@ -48,7 +47,9 @@ documentation](https://matplotlib.org/stable/api/animation_api.html#writer-class
 for more details. In order convert them to HTML5 for viewing (and thus, to view
 in a jupyter notebook), you'll need [ffmpeg](https://ffmpeg.org/download.html)
 installed and on your path as well. Depending on your system, this might already
-be installed.
+be installed, but if not, the easiest way is probably through [conda]
+(https://anaconda.org/conda-forge/ffmpeg): `conda install -c conda-forge
+ffmpeg`.
 
 To change the backend, run `matplotlib.rcParams['animation.writer'] = writer`
 before calling any of the animate functions. If you try to set that `rcParam`
@@ -126,6 +127,13 @@ We communicate via several channels on Github:
 -   See the [contributing guide](CONTRIBUTING.md) for how to get involved.
 
 In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
+
+## Citing us
+
+If you use `plenoptic` in a published academic article or presentation, please
+cite us! See the [citation
+guide](https://pyrtools.readthedocs.io/en/latest/citation.html) for more
+details.
 
 ## Support
 
