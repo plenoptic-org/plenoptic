@@ -232,11 +232,7 @@ class PortillaSimoncelli(nn.Module):
             statistics.
 
         """
-        validate_input(image, no_batch=True)
-        if image.shape[1] > 1:
-            raise ValueError(
-                "Channel size should be 1. Portilla Simoncelli doesn't currently support multi-channel images."
-            )
+        validate_input(image)
 
         self.pyr_coeffs = self.pyr.forward(image)
         self.representation = OrderedDict()
@@ -244,20 +240,26 @@ class PortillaSimoncelli(nn.Module):
         ### SECTION 1 (STATISTIC: pixel_statistics) ##################
         #  Calculate pixel statistics (mean, variance, skew, kurtosis, min, max).
         self.representation["pixel_statistics"] = OrderedDict()
-        self.representation["pixel_statistics"]["mean"] = torch.mean(image)
-        self.representation["pixel_statistics"]["var"] = torch.var(image)
+        mean = torch.mean(image, dim=(-2, -1), keepdim=True)
+        self.representation["pixel_statistics"]["mean"] = mean.flatten(1, -1)
+        self.representation["pixel_statistics"]["var"] = torch.var(image, dim=(-2, -1))
         self.representation["pixel_statistics"]["skew"] = stats.skew(
             image,
-            mean=self.representation["pixel_statistics"]["mean"],
+            mean=mean,
             var=self.representation["pixel_statistics"]["var"],
+            dim=[-2, -1],
         )
         self.representation["pixel_statistics"]["kurtosis"] = stats.kurtosis(
             image,
-            mean=self.representation["pixel_statistics"]["mean"],
+            mean=mean,
             var=self.representation["pixel_statistics"]["var"],
+            dim=[-2, -1],
         )
-        self.representation["pixel_statistics"]["min"] = torch.min(image)
-        self.representation["pixel_statistics"]["max"] = torch.max(image)
+        # for some reason, can't pass two dimensions to torch.min or torch.max
+        img_min = image.min(-1).values.min(-1).values
+        self.representation["pixel_statistics"]["min"] = img_min
+        img_max = image.max(-1).values.max(-1).values
+        self.representation["pixel_statistics"]["max"] = img_max
 
         ### SECTION 2 (STATISTIC: mean_magnitude) ####################
         # Calculate the mean of the magnitude of each band of pyramid
@@ -296,28 +298,34 @@ class PortillaSimoncelli(nn.Module):
         # Initialize statistics
         # let's remove the normalization from the auto_correlation statistics
         self.representation["auto_correlation_magnitude"] = torch.zeros(
-            [
+            (
+                *image.shape[:2],
                 self.spatial_corr_width,
                 self.spatial_corr_width,
                 self.n_scales,
                 self.n_orientations,
-            ],
+            ),
             device=image.device,
         )
         self.representation["skew_reconstructed"] = torch.empty(
-            (self.n_scales + 1, 1), device=image.device
+            (*image.shape[:2], self.n_scales + 1), device=image.device
         )
         self.representation["kurtosis_reconstructed"] = torch.empty(
-            (self.n_scales + 1, 1), device=image.device
+            (*image.shape[:2], self.n_scales + 1), device=image.device
         )
         self.representation["auto_correlation_reconstructed"] = torch.zeros(
-            [self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1],
+            (
+                *image.shape[:2],
+                self.spatial_corr_width,
+                self.spatial_corr_width,
+                self.n_scales + 1,
+            ),
             device=image.device,
         )
 
         if self.use_true_correlations:
             self.representation["std_reconstructed"] = torch.empty(
-                self.n_scales + 1, 1, device=image.device
+                (*image.shape[:2], self.n_scales + 1), device=image.device
             )
 
         self._calculate_autocorrelation_skew_kurtosis()
@@ -332,24 +340,34 @@ class PortillaSimoncelli(nn.Module):
 
         # Initialize statistics
         self.representation["cross_orientation_correlation_magnitude"] = torch.zeros(
-            self.n_orientations,
-            self.n_orientations,
-            self.n_scales + 1,
+            (
+                *image.shape[:2],
+                self.n_orientations,
+                self.n_orientations,
+                self.n_scales + 1,
+            ),
             device=image.device,
         )
         self.representation["cross_scale_correlation_magnitude"] = torch.zeros(
-            self.n_orientations, self.n_orientations, self.n_scales, device=image.device
+            (*image.shape[:2], self.n_orientations, self.n_orientations, self.n_scales),
+            device=image.device,
         )
         self.representation["cross_orientation_correlation_real"] = torch.zeros(
-            max(2 * self.n_orientations, 5),
-            max(2 * self.n_orientations, 5),
-            self.n_scales + 1,
+            (
+                *image.shape[:2],
+                max(2 * self.n_orientations, 5),
+                max(2 * self.n_orientations, 5),
+                self.n_scales + 1,
+            ),
             device=image.device,
         )
         self.representation["cross_scale_correlation_real"] = torch.zeros(
-            2 * self.n_orientations,
-            max(2 * self.n_orientations, 5),
-            self.n_scales,
+            (
+                *image.shape[:2],
+                2 * self.n_orientations,
+                max(2 * self.n_orientations, 5),
+                self.n_scales,
+            ),
             device=image.device,
         )
 
@@ -357,7 +375,7 @@ class PortillaSimoncelli(nn.Module):
 
         # SECTION 5: var_highpass_residual or the variance of the high-pass residual
         self.representation["var_highpass_residual"] = (
-            self.pyr_coeffs["residual_highpass"].pow(2).mean().unsqueeze(0)
+            self.pyr_coeffs["residual_highpass"].pow(2).mean(dim=(-2, -1))
         )
 
         representation_vector = self.convert_to_vector()
@@ -422,13 +440,17 @@ class PortillaSimoncelli(nn.Module):
         if stats_dict is None:
             stats_dict = self.representation
 
-        list_of_stats = [
-            torch.cat([vv.flatten() for vv in val.values()])
-            if isinstance(val, OrderedDict)
-            else val.flatten()
-            for val in stats_dict.values()
-        ]
-        return torch.cat(list_of_stats).unsqueeze(0).unsqueeze(0)
+        list_of_stats = []
+        for k, val in stats_dict.items():
+            if isinstance(val, OrderedDict):
+                # these are all 2d
+                list_of_stats.append(torch.stack([vv for vv in val.values()], dim=-1))
+            else:
+                if val.ndim == 2:
+                    list_of_stats.append(val.unsqueeze(-1))
+                else:
+                    list_of_stats.append(val.flatten(start_dim=2, end_dim=-1))
+        return torch.cat(list_of_stats, dim=-1)
 
     def convert_to_dict(self, vec: Tensor) -> OrderedDict:
         """Converts vector of statistics to a dictionary.
@@ -451,114 +473,97 @@ class PortillaSimoncelli(nn.Module):
             Convert dictionary representation to vector.
 
         """
-        vec = vec.squeeze()
-        if len(vec) != len(self.representation_scales):
+        if vec.shape[-1] != len(self.representation_scales):
             raise ValueError(
                 "representation vector is the wrong length (expected "
-                f"{len(self.representation_scales)} but got {len(vec)})!"
+                f"{len(self.representation_scales)} but got {vec.shape[-1]})!"
                 " Did you remove some of the scales? (i.e., by setting "
                 "scales in the forward pass)? convert_to_dict does not "
                 "support such vectors."
             )
         rep = OrderedDict()
         rep["pixel_statistics"] = OrderedDict()
-        rep["pixel_statistics"]["mean"] = vec[0]
-        rep["pixel_statistics"]["var"] = vec[1]
-        rep["pixel_statistics"]["skew"] = vec[2]
-        rep["pixel_statistics"]["kurtosis"] = vec[3]
-        rep["pixel_statistics"]["min"] = vec[4]
-        rep["pixel_statistics"]["max"] = vec[5]
+        rep["pixel_statistics"]["mean"] = vec[..., 0]
+        rep["pixel_statistics"]["var"] = vec[..., 1]
+        rep["pixel_statistics"]["skew"] = vec[..., 2]
+        rep["pixel_statistics"]["kurtosis"] = vec[..., 3]
+        rep["pixel_statistics"]["min"] = vec[..., 4]
+        rep["pixel_statistics"]["max"] = vec[..., 5]
 
         n_filled = 6
 
         # magnitude_means
         rep["magnitude_means"] = OrderedDict()
-        for ii, (k, v) in enumerate(self.representation["magnitude_means"].items()):
-            rep["magnitude_means"][k] = vec[n_filled + ii]
+        for ii, k in enumerate(self.representation["magnitude_means"].keys()):
+            rep["magnitude_means"][k] = vec[..., n_filled + ii]
         n_filled += ii + 1
 
         # auto_correlation_magnitude
         nn = (
-            self.spatial_corr_width
-            * self.spatial_corr_width
-            * self.n_scales
-            * self.n_orientations
+            self.spatial_corr_width,
+            self.spatial_corr_width,
+            self.n_scales,
+            self.n_orientations,
         )
-        rep["auto_correlation_magnitude"] = vec[n_filled : (n_filled + nn)].unflatten(
-            0,
-            (
-                self.spatial_corr_width,
-                self.spatial_corr_width,
-                self.n_scales,
-                self.n_orientations,
-            ),
-        )
-        n_filled += nn
+        rep["auto_correlation_magnitude"] = vec[
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         # skew_reconstructed & kurtosis_reconstructed
         nn = self.n_scales + 1
-        rep["skew_reconstructed"] = vec[n_filled : (n_filled + nn)]
+        rep["skew_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
         n_filled += nn
 
-        rep["kurtosis_reconstructed"] = vec[n_filled : (n_filled + nn)]
+        rep["kurtosis_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
         n_filled += nn
 
         # auto_correlation_reconstructed
-        nn = self.spatial_corr_width * self.spatial_corr_width * (self.n_scales + 1)
+        nn = (self.spatial_corr_width, self.spatial_corr_width, (self.n_scales + 1))
         rep["auto_correlation_reconstructed"] = vec[
-            n_filled : (n_filled + nn)
-        ].unflatten(
-            0, (self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1)
-        )
-        n_filled += nn
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         if self.use_true_correlations:
             nn = self.n_scales + 1
-            rep["std_reconstructed"] = vec[n_filled : (n_filled + nn)]
+            rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
             n_filled += nn
 
         # cross_orientation_correlation_magnitude
-        nn = self.n_orientations * self.n_orientations * (self.n_scales + 1)
+        nn = (self.n_orientations, self.n_orientations, (self.n_scales + 1))
         rep["cross_orientation_correlation_magnitude"] = vec[
-            n_filled : (n_filled + nn)
-        ].unflatten(0, (self.n_orientations, self.n_orientations, self.n_scales + 1))
-        n_filled += nn
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         # cross_scale_correlation_magnitude
-        nn = self.n_orientations * self.n_orientations * self.n_scales
+        nn = (self.n_orientations, self.n_orientations, self.n_scales)
         rep["cross_scale_correlation_magnitude"] = vec[
-            n_filled : (n_filled + nn)
-        ].unflatten(0, (self.n_orientations, self.n_orientations, self.n_scales))
-        n_filled += nn
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         # cross_orientation_correlation_real
         nn = (
-            max(2 * self.n_orientations, 5)
-            * max(2 * self.n_orientations, 5)
-            * (self.n_scales + 1)
+            max(2 * self.n_orientations, 5),
+            max(2 * self.n_orientations, 5),
+            (self.n_scales + 1),
         )
         rep["cross_orientation_correlation_real"] = vec[
-            n_filled : (n_filled + nn)
-        ].unflatten(
-            0,
-            (
-                max(2 * self.n_orientations, 5),
-                max(2 * self.n_orientations, 5),
-                self.n_scales + 1,
-            ),
-        )
-        n_filled += nn
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         # cross_scale_correlation_real
-        nn = 2 * self.n_orientations * max(2 * self.n_orientations, 5) * self.n_scales
-        rep["cross_scale_correlation_real"] = vec[n_filled : (n_filled + nn)].unflatten(
-            0, (2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales)
-        )
-        n_filled += nn
+        nn = (2 * self.n_orientations, max(2 * self.n_orientations, 5), self.n_scales)
+        rep["cross_scale_correlation_real"] = vec[
+            ..., n_filled : (n_filled + np.prod(nn))
+        ].unflatten(-1, nn)
+        n_filled += np.prod(nn)
 
         # var_highpass_residual
-        rep["var_highpass_residual"] = vec[n_filled]
-        n_filled += 1
+        rep["var_highpass_residual"] = vec[..., n_filled]
 
         return rep
 
@@ -579,23 +584,23 @@ class PortillaSimoncelli(nn.Module):
             "residual_lowpass"
         ] - torch.mean(self.pyr_coeffs["residual_lowpass"])
 
-        # calculate two new sets of coefficients: 1) magnitude of the pyramid coefficients, 2) real part of the pyramid coefficients
+        # calculate two new sets of coefficients:
+        #   1) magnitude of the pyramid coefficients,
+        #   2) real part of the pyramid coefficients
         self.magnitude_pyr_coeffs = OrderedDict()
         self.real_pyr_coeffs = OrderedDict()
         for key, val in self.pyr_coeffs.items():
-            if key in ["residual_lowpass", "residual_highpass"]:  # not complex
-                self.magnitude_pyr_coeffs[key] = torch.abs(val).squeeze()
-                self.real_pyr_coeffs[key] = val.squeeze()
-            else:  # complex
-                self.magnitude_pyr_coeffs[key] = val.abs().squeeze()
-                self.real_pyr_coeffs[key] = val.real.squeeze()
+            self.magnitude_pyr_coeffs[key] = val.abs()
+            self.real_pyr_coeffs[key] = val.real
 
         # STATISTIC: magnitude_means or the mean magnitude of each pyramid band
         magnitude_means = OrderedDict()
         for (key, val) in self.magnitude_pyr_coeffs.items():
-            magnitude_means[key] = torch.mean(val)
-            self.magnitude_pyr_coeffs[key] = (
-                self.magnitude_pyr_coeffs[key] - magnitude_means[key]
+            magnitude_means[key] = torch.mean(val, (-2, -1))
+            self.magnitude_pyr_coeffs[key] = self.magnitude_pyr_coeffs[
+                key
+            ] - magnitude_means[key].unsqueeze(-1).unsqueeze(
+                -1
             )  # subtract mean of magnitude
 
         return magnitude_means
@@ -617,40 +622,44 @@ class PortillaSimoncelli(nn.Module):
             resized image
 
         """
-        im = im.squeeze()
+        im_x = im.shape[-1]
+        im_y = im.shape[-2]
+        mx = mult * im_x
+        my = mult * im_y
 
-        mx = im.shape[1]
-        my = im.shape[0]
-        my = mult * my
-        mx = mult * mx
+        fourier = mult**2 * torch.fft.fftshift(torch.fft.fft2(im), dim=(-2, -1))
+        fourier_large = torch.zeros(
+            *im.shape[:-2],
+            my,
+            mx,
+            device=fourier.device,
+            dtype=fourier.dtype,
+        )
 
-        fourier = mult**2 * torch.fft.fftshift(torch.fft.fftn(im))
-        fourier_large = torch.zeros(my, mx, device=fourier.device, dtype=fourier.dtype)
+        y1 = int(my / 2 + 1 - im_y / 2 )
+        y2 = int(my / 2 + im_y / 2)
+        x1 = int(mx / 2 + 1 - im_x / 2)
+        x2 = int(mx / 2 + im_x / 2)
 
-        y1 = int(my / 2 + 1 - my / (2 * mult))
-        y2 = int(my / 2 + my / (2 * mult))
-        x1 = int(mx / 2 + 1 - mx / (2 * mult))
-        x2 = int(mx / 2 + mx / (2 * mult))
+        fourier_large[..., y1:y2, x1:x2] = fourier[..., 1:im_y, 1:im_x]
+        fourier_large[..., y1 - 1, x1:x2] = fourier[..., 0, 1:im_x] / 2
+        fourier_large[..., y2, x1:x2] = fourier[..., 0, 1:im_x].flip(-1) / 2
+        fourier_large[..., y1:y2, x1 - 1] = fourier[..., 1:im_y, 0] / 2
+        fourier_large[..., y1:y2, x2] = fourier[..., 1:im_y, 0].flip(-1) / 2
+        esq = fourier[..., 0, 0] / 4
+        fourier_large[..., y1 - 1, x1 - 1] = esq
+        fourier_large[..., y1 - 1, x2] = esq
+        fourier_large[..., y2, x1 - 1] = esq
+        fourier_large[..., y2, x2] = esq
 
-        fourier_large[y1:y2, x1:x2] = fourier[1 : int(my / mult), 1 : int(mx / mult)]
-        fourier_large[y1 - 1, x1:x2] = fourier[0, 1 : int(mx / mult)] / 2
-        fourier_large[y2, x1:x2] = fourier[0, 1 : int(mx / mult)].flip(0) / 2
-        fourier_large[y1:y2, x1 - 1] = fourier[1 : int(my / mult), 0] / 2
-        fourier_large[y1:y2, x2] = fourier[1 : int(my / mult), 0].flip(0) / 2
-        esq = fourier[0, 0] / 4
-        fourier_large[y1 - 1, x1 - 1] = esq
-        fourier_large[y1 - 1, x2] = esq
-        fourier_large[y2, x1 - 1] = esq
-        fourier_large[y2, x2] = esq
-
-        fourier_large = torch.fft.fftshift(fourier_large)
+        fourier_large = torch.fft.fftshift(fourier_large, dim=(-2, -1))
 
         # finish this
         im_large = torch.fft.ifft2(fourier_large)
 
         # if input was real-valued, output should be real-valued, but
         # using fft/ifft above means im_large will always be complex,
-        # so make sure they aling.
+        # so make sure they align.
         if not im.is_complex():
             im_large = torch.real(im_large)
         return im_large
@@ -663,8 +672,8 @@ class PortillaSimoncelli(nn.Module):
         autocorrelation, skew, and kurtosis of the reconstructed lowpass images
         at each scale.
 
-        These stats are all done in the same function because the variance is
-        computed at the same time as the autocorrelation and is used to save
+        These stats are all computed in the same function because the variance
+        is computed at the same time as the autocorrelation and is used to save
         time when computing the skew and kurtosis.
 
         """
@@ -672,7 +681,7 @@ class PortillaSimoncelli(nn.Module):
         # low-pass filter the low-pass residual.  We're still not sure why the original matlab code does this...
         lowpass = self.pyr_coeffs["residual_lowpass"]
         filter_pyr_coeffs = self.filterPyr.forward(lowpass)
-        reconstructed_image = filter_pyr_coeffs["residual_lowpass"].squeeze()
+        reconstructed_image = filter_pyr_coeffs["residual_lowpass"]
 
         # Find the auto-correlation of the low-pass residual
         (
@@ -680,12 +689,12 @@ class PortillaSimoncelli(nn.Module):
             vari,
         ) = self.compute_autocorrelation(reconstructed_image)
         (
-            self.representation["skew_reconstructed"][self.n_scales],
-            self.representation["kurtosis_reconstructed"][self.n_scales],
+            self.representation["skew_reconstructed"][..., self.n_scales],
+            self.representation["kurtosis_reconstructed"][..., self.n_scales],
         ) = self.compute_skew_kurtosis(reconstructed_image, vari)
 
         if self.use_true_correlations:
-            self.representation["std_reconstructed"][self.n_scales] = vari**0.5
+            self.representation["std_reconstructed"][..., self.n_scales] = vari**0.5
 
         # go through the scales backwards
         for this_scale in range(self.n_scales - 1, -1, -1):
@@ -699,16 +708,13 @@ class PortillaSimoncelli(nn.Module):
                     vari,
                 ) = self.compute_autocorrelation(ch)
 
-            reconstructed_image = self.__class__.expand(reconstructed_image, 2) / 4.0
-            reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
+            reconstructed_image = self.expand(reconstructed_image, 2) / 4.0
 
             # reconstruct the unoriented band for this scale
             unoriented_band_pyr = self.unoriented_band_pyrs[this_scale]
             unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
             for ii in range(self.n_orientations):
-                unoriented_pyr_coeffs[(0, ii)] = (
-                    self.real_pyr_coeffs[(this_scale, ii)].unsqueeze(0).unsqueeze(0)
-                )
+                unoriented_pyr_coeffs[(0, ii)] = self.real_pyr_coeffs[(this_scale, ii)]
             unoriented_band = unoriented_band_pyr.recon_pyr(
                 unoriented_pyr_coeffs, levels=[0]
             )
@@ -722,11 +728,11 @@ class PortillaSimoncelli(nn.Module):
                 vari,
             ) = self.compute_autocorrelation(reconstructed_image)
             if self.use_true_correlations:
-                self.representation["std_reconstructed"][this_scale] = vari**0.5
+                self.representation["std_reconstructed"][..., this_scale] = vari**0.5
             # Find skew and kurtosis of the reconstructed image
             (
-                self.representation["skew_reconstructed"][this_scale],
-                self.representation["kurtosis_reconstructed"][this_scale],
+                self.representation["skew_reconstructed"][..., this_scale],
+                self.representation["kurtosis_reconstructed"][..., this_scale],
             ) = self.compute_skew_kurtosis(reconstructed_image, vari)
 
     def _calculate_crosscorrelations(self):
@@ -734,17 +740,18 @@ class PortillaSimoncelli(nn.Module):
         and the magnitudes of the pyramid coefficients.
 
         """
+        batch_channel = self.real_pyr_coeffs[(0, 0)].shape[:2]
 
         for this_scale in range(self.n_scales):
-            band_num_el = self.real_pyr_coeffs[(this_scale, 0)].numel()
+            band_num_el = torch.mul(*self.real_pyr_coeffs[(this_scale, 0)].shape[-2:])
             if this_scale < self.n_scales - 1:
                 next_scale_mag = torch.empty(
-                    (band_num_el, self.n_orientations),
+                    (*batch_channel, band_num_el, self.n_orientations),
                     device=self.pyr.hi0mask.device,
                     dtype=self.pyr.hi0mask.dtype,
                 )
                 next_scale_real = torch.empty(
-                    (band_num_el, self.n_orientations * 2),
+                    (*batch_channel, band_num_el, self.n_orientations * 2),
                     device=self.pyr.hi0mask.device,
                     dtype=self.pyr.hi0mask.dtype,
                 )
@@ -752,10 +759,7 @@ class PortillaSimoncelli(nn.Module):
                 for nor in range(self.n_orientations):
 
                     upsampled = (
-                        self.__class__.expand(
-                            self.pyr_coeffs[(this_scale + 1, nor)].squeeze(), 2
-                        )
-                        / 4.0
+                        self.expand(self.pyr_coeffs[(this_scale + 1, nor)], 2) / 4.0
                     )
 
                     # Here we double the phase of the upsampled band.  This trick
@@ -769,30 +773,27 @@ class PortillaSimoncelli(nn.Module):
                     )
 
                     # Save the components
-                    next_scale_real[:, nor] = X.t().flatten()
-                    next_scale_real[:, nor + self.n_orientations] = Y.t().flatten()
+                    next_scale_real[..., nor] = X.transpose(-2, -1).flatten(2)
+                    next_scale_real[..., nor + self.n_orientations] = Y.transpose(-2, -1).flatten(2)
 
                     # Save the magnitude
                     mag = (X**2 + Y**2) ** 0.5
-                    next_scale_mag[:, nor] = (mag - mag.mean()).t().flatten()
+                    next_scale_mag[..., nor] = (mag - mag.mean()).transpose(-2, -1).flatten(2)
 
             else:
                 upsampled = (
-                    self.__class__.expand(
-                        self.real_pyr_coeffs["residual_lowpass"].squeeze(), 2
-                    )
-                    / 4.0
+                    self.expand(self.real_pyr_coeffs["residual_lowpass"], 2) / 4.0
                 )
-                upsampled = upsampled.t()
+                upsampled = upsampled.transpose(-2, -1)
                 next_scale_real = torch.stack(
                     (
-                        upsampled.flatten(),
-                        upsampled.roll(1, 0).flatten(),
-                        upsampled.roll(-1, 0).flatten(),
-                        upsampled.roll(1, 1).flatten(),
-                        upsampled.roll(-1, 1).flatten(),
+                        upsampled.flatten(2),
+                        upsampled.roll(1, -2).flatten(2),
+                        upsampled.roll(-1, -2).flatten(2),
+                        upsampled.roll(1, -1).flatten(2),
+                        upsampled.roll(-1, -1).flatten(2),
                     ),
-                    1,
+                    -1,
                 )
                 next_scale_mag = torch.empty((0), device=upsampled.device)
 
@@ -800,7 +801,7 @@ class PortillaSimoncelli(nn.Module):
                 torch.stack(
                     tuple(
                         [
-                            aa.t()
+                            aa.transpose(-2, -1)
                             for aa in [
                                 self.magnitude_pyr_coeffs[(this_scale, ii)]
                                 for ii in range(self.n_orientations)
@@ -808,74 +809,74 @@ class PortillaSimoncelli(nn.Module):
                         ]
                     )
                 )
-                .view((self.n_orientations, band_num_el))
-                .t()
+                .view((*batch_channel, self.n_orientations, band_num_el))
+                .transpose(-2, -1)
             )
 
             if next_scale_mag.shape[0] > 0:
-                np0 = next_scale_mag.shape[1]
+                np0 = next_scale_mag.shape[-1]
             else:
                 np0 = 0
 
             self.representation["cross_orientation_correlation_magnitude"][
-                0 : self.n_orientations, 0 : self.n_orientations, this_scale
+                ..., this_scale
             ] = self.compute_crosscorrelation(
-                orientation_bands_mag.t(), orientation_bands_mag, band_num_el
+                orientation_bands_mag.transpose(-2, -1), orientation_bands_mag, band_num_el
             )
 
             if np0 > 0:
                 self.representation["cross_scale_correlation_magnitude"][
-                    0 : self.n_orientations, 0:np0, this_scale
+                    ..., 0:np0, this_scale
                 ] = self.compute_crosscorrelation(
-                    orientation_bands_mag.t(), next_scale_mag, band_num_el
+                    orientation_bands_mag.transpose(-2, -1), next_scale_mag, band_num_el
                 )
 
                 # correlations on the low-pass residuals
                 if this_scale == self.n_scales - 1:
                     self.representation["cross_orientation_correlation_magnitude"][
-                        0:np0, 0:np0, this_scale + 1
+                        ..., 0:np0, 0:np0, this_scale + 1
                     ] = self.compute_crosscorrelation(
-                        next_scale_mag.t(), next_scale_mag, band_num_el / 4.0
+                        next_scale_mag.transpose(-2, -1), next_scale_mag, band_num_el / 4.0
                     )
 
             orientation_bands_real = (
                 torch.stack(
                     tuple(
                         [
-                            aa.t()
+                            aa.transpose(-2, -1)
                             for aa in [
-                                self.real_pyr_coeffs[(this_scale, ii)].squeeze()
+                                self.real_pyr_coeffs[(this_scale, ii)]
                                 for ii in range(self.n_orientations)
                             ]
                         ]
                     )
                 )
-                .view((self.n_orientations, band_num_el))
-                .t()
+                .view((*batch_channel, self.n_orientations, band_num_el))
+                .transpose(-2, -1)
             )
 
             if next_scale_real.shape[0] > 0:
-                nrp = next_scale_real.shape[1]
+                nrp = next_scale_real.shape[-1]
             else:
                 nrp = 0
             self.representation["cross_orientation_correlation_real"][
-                0 : self.n_orientations, 0 : self.n_orientations, this_scale
+                ..., 0 : self.n_orientations, 0 : self.n_orientations, this_scale
             ] = self.compute_crosscorrelation(
-                orientation_bands_real.t(), orientation_bands_real, band_num_el
+                orientation_bands_real.transpose(-2, -1), orientation_bands_real, band_num_el
             )
             if nrp > 0:
                 self.representation["cross_scale_correlation_real"][
-                    0 : self.n_orientations, 0:nrp, this_scale
+                    ..., 0 : self.n_orientations, 0:nrp, this_scale
                 ] = self.compute_crosscorrelation(
-                    orientation_bands_real.t(), next_scale_real, band_num_el
+                    orientation_bands_real.transpose(-2, -1), next_scale_real, band_num_el
                 )
                 if (
                     this_scale == self.n_scales - 1
                 ):  # correlations on the low-pass residuals
                     self.representation["cross_orientation_correlation_real"][
-                        0:nrp, 0:nrp, this_scale + 1
+                        ..., 0:nrp, 0:nrp, this_scale + 1
                     ] = self.compute_crosscorrelation(
-                        next_scale_real.t(), next_scale_real, (band_num_el / 4.0)
+                        next_scale_real.transpose(-2, -1), next_scale_real, (band_num_el / 4.0)
                     )
 
     def compute_crosscorrelation(self, ch1, ch2, band_num_el):
@@ -919,7 +920,7 @@ class PortillaSimoncelli(nn.Module):
 
         """
 
-        channel_size = torch.min(torch.tensor(ch.shape[-2:])).to(float)
+        channel_size = np.min(ch.shape[-2:])
 
         # Calculate the edges of the central auto-correlation
         center = int(np.floor([(self.spatial_corr_width - 1) / 2]))
@@ -930,17 +931,17 @@ class PortillaSimoncelli(nn.Module):
         cx = int(ch.shape[-2] / 2)
 
         # Calculate the auto-correlation
-        ac = torch.fft.fft2(ch.squeeze())
+        ac = torch.fft.fft2(ch)
         ac = ac.real.pow(2) + ac.imag.pow(2)
         ac = torch.fft.ifft2(ac)
-        ac = torch.fft.fftshift(ac.unsqueeze(0)).squeeze() / torch.numel(ch)
+        ac = torch.fft.fftshift(ac, dim=(-2, -1)) / torch.mul(*ch.shape[-2:])
 
         # Return only the central auto-correlation
-        ac = ac.real[cx - le : cx + le + 1, cy - le : cy + le + 1]
-        vari = ac[le, le]
+        ac = ac.real[..., cx - le : cx + le + 1, cy - le : cy + le + 1]
+        vari = ac[..., le, le]
 
         if self.use_true_correlations:
-            ac = ac / vari
+            ac = ac / vari.unsqueeze(-1).unsqueeze(-1)
 
         return ac, vari
 
@@ -965,15 +966,22 @@ class PortillaSimoncelli(nn.Module):
             kurtosis of ch or default value (3)
 
         """
-
-        # Find the skew and the kurtosis of the low-pass residual
-        if vari / self.representation["pixel_statistics"]["var"] > 1e-6:
-            skew = stats.skew(ch, mean=0, var=vari)
-            kurtosis = stats.kurtosis(ch, mean=0, var=vari)
-        else:
-            skew = 0
-            kurtosis = 3
-
+        skew = stats.skew(ch, mean=0, var=vari, dim=[-2, -1])
+        kurtosis = stats.kurtosis(ch, mean=0, var=vari, dim=[-2, -1])
+        skew_default = torch.zeros_like(skew, dtype=ch.dtype, device=ch.device)
+        kurtosis_default = 3 * torch.ones_like(
+            kurtosis, dtype=ch.dtype, device=ch.device
+        )
+        skew = torch.where(
+            vari / self.representation["pixel_statistics"]["var"] > 1e-6,
+            skew,
+            skew_default,
+        )
+        kurtosis = torch.where(
+            vari / self.representation["pixel_statistics"]["var"] > 1e-6,
+            kurtosis,
+            kurtosis_default,
+        )
         return skew, kurtosis
 
     def plot_representation(
