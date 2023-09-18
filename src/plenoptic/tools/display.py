@@ -470,11 +470,6 @@ def update_stem(stem_container, ydata):
     lines connecting them to the baseline, but we don't change the
     baseline at all and assume that the xdata shouldn't change at all.
 
-    This requires that the initial ``plt.stem`` be called with the
-    argument ``use_line_collection=True``, as will be the default in
-    matplotlib 3.3 (this improves efficiency, so you should do it
-    anyway)
-
     Parameters
     ----------
     stem_container : `matplotlib.container.StemContainer`
@@ -494,13 +489,7 @@ def update_stem(stem_container, ydata):
 
     """
     stem_container.markerline.set_ydata(ydata)
-    try:
-        segments = stem_container.stemlines.get_segments().copy()
-    except AttributeError:
-        raise Exception("We require that the initial stem plot be called with "
-                        "use_line_collection=True in order to correctly update "
-                        "it. This will significantly improve performance as "
-                        "well.")
+    segments = stem_container.stemlines.get_segments().copy()
     for s, y in zip(segments, ydata):
         try:
             s[1, 1] = y
@@ -652,7 +641,7 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     else:
         # this is the default basefmt value
         basefmt = None
-    ax.stem(data, basefmt=basefmt, use_line_collection=True, **kwargs)
+    ax.stem(data, basefmt=basefmt, **kwargs)
     ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
     if title is not None:
         ax.set_title(title)
