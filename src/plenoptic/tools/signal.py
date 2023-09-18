@@ -428,3 +428,28 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
         noise_mse / (noise**2).mean((-1, -2)).unsqueeze(-1).unsqueeze(-1)
     )
     return img + noise
+
+
+def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
+    """Modulate the phase of a complex signal.
+
+    Doubling the phase of a complex signal allows you to, for example, take the
+    correlation between steerable pyramid coefficients at two adjacent spatial
+    scales.
+
+    Parameters
+    ----------
+    x :
+        Complex tensor whose phase will be modulated.
+    phase_factor :
+        Multiplicative factor to change phase by.
+
+    Returns
+    -------
+    x_mod :
+        Phase-modulated complex tensor.
+
+    """
+    real = x.abs() * torch.cos(phase_factor * torch.atan2(x.imag, x.real))
+    imag = x.abs() * torch.sin(phase_factor * torch.atan2(x.imag, x.real))
+    return torch.complex(real, imag)
