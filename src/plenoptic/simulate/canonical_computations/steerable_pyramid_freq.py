@@ -884,7 +884,7 @@ class SteerablePyramidFreq(nn.Module):
             else:
                 lodft = fft.fft2(
                     torch.zeros_like(
-                        pyr_coeffs["residual_lowpass"], dtype=torch.float64
+                        pyr_coeffs["residual_lowpass"]
                     ),
                     dim=(-2, -1),
                     norm=self.fft_norm,
@@ -895,11 +895,7 @@ class SteerablePyramidFreq(nn.Module):
         # Reconstruct from orientation bands
         # update himask
         himask = self._himasks[scale]
-        if self.is_complex:
-            tensor_type = torch.complex64
-        else:
-            tensor_type = torch.float64
-        orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=tensor_type)
+        orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
 
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
