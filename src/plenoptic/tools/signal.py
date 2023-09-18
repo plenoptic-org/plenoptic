@@ -188,59 +188,6 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     return torch.complex(real, imaginary)
 
 
-def autocorr(x: Tensor, n_shifts: int = 7) -> Tensor:
-    """Compute the autocorrelation of `x` up to `n_shifts` shifts,
-    the calculation is performed in the frequency domain.
-    Parameters
-    ---------
-    x
-        Input signal of shape [b, c, h, w]
-    n_shifts
-        Sets the length scale of the auto-correlation (ie. maximum offset or lag).
-
-    Returns
-    -------
-    autocorr
-        Computed autocorrelation.
-
-    Notes
-    -----
-
-    - By the Einstein-Wiener-Khinchin theorem: The autocorrelation of a wide
-      sense stationary (WSS) process is the inverse Fourier transform of its
-      energy spectrum (ESD) - which itself is the multiplication between
-      FT(x(t)) and FT(x(-t)). In other words, the auto-correlation is
-      convolution of the signal `x` with itself, which corresponds to squaring
-      in the frequency domain. This approach is computationally more efficient
-      than brute force (n log(n) vs n^2).
-
-    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
-      location (ie. no shift) - that maximum value is the signal's variance
-      (assuming that the input signal is mean centered).
-
-    """
-    N, C, H, W = x.shape
-    assert n_shifts >= 1
-
-    spectrum = fft.rfft2(x, dim=(-2, -1), norm=None)
-
-    energy_spectrum = torch.abs(spectrum) ** 2
-    zero_phase = torch.zeros_like(energy_spectrum)
-    energy_spectrum = polar_to_rectangular(energy_spectrum, zero_phase)
-
-    autocorr = fft.irfft2(energy_spectrum, dim=(-2, -1), norm=None, s=(H, W))
-    autocorr = fft.fftshift(autocorr, dim=(-2, -1)) / (H * W)
-
-    if n_shifts is not None:
-        autocorr = autocorr[
-            :,
-            :,
-            (H // 2 - n_shifts // 2) : (H // 2 + (n_shifts + 1) // 2),
-            (W // 2 - n_shifts // 2) : (W // 2 + (n_shifts + 1) // 2),
-        ]
-    return autocorr
-
-
 def steer(
     basis: Tensor,
     angle: Union[np.ndarray, Tensor, float],
@@ -453,3 +400,214 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
     real = x.abs() * torch.cos(phase_factor * torch.atan2(x.imag, x.real))
     imag = x.abs() * torch.sin(phase_factor * torch.atan2(x.imag, x.real))
     return torch.complex(real, imag)
+
+
+def autocorrelation(x: Tensor) -> Tuple[Tensor, Tensor]:
+    r"""Computes the autocorrelation of `x`.
+
+    Parameters
+    ----------
+    x :
+       N-dimensional tensor. We assume the last two dimension are height and
+       width and compute you autocorrelation on these dimensions (independently
+       on each other dimension).
+
+    Returns
+    -------
+    ac :
+        Autocorrelation of x
+
+    Notes
+    -----
+
+    - By the Einstein-Wiener-Khinchin theorem: The autocorrelation of a wide
+      sense stationary (WSS) process is the inverse Fourier transform of its
+      energy spectrum (ESD) - which itself is the multiplication between
+      FT(x(t)) and FT(x(-t)). In other words, the auto-correlation is
+      convolution of the signal `x` with itself, which corresponds to squaring
+      in the frequency domain. This approach is computationally more efficient
+      than brute force (n log(n) vs n^2).
+
+    - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
+      location (ie. no shift) - that maximum value is the signal's variance
+      (assuming that the input signal is mean centered).
+
+    """
+    # Calculate the auto-correlation
+    ac = torch.fft.rfft2(x)
+    # this is equivalent to ac.abs().pow(2) or to ac multiplied by its complex
+    # conjugate
+    ac = ac.real.pow(2) + ac.imag.pow(2)
+    ac = torch.fft.irfft2(ac)
+    ac = torch.fft.fftshift(ac, dim=(-2, -1)) / torch.mul(*x.shape[-2:])
+    return ac
+
+
+def center_crop(x: Tensor, output_size: int) -> Tensor:
+    """Crop out the center of a signal.
+
+    If x has an even number of elements on either of those final two
+    dimensions, we round up.
+
+    Parameters
+    ----------
+    x :
+        N-dimensional tensor, we assume the last two dimensions are height and
+        width.
+    output_size :
+        The size of the output. Note that we only support a single number, so
+        both dimensions are cropped identically
+
+    Returns
+    -------
+    cropped :
+        Tensor whose last two dimensions have each been cropped to
+        ``output_size``
+
+    """
+    h, w = x.shape[-2:]
+    return x[..., (h//2 - output_size//2) : (h//2 + (output_size+1)//2),
+             (w//2 - output_size//2) : (w//2 + (output_size+1)//2)]
+
+
+def expand(x: Tensor, factor: int) -> Tensor:
+    r"""Expand a signal by a factor.
+
+    We do this in the frequency domain: pasting the Fourier contents of ``x``
+    in the center of a larger empty tensor, and then taking the inverse FFT.
+
+    Parameters
+    ----------
+    x:
+        The signal for expansion.
+    factor :
+        Factor by which to resize image.
+
+    Returns
+    -------
+    expanded :
+        The expanded signal
+
+    See also
+    --------
+    shrink :
+        The inverse operation
+    """
+    im_x = x.shape[-1]
+    im_y = x.shape[-2]
+    mx = factor * im_x
+    my = factor * im_y
+
+    fourier = factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
+    fourier_large = torch.zeros(
+        *x.shape[:-2],
+        my,
+        mx,
+        device=fourier.device,
+        dtype=fourier.dtype,
+    )
+
+    y1 = my / 2 + 1 - im_y / 2
+    y2 = my / 2 + im_y / 2
+    x1 = mx / 2 + 1 - im_x / 2
+    x2 = mx / 2 + im_x / 2
+    # when any of these numbers are non-integers, if you round down, the
+    # resulting image will be off.
+    y1 = int(np.ceil(y1))
+    y2 = int(np.ceil(y2))
+    x1 = int(np.ceil(x1))
+    x2 = int(np.ceil(x2))
+
+    fourier_large[..., y1:y2, x1:x2] = fourier[..., 1:, 1:]
+    fourier_large[..., y1 - 1, x1:x2] = fourier[..., 0, 1:] / 2
+    fourier_large[..., y2, x1:x2] = fourier[..., 0, 1:].flip(-1) / 2
+    fourier_large[..., y1:y2, x1 - 1] = fourier[..., 1:, 0] / 2
+    fourier_large[..., y1:y2, x2] = fourier[..., 1:, 0].flip(-1) / 2
+    esq = fourier[..., 0, 0] / 4
+    fourier_large[..., y1 - 1, x1 - 1] = esq
+    fourier_large[..., y1 - 1, x2] = esq
+    fourier_large[..., y2, x1 - 1] = esq
+    fourier_large[..., y2, x2] = esq
+
+    fourier_large = torch.fft.ifftshift(fourier_large, dim=(-2, -1))
+    im_large = torch.fft.ifft2(fourier_large)
+
+    # if input was real-valued, output should be real-valued, but
+    # using fft/ifft above means im_large will always be complex,
+    # so make sure they align.
+    if not x.is_complex():
+        im_large = torch.real(im_large)
+    return im_large
+
+
+def shrink(x: Tensor, factor: int) -> Tensor:
+    r"""Shrink a signal by a factor.
+
+    We do this in the frequency domain: cropping out the center of the Fourier
+    transform of ``x``, putting it in a new tensor, and taking the IFFT.
+
+    Parameters
+    ----------
+    x :
+        The signal for expansion.
+    factor :
+        factor by which to shrink image.
+
+    Returns
+    -------
+    expanded :
+        The expanded signal
+
+    See also
+    --------
+    expand :
+        The inverse operation
+
+    """
+    im_x = x.shape[-1]
+    im_y = x.shape[-2]
+    mx = im_x / factor
+    my = im_y / factor
+
+    if int(mx) != mx:
+        raise ValueError(f"x.shape[-1]/factor must be an integer!")
+    if int(my) != my:
+        raise ValueError(f"x.shape[-2]/factor must be an integer!")
+
+    mx = int(mx)
+    my = int(my)
+
+    fourier = 1/factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
+    fourier_small = torch.zeros(
+        *x.shape[:-2],
+        my,
+        mx,
+        device=fourier.device,
+        dtype=fourier.dtype,
+    )
+
+    y1 = im_y / 2 + 1 - my / 2
+    y2 = im_y / 2 + my / 2
+    x1 = im_x / 2 + 1 - mx / 2
+    x2 = im_x / 2 + mx / 2
+    # when any of these numbers are non-integers, if you round down, the
+    # resulting image will be off.
+    y1 = int(np.ceil(y1))
+    y2 = int(np.ceil(y2))
+    x1 = int(np.ceil(x1))
+    x2 = int(np.ceil(x2))
+
+    fourier_small[..., 1:, 1:] = fourier[..., y1:y2, x1:x2]
+    fourier_small[..., 0, 1:] = (fourier[..., y1-1, x1:x2] + fourier[..., y2, x1:x2])/ 2
+    fourier_small[..., 1:, 0] = (fourier[..., y1:y2, x1-1] + fourier[..., y1:y2, x2])/ 2
+    fourier_small[..., 0, 0] = (fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4
+
+    fourier_small = torch.fft.ifftshift(fourier_small, dim=(-2, -1))
+    im_small = torch.fft.ifft2(fourier_small)
+
+    # if input was real-valued, output should be real-valued, but
+    # using fft/ifft above means im_small will always be complex,
+    # so make sure they align.
+    if not x.is_complex():
+        im_small = torch.real(im_small)
+    return im_small
