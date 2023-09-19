@@ -585,7 +585,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
         device=fourier.device,
         dtype=fourier.dtype,
     )
-    x, y  = torch.meshgrid(torch.arange(my), torch.arange(mx),
+    x, y  = torch.meshgrid(torch.arange(my, device=fourier.device),
+                           torch.arange(mx, device=fourier.device),
                            indexing='xy')
 
     y1 = im_y / 2 + 1 - my / 2
