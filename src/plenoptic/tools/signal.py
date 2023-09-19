@@ -585,6 +585,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
         device=fourier.device,
         dtype=fourier.dtype,
     )
+    x, y  = torch.meshgrid(torch.arange(my), torch.arange(mx),
+                           indexing='xy')
 
     y1 = im_y / 2 + 1 - my / 2
     y2 = im_y / 2 + my / 2
@@ -597,10 +599,30 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     x1 = int(np.ceil(x1))
     x2 = int(np.ceil(x2))
 
-    fourier_small[..., 1:, 1:] = fourier[..., y1:y2, x1:x2]
-    fourier_small[..., 0, 1:] = (fourier[..., y1-1, x1:x2] + fourier[..., y2, x1:x2])/ 2
-    fourier_small[..., 1:, 0] = (fourier[..., y1:y2, x1-1] + fourier[..., y1:y2, x2])/ 2
-    fourier_small[..., 0, 0] = (fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4
+    # In the following, we use torch.where instead of indexing because it allow
+    # us to use vmap (and is generally faster for pytorch). But this requires
+    # that all three tensors are broadcastable, so note where we've added an
+    # extra -1 to make the dims align: we're adding them in the places where
+    # they'll be ignored
+
+    # This line is equivalent to
+    # fourier_small[..., 1:, 1:] = fourier[..., y1:y2, x1:x2]
+    fourier_small = torch.where(torch.logical_and(y > 0, x > 0),
+                                fourier[..., y1-1:y2, x1-1:x2],
+                                fourier_small)
+    # fourier_small[..., 0, 1:] = (fourier[..., y1-1, x1:x2] + fourier[..., y2, x1:x2])/ 2
+    fourier_small = torch.where(torch.logical_and(y == 0, x > 0),
+                                ((fourier[..., y1-1, x1-1:x2] + fourier[..., y2, x1-1:x2])/ 2).unsqueeze(-2),
+                                fourier_small)
+    # fourier_small[..., 1:, 0] = (fourier[..., y1:y2, x1-1] + fourier[..., y1:y2, x2])/ 2
+    fourier_small = torch.where(torch.logical_and(y > 0, x == 0),
+                                ((fourier[..., y1-1:y2, x1-1] + fourier[..., y1-1:y2, x2])/ 2).unsqueeze(-1),
+                                fourier_small)
+    # fourier_small[..., 0, 0] = (fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4
+    dc = ((fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4).unsqueeze(-1).unsqueeze(-2)
+    fourier_small = torch.where(torch.logical_and(y == 0, x == 0),
+                                dc,
+                                fourier_small)
 
     fourier_small = torch.fft.ifftshift(fourier_small, dim=(-2, -1))
     im_small = torch.fft.ifft2(fourier_small)
