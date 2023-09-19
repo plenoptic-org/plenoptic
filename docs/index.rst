@@ -9,11 +9,11 @@
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
 
-.. |tutorials| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/tutorials/badge.svg
-		         :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Atutorials
-
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
             :target: https://doi.org/10.5281/zenodo.3995057
+
+.. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
+             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
 		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples
@@ -27,7 +27,7 @@
 plenoptic
 *********
 
-|pypi-shield| |license-shield| |python-version-shield| |build| |tutorials| |zenodo| |binder|
+|pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
 
 
 .. image:: images/plenoptic_logo_wide.svg
@@ -52,9 +52,7 @@ Getting started
 Installation
 ^^^^^^^^^^^^
 
-.. highlight:: bash
-
-The best way to install ``plenoptic`` is via ``pip``.
+The best way to install ``plenoptic`` is via ``pip``::
 
 $ pip install plenoptic
 
@@ -70,7 +68,10 @@ available for saving the animations to file (see `matplotlib documentation
 ).
 To convert them to HTML5 for viewing (for example, in a
 jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
-installed. 
+installed. Depending on your system, this might already
+be installed, but if not, the easiest way is probably through `conda
+<https://anaconda.org/conda-forge/ffmpeg>`_: ``conda install -c conda-forge
+ffmpeg``.
 To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
 before calling any of the animate functions. If you try to set that ``rcParam``
 with a random string, ``matplotlib`` will list the available choices.
@@ -121,14 +122,17 @@ Synthesis methods
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Steerable pyramid, [Simoncelli1992]_, a multi-scale oriented image
-  decomposition. Images are decomposed with a family of oriented filters, localized in space
-  and frequency, similar to the "Gabor functions" commonly used to model receptive fields in primary visual cortex.  
-  The critical difference is that the pyramid organizes these filters so as to effeciently cover the 4D space of 
-  (x,y) positions, orientations, and scales, enabling efficient interpolation and interpretation 
-  (`further info <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the `pyrtools documentation
+- Steerable pyramid, [Simoncelli1992]_ and [Simoncelli1995]_, a multi-scale
+  oriented image decomposition. Images are decomposed with a family of oriented
+  filters, localized in space and frequency, similar to the "Gabor functions"
+  commonly used to model receptive fields in primary visual cortex. The critical
+  difference is that the pyramid organizes these filters so as to effeciently
+  cover the 4D space of (x,y) positions, orientations, and scales, enabling
+  efficient interpolation and interpretation (`further info
+  <https://www.cns.nyu.edu/~eero/STEERPYR/>`_ ). See the `pyrtools documentation
   <https://pyrtools.readthedocs.io/en/latest/index.html>`_ for more details on
-  python tools for image pyramids in general and the steerable pyramid in particular.
+  python tools for image pyramids in general and the steerable pyramid in
+  particular.
 - Portilla-Simoncelli texture model, [Portilla2000]_, which computes a set of image statistics
   that capture the appearance of visual textures (`further info <https://www.cns.nyu.edu/~lcv/texture/>`_).
 - Structural Similarity Index (SSIM), [Wang2004]_, is a perceptual similarity
@@ -162,6 +166,12 @@ We communicate via several channels on Github:
 In all cases, we request that you respect our `code of conduct
 <https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
+Citing us
+---------
+
+If you use ``plenoptic`` in a published academic article or presentation, please
+cite us! See the :ref:`citation` for more details.
+
 .. toctree::
    :titlesonly:
    :caption: Basic concepts
@@ -171,6 +181,7 @@ In all cases, we request that you respect our `code of conduct
    conceptual_intro
    models
    tutorials/*
+   citation
 
 .. toctree::
    :titlesonly:
@@ -239,6 +250,9 @@ In all cases, we request that you respect our `code of conduct
    Goris. Primary visual cortex straightens natural video trajectories Nature
    Communications, vol.12(5982), Oct 2021.
    https://www.cns.nyu.edu/pub/lcv/henaff20-reprint.pdf
+.. [Simoncelli1992] Simoncelli, E. P., Freeman, W. T., Adelson, E. H., &
+   Heeger, D. J. (1992). Shiftable Multi-Scale Transforms. IEEE Trans.
+   Information Theory, 38(2), 587–607. http://dx.doi.org/10.1109/18.119725
 .. [Simoncelli1995] Simoncelli, E. P., & Freeman, W. T. (1995). The steerable
    pyramid: A flexible architecture for multi-scale derivative computation. In ,
    Proc 2nd IEEE Int'l Conf on Image Proc (ICIP) (pp. 444–447). Washington, DC:
