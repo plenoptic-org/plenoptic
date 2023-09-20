@@ -961,6 +961,7 @@ class PortillaSimoncelli(nn.Module):
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
+        Currently, this averages over all channels in the representation.
 
         Parameters
         ----------
@@ -993,7 +994,8 @@ class PortillaSimoncelli(nn.Module):
         n_rows = 3
         n_cols = 3
 
-        rep = self.convert_to_dict(data)
+        # pick the batch_idx we want, and average over channels.
+        rep = self.convert_to_dict(data[batch_idx].mean(0))
         data = self._representation_for_plotting(rep)
 
         # Set up grid spec
@@ -1029,11 +1031,12 @@ class PortillaSimoncelli(nn.Module):
 
             axes.append(ax)
 
+        if title is not None:
+            fig.suptitle(title)
+
         return fig, axes
 
-    def _representation_for_plotting(
-            self, rep: OrderedDict, batch_idx: int = 0
-    ) -> OrderedDict:
+    def _representation_for_plotting(self, rep: OrderedDict) -> OrderedDict:
         r"""Converts the data into a dictionary representation that is more convenient for plotting.
 
         Intended as a helper function for plot_representation.
@@ -1110,6 +1113,8 @@ class PortillaSimoncelli(nn.Module):
         return Artists, so we return a list of the relevant artists, the
         ``markerline`` and ``stemlines`` from the ``StemContainer``.
 
+        Currently, this averages over all channels in the representation.
+
         Parameters
         ----------
         axes :
@@ -1133,7 +1138,7 @@ class PortillaSimoncelli(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        data = self.convert_to_dict(data)
+        data = self.convert_to_dict(data[batch_idx].mean(0))
         rep = self._representation_for_plotting(data)
         for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
