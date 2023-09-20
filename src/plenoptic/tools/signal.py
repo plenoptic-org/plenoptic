@@ -402,7 +402,7 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
     return torch.complex(real, imag)
 
 
-def autocorrelation(x: Tensor) -> Tuple[Tensor, Tensor]:
+def autocorrelation(x: Tensor) -> Tensor:
     r"""Computes the autocorrelation of `x`.
 
     Parameters
