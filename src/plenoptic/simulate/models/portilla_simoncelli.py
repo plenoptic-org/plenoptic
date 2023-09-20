@@ -247,7 +247,7 @@ class PortillaSimoncelli(nn.Module):
         # and the means of the pyramid coefficient magnitudes, which is part of
         # the texture representation.
         mag_means, mag_pyr_coeffs, real_pyr_coeffs = self._compute_intermediate_representations(pyr_coeffs)
-        mag_mean_rescale = torch.repeat_interleave(torch.arange(self.n_scales), self.n_orientations)
+        mag_mean_rescale = torch.repeat_interleave(torch.arange(self.n_scales, device=mag_means.device), self.n_orientations)
         mag_means = mag_means * torch.pow(2, mag_mean_rescale)
         mag_means = einops.pack([highpass.abs().mean((-2, -1)), mag_means,
                                  lowpass.abs().mean((-2, -1)) * torch.pow(2, 1+mag_mean_rescale[-1])],
@@ -295,7 +295,7 @@ class PortillaSimoncelli(nn.Module):
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
         # in order to match the original implementation (done on down-sampled
         # images), need to scale these up (skew and kurtosis are fine).
-        var_recon = var_recon * torch.pow(4, torch.arange(0, 2*var_recon.shape[-1], 2))
+        var_recon = var_recon * torch.pow(4, torch.arange(0, 2*var_recon.shape[-1], 2, device=var_recon.device))
         # std_recon, skew_recon, and kurtosis_recon will all end up as shape
         # (batch, channel, n_scales+1)
         if self.use_true_correlations:
@@ -335,7 +335,7 @@ class PortillaSimoncelli(nn.Module):
             phase_doubled_mags, phase_doubled_sep = self._double_phase_pyr_coeffs(pyr_coeffs)
             # in order to match the original implementation (done on down-sampled
             # images), need to rescale these
-            phase_double_rescale = torch.pow(2., torch.arange(-1, self.n_scales-2))
+            phase_double_rescale = torch.pow(2., torch.arange(-1, self.n_scales-2, device=phase_doubled_mags.device))
             phase_double_rescale = phase_double_rescale.view(1, 1, self.n_scales-1, 1, 1, 1)
             phase_doubled_mags = phase_doubled_mags * phase_double_rescale
             phase_doubled_sep = phase_doubled_sep * phase_double_rescale
