@@ -56,20 +56,10 @@ class PortillaSimoncelli(nn.Module):
 
     Attributes
     ----------
-    pyr: SteerablePyramidFreq
-        The complex steerable pyramid object used to calculate the portilla-simoncelli representation
-    pyr_coeffs: OrderedDict
-        The coefficients of the complex steerable pyramid.
-    mag_pyr_coeffs: OrderedDict
-        The magnitude of the pyramid coefficients.
-    real_pyr_coeffs: OrderedDict
-        The real parts of the pyramid coefficients.
     scales: list
         The names of the unique scales of coefficients in the pyramid.
     representation_scales: list
         The scale for each coefficient in its vector form
-    representation: dictionary
-        A dictionary containing the Portilla-Simoncelli statistics
 
     References
     ----------
