@@ -46,13 +46,6 @@ class PortillaSimoncelli(nn.Module):
         The number of orientations used to measure the statistics (default=4)
     spatial_corr_width:
         The width of the spatial cross- and auto-correlation statistics in the representation
-    use_true_correlations:
-        In the original Portilla-Simoncelli model the statistics in the representation
-        that are labelled correlations were actually covariance matrices (i.e. not properly
-        scaled).  In order to match the original statistics use_true_correlations must be
-        set to false. But in order to synthesize metamers from this model use_true_correlations
-        must be set to True (note that, in this case, the diagonal entries are
-        not rescaled, i.e., they're the covariances).
 
     Attributes
     ----------
@@ -80,7 +73,6 @@ class PortillaSimoncelli(nn.Module):
         n_scales: int = 4,
         n_orientations: int = 4,
         spatial_corr_width: int = 9,
-        use_true_correlations: bool = True,
     ):
         super().__init__()
 
@@ -101,7 +93,6 @@ class PortillaSimoncelli(nn.Module):
             tight_frame=False,
         )
 
-        self.use_true_correlations = use_true_correlations
         self.scales = (
             ["pixel_statistics", "residual_lowpass"]
             + [ii for ii in range(n_scales - 1, -1, -1)]
@@ -153,38 +144,20 @@ class PortillaSimoncelli(nn.Module):
         cross_scale_corr_real = (2 * self.n_orientations * ori_crossed) * scales
         var_highpass_residual = ["residual_highpass"]
 
-        if self.use_true_correlations:
-            scales = (
-                pixel_statistics
-                + magnitude_means
-                + auto_corr_mag
-                + skew_reconstructed
-                + kurtosis_reconstructed
-                + auto_corr
-                # if we're using true correlations, want to include the std of
-                # the reconstructed images (this is implicitly included in the
-                # unscaled correlations if use_true_correlations=False)
-                + std_reconstructed
-                + cross_orientation_corr_mag
-                + cross_scale_corr_mag
-                + cross_orientation_corr_real
-                + cross_scale_corr_real
-                + var_highpass_residual
-            )
-        else:
-            scales = (
-                pixel_statistics
-                + magnitude_means
-                + auto_corr_mag
-                + skew_reconstructed
-                + kurtosis_reconstructed
-                + auto_corr
-                + cross_orientation_corr_mag
-                + cross_scale_corr_mag
-                + cross_orientation_corr_real
-                + cross_scale_corr_real
-                + var_highpass_residual
-            )
+        scales = (
+            pixel_statistics
+            + magnitude_means
+            + auto_corr_mag
+            + skew_reconstructed
+            + kurtosis_reconstructed
+            + auto_corr
+            + std_reconstructed
+            + cross_orientation_corr_mag
+            + cross_scale_corr_mag
+            + cross_orientation_corr_real
+            + cross_scale_corr_real
+            + var_highpass_residual
+        )
 
         return scales
 
@@ -287,8 +260,7 @@ class PortillaSimoncelli(nn.Module):
         autocorr_recon, var_recon = self._compute_autocorr(reconstructed_images)
         # std_recon, skew_recon, and kurtosis_recon will all end up as shape
         # (batch, channel, n_scales+1)
-        if self.use_true_correlations:
-            std_recon = var_recon**0.5
+        std_recon = var_recon**0.5
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
 
         ### SECTION 4 (STATISTICS: cross_orientation_correlation_magnitude,
@@ -350,11 +322,14 @@ class PortillaSimoncelli(nn.Module):
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
 
         all_stats = [pixel_stats, mag_means, autocorr_mags, skew_recon,
-                     kurtosis_recon, autocorr_recon]
-        if self.use_true_correlations:
-            all_stats += [std_recon]
-        all_stats += [cross_ori_corr_mags, cross_scale_corr_mags,
-                      cross_ori_corr_real, cross_scale_corr_real, var_highpass_residual]
+                     kurtosis_recon, autocorr_recon, std_recon,
+                     cross_ori_corr_mags]
+        if self.n_scales != 1:
+            all_stats += [cross_scale_corr_mags]
+        all_stats += [cross_ori_corr_real]
+        if self.n_scales != 1:
+            all_stats += [cross_scale_corr_real]
+        all_stats += [var_highpass_residual]
         representation_vector = einops.pack(all_stats, 'b c *')[0]
 
         if scales is not None:
@@ -502,10 +477,9 @@ class PortillaSimoncelli(nn.Module):
         ].unflatten(-1, nn)
         n_filled += np.prod(nn)
 
-        if self.use_true_correlations:
-            nn = self.n_scales + 1
-            rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
-            n_filled += nn
+        nn = self.n_scales + 1
+        rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+        n_filled += nn
 
         # cross_orientation_correlation_magnitude
         nn = (self.n_orientations, self.n_orientations, (self.n_scales + 1))
@@ -723,8 +697,7 @@ class PortillaSimoncelli(nn.Module):
             raise ValueError("coeffs_list must contain tensors of either 4 or 5 dimensions!")
         acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
         var = [signal.center_crop(ac, 1) for ac in acs]
-        if self.use_true_correlations:
-            acs = [ac/v for ac, v in zip(acs, var)]
+        acs = [ac/v for ac, v in zip(acs, var)]
         var = einops.pack(var, 'b c *')[0]
         acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
         acs = torch.stack(acs, 2)
@@ -796,55 +769,12 @@ class PortillaSimoncelli(nn.Module):
             cross_corr = einops.einsum(coeff, coeff_other,
                                            'b c o1 h w, b c o2 h w -> b c o1 o2')
             cross_corr = cross_corr / torch.mul(*coeff.shape[-2:])
-            if self.use_true_correlations:
-                std = torch.std(coeff, (-3, -2, -1), keepdim=True).squeeze(-1)
-                std_other = torch.std(coeff_other, (-3, -2, -1), keepdim=True).squeeze(-1)
-                cross_corr = cross_corr / (std * std_other)
+            std = torch.std(coeff, (-3, -2, -1), keepdim=True).squeeze(-1)
+            std_other = torch.std(coeff_other, (-3, -2, -1), keepdim=True).squeeze(-1)
+            cross_corr = cross_corr / (std * std_other)
             cross_corrs.append(cross_corr)
         cross_corrs = torch.stack(cross_corrs, -1)
         return cross_corrs
-
-    def _create_lowpass_corr_tensor(self, lowpass: Tensor) -> Tensor:
-        """Upsample lowpass, flatten, and roll.
-
-        At the highest scale, the cross-scale real correlations are between the
-        coefficients at that scale and an upsampled, shifted version of the
-        lowpass residuals. This constructs that tensor.
-
-        """
-        upsampled_lowpass = signal.expand(lowpass, 2) / 4
-        upsampled_lowpass = upsampled_lowpass.transpose(-2, -1)
-        return torch.stack(
-            (
-                upsampled_lowpass.flatten(2),
-                upsampled_lowpass.roll(1, -2).flatten(2),
-                upsampled_lowpass.roll(-1, -2).flatten(2),
-                upsampled_lowpass.roll(1, -1).flatten(2),
-                upsampled_lowpass.roll(-1, -1).flatten(2),
-            ),
-            -1,
-        )
-
-    def _concat_lowpass_to_cross_ori_real(self, cross_ori_corr_real: Tensor, lowpass: Tensor) -> Tensor:
-        """Tricky little bit.
-
-        For some reason, the original code concatenates the correlations of the
-        upsampled, shifted residual lowpass to the cross orientation
-        correlation real. this makes it a very weird shape, and is also unclear
-        as to why it's useful. but that's what we do here.
-
-        """
-        lowpass_num_el = torch.mul(*lowpass.shape[-2:])
-        upsampled_lowpass = self._create_lowpass_corr_tensor(lowpass)
-        upsampled_lowpass_corr = self.compute_crosscorrelation(upsampled_lowpass,
-                                                               upsampled_lowpass,
-                                                               lowpass_num_el)
-        # ... and a whole bunch of dummy zeros, to bring the final shape up to
-        # (batch, channel, max(2*n_orientations, 5), max(2*n_orientations, 5), n_scales+1)
-        dim = max(2 * self.n_orientations, 5)
-        cross_ori_corr_real = nn.functional.pad(cross_ori_corr_real, (0, 0, 0, dim-self.n_orientations, 0, dim-self.n_orientations), 'constant', 0)
-        upsampled_lowpass_corr = nn.functional.pad(upsampled_lowpass_corr, (0, dim-5, 0, dim-5), 'constant', 0)
-        return torch.cat([cross_ori_corr_real, upsampled_lowpass_corr.unsqueeze(-1)], -1)
 
     def _double_phase_pyr_coeffs(self, pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
