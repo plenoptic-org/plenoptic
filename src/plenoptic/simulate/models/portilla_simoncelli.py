@@ -753,7 +753,7 @@ class PortillaSimoncelli(nn.Module):
 
     def plot_representation(
             self,
-            data: Union[Tensor, OrderedDict],
+            data: Tensor,
             ax: Optional[mpl.axes.Axes] = None,
             figsize: Tuple[float, float] = (15, 15),
             ylim: Optional[Tuple[float, float]] = None,
@@ -775,7 +775,7 @@ class PortillaSimoncelli(nn.Module):
             of this class).
         ax :
             Axes where we will plot the data. If an ``mpl.axes.Axes``, will
-            subdivide into 9 new axes. If None, we create a new figure.
+            subdivide into 7 new axes. If None, we create a new figure.
         figsize :
             The size of the figure. Ignored if ax is not None.
         ylim :
@@ -790,10 +790,9 @@ class PortillaSimoncelli(nn.Module):
         fig:
             Figure containing the plot
         axes:
-            List of 9 axes containing the plot
+            List of 7 axes containing the plot
 
         """
-
         n_rows = 3
         n_cols = 3
 
@@ -819,19 +818,9 @@ class PortillaSimoncelli(nn.Module):
 
         # plot data
         axes = []
-
         for i, (k, v) in enumerate(data.items()):
-
             ax = fig.add_subplot(gs[i // 3, i % 3])
-            if isinstance(v, OrderedDict):
-                # need to make sure these are not tensors when we call the
-                # plotting function
-                ax = clean_stem_plot(
-                    [to_numpy(v_) for v_ in v.values()], ax, k, ylim=ylim
-                )
-            else:
-                ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
-
+            ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
             axes.append(ax)
 
         if title is not None:
@@ -845,52 +834,29 @@ class PortillaSimoncelli(nn.Module):
         Intended as a helper function for plot_representation.
 
         """
+        if rep['skew_reconstructed'].ndim > 1:
+            raise ValueError("Currently, only know how to plot single batch and channel at a time! "
+                             "Select and/or average over those dimensions")
         data = OrderedDict()
-        data["pixels+var_highpass"] = rep["pixel_statistics"]
-        data["pixels+var_highpass"]["var_highpass_residual"] = rep[
-            "var_highpass_residual"
-        ]
-        if self.use_true_correlations:
-            data["var+skew+kurtosis"] = torch.stack(
-                (
-                    rep["std_reconstructed"],
-                    rep["skew_reconstructed"],
-                    rep["kurtosis_reconstructed"],
-                )
+        data["pixels+var_highpass"] = torch.stack(list(rep.pop("pixel_statistics").values()) +
+                                                  [rep.pop("var_highpass_residual")])
+        data["std+skew+kurtosis"] = torch.cat(
+            (
+                rep.pop("std_reconstructed"),
+                rep.pop("skew_reconstructed"),
+                rep.pop("kurtosis_reconstructed"),
             )
-        else:
-            data["skew+kurtosis"] = torch.stack(
-                (rep["skew_reconstructed"], rep["kurtosis_reconstructed"])
-            )
+        )
 
-        for (k, v) in rep.items():
-            if k not in [
-                    "pixel_statistics",
-                    "var_highpass_residual",
-                    "kurtosis_reconstructed",
-                    "skew_reconstructed",
-                    "std_reconstructed",
-            ]:
-
-                if not isinstance(v, dict) and v.squeeze().dim() >= 3:
-                    vals = OrderedDict()
-                    for ss in range(v.shape[2]):
-                        tmp = torch.norm(v[:, :, ss, ...], p=2, dim=[0, 1])
-                        if len(tmp.shape) == 0:
-                            tmp = tmp.unsqueeze(0)
-                            vals[ss] = tmp
-                            dk = torch.cat(list(vals.values()))
-                            data[k] = dk
-
-                else:
-                    data[k] = v
+        for k, v in rep.items():
+            data[k] = torch.norm(v, p=2, dim=(0, 1)).flatten()
 
         return data
 
     def update_plot(
             self,
             axes: List[mpl.axes.Axes],
-            data: Optional[Union[Tensor, OrderedDict]] = None,
+            data: Tensor,
             batch_idx: int = 0,
     ) -> List[mpl.artist.Artist]:
         r"""Update the information in our representation plot
