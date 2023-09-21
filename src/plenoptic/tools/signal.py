@@ -397,8 +397,9 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
         Phase-modulated complex tensor.
 
     """
-    real = x.abs() * torch.cos(phase_factor * torch.atan2(x.imag, x.real))
-    imag = x.abs() * torch.sin(phase_factor * torch.atan2(x.imag, x.real))
+    angle = torch.atan2(x.imag, x.real)
+    real = x.abs() * torch.cos(phase_factor * angle)
+    imag = x.abs() * torch.sin(phase_factor * angle)
     return torch.complex(real, imag)
 
 
