@@ -132,7 +132,7 @@ In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 
 If you use `plenoptic` in a published academic article or presentation, please
 cite us! See the [citation
-guide](https://pyrtools.readthedocs.io/en/latest/citation.html) for more
+guide](https://plenoptic.readthedocs.io/en/latest/citation.html) for more
 details.
 
 ## Support
