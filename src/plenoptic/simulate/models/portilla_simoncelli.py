@@ -675,8 +675,9 @@ class PortillaSimoncelli(nn.Module):
         skew_default = torch.zeros_like(skew_recon)
         kurtosis_default = 3 * torch.ones_like(kurtosis_recon)
         # if this variance ratio is too small, then use the default values
-        # instead
-        unstable_locs = var_recon / img_var > 1e-6
+        # instead. unsqueeze is used here because var_recon is shape (batch,
+        # channel, scales+1), whereas img_var is just (batch, channel)
+        unstable_locs = var_recon / img_var.unsqueeze(-1) > 1e-6
         skew_recon = torch.where(unstable_locs, skew_recon, skew_default)
         kurtosis_recon = torch.where(unstable_locs, kurtosis_recon, kurtosis_default)
         return skew_recon, kurtosis_recon
