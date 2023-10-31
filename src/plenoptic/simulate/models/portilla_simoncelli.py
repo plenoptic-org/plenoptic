@@ -51,8 +51,6 @@ class PortillaSimoncelli(nn.Module):
     ----------
     scales: list
         The names of the unique scales of coefficients in the pyramid.
-    representation_scales: list
-        The scale for each coefficient in its vector form
 
     References
     ----------
@@ -81,7 +79,7 @@ class PortillaSimoncelli(nn.Module):
             any([(image_shape[-2] / 2**i) % 2 for i in range(n_scales)])):
             raise ValueError("Because of how the Portilla-Simoncelli model handles "
                              "multiscale representations, it only works with images"
-                             " whose shape can be divided by 2 n_scales times.")
+                             " whose shape can be divided by 2 `n_scales` times.")
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
@@ -98,64 +96,79 @@ class PortillaSimoncelli(nn.Module):
             + [ii for ii in range(n_scales - 1, -1, -1)]
             + ["residual_highpass"]
         )
-        self.representation_scales = self._get_representation_scales()
 
-    def _get_representation_scales(self) -> List[SCALES_TYPE]:
-        r"""Get the vector indicating the scale of each statistic, for coarse-to-fine synthesis.
+        # this dictionary has keys for each statistic, with dummy arrays as
+        # values. These arrays have the same shape as the stat (excluding batch
+        # and channel), with values defining which scale they correspond to.
+        # This is used to create the representaiton_scales vector (just
+        # flattens this) as well as for converting from the vector to the dict
+        # representation
+        self._scales_shape_dict = self._create_scales_shape_dict()
 
-        The vector is composed of the following values: 'pixel_statistics',
-        'residual_lowpass', 'residual_highpass' and integer values from 0 to
-        self.n_scales-1. It is the same size as the representation vector
-        returned by this object's forward method.
+        # This vector is composed of the following values: 'pixel_statistics',
+        # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
+        # self.n_scales-1. It is the same size as the representation vector
+        # returned by this object's forward method.
+        self._representation_scales = einops.pack(list(self._scales_shape_dict.values()), '*')[0]
 
+    def _create_scales_shape_dict(self) -> OrderedDict:
+        """Create dictionary defining scales and shape of each stat.
         """
-        # There are 6 pixel statistics by default
-        pixel_statistics = ["pixel_statistics"] * 6
+        shape_dict = OrderedDict()
+        # There are 6 pixel statistics
+        shape_dict['pixel_statistics'] = np.array(6*['pixel_statistics'])
 
-        # These (`scales` and `scales_with_lowpass`) are the basic building
-        # blocks of the scale assignments for many of the statistics calculated
-        # by the PortillaSimoncelli model.
-        scales = [s for s in range(self.n_scales)]
+        # These are the basic building blocks of the scale assignments for many
+        # of the statistics calculated by the PortillaSimoncelli model.
+        scales = np.arange(self.n_scales)
         # the cross-scale correlations exclude the coarsest scale
-        scales_without_coarsest = [s for s in range(self.n_scales-1)]
-        scales_with_lowpass = scales + ["residual_lowpass"]
-        # this repeats the first element of scales n_orientations times, then
-        # the second, etc. e.g., [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, ...]
-        scales_by_ori = [s for s in scales for _ in range(self.n_orientations)]
+        scales_without_coarsest = np.arange(self.n_scales-1)
+        # the statistics computed on the reconstructed bandpass images have an
+        # extra scale corresponding to the lowpass residual
+        scales_with_lowpass = np.concatenate([scales, ["residual_lowpass"]],
+                                             dtype=object)
 
-        # skew_reconstructed
-        skew_reconstructed = scales_with_lowpass
+        # now we go through each statistic in order and create a dummy array
+        # full of 1s with the same shape as the actual statistic (excluding the
+        # batch and channel dimensions, as each stat is computed independently
+        # across those dimensions). We then multiply it by one of the scales
+        # arrays above to turn those 1s into values describing the
+        # corresponding scale.
 
-        # kurtosis_reconstructed
-        kurtosis_reconstructed = scales_with_lowpass
+        auto_corr_mag = np.ones((self.spatial_corr_width, self.spatial_corr_width,
+                                 self.n_scales, self.n_orientations), dtype=int)
+        auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 s 1')
+        shape_dict['auto_correlation_magnitude'] = auto_corr_mag
 
-        # variance_reconstructed
-        std_reconstructed = scales_with_lowpass
+        shape_dict['skew_reconstructed'] = scales_with_lowpass
 
-        auto_corr = self.spatial_corr_width**2 * scales_with_lowpass
-        auto_corr_mag = self.spatial_corr_width**2 * scales_by_ori
+        shape_dict['kurtosis_reconstructed'] = scales_with_lowpass
 
-        cross_orientation_corr_mag = self.n_orientations**2 * scales
+        auto_corr = np.ones((self.spatial_corr_width, self.spatial_corr_width,
+                             self.n_scales+1), dtype=object)
+        auto_corr *= einops.rearrange(scales_with_lowpass, 's -> 1 1 s')
+        shape_dict['auto_correlation_reconstructed'] = auto_corr
 
-        cross_scale_corr_mag = self.n_orientations**2 * scales_without_coarsest
+        shape_dict['std_reconstructed'] = scales_with_lowpass
 
-        cross_scale_corr_real = (self.n_orientations * 2 * self.n_orientations) * scales_without_coarsest
-        var_highpass_residual = ["residual_highpass"]
+        cross_orientation_corr_mag = np.ones((self.n_orientations, self.n_orientations,
+                                              self.n_scales), dtype=int)
+        cross_orientation_corr_mag *= einops.rearrange(scales, 's -> 1 1 s')
+        shape_dict['cross_orientation_correlation_magnitude'] = cross_orientation_corr_mag
 
-        scales = (
-            pixel_statistics
-            + auto_corr_mag
-            + skew_reconstructed
-            + kurtosis_reconstructed
-            + auto_corr
-            + std_reconstructed
-            + cross_orientation_corr_mag
-            + cross_scale_corr_mag
-            + cross_scale_corr_real
-            + var_highpass_residual
-        )
+        cross_scale_corr_mag = np.ones((self.n_orientations, self.n_orientations,
+                                        self.n_scales-1), dtype=int)
+        cross_scale_corr_mag *= einops.rearrange(scales_without_coarsest, 's -> 1 1 s')
+        shape_dict['cross_scale_correlation_magnitude'] = cross_scale_corr_mag
 
-        return scales
+        cross_scale_corr_real = np.ones((self.n_orientations, 2*self.n_orientations,
+                                         self.n_scales-1), dtype=int)
+        cross_scale_corr_real *= einops.rearrange(scales_without_coarsest, 's -> 1 1 s')
+        shape_dict['cross_scale_correlation_real'] = cross_scale_corr_real
+
+        shape_dict['var_highpass_residual'] = np.array(["residual_highpass"])
+
+        return shape_dict
 
     def forward(
         self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
@@ -185,13 +198,15 @@ class PortillaSimoncelli(nn.Module):
         """
         validate_input(image)
 
-        # pyr_coeffs is a list (length n_scales) of 5d tensors, each of shape
-        # (batch, channel, scales, n_orientations, height, width) containing
-        # the complex-valued oriented bands, while highpass and lowpass are
-        # real-valued 4d tensors of shape (batch, channel, height, width). The
-        # lowpass tensor has been demeaned (independently for each batch and
-        # channel)
-        pyr_dict, pyr_coeffs, highpass, lowpass = self._compute_pyr_coeffs(image)
+        # pyr_dict is the dictionary of complex-valued tensors returned by the
+        # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
+        # tensors, each of shape (batch, channel, scales, n_orientations,
+        # height, width) containing the complex-valued oriented bands, while
+        # highpass is a real-valued 4d tensor of shape (batch, channel, height,
+        # width). Note that the residual lowpass in pyr_dict has been demeaned.
+        # We keep both the dict and list of pyramid coefficients because we
+        # need the dictionary for reconstructing the image done later on.
+        pyr_dict, pyr_coeffs, highpass, _ = self._compute_pyr_coeffs(image)
 
         ### SECTION 1 (STATISTIC: pixel_statistics) ##################
         #  Calculate pixel statistics (mean, variance, skew, kurtosis, min, max).
@@ -323,12 +338,18 @@ class PortillaSimoncelli(nn.Module):
             Representation vector with some statistics removed.
 
         """
-        ind = torch.tensor(
-            [i for i, s in enumerate(self.representation_scales) if s in scales_to_keep]
-        ).to(representation_vector.device)
+        # this is necessary because object is the dtype of
+        # self._representation_scales
+        scales_to_keep = np.array(scales_to_keep, dtype=object)
+        # np.in1d returns a 1d boolean array of the same shape as
+        # self._representation_scales with True at each location where that
+        # value appears in scales_to_keep. where then converts this boolean
+        # array into indices
+        ind = np.where(np.in1d(self._representation_scales, scales_to_keep))[0]
+        ind = torch.from_numpy(ind).to(representation_vector.device)
         return representation_vector.index_select(-1, ind)
 
-    def convert_to_vector(self, stats_dict: OrderedDict) -> Tensor:
+    def convert_to_vector(self, representation_dict: OrderedDict) -> Tensor:
         r"""Converts dictionary of statistics to a vector.
 
         While the dictionary representation is easier to manually inspect, the
@@ -336,7 +357,7 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        stats_dict :
+        representation_dict :
              Dictionary of representation.
 
         Returns
@@ -349,19 +370,9 @@ class PortillaSimoncelli(nn.Module):
             Convert vector representation to dictionary.
 
         """
-        list_of_stats = []
-        for val in stats_dict.values():
-            if isinstance(val, OrderedDict):
-                # these are all 2d
-                list_of_stats.append(torch.stack([vv for vv in val.values()], dim=-1))
-            else:
-                if val.ndim == 2:
-                    list_of_stats.append(val.unsqueeze(-1))
-                else:
-                    list_of_stats.append(val.flatten(start_dim=2, end_dim=-1))
-        return torch.cat(list_of_stats, dim=-1)
+        return einops.pack(list(representation_dict.values()), 'b c *')[0]
 
-    def convert_to_dict(self, vec: Tensor) -> OrderedDict:
+    def convert_to_dict(self, representation_vector: Tensor) -> OrderedDict:
         """Converts vector of statistics to a dictionary.
 
         While the vector representation is required by plenoptic's synthesis
@@ -369,7 +380,7 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        vec
+        representation_vector
             3d vector of statistics.
 
         Returns
@@ -382,84 +393,31 @@ class PortillaSimoncelli(nn.Module):
             Convert dictionary representation to vector.
 
         """
-        if vec.shape[-1] != len(self.representation_scales):
+        if representation_vector.shape[-1] != len(self._representation_scales):
             raise ValueError(
                 "representation vector is the wrong length (expected "
-                f"{len(self.representation_scales)} but got {vec.shape[-1]})!"
+                f"{len(self._representation_scales)} but got {representation_vector.shape[-1]})!"
                 " Did you remove some of the scales? (i.e., by setting "
                 "scales in the forward pass)? convert_to_dict does not "
                 "support such vectors."
             )
-        rep = OrderedDict()
-        rep["pixel_statistics"] = OrderedDict()
-        rep["pixel_statistics"]["mean"] = vec[..., 0]
-        rep["pixel_statistics"]["var"] = vec[..., 1]
-        rep["pixel_statistics"]["skew"] = vec[..., 2]
-        rep["pixel_statistics"]["kurtosis"] = vec[..., 3]
-        rep["pixel_statistics"]["min"] = vec[..., 4]
-        rep["pixel_statistics"]["max"] = vec[..., 5]
 
-        n_filled = 6
-
-        # auto_correlation_magnitude
-        nn = (
-            self.spatial_corr_width,
-            self.spatial_corr_width,
-            self.n_scales,
-            self.n_orientations,
-        )
-        rep["auto_correlation_magnitude"] = vec[
-            ..., n_filled : (n_filled + np.prod(nn))
-        ].unflatten(-1, nn)
-        n_filled += np.prod(nn)
-
-        # skew_reconstructed & kurtosis_reconstructed
-        nn = self.n_scales + 1
-        rep["skew_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
-        n_filled += nn
-
-        rep["kurtosis_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
-        n_filled += nn
-
-        # auto_correlation_reconstructed
-        nn = (self.spatial_corr_width, self.spatial_corr_width, (self.n_scales + 1))
-        rep["auto_correlation_reconstructed"] = vec[
-            ..., n_filled : (n_filled + np.prod(nn))
-        ].unflatten(-1, nn)
-        n_filled += np.prod(nn)
-
-        nn = self.n_scales + 1
-        rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
-        n_filled += nn
-
-        # cross_orientation_correlation_magnitude
-        nn = (self.n_orientations, self.n_orientations, self.n_scales)
-        rep["cross_orientation_correlation_magnitude"] = vec[
-            ..., n_filled : (n_filled + np.prod(nn))
-        ].unflatten(-1, nn)
-        n_filled += np.prod(nn)
-
-        # cross_scale_correlation_magnitude
-        nn = (self.n_orientations, self.n_orientations, self.n_scales-1)
-        rep["cross_scale_correlation_magnitude"] = vec[
-            ..., n_filled : (n_filled + np.prod(nn))
-        ].unflatten(-1, nn)
-        n_filled += np.prod(nn)
-
-        # cross_scale_correlation_real
-        nn = (self.n_orientations, 2 * self.n_orientations, self.n_scales-1)
-        rep["cross_scale_correlation_real"] = vec[
-            ..., n_filled : (n_filled + np.prod(nn))
-        ].unflatten(-1, nn)
-        n_filled += np.prod(nn)
-
-        # var_highpass_residual
-        rep["var_highpass_residual"] = vec[..., n_filled]
+        rep = self._scales_shape_dict.copy()
+        n_filled = 0
+        for k, v in rep.items():
+            # v.size is the number of elements in v, i.e., np.prod(v.shape)
+            this_stat_vec = representation_vector[..., n_filled:n_filled+v.size]
+            rep[k] = this_stat_vec.unflatten(-1, v.shape)
+            n_filled += v.size
 
         return rep
 
     def _compute_pyr_coeffs(self, image: Tensor) -> Tuple[OrderedDict, List[Tensor], Tensor, Tensor]:
         """Compute pyramid coefficients of image.
+
+        Note that the residual lowpass hsa been demeaned independently for each
+        batch and channel (and this is true of the lowpass returned separately
+        as well as the one included in pyr_coeffs_dict)
 
         Parameters
         ----------
@@ -474,14 +432,15 @@ class PortillaSimoncelli(nn.Module):
         pyr_coeffs :
             List of length n_scales, containing 5d tensors of shape (batch,
             channel, n_orientations, height, width) containing the complex-valued
-            oriented bands (note that height and width half on each scale)
+            oriented bands (note that height and width shrink by half on each
+            scale)
         highpass :
             The residual highpass as a real-valued 4d tensor (batch, channel,
             height, width)
         lowpass :
             The residual lowpass as a real-valued 4d tensor (batch, channel,
-            height, width). This tensor has been demeaned as well
-            (independently for each batch and channel).
+            height, width). This tensor has been demeaned (independently for
+            each batch and channel).
 
         """
         pyr_coeffs = self.pyr.forward(image)
