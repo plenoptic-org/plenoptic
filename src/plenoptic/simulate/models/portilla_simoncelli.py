@@ -97,22 +97,41 @@ class PortillaSimoncelli(nn.Module):
             + ["residual_highpass"]
         )
 
-        # this dictionary has keys for each statistic, with dummy arrays as
-        # values. These arrays have the same shape as the stat (excluding batch
-        # and channel), with values defining which scale they correspond to.
-        # This is used to create the representaiton_scales vector (just
-        # flattens this) as well as for converting from the vector to the dict
-        # representation
-        self._scales_shape_dict = self._create_scales_shape_dict()
+        # Dictionary defining shape of the statistics and which scale they're
+        # associated with
+        scales_shape_dict = self._create_scales_shape_dict()
+
+        # Dictionary defining necessary statistics, that is, those that are not
+        # redundant
+        self._necessary_stats_dict = self._create_necessary_stats_dict(scales_shape_dict)
+        # turn this into vector we can use in forward pass. first into a
+        # boolean mask...
+        self._necessary_stats_mask = einops.pack(list(self._necessary_stats_dict.values()), '*')[0]
+        # then into a tensor of indices
+        self._necessary_stats_mask = torch.where(self._necessary_stats_mask)[0]
 
         # This vector is composed of the following values: 'pixel_statistics',
         # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
         # self.n_scales-1. It is the same size as the representation vector
-        # returned by this object's forward method.
-        self._representation_scales = einops.pack(list(self._scales_shape_dict.values()), '*')[0]
+        # returned by this object's forward method. It must be a numpy array so
+        # we can have a mixture of ints and strs (and so we can use np.in1d
+        # later)
+        self._representation_scales = einops.pack(list(scales_shape_dict.values()), '*')[0]
+        # just select the scales of the necessary stats.
+        self._representation_scales = self._representation_scales[self._necessary_stats_mask]
 
     def _create_scales_shape_dict(self) -> OrderedDict:
         """Create dictionary defining scales and shape of each stat.
+
+        Returns
+        -------
+        scales_shape_dict
+           Dictionary defining shape and associated scales of each computed
+           statistic. The keys name each statistic, with dummy arrays as
+           values. These arrays have the same shape as the stat (excluding
+           batch and channel), with values defining which scale they correspond
+           to.
+
         """
         shape_dict = OrderedDict()
         # There are 6 pixel statistics
@@ -169,6 +188,73 @@ class PortillaSimoncelli(nn.Module):
         shape_dict['var_highpass_residual'] = np.array(["residual_highpass"])
 
         return shape_dict
+
+    def _create_necessary_stats_dict(self, scales_shape_dict: OrderedDict) -> OrderedDict:
+        """Create mask specifying the necessary statistics.
+
+        Some of the statistics computed by the model are redundant, due to
+        symmetries. For example, about half of the values in the
+        autocorrelation matrices are duplicates. See the Portilla-Simoncelli
+        notebook for more details.
+
+        Parameters
+        ----------
+        scales_shape_dict
+            Dictionary defining shape and associated scales of each computed
+            statistic.
+
+        Returns
+        -------
+        necessary_stats_dict
+            Dictionary defining which statistics are necessary (i.e., not
+            redundant). Will have the same keys as scales_shape_dict, with the
+            values being boolean tensors of the same shape as
+            scales_shape_dict's corresponding values. True denotes the
+            statistics that will be included in the model's output, while False
+            denotes the redundant ones we will toss.
+
+        """
+        mask_dict = scales_shape_dict.copy()
+        # Pre compute some necessary indices.
+        # Lower triangular indices (including diagonal), for auto correlations
+        tril_inds = torch.tril_indices(self.spatial_corr_width,
+                                       self.spatial_corr_width)
+        # Get the second half of the diagonal, i.e., everything from the center
+        # element on. These are all repeated for the auto correlations. (As
+        # these are autocorrelations (rather than auto-covariance) matrices,
+        # they've been normalized by the variance and so the center element is
+        # always 1, and thus uninformative)
+        diag_repeated = torch.arange(start=self.spatial_corr_width//2,
+                                     end=self.spatial_corr_width)
+        # Upper triangle indices, excluding diagonal. These are redundant stats
+        # for cross_orientation_correlation_magnitude. Setting offset=1 means
+        # this will not include the diagonals, which are not redundant (if we
+        # were not normalizing the autocorrelation matrices, the diagonals of
+        # the cross-orientation correlations would be redundant with the
+        # central elements of auto_correlation_magnitude)
+        triu_inds = torch.triu_indices(self.n_orientations,
+                                       self.n_orientations, offset=1)
+        for k, v in mask_dict.items():
+            if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
+                # Symmetry M_{i,j} = M_{n-i+1, n_j+1}
+                # Start with all False, then place True in necessary stats.
+                mask = torch.zeros(v.shape, dtype=bool)
+                mask[tril_inds[0], tril_inds[1]] = True
+                # if spatial_corr_width is even, then the first row is not
+                # redundant with anything either
+                if np.mod(self.spatial_corr_width, 2) == 0:
+                    mask[0] = True
+                mask[diag_repeated, diag_repeated] = False
+            elif k == 'cross_orientation_correlation_magnitude':
+                # Symmetry M_{i,j} = M_{j,i}.
+                # Start with all True, then place False in redundant stats.
+                mask = torch.ones(v.shape, dtype=bool)
+                mask[triu_inds[0], triu_inds[1]] = False
+            else:
+                # all of the other stats have no redundancies
+                mask = torch.ones(v.shape, dtype=bool)
+            mask_dict[k] = mask
+        return mask_dict
 
     def forward(
         self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
@@ -305,11 +391,12 @@ class PortillaSimoncelli(nn.Module):
         all_stats += [var_highpass_residual]
         representation_vector = einops.pack(all_stats, 'b c *')[0]
 
+        # throw away all redundant statistics
+        representation_vector = representation_vector.index_select(-1, self._necessary_stats_mask)
+
         if scales is not None:
             representation_vector = self.remove_scales(representation_vector, scales)
 
-        # this is about ~2x slower than the non-downsampled version from the
-        # previous commit and differs more from the previous versions.
         return representation_vector
 
     def remove_scales(
@@ -370,13 +457,18 @@ class PortillaSimoncelli(nn.Module):
             Convert vector representation to dictionary.
 
         """
-        return einops.pack(list(representation_dict.values()), 'b c *')[0]
+        rep = einops.pack(list(representation_dict.values()), 'b c *')[0]
+        # then get rid of all the nans / unnecessary stats
+        return rep.index_select(-1, self._necessary_stats_mask)
 
     def convert_to_dict(self, representation_vector: Tensor) -> OrderedDict:
         """Converts vector of statistics to a dictionary.
 
         While the vector representation is required by plenoptic's synthesis
         objects, the dictionary representation is easier to manually inspect.
+
+        This dictionary will contain NaNs in its values: these are placeholders
+        for the redundant statistics.
 
         Parameters
         ----------
@@ -402,14 +494,22 @@ class PortillaSimoncelli(nn.Module):
                 "support such vectors."
             )
 
-        rep = self._scales_shape_dict.copy()
+        rep = self._necessary_stats_dict.copy()
         n_filled = 0
         for k, v in rep.items():
-            # v.size is the number of elements in v, i.e., np.prod(v.shape)
-            this_stat_vec = representation_vector[..., n_filled:n_filled+v.size]
-            rep[k] = this_stat_vec.unflatten(-1, v.shape)
-            n_filled += v.size
-
+            # each statistic should be a tensor with batch and channel
+            # dimensions as found in representation_vector and all the other
+            # dimensions determined by the values in necessary_stats_dict.
+            shape = (*representation_vector.shape[:2], *v.shape)
+            new_v = torch.nan * torch.ones(shape, dtype=representation_vector.dtype,
+                                           device=representation_vector.device)
+            # v.sum() gives the number of necessary elements from this stat
+            this_stat_vec = representation_vector[..., n_filled:n_filled+v.sum()]
+            # use boolean indexing to put the values from new_stat_vec in the
+            # appropriate place
+            new_v[..., v] = this_stat_vec
+            rep[k] = new_v
+            n_filled += v.sum()
         return rep
 
     def _compute_pyr_coeffs(self, image: Tensor) -> Tuple[OrderedDict, List[Tensor], Tensor, Tensor]:
@@ -572,14 +672,14 @@ class PortillaSimoncelli(nn.Module):
         -------
         autocorrs :
             Tensor of shape (batch, channel, spatial_corr_width,
-            spatial_corr_width, s, *) containing the autocorrelation of each
-            element in ``coeffs_list`` of the first four dimensions of
-            ``coeffs_tensor`` over the ``spatial_corr_width``.
-
+            spatial_corr_width, s, *) containing the autocorrelation (up to
+            distance ``spatial_corr_width//2``) of each element in
+            ``coeffs_list``, computed independently over all but the final two
+            dimensions.
         vars :
-            3d Tensor of shape (batch, channel, s*) containing the variance
-            computed independently over each of the first four dimensions of
-            ``coeffs_tensor``
+            3d Tensor of shape (batch, channel, s, *) containing the variance
+            of each element in ``coeffs_list``, computed independently over all
+            but the final two dimensions.
 
         """
         if coeffs_list[0].ndim == 5:
@@ -756,8 +856,13 @@ class PortillaSimoncelli(nn.Module):
         n_rows = 3
         n_cols = 3
 
-        # pick the batch_idx we want, and average over channels.
-        rep = self.convert_to_dict(data[batch_idx].mean(0))
+        # pick the batch_idx we want (but keep the data 3d), and average over
+        # channels (but keep the data 3d). We keep data 3d because
+        # convert_to_dict relies on it.
+        data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
+        # each of these values should now be a 3d tensor with 1 element in each
+        # of the first two dims
+        rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
         data = self._representation_for_plotting(rep)
 
         # Set up grid spec
@@ -798,9 +903,9 @@ class PortillaSimoncelli(nn.Module):
             raise ValueError("Currently, only know how to plot single batch and channel at a time! "
                              "Select and/or average over those dimensions")
         data = OrderedDict()
-        data["pixels+var_highpass"] = torch.stack(list(rep.pop("pixel_statistics").values()) +
-                                                  [rep.pop("var_highpass_residual")])
-        data["std+skew+kurtosis"] = torch.cat(
+        data["pixels+var_highpass"] = torch.cat([rep.pop("pixel_statistics"),
+                                                 rep.pop("var_highpass_residual")])
+        data["std+skew+kurtosis recon"] = torch.cat(
             (
                 rep.pop("std_reconstructed"),
                 rep.pop("skew_reconstructed"),
@@ -809,7 +914,9 @@ class PortillaSimoncelli(nn.Module):
         )
 
         for k, v in rep.items():
-            data[k] = torch.norm(v, p=2, dim=(0, 1)).flatten()
+            # we compute L2 norm manually, since there are NaNs (marking
+            # redundant stats)
+            data[k] = v.pow(2).nansum((0, 1)).sqrt().flatten()
 
         return data
 
@@ -915,4 +1022,5 @@ class PortillaSimoncelli(nn.Module):
             Module: self
         """
         self.pyr = self.pyr.to(*args, **kwargs)
+        self._necessary_stats_mask = self._necessary_stats_mask.to(*args, **kwargs)
         return self
