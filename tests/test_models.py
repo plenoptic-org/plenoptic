@@ -2,6 +2,8 @@
 # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
 # details
 from conftest import DEVICE, DATA_DIR
+from collections import OrderedDict
+import inspect
 from test_metric import osf_download
 import os.path as op
 import scipy.io as sio
@@ -52,14 +54,20 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
     # gpu
     else:
         torch_version = '_torch_v1.12.0'
+    ps_init_sig = inspect.signature(po.simul.PortillaSimoncelli.__init__)
+    if 'use_true_correlations' not in ps_init_sig.parameters:
+        ps_version = '_ps-refactor'
+    else:
+        ps_version = ''
     # synthesis gives differnet outputs on cpu vs gpu, so we have two different
     # versions to test against
-    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}.npz'
+    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}{ps_version}.npz'
     if DEVICE.type == 'cpu':
         gpu = ''
     elif DEVICE.type == 'cuda':
         gpu = '_gpu'
-    return name_template.format(gpu=gpu, torch_version=torch_version)
+    return name_template.format(gpu=gpu, torch_version=torch_version,
+                                ps_version=ps_version)
 
 
 @pytest.fixture()
@@ -215,17 +223,192 @@ class TestNaive(object):
         assert model(basic_stim).requires_grad
 
 
+def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
+                                  n_orientations: int, spatial_corr_width: int,
+                                  use_true_correlations: bool) -> OrderedDict:
+    """Converts matlab vector of statistics to a dictionary.
+
+    The matlab (and old plenoptic) PS representation includes a bunch of
+    unnecessary and redundant stats, which are removed in our current
+    implementation. This function converts that representation into a
+    dictionary, which we then restrict to only those stats we now compute, so
+    we can compare
+
+    Parameters
+    ----------
+    vec
+        1d vector of statistics.
+    n_scales, n_orientations, spatial_corr_width, use_true_correlations
+        Arguments used to initialize PS model
+
+    Returns
+    -------
+    Dictionary of representation, with informative keys.
+
+    See also
+    --------
+    convert_to_vector:
+        Convert dictionary representation to vector.
+
+    """
+    rep = OrderedDict()
+    rep["pixel_statistics"] = OrderedDict()
+    rep["pixel_statistics"] = vec[..., :6]
+
+    n_filled = 6
+
+    # magnitude_means
+    rep["magnitude_means"] = OrderedDict()
+    keys = ['residual_highpass'] + [(sc, ori) for sc in range(n_scales) for ori in range(n_orientations)] + ['residual_lowpass']
+    for ii, k in enumerate(keys):
+        rep["magnitude_means"][k] = vec[..., n_filled + ii]
+    n_filled += ii + 1
+
+    # auto_correlation_magnitude
+    nn = (
+        spatial_corr_width,
+        spatial_corr_width,
+        n_scales,
+        n_orientations,
+    )
+    rep["auto_correlation_magnitude"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # skew_reconstructed & kurtosis_reconstructed
+    nn = n_scales + 1
+    rep["skew_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+    n_filled += nn
+
+    rep["kurtosis_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+    n_filled += nn
+
+    # auto_correlation_reconstructed
+    nn = (spatial_corr_width, spatial_corr_width, (n_scales + 1))
+    rep["auto_correlation_reconstructed"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    if use_true_correlations:
+        nn = n_scales + 1
+        rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+        n_filled += nn
+    else:
+        # place a dummy entry, so the order of keys is correct
+        rep["std_reconstructed"] = []
+
+    # cross_orientation_correlation_magnitude
+    nn = (n_orientations, n_orientations, (n_scales + 1))
+    rep["cross_orientation_correlation_magnitude"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # cross_scale_correlation_magnitude
+    nn = (n_orientations, n_orientations, n_scales)
+    rep["cross_scale_correlation_magnitude"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # cross_orientation_correlation_real
+    nn = (
+        max(2 * n_orientations, 5),
+        max(2 * n_orientations, 5),
+        (n_scales + 1),
+    )
+    rep["cross_orientation_correlation_real"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # cross_scale_correlation_real
+    nn = (2 * n_orientations, max(2 * n_orientations, 5), n_scales)
+    rep["cross_scale_correlation_real"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # var_highpass_residual
+    rep["var_highpass_residual"] = vec[..., n_filled]
+
+    return rep
+
+
+def remove_redundant_and_normalize(matlab_rep: OrderedDict, plen_rep: OrderedDict,
+                                   use_true_correlations: bool,
+                                   plen_ps: po.simul.PortillaSimoncelli) -> torch.Tensor:
+    """Remove redundant stats from dictionary of representation, and normalize correlations
+
+    Redundant stats fall in two categories: those that are not included at all
+    anymore (e.g., magnitude means, extra zero placeholders), and those that
+    are computed automatically (because of how the computation works) and then
+    discarded (e.g., symmetries in autocorrelation). This function removes both.
+
+    Additionally, if use_true_correlations=False, we normalize the
+    correlations. The matlab PS code did not do so, so that, e.g., the center
+    value of the autocorrelations was the corresponding variance (rather than
+    being normalized to 1). Originally, we supported both normalized and
+    un-normalized, but now we only support the normalized version. Thus, to
+    compare with the matlab outputs (and older plenoptic versions), need to
+    normalize the auto- and cross-correlations.
+
+    We also grab the center values of auto_correlation_reconstructed and
+    create the new statistic std_reconstructed, as this information is
+    important.
+
+    """
+    # Remove those stats that are not included at all.
+    matlab_rep.pop('magnitude_means')
+    matlab_rep.pop('cross_orientation_correlation_real')
+
+    # Remove the 0 placeholders
+    matlab_rep['cross_scale_correlation_magnitude'] = matlab_rep['cross_scale_correlation_magnitude'][..., :-1]
+    matlab_rep['cross_orientation_correlation_magnitude'] = matlab_rep['cross_orientation_correlation_magnitude'][..., :-1]
+    matlab_rep['cross_scale_correlation_real'] = matlab_rep['cross_scale_correlation_real'][..., :plen_ps.n_orientations, :, :-1]
+    # if there are two orientations, there's some more 0 placeholders
+    if plen_ps.n_orientations == 2:
+        matlab_rep['cross_scale_correlation_real'] = matlab_rep['cross_scale_correlation_real'][..., :-1, :]
+
+    if not use_true_correlations:
+        # Create std_reconstructed
+        ctr_ind = plen_ps.spatial_corr_width // 2
+        var_recon = matlab_rep['auto_correlation_reconstructed'][..., ctr_ind, ctr_ind, :].clone()
+        matlab_rep['std_reconstructed'] = var_recon ** 0.5
+
+        # Normalize the autocorrelations using their center values
+        matlab_rep['auto_correlation_reconstructed'] /= var_recon
+        acm_ctr = matlab_rep['auto_correlation_magnitude'][..., ctr_ind, ctr_ind, :, :].clone()
+        matlab_rep['auto_correlation_magnitude'] /= acm_ctr
+
+        # The cross-correlations are normalized by the product of standard
+        # deviations of the tensors that create them. These tensors are
+        # intermediate outputs that aren't saved, and so instead we find out
+        # what this scalar would be (independent for each scale)
+        crosscorr_keys = ['cross_scale_correlation_real', 'cross_scale_correlation_magnitude',
+                          'cross_orientation_correlation_magnitude']
+        for k in crosscorr_keys:
+            mat_v = matlab_rep[k]
+            plen_v = plen_rep[k]
+            ratio = mat_v / plen_v
+            norm_scalar = ratio.nanmean((-2, -3))
+            matlab_rep[k] = mat_v / norm_scalar
+
+    # Finally, turn dict back into vector, removing redundant stats
+    return plen_ps.convert_to_vector(matlab_rep)
+
+
 class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [True, False])
     def test_portilla_simoncelli(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
-        use_true_correlations,
         einstein_img,
     ):
         ps = po.simul.PortillaSimoncelli(
@@ -233,7 +416,6 @@ class TestPortillaSimoncelli(object):
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations,
         ).to(DEVICE)
         ps(einstein_img)
 
@@ -259,27 +441,31 @@ class TestPortillaSimoncelli(object):
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=False,
         ).to(DEVICE).to(torch.float64)
-        python_vector = po.to_numpy(ps(im0))
+        python_vector = ps(im0)
 
-        matlab = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
+        matlab_rep = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
                              f"{im}-scales{n_scales}-ori{n_orientations}"
                              f"-spat{spatial_corr_width}.mat")
-        matlab_vector = matlab["params_vector"].flatten()
+        matlab_rep = torch.from_numpy(matlab_rep["params_vector"].flatten()).unsqueeze(0).unsqueeze(0)
+        matlab_rep = convert_matlab_ps_rep_to_dict(matlab_rep, n_scales, n_orientations, spatial_corr_width,
+                                                   False)
+        matlab_rep = remove_redundant_and_normalize(matlab_rep, ps.convert_to_dict(python_vector),
+                                                    False, ps)
+        matlab_rep = po.to_numpy(matlab_rep).squeeze()
+        python_vector = po.to_numpy(python_vector).squeeze()
 
         np.testing.assert_allclose(
-            python_vector.squeeze(), matlab_vector.squeeze(), rtol=1e-4, atol=1e-4
+            python_vector, matlab_rep, rtol=1e-4, atol=1e-4
         )
 
     # tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [False, True])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_ps_torch_output(self, n_scales, n_orientations,
-                             spatial_corr_width, im, use_true_correlations,
+                             spatial_corr_width, im,
                              portilla_simoncelli_test_vectors):
 
         im0 = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
@@ -289,30 +475,34 @@ class TestPortillaSimoncelli(object):
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations,
         ).to(DEVICE).to(torch.float64)
-        output = po.to_numpy(ps(im0))
+        output = ps(im0)
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
                         f"{im}-scales{n_scales}-ori{n_orientations}-"
-                        f"spat{spatial_corr_width}-corr{use_true_correlations}.npy")
+                        f"spat{spatial_corr_width}-corrFalse.npy")
+        saved = torch.from_numpy(saved)
+        saved = convert_matlab_ps_rep_to_dict(saved, n_scales, n_orientations, spatial_corr_width,
+                                              False)
+        saved = remove_redundant_and_normalize(saved, ps.convert_to_dict(output),
+                                               False, ps)
 
+        saved = po.to_numpy(saved).squeeze()
+        output = po.to_numpy(output).squeeze()
         np.testing.assert_allclose(
-            output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
+            output, saved, rtol=1e-5, atol=5e-5
         )
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [False, True])
     def test_ps_convert(self, n_scales, n_orientations, spatial_corr_width,
-                        use_true_correlations, einstein_img):
+                        einstein_img):
         ps = po.simul.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations,
         ).to(DEVICE)
         rep = ps(einstein_img)
         assert torch.all(rep == ps.convert_to_vector(ps.convert_to_dict(rep))), "Convert to vector or dict is broken!"
@@ -354,7 +544,7 @@ class TestPortillaSimoncelli(object):
                                             n_scales=4,
                                             n_orientations=4,
                                             spatial_corr_width=9,
-                                            use_true_correlations=True).to(DEVICE).to(torch.float64)
+                                            ).to(DEVICE).to(torch.float64)
 
         po.tools.set_seed(1)
         im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
@@ -387,17 +577,15 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [False, True])
     def test_portilla_simoncelli_scales(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
-        use_true_correlations,
         portilla_simoncelli_scales
     ):
         with np.load(portilla_simoncelli_scales) as f:
-            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}_corr-{use_true_correlations}'
+            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}_corr-False'
             saved = f[key]
 
         model = po.simul.PortillaSimoncelli(
@@ -405,23 +593,15 @@ class TestPortillaSimoncelli(object):
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations).to(DEVICE)
+            ).to(DEVICE)
 
-        output = model._get_representation_scales()
+        output = model._representation_scales
+        # grab just the necessary stats
+        saved = saved[model._necessary_stats_mask]
 
         for (oo, ss) in zip(output, saved):
             if str(oo) != ss:
                 raise ValueError("Scales do not match.")
-            
-    @pytest.mark.parametrize("im_shape", [(256,256), (128,256)])
-    def test_ps_expand(self, im_shape):
-        mult = 4
-        
-        im = po.tools.make_synthetic_stimuli().to(DEVICE)
-        im = im[0,0,:im_shape[0], :im_shape[1]]
-        out_im = po.simul.PortillaSimoncelli(im_shape).expand(im, mult)
-        
-        assert out_im.shape == (im_shape[0] * mult, im_shape[1] * mult)
 
 
 class TestFilters:

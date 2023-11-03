@@ -1022,5 +1022,12 @@ class PortillaSimoncelli(nn.Module):
             Module: self
         """
         self.pyr = self.pyr.to(*args, **kwargs)
-        self._necessary_stats_mask = self._necessary_stats_mask.to(*args, **kwargs)
+        for arg in args:
+            # this is an index, so don't change it's dtype
+            if not isinstance(arg, torch.dtype):
+                self._necessary_stats_mask = self._necessary_stats_mask.to(arg)
+        if 'tensor' in kwargs:
+            self._necessary_stats_mask = self._necessary_stats_mask.to(device=kwargs['tensor'].device)
+        if 'device' in kwargs:
+            self._necessary_stats_mask = self._necessary_stats_mask.to(device=kwargs['device'])
         return self
