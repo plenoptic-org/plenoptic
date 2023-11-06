@@ -15,6 +15,7 @@ import pytest
 import matplotlib.pyplot as plt
 from packaging import version
 import os
+from contextlib import nullcontext as does_not_raise
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 
@@ -608,6 +609,32 @@ class TestPortillaSimoncelli(object):
         output = model._representation_scales
 
         np.testing.assert_equal(output, saved)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("img_size", [255, 254, 252, 160])
+    def test_other_size_images(self, n_scales, img_size):
+        im0 = po.load_images(op.join(DATA_DIR, f"256/nuts.pgm")).to(DEVICE)
+        im0 = im0[..., :img_size, :img_size]
+        if any([(img_size / 2**i) % 2 for i in range(n_scales)]):
+            expectation = pytest.raises(ValueError, match='Because of how the Portilla-Simoncelli model handles multiscale')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            model = po.simul.PortillaSimoncelli(
+                im0.shape[-2:],
+                n_scales=n_scales,
+                ).to(DEVICE)
+            model(im0)
+
+    @pytest.mark.parametrize("img_size", [160, 128])
+    def test_nonsquare_images(self, img_size):
+        im0 = po.load_images(op.join(DATA_DIR, f"256/nuts.pgm")).to(DEVICE)
+        im0 = im0[..., :img_size]
+        model = po.simul.PortillaSimoncelli(
+            im0.shape[-2:],
+            ).to(DEVICE)
+        model(im0)
+
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
