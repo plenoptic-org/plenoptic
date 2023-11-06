@@ -579,8 +579,9 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
         ``ax.set_title`` (useful if you want to avoid changing the title
         on an existing plot)
     ylim : tuple or None, optional
-        If not None, the y-limits to use for this plot. If None, we
-        use the default, slightly adjusted so that the minimum is 0
+        If not None, the y-limits to use for this plot. If None, we use the
+        default, slightly adjusted so that the minimum is 0. If False, do not
+        change y-limits.
     xvals : `tuple` or `None`, optional
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
         (``xvals[1]``) x values for plotting. If None, we use the

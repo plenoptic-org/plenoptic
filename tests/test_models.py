@@ -635,6 +635,63 @@ class TestPortillaSimoncelli(object):
             ).to(DEVICE)
         model(im0)
 
+    @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    def test_multibatchchannel(self, batch_channel, n_scales, n_orientations,
+                               spatial_corr_width, einstein_img):
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        if rep.shape[:2] != batch_channel:
+            raise ValueError("Output doesn't have same number of batch/channel dims as input!")
+
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    def test_plot_representation(self, batch_channel, n_scales, n_orientations,
+                                 spatial_corr_width, einstein_img):
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        model.plot_representation(model(einstein_img.repeat((*batch_channel, 1, 1))))
+
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    def test_plot_representation_dim_assumption(self, batch_channel, n_scales,
+                                                n_orientations, spatial_corr_width,
+                                                einstein_img):
+        # there's an assumption I make in plot_representation that I want to
+        # ensure is tested
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        rep = model.convert_to_dict(rep[0].unsqueeze(0).mean(1, keepdim=True))
+        if any([v.ndim != 3 for v in rep.values()]):
+            raise ValueError("Somehow this doesn't have 3 dimensions!")
+        if any([v.shape[:2] != (1, 1) for v in rep.values()]):
+            raise ValueError("Somehow this has an extra batch or channel!")
+
+    # fft doesn't support float16, so we can't support it
+    @pytest.mark.parametrize('dtype', [torch.float32, torch.float64])
+    def test_dtypes(self, dtype, einstein_img):
+        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
+        model(einstein_img.to(dtype))
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])

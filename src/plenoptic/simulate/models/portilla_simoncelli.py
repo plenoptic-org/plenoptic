@@ -814,7 +814,7 @@ class PortillaSimoncelli(nn.Module):
             data: Tensor,
             ax: Optional[mpl.axes.Axes] = None,
             figsize: Tuple[float, float] = (15, 15),
-            ylim: Optional[Tuple[float, float]] = None,
+            ylim: Optional[Union[Tuple[float, float], Literal[False]]] = None,
             batch_idx: int = 0,
             title: Optional[str] = None,
     ) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes]]:
@@ -822,7 +822,39 @@ class PortillaSimoncelli(nn.Module):
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
-        Currently, this averages over all channels in the representation.
+        This plots the representation of a single batch and averages over all
+        channels in the representation.
+
+        We create the following axes:
+
+        - pixels+var_highpass: marginal pixel statistics (first four moments,
+          min, max) and variance of the residual highpass.
+
+        - std+skew+kurtosis recon: the standard deviation, skew, and kurtosis
+          of the reconstructed lowpass image at each scale
+
+        - auto_correlation_reconstructed: the auto-correlation of the
+          reconstructed lowpass image at each scale (summarized using Euclidean
+          norm).
+
+        - auto_correlation_magnitude: the auto-correlation of the pyramid
+          coefficient magnitudes at each scale and orientation (summarized
+          using Euclidean norm).
+
+        - cross_orientation_correlation_magnitude: the cross-correlations
+          between each orientation at each scale (summarized using Euclidean
+          norm)
+
+        If self.n_scales > 1, we also have:
+        
+        - cross_scale_correlation_magnitude: the cross-correlations between the
+          pyramid coefficient magnitude at one scale and the same orientation
+          at the next-coarsest scale (summarized using Euclidean norm).
+
+        - cross_scale_correlation_real: the cross-correlations between the real
+          component of the pyramid coefficients and the real and imaginary
+          components (at the same orientation) at the next-coarsest scale
+          (summarized using Euclidean norm).
 
         Parameters
         ----------
@@ -837,7 +869,9 @@ class PortillaSimoncelli(nn.Module):
         figsize :
             The size of the figure. Ignored if ax is not None.
         ylim :
-            The ylimits of the plot.
+            If not None, the y-limits to use for this plot. If None, we use the
+            default, slightly adjusted so that the minimum is 0. If False, do not
+            change y-limits.
         batch_idx :
             Which index to take from the batch dimension (the first one)
         title : string
@@ -851,8 +885,13 @@ class PortillaSimoncelli(nn.Module):
             List of 7 axes containing the plot
 
         """
-        n_rows = 3
-        n_cols = 3
+        if self.n_scales != 1:
+            n_rows = 3
+            n_cols = 3
+        else:
+            # then we don't have any cross-scale correlations, so fewer axes.
+            n_rows = 2
+            n_cols = 3
 
         # pick the batch_idx we want (but keep the data 3d), and average over
         # channels (but keep the data 3d). We keep data 3d because
@@ -911,10 +950,21 @@ class PortillaSimoncelli(nn.Module):
             )
         )
 
-        for k, v in rep.items():
+        # want to plot these in a specific order
+        all_keys = ['auto_correlation_reconstructed',
+                    'auto_correlation_magnitude',
+                    'cross_orientation_correlation_magnitude',
+                    'cross_scale_correlation_magnitude',
+                    'cross_scale_correlation_real']
+        if set(rep.keys()) != set(all_keys):
+            raise ValueError("representation has unexpected keys!")
+        for k in all_keys:
+            # if we only have one scale, no cross-scale stats
+            if k.startswith('cross_scale') and self.n_scales == 1:
+                continue
             # we compute L2 norm manually, since there are NaNs (marking
             # redundant stats)
-            data[k] = v.pow(2).nansum((0, 1)).sqrt().flatten()
+            data[k] = rep[k].pow(2).nansum((0, 1)).sqrt().flatten()
 
         return data
 
