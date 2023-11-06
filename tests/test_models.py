@@ -54,20 +54,17 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
     # gpu
     else:
         torch_version = '_torch_v1.12.0'
-    ps_init_sig = inspect.signature(po.simul.PortillaSimoncelli.__init__)
-    if 'use_true_correlations' not in ps_init_sig.parameters:
-        ps_version = '_ps-refactor'
-    else:
-        ps_version = ''
+    # during refactor, we changed PS model output so that it doesn't include
+    # redundant stats. This changes the solution that is found (though not its
+    # quality)
+    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}_ps-refactor.npz'
     # synthesis gives differnet outputs on cpu vs gpu, so we have two different
     # versions to test against
-    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}{ps_version}.npz'
     if DEVICE.type == 'cpu':
         gpu = ''
     elif DEVICE.type == 'cuda':
         gpu = '_gpu'
-    return name_template.format(gpu=gpu, torch_version=torch_version,
-                                ps_version=ps_version)
+    return name_template.format(gpu=gpu, torch_version=torch_version)
 
 
 @pytest.fixture()
@@ -77,7 +74,10 @@ def portilla_simoncelli_synthesize(torch_version=None):
 
 @pytest.fixture()
 def portilla_simoncelli_scales():
-    return osf_download('portilla_simoncelli_scales.npz')
+    # During PS refactor, we changed the structure of the
+    # _representation_scales attribute, so have a different file to test
+    # against
+    return osf_download(f'portilla_simoncelli_scales_ps-refactor.npz')
 
 
 class TestNonLinearities(object):
@@ -584,8 +584,8 @@ class TestPortillaSimoncelli(object):
         spatial_corr_width,
         portilla_simoncelli_scales
     ):
-        with np.load(portilla_simoncelli_scales) as f:
-            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}_corr-False'
+        with np.load(portilla_simoncelli_scales, allow_pickle=True) as f:
+            key = f'scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}'
             saved = f[key]
 
         model = po.simul.PortillaSimoncelli(
@@ -596,13 +596,8 @@ class TestPortillaSimoncelli(object):
             ).to(DEVICE)
 
         output = model._representation_scales
-        # grab just the necessary stats
-        saved = saved[model._necessary_stats_mask]
 
-        for (oo, ss) in zip(output, saved):
-            if str(oo) != ss:
-                raise ValueError("Scales do not match.")
-
+        np.testing.assert_equal(output, saved)
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])

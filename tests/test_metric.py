@@ -22,7 +22,9 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'portilla_simoncelli_synthesize_torch_v1.12.0.npz': 'gbv8e',
            'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': '2t8jr',
            'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
-           'portilla_simoncelli_scales.npz': 'xhwv3'}
+           'portilla_simoncelli_scales.npz': 'xhwv3',
+           'portilla_simoncelli_scales_ps-refactor.npz': 'nvpr4'}
+
 
 
 def osf_download(filename):
@@ -45,7 +47,8 @@ def osf_download(filename):
                 'portilla_simoncelli_synthesize_torch_v1.12.0.npz',
                 'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz',
                 'portilla_simoncelli_synthesize_gpu.npz',
-                'portilla_simoncelli_scales.npz'}
+                'portilla_simoncelli_scales.npz',
+                'portilla_simoncelli_scales_ps-refactor.npz'}
         Which file to download.
 
     Returns
