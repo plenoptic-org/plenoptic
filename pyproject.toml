@@ -49,7 +49,6 @@ dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "torchvision>=0.3",
     "requests>=2.21",
 ]
 
