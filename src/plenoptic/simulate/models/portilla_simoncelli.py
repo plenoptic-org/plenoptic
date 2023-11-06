@@ -805,9 +805,7 @@ class PortillaSimoncelli(nn.Module):
             doubled_phase_mag = doubled_phase.abs()
             doubled_phase_mag = doubled_phase_mag - doubled_phase_mag.mean((-2, -1), keepdim=True)
             doubled_phase_mags.append(doubled_phase_mag)
-            ## this minus here SHOULD BE REMOVED, it's just because they computed
-            ## the negative real component by accident
-            doubled_phase_sep.append(einops.pack([-doubled_phase.real, doubled_phase.imag],
+            doubled_phase_sep.append(einops.pack([doubled_phase.real, doubled_phase.imag],
                                                  'b c * h w')[0])
         return doubled_phase_mags, doubled_phase_sep
 

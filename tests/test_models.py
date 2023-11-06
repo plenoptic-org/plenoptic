@@ -3,7 +3,6 @@
 # details
 from conftest import DEVICE, DATA_DIR
 from collections import OrderedDict
-import inspect
 from test_metric import osf_download
 import os.path as op
 import scipy.io as sio
@@ -359,6 +358,15 @@ def remove_redundant_and_normalize(matlab_rep: OrderedDict, plen_rep: OrderedDic
     create the new statistic std_reconstructed, as this information is
     important.
 
+    Finally, we take the negative of half the cross_scale_correlation_real.
+    When doubling the phase, Portilla-Simoncelli accidentally calculated the
+    negative of the real component: they called atan2(real, imag), whereas
+    atan2 receives the y-value (thus, the imaginary component) first. This
+    caused the correlations between the real coefficients on one scale and the
+    real coefficients on the next to be negative where they should be positive,
+    and vice versa (this doesn't affect the magnitudes or the imaginary
+    components on the next scale).
+
     """
     # Remove those stats that are not included at all.
     matlab_rep.pop('magnitude_means')
@@ -371,6 +379,8 @@ def remove_redundant_and_normalize(matlab_rep: OrderedDict, plen_rep: OrderedDic
     # if there are two orientations, there's some more 0 placeholders
     if plen_ps.n_orientations == 2:
         matlab_rep['cross_scale_correlation_real'] = matlab_rep['cross_scale_correlation_real'][..., :-1, :]
+    # See docstring for why we make these specific stats negative
+    matlab_rep['cross_scale_correlation_real'][..., :plen_ps.n_orientations, :] = -matlab_rep['cross_scale_correlation_real'][..., :plen_ps.n_orientations, :]
 
     if not use_true_correlations:
         # Create std_reconstructed

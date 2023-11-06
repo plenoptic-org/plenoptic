@@ -20,7 +20,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'portilla_simoncelli_images.tar.gz':'eqr3t',
            'portilla_simoncelli_synthesize.npz': 'a7p9r',
            'portilla_simoncelli_synthesize_torch_v1.12.0.npz': 'gbv8e',
-           'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': '2t8jr',
+           'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': 'vmwzd',
            'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
            'portilla_simoncelli_scales.npz': 'xhwv3',
            'portilla_simoncelli_scales_ps-refactor.npz': 'nvpr4'}
