@@ -5,6 +5,7 @@ from conftest import DEVICE, DATA_DIR
 from collections import OrderedDict
 from test_metric import osf_download
 import os.path as op
+import einops
 import scipy.io as sio
 import pyrtools as pt
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
@@ -692,6 +693,95 @@ class TestPortillaSimoncelli(object):
     def test_dtypes(self, dtype, einstein_img):
         model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
         model(einstein_img.to(dtype))
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    def test_scales_shapes(self, n_scales, n_orientations, spatial_corr_width,
+                           einstein_img):
+        # test that the shapes we use to assign scale labels to each statistic
+        # and determine redundant stats are accurate
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats
+        model._necessary_stats_mask = None
+        rep = model(einstein_img)
+        # and then we get them back into their original shapes
+        unpacked_rep = einops.unpack(rep, model._pack_info, 'b c *')
+        # because _necessary_stats_dict is an ordered dictionary, its elements
+        # will be in the same order as in unpackaged_rep
+        for unp_v, dict_v in zip(unpacked_rep, model._necessary_stats_dict.values()):
+            # when we have a single scale, _necessary_stats_dict will contain
+            # keys for the cross_scale correlations, but there are no
+            # corresponding values. Thus, skip.
+            if dict_v.nelement() == 0:
+                continue
+            # ignore batch and channel
+            unp_v = unp_v[0, 0]
+            if not unp_v.shape:
+                # then this is var_residual_highpass, which has a single element
+                np.testing.assert_equal(unp_v.nelement(), dict_v.nelement())
+            else:
+                np.testing.assert_equal(unp_v.shape, dict_v.shape)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_redundancies(self, n_scales, n_orientations, spatial_corr_width,
+                          im):
+        # test that the computed statistics have the redundancies we think they
+        # do
+        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        model = po.simul.PortillaSimoncelli(
+            im.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats
+        model._necessary_stats_mask = None
+        rep = model(im)
+        # and then we get them back into their original shapes (with lots of
+        # redundancies)
+        unpacked_rep = einops.unpack(rep, model._pack_info, 'b c *')
+        for unp_v, (k, nec_v) in zip(unpacked_rep, model._necessary_stats_dict.items()):
+            # find the redundant values for this stat
+            red_v = torch.logical_not(nec_v)
+            # then there are no redundant values here
+            if red_v.sum() == 0:
+                continue
+            unp_vals = []
+            mask_vals = []
+            ctr_vals = []
+            for sc in range(red_v.shape[-1]):
+                red_idx = torch.stack(torch.where(red_v[..., sc]), -1)
+                # ignore batch and channel
+                val = unp_v[0, 0, ..., sc]
+                if k == 'cross_orientation_correlation_magnitude':
+                    # Symmetry M_{i,j} = M_{j,i}.
+                    for i in red_idx:
+                        unp_vals.append(val[i[0], i[1]])
+                        mask_vals.append(val[i[1], i[0]])
+                elif k.startswith('auto_correlation'):
+                    # center values of autocorrelations should be 1
+                    ctr_vals.append(val[model.spatial_corr_width//2,
+                                        model.spatial_corr_width//2])
+                    # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
+                    for i in red_idx:
+                        unp_vals.append(val[i[0], i[1]])
+                        mask_vals.append(val[-(i[0]+1), -(i[1]+1)])
+                else:
+                    raise ValueError(f"stat {k} unexpectedly has redundant values!")
+            #and check for equality
+            if ctr_vals:
+                np.testing.assert_equal(ctr_vals, np.ones_like(ctr_vals))
+            np.testing.assert_allclose(unp_vals, mask_vals, atol=1e-6)
+
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])

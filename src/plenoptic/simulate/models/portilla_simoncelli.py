@@ -230,13 +230,13 @@ class PortillaSimoncelli(nn.Module):
         # for cross_orientation_correlation_magnitude. Setting offset=1 means
         # this will not include the diagonals, which are not redundant (if we
         # were not normalizing the autocorrelation matrices, the diagonals of
-        # the cross-orientation correlations would be redundant with the
+        # these cross-orientation correlations would be redundant with the
         # central elements of auto_correlation_magnitude)
         triu_inds = torch.triu_indices(self.n_orientations,
                                        self.n_orientations, offset=1)
         for k, v in mask_dict.items():
             if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
-                # Symmetry M_{i,j} = M_{n-i+1, n_j+1}
+                # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
                 # Start with all False, then place True in necessary stats.
                 mask = torch.zeros(v.shape, dtype=bool)
                 mask[tril_inds[0], tril_inds[1]] = True
@@ -389,10 +389,17 @@ class PortillaSimoncelli(nn.Module):
         if self.n_scales != 1:
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
-        representation_vector = einops.pack(all_stats, 'b c *')[0]
+        representation_vector, pack_info = einops.pack(all_stats, 'b c *')
 
-        # throw away all redundant statistics
-        representation_vector = representation_vector.index_select(-1, self._necessary_stats_mask)
+        # the only time when this is None is during testing, when we make sure
+        # that our assumptions are all valid.
+        if self._necessary_stats_mask is None:
+            # store this so we can unpack this info (only possible when we've
+            # discarded no stats)
+            self._pack_info = pack_info
+        else:
+            # throw away all redundant statistics
+            representation_vector = representation_vector.index_select(-1, self._necessary_stats_mask)
 
         if scales is not None:
             representation_vector = self.remove_scales(representation_vector, scales)
