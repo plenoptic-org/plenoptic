@@ -92,6 +92,54 @@ class TestSignal(object):
             assert po.tools.add_noise(A, B).shape[0] == max(size_A, size_B)
 
 
+    @pytest.mark.parametrize('factor', [.5, 1, 1.5, 2, 1.1])
+    @pytest.mark.parametrize('img_size', [256, 128, 200])
+    def test_expand(self, factor, img_size, einstein_img):
+        einstein_img = einstein_img.clone()[..., :img_size]
+        # these matches are regex, so need to escape *,[,] because they're
+        # special characters in regex
+        if int(factor * img_size) != factor * img_size:
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-1\] must give')
+        elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-2\] must give')
+        elif factor <= 1:
+            expectation = pytest.raises(ValueError, match='factor must be strictly greater')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            expanded = po.tools.expand(einstein_img, factor)
+            np.testing.assert_equal(expanded.shape[-2:], [factor * s for s in einstein_img.shape[-2:]])
+
+    @pytest.mark.parametrize('factor', [.5, 1, 1.5, 2, 1.1])
+    @pytest.mark.parametrize('img_size', [256, 128, 200])
+    def test_shrink(self, factor, img_size, einstein_img):
+        einstein_img = einstein_img.clone()[..., :img_size]
+        # these matches are regex, so need to escape [,] because they're
+        # special characters in regex
+        if int(img_size / factor) != img_size / factor:
+            expectation = pytest.raises(ValueError, match='x.shape\[-1\]/factor must give')
+        elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
+            expectation = pytest.raises(ValueError, match='x.shape\[-2\]/factor must give')
+        elif factor <= 1:
+            expectation = pytest.raises(ValueError, match='factor must be strictly greater')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            shrunk = po.tools.shrink(einstein_img, factor)
+            np.testing.assert_equal(shrunk.shape[-2:], [s / factor for s in einstein_img.shape[-2:]])
+
+    @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
+    def test_shrink_batch_channel(self, batch_channel, einstein_img):
+        shrunk = po.tools.shrink(einstein_img.repeat((*batch_channel, 1, 1)), 2)
+        size = batch_channel + [s / 2 for s in einstein_img.shape[-2:]]
+        np.testing.assert_equal(shrunk.shape, size)
+
+    @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
+    def test_expand_batch_channel(self, batch_channel, einstein_img):
+        expanded = po.tools.expand(einstein_img.repeat((*batch_channel, 1, 1)), 2)
+        size = batch_channel + [2 * s for s in einstein_img.shape[-2:]]
+        np.testing.assert_equal(expanded.shape, size)
+
 class TestStats(object):
 
     def test_stats(self):

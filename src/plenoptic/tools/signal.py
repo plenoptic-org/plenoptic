@@ -472,7 +472,7 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
              (w//2 - output_size//2) : (w//2 + (output_size+1)//2)]
 
 
-def expand(x: Tensor, factor: int) -> Tensor:
+def expand(x: Tensor, factor: float) -> Tensor:
     r"""Expand a signal by a factor.
 
     We do this in the frequency domain: pasting the Fourier contents of ``x``
@@ -483,7 +483,8 @@ def expand(x: Tensor, factor: int) -> Tensor:
     x:
         The signal for expansion.
     factor :
-        Factor by which to resize image.
+        Factor by which to resize image. Must be larger than 1 and `factor *
+        x.shape[-2:]` must give integer values
 
     Returns
     -------
@@ -494,11 +495,20 @@ def expand(x: Tensor, factor: int) -> Tensor:
     --------
     shrink :
         The inverse operation
+
     """
+    if factor <= 1:
+        raise ValueError("factor must be strictly greater than 1!")
     im_x = x.shape[-1]
     im_y = x.shape[-2]
     mx = factor * im_x
     my = factor * im_y
+    if int(mx) != mx:
+        raise ValueError(f"factor * x.shape[-1] must give an integer but got {mx} instead!")
+    if int(my) != my:
+        raise ValueError(f"factor * x.shape[-2] must give an integer but got {my} instead!")
+    mx = int(mx)
+    my = int(my)
 
     fourier = factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
     fourier_large = torch.zeros(
@@ -553,7 +563,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     x :
         The signal for expansion.
     factor :
-        factor by which to shrink image.
+        Factor by which to resize image. Must be larger than 1 and `factor /
+        x.shape[-2:]` must give integer values
 
     Returns
     -------
@@ -566,15 +577,17 @@ def shrink(x: Tensor, factor: int) -> Tensor:
         The inverse operation
 
     """
+    if factor <= 1:
+        raise ValueError("factor must be greater than 1!")
     im_x = x.shape[-1]
     im_y = x.shape[-2]
     mx = im_x / factor
     my = im_y / factor
 
     if int(mx) != mx:
-        raise ValueError(f"x.shape[-1]/factor must be an integer!")
+        raise ValueError(f"x.shape[-1]/factor must be an integer but got {mx} instead!")
     if int(my) != my:
-        raise ValueError(f"x.shape[-2]/factor must be an integer!")
+        raise ValueError(f"x.shape[-2]/factor must be an integer but got {my} instead!")
 
     mx = int(mx)
     my = int(my)
