@@ -26,7 +26,7 @@ class PortillaSimoncelli(nn.Module):
     statistics, first described in [1]_, that are proposed as a sufficient set
     of measurements for describing visual textures. That is, if two texture
     images have the same values for all PS texture stats, humans should
-    consider them as belonging to the same family of texture.
+    consider them as members of the same family of textures.
 
     The PS stats are computed based on the steerable pyramid [2]_. They consist
     of the local auto-correlations, cross-scale (within-orientation)
@@ -1029,8 +1029,14 @@ class PortillaSimoncelli(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        data = self.convert_to_dict(data[batch_idx].mean(0))
-        rep = self._representation_for_plotting(data)
+        # pick the batch_idx we want (but keep the data 3d), and average over
+        # channels (but keep the data 3d). We keep data 3d because
+        # convert_to_dict relies on it.
+        data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
+        # each of these values should now be a 3d tensor with 1 element in each
+        # of the first two dims
+        rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        rep = self._representation_for_plotting(rep)
         for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
                 vals = np.array([dd.detach() for dd in d.values()])
