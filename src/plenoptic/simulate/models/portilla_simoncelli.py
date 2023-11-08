@@ -750,7 +750,7 @@ class PortillaSimoncelli(nn.Module):
         cross_corrs = []
         for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
             cross_corr = einops.einsum(coeff, coeff_other,
-                                           'b c o1 h w, b c o2 h w -> b c o1 o2')
+                                       'b c o1 h w, b c o2 h w -> b c o1 o2')
             cross_corr = cross_corr / torch.mul(*coeff.shape[-2:])
             std = torch.std(coeff, (-3, -2, -1), keepdim=True).squeeze(-1)
             std_other = torch.std(coeff_other, (-3, -2, -1), keepdim=True).squeeze(-1)
