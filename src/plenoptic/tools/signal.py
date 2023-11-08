@@ -397,7 +397,11 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
         Phase-modulated complex tensor.
 
     """
-    angle = torch.atan2(x.imag, x.real)
+    try:
+        angle = torch.atan2(x.imag, x.real)
+    except RuntimeError:
+        # then x is not complex-valued
+        raise TypeError("x must be a complex-valued tensor!")
     amp = x.abs()
     real = amp * torch.cos(phase_factor * angle)
     imag = amp * torch.sin(phase_factor * angle)
