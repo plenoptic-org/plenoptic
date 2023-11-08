@@ -13,7 +13,7 @@ def variance(
     r"""Calculate sample variance.
 
     Note that this is the uncorrected, or sample, variance, corresponding to
-    ``torch.var(*, correction=1)``
+    ``torch.var(*, correction=0)``
 
     Parameters
     ----------

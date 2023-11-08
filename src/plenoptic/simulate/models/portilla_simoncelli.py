@@ -45,12 +45,13 @@ class PortillaSimoncelli(nn.Module):
     n_orientations:
         The number of orientations used to measure the statistics (default=4)
     spatial_corr_width:
-        The width of the spatial cross- and auto-correlation statistics in the representation
+        The width of the spatial cross- and auto-correlation statistics
 
     Attributes
     ----------
     scales: list
-        The names of the unique scales of coefficients in the pyramid.
+        The names of the unique scales of coefficients in the pyramid, used for
+        coarse-to-fine metamer synthesis.
 
     References
     ----------
@@ -215,7 +216,7 @@ class PortillaSimoncelli(nn.Module):
 
         """
         mask_dict = scales_shape_dict.copy()
-        # Pre compute some necessary indices.
+        # Pre-compute some necessary indices.
         # Lower triangular indices (including diagonal), for auto correlations
         tril_inds = torch.tril_indices(self.spatial_corr_width,
                                        self.spatial_corr_width)
@@ -272,8 +273,7 @@ class PortillaSimoncelli(nn.Module):
             Which scales to include in the returned representation. If None, we
             include all scales. Otherwise, can contain subset of values present
             in this model's ``scales`` attribute, and the returned vector will
-            then contain the subset of the full representation corresponding to
-            those scales.
+            then contain the subset corresponding to those scales.
 
         Returns
         -------
@@ -294,101 +294,81 @@ class PortillaSimoncelli(nn.Module):
         # need the dictionary for reconstructing the image done later on.
         pyr_dict, pyr_coeffs, highpass, _ = self._compute_pyr_coeffs(image)
 
-        ### SECTION 1 (STATISTIC: pixel_statistics) ##################
-        #  Calculate pixel statistics (mean, variance, skew, kurtosis, min, max).
-        pixel_stats = self._compute_pixel_stats(image)
+        # Now, we create several intermediate representations that we'll use to
+        # compute the texture statistics later.
 
-        ### SECTION 2 (STATISTIC: mean_magnitude) ####################
-        # Calculate the mean of the magnitude of each band of pyramid
-        # coefficients.  Additionally, this section creates two
-        # other dictionaries of coefficients: magnitude_pyr_coeffs
-        # and real_pyr_coeffs, which contain the demeaned magnitude of the
-        # pyramid coefficients and the real part of the pyramid
-        # coefficients respectively.
-
-        # calculate two intermediate representations:
-        #   1) demeaned magnitude of the pyramid coefficients,
-        #   2) real part of the pyramid coefficients
+        # First, two intermediate dictionaries: magnitude_pyr_coeffs and
+        # real_pyr_coeffs, which contain the demeaned magnitude of the pyramid
+        # coefficients and the real part of the pyramid coefficients
+        # respectively.
         mag_pyr_coeffs, real_pyr_coeffs = self._compute_intermediate_representations(pyr_coeffs)
 
-        ### SECTION 3 (STATISTICS: auto_correlation_magnitude,
-        #                          skew_reconstructed,
-        #                          kurtosis_reconstructed,
-        #                          auto_correlation_reconstructed) #####
-        #
-        # Calculates:
-        # 1) the central auto-correlation of the magnitude of each
-        # orientation/scale band.
-        #
-        # 2) the central auto-correlation of the low-pass residuals
-        # for each scale of the pyramid (auto_correlation_reconstructed),
-        # where the residual at each scale is reconstructed from the
-        # previous scale.  (Note: the lowpass residual of the pyramid
-        # is low-pass filtered before this reconstruction process begins,
-        # see below).
-        #
-        # 3) the skew and the kurtosis of the reconstructed
-        # low-pass residuals (skew_reconstructed, kurtosis_reconstructed).
-        # The skew and kurtosis are calculated with the auto-correlation
-        # statistics because like #2 (above) they rely on the reconstructed
-        # low-pass residuals, making it more efficient (in terms of memory
-        # and/or compute time) to calculate it at the same time.
-
-        # list of length n_scales+1 containing tensors of shape (batch,
-        # channel, height, width)
+        # Then, the reconstructed lowpass image at each scale. (this is a list
+        # of length n_scales+1 containing tensors of shape (batch, channel,
+        # height, width))
         reconstructed_images = self._reconstruct_lowpass_at_each_scale(pyr_dict)
         # the reconstructed_images list goes from coarse-to-fine, but we want
         # each of the stats computed from it to go from fine-to-coarse, so we
         # reverse its direction.
         reconstructed_images = reconstructed_images[::-1]
 
-        # tensor of shape: (batch, channel, spatial_corr_width,
+        # Now, start calculating the PS texture stats.
+
+        # Calculate pixel statistics (mean, variance, skew, kurtosis, min,
+        # max).
+        pixel_stats = self._compute_pixel_stats(image)
+
+        # Compute the central autocorrelation of the coefficient magnitudes.
+        # This is a tensor of shape: (batch, channel, spatial_corr_width,
         # spatial_corr_width, n_scales, n_orientations)
         autocorr_mags, _ = self._compute_autocorr(mag_pyr_coeffs)
 
-        # autocorr_recon is a tensor of shape (batch, channel,
-        # spatial_corr_width, spatial_corr_width, n_scales+1), and var_recon is
-        # a tensor of shape (batch, channel, n_scales+1)
-        autocorr_recon, var_recon = self._compute_autocorr(reconstructed_images)
-        # std_recon, skew_recon, and kurtosis_recon will all end up as shape
+        # Compute the central autocorrelation of the reconstructed lowpass
+        # images at each scale (and their variances). autocorr_recon is a
+        # tensor of shape (batch, channel, spatial_corr_width,
+        # spatial_corr_width, n_scales+1), and var_recon is a tensor of shape
         # (batch, channel, n_scales+1)
+        autocorr_recon, var_recon = self._compute_autocorr(reconstructed_images)
+        # Compute the standard deviation, skew, and kurtosis of each
+        # reconstructed lowpass image. std_recon, skew_recon, and
+        # kurtosis_recon will all end up as tensors of shape (batch, channel,
+        # n_scales+1)
         std_recon = var_recon**0.5
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
 
-        ### SECTION 4 (STATISTICS: cross_orientation_correlation_magnitude,
-        #                          cross_scale_correlation_magnitude,
-        #                          cross_scale_correlation_real) ###########
-        # Calculates cross-orientation and cross-scale correlations for the
-        # real parts and the magnitude of the pyramid coefficients.
-        #
-
-        # this will be a tensor of shape (batch, channel, n_orientations,
-        # n_orientations, n_scales) containing the cross-orientation
-        # correlations between the magnitudes (within scale)
+        # Compute the cross-orientation correlations between the magnitude
+        # coefficients at each scale. this will be a tensor of shape (batch,
+        # channel, n_orientations, n_orientations, n_scales)
         cross_ori_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs)
 
+        # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
-            # double the phase the coefficients, so we can correctly compute
-            # correlations across scales.
+            # First, double the phase the coefficients, so we can correctly
+            # compute correlations across scales.
             phase_doubled_mags, phase_doubled_sep = self._double_phase_pyr_coeffs(pyr_coeffs)
-            # this will be a tensor of shape (batch, channel, n_orientations,
-            # n_orientations, n_scales-1) containing the cross-scale
-            # correlations between the magnitudes.
+            # Compute the cross-scale correlations between the magnitude
+            # coefficients. For each coefficient, we're correlating it with the
+            # coefficients at the next-coarsest scale. this will be a tensor of
+            # shape (batch, channel, n_orientations, n_orientations,
+            # n_scales-1)
             cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags)
-            # this will be a tensor of shape (batch, channel, n_orientations,
-            # 2*n_orientations, n_scales-1) containing the cross-scale
-            # correlations between the real components of the coefficients.
+            # Compute the cross-scale correlations between the real
+            # coefficients and the real and imaginary coefficients at the next
+            # coarsest scale. this will be a tensor of shape (batch, channel,
+            # n_orientations, 2*n_orientations, n_scales-1)
             cross_scale_corr_real = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep)
 
-        # SECTION 5: the variance of the high-pass residual, of shape (batch, channel)
+        # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
 
+        # Now, combine all these stats together, first into a list
         all_stats = [pixel_stats, autocorr_mags, skew_recon,
                      kurtosis_recon, autocorr_recon, std_recon,
                      cross_ori_corr_mags]
         if self.n_scales != 1:
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
+        # And then pack them into a 3d tensor
         representation_vector, pack_info = einops.pack(all_stats, 'b c *')
 
         # the only time when this is None is during testing, when we make sure
@@ -398,9 +378,10 @@ class PortillaSimoncelli(nn.Module):
             # discarded no stats)
             self._pack_info = pack_info
         else:
-            # throw away all redundant statistics
+            # Throw away all redundant statistics
             representation_vector = representation_vector.index_select(-1, self._necessary_stats_mask)
 
+        # Return the subset of stats corresponding to the specified scale.
         if scales is not None:
             representation_vector = self.remove_scales(representation_vector, scales)
 
@@ -445,9 +426,6 @@ class PortillaSimoncelli(nn.Module):
 
     def convert_to_vector(self, representation_dict: OrderedDict) -> Tensor:
         r"""Converts dictionary of statistics to a vector.
-
-        While the dictionary representation is easier to manually inspect, the
-        vector representation is required by plenoptic's synthesis objects.
 
         Parameters
         ----------
@@ -504,9 +482,9 @@ class PortillaSimoncelli(nn.Module):
         rep = self._necessary_stats_dict.copy()
         n_filled = 0
         for k, v in rep.items():
-            # each statistic should be a tensor with batch and channel
-            # dimensions as found in representation_vector and all the other
-            # dimensions determined by the values in necessary_stats_dict.
+            # each statistic is a tensor with batch and channel dimensions as
+            # found in representation_vector and all the other dimensions
+            # determined by the values in necessary_stats_dict.
             shape = (*representation_vector.shape[:2], *v.shape)
             new_v = torch.nan * torch.ones(shape, dtype=representation_vector.dtype,
                                            device=representation_vector.device)
@@ -535,12 +513,12 @@ class PortillaSimoncelli(nn.Module):
         Returns
         -------
         pyr_coeffs_dict :
-            OrderedDict of containing all complex-valued pyramid coefficients
+            OrderedDict of containing all pyramid coefficients.
         pyr_coeffs :
             List of length n_scales, containing 5d tensors of shape (batch,
             channel, n_orientations, height, width) containing the complex-valued
             oriented bands (note that height and width shrink by half on each
-            scale)
+            scale). This excludes the residual highpass and lowpass bands.
         highpass :
             The residual highpass as a real-valued 4d tensor (batch, channel,
             height, width)
@@ -583,6 +561,9 @@ class PortillaSimoncelli(nn.Module):
 
         """
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
+        # we use torch.var instead of plenoptic.tools.variance, because our
+        # variance is the uncorrected (or sample) variance and we want the
+        # corrected one here.
         var = torch.var(image, dim=(-2, -1))
         skew = stats.skew(image, mean=mean, var=var, dim=[-2, -1])
         kurtosis = stats.kurtosis(image, mean=mean, var=var, dim=[-2, -1])
@@ -634,8 +615,8 @@ class PortillaSimoncelli(nn.Module):
     def _reconstruct_lowpass_at_each_scale(self, pyr_coeffs_dict: OrderedDict) -> List[Tensor]:
         """Reconstruct the lowpass unoriented image at each scale.
 
-        The autocorrelation, skew, and kurtosis of each of these images is part
-        of the texture representation.
+        The autocorrelation, standard deviation, skew, and kurtosis of each of
+        these images is part of the texture representation.
 
         Parameters
         ----------
@@ -658,7 +639,8 @@ class PortillaSimoncelli(nn.Module):
         for lev in range(self.n_scales-1, -1, -1):
             recon = self.pyr.recon_pyr(pyr_coeffs_dict, levels=lev)
             reconstructed_images.append(recon + reconstructed_images[-1])
-        # now downsample as necessary
+        # now downsample as necessary, so that these end up the same size as
+        # their corresponding coefficients.
         reconstructed_images[:-1] = [signal.shrink(r, 2**(self.n_scales-i)) * 4**(self.n_scales-i)
                                      for i, r in enumerate(reconstructed_images[:-1])]
         return reconstructed_images
@@ -707,8 +689,8 @@ class PortillaSimoncelli(nn.Module):
                                      img_var: Tensor) -> Tuple[Tensor, Tensor]:
         """Computes the skew and kurtosis of each lowpass reconstructed image.
 
-        For each scale, if the ratio of its variance to the pixel variance of
-        the original image are below a threshold of 1e-6, skew and kurtosis are
+        For each scale, if the ratio of its variance to the original image's
+        pixel variance is below a threshold of 1e-6, skew and kurtosis are
         assigned default values of 0 or 3, respectively.
 
         Parameters
@@ -889,7 +871,7 @@ class PortillaSimoncelli(nn.Module):
         fig:
             Figure containing the plot
         axes:
-            List of 7 axes containing the plot
+            List of 5 or 7 axes containing the plot (depending on self.n_scales)
 
         """
         if self.n_scales != 1:
@@ -990,15 +972,11 @@ class PortillaSimoncelli(nn.Module):
         ``plot_representation`` to create the plots we want to update
         and so know that they're stem plots.
 
-        We take the axes containing the representation information (note
-        that this is probably a subset of the total number of axes in
-        the figure, if we're showing other information, as done by
-        ``Metamer.animate``), grab the representation from plotting and,
-        since these are both lists, iterate through them, updating as we
-        go.
-
-        We can optionally accept a data argument, in which case it
-        should look just like the representation of this model.
+        We take the axes containing the representation information (note that
+        this is probably a subset of the total number of axes in the figure, if
+        we're showing other information, as done by ``Metamer.animate``), grab
+        the representation from plotting and, since these are both lists,
+        iterate through them, updating them to the values in ``data`` as we go.
 
         In order for this to be used by ``FuncAnimation``, we need to
         return Artists, so we return a list of the relevant artists, the
