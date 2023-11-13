@@ -227,14 +227,12 @@ class PortillaSimoncelli(nn.Module):
         # always 1, and thus uninformative)
         diag_repeated = torch.arange(start=self.spatial_corr_width//2,
                                      end=self.spatial_corr_width)
-        # Upper triangle indices, excluding diagonal. These are redundant stats
-        # for cross_orientation_correlation_magnitude. Setting offset=1 means
-        # this will not include the diagonals, which are not redundant (if we
-        # were not normalizing the autocorrelation matrices, the diagonals of
-        # these cross-orientation correlations would be redundant with the
-        # central elements of auto_correlation_magnitude)
+        # Upper triangle indices, including diagonal. These are redundant stats
+        # for cross_orientation_correlation_magnitude (because we've normalized
+        # this matrix to be true cross-correlations, the diagonals are all 1,
+        # like for the auto-correlations)
         triu_inds = torch.triu_indices(self.n_orientations,
-                                       self.n_orientations, offset=1)
+                                       self.n_orientations)
         for k, v in mask_dict.items():
             if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
                 # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
@@ -339,7 +337,8 @@ class PortillaSimoncelli(nn.Module):
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale. this will be a tensor of shape (batch,
         # channel, n_orientations, n_orientations, n_scales)
-        cross_ori_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs)
+        cross_ori_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
+                                                              tensors_are_identical=True)
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -351,12 +350,14 @@ class PortillaSimoncelli(nn.Module):
             # coefficients at the next-coarsest scale. this will be a tensor of
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
-            cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags)
+            cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
+                                                                    tensors_are_identical=False)
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
             # n_orientations, 2*n_orientations, n_scales-1)
-            cross_scale_corr_real = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep)
+            cross_scale_corr_real = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep,
+                                                                    tensors_are_identical=False)
 
         # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
@@ -730,7 +731,9 @@ class PortillaSimoncelli(nn.Module):
         kurtosis_recon = torch.where(unstable_locs, kurtosis_recon, kurtosis_default)
         return skew_recon, kurtosis_recon
 
-    def _compute_cross_correlation(self, coeffs_tensor: List[Tensor], coeffs_tensor_other: List[Tensor]) -> Tensor:
+    def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
+                                   coeffs_tensor_other: List[Tensor],
+                                   tensors_are_identical: bool = False) -> Tensor:
         """Compute cross-correlations.
 
         Parameters
@@ -738,6 +741,10 @@ class PortillaSimoncelli(nn.Module):
         coeffs_tensor, coeffs_tensor_other :
             The two lists of length scales, each containing 5d tensors of shape
             (batch, channel, n_orientations, height, width) to be correlated.
+        tensors_are_identical :
+             Whether coeffs_tensor and coeffs_tensor_other are two copies of
+             the same tensor (True) or not (False). If True, we only have to
+             compute the variance of one of them, which saves time.
 
         Returns
         -------
@@ -747,17 +754,36 @@ class PortillaSimoncelli(nn.Module):
             scale.
 
         """
-        cross_corrs = []
+        covars = []
         for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
-            cross_corr = einops.einsum(coeff, coeff_other,
-                                       'b c o1 h w, b c o2 h w -> b c o1 o2')
-            cross_corr = cross_corr / torch.mul(*coeff.shape[-2:])
-            std = torch.std(coeff, (-3, -2, -1), keepdim=True).squeeze(-1)
-            std_other = torch.std(coeff_other, (-3, -2, -1), keepdim=True).squeeze(-1)
-            cross_corr = cross_corr / (std * std_other)
-            cross_corrs.append(cross_corr)
-        cross_corrs = torch.stack(cross_corrs, -1)
-        return cross_corrs
+            # precompute this, which we'll use for normalization
+            numel = torch.mul(*coeff.shape[-2:])
+            # compute the covariance
+            covar = einops.einsum(coeff, coeff_other,
+                                  'b c o1 h w, b c o2 h w -> b c o1 o2')
+            covar = covar / numel
+            # Then normalize it to get the Pearson product-moment correlation
+            # coefficient, see
+            # https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html.
+            # First, compute the variances of each coeff (if coeff and
+            # coeff_other are identical, this is equivalent to the diagonal of
+            # the above covar matrix, but re-computing it is actually faster)
+            coeff_var = einops.einsum(coeff, coeff,
+                                      'b c o1 h w, b c o1 h w -> b c o1')
+            coeff_var = coeff_var / numel
+            if tensors_are_identical:
+                coeff_other_var = coeff_var
+            else:
+                coeff_other_var = einops.einsum(coeff_other, coeff_other,
+                                                'b c o2 h w, b c o2 h w -> b c o2')
+                coeff_other_var = coeff_other_var / numel
+            # Then compute the outer product of those variances.
+            var_outer_prod = einops.einsum(coeff_var, coeff_other_var,
+                                           'b c o1, b c o2 -> b c o1 o2')
+            # And the sqrt of this is what we use to normalize the covariance
+            # into the cross-correlation
+            covars.append(covar / var_outer_prod.pow(.5))
+        return torch.stack(covars, -1)
 
     def _double_phase_pyr_coeffs(self, pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
