@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 from packaging import version
+from typing import Dict
 import os
 from contextlib import nullcontext as does_not_raise
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
@@ -307,6 +308,14 @@ def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
     ].unflatten(-1, nn)
     n_filled += np.prod(nn)
 
+    if use_true_correlations:
+        nn = (n_orientations, n_scales)
+        rep["magnitude_std"] = vec[..., n_filled : (n_filled + np.prod(nn))].unflatten(-1, nn)
+        n_filled += np.prod(nn)
+    else:
+        # place a dummy entry, so the order of keys is correct
+        rep["magnitude_std"] = []
+
     # cross_scale_correlation_magnitude
     nn = (n_orientations, n_orientations, n_scales)
     rep["cross_scale_correlation_magnitude"] = vec[
@@ -338,9 +347,45 @@ def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
     return rep
 
 
-def remove_redundant_and_normalize(matlab_rep: OrderedDict, plen_rep: OrderedDict,
+def construct_normalizing_dict(plen_ps: po.simul.PortillaSimoncelli,
+                               img: torch.Tensor) -> Dict[str, torch.Tensor]:
+    """Construct dictionary to normalize covariances in PS representation.
+
+    The matlab code computes covariances instead of correlations for the
+    cross-orientation and cross-scale correlations. Here, we construct the
+    tensors required to normalize those covariances to correlations, which are
+    the outer product of the variances of the tensors that created them (which
+    are intermediaries and not present in the final PS model output)
+
+    """
+    coeffs = plen_ps._compute_pyr_coeffs(img)[1]
+    mags, reals = plen_ps._compute_intermediate_representations(coeffs)
+    doub_mags, doub_sep = plen_ps._double_phase_pyr_coeffs(coeffs)
+    mags_var = torch.stack([m.var((-2, -1), correction=0) for m in mags], -1)
+
+    normalizing_dict = {}
+    com = einops.einsum(mags_var, mags_var, 'b c o1 s, b c o2 s -> b c o1 o2 s')
+    normalizing_dict['cross_orientation_correlation_magnitude'] = com.pow(0.5)
+
+    if plen_ps.n_scales > 1:
+        doub_mags_var = torch.stack([m.var((-2, -1), correction=0) for m in doub_mags], -1)
+        reals_var = torch.stack([r.var((-2, -1), correction=0) for r in reals], -1)
+        doub_sep_var = torch.stack([s.var((-2, -1), correction=0) for s in doub_sep], -1)
+        csm = einops.einsum(mags_var[..., :-1], doub_mags_var, 'b c o1 s, b c o2 s -> b c o1 o2 s')
+        normalizing_dict['cross_scale_correlation_magnitude'] = csm.pow(0.5)
+        csr = einops.einsum(reals_var[..., :-1], doub_sep_var, 'b c o1 s, b c o2 s -> b c o1 o2 s')
+        normalizing_dict['cross_scale_correlation_real'] = csr.pow(0.5)
+    else:
+        normalizing_dict['cross_scale_correlation_magnitude'] = 1
+        normalizing_dict['cross_scale_correlation_real'] = 1
+
+    return normalizing_dict
+
+
+def remove_redundant_and_normalize(matlab_rep: OrderedDict,
                                    use_true_correlations: bool,
-                                   plen_ps: po.simul.PortillaSimoncelli) -> torch.Tensor:
+                                   plen_ps: po.simul.PortillaSimoncelli,
+                                   normalizing_dict: dict) -> torch.Tensor:
     """Remove redundant stats from dictionary of representation, and normalize correlations
 
     Redundant stats fall in two categories: those that are not included at all
@@ -395,18 +440,18 @@ def remove_redundant_and_normalize(matlab_rep: OrderedDict, plen_rep: OrderedDic
         acm_ctr = matlab_rep['auto_correlation_magnitude'][..., ctr_ind, ctr_ind, :, :].clone()
         matlab_rep['auto_correlation_magnitude'] /= acm_ctr
 
-        # The cross-correlations are normalized by the product of standard
-        # deviations of the tensors that create them. These tensors are
-        # intermediate outputs that aren't saved, and so instead we find out
-        # what this scalar would be (independent for each scale)
+        # Create magnitude_std
+        diag = torch.arange(plen_ps.n_orientations)
+        var_mags = matlab_rep['cross_orientation_correlation_magnitude'][..., diag, diag, :]
+        matlab_rep['magnitude_std'] = var_mags.pow(0.5)
+
+        # The cross-correlations are normalized by the outer product of the
+        # variances of the tensors that create them. We have created these and
+        # saved them in normalizing dict, which we use here
         crosscorr_keys = ['cross_scale_correlation_real', 'cross_scale_correlation_magnitude',
                           'cross_orientation_correlation_magnitude']
         for k in crosscorr_keys:
-            mat_v = matlab_rep[k]
-            plen_v = plen_rep[k]
-            ratio = mat_v / plen_v
-            norm_scalar = ratio.nanmean((-2, -3))
-            matlab_rep[k] = mat_v / norm_scalar
+            matlab_rep[k] = matlab_rep[k] / normalizing_dict[k]
 
     # Finally, turn dict back into vector, removing redundant stats
     return plen_ps.convert_to_vector(matlab_rep)
@@ -462,8 +507,8 @@ class TestPortillaSimoncelli(object):
         matlab_rep = torch.from_numpy(matlab_rep["params_vector"].flatten()).unsqueeze(0).unsqueeze(0)
         matlab_rep = convert_matlab_ps_rep_to_dict(matlab_rep, n_scales, n_orientations, spatial_corr_width,
                                                    False)
-        matlab_rep = remove_redundant_and_normalize(matlab_rep, ps.convert_to_dict(python_vector),
-                                                    False, ps)
+        norm_dict = construct_normalizing_dict(ps, im0)
+        matlab_rep = remove_redundant_and_normalize(matlab_rep, False, ps, norm_dict)
         matlab_rep = po.to_numpy(matlab_rep).squeeze()
         python_vector = po.to_numpy(python_vector).squeeze()
 
@@ -496,8 +541,8 @@ class TestPortillaSimoncelli(object):
         saved = torch.from_numpy(saved)
         saved = convert_matlab_ps_rep_to_dict(saved, n_scales, n_orientations, spatial_corr_width,
                                               False)
-        saved = remove_redundant_and_normalize(saved, ps.convert_to_dict(output),
-                                               False, ps)
+        norm_dict = construct_normalizing_dict(ps, im0)
+        saved = remove_redundant_and_normalize(saved, False, ps, norm_dict)
 
         saved = po.to_numpy(saved).squeeze()
         output = po.to_numpy(output).squeeze()
