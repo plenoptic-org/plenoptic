@@ -176,6 +176,10 @@ class PortillaSimoncelli(nn.Module):
         cross_orientation_corr_mag *= einops.rearrange(scales, 's -> 1 1 s')
         shape_dict['cross_orientation_correlation_magnitude'] = cross_orientation_corr_mag
 
+        mags_std = np.ones((self.n_orientations, self.n_scales), dtype=int)
+        mags_std *= einops.rearrange(scales, 's -> 1 s')
+        shape_dict['magnitude_std'] = mags_std
+
         cross_scale_corr_mag = np.ones((self.n_orientations, self.n_orientations,
                                         self.n_scales-1), dtype=int)
         cross_scale_corr_mag *= einops.rearrange(scales_without_coarsest, 's -> 1 1 s')
@@ -331,14 +335,19 @@ class PortillaSimoncelli(nn.Module):
         # reconstructed lowpass image. std_recon, skew_recon, and
         # kurtosis_recon will all end up as tensors of shape (batch, channel,
         # n_scales+1)
-        std_recon = var_recon**0.5
+        std_recon = var_recon.pow(0.5)
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
 
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale. this will be a tensor of shape (batch,
         # channel, n_orientations, n_orientations, n_scales)
-        cross_ori_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
-                                                              tensors_are_identical=True)
+        cross_ori_corr_mags, mags_var = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
+                                                                        tensors_are_identical=True)
+        # mags_var is the variance of the magnitude coefficients at each scale
+        # (it's an intermediary of the computation of the cross-orientation
+        # correlations), of shape (batch, channel, n_orientations, n_scales).
+        # We take the square root to get the standard deviation.
+        mags_std = mags_var.pow(0.5)
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -350,14 +359,14 @@ class PortillaSimoncelli(nn.Module):
             # coefficients at the next-coarsest scale. this will be a tensor of
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
-            cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
-                                                                    tensors_are_identical=False)
+            cross_scale_corr_mags, _ = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
+                                                                       tensors_are_identical=False)
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
             # n_orientations, 2*n_orientations, n_scales-1)
-            cross_scale_corr_real = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep,
-                                                                    tensors_are_identical=False)
+            cross_scale_corr_real, _ = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep,
+                                                                       tensors_are_identical=False)
 
         # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
@@ -365,7 +374,7 @@ class PortillaSimoncelli(nn.Module):
         # Now, combine all these stats together, first into a list
         all_stats = [pixel_stats, autocorr_mags, skew_recon,
                      kurtosis_recon, autocorr_recon, std_recon,
-                     cross_ori_corr_mags]
+                     cross_ori_corr_mags, mags_std]
         if self.n_scales != 1:
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
@@ -733,7 +742,7 @@ class PortillaSimoncelli(nn.Module):
 
     def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
                                    coeffs_tensor_other: List[Tensor],
-                                   tensors_are_identical: bool = False) -> Tensor:
+                                   tensors_are_identical: bool = False) -> Tuple[Tensor, Tensor]:
         """Compute cross-correlations.
 
         Parameters
@@ -752,9 +761,14 @@ class PortillaSimoncelli(nn.Module):
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
+        coeffs_var :
+            Tensor of shape (batch, channel, n_orientations, scales) containing
+            the variance of the `coeffs` input at each scale (Note: only the
+            first input, not the second).
 
         """
         covars = []
+        coeffs_var = []
         for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
             # precompute this, which we'll use for normalization
             numel = torch.mul(*coeff.shape[-2:])
@@ -771,6 +785,7 @@ class PortillaSimoncelli(nn.Module):
             coeff_var = einops.einsum(coeff, coeff,
                                       'b c o1 h w, b c o1 h w -> b c o1')
             coeff_var = coeff_var / numel
+            coeffs_var.append(coeff_var)
             if tensors_are_identical:
                 coeff_other_var = coeff_var
             else:
@@ -783,7 +798,7 @@ class PortillaSimoncelli(nn.Module):
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
             covars.append(covar / var_outer_prod.pow(.5))
-        return torch.stack(covars, -1)
+        return torch.stack(covars, -1), torch.stack(coeffs_var, -1)
 
     def _double_phase_pyr_coeffs(self, pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
@@ -848,6 +863,9 @@ class PortillaSimoncelli(nn.Module):
         - std+skew+kurtosis recon: the standard deviation, skew, and kurtosis
           of the reconstructed lowpass image at each scale
 
+        - magnitude_std: the standard deviation of the steerable pyramid
+          coefficient magnitudes at each orientation and scale.
+
         - auto_correlation_reconstructed: the auto-correlation of the
           reconstructed lowpass image at each scale (summarized using Euclidean
           norm).
@@ -880,7 +898,8 @@ class PortillaSimoncelli(nn.Module):
             of this class).
         ax :
             Axes where we will plot the data. If an ``mpl.axes.Axes``, will
-            subdivide into 7 new axes. If None, we create a new figure.
+            subdivide into 6 or 8 new axes (depending on self.n_scales). If
+            None, we create a new figure.
         figsize :
             The size of the figure. Ignored if ax is not None.
         ylim :
@@ -897,7 +916,7 @@ class PortillaSimoncelli(nn.Module):
         fig:
             Figure containing the plot
         axes:
-            List of 5 or 7 axes containing the plot (depending on self.n_scales)
+            List of 6 or 8 axes containing the plot (depending on self.n_scales)
 
         """
         if self.n_scales != 1:
@@ -964,6 +983,8 @@ class PortillaSimoncelli(nn.Module):
                 rep.pop("kurtosis_reconstructed"),
             )
         )
+
+        data['magnitude_std'] = rep.pop('magnitude_std')
 
         # want to plot these in a specific order
         all_keys = ['auto_correlation_reconstructed',
