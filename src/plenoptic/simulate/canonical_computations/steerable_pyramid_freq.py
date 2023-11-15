@@ -9,7 +9,8 @@ import torch.nn as nn
 from torch import Tensor
 from einops import rearrange
 from scipy.special import factorial
-from typing import Tuple, Union, Literal, List, Optional
+from typing import Tuple, Union, List, Optional
+from typing_extensions import Literal
 
 complex_types = [torch.cdouble, torch.cfloat]
 SCALES_TYPE = List[Union[int, Literal["residual_lowpass", "residual_highpass"]]]
