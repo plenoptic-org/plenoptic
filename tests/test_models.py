@@ -781,7 +781,7 @@ class TestPortillaSimoncelli(object):
                           im):
         # test that the computed statistics have the redundancies we think they
         # do
-        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm")).to(torch.float64)
         model = po.simul.PortillaSimoncelli(
             im.shape[-2:],
             n_scales=n_scales,
@@ -826,6 +826,77 @@ class TestPortillaSimoncelli(object):
             if ctr_vals:
                 np.testing.assert_equal(ctr_vals, np.ones_like(ctr_vals))
             np.testing.assert_allclose(unp_vals, mask_vals, atol=1e-6)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_crosscorrs(self, n_scales, n_orientations, spatial_corr_width,
+                        im):
+        # test that cross-correlations we compute are actual cross correlations
+        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm")).to(torch.float64)
+        model = po.simul.PortillaSimoncelli(
+            im.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+            ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats, which
+        # insert NaNs, making the comparison difficult
+        model._necessary_stats_mask = None
+        rep = model(im)
+        # and then we get them back into their original shapes (with lots of
+        # redundancies)
+        unpacked_rep = einops.unpack(rep, model._pack_info, 'b c *')
+        keys = list(model._necessary_stats_dict.keys())
+        # need to get the intermediates necessary for testing
+        # cross-correlations
+        coeffs = model._compute_pyr_coeffs(im)[1]
+        mags, reals = model._compute_intermediate_representations(coeffs)
+        doub_mags, doub_sep = model._double_phase_pyr_coeffs(coeffs)
+        # the cross-orientation correlations
+        torch_corrs = []
+        for m in mags:
+            m = einops.rearrange(m, 'b c o h w -> (b c o) (h w)')
+            torch_corrs.append(torch.corrcoef(m).unsqueeze(0).unsqueeze(0))
+        torch_corr = torch.stack(torch_corrs, -1)
+        idx = keys.index('cross_orientation_correlation_magnitude')
+        np.testing.assert_allclose(unpacked_rep[idx],
+                                   torch_corr, atol=0, rtol=1e-14)
+        # only have cross-scale correlations when there's more than one scale
+        if n_scales > 1:
+            # cross-scale magnitude correlations
+            torch_corrs = []
+            for m, d in zip(mags[:-1], doub_mags):
+                concat = torch.cat([m, d], dim=2)
+                concat = einops.rearrange(concat, 'b c o h w -> (b c o) (h w)')
+                # this matrix contains the 4 sub-matrices, each of shape
+                # (n_orientations, n_orientations), only one of which we want:
+                # the correlations between the magnitudes at this scale and the
+                # doubled ones at the next scale.
+                c = torch.corrcoef(concat)[:n_orientations, n_orientations:]
+                torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
+            torch_corr = torch.stack(torch_corrs, -1)
+            idx = keys.index('cross_scale_correlation_magnitude')
+            np.testing.assert_allclose(unpacked_rep[idx],
+                                       torch_corr, atol=0, rtol=1e-14)
+            # cross-scale real correlations
+            torch_corrs = []
+            for r, s in zip(reals[:-1], doub_sep):
+                concat = torch.cat([r, s], dim=2)
+                concat = einops.rearrange(concat, 'b c o h w -> (b c o) (h w)')
+                # this matrix contains the 4 sub-matrices, only one of which we
+                # want: the correlations between the real coeffs at this scale
+                # and the doubled real and imaginary coeffs at the next scale.
+                # the reals have n_orientations orientations, while the
+                # doub_sep have twice that (because they contain both the real
+                # and imaginary)
+                c = torch.corrcoef(concat)[:n_orientations, n_orientations:]
+                torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
+            torch_corr = torch.stack(torch_corrs, -1)
+            idx = keys.index('cross_scale_correlation_real')
+            np.testing.assert_allclose(unpacked_rep[idx],
+                                       torch_corr, atol=1e-5, rtol=2e-5)
 
 
 class TestFilters:
