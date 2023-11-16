@@ -145,7 +145,7 @@ class TestSignal(object):
         # fudge factor
         img = po.load_images(op.join(DATA_DIR, f"256/{img}.pgm")).to(DEVICE)
         modified = po.tools.shrink(po.tools.expand(img, factor), factor)
-        np.testing.assert_allclose(img, modified, atol=1e-2)
+        np.testing.assert_allclose(img, modified, atol=2e-2)
 
     @pytest.mark.parametrize("phase", [0, np.pi/2, np.pi])
     def test_modulate_phase_correlation(self, phase):

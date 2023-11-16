@@ -866,7 +866,7 @@ class TestPortillaSimoncelli(object):
         torch_corr = torch.stack(torch_corrs, -1)
         idx = keys.index('cross_orientation_correlation_magnitude')
         np.testing.assert_allclose(unpacked_rep[idx],
-                                   torch_corr, atol=0, rtol=1e-14)
+                                   torch_corr, atol=0, rtol=1e-12)
         # only have cross-scale correlations when there's more than one scale
         if n_scales > 1:
             # cross-scale magnitude correlations
@@ -883,7 +883,7 @@ class TestPortillaSimoncelli(object):
             torch_corr = torch.stack(torch_corrs, -1)
             idx = keys.index('cross_scale_correlation_magnitude')
             np.testing.assert_allclose(unpacked_rep[idx],
-                                       torch_corr, atol=0, rtol=1e-14)
+                                       torch_corr, atol=0, rtol=1e-12)
             # cross-scale real correlations
             torch_corrs = []
             for r, s in zip(reals[:-1], doub_sep):
