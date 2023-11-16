@@ -505,7 +505,8 @@ class TestPortillaSimoncelli(object):
                              f"{im}-scales{n_scales}-ori{n_orientations}"
                              f"-spat{spatial_corr_width}.mat")
         matlab_rep = torch.from_numpy(matlab_rep["params_vector"].flatten()).unsqueeze(0).unsqueeze(0)
-        matlab_rep = convert_matlab_ps_rep_to_dict(matlab_rep, n_scales, n_orientations, spatial_corr_width,
+        matlab_rep = convert_matlab_ps_rep_to_dict(matlab_rep.to(DEVICE), n_scales,
+                                                   n_orientations, spatial_corr_width,
                                                    False)
         norm_dict = construct_normalizing_dict(ps, im0)
         matlab_rep = remove_redundant_and_normalize(matlab_rep, False, ps, norm_dict)
@@ -539,7 +540,7 @@ class TestPortillaSimoncelli(object):
                         f"{im}-scales{n_scales}-ori{n_orientations}-"
                         f"spat{spatial_corr_width}-corrFalse.npy")
         saved = torch.from_numpy(saved)
-        saved = convert_matlab_ps_rep_to_dict(saved, n_scales, n_orientations, spatial_corr_width,
+        saved = convert_matlab_ps_rep_to_dict(saved.to(DEVICE), n_scales, n_orientations, spatial_corr_width,
                                               False)
         norm_dict = construct_normalizing_dict(ps, im0)
         saved = remove_redundant_and_normalize(saved, False, ps, norm_dict)
