@@ -12,7 +12,8 @@ from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
 from ...tools.data import to_numpy
 from ...tools import stats, signal
 from ...tools.validate import validate_input
-from typing import Tuple, List, Literal, Union, Optional, Dict
+from typing import Tuple, List, Union, Optional, Dict
+from typing_extensions import Literal
 
 SCALES_TYPE = Union[
     int, Literal["pixel_statistics", "residual_lowpass", "residual_highpass"]
