@@ -678,6 +678,9 @@ class TestPortillaSimoncelli(object):
         im0 = im0[..., :img_size]
         model = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
+            # with height 4, spatial_corr_width=9 is too big for final scale
+            # and image size 128
+            spatial_corr_width=7,
             ).to(DEVICE)
         model(im0)
 
@@ -728,8 +731,8 @@ class TestPortillaSimoncelli(object):
             ).to(DEVICE)
         rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
         rep = model.convert_to_dict(rep[0].unsqueeze(0).mean(1, keepdim=True))
-        if any([v.ndim != 3 for v in rep.values()]):
-            raise ValueError("Somehow this doesn't have 3 dimensions!")
+        if any([v.ndim < 3 for v in rep.values()]):
+            raise ValueError("Somehow this doesn't have at least 3 dimensions!")
         if any([v.shape[:2] != (1, 1) for v in rep.values()]):
             raise ValueError("Somehow this has an extra batch or channel!")
 
