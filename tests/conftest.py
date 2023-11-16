@@ -38,7 +38,7 @@ def einstein_small_seq(einstein_img_small):
 
 @pytest.fixture(scope='package')
 def einstein_img_small(einstein_img):
-    return po.tools.center_crop(einstein_img, [64]).to(DEVICE)
+    return po.tools.center_crop(einstein_img, 64).to(DEVICE)
 
 @pytest.fixture(scope='package')
 def color_img():
