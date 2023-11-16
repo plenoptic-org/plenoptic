@@ -97,9 +97,9 @@ class TestSignal(object):
         # these matches are regex, so need to escape *,[,] because they're
         # special characters in regex
         if int(factor * img_size) != factor * img_size:
-            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-1\] must give')
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-1\] must be')
         elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
-            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-2\] must give')
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-2\] must be')
         elif factor <= 1:
             expectation = pytest.raises(ValueError, match='factor must be strictly greater')
         else:
@@ -115,9 +115,9 @@ class TestSignal(object):
         # these matches are regex, so need to escape [,] because they're
         # special characters in regex
         if int(img_size / factor) != img_size / factor:
-            expectation = pytest.raises(ValueError, match='x.shape\[-1\]/factor must give')
+            expectation = pytest.raises(ValueError, match='x.shape\[-1\]/factor must be')
         elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
-            expectation = pytest.raises(ValueError, match='x.shape\[-2\]/factor must give')
+            expectation = pytest.raises(ValueError, match='x.shape\[-2\]/factor must be')
         elif factor <= 1:
             expectation = pytest.raises(ValueError, match='factor must be strictly greater')
         else:

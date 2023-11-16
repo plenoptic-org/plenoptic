@@ -508,9 +508,9 @@ def expand(x: Tensor, factor: float) -> Tensor:
     mx = factor * im_x
     my = factor * im_y
     if int(mx) != mx:
-        raise ValueError(f"factor * x.shape[-1] must give an integer but got {mx} instead!")
+        raise ValueError(f"factor * x.shape[-1] must be an integer but got {mx} instead!")
     if int(my) != my:
-        raise ValueError(f"factor * x.shape[-2] must give an integer but got {my} instead!")
+        raise ValueError(f"factor * x.shape[-2] must be an integer but got {my} instead!")
     mx = int(mx)
     my = int(my)
 
@@ -582,7 +582,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
 
     """
     if factor <= 1:
-        raise ValueError("factor must be greater than 1!")
+        raise ValueError("factor must be strictly greater than 1!")
     im_x = x.shape[-1]
     im_y = x.shape[-2]
     mx = im_x / factor
