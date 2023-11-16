@@ -201,8 +201,8 @@ class TestSignal(object):
         # because the signal is just repeated along the batch and channel dims,
         # modulated version should be too (ensures we're not mixing batch or
         # channel)
-        np.testing.assert_equal(a, a.roll(1, 1))
-        np.testing.assert_equal(a, a.roll(1, 0))
+        np.testing.assert_array_equal(a, a.roll(1, 1))
+        np.testing.assert_array_equal(a, a.roll(1, 0))
 
 class TestStats(object):
 
