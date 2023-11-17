@@ -785,7 +785,8 @@ class TestPortillaSimoncelli(object):
                           im):
         # test that the computed statistics have the redundancies we think they
         # do
-        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm")).to(torch.float64)
+        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im = im.to(torch.float64).to(DEVICE)
         model = po.simul.PortillaSimoncelli(
             im.shape[-2:],
             n_scales=n_scales,
@@ -828,8 +829,11 @@ class TestPortillaSimoncelli(object):
                     raise ValueError(f"stat {k} unexpectedly has redundant values!")
             #and check for equality
             if ctr_vals:
-                np.testing.assert_array_equal(ctr_vals, np.ones_like(ctr_vals))
-            np.testing.assert_allclose(unp_vals, mask_vals, atol=1e-6)
+                ctr_vals = torch.stack(ctr_vals)
+                torch.equal(ctr_vals, torch.ones_like(ctr_vals))
+            unp_vals = torch.stack(unp_vals)
+            mask_vals = torch.stack(mask_vals)
+            torch.testing.assert_close(unp_vals, mask_vals, atol=1e-6, rtol=1e-7)
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
@@ -838,7 +842,8 @@ class TestPortillaSimoncelli(object):
     def test_crosscorrs(self, n_scales, n_orientations, spatial_corr_width,
                         im):
         # test that cross-correlations we compute are actual cross correlations
-        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm")).to(torch.float64)
+        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im = im.to(torch.float64).to(DEVICE)
         model = po.simul.PortillaSimoncelli(
             im.shape[-2:],
             n_scales=n_scales,
@@ -865,7 +870,7 @@ class TestPortillaSimoncelli(object):
             torch_corrs.append(torch.corrcoef(m).unsqueeze(0).unsqueeze(0))
         torch_corr = torch.stack(torch_corrs, -1)
         idx = keys.index('cross_orientation_correlation_magnitude')
-        np.testing.assert_allclose(unpacked_rep[idx],
+        torch.testing.assert_close(unpacked_rep[idx],
                                    torch_corr, atol=0, rtol=1e-12)
         # only have cross-scale correlations when there's more than one scale
         if n_scales > 1:
@@ -882,7 +887,7 @@ class TestPortillaSimoncelli(object):
                 torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
             torch_corr = torch.stack(torch_corrs, -1)
             idx = keys.index('cross_scale_correlation_magnitude')
-            np.testing.assert_allclose(unpacked_rep[idx],
+            torch.testing.assert_close(unpacked_rep[idx],
                                        torch_corr, atol=0, rtol=1e-12)
             # cross-scale real correlations
             torch_corrs = []
@@ -899,7 +904,7 @@ class TestPortillaSimoncelli(object):
                 torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
             torch_corr = torch.stack(torch_corrs, -1)
             idx = keys.index('cross_scale_correlation_real')
-            np.testing.assert_allclose(unpacked_rep[idx],
+            torch.testing.assert_close(unpacked_rep[idx],
                                        torch_corr, atol=1e-5, rtol=2e-5)
 
 
