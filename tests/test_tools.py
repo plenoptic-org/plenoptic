@@ -144,8 +144,8 @@ class TestSignal(object):
         # expand then shrink will be the same as the original image, up to this
         # fudge factor
         img = po.load_images(op.join(DATA_DIR, f"256/{img}.pgm")).to(DEVICE)
-        modified = po.to_numpy(po.tools.shrink(po.tools.expand(img, factor), factor))
-        np.testing.assert_allclose(img, modified, atol=2e-2)
+        modified = po.tools.shrink(po.tools.expand(img, factor), factor)
+        torch.testing.assert_close(img, modified, atol=2e-2, rtol=1e-6)
 
     @pytest.mark.parametrize("phase", [0, np.pi/2, np.pi])
     def test_modulate_phase_correlation(self, phase):
