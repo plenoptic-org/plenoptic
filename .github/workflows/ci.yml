@@ -140,7 +140,6 @@ jobs:
     needs:
     - notebooks
     - tests
-    - check_urls
     - all_tutorials_in_docs
     - no_extra_nblinks
     runs-on: ubuntu-latest
