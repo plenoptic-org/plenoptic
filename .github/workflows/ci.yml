@@ -123,12 +123,25 @@ jobs:
         for file in docs/tutorials/*/*nblink; do let "n_nblink+=1"; done;
         n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
         if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
+  check_urls:
+    runs-on: ubuntu-latest
+    name: Check all urls are valid
+    steps:
+    - uses: actions/checkout@v3
+    - uses: urlstechie/urlchecker-action@0.0.34
+      with:
+        file_types: .md,.py,.rst,.ipynb
+        print_all: false
+        timeout: 5
+        retry_count: 3
 
   check:
     if: always()
     needs:
     - notebooks
     - tests
+    - all_tutorials_in_docs
+    - no_extra_nblinks
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
