@@ -440,7 +440,7 @@ class TestValidate(object):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_pass(self):
-        model = po.simul.PortillaSimoncelli((64, 64), spatial_corr_width=7).to(DEVICE)
+        model = po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
         po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, *model.image_shape),
                                                   device=DEVICE)
 

@@ -828,7 +828,7 @@ class TestPortillaSimoncelli(object):
                     raise ValueError(f"stat {k} unexpectedly has redundant values!")
             #and check for equality
             if ctr_vals:
-                np.testing.assert_equal(ctr_vals, np.ones_like(ctr_vals))
+                np.testing.assert_array_equal(ctr_vals, np.ones_like(ctr_vals))
             np.testing.assert_allclose(unp_vals, mask_vals, atol=1e-6)
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
