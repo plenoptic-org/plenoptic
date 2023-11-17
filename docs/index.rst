@@ -212,7 +212,7 @@ cite us! See the :ref:`citation` for more details.
    synthesis
    tips
    reproducibility
-   Modules <api/modules>
+   API Documentation <api/modules>
    tutorials/advanced/*
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
