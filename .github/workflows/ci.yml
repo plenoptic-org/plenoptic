@@ -134,6 +134,23 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
+  synthesis_video:
+    runs-on: ubuntu-latest
+    name: Run synthesis_video.py
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Setup FFmpeg
+      uses: FedericoCarboni/setup-ffmpeg@v2
+    - name: Install dependencies
+      run: |
+        pip install --upgrade --upgrade-strategy eager .
+    - name: Create and save synthesis_video
+      run: python docs/scripts/synthesis_video.py 10
 
   check:
     if: always()
@@ -142,6 +159,7 @@ jobs:
     - tests
     - all_tutorials_in_docs
     - no_extra_nblinks
+    - synthesis_video
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
