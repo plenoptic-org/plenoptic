@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+"""Create synthesis video used in metamer notebok
+"""
 
+import sys
+import os.path as op
 import einops
 import matplotlib.pyplot as plt
 import plenoptic as po
@@ -148,3 +152,15 @@ def synthesis_schematic(metamer, iteration=0, pixel_value_subsample=.01):
     fig.axes[axes_idx['plot_representation_comparison']].set(xlabel='', ylabel='', yticks=[], xticks=[], title="Model representation",
                                                              ylim=fig.axes[axes_idx['plot_representation_comparison']].get_xlim())
     return fig, axes_idx
+
+
+if __name__ == '__main__':
+    img = po.load_images(op.join(op.dirname(op.realpath(__file__)), "..", "..", "data/256/curie.pgm"))
+    model = po.simul.OnOff((7, 7))
+    po.tools.remove_grad(model)
+    model.eval()
+    met = po.synth.Metamer(img, model)
+    met.synthesize(store_progress=True, max_iter=int(sys.argv[1]), stop_criterion=1e-10)
+    fig, axes_idx = synthesis_schematic(met, iteration=0)
+    anim = animate_schematic(met, fig, axes_idx)
+    anim.save('synthesis_schematic.mp4')
