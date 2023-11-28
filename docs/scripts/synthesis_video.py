@@ -162,5 +162,6 @@ if __name__ == '__main__':
     met = po.synth.Metamer(img, model)
     met.synthesize(store_progress=True, max_iter=int(sys.argv[1]), stop_criterion=1e-10)
     fig, axes_idx = synthesis_schematic(met, iteration=0)
+    fig.savefig('synthesis_schematic.png')
     anim = animate_schematic(met, fig, axes_idx)
-    anim.save('synthesis_schematic.mp4')
+    anim.save(f'synthesis_schematic-{sys.argv[1]}.mp4')
