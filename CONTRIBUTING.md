@@ -201,7 +201,7 @@ metamer instances run for. We do this using
 
 - Add a cell to the top of the notebook (under the import cell), add the
   parameter tag (see [papermill
-  documentation]https://papermill.readthedocs.io/en/latest/usage-parameterize.html()),
+  documentation](https://papermill.readthedocs.io/en/latest/usage-parameterize.html),
   and create a variable for each synthesis duration (e.g., `vgg16_synth_max_iter
   = 1000`).
 - Where synthesis is called later in the notebook, replace the number with the
@@ -309,7 +309,7 @@ that means nothing to you, don't worry!
 
 Documentation comes in two types: `.rst` files (reST, the markup language used
 by Sphinx, see
-[here](https://www.sphinx-doc.org/en/main/usage/restructuredtext/basics.html)
+[here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
 for a primer), which contain only text (including math) and images, and `.ipynb`
 files (Jupyter notebooks), which also contain code.
 

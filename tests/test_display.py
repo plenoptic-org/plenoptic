@@ -90,7 +90,7 @@ class TestDisplay(object):
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
-        ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
+        ax.stem(x, y1, '-o', label='hi')
         po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
@@ -109,7 +109,7 @@ class TestDisplay(object):
             y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
-            ax.stem(x, y1, label='hi', use_line_collection=True)
+            ax.stem(x, y1, label='hi')
         po.tools.update_plot(axes, y2)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
@@ -139,7 +139,7 @@ class TestDisplay(object):
             y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
-            ax.stem(x, y1[i], label=i, use_line_collection=True)
+            ax.stem(x, y1[i], label=str(i))
         po.tools.update_plot(ax, y2)
         assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):

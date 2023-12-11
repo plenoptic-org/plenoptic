@@ -32,10 +32,12 @@ ffmpeg and videos
 Several methods in this package generate videos. There are several backends
 possible for saving the animations to file, see `matplotlib documentation
 <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
-details. In order convert them to HTML5 for viewing (and thus, to view in a
+details. In order to convert them to HTML5 for viewing (and thus, to view in a
 jupyter notebook), you'll need `ffmpeg <https://ffmpeg.org/download.html>`_
 installed and on your path as well. Depending on your system, this might already
-be installed.
+be installed, but if not, the easiest way is probably through `conda
+<https://anaconda.org/conda-forge/ffmpeg>`_: ``conda install -c conda-forge
+ffmpeg``.
 
 To change the backend, run ``matplotlib.rcParams['animation.writer'] = writer``
 before calling any of the animate functions. If you try to set that ``rcParam``
