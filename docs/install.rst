@@ -26,6 +26,8 @@ $ cd plenoptic
 $ # install in editable mode with `-e` or, equivalently, `--editable`
 $ pip install -e .
 
+.. attention:: To install ``plenoptic`` in editable mode, you need ``pip >= 21.3`` (see pip's `changelog <https://pip.pypa.io/en/stable/news/#id286>`_). If you run into `an error <https://github.com/LabForComputationalVision/plenoptic/issues/227>`_ after running the ``pip install -e .`` command, try updating your pip version with ``pip install --upgrade pip``.
+
 ffmpeg and videos
 -----------------
 
