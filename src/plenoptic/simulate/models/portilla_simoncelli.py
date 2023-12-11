@@ -32,7 +32,8 @@ class PortillaSimoncelli(nn.Module):
         that are labelled correlations were actually covariance matrices (i.e. not properly
         scaled).  In order to match the original statistics use_true_correlations must be
         set to false. But in order to synthesize metamers from this model use_true_correlations
-        must be set to true (default).
+        must be set to true (note that, in this case, the diagonal entries are
+        not rescaled, i.e., they're the covariances).
 
     Attributes
     ----------
@@ -206,11 +207,11 @@ class PortillaSimoncelli(nn.Module):
             channel, height, width). Currently, only single-batch and
             single-channel images are supported.
         scales : list, optional
-            Which scales to include in the returned representation. If an empty
-            list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute, and
-            the returned vector will then contain the subset of the full
-            representation corresponding to those scales.
+            Which scales to include in the returned representation. If None, we
+            include all scales. Otherwise, can contain subset of values present
+            in this model's ``scales`` attribute, and the returned vector will
+            then contain the subset of the full representation corresponding to
+            those scales.
 
         Returns
         -------
@@ -338,19 +339,40 @@ class PortillaSimoncelli(nn.Module):
         representation_vector = self.convert_to_vector()
         
         if scales is not None:
-            representation_vector = self._remove_scales(representation_vector,
-                                                        scales, image.device)
+            representation_vector = self.remove_scales(representation_vector,
+                                                       scales)
 
         return representation_vector
 
-    def _remove_scales(self, stats_vec, scales, device):
-        """
+    def remove_scales(self, representation_vector, scales_to_keep):
+        """Remove statistics not associated with scales
+
+        For a given representation_vector and a list of scales_to_keep, this
+        attribute removes all statistics *not* associated with those scales.
+
+        Note that calling this method will always remove statistics.
+
+        Parameters
+        ----------
+        representation_vector: torch.Tensor
+            3d tensor containing the measured representation statistics.
+        scales_to_keep : list, optional
+            Which scales to include in the returned representation. Can contain
+            subset of values present in this model's ``scales`` attribute, and
+            the returned vector will then contain the subset of the full
+            representation corresponding to those scales.
+
+        Returns
+        ------
+        limited_representation_vector : torch.Tensor
+            Representation vector with some statistics removed.
+
         """
         ind = torch.tensor(
             [i for i, s in enumerate(self.representation_scales)
-             if s in scales]
-        ).to(device)
-        return stats_vec.index_select(-1, ind)
+             if s in scales_to_keep]
+        ).to(representation_vector.device)
+        return representation_vector.index_select(-1, ind)
 
     def convert_to_vector(self, stats_dict=None):
         r"""Converts dictionary of statistics to a vector (for synthesis).

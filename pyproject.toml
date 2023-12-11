@@ -39,6 +39,9 @@ docs = [
      'nbsphinx_link',
      'sphinxcontrib-apidoc',
      'sphinx-autodoc-typehints',
+     # because of this issue:
+     # https://nbsphinx.readthedocs.io/en/0.6.0/installation.html#Pygments-Lexer-for-Syntax-Highlighting
+     'ipython',
      'sphinx-copybutton',
 ]
 
