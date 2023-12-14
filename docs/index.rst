@@ -26,6 +26,7 @@
 
 plenoptic
 *********
+.. _index:
 
 |pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
 
