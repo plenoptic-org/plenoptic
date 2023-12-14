@@ -71,19 +71,22 @@ increments the version number, and uploading the new release to PyPI (see
 
 In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that they use **git** flow, which involves a separate develop branch in addition to main).
 
-Before we begin: everyone finds `git` confusing the first time they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/LabForComputationalVision/plenoptic/discussions) to get help.
+Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/LabForComputationalVision/plenoptic/discussions) to get help.
 
 #### Creating a development environment
 
-You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, fork and clone `plenoptic`. First, go to the [plenoptic repo](https://github.com/LabForComputationalVision/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/LabForComputationalVision/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
 
-You should probably install also all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+1. Go to the [plenoptic repo](https://github.com/LabForComputationalVision/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
+2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/LabForComputationalVision/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+
+You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
 #### Creating a new branch
 
 As discussed above, each feature in `plenoptic` is worked on in a separate branch. This allows us to have multiple people developing multiple features simultaneously, without interfering with each other's work. To create your own branch, run the following from within your `plenoptic` directory:
 
-```
+```bash
 # switch to main and make sure it's up-to-date
 git checkout main
 git pull origin main
@@ -93,16 +96,16 @@ git checkout -b my_cool_branch
 
 Then, create new changes on this branch and, when you're ready, add and commit them:
 
-```
+```bash
 # stage the changes
-git add src/plenoptic/some_file.py
+git add src/plenoptic/the_file_you_changed.py
 # commit your changes
 git commit -m "A helpful message explaining my changes" 
 # push to the origin remote
 git push origin my_cool_branch 
 ```
 
-If you are unfamiliar with `git add`, `git commit`, `git push`, I recommend the [Software Carpentry git lesson](https://swcarpentry.github.io/git-novice/).
+If you aren't comfortable with `git add`, `git commit`, `git push`, I recommend the [Software Carpentry git lesson](https://swcarpentry.github.io/git-novice/).
 
 #### Contributing your change back to plenoptic
 
