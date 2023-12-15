@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the preferred-citation metadata."
+title: "Plenoptic: A platform for synthesizing model-optimized visual stimuli"
+authors:
+  - family-names: Bonnen
+    given-names: Kathryn
+    orcid: "https://orcid.org/0000-0002-9210-8275"
+  - family-names: Broderick
+    given-names: William
+    orcid: "https://orcid.org/0000-0002-8999-9003"
+  - family-names: Duong
+    given-names: Lyndon
+    orcid: "https://orcid.org/0000-0003-0575-1033"
+  - family-names: Fiquet
+    given-names: Pierre-Étienne
+    orcid: "https://orcid.org/0000-0002-8301-2220"
+  - family-names: Parthasarathy
+    given-names: Nikhil
+    orcid: "https://orcid.org/0000-0003-2572-6492"
+  - family-names: Herrera-Esposito
+    given-names: Daniel
+    orcid: "https://orcid.org/0000-0001-8181-9787"
+  - family-names: Simoncelli
+    given-names: Eero
+    orcid: "https://orcid.org/0000-0002-1206-527X"
+  - family-names: Yerxa
+    given-names: Thomas
+    orcid: "https://orcid.org/0000-0003-2687-0816"
+  - family-names: Zhao
+    given-names: Xinyuan
+    orcid: "https://orcid.org/0000-0003-1770-631X"
