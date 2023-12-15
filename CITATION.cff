@@ -29,3 +29,13 @@ authors:
   - family-names: Zhao
     given-names: Xinyuan
     orcid: "https://orcid.org/0000-0003-1770-631X"
+doi: 10.5281/zenodo.10151130
+repository-code: "https://github.com/LabForComputationalVision/plenoptic"
+url: "https://plenoptic.readthedocs.io/"
+license: MIT
+keywords:
+  - neuroscience
+  - visual information processing
+  - machine learning
+  - explainability
+  - computational models
