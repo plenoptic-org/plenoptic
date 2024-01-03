@@ -87,7 +87,7 @@ class PortillaSimoncelli(nn.Module):
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
-        self.pyr = SteerablePyramidFreq(
+        self._pyr = SteerablePyramidFreq(
             self.image_shape,
             height=self.n_scales,
             order=self.n_orientations - 1,
@@ -541,7 +541,7 @@ class PortillaSimoncelli(nn.Module):
             each batch and channel).
 
         """
-        pyr_coeffs = self.pyr.forward(image)
+        pyr_coeffs = self._pyr.forward(image)
         # separate out the residuals and demean the residual lowpass
         lowpass = pyr_coeffs['residual_lowpass']
         lowpass = lowpass - lowpass.mean(dim=(-2, -1), keepdim=True)
@@ -648,10 +648,10 @@ class PortillaSimoncelli(nn.Module):
             widths.
 
         """
-        reconstructed_images = [self.pyr.recon_pyr(pyr_coeffs_dict, levels=['residual_lowpass'])]
+        reconstructed_images = [self._pyr.recon_pyr(pyr_coeffs_dict, levels=['residual_lowpass'])]
         # go through scales backwards
         for lev in range(self.n_scales-1, -1, -1):
-            recon = self.pyr.recon_pyr(pyr_coeffs_dict, levels=lev)
+            recon = self._pyr.recon_pyr(pyr_coeffs_dict, levels=lev)
             reconstructed_images.append(recon + reconstructed_images[-1])
         # now downsample as necessary, so that these end up the same size as
         # their corresponding coefficients.
@@ -1112,7 +1112,7 @@ class PortillaSimoncelli(nn.Module):
         Returns:
             Module: self
         """
-        self.pyr = self.pyr.to(*args, **kwargs)
+        self._pyr = self._pyr.to(*args, **kwargs)
         for arg in args:
             # this is an index, so don't change it's dtype
             if not isinstance(arg, torch.dtype):
