@@ -10,7 +10,8 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     Parameters
     ----------
     start, stop
-        Images of shape [1, C, H, W], the anchor points between which a line
+        Images of shape (1, channel, height, width), the anchor points between
+        which a line
         will be made.
     n_steps
         Number of steps (i.e., transitions) to create between the two anchor
@@ -19,7 +20,7 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     Returns
     -------
     straight
-        Tensor of shape [n_steps+1, C, H, W]
+        Tensor of shape (n_steps+1, channel, height, width)
 
     """
     validate_input(start, no_batch=True)
@@ -47,9 +48,9 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     Parameters
     ----------
     start, stop
-        signal of shape [1, C, H, W], the anchor points between which
-        a random path will be sampled (like pylons on which
-        the bridge will rest)
+        signal of shape (1, channel, height, width), the anchor points between
+        which a random path will be sampled (like pylons on which the bridge
+        will rest)
     n_steps
         number of steps on the bridge
     max_norm
@@ -62,8 +63,8 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     Returns
     -------
     bridge
-        sequence of shape [n_steps+1, C, H, W] a brownian bridge across the two
-        pylons
+        sequence of shape (n_steps+1, channel, height, width) a brownian bridge
+        across the two pylons
 
     """
     validate_input(start, no_batch=True)
@@ -107,7 +108,7 @@ def deviation_from_line(sequence: Tensor,
     Parameters
     ----------
     sequence
-        sequence of signals of shape [T, C, H, W]
+        sequence of signals of shape (T, channel, height, width)
     normalize
         use the distance between the anchor points as a unit of measurement
 
@@ -147,7 +148,7 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     Parameters
     ----------
     image
-        Base image of shape, [1, C, H, W]
+        Base image of shape, (1, channel, height, width)
     n_steps
         Number of steps in the sequence. The length of the sequence is n_steps
         + 1. Must be positive.
@@ -155,7 +156,7 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     Returns
     -------
     sequence
-        translation sequence of shape [n_steps+1, C, H, W]
+        translation sequence of shape (n_steps+1, channel, height, width)
 
     """
     validate_input(image, no_batch=True)

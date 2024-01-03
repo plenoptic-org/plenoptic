@@ -349,7 +349,8 @@ class SteerablePyramidFreq(nn.Module):
         lo0mask = self.lo0mask.clone()
         hi0mask = self.hi0mask.clone()
 
-        # x is a torch tensor batch of images of size [N,C,W,H]
+        # x is a torch tensor batch of images of size (batch, channel, height,
+        # width)
         assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
 
         imdft = fft.fft2(x, dim=(-2, -1), norm=self.fft_norm)
@@ -444,17 +445,17 @@ class SteerablePyramidFreq(nn.Module):
     ) -> Tuple[Tensor, Tuple[int, bool, SCALES_TYPE]]:
         r"""Convert coefficient dictionary to a tensor.
 
-        The output tensor has shape (B,C,H,W) and is intended to be used in an
-        ``torch.nn.Module`` downstream. In the multichannel case, all bands for
-        each channel will be stacked together (i.e. if there are 2 channels and
-        18 bands per channel, pyr_tensor[:,0:18,...] will contain the pyr
-        responses for channel 1 and pyr_tensor[:, 18:36, ...] will contain the
-        responses for channel 2). In the case of a complex, multichannel
-        pyramid with split_complex=True, the real/imaginary bands will be
-        intereleaved so that they appear as pairs with neighboring indices in
-        the channel dimension of the tensor (Note: the residual bands are
-        always real so they will only ever have a single band even when
-        split_complex=True.)
+        The output tensor has shape (batch, channel, height, width) and is
+        intended to be used in an ``torch.nn.Module`` downstream. In the
+        multichannel case, all bands for each channel will be stacked together
+        (i.e. if there are 2 channels and 18 bands per channel,
+        pyr_tensor[:,0:18,...] will contain the pyr responses for channel 1 and
+        pyr_tensor[:, 18:36, ...] will contain the responses for channel 2). In
+        the case of a complex, multichannel pyramid with split_complex=True,
+        the real/imaginary bands will be intereleaved so that they appear as
+        pairs with neighboring indices in the channel dimension of the tensor
+        (Note: the residual bands are always real so they will only ever have a
+        single band even when split_complex=True.)
 
         This only works if ``pyr_coeffs`` was created with a pyramid with
         ``downsample=False``
@@ -472,10 +473,10 @@ class SteerablePyramidFreq(nn.Module):
         Returns
         -------
         pyr_tensor:
-            shape (B,C,H,W). pyramid coefficients reshaped into
-            tensor. The first channel will be the residual highpass and the
-            last will be the residual lowpass. Each band is then a separate
-            channel.
+            shape (batch, channel, height, width). pyramid coefficients
+            reshaped into tensor. The first channel will be the residual
+            highpass and the last will be the residual lowpass. Each band is
+            then a separate channel.
         pyr_info:
             Information required to recreate the dictionary, containing the
             number of channels, if split_complex was used in this function
@@ -548,7 +549,7 @@ class SteerablePyramidFreq(nn.Module):
         Parameters
         ----------
         pyr_tensor:
-            Shape (B,C,H,W). The pyramid coefficients
+            Shape (batch, channel, height, width). The pyramid coefficients
         num_channels:
             number of channels in the original input tensor the pyramid was
             created for (i.e. if the input was an RGB image, this would be 3)
@@ -793,7 +794,7 @@ class SteerablePyramidFreq(nn.Module):
         Returns
         -------
         recon:
-            The reconstructed image, of shape (B,C,H,W)
+            The reconstructed image, of shape (batch, channel, height, width)
 
         """
         # For reconstruction to work, last time we called forward needed
@@ -861,7 +862,8 @@ class SteerablePyramidFreq(nn.Module):
         pyr_coeffs :
             Dictionary containing the coefficients of the pyramid. Keys are
             `(level, band)` tuples and the strings `'residual_lowpass'` and
-            `'residual_highpass'` and values are Tensors of shape (B,C,H,W).
+            `'residual_highpass'` and values are Tensors of shape (batch,
+            channel, height, width).
         recon_keys :
             list of the keys that index into the pyr_coeffs Dictionary
         scale :

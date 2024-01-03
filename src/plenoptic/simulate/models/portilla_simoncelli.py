@@ -282,8 +282,8 @@ class PortillaSimoncelli(nn.Module):
         Returns
         -------
         representation_vector:
-            3d tensor of shape (B,C,S) containing the measured texture
-            statistics.
+            3d tensor of shape (batch, channel, stats) containing the measured
+            texture statistics.
 
         """
         validate_input(image)
