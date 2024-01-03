@@ -409,7 +409,7 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
 
 
 def autocorrelation(x: Tensor) -> Tensor:
-    r"""Computes the autocorrelation of `x`.
+    r"""Compute the autocorrelation of `x`.
 
     Parameters
     ----------
@@ -425,7 +425,6 @@ def autocorrelation(x: Tensor) -> Tensor:
 
     Notes
     -----
-
     - By the Einstein-Wiener-Khinchin theorem: The autocorrelation of a wide
       sense stationary (WSS) process is the inverse Fourier transform of its
       energy spectrum (ESD) - which itself is the multiplication between
@@ -495,7 +494,7 @@ def expand(x: Tensor, factor: float) -> Tensor:
     expanded :
         The expanded signal
 
-    See also
+    See Also
     --------
     shrink :
         The inverse operation
@@ -575,7 +574,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     expanded :
         The expanded signal
 
-    See also
+    See Also
     --------
     expand :
         The inverse operation
