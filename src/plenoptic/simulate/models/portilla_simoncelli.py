@@ -855,12 +855,12 @@ class PortillaSimoncelli(nn.Module):
     def plot_representation(
             self,
             data: Tensor,
-            ax: Optional[mpl.axes.Axes] = None,
+            ax: Optional[plt.Axes] = None,
             figsize: Tuple[float, float] = (15, 15),
             ylim: Optional[Union[Tuple[float, float], Literal[False]]] = None,
             batch_idx: int = 0,
             title: Optional[str] = None,
-    ) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes]]:
+    ) -> Tuple[plt.Figure, List[plt.Axes]]:
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
@@ -909,7 +909,7 @@ class PortillaSimoncelli(nn.Module):
             returned by ``metamer.representation_error()`` or another instance
             of this class).
         ax :
-            Axes where we will plot the data. If an ``mpl.axes.Axes``, will
+            Axes where we will plot the data. If a ``plt.Axes`` instance, will
             subdivide into 6 or 8 new axes (depending on self.n_scales). If
             None, we create a new figure.
         figsize :
@@ -1018,10 +1018,10 @@ class PortillaSimoncelli(nn.Module):
 
     def update_plot(
             self,
-            axes: List[mpl.pyplot.Axes],
+            axes: List[plt.Axes],
             data: Tensor,
             batch_idx: int = 0,
-    ) -> List[mpl.pyplot.Artist]:
+    ) -> List[plt.Artist]:
         r"""Update the information in our representation plot.
 
         This is used for creating an animation of the representation
