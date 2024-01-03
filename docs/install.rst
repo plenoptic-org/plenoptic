@@ -3,11 +3,9 @@
 Installation
 ************
 
-The following instructions will work on Linux or Mac. If you're on Windows, I
-recommend looking into the `Windows Subsystem for Linux
-<https://docs.microsoft.com/en-us/windows/wsl/install-win10).>`_
+``plenoptic`` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a `bug report <https://github.com/LabForComputationalVision/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_!
 
-The easiest way to install ``plenoptic`` is from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) using pip within a new `conda <https://docs.conda.io/en/latest/>`_ environment (if you do not have ``conda`` installed on your machine, I recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_)::
+The easiest way to install ``plenoptic`` is from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) using pip within a new virtual environment. The instructions on this page use `conda <https://docs.conda.io/en/latest/>`_, which we recommend if you are unfamiliar with python environment management, but other virtual environment systems should work. If you wish to follow these instructions and do not have ``conda`` installed on your machine, I recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.::
 
 $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
@@ -33,7 +31,7 @@ Optional dependencies
 
 The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the pip install command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``torchvision``, ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for more details on how to handle jupyter and python virtual environments.
+* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``torchvision``, ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for more details on how to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 * If you would like to locally build the documentation: ``pip install -e .[docs]``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 * If you would like to run the tests: ``pip install -e .[dev]``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 
