@@ -33,7 +33,7 @@ def portilla_simoncelli_matlab_test_vectors():
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return osf_download('portilla_simoncelli_test_vectors.tar.gz')
+    return osf_download('portilla_simoncelli_test_vectors_refactor.tar.gz')
 
 
 def get_portilla_simoncelli_synthesize_filename(torch_version=None):
@@ -517,10 +517,12 @@ class TestPortillaSimoncelli(object):
             python_vector, matlab_rep, rtol=1e-4, atol=1e-4
         )
 
-    # tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    # tests for whether output matches the saved python output. This implicitly
+    # tests that Portilla_simoncelli.forward() returns an object of the correct
+    # size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_ps_torch_output(self, n_scales, n_orientations,
                              spatial_corr_width, im,
@@ -537,18 +539,12 @@ class TestPortillaSimoncelli(object):
         output = ps(im0)
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
-                        f"{im}-scales{n_scales}-ori{n_orientations}-"
-                        f"spat{spatial_corr_width}-corrFalse.npy")
-        saved = torch.from_numpy(saved)
-        saved = convert_matlab_ps_rep_to_dict(saved.to(DEVICE), n_scales, n_orientations, spatial_corr_width,
-                                              False)
-        norm_dict = construct_normalizing_dict(ps, im0)
-        saved = remove_redundant_and_normalize(saved, False, ps, norm_dict)
+                        f"{im}_scales-{n_scales}_ori-{n_orientations}_"
+                        f"spat-{spatial_corr_width}.npy")
 
-        saved = po.to_numpy(saved).squeeze()
-        output = po.to_numpy(output).squeeze()
+        output = po.to_numpy(output)
         np.testing.assert_allclose(
-            output, saved, rtol=1e-5, atol=5e-5
+            output, saved, rtol=1e-5, atol=1e-5
         )
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
