@@ -460,7 +460,7 @@ def remove_redundant_and_normalize(matlab_rep: OrderedDict,
 class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_portilla_simoncelli(
         self,
         n_scales,
@@ -553,7 +553,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_ps_convert(self, n_scales, n_orientations, spatial_corr_width,
                         einstein_img):
         ps = po.simul.PortillaSimoncelli(
@@ -688,7 +688,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_multibatchchannel(self, batch_channel, n_scales, n_orientations,
                                spatial_corr_width, einstein_img):
         model = po.simul.PortillaSimoncelli(
@@ -704,7 +704,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_plot_representation(self, batch_channel, n_scales, n_orientations,
                                  spatial_corr_width, einstein_img):
         model = po.simul.PortillaSimoncelli(
@@ -731,7 +731,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_plot_representation_dim_assumption(self, batch_channel, n_scales,
                                                 n_orientations, spatial_corr_width,
                                                 einstein_img):
@@ -758,7 +758,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_scales_shapes(self, n_scales, n_orientations, spatial_corr_width,
                            einstein_img):
         # test that the shapes we use to assign scale labels to each statistic
@@ -792,7 +792,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_redundancies(self, n_scales, n_orientations, spatial_corr_width,
                           im):
@@ -823,7 +823,12 @@ class TestPortillaSimoncelli(object):
             ctr_vals = []
             for sc in range(red_v.shape[-1]):
                 red_idx = torch.stack(torch.where(red_v[..., sc]), -1)
-                # ignore batch and channel
+                if red_idx.shape[-1] == 3:
+                    # auto_correlation_magnitude has an extra dimension
+                    # compared to the others ignore batch and channel
+                    assert k == 'auto_correlation_magnitude', f"Somehow got extra dimension for {k}!"
+                    # then drop the duplicates
+                    red_idx = torch.unique(red_idx[..., :2], dim=0)
                 val = unp_v[0, 0, ..., sc]
                 if k == 'cross_orientation_correlation_magnitude':
                     # Symmetry M_{i,j} = M_{j,i}.
@@ -837,7 +842,14 @@ class TestPortillaSimoncelli(object):
                     # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
                     for i in red_idx:
                         unp_vals.append(val[i[0], i[1]])
-                        mask_vals.append(val[-(i[0]+1), -(i[1]+1)])
+                        # need to change where we index into depending on
+                        # whether spatial_corr_width (and thus the shape of
+                        # val) is even or odd
+                        if not spatial_corr_width % 2:
+                            offset = 0
+                        else:
+                            offset = 1
+                        mask_vals.append(val[-(i[0]+offset), -(i[1]+offset)])
                 else:
                     raise ValueError(f"stat {k} unexpectedly has redundant values!")
             #and check for equality
@@ -850,7 +862,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
     def test_crosscorrs(self, n_scales, n_orientations, spatial_corr_width,
                         im):
