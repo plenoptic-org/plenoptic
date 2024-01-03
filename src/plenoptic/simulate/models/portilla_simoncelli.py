@@ -146,8 +146,7 @@ class PortillaSimoncelli(nn.Module):
         scales_without_coarsest = np.arange(self.n_scales-1)
         # the statistics computed on the reconstructed bandpass images have an
         # extra scale corresponding to the lowpass residual
-        scales_with_lowpass = np.concatenate([scales, ["residual_lowpass"]],
-                                             dtype=object)
+        scales_with_lowpass = np.array(scales.tolist() + ["residual_lowpass"], dtype=object)
 
         # now we go through each statistic in order and create a dummy array
         # full of 1s with the same shape as the actual statistic (excluding the
@@ -242,7 +241,7 @@ class PortillaSimoncelli(nn.Module):
             if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
                 # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
                 # Start with all False, then place True in necessary stats.
-                mask = torch.zeros(v.shape, dtype=bool)
+                mask = torch.zeros(v.shape, dtype=torch.bool)
                 mask[tril_inds[0], tril_inds[1]] = True
                 # if spatial_corr_width is even, then the first row is not
                 # redundant with anything either
@@ -252,11 +251,11 @@ class PortillaSimoncelli(nn.Module):
             elif k == 'cross_orientation_correlation_magnitude':
                 # Symmetry M_{i,j} = M_{j,i}.
                 # Start with all True, then place False in redundant stats.
-                mask = torch.ones(v.shape, dtype=bool)
+                mask = torch.ones(v.shape, dtype=torch.bool)
                 mask[triu_inds[0], triu_inds[1]] = False
             else:
                 # all of the other stats have no redundancies
-                mask = torch.ones(v.shape, dtype=bool)
+                mask = torch.ones(v.shape, dtype=torch.bool)
             mask_dict[k] = mask
         return mask_dict
 
@@ -336,7 +335,7 @@ class PortillaSimoncelli(nn.Module):
         # reconstructed lowpass image. std_recon, skew_recon, and
         # kurtosis_recon will all end up as tensors of shape (batch, channel,
         # n_scales+1)
-        std_recon = var_recon.pow(0.5)
+        std_recon = var_recon.sqrt()
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
 
         # Compute the cross-orientation correlations between the magnitude
@@ -348,7 +347,7 @@ class PortillaSimoncelli(nn.Module):
         # (it's an intermediary of the computation of the cross-orientation
         # correlations), of shape (batch, channel, n_orientations, n_scales).
         # We take the square root to get the standard deviation.
-        mags_std = mags_var.pow(0.5)
+        mags_std = mags_var.sqrt()
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -401,7 +400,7 @@ class PortillaSimoncelli(nn.Module):
     def remove_scales(
             self, representation_vector: Tensor, scales_to_keep: List[SCALES_TYPE]
     ) -> Tensor:
-        """Remove statistics not associated with scales
+        """Remove statistics not associated with scales.
 
         For a given representation_vector and a list of scales_to_keep, this
         attribute removes all statistics *not* associated with those scales.
@@ -419,7 +418,7 @@ class PortillaSimoncelli(nn.Module):
             representation corresponding to those scales.
 
         Returns
-        ------
+        -------
         limited_representation_vector :
             Representation vector with some statistics removed.
 
@@ -436,7 +435,7 @@ class PortillaSimoncelli(nn.Module):
         return representation_vector.index_select(-1, ind)
 
     def convert_to_vector(self, representation_dict: OrderedDict) -> Tensor:
-        r"""Converts dictionary of statistics to a vector.
+        r"""Convert dictionary of statistics to a vector.
 
         Parameters
         ----------
@@ -447,7 +446,7 @@ class PortillaSimoncelli(nn.Module):
         -------
         3d vector of statistics.
 
-        See also
+        See Also
         --------
         convert_to_dict:
             Convert vector representation to dictionary.
@@ -458,7 +457,7 @@ class PortillaSimoncelli(nn.Module):
         return rep.index_select(-1, self._necessary_stats_mask)
 
     def convert_to_dict(self, representation_vector: Tensor) -> OrderedDict:
-        """Converts vector of statistics to a dictionary.
+        """Convert vector of statistics to a dictionary.
 
         While the vector representation is required by plenoptic's synthesis
         objects, the dictionary representation is easier to manually inspect.
@@ -473,9 +472,10 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        Dictionary of representation, with informative keys.
+        rep 
+            Dictionary of representation, with informative keys.
 
-        See also
+        See Also
         --------
         convert_to_vector:
             Convert dictionary representation to vector.
@@ -511,7 +511,7 @@ class PortillaSimoncelli(nn.Module):
     def _compute_pyr_coeffs(self, image: Tensor) -> Tuple[OrderedDict, List[Tensor], Tensor, Tensor]:
         """Compute pyramid coefficients of image.
 
-        Note that the residual lowpass hsa been demeaned independently for each
+        Note that the residual lowpass has been demeaned independently for each
         batch and channel (and this is true of the lowpass returned separately
         as well as the one included in pyr_coeffs_dict)
 
@@ -587,7 +587,8 @@ class PortillaSimoncelli(nn.Module):
         # representation vector
         return einops.pack([mean, var, skew, kurtosis, img_min, img_max], 'b c *')[0]
 
-    def _compute_intermediate_representations(self, pyr_coeffs: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
+    @staticmethod
+    def _compute_intermediate_representations(pyr_coeffs: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
         """Compute useful intermediate representations.
 
         These representations are:
@@ -696,9 +697,10 @@ class PortillaSimoncelli(nn.Module):
         acs = torch.stack(acs, 2)
         return einops.rearrange(acs, f'b c {dims} a1 a2 -> b c a1 a2 {dims}'), var
 
-    def _compute_skew_kurtosis_recon(self, reconstructed_images: List[Tensor], var_recon: Tensor,
+    @staticmethod
+    def _compute_skew_kurtosis_recon(reconstructed_images: List[Tensor], var_recon: Tensor,
                                      img_var: Tensor) -> Tuple[Tensor, Tensor]:
-        """Computes the skew and kurtosis of each lowpass reconstructed image.
+        """Compute the skew and kurtosis of each lowpass reconstructed image.
 
         For each scale, if the ratio of its variance to the original image's
         pixel variance is below a threshold of 1e-6, skew and kurtosis are
@@ -798,10 +800,11 @@ class PortillaSimoncelli(nn.Module):
                                            'b c o1, b c o2 -> b c o1 o2')
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
-            covars.append(covar / var_outer_prod.pow(.5))
+            covars.append(covar / var_outer_prod.sqrt())
         return torch.stack(covars, -1), torch.stack(coeffs_var, -1)
 
-    def _double_phase_pyr_coeffs(self, pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
+    @staticmethod
+    def _double_phase_pyr_coeffs(pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
 
         Parameters
@@ -849,7 +852,6 @@ class PortillaSimoncelli(nn.Module):
             batch_idx: int = 0,
             title: Optional[str] = None,
     ) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes]]:
-
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
@@ -966,7 +968,7 @@ class PortillaSimoncelli(nn.Module):
         return fig, axes
 
     def _representation_for_plotting(self, rep: OrderedDict) -> OrderedDict:
-        r"""Converts the data into a dictionary representation that is more convenient for plotting.
+        r"""Convert the data into a dictionary representation that is more convenient for plotting.
 
         Intended as a helper function for plot_representation.
 
@@ -1007,11 +1009,11 @@ class PortillaSimoncelli(nn.Module):
 
     def update_plot(
             self,
-            axes: List[mpl.axes.Axes],
+            axes: List[mpl.pyplot.Axes],
             data: Tensor,
             batch_idx: int = 0,
-    ) -> List[mpl.artist.Artist]:
-        r"""Update the information in our representation plot
+    ) -> List[mpl.pyplot.Artist]:
+        r"""Update the information in our representation plot.
 
         This is used for creating an animation of the representation
         over time. In order to create the animation, we need to know how
