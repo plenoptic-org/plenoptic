@@ -630,7 +630,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_portilla_simoncelli_scales(
         self,
         n_scales,
