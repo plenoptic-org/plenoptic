@@ -343,7 +343,9 @@ class PortillaSimoncelli(nn.Module):
         # kurtosis_recon will all end up as tensors of shape (batch, channel,
         # n_scales+1)
         std_recon = var_recon.sqrt()
-        skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images, var_recon, pixel_stats[..., 1])
+        skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images,
+                                                                       var_recon,
+                                                                       pixel_stats[..., 1])
 
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale. this will be a tensor of shape (batch,
