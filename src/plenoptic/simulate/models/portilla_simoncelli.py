@@ -1,19 +1,21 @@
-import torch
+from collections import OrderedDict
+from typing import List, Optional, Tuple, Union
+
 import einops
-from torch import Tensor
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
 import torch.fft
 import torch.nn as nn
-from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
-import numpy as np
-from collections import OrderedDict
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from ...tools.display import clean_up_axes, update_stem, clean_stem_plot
-from ...tools.data import to_numpy
-from ...tools import stats, signal
-from ...tools.validate import validate_input
-from typing import Tuple, List, Union, Optional, Dict
+from torch import Tensor
 from typing_extensions import Literal
+
+from ...tools import signal, stats
+from ...tools.data import to_numpy
+from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
+from ...tools.validate import validate_input
+from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 
 SCALES_TYPE = Union[
     int, Literal["pixel_statistics", "residual_lowpass", "residual_highpass"]

@@ -1,16 +1,17 @@
 import warnings
 from collections import OrderedDict
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
-from scipy.special import factorial
-from ...tools.signal import interpolate1d, raised_cosine, steer
 import torch
 import torch.fft as fft
 import torch.nn as nn
-from torch import Tensor
 from einops import rearrange
 from scipy.special import factorial
-from typing import Tuple, Union, List, Optional
+from torch import Tensor
 from typing_extensions import Literal
+
+from ...tools.signal import interpolate1d, raised_cosine, steer
 
 complex_types = [torch.cdouble, torch.cfloat]
 SCALES_TYPE = List[Union[int, Literal["residual_lowpass", "residual_highpass"]]]
