@@ -920,6 +920,26 @@ class TestPortillaSimoncelli(object):
             torch.testing.assert_close(unpacked_rep[idx],
                                        torch_corr, atol=1e-5, rtol=2e-5)
 
+    def test_convert_to_dict_error_diff_model(self, einstein_img):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=4,
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=2,
+        ).to(DEVICE)
+        with pytest.raises(ValueError, match="representation vector is the wrong length"):
+            ps.convert_to_dict(rep)
+
+    def test_convert_to_dict_error(self, einstein_img):
+        ps = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        with pytest.raises(ValueError, match="representation vector is the wrong length"):
+            ps.convert_to_dict(rep[..., :-10])
 
 class TestFilters:
     @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
