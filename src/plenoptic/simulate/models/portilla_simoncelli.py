@@ -285,6 +285,11 @@ class PortillaSimoncelli(nn.Module):
             3d tensor of shape (batch, channel, stats) containing the measured
             texture statistics.
 
+        Raises
+        ------
+        ValueError :
+            If `image` is not 4d or has a dtype other than float or complex.
+
         """
         validate_input(image)
 
