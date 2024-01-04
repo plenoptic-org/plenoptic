@@ -660,7 +660,7 @@ class PortillaSimoncelli(nn.Module):
         reconstructed_images = [self._pyr.recon_pyr(pyr_coeffs_dict, levels=['residual_lowpass'])]
         # go through scales backwards
         for lev in range(self.n_scales-1, -1, -1):
-            recon = self._pyr.recon_pyr(pyr_coeffs_dict, levels=lev)
+            recon = self._pyr.recon_pyr(pyr_coeffs_dict, levels=[lev])
             reconstructed_images.append(recon + reconstructed_images[-1])
         # now downsample as necessary, so that these end up the same size as
         # their corresponding coefficients.

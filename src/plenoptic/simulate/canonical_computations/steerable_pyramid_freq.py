@@ -646,13 +646,10 @@ class SteerablePyramidFreq(nn.Module):
                 self.num_scales - 1
             )
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
-            print(levels, type(levels), levs_tmp)
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
-            print(levels, levs_tmp)
             if "residual_lowpass" in levels:
                 levs_tmp = levs_tmp + ["residual_lowpass"]
-            print(levels, levs_tmp)
             levels = levs_tmp
         # not all pyramids have residual highpass / lowpass, but it's easier to construct the list
         # including them, then remove them if necessary.
