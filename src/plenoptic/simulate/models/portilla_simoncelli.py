@@ -1,3 +1,11 @@
+"""Portilla-Simoncelli texture statistics.
+
+The Portilla-Simoncelli (PS) texture statistics are a set of image
+statistics, first described in [1]_, that are proposed as a sufficient set
+of measurements for describing visual textures. That is, if two texture
+images have the same values for all PS texture stats, humans should
+consider them as members of the same family of textures.
+"""
 from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
 

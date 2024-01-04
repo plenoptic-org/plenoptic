@@ -1,3 +1,8 @@
+"""Steerable frequency pyramid
+
+Construct a steerable pyramid on matrix two dimensional signals, in the
+Fourier domain.
+"""
 import warnings
 from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
