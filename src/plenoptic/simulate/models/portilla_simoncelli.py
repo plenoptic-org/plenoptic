@@ -16,10 +16,9 @@ from ...tools.data import to_numpy
 from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
 from ...tools.validate import validate_input
 from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
+from ..canonical_computations.steerable_pyramid_freq import SCALES_TYPE as PYR_SCALES_TYPE
 
-SCALES_TYPE = Union[
-    int, Literal["pixel_statistics", "residual_lowpass", "residual_highpass"]
-]
+SCALES_TYPE = Union[Literal["pixel_statistics"], PYR_SCALES_TYPE]
 
 
 class PortillaSimoncelli(nn.Module):

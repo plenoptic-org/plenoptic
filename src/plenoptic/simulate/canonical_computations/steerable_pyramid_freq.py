@@ -10,11 +10,12 @@ from einops import rearrange
 from scipy.special import factorial
 from torch import Tensor
 from typing_extensions import Literal
+from numpy.typing import NDArray
 
 from ...tools.signal import interpolate1d, raised_cosine, steer
 
 complex_types = [torch.cdouble, torch.cfloat]
-SCALES_TYPE = List[Union[int, Literal["residual_lowpass", "residual_highpass"]]]
+SCALES_TYPE = Union[int, Literal["residual_lowpass", "residual_highpass"]]
 KEYS_TYPE = Union[Tuple[int, int], Literal["residual_lowpass", "residual_highpass"]]
 
 
@@ -311,7 +312,7 @@ class SteerablePyramidFreq(nn.Module):
     def forward(
         self,
         x: Tensor,
-        scales: Optional[SCALES_TYPE] = None,
+        scales: Optional[List[SCALES_TYPE]] = None,
     ) -> OrderedDict:
         r"""Generate the steerable pyramid coefficients for an image
 
@@ -442,7 +443,7 @@ class SteerablePyramidFreq(nn.Module):
     @staticmethod
     def convert_pyr_to_tensor(
         pyr_coeffs: OrderedDict, split_complex: bool = False
-    ) -> Tuple[Tensor, Tuple[int, bool, SCALES_TYPE]]:
+    ) -> Tuple[Tensor, Tuple[int, bool, List[KEYS_TYPE]]]:
         r"""Convert coefficient dictionary to a tensor.
 
         The output tensor has shape (batch, channel, height, width) and is
@@ -489,7 +490,7 @@ class SteerablePyramidFreq(nn.Module):
 
         """
 
-        pyr_keys = tuple(pyr_coeffs.keys())
+        pyr_keys = list(pyr_coeffs.keys())
         test_band = pyr_coeffs[pyr_keys[0]]
         num_channels = test_band.size(1)
         coeff_list = []
@@ -532,7 +533,7 @@ class SteerablePyramidFreq(nn.Module):
         pyr_tensor: Tensor,
         num_channels: int,
         split_complex: bool,
-        pyr_keys: SCALES_TYPE,
+        pyr_keys: List[KEYS_TYPE],
     ) -> OrderedDict:
         r"""Convert pyramid coefficient tensor to dictionary format.
 
@@ -600,7 +601,7 @@ class SteerablePyramidFreq(nn.Module):
         return pyr_coeffs
 
     def _recon_levels_check(
-        self, levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]]
+        self, levels: Union[Literal["all"], List[SCALES_TYPE]]
     ) -> List[SCALES_TYPE]:
         r"""Check whether levels arg is valid for reconstruction and return valid version
 
@@ -616,8 +617,7 @@ class SteerablePyramidFreq(nn.Module):
             If `list` should contain some subset of integers from `0` to
             `self.num_scales-1` (inclusive) and `'residual_highpass'` and
             `'residual_lowpass'` (if appropriate for the pyramid). If `'all'`,
-            returned value will contain all valid levels. Otherwise, must be
-            one of the valid levels.
+            returned value will contain all valid levels.
 
         Returns
         -------
@@ -625,18 +625,19 @@ class SteerablePyramidFreq(nn.Module):
             List containing the valid levels for reconstruction.
 
         """
-        if isinstance(levels, str) and levels == "all":
+        if isinstance(levels, str):
+            if levels != "all":
+                raise TypeError(f"levels must be a list of levels or the string 'all' but got {levels}")
             levels = (
                 ["residual_highpass"]
                 + list(range(self.num_scales))
                 + ["residual_lowpass"]
             )
         else:
-            if not hasattr(levels, "__iter__") or isinstance(levels, str):
-                # then it's a single int or string
-                levels = [levels]
+            if not hasattr(levels, "__iter__"):
+                raise TypeError(f"levels must be a list of levels or the string 'all' but got {levels}")
             levs_nums = np.array(
-                [int(i) for i in levels if isinstance(i, int) or i.isdigit()]
+                [int(i) for i in levels if isinstance(i, int)]
             )
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
             assert (
@@ -645,10 +646,13 @@ class SteerablePyramidFreq(nn.Module):
                 self.num_scales - 1
             )
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
+            print(levels, type(levels), levs_tmp)
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
+            print(levels, levs_tmp)
             if "residual_lowpass" in levels:
                 levs_tmp = levs_tmp + ["residual_lowpass"]
+            print(levels, levs_tmp)
             levels = levs_tmp
         # not all pyramids have residual highpass / lowpass, but it's easier to construct the list
         # including them, then remove them if necessary.
@@ -665,7 +669,7 @@ class SteerablePyramidFreq(nn.Module):
         return levels
 
     def _recon_bands_check(
-        self, bands: Union[int, Literal["all"], List[int]]
+        self, bands: Union[Literal["all"], List[int]]
     ) -> List[int]:
         """Check whether bands arg is valid for reconstruction and return valid version
 
@@ -679,8 +683,7 @@ class SteerablePyramidFreq(nn.Module):
         bands :
             If list, should contain some subset of integers from `0` to
             `self.num_orientations-1`. If `'all'`, returned value will contain
-            all valid orientations. Otherwise, must be one of the valid
-            orientations.
+            all valid orientations.
 
         Returns
         -------
@@ -688,22 +691,26 @@ class SteerablePyramidFreq(nn.Module):
             List containing the valid orientations for reconstruction.
 
         """
-        if isinstance(bands, str) and bands == "all":
+        if isinstance(bands, str):
+            if bands != "all":
+                raise TypeError(f"bands must be a list of ints or the string 'all' but got {bands}")
             bands = np.arange(self.num_orientations)
         else:
-            bands = np.array(bands, ndmin=1)
+            if not hasattr(bands, "__iter__"):
+                raise TypeError(f"bands must be a list of ints or the string 'all' but got {bands}")
+            bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
             assert (
                 bands < self.num_orientations
             ).all(), "Error: band numbers must be in the range [0, %d]" % (
                 self.num_orientations - 1
             )
-        return bands
+        return list(bands)
 
     def _recon_keys(
         self,
-        levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]],
-        bands: Union[int, Literal["all"], List[int]],
+        levels: Union[Literal["all"], List[SCALES_TYPE]],
+        bands: Union[Literal["all"], List[int]],
         max_orientations: Optional[int] = None,
     ) -> List[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
@@ -720,13 +727,11 @@ class SteerablePyramidFreq(nn.Module):
             If `list` should contain some subset of integers from `0` to
             `self.num_scales-1` (inclusive) and `'residual_highpass'` and
             `'residual_lowpass'` (if appropriate for the pyramid). If `'all'`,
-            returned value will contain all valid levels. Otherwise, must be
-            one of the valid levels.
+            returned value will contain all valid levels.
         bands:
             If list, should contain some subset of integers from `0` to
             `self.num_orientations-1`. If `'all'`, returned value will contain
-            all valid orientations. Otherwise, must be one of the valid
-            orientations.
+            all valid orientations.
         max_orientations:
             The maximum number of orientations we allow in the reconstruction.
             when we determine which ints are allowed for bands, we ignore all
@@ -766,8 +771,8 @@ class SteerablePyramidFreq(nn.Module):
     def recon_pyr(
         self,
         pyr_coeffs: OrderedDict,
-        levels: Union[SCALES_TYPE, Literal["all"], List[SCALES_TYPE]] = "all",
-        bands: Union[int, Literal["all"], List[int]] = "all",
+        levels: Union[Literal["all"], List[SCALES_TYPE]] = "all",
+        bands: Union[Literal["all"], List[int]] = "all",
     ) -> Tensor:
         """Reconstruct the image or batch of images, optionally using subset of pyramid coefficients.
 
