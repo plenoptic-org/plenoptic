@@ -714,8 +714,10 @@ class PortillaSimoncelli(nn.Module):
         """Compute the skew and kurtosis of each lowpass reconstructed image.
 
         For each scale, if the ratio of its variance to the original image's
-        pixel variance is below a threshold of 1e-6, skew and kurtosis are
-        assigned default values of 0 or 3, respectively.
+        pixel variance is below a threshold of
+        torch.finfo(img_var.dtype).resolution (1e-6 for float32, 1e-15 for
+        float64), skew and kurtosis are assigned default values of 0 or 3,
+        respectively.
 
         Parameters
         ----------
@@ -749,9 +751,10 @@ class PortillaSimoncelli(nn.Module):
         # if this variance ratio is too small, then use the default values
         # instead. unsqueeze is used here because var_recon is shape (batch,
         # channel, scales+1), whereas img_var is just (batch, channel)
-        unstable_locs = var_recon / img_var.unsqueeze(-1) > 1e-6
-        skew_recon = torch.where(unstable_locs, skew_recon, skew_default)
-        kurtosis_recon = torch.where(unstable_locs, kurtosis_recon, kurtosis_default)
+        res = torch.finfo(img_var.dtype).resolution
+        unstable_locs = var_recon / img_var.unsqueeze(-1) < res
+        skew_recon = torch.where(unstable_locs, skew_default, skew_recon)
+        kurtosis_recon = torch.where(unstable_locs, kurtosis_default, kurtosis_recon)
         return skew_recon, kurtosis_recon
 
     def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
