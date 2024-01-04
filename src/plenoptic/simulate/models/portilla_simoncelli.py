@@ -159,6 +159,9 @@ class PortillaSimoncelli(nn.Module):
 
         auto_corr_mag = np.ones((self.spatial_corr_width, self.spatial_corr_width,
                                  self.n_scales, self.n_orientations), dtype=int)
+        # this rearrange call is turning scales from 1d with shape (n_scales, )
+        # to 4d with shape (1, 1, n_scales, 1), so that it matches
+        # auto_corr_mag. the following rearrange calls do similar.
         auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 s 1')
         shape_dict['auto_correlation_magnitude'] = auto_corr_mag
 
