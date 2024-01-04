@@ -740,11 +740,11 @@ class PortillaSimoncelli(nn.Module):
             ``reconstructed_images``.
 
         """
-        skew_recon = [stats.skew(r, mean=0, var=var_recon[..., i], dim=[-2, -1])
-                      for i, r in enumerate(reconstructed_images)]
+        skew_recon = [stats.skew(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
+                      for i, im in enumerate(reconstructed_images)]
         skew_recon = torch.stack(skew_recon, -1)
-        kurtosis_recon = [stats.kurtosis(r, mean=0, var=var_recon[..., i], dim=[-2, -1])
-                          for i, r in enumerate(reconstructed_images)]
+        kurtosis_recon = [stats.kurtosis(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
+                          for i, im in enumerate(reconstructed_images)]
         kurtosis_recon = torch.stack(kurtosis_recon, -1)
         skew_default = torch.zeros_like(skew_recon)
         kurtosis_default = 3 * torch.ones_like(kurtosis_recon)
