@@ -718,8 +718,8 @@ class TestPortillaSimoncelli(object):
             ).to(DEVICE)
         _, axes = model.plot_representation(model(einstein_img))
         orig_y = axes[0].containers[0].markerline.get_ydata()
-        img = po.load_images(op.join(DATA_DIR, "256", "nuts.pgm"))
-        artists = model.update_plot(axes, model(img))
+        img = po.load_images(op.join(DATA_DIR, "256", "nuts.pgm")).to(DEVICE)
+        artists = model.update_plot(axes, model(img).cpu())
         updated_y = artists[0].get_ydata()
         if np.equal(orig_y, updated_y).all():
             raise ValueError("Update plot didn't run successfully!")
