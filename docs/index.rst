@@ -9,8 +9,8 @@
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
 
-.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
-            :target: https://doi.org/10.5281/zenodo.3995057
+.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg
+            :target: https://zenodo.org/doi/10.5281/zenodo.10151130
 
 .. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
              :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
