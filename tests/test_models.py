@@ -247,11 +247,6 @@ def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
     -------
     Dictionary of representation, with informative keys.
 
-    See also
-    --------
-    convert_to_vector:
-        Convert dictionary representation to vector.
-
     """
     rep = OrderedDict()
     rep["pixel_statistics"] = OrderedDict()
@@ -454,7 +449,7 @@ def remove_redundant_and_normalize(matlab_rep: OrderedDict,
             matlab_rep[k] = matlab_rep[k] / normalizing_dict[k]
 
     # Finally, turn dict back into vector, removing redundant stats
-    return plen_ps.convert_to_vector(matlab_rep)
+    return plen_ps.convert_to_tensor(matlab_rep)
 
 
 class TestPortillaSimoncelli(object):
@@ -559,7 +554,7 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE)
         rep = ps(einstein_img)
-        assert torch.all(rep == ps.convert_to_vector(ps.convert_to_dict(rep))), "Convert to vector or dict is broken!"
+        assert torch.all(rep == ps.convert_to_tensor(ps.convert_to_dict(rep))), "Convert to tensor or dict is broken!"
 
     def test_ps_synthesis(self, portilla_simoncelli_synthesize,
                           run_test=True):
@@ -938,7 +933,7 @@ class TestPortillaSimoncelli(object):
             einstein_img.shape[-2:],
             n_scales=2,
         ).to(DEVICE)
-        with pytest.raises(ValueError, match="representation vector is the wrong length"):
+        with pytest.raises(ValueError, match="representation tensor is the wrong length"):
             ps.convert_to_dict(rep)
 
     def test_convert_to_dict_error(self, einstein_img):
@@ -946,7 +941,7 @@ class TestPortillaSimoncelli(object):
             einstein_img.shape[-2:],
         ).to(DEVICE)
         rep = ps(einstein_img)
-        with pytest.raises(ValueError, match="representation vector is the wrong length"):
+        with pytest.raises(ValueError, match="representation tensor is the wrong length"):
             ps.convert_to_dict(rep[..., :-10])
 
 class TestFilters:

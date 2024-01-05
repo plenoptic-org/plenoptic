@@ -115,15 +115,15 @@ class PortillaSimoncelli(nn.Module):
         # Dictionary defining necessary statistics, that is, those that are not
         # redundant
         self._necessary_stats_dict = self._create_necessary_stats_dict(scales_shape_dict)
-        # turn this into vector we can use in forward pass. first into a
+        # turn this into tensor we can use in forward pass. first into a
         # boolean mask...
         self._necessary_stats_mask = einops.pack(list(self._necessary_stats_dict.values()), '*')[0]
         # then into a tensor of indices
         self._necessary_stats_mask = torch.where(self._necessary_stats_mask)[0]
 
-        # This vector is composed of the following values: 'pixel_statistics',
+        # This array is composed of the following values: 'pixel_statistics',
         # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
-        # self.n_scales-1. It is the same size as the representation vector
+        # self.n_scales-1. It is the same size as the representation tensor
         # returned by this object's forward method. It must be a numpy array so
         # we can have a mixture of ints and strs (and so we can use np.in1d
         # later)
@@ -286,12 +286,12 @@ class PortillaSimoncelli(nn.Module):
         scales :
             Which scales to include in the returned representation. If None, we
             include all scales. Otherwise, can contain subset of values present
-            in this model's ``scales`` attribute, and the returned vector will
+            in this model's ``scales`` attribute, and the returned tensor will
             then contain the subset corresponding to those scales.
 
         Returns
         -------
-        representation_vector:
+        representation_tensor:
             3d tensor of shape (batch, channel, stats) containing the measured
             texture statistics.
 
@@ -398,7 +398,7 @@ class PortillaSimoncelli(nn.Module):
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
         # And then pack them into a 3d tensor
-        representation_vector, pack_info = einops.pack(all_stats, 'b c *')
+        representation_tensor, pack_info = einops.pack(all_stats, 'b c *')
 
         # the only time when this is None is during testing, when we make sure
         # that our assumptions are all valid.
@@ -408,38 +408,38 @@ class PortillaSimoncelli(nn.Module):
             self._pack_info = pack_info
         else:
             # Throw away all redundant statistics
-            representation_vector = representation_vector.index_select(-1, self._necessary_stats_mask)
+            representation_tensor = representation_tensor.index_select(-1, self._necessary_stats_mask)
 
         # Return the subset of stats corresponding to the specified scale.
         if scales is not None:
-            representation_vector = self.remove_scales(representation_vector, scales)
+            representation_tensor = self.remove_scales(representation_tensor, scales)
 
-        return representation_vector
+        return representation_tensor
 
     def remove_scales(
-            self, representation_vector: Tensor, scales_to_keep: List[SCALES_TYPE]
+            self, representation_tensor: Tensor, scales_to_keep: List[SCALES_TYPE]
     ) -> Tensor:
         """Remove statistics not associated with scales.
 
-        For a given representation_vector and a list of scales_to_keep, this
+        For a given representation_tensor and a list of scales_to_keep, this
         attribute removes all statistics *not* associated with those scales.
 
         Note that calling this method will always remove statistics.
 
         Parameters
         ----------
-        representation_vector:
+        representation_tensor:
             3d tensor containing the measured representation statistics.
         scales_to_keep:
             Which scales to include in the returned representation. Can contain
             subset of values present in this model's ``scales`` attribute, and
-            the returned vector will then contain the subset of the full
+            the returned tensor will then contain the subset of the full
             representation corresponding to those scales.
 
         Returns
         -------
-        limited_representation_vector :
-            Representation vector with some statistics removed.
+        limited_representation_tensor :
+            Representation tensor with some statistics removed.
 
         """
         # this is necessary because object is the dtype of
@@ -450,11 +450,11 @@ class PortillaSimoncelli(nn.Module):
         # value appears in scales_to_keep. where then converts this boolean
         # array into indices
         ind = np.where(np.in1d(self._representation_scales, scales_to_keep))[0]
-        ind = torch.from_numpy(ind).to(representation_vector.device)
-        return representation_vector.index_select(-1, ind)
+        ind = torch.from_numpy(ind).to(representation_tensor.device)
+        return representation_tensor.index_select(-1, ind)
 
-    def convert_to_vector(self, representation_dict: OrderedDict) -> Tensor:
-        r"""Convert dictionary of statistics to a vector.
+    def convert_to_tensor(self, representation_dict: OrderedDict) -> Tensor:
+        r"""Convert dictionary of statistics to a tensor.
 
         Parameters
         ----------
@@ -463,22 +463,22 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        3d vector of statistics.
+        3d tensor of statistics.
 
         See Also
         --------
         convert_to_dict:
-            Convert vector representation to dictionary.
+            Convert tensor representation to dictionary.
 
         """
         rep = einops.pack(list(representation_dict.values()), 'b c *')[0]
         # then get rid of all the nans / unnecessary stats
         return rep.index_select(-1, self._necessary_stats_mask)
 
-    def convert_to_dict(self, representation_vector: Tensor) -> OrderedDict:
-        """Convert vector of statistics to a dictionary.
+    def convert_to_dict(self, representation_tensor: Tensor) -> OrderedDict:
+        """Convert tensor of statistics to a dictionary.
 
-        While the vector representation is required by plenoptic's synthesis
+        While the tensor representation is required by plenoptic's synthesis
         objects, the dictionary representation is easier to manually inspect.
 
         This dictionary will contain NaNs in its values: these are placeholders
@@ -486,8 +486,8 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        representation_vector
-            3d vector of statistics.
+        representation_tensor
+            3d tensor of statistics.
 
         Returns
         -------
@@ -496,30 +496,30 @@ class PortillaSimoncelli(nn.Module):
 
         See Also
         --------
-        convert_to_vector:
-            Convert dictionary representation to vector.
+        convert_to_tensor:
+            Convert dictionary representation to tensor.
 
         """
-        if representation_vector.shape[-1] != len(self._representation_scales):
+        if representation_tensor.shape[-1] != len(self._representation_scales):
             raise ValueError(
-                "representation vector is the wrong length (expected "
-                f"{len(self._representation_scales)} but got {representation_vector.shape[-1]})!"
+                "representation tensor is the wrong length (expected "
+                f"{len(self._representation_scales)} but got {representation_tensor.shape[-1]})!"
                 " Did you remove some of the scales? (i.e., by setting "
                 "scales in the forward pass)? convert_to_dict does not "
-                "support such vectors."
+                "support such tensors."
             )
 
         rep = self._necessary_stats_dict.copy()
         n_filled = 0
         for k, v in rep.items():
             # each statistic is a tensor with batch and channel dimensions as
-            # found in representation_vector and all the other dimensions
+            # found in representation_tensor and all the other dimensions
             # determined by the values in necessary_stats_dict.
-            shape = (*representation_vector.shape[:2], *v.shape)
-            new_v = torch.nan * torch.ones(shape, dtype=representation_vector.dtype,
-                                           device=representation_vector.device)
+            shape = (*representation_tensor.shape[:2], *v.shape)
+            new_v = torch.nan * torch.ones(shape, dtype=representation_tensor.dtype,
+                                           device=representation_tensor.device)
             # v.sum() gives the number of necessary elements from this stat
-            this_stat_vec = representation_vector[..., n_filled:n_filled+v.sum()]
+            this_stat_vec = representation_tensor[..., n_filled:n_filled+v.sum()]
             # use boolean indexing to put the values from new_stat_vec in the
             # appropriate place
             new_v[..., v] = this_stat_vec
@@ -603,7 +603,7 @@ class PortillaSimoncelli(nn.Module):
         img_max = einops.reduce(image, 'b c h w -> b c', 'max')
         # mean needed to be unflattened to be used by skew and kurtosis
         # correctly, but we'll want it to be flattened like this in the final
-        # representation vector
+        # representation tensor
         return einops.pack([mean, var, skew, kurtosis, img_min, img_max], 'b c *')[0]
 
     @staticmethod
