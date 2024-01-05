@@ -1,9 +1,7 @@
 # CONTRIBUTING
 
 `plenoptic` is a python library of tools to help researchers better understand
-their models. While the majority of authors are members or alumni of NYU's [Lab
-for Computational Vision](https://www.cns.nyu.edu/~lcv/), we are open to
-contributions from anyone!
+their models. We welcome and encourage contributions from everyone!
 
 First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
 before going any further. You may also want to check out the [main page of the
@@ -11,10 +9,23 @@ documentation](https://plenoptic.readthedocs.io/en/latest/) for a longer
 overview of the project and how to get everything installed, as well as pointers
 for further reading, depending on your interests.
 
-If you encounter any issues with `plenoptic`, please open an
+If you encounter any issues with `plenoptic`, first search the existing
+[issues](https://github.com/LabForComputationalVision/plenoptic/issues) and
+[discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+to see if there's already information to help you. If not, please open a new
 [issue](https://github.com/LabForComputationalVision/plenoptic/issues)! We have
 a template for bug reports, and following it (so you provide the necessary
 details) will make solving your problem much easier.
+
+If you'd like to help improve `plenoptic`, there are many ways you can
+contribute, from improving documentation to writing code. For those not already
+familiar with the project, it can be very helpful for us if you go through the
+tutorials, README, and documentation and let us know if anything is unclear,
+what needs more detail (or clearer writing), etc. For those that want to
+contribute code, we also have many
+[issues](https://github.com/LabForComputationalVision/plenoptic/issues) that we
+are working through. If you would like to work on one of those, please give it a
+try!
 
 If you'd like to help improve `plenoptic`, we have a bunch of issues
 we're working through. For people who are not already familiar with
@@ -28,17 +39,6 @@ changes, add documentation and tests, and submit a [Pull
 Request](https://github.com/LabForComputationalVision/plenoptic/pulls). See
 [contributing to the code below](#contributing-to-the-code) for more details on
 this process.
-
-The amount and form of documentation to add depends on the size of the submitted
-changes. For a significant change (a new model or synthesis method), please
-include a new tutorial notebook that walks through how to use them. For
-enhancements of existing methods, you can probably just modify the existing
-tutorials and add documentation. If unsure, ask! For docstrings, we follow
-[numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html) style. See
-later in this file for more details on how to run the tests and build the
-documentation (if you create a branch on the main repo, Github Actions will run
-tests automatically whenever you push, so you don't need to worry about running
-them locally).
 
 We try to keep all our communication on Github, and we use several channels:
 
@@ -69,7 +69,7 @@ changes have accumulated, we put out a new release, adding a new tag which
 increments the version number, and uploading the new release to PyPI (see
 [releases](#releases) for more details).
 
-In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that they use **git** flow, which involves a separate develop branch in addition to main).
+In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that the Caiman uses **git** flow, which involves a separate develop branch in addition to main).
 
 Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/LabForComputationalVision/plenoptic/discussions) to get help.
 
@@ -79,6 +79,7 @@ You'll need a local installation of `plenoptic` which keeps up-to-date with any 
 
 1. Go to the [plenoptic repo](https://github.com/LabForComputationalVision/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
 2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/LabForComputationalVision/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+3. Add the `upstream` branch: `git remote add upstream https://github.com/LabForComputationalVision/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
 You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
@@ -87,9 +88,14 @@ You should probably also install all the optional dependencies, so that you can 
 As discussed above, each feature in `plenoptic` is worked on in a separate branch. This allows us to have multiple people developing multiple features simultaneously, without interfering with each other's work. To create your own branch, run the following from within your `plenoptic` directory:
 
 ```bash
-# switch to main and make sure it's up-to-date
+# switch to main branch of your fork
 git checkout main
+# update your fork from your github
 git pull origin main
+# ensure your fork is in sync with the canonical version
+git pull upstream main
+# update your fork's main branch with any changes from upstream
+git push origin main
 # create and switch to the branch
 git checkout -b my_cool_branch 
 ```
@@ -109,7 +115,7 @@ If you aren't comfortable with `git add`, `git commit`, `git push`, I recommend 
 
 #### Contributing your change back to plenoptic
 
-You can make any number of changes on your branch. Once you're happy with your changes, [add tests](#adding-tests) to check that they run correctly, then make sure the rest of the [tests](#testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/03-pr/index.html) for a tutorial). 
+You can make any number of changes on your branch. Once you're happy with your changes, [add tests](#adding-tests) to check that they run correctly and [add documentation](#adding-documentation), then make sure the existing [tests](#testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/03-pr/index.html) for a tutorial). 
 
 Your pull request should include information on what you changed and why, referencing any relevant issues or discussions, and highlighting any portion of your changes where you have lingering questions (e.g., "was this the right way to implement this?") or want reviewers to pay special attention. You can look at previous closed pull requests to see what this looks like.
 
@@ -166,7 +172,9 @@ Note that the binder link I have been unable to find a way to make binder use th
 ## Testing
 
 Before running tests locally, you'll need
-[ffmpeg](https://ffmpeg.org/download.html) installed on your system.
+[ffmpeg](https://ffmpeg.org/download.html) installed on your system, as well as
+the `dev` optional dependencies (i.e., you should run `pip install -e .[dev]`
+from within your local copy of `plenoptic`).
 
 To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
 will take a while, as we have many tests, broken into categories. There are
@@ -341,6 +349,12 @@ and `'LNL'`!
 
 ### Adding documentation
 
+The amount and form of documentation that need to be added alongside a change
+depends on the size of the submitted change. For a significant change (a new
+model or synthesis method), please include a new tutorial notebook that walks
+through how to use them. For enhancements of existing methods, you can probably
+just modify the existing tutorials and add documentation. If unsure, ask!
+
 Documentation in `plenoptic` is built using Sphinx and lives on readthedocs. If
 that means nothing to you, don't worry!
 
@@ -454,7 +468,7 @@ conda env create -f docs/environment.yml
 # activate the environment
 conda activate plenoptic_docs
 # install plenoptic
-pip install -e .
+pip install -e .[docs]
 # build documentation
 cd docs/
 make html
