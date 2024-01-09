@@ -88,15 +88,15 @@ class PortillaSimoncelli(nn.Module):
             height=0, order=1,
             tight_frame=False
         )
-        for i in range(n_scales):
-            pyr = SteerablePyramidFreq(
+        self.unoriented_band_pyrs = torch.nn.ModuleList([
+            SteerablePyramidFreq(
                 getattr(self.pyr, f'_himasks_scale_{i}').shape[-2:],
                 height=1,
                 order=self.n_orientations - 1,
                 is_complex=False,
                 tight_frame=False,
-            )
-            setattr(self, f'unoriented_band_pyrs_scale_{i}', pyr)
+            ) for i in range(n_scales)
+        ])
 
         self.use_true_correlations = use_true_correlations
         self.scales = (
@@ -666,7 +666,7 @@ class PortillaSimoncelli(nn.Module):
             reconstructed_image = reconstructed_image.unsqueeze(0).unsqueeze(0)
 
             # reconstruct the unoriented band for this scale
-            unoriented_band_pyr = getattr(self, f'unoriented_band_pyrs_scale_{this_scale}')
+            unoriented_band_pyr = self.unoriented_band_pyrs[this_scale]
             unoriented_pyr_coeffs = unoriented_band_pyr.forward(reconstructed_image)
             for ii in range(self.n_orientations):
                 unoriented_pyr_coeffs[(0, ii)] = (
