@@ -72,6 +72,35 @@ def portilla_simoncelli_scales():
     return osf_download('portilla_simoncelli_scales.npz')
 
 
+def template_test_cuda(model, img):
+    model.cuda()
+    model(img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+def template_test_cpu_and_back(model, img):
+    model.cpu()
+    model.cuda()
+    model(img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+def template_test_cuda_and_back(model, img):
+    model.cuda()
+    model.cpu()
+    model(img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    img.to(DEVICE)
+    model.to(DEVICE)
+
+def template_test_cpu(model, img):
+    model.cpu()
+    model(img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    img.to(DEVICE)
+    model.to(DEVICE)
+
+
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
         spc = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=5,
@@ -133,31 +162,21 @@ class TestLaplacianPyramid(object):
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda(self, einstein_img):
         lpyr = po.simul.LaplacianPyramid()
-        lpyr.cuda()
-        lpyr(einstein_img)
+        template_test_cuda(lpyr, einstein_img)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cpu_and_back(self, einstein_img):
         lpyr = po.simul.LaplacianPyramid()
-        lpyr.cpu()
-        lpyr.cuda()
-        lpyr(einstein_img)
+        template_test_cpu_and_back(lpyr, einstein_img)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda_and_back(self, einstein_img):
         lpyr = po.simul.LaplacianPyramid()
-        lpyr.cuda()
-        lpyr.cpu()
-        lpyr(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        einstein_img.to(DEVICE)
+        template_test_cuda_and_back(lpyr, einstein_img)
 
     def test_cpu(self, einstein_img):
         lpyr = po.simul.LaplacianPyramid()
-        lpyr.cpu()
-        lpyr(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        einstein_img.to(DEVICE)
+        template_test_cpu(lpyr, einstein_img)
 
 class TestFrontEnd:
 
@@ -199,37 +218,21 @@ class TestFrontEnd:
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda(self, model, einstein_img):
-        model.cuda()
-        model(einstein_img)
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
+        template_test_cuda(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cpu_and_back(self, model, einstein_img):
-        model.cpu()
-        model.cuda()
-        model(einstein_img)
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
+        template_test_cpu_and_back(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda_and_back(self, model, einstein_img):
-        model.cuda()
-        model.cpu()
-        model(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
-        einstein_img.to(DEVICE)
+        template_test_cuda_and_back(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_cpu(self, model, einstein_img):
-        model.cpu()
-        model(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
-        einstein_img.to(DEVICE)
+        template_test_cpu(model, einstein_img)
 
 class TestNaive(object):
 
@@ -279,37 +282,22 @@ class TestNaive(object):
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda(self, model, einstein_img):
-        model.cuda()
-        model(einstein_img)
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
+        template_test_cuda(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cpu_and_back(self, model, einstein_img):
-        model.cpu()
-        model.cuda()
-        model(einstein_img)
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
+        template_test_cpu_and_back(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda_and_back(self, model, einstein_img):
-        model.cuda()
-        model.cpu()
-        model(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
-        einstein_img.to(DEVICE)
+        template_test_cuda_and_back(model, einstein_img)
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_cpu(self, model, einstein_img):
-        model.cpu()
-        model(einstein_img.cpu())
-        # make sure it ends on same device it started, since it's a fixture
-        model.to(DEVICE)
-        einstein_img.to(DEVICE)
+        template_test_cpu(model, einstein_img)
+
 
 class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
@@ -522,29 +510,21 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda(self, einstein_img):
         ps = po.simul.PortillaSimoncelli(einstein_img.shape[-2:])
-        ps.cuda()
-        ps(einstein_img)
+        template_test_cuda(ps, einstein_img)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cpu_and_back(self, einstein_img):
         ps = po.simul.PortillaSimoncelli(einstein_img.shape[-2:])
-        ps.cpu()
-        ps.cuda()
-        ps(einstein_img)
+        template_test_cpu_and_back(ps, einstein_img)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
     def test_cuda_and_back(self, einstein_img):
         ps = po.simul.PortillaSimoncelli(einstein_img.shape[-2:])
-        ps.cuda()
-        ps.cpu()
-        ps(einstein_img.cpu())
-        einstein_img.to(DEVICE)
+        template_test_cuda_and_back(ps, einstein_img)
 
     def test_cpu(self, einstein_img):
         ps = po.simul.PortillaSimoncelli(einstein_img.shape[-2:])
-        ps.cpu()
-        ps(einstein_img.cpu())
-        einstein_img.to(DEVICE)
+        template_test_cpu(ps, einstein_img)
 
 
 class TestFilters:
