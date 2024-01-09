@@ -8,8 +8,6 @@ import numpy as np
 from itertools import product
 from plenoptic.tools.data import to_numpy
 from conftest import DEVICE, DATA_DIR
-from test_models import (template_test_cuda, template_test_cpu_and_back,
-                         template_test_cuda_and_back, template_test_cpu)
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
@@ -292,25 +290,6 @@ class TestSteerablePyramid(object):
         with expectation:
             pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
-
-    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
-    def test_cuda(self, img):
-        pyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-        template_test_cuda(pyr, img)
-
-    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
-    def test_cpu_and_back(self, img):
-        pyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-        template_test_cpu_and_back(pyr, img)
-
-    @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
-    def test_cuda_and_back(self, img):
-        pyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-        template_test_cuda_and_back(pyr, img)
-
-    def test_cpu(self, img):
-        pyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-        template_test_cpu(pyr, img)
 
     @pytest.mark.parametrize('order', range(1, 16))
     def test_buffers(self, order):
