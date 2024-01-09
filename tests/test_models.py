@@ -124,6 +124,11 @@ def test_cpu(model, einstein_img):
     einstein_img.to(DEVICE)
     model.to(DEVICE)
 
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_validate_model(model, einstein_img):
+    po.tools.remove_grad(model)
+    po.tools.validate.validate_model(model, device=DEVICE,
+                                     image_shape=(1, 1, 256, 256))
 
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
