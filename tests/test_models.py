@@ -125,7 +125,7 @@ def test_cpu(model, einstein_img):
     model.to(DEVICE)
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
-def test_validate_model(model, einstein_img):
+def test_validate_model(model):
     po.tools.remove_grad(model)
     po.tools.validate.validate_model(model, device=DEVICE,
                                      image_shape=(1, 1, 256, 256))
