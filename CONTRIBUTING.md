@@ -27,13 +27,6 @@ contribute code, we also have many
 are working through. If you would like to work on one of those, please give it a
 try!
 
-If you'd like to help improve `plenoptic`, we have a bunch of issues
-we're working through. For people who are not already familiar with
-the project, it would be most helpful to go through the tutorials,
-README, and documentation and let us know if anything is unclear, what
-needs more detail (or clearer writing), etc. But if you think you can
-make progress on one of the existing issues, please give it a try.
-
 In order to submit changes, create a branch or fork of the project, make your
 changes, add documentation and tests, and submit a [Pull
 Request](https://github.com/LabForComputationalVision/plenoptic/pulls). See

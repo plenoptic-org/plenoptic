@@ -100,10 +100,10 @@ package, depending on how you wish to handle virtual environments.
 
    .. attention:: This method only works with conda environments. If you are using another method to manage your python virtual environments, you'll have to use one of the other methods.
 
-3. Install jupyte in your ``base`` environment and manually install the kernel in your virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments. Again, if you followed the instructions to create a ``conda`` environment named ``plenoptic``::
+3. Install jupyter in your ``base`` environment and manually install the kernel in your virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments. Again, if you followed the instructions to create a ``conda`` environment named ``plenoptic``::
 
    $ # activate your 'base' environment, the default one created by conda/miniconda
-   $ conda activate
+   $ conda activate base
    $ # install jupyter lab and nb_conda_kernels in your base environment
    $ conda install -c conda-forge jupyterlab ipywidgets
    $ # install ipykernel and torchvision in the plenoptic environment
@@ -113,7 +113,7 @@ package, depending on how you wish to handle virtual environments.
 
    ``/path/to/jupyter/env`` is the path to your base conda environment, and depends on the options set during your initial installation. It's probably something like ``~/conda`` or ``~/miniconda``. See the `ipython docs <https://ipython.readthedocs.io/en/stable/install/kernel_install.html>`_ for more details.
 
-   With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from *any* virtual environment (not just conda!) but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
+   With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from *any* virtual environment (not just conda!) and have fewer packages installed in your ``base`` environment, but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
 
    .. note:: If you're not using conda to manage your environments, the key idea is to install ``jupyter`` and ``ipywidgets`` in one environment, then install ``ipykernel`` and ``torchvision`` in the same environment as plenoptic, and then run the ``ipykernel install`` command **using the plenoptic environment's python**.
 
@@ -149,6 +149,6 @@ You can install all of the extra required packages using ``pip install -e .[nb]`
 Running the notebooks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Once you have jupyter installed and the kernel set up, navigate to plenoptic's ``examples/`` directory on your terminal and activate the environment you installed jupyter into (``plenoptic`` for 1, ``base`` for 2 or 3), then run ``jupyter`` and open up the notebooks. If you followed the second or third method, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
+Once you have jupyter installed and the kernel set up, navigate to plenoptic's ``examples/`` directory on your terminal and activate the environment you installed jupyter into (``conda activate plenoptic`` for method 1, ``conda activate base`` for methods methods method 2 or 3), then run ``jupyter`` and open up the notebooks. If you followed the second or third method, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
 
 .. attention:: If you installed ``plenoptic`` from PyPI, then you will not have the notebooks on your machine and will need to download them directly from `our GitHub repo <https://github.com/LabForComputationalVision/plenoptic/tree/main/examples>`_. If you have a local install (and thus ran ``git clone``), then the notebooks can be found in the ``examples/`` directory.
