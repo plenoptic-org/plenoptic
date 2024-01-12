@@ -134,6 +134,25 @@ class PortillaSimoncelli(nn.Module):
     def _create_scales_shape_dict(self) -> OrderedDict:
         """Create dictionary defining scales and shape of each stat.
 
+        This dictionary functions as metadata which is used for two main
+        purposes:
+
+        - Scale assignment. In order for optimization to work well, we proceed
+          in a "coarse-to-fine" manner. That is, we start optimization by only
+          considering the statistics related to the lowest frequencies, and
+          gradually add in those related to higher and higher frequencies. This
+          is similar to blurring the objective function and then gradually
+          adding in finer and finer details. The numbers in this dictionary map
+          the computed statistics to their corresponding scales, which we use
+          in remove_scales to throw away some stats as needed.
+
+        - Redundant stat identification. As described at the bottom of the
+          notebook, the model incidentally computes a whole bunch of redundant
+          stats, because auto- and cross-correlation matrices have certain
+          symmetries. the _create_necessary_stats_dict method accepts the
+          dictionary created here as input and uses the values to get the
+          shapes of these and insert True/False as necessary.
+
         Returns
         -------
         scales_shape_dict
