@@ -43,6 +43,7 @@ docs = [
      # https://nbsphinx.readthedocs.io/en/0.6.0/installation.html#Pygments-Lexer-for-Syntax-Highlighting
      'ipython',
      'sphinx-copybutton',
+     'sphinxemoji',
 ]
 
 dev = [
@@ -56,6 +57,7 @@ dev = [
 nb = [
     'jupyter',
     'ipywidgets',
+    "torchvision>=0.3",
     'nbclient>=0.5.5',
 ]
 
