@@ -68,6 +68,16 @@ def get_model(name):
                 return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
+    elif name == "LPyr":
+        # in order to get a tensor back, need to wrap laplacian pyramid so that
+        # we can flatten the output. in practice, not the best way to use this
+        class lpyr(po.simul.LaplacianPyramid):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            def forward(self, *args, **kwargs):
+                coeffs = super().forward(*args, **kwargs)
+                return torch.cat([c.flatten(-2) for c in coeffs], -1)
+        return lpyr().to(DEVICE)
     elif name == 'Identity':
         return po.simul.models.naive.Identity().to(DEVICE)
     elif name == 'NLP':
@@ -121,6 +131,8 @@ def get_model(name):
         model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(model)
         return model
+    elif name == "PortillaSimoncelli":
+        return po.simul.PortillaSimoncelli((256, 256))
 
 
 @pytest.fixture(scope='package')

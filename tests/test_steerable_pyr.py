@@ -290,3 +290,14 @@ class TestSteerablePyramid(object):
         with expectation:
             pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
+
+    @pytest.mark.parametrize('order', range(1, 16))
+    def test_buffers(self, order):
+        pyr = po.simul.SteerablePyramidFreq((256, 256), order=order)
+        buffers = [k for k, _ in pyr.named_buffers()]
+        names = ['lo0mask', 'hi0mask']
+        for s in range(pyr.num_scales):
+            names.extend([f'_himasks_scale_{s}', f'_lomasks_scale_{s}',
+                          f'_anglemasks_scale_{s}', f'_anglemasks_recon_scale_{s}'])
+        assert len(buffers) == len(names), "pyramid doesn't have the right number of buffers!"
+        assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"

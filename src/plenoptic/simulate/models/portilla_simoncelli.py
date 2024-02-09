@@ -84,20 +84,19 @@ class PortillaSimoncelli(nn.Module):
             tight_frame=False,
         )
         self.filterPyr = SteerablePyramidFreq(
-            self.pyr._lomasks[-1].shape[-2:], height=0, order=1,
+            getattr(self.pyr, f'_lomasks_scale_{n_scales-1}').shape[-2:],
+            height=0, order=1,
             tight_frame=False
         )
-        self.unoriented_band_pyrs = [
+        self.unoriented_band_pyrs = torch.nn.ModuleList([
             SteerablePyramidFreq(
-                himask.shape[-2:],
+                getattr(self.pyr, f'_himasks_scale_{i}').shape[-2:],
                 height=1,
                 order=self.n_orientations - 1,
                 is_complex=False,
                 tight_frame=False,
-            )
-            # want to go through these masks backwards
-            for himask in self.pyr._himasks
-        ]
+            ) for i in range(n_scales)
+        ])
 
         self.use_true_correlations = use_true_correlations
         self.scales = (
@@ -1177,44 +1176,3 @@ class PortillaSimoncelli(nn.Module):
             sc = update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists
-
-    def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
-
-        This can be called as
-
-        .. function:: to(device=None, dtype=None, non_blocking=False)
-
-        .. function:: to(dtype, non_blocking=False)
-
-        .. function:: to(tensor, non_blocking=False)
-
-        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
-        (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
-        with respect to the host if possible, e.g., moving CPU Tensors with
-        pinned memory to CUDA devices.
-
-        See below for examples.
-
-        .. note::
-            This method modifies the module in-place.
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-
-        Returns:
-            Module: self
-        """
-        self.pyr = self.pyr.to(*args, **kwargs)
-        self.filterPyr = self.filterPyr.to(*args, **kwargs)
-        self.unoriented_band_pyrs = [pyr.to(*args, **kwargs) for pyr in
-                                     self.unoriented_band_pyrs]
-        return self

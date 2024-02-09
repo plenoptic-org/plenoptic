@@ -17,6 +17,23 @@ import os
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 
+ALL_MODELS = [
+    "LPyr",
+    "SPyr",
+    "frontend.LinearNonlinear",
+    "frontend.LuminanceGainControl",
+    "frontend.LuminanceContrastGainControl",
+    "frontend.OnOff",
+    "naive.Identity",
+    "naive.Linear",
+    "naive.Gaussian",
+    "naive.CenterSurround",
+    "PortillaSimoncelli",
+    "Identity",
+    "NLP",
+]
+
+
 @pytest.fixture()
 def image_input():
     return torch.rand(1, 1, 100, 100)
@@ -71,6 +88,47 @@ def portilla_simoncelli_synthesize(torch_version=None):
 def portilla_simoncelli_scales():
     return osf_download('portilla_simoncelli_scales.npz')
 
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cuda(model, einstein_img):
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cpu_and_back(model, einstein_img):
+    model.cpu()
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cuda_and_back(model, einstein_img):
+    model.cuda()
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_cpu(model, einstein_img):
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_validate_model(model):
+    po.tools.remove_grad(model)
+    po.tools.validate.validate_model(model, device=DEVICE,
+                                     image_shape=(1, 1, 256, 256))
 
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
@@ -129,7 +187,6 @@ class TestLaplacianPyramid(object):
             # and, depending on the parity of the image, sometimes performs additional zero padding
             # after upsampling up to one row/column. This causes inconsistency on the right and
             # bottom edges, so they are exluded in the comparison.
-
 
 class TestFrontEnd:
 

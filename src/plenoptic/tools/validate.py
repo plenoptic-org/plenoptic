@@ -287,7 +287,10 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
 
 
 def remove_grad(model: torch.nn.Module):
-    """Detach all parameters of model (in place)."""
+    """Detach all parameters and buffers of model (in place)."""
     for p in model.parameters():
+        if p.requires_grad:
+            p.detach_()
+    for p in model.buffers():
         if p.requires_grad:
             p.detach_()

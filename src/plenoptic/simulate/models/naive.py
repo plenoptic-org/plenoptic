@@ -129,7 +129,7 @@ class Gaussian(nn.Module):
         self.out_channels = out_channels
 
         self.cache_filt = cache_filt
-        self._filt = None
+        self.register_buffer('_filt', None)
 
     @property
     def filt(self):
@@ -139,7 +139,7 @@ class Gaussian(nn.Module):
             filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
 
             if self.cache_filt:
-                self._filt = filt
+                self.register_buffer('_filt', filt)
             return filt
 
     def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
@@ -235,7 +235,7 @@ class CenterSurround(nn.Module):
         self.pad_mode = pad_mode
 
         self.cache_filt = cache_filt
-        self._filt = None
+        self.register_buffer('_filt', None)
 
     @property
     def filt(self) -> Tensor:
@@ -256,7 +256,7 @@ class CenterSurround(nn.Module):
             filt = on_amp * (sign * (filt_center - filt_surround))
 
             if self.cache_filt:
-                self._filt = filt
+                self.register_buffer('_filt', filt)
         return filt
 
     def _clamp_surround_std(self):
