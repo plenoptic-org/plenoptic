@@ -303,4 +303,5 @@ class TestGeodesic(object):
         moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:],
                                  model, 5)
         moog.synthesize(max_iter=10, stop_criterion=.06, stop_iters_to_check=1)
-        assert len(moog.pixel_change_norm) == 6, "Didn't stop when hit criterion! (or optimization changed)"
+        assert (abs(moog.pixel_change_norm[-1:]) < .06).all(), "Didn't stop when hit criterion!"
+        assert not (abs(moog.pixel_change_norm[-2:]) < .06).all(), "Didn't stop when hit criterion!"
