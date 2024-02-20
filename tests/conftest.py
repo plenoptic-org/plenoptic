@@ -9,7 +9,8 @@ import plenoptic.simulate.canonical_computations.filters as filters
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
-DATA_DIR = pathlib.Path(__file__).parent.parent / "data" / "images"
+DATA_DIR = pathlib.Path(__file__).parent.parent / "data"
+IMG_DIR = pathlib.Path(__file__).parent.parent / "data" / "images"
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)
@@ -27,12 +28,12 @@ class ColorModel(torch.nn.Module):
 
 @pytest.fixture(scope='package')
 def curie_img():
-    return po.load_images(DATA_DIR / "256" / 'curie.pgm').to(DEVICE)
+    return po.load_images(IMG_DIR / "256" / 'curie.pgm').to(DEVICE)
 
 
 @pytest.fixture(scope='package')
 def einstein_img():
-    return po.load_images(DATA_DIR / "256" / 'curie.pgm').to(DEVICE)
+    return po.load_images(IMG_DIR / "256" / 'curie.pgm').to(DEVICE)
 
 @pytest.fixture(scope='package')
 def einstein_small_seq(einstein_img_small):
@@ -44,7 +45,7 @@ def einstein_img_small(einstein_img):
 
 @pytest.fixture(scope='package')
 def color_img():
-    img = po.load_images(DATA_DIR / "256" / 'color_wheel.jpg',
+    img = po.load_images(IMG_DIR / "256" / 'color_wheel.jpg',
                          as_gray=False).to(DEVICE)
     return img[..., :256, :256]
 

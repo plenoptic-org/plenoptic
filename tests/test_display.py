@@ -10,7 +10,7 @@ import plenoptic as po
 import torch
 import numpy as np
 import pyrtools as pt
-from conftest import DEVICE, DATA_DIR
+from conftest import DEVICE, IMG_DIR
 
 
 class TestDisplay(object):
@@ -404,7 +404,7 @@ class TestDisplay(object):
 
     def test_display_test_signals(self):
         po.imshow(po.tools.make_synthetic_stimuli(128))
-        po.imshow(po.load_images(DATA_DIR / "256"))
+        po.imshow(po.load_images(IMG_DIR / "256"))
 
 
     @pytest.mark.parametrize('as_rgb', [True, False])
@@ -605,10 +605,10 @@ class TestMADDisplay(object):
     def synthesized_mad(self, request):
         # make the images really small so nothing takes as long
         if request.param == 'rgb':
-            img = po.load_images(DATA_DIR / "256" / 'color_wheel.jpg', False).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / 'color_wheel.jpg', False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(DATA_DIR / "256" / 'nuts.pgm').to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / 'nuts.pgm').to(DEVICE)
             img = img[..., :16, :16]
         # to serve as a metric, need to return a single value, but SSIM and MSE
         # will return a separate value for each RGB channel. Additionally, MAD
@@ -649,7 +649,7 @@ class TestMADDisplay(object):
     @pytest.fixture(scope='class')
     def all_mad(self):
         # run synthesis for all 4 MAD images.
-        img = po.load_images(DATA_DIR / "256" / 'nuts.pgm').to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / 'nuts.pgm').to(DEVICE)
         img = img[..., :16, :16]
         model1 = po.metric.mse
         # MAD requires metrics are *dis*-similarity metrics, so that they
@@ -703,10 +703,10 @@ class TestMetamerDisplay(object):
         img= request.param
         # make the images really small so nothing takes as long
         if img == 'rgb':
-            img = po.load_images(DATA_DIR / "256" / 'color_wheel.jpg', False).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / 'color_wheel.jpg', False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(DATA_DIR / "256" / 'nuts.pgm').to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / 'nuts.pgm').to(DEVICE)
             img = img[..., :16, :16]
         #  height=1 and order=0 to limit the time this takes, and then we
         #  only return one of the tensors so that everything is easy for

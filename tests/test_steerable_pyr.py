@@ -7,7 +7,7 @@ import pyrtools as pt
 import numpy as np
 from itertools import product
 from plenoptic.tools.data import to_numpy
-from conftest import DEVICE, DATA_DIR
+from conftest import DEVICE, IMG_DIR
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
@@ -81,7 +81,7 @@ class TestSteerablePyramid(object):
                                            for shape in [None, 224, '128_1', '128_2']])
     def img(self, request):
         im, shape = request.param.split('-')
-        img = po.load_images(DATA_DIR / "256" / f'{im}.pgm').to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / f'{im}.pgm').to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
@@ -94,7 +94,7 @@ class TestSteerablePyramid(object):
     def multichannel_img(self, request):
         shape = request.param
         # use fixture for img and use color_wheel instead.
-        img = po.load_images(DATA_DIR / "mixed" / 'flowers.jpg', as_gray=False).to(DEVICE)
+        img = po.load_images(IMG_DIR / "mixed" / 'flowers.jpg', as_gray=False).to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
