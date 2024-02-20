@@ -34,14 +34,14 @@ def get_path(item_name: str) -> Traversable:
     return fhs[0]
 
 
-def get(item_name: str):
+def get(*item_names: str):
     """
     Load an image based on the item name from the package's data resources.
 
     Parameters
     ----------
-    item_name : str
-        The name of the item to load, without specifying the file extension.
+    item_names :
+        The names of the items to load, without specifying the file extension.
 
     Returns
     -------
@@ -53,6 +53,6 @@ def get(item_name: str):
     using `load_images` from the `tools.data` module. It supports loading images as grayscale if
     they have a `.pgm` extension.
     """
-    with get_path(item_name) as path:
-        ext = path.suffix
-        return load_images(str(path), as_gray=ext == ".pgm")
+    paths = [get_path(name) for name in item_names]
+    as_gray = all(path.suffix == ".pgm" for path in paths)
+    return load_images(paths, as_gray=as_gray)
