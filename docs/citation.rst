@@ -10,18 +10,20 @@ If you use ``plenoptic`` in a published academic article or presentation, please
 cite both the code by the DOI as well [VSS2023]_. You can use the following:
 
 - Code: |zenodo|
-- Paper::
+- Paper:
 
-   @article{duong2023plenoptic,
-     title={Plenoptic: A platform for synthesizing model-optimized visual stimuli},
-     author={Duong, Lyndon and Bonnen, Kathryn and Broderick, William and Fiquet, Pierre-{\'E}tienne and Parthasarathy, Nikhil and Yerxa, Thomas and Zhao, Xinyuan and Simoncelli, Eero},
-     journal={Journal of Vision},
-     volume={23},
-     number={9},
-     pages={5822--5822},
-     year={2023},
-     publisher={The Association for Research in Vision and Ophthalmology}
-   }
+  .. code-block:: bibtex
+
+     @article{duong2023plenoptic,
+       title={Plenoptic: A platform for synthesizing model-optimized visual stimuli},
+       author={Duong, Lyndon and Bonnen, Kathryn and Broderick, William and Fiquet, Pierre-{\'E}tienne and Parthasarathy, Nikhil and Yerxa, Thomas and Zhao, Xinyuan and Simoncelli, Eero},
+       journal={Journal of Vision},
+       volume={23},
+       number={9},
+       pages={5822--5822},
+       year={2023},
+       publisher={The Association for Research in Vision and Ophthalmology}
+     }
 
 Additionally, please cite the following paper(s) depending on which
 component you use:
