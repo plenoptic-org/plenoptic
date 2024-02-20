@@ -131,7 +131,26 @@ In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 ## Citing us
 
 If you use `plenoptic` in a published academic article or presentation, please
-cite us! See the [citation
+cite both the code by the DOI as well the JOV paper. You can click on `Cite this
+repository` on the right side of the GitHub page to get a copyable citation for
+the code, or use the following:
+
+- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
+- Paper:
+  ``` bibtex
+  @article{duong2023plenoptic,
+    title={Plenoptic: A platform for synthesizing model-optimized visual stimuli},
+    author={Duong, Lyndon and Bonnen, Kathryn and Broderick, William and Fiquet, Pierre-{\'E}tienne and Parthasarathy, Nikhil and Yerxa, Thomas and Zhao, Xinyuan and Simoncelli, Eero},
+    journal={Journal of Vision},
+    volume={23},
+    number={9},
+    pages={5822--5822},
+    year={2023},
+    publisher={The Association for Research in Vision and Ophthalmology}
+  }
+  ```
+
+! See the [citation
 guide](https://plenoptic.readthedocs.io/en/latest/citation.html) for more
 details.
 

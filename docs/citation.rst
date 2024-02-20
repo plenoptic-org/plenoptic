@@ -1,13 +1,29 @@
+.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg
+            :target: https://zenodo.org/doi/10.5281/zenodo.10151130
+
 .. _citation:
 
 Citation Guide
 **************
 
-If you use ``plenoptic`` in a published piece of academic work, please cite
-[VSS2023]_ (and check this guide again before publishing, as we are planning on
-having a paper to cite instead of the current presentation).
+If you use ``plenoptic`` in a published academic article or presentation, please
+cite both the code by the DOI as well [VSS2023]_. You can use the following:
 
-Additionally, please additionally cite the following paper(s) depending on which
+- Code: |zenodo|
+- Paper::
+
+   @article{duong2023plenoptic,
+     title={Plenoptic: A platform for synthesizing model-optimized visual stimuli},
+     author={Duong, Lyndon and Bonnen, Kathryn and Broderick, William and Fiquet, Pierre-{\'E}tienne and Parthasarathy, Nikhil and Yerxa, Thomas and Zhao, Xinyuan and Simoncelli, Eero},
+     journal={Journal of Vision},
+     volume={23},
+     number={9},
+     pages={5822--5822},
+     year={2023},
+     publisher={The Association for Research in Vision and Ophthalmology}
+   }
+
+Additionally, please cite the following paper(s) depending on which
 component you use:
 
 -  :class:`plenoptic.synthesize.metamer.Metamer`: or :class:`plenoptic.synthesize.metamer.MetamerCTF`: [Portilla2000]_.
