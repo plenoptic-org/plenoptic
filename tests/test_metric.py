@@ -103,13 +103,12 @@ def ssim_analysis():
     return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
-@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, '256/einstein.png'),
-                                   op.join(DATA_DIR, '256'),
-                                   [op.join(DATA_DIR, '256/einstein.png'),
-                                    op.join(DATA_DIR, '256/curie.pgm')]])
+@pytest.mark.parametrize('paths', [DATA_DIR / "mixed", DATA_DIR / "256" / 'einstein.pgm',
+                                   [DATA_DIR / "256" / "einstein.pgm",
+                                    DATA_DIR / "256" / 'curie.pgm']])
 @pytest.mark.parametrize('as_gray', [True, False])
 def test_load_images(paths, as_gray):
-    if paths == DATA_DIR:
+    if paths == DATA_DIR / "mixed":
         # there are images of different sizes in here, which means we should raise
         # an Exception
         with pytest.raises(Exception):

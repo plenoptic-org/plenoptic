@@ -15,7 +15,7 @@ class TestData(object):
     def test_load_images_fail(self):
         with pytest.raises(ValueError, match='All images must be the same shape'):
             po.load_images([op.join(DATA_DIR, '256', 'einstein.pgm'),
-                            op.join(DATA_DIR, '512', 'bubbles.png')])
+                            op.join(DATA_DIR, 'mixed', 'bubbles.png')])
 
 
 class TestSignal(object):

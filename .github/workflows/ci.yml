@@ -36,6 +36,9 @@ jobs:
         cache-dependency-path: setup.py
     - name: Setup FFmpeg
       uses: FedericoCarboni/setup-ffmpeg@v2
+    - name: Create dummy duplicate (for test of plenoptic.data)
+      run: |
+        touch src/plenoptic/data/xyz.abc src/plenoptic/data/xyz.abcd
     - name: Install dependencies
       run: |
         pip install --upgrade --upgrade-strategy eager .[dev,nb]

@@ -15,15 +15,15 @@ __pycache__/
 *.mat
 *.npy
 
-data/plenoptic-test-files
-data/ssim_images
-data/ssim_analysis.mat
-data/msssim_images
-data/MAD_results
-data/imagenet1000_clsidx_to_labels.txt
-data/portilla*
-data/FashionMNIST
-data/tid2013
+src/plenoptic/data/plenoptic-test-files
+src/plenoptic/data/ssim_images
+src/plenoptic/data/ssim_analysis.mat
+src/plenoptic/data/msssim_images
+src/plenoptic/data/MAD_results
+src/plenoptic/data/imagenet1000_clsidx_to_labels.txt
+src/plenoptic/data/portilla*
+src/plenoptic/data/FashionMNIST
+src/plenoptic/data/tid2013
 
 logs/
 train/

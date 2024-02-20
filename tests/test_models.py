@@ -3,7 +3,6 @@
 # details
 from conftest import DEVICE, DATA_DIR
 from test_metric import osf_download
-import os.path as op
 import scipy.io as sio
 import pyrtools as pt
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
@@ -309,7 +308,7 @@ class TestPortillaSimoncelli(object):
         # multiplying by 255 before converting to float64 (rather than
         # converting to float64 and then multiplying by 255) matters, because
         # floating points are fun.
-        im0 = 255 * po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = 255 * po.load_images(DATA_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
@@ -339,7 +338,7 @@ class TestPortillaSimoncelli(object):
                              spatial_corr_width, im, use_true_correlations,
                              portilla_simoncelli_test_vectors):
 
-        im0 = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = po.load_images(DATA_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
