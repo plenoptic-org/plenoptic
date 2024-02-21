@@ -2,7 +2,8 @@ FROM nvidia/cuda:12.2.0-devel-ubuntu20.04
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-      python3.11-venv \
+      'python-3.11' \
+      'python3.11-venv' \
       ffmpeg \
       git \
       && \
