@@ -1,15 +1,14 @@
-from importlib import resources
-from importlib.abc import Traversable
-import requests
-import os
-import tarfile
 import math
-import tqdm
-from typing import Union
+import os
 import pathlib
+import tarfile
+from importlib import resources
+from typing import Union
+
+import requests
+import tqdm
 
 from ..tools.data import load_images
-
 
 # If you add anything here, remember to update the docstring in osf_download!
 OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
@@ -23,7 +22,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
-def get_path(item_name: str) -> Traversable:
+def get_path(item_name: str):
     """
     Retrieve the filename that matches the given item name with any extension.
 
