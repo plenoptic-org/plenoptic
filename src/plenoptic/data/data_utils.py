@@ -59,14 +59,16 @@ def get_path(item_name: str):
     return fhs[0]
 
 
-def get(*item_names: str):
-    """
-    Load an image based on the item name from the package's data resources.
+def get(*item_names: str, as_gray: Union[None, bool] = None):
+    """Load an image based on the item name from the package's data resources.
 
     Parameters
     ----------
     item_names :
         The names of the items to load, without specifying the file extension.
+    as_gray :
+        Whether to load in the image(s) as grayscale or not. If None, will make
+        best guess based on file extension.
 
     Returns
     -------
@@ -77,13 +79,15 @@ def get(*item_names: str):
     This function first retrieves the full filename using `get_filename` and then loads the image
     using `load_images` from the `tools.data` module. It supports loading images as grayscale if
     they have a `.pgm` extension.
+
     """
     paths = [get_path(name) for name in item_names]
-    as_gray = all(path.suffix == ".pgm" for path in paths)
+    if as_gray is None:
+        as_gray = all(path.suffix == ".pgm" for path in paths)
     return load_images(paths, as_gray=as_gray)
 
 
-def download(url: str, destination: Union[str, pathlib.Path]) -> str:
+def download(url: str, destination: Union[str, pathlib.Path]) -> pathlib.Path:
     r"""Download file from url.
 
     Downloads file found at `url` to `destination`, extracts and deletes the
@@ -122,10 +126,12 @@ def download(url: str, destination: Union[str, pathlib.Path]) -> str:
         with tarfile.open(destination) as f:
             f.extractall(os.path.dirname(destination))
         os.remove(destination)
-    return str(destination).replace('.tar.gz', '')
+        # need to call with_suffix twice to remove .tar and .gz
+        destination = destination.with_suffix('').with_suffix('')
+    return destination
 
 
-def osf_download(filename: str, destination_dir: Union[str, pathlib.Path] = '.') -> str:
+def osf_download(filename: str, destination_dir: Union[str, pathlib.Path] = '.') -> pathlib.Path:
     r"""Download file from plenoptic OSF page.
 
     From the OSF project at https://osf.io/ts37w/.
@@ -161,4 +167,4 @@ def osf_download(filename: str, destination_dir: Union[str, pathlib.Path] = '.')
         url = f"https://osf.io/{OSF_URL[filename]}/download"
         return download(url, destination)
     else:
-        return str(non_tar_destination)
+        return non_tar_destination
