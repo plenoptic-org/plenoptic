@@ -23,7 +23,7 @@ dependencies = [
     "imageio>=2.5",
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
-    "importlib-resources>=6.1"
+    "importlib-resources>=5.11"
 ]
 
 [build-system]
