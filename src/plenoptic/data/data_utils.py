@@ -46,7 +46,7 @@ def get_path(item_name: str):
     This function uses glob to search for files in the current directory matching the `item_name`.
     It is assumed that there is only one file matching the name regardless of its extension.
     """
-    fhs = [file for file in resources.files('plenoptic.data').iterdir() if file.stem == item_name]
+    fhs = [file for file in resources.path("plenoptic","data").iterdir() if file.stem == item_name]
     assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
     return fhs[0]
 
