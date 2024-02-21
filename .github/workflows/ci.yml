@@ -150,6 +150,7 @@ jobs:
     - tests
     - all_tutorials_in_docs
     - no_extra_nblinks
+    - check_urls
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
