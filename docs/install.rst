@@ -11,7 +11,7 @@ $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
 $ pip install plenoptic
 
-We depend on `pytorch <https://pytorch.org/>`_ for automatic differentiation, as well as `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely the problem lies with one of those packages. `Open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_ and we'll help you figure out the problem!
+Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. `Open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_ and we'll try to help you figure out the problem!
 
 You can also install it directly from source to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version::
 
