@@ -86,6 +86,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
+    - name: Create dummy duplicate (for test of plenoptic.data)
+      run: |
+        touch src/plenoptic/data/xyz.abc src/plenoptic/data/xyz.abcd
     - name: Install dependencies
       run: |
         # using the --upgrade and --upgrade-strategy eager flags ensures that
