@@ -46,7 +46,13 @@ def get_path(item_name: str):
     This function uses glob to search for files in the current directory matching the `item_name`.
     It is assumed that there is only one file matching the name regardless of its extension.
     """
-    fhs = [file for file in resources.path("plenoptic","data").iterdir() if file.stem == item_name]
+    # this is for supporting importlib-resources < 5 (no version >=6 for python <=3.8)
+    # no attribute files in <6, no attribute args as from resources.path in >=6
+    try:
+        path = resources.files("plenoptic.data")
+    except AttributeError:
+        path = resources.path("plenoptic", "data").args[0]
+    fhs = [file for file in path.iterdir() if file.stem == item_name]
     assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
     return fhs[0]
 
