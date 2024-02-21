@@ -304,4 +304,4 @@ class TestGeodesic(object):
                                  model, 5)
         moog.synthesize(max_iter=10, stop_criterion=.06, stop_iters_to_check=1)
         assert (abs(moog.pixel_change_norm[-1:]) < .06).all(), "Didn't stop when hit criterion!"
-        assert not (abs(moog.pixel_change_norm[-2:]) < .06).all(), "Didn't stop when hit criterion!"
+        assert (abs(moog.pixel_change_norm[:-1]) > .06).all(), "Stopped after hit criterion!"
