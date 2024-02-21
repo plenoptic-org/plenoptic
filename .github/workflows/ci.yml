@@ -128,6 +128,14 @@ jobs:
     name: Check all urls are valid
     steps:
     - uses: actions/checkout@v3
+      # there are several cells in the notebook whose output includes links that
+      # urlchecker htinks are invalid (though when I check them manually, they
+      # look fine). Regardless, they're unimportant -- they're part of warning
+      # messages and similar, so we don't want to check them.
+    - name: strip notebook output
+      run: |
+        pip install nbstripout
+        nbstripout examples/*ipynb
     - uses: urlstechie/urlchecker-action@0.0.34
       with:
         file_types: .md,.py,.rst,.ipynb
@@ -142,6 +150,7 @@ jobs:
     - tests
     - all_tutorials_in_docs
     - no_extra_nblinks
+    - check_urls
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
