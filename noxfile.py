@@ -7,7 +7,7 @@ def tests(session):
     session.run("pytest")
 
 
-@nox.session(name="linter", python = ["3.10", "3.11"])
+@nox.session(name="linter", python=["3.10", "3.11", "3.12"])
 def linters(session):
     """Run linters"""
     session.run("ruff", "check", "--ignore", "D")
