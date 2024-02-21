@@ -52,6 +52,8 @@ dev = [
     'pytest-xdist',
     "torchvision>=0.3",
     "requests>=2.21",
+    "nox",
+    "ruff"
 ]
 
 nb = [
@@ -78,3 +80,50 @@ local_scheme = 'no-local-version'
 addopts = "--cov=plenoptic"
 testpaths = ["tests"]
 
+[tool.ruff]
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".github",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "tests",
+    "examples",
+    "docs"
+]
+
+# Set the maximum line length to 79.
+line-length = 79
+
+[tool.ruff.lint]
+# Add the `line-too-long` rule to the enforced rule set. By default, Ruff omits rules that
+# overlap with the use of a formatter, like Black, but we can override this behavior by
+# explicitly adding the rule.
+extend-select = ["D", "E", "F", "W", "B", "I"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
