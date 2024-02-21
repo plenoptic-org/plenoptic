@@ -12,12 +12,16 @@
 
 ![](docs/images/plenoptic_logo_wide.svg)
 
-`plenoptic` is a python library for model-based stimulus synthesis. It
-provides tools to help researchers understand their model by
-synthesizing novel informative stimuli, which help build intuition for
-what features the model ignores and what it is sensitive to. These
-synthetic images can then be used in future perceptual or neural
-experiments for further investigation.
+`plenoptic` is a python library for model-based synthesis of perceptual stimuli.
+For `plenoptic`, models are those of visual[^1] information processing: they
+accept an image as input, perform some computations, and return some output,
+which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on
+some task, image category, etc. The intended audience is researchers in
+neuroscience, psychology, and machine learning. The generated stimuli enable
+interpretation of model properties through examination of features that are
+enhanced, suppressed, or discarded. More importantly, they can facilitate the
+scientific process, through use in further perceptual or neural experiments
+aimed at validating or falsifying model predictions.
 
 ## Getting started
 
@@ -169,3 +173,9 @@ This package is supported by the Simons Foundation Flatiron Institute's Center
 for Computational Neuroscience.
 
 ![](docs/images/CCN-logo-wText.png)
+
+[^1]: These methods also work with auditory models, such as in [Feather et al.,
+    2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html),
+    though we haven't yet implemented examples. If you're interested, please
+    post in
+    [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)!
