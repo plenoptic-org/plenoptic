@@ -3,6 +3,7 @@ import os
 import pathlib
 import tarfile
 from importlib import resources
+from importlib.abc import Traversable
 from typing import Union
 
 import requests
@@ -22,7 +23,7 @@ OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw'
            'portilla_simoncelli_scales.npz': 'xhwv3'}
 
 
-def get_path(item_name: str):
+def get_path(item_name: str) -> Traversable:
     """
     Retrieve the filename that matches the given item name with any extension.
 
@@ -46,15 +47,7 @@ def get_path(item_name: str):
     This function uses glob to search for files in the current directory matching the `item_name`.
     It is assumed that there is only one file matching the name regardless of its extension.
     """
-    # this is for supporting importlib-resources < 5 (no version >=6 for python <=3.8)
-    # no attribute files in <6, no attribute args as from resources.path in >=6
-    try:
-        path = resources.files("plenoptic.data")
-    except AttributeError:
-        # create a generator with the path
-        path = [path for path in resources.path("plenoptic", "data").gen]
-        path = path[0]
-    fhs = [file for file in path.iterdir() if file.stem == item_name]
+    fhs = [file for file in resources.files("plenoptic.data").iterdir() if file.stem == item_name]
     assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
     return fhs[0]
 
