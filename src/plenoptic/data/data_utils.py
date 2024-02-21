@@ -52,7 +52,7 @@ def get_path(item_name: str):
         path = resources.files("plenoptic.data")
     except AttributeError:
         # create a generator with the path
-        path = [path for path in resources.path("plenoptic","data").gen]
+        path = [path for path in resources.path("plenoptic", "data").gen]
         path = path[0]
     fhs = [file for file in path.iterdir() if file.stem == item_name]
     assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
