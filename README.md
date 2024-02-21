@@ -36,6 +36,14 @@ The best way to install `plenoptic` is via `pip`.
 $ pip install plenoptic
 ```
 
+Our dependencies include [pytorch](https://pytorch.org/) and
+[pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take
+care of them (along with our other dependencies) automatically, but if you have
+an installation problem (especially on a non-Linux operating system), it is
+likely that the problem lies with one of those packages. [Open an
+issue](https://github.com/LabForComputationalVision/plenoptic/issues) and we'll
+try to help you figure out the problem!
+
 See the [installation
 page](https://plenoptic.readthedocs.io/en/latest/install.html) for more details,
 including how to set up a virtual environment and jupyter.
