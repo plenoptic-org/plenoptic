@@ -5,9 +5,10 @@
 ![Python version](https://img.shields.io/badge/python-3.7|3.8|3.9|3.10-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
-[![DOI](https://zenodo.org/doi/10.5281/zenodo.10151130)](https://doi.org/10.5281/zenodo.10151130)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
 ![](docs/images/plenoptic_logo_wide.svg)
 
@@ -38,6 +39,14 @@ The best way to install `plenoptic` is via `pip`.
 ``` bash
 $ pip install plenoptic
 ```
+
+Our dependencies include [pytorch](https://pytorch.org/) and
+[pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take
+care of them (along with our other dependencies) automatically, but if you have
+an installation problem (especially on a non-Linux operating system), it is
+likely that the problem lies with one of those packages. [Open an
+issue](https://github.com/LabForComputationalVision/plenoptic/issues) and we'll
+try to help you figure out the problem!
 
 See the [installation
 page](https://plenoptic.readthedocs.io/en/latest/install.html) for more details,
@@ -135,7 +144,26 @@ In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 ## Citing us
 
 If you use `plenoptic` in a published academic article or presentation, please
-cite us! See the [citation
+cite both the code by the DOI as well the JOV paper. You can click on `Cite this
+repository` on the right side of the GitHub page to get a copyable citation for
+the code, or use the following:
+
+- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
+- Paper:
+  ``` bibtex
+  @article{duong2023plenoptic,
+    title={Plenoptic: A platform for synthesizing model-optimized visual stimuli},
+    author={Duong, Lyndon and Bonnen, Kathryn and Broderick, William and Fiquet, Pierre-{\'E}tienne and Parthasarathy, Nikhil and Yerxa, Thomas and Zhao, Xinyuan and Simoncelli, Eero},
+    journal={Journal of Vision},
+    volume={23},
+    number={9},
+    pages={5822--5822},
+    year={2023},
+    publisher={The Association for Research in Vision and Ophthalmology}
+  }
+  ```
+
+See the [citation
 guide](https://plenoptic.readthedocs.io/en/latest/citation.html) for more
 details.
 
