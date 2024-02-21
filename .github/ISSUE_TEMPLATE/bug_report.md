@@ -32,7 +32,7 @@ If applicable, add screenshots to help explain your problem.
 
 **System (please complete the following information):**
  - OS: [e.g. Mac (with version), Ubuntu 18.04]
- - Python version [e.g. 3.7]
+ - Python version [e.g. 3.12]
  - Pytorch version [e.g., 1.4]
  - Plenoptic version [e.g. 0.1]
 
