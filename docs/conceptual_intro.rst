@@ -10,11 +10,11 @@ facilitate?
 
 Synthesis is a framework for exploring models by using them to create new
 stimuli, rather than examining their responses to existing ones. ``plenoptic``
-focuses on models of visual [#]_ information processing, which take an as input,
-perform some computations based on parameters, and return some vector-valued
-abstract representation as output. This output can be mapped to neuronal firing
-rate, fMRI BOLD response, behavior on some task, image category, etc., depending
-on the researchers' intended question.
+focuses on models of visual [#]_ information processing, which take an image as
+input, perform some computations based on parameters, and return some
+vector-valued abstract representation as output. This output can be mapped to
+neuronal firing rate, fMRI BOLD response, behavior on some task, image category,
+etc., depending on the researchers' intended question.
 
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
