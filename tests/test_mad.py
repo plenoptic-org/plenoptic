@@ -207,4 +207,5 @@ class TestMAD(object):
         po.tools.set_seed(0)
         mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, 'min')
         mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
-        assert len(mad.losses) == 12, "Didn't stop when hit criterion! (or optimization changed)"
+        assert abs(mad.losses[-5]-mad.losses[-1]) < 1e-3, "Didn't stop when hit criterion!"
+        assert abs(mad.losses[-6]-mad.losses[-2]) > 1e-3, "Stopped after hit criterion!"
