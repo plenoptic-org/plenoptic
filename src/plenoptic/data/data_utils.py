@@ -51,8 +51,7 @@ def get_path(item_name: str):
     try:
         path = resources.files("plenoptic.data")
     except AttributeError:
-        path = pathlib.Path(resources.files("plenoptic", "data").args[0])
-        print(path)
+        path = pathlib.Path(resources.path("plenoptic", "data").args[0])
     fhs = [file for file in path.iterdir() if file.stem == item_name]
     assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
     return fhs[0]
