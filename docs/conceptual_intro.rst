@@ -3,16 +3,18 @@
 Conceptual Introduction
 ***********************
 
-``plenoptic`` is a python library for "model-based stimulus synthesis". If
-you've never heard this phrase before, it may seem mysterious: what is stimulus
-synthesis and what types of scientific investigation does it facilitate?
+``plenoptic`` is a python library for "model-based synthesis of perceptual
+stimuli". If you've never heard this phrase before, it may seem mysterious: what
+is stimulus synthesis and what types of scientific investigation does it
+facilitate?
 
-Synthesis is a framework for exploring models by using them to create new stimuli, 
-rather than examining their responses to existing ones. Computational models
-take a stimulus as input, perform some computations based on parameters, and
-return an output. In visual models (the focus of ``plenoptic``) the inputs are
-typically images and the outputs are some vector-valued abstract representation, which
-are used to predict neural activity or behavior of some kind.
+Synthesis is a framework for exploring models by using them to create new
+stimuli, rather than examining their responses to existing ones. ``plenoptic``
+focuses on models of visual [#]_ information processing, which take an image as
+input, perform some computations based on parameters, and return some
+vector-valued abstract representation as output. This output can be mapped to
+neuronal firing rate, fMRI BOLD response, behavior on some task, image category,
+etc., depending on the researchers' intended question.
 
 .. _synthesis-schematic:
 .. figure:: images/model_sim-fit-infer.svg
@@ -21,19 +23,20 @@ are used to predict neural activity or behavior of some kind.
 
    Schematic describing relationship between simulate, fit, and synthesize.
 
-Computational models transform a stimulus :math:`s` to a response :math:`r`
-(we often refer to :math:`r` as the model's representation of :math:`s`), based
-on some model parameters :math:`\theta`. For example, a trained neural network that
-classifies images has specific weights :math:`\theta`, accepts an image
-:math:`s` and returns a one-hot vector :math:`r` that specifies the image class.
-Another example: a linear-nonlinear oriented filter model of a simple cell in primary
-visual cortex, where :math:`\theta` defines the filter's orientation, size, and
-spatial frequency, the model accepts an image :math:`s` and returns a scalar
-:math:`r` that represents the neuron's firing rate.
+That is, computational models transform a stimulus :math:`s` to a response
+:math:`r` (we often refer to :math:`r` as "the model's representation of
+:math:`s`"), based on some model parameters :math:`\theta`. For example, a
+trained neural network that classifies images has specific weights
+:math:`\theta`, accepts an image :math:`s` and returns a one-hot vector
+:math:`r` that specifies the image class. Another example is a linear-nonlinear
+oriented filter model of a simple cell in primary visual cortex, where
+:math:`\theta` defines the filter's orientation, size, and spatial frequency,
+the model accepts an image :math:`s` and returns a scalar :math:`r` that
+represents the neuron's firing rate.
 
 The most common scientific uses for a model are to simulate responses or to fit
 parameters, as illustrated in :numref:`synthesis-schematic`. For simulation, we hold
-the parameters constant while presenting the model with inputs (e.g, photographs of dogs, 
+the parameters constant while presenting the model with inputs (e.g, photographs of dogs,
 or a set of sine-wave gratings) and we run the
 model to compute responses. For fitting, we use optimization to find the
 parameter values that best account for the observed responses to a set of training
@@ -223,6 +226,12 @@ provide the most information. We hope to help theorists become more active
 participants in directing future experiments by efficiently finding new
 predictions to test.
 
+.. [#] These methods also work with auditory models, such as in `Feather et al.,
+       2019
+       <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
+       though we haven't yet implemented examples. If you're interested, please
+       post in `Discussions
+       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
 .. [#] for example, as of February 2022, more than 100 models have above 95% top
   5 accuracy on ImageNet, with 9 models within a percent of the top performer at
   99.02%. Furthermore, the state of the art top 5 accuracy has been at or above
