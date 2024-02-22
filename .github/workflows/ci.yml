@@ -14,7 +14,7 @@ jobs:
     outputs:
       notebook: ${{ steps.get-notebooks.outputs.nb }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - id: get-notebooks
       run: "echo \"nb=$(ls examples/*ipynb | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
         \ >> $GITHUB_OUTPUT\n"
@@ -28,8 +28,8 @@ jobs:
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -79,9 +79,9 @@ jobs:
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Python 3
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -96,7 +96,7 @@ jobs:
       run: |
         pytest -n auto --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@858dd794fbb81941b6d60b0dca860878cba60fa9 # v3.1.1
+      uses: codecov/codecov-action@7598e39340e1dff4d6ebf7cf07a5e8184bde67e7 # v4.0.1
   all_tutorials_in_docs:
     runs-on: ubuntu-latest
     name: Check that all tutorial notebooks are included in docs
@@ -105,7 +105,7 @@ jobs:
       matrix:
         notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Check for file
       shell: bash
       # there are two levels that the notebooks can be in
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Check that we don't have any extra nblink files
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Check same number of nblink and notebooks
       shell: bash
       run: |
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       # there are several cells in the notebook whose output includes links that
       # urlchecker htinks are invalid (though when I check them manually, they
       # look fine). Regardless, they're unimportant -- they're part of warning
@@ -136,7 +136,7 @@ jobs:
       run: |
         pip install nbstripout
         nbstripout examples/*ipynb
-    - uses: urlstechie/urlchecker-action@0.0.34
+    - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst,.ipynb
         print_all: false
