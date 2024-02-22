@@ -144,9 +144,10 @@ In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 ## Citing us
 
 If you use `plenoptic` in a published academic article or presentation, please
-cite both the code by the DOI as well the JOV paper. You can click on `Cite this
-repository` on the right side of the GitHub page to get a copyable citation for
-the code, or use the following:
+cite both the code by the DOI as well the JOV paper. If you are not using the
+code, but just discussing the project, please cite the paper. You can click on
+`Cite this repository` on the right side of the GitHub page to get a copyable
+citation for the code, or use the following:
 
 - Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
 - Paper:
@@ -165,7 +166,8 @@ the code, or use the following:
 
 See the [citation
 guide](https://plenoptic.readthedocs.io/en/latest/citation.html) for more
-details.
+details, including citations for the different synthesis methods and
+computational moels included in plenoptic.
 
 ## Support
 
