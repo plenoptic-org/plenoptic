@@ -8,15 +8,20 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
 [![codecov](https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/LabForComputationalVision/plenoptic)
 [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
 ![](docs/images/plenoptic_logo_wide.svg)
 
-`plenoptic` is a python library for model-based stimulus synthesis. It
-provides tools to help researchers understand their model by
-synthesizing novel informative stimuli, which help build intuition for
-what features the model ignores and what it is sensitive to. These
-synthetic images can then be used in future perceptual or neural
-experiments for further investigation.
+`plenoptic` is a python library for model-based synthesis of perceptual stimuli.
+For `plenoptic`, models are those of visual[^1] information processing: they
+accept an image as input, perform some computations, and return some output,
+which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on
+some task, image category, etc. The intended audience is researchers in
+neuroscience, psychology, and machine learning. The generated stimuli enable
+interpretation of model properties through examination of features that are
+enhanced, suppressed, or discarded. More importantly, they can facilitate the
+scientific process, through use in further perceptual or neural experiments
+aimed at validating or falsifying model predictions.
 
 ## Getting started
 
@@ -34,6 +39,14 @@ The best way to install `plenoptic` is via `pip`.
 ``` bash
 $ pip install plenoptic
 ```
+
+Our dependencies include [pytorch](https://pytorch.org/) and
+[pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take
+care of them (along with our other dependencies) automatically, but if you have
+an installation problem (especially on a non-Linux operating system), it is
+likely that the problem lies with one of those packages. [Open an
+issue](https://github.com/LabForComputationalVision/plenoptic/issues) and we'll
+try to help you figure out the problem!
 
 See the [installation
 page](https://plenoptic.readthedocs.io/en/latest/install.html) for more details,
@@ -131,9 +144,10 @@ In all cases, please follow our [code of conduct](CODE_OF_CONDUCT.md).
 ## Citing us
 
 If you use `plenoptic` in a published academic article or presentation, please
-cite both the code by the DOI as well the JOV paper. You can click on `Cite this
-repository` on the right side of the GitHub page to get a copyable citation for
-the code, or use the following:
+cite both the code by the DOI as well the JOV paper. If you are not using the
+code, but just discussing the project, please cite the paper. You can click on
+`Cite this repository` on the right side of the GitHub page to get a copyable
+citation for the code, or use the following:
 
 - Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
 - Paper:
@@ -152,7 +166,8 @@ the code, or use the following:
 
 See the [citation
 guide](https://plenoptic.readthedocs.io/en/latest/citation.html) for more
-details.
+details, including citations for the different synthesis methods and
+computational moels included in plenoptic.
 
 ## Support
 
@@ -160,3 +175,9 @@ This package is supported by the Simons Foundation Flatiron Institute's Center
 for Computational Neuroscience.
 
 ![](docs/images/CCN-logo-wText.png)
+
+[^1]: These methods also work with auditory models, such as in [Feather et al.,
+    2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html),
+    though we haven't yet implemented examples. If you're interested, please
+    post in
+    [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)!
