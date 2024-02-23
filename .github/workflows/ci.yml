@@ -24,7 +24,7 @@ jobs:
         cache: pip
         cache-dependency-path: setup.py
     - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@v2
+      uses: FedericoCarboni/setup-ffmpeg@v3.1
     - name: Install dependencies
       run: |
         pip install --upgrade --upgrade-strategy eager .[dev,nb] papermill
