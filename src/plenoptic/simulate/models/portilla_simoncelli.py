@@ -690,7 +690,10 @@ class PortillaSimoncelli(nn.Module):
             recon = self._pyr.recon_pyr(pyr_coeffs_dict, levels=[lev])
             reconstructed_images.append(recon + reconstructed_images[-1])
         # now downsample as necessary, so that these end up the same size as
-        # their corresponding coefficients.
+        # their corresponding coefficients. We multiply by the factor of 4 here
+        # in order to approximately equalize the steerable pyramid coefficient
+        # values across scales. This could also be handled by making the
+        # pyramid tight frame
         reconstructed_images[:-1] = [signal.shrink(r, 2**(self.n_scales-i)) * 4**(self.n_scales-i)
                                      for i, r in enumerate(reconstructed_images[:-1])]
         return reconstructed_images
@@ -875,6 +878,9 @@ class PortillaSimoncelli(nn.Module):
         doubled_phase_sep = []
         # don't do this for the finest scale
         for coeff in pyr_coeffs[1:]:
+            # We divide by the factor of 4 here in order to approximately
+            # equalize the steerable pyramid coefficient values across scales.
+            # This could also be handled by making the pyramid tight frame
             doubled_phase = signal.expand(coeff, 2) / 4.0
             doubled_phase = signal.modulate_phase(doubled_phase, 2)
             doubled_phase_mag = doubled_phase.abs()
