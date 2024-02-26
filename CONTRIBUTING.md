@@ -46,6 +46,16 @@ We try to keep all our communication on Github, and we use several channels:
     of discussions first. We'll discuss it there and, if we decide to pursue it,
     open an issue to track progress.
 
+## Supported versions
+
+`plenoptic` tries to follow
+[SPEC-0](https://scientific-python.org/specs/spec-0000/): we support python
+versions are supported for 3 years following initial release. This means that we
+support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
+time and that we'll transition between versions during the fourth quarter of
+each year. We run our CPU tests on all three versions, and the GPU tests and
+readthedocs build use the middle version.
+
 ## Contributing to the code
 
 ### Contribution workflow

@@ -4,7 +4,7 @@
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
                     :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
-.. |python-version-shield| image:: https://img.shields.io/badge/python-3.7%7C3.8%7C3.9%7C3.10-blue.svg
+.. |python-version-shield| image:: https://img.shields.io/badge/python-3.10%7C3.11%7C3.12-blue.svg
 
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
