@@ -94,8 +94,6 @@ class TestSignal(object):
     @pytest.mark.parametrize('img_size', [256, 128, 200])
     def test_expand(self, factor, img_size, einstein_img):
         einstein_img = einstein_img.clone()[..., :img_size]
-        # these matches are regex, so need to escape *,[,] because they're
-        # special characters in regex
         if int(factor * img_size) != factor * img_size:
             expectation = pytest.raises(ValueError, match='factor \* x.shape\[-1\] must be')
         elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
@@ -112,8 +110,6 @@ class TestSignal(object):
     @pytest.mark.parametrize('img_size', [256, 128, 200])
     def test_shrink(self, factor, img_size, einstein_img):
         einstein_img = einstein_img.clone()[..., :img_size]
-        # these matches are regex, so need to escape [,] because they're
-        # special characters in regex
         if int(img_size / factor) != img_size / factor:
             expectation = pytest.raises(ValueError, match='x.shape\[-1\]/factor must be')
         elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
