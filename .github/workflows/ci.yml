@@ -9,79 +9,62 @@ on:
 
 jobs:
   # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
-  get_notebooks:
-    runs-on: ubuntu-latest
-    outputs:
-      notebook: ${{ steps.get-notebooks.outputs.nb }}
-    steps:
-    - uses: actions/checkout@v3
-    - id: get-notebooks
-      run: "echo \"nb=$(ls examples/*ipynb | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
-        \ >> $GITHUB_OUTPUT\n"
   notebooks:
     runs-on: ubuntu-latest
-    needs: [get_notebooks]
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
-        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
+        python-version: ['3.10', '3.11', '3.12']
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
     - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@v2
+      uses: FedericoCarboni/setup-ffmpeg@v3.1
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager .[dev,nb]
+        pip install --upgrade --upgrade-strategy eager .[dev,nb] papermill
     - name: Download TID2013 dataset
-      if: ${{ matrix.notebook == 'examples/04_Perceptual_distance.ipynb' }}
       run: |
         mkdir -p data
         wget https://osf.io/7nfkz/download -O ./data/tid2013.rar
         7z x ./data/tid2013.rar -o./data/tid2013/
-    - name: Run notebooks
-      if: ${{ !contains(fromJSON('["examples/Demo_Eigendistortion.ipynb", "examples/Metamer-Portilla-Simoncelli.ipynb"]'), matrix.notebook) }}
-      run: jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3
-    - name: Run notebooks
-      if: ${{ matrix.notebook == 'examples/Metamer-Portilla-Simoncelli.ipynb' }}
-      # this notebook takes much longer than the rest (if run to completion,
-      # ~2hr on a laptop). We use papermill's parameters to reduce the max
-      # number of steps for metamer synthesis here (we want to test that each
-      # cell runs, but we don't need synthesis to go to completion). also,
-      # download images required for notebook
+    - name: Download Portilla-Simoncelli data
       run: |
-        mkdir -p data
         wget https://osf.io/eqr3t/download -O ./data/portilla_simoncelli_images.tar.gz
         tar xfz ./data/portilla_simoncelli_images.tar.gz --directory=./data/
-        pip install --upgrade --upgrade-strategy eager papermill
-        papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd examples/
     - name: Run notebooks
-      if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
-      # this notebook takes much longer than the rest (if run to completion,
-      # ~1hr on a laptop, more than 5 hours on the Github runners). We use
-      # papermill's parameters to reduce the max number of iters for
-      # eigendistortion synthesis here (we want to test that each cell runs,
-      # but we don't need synthesis to go to completion)
+      if: ${{ !contains(fromJSON('["examples/Demo_Eigendistortion.ipynb", "examples/Metamer-Portilla-Simoncelli.ipynb"]'), matrix.notebook) }}
       run: |
-        pip install --upgrade --upgrade-strategy eager papermill
-        papermill ${{ matrix.notebook }} ${{ matrix.notebook }}_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd examples/
+        for file in examples/*ipynb; do
+           # these first two notebooks take much longer than the rest to run (2
+           # and 1 hours on laptop, respectively, longer on runners). So we use
+           # papermill's parameters to reduce the max number of steps for
+           # synthesis in them (we want to test that each cell runs, but we
+           # don't need synthesis to go to completion).
+           if [[ "$file" =~ "Metamer-Portilla-Simoncelli" ]]; then
+              papermill $file $file_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd examples/
+           elif [[ "$file" =~ "Demo_Eigendistortion" ]]; then
+              papermill $file $file_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd examples/
+           else
+              jupyter execute $file --kernel_name=python3
+            fi
+        done
   tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
+        python-version: ['3.10', '3.11', '3.12']
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Python 3
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -96,26 +79,28 @@ jobs:
       run: |
         pytest -n auto --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@858dd794fbb81941b6d60b0dca860878cba60fa9 # v3.1.1
+      uses: codecov/codecov-action@7598e39340e1dff4d6ebf7cf07a5e8184bde67e7 # v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
   all_tutorials_in_docs:
     runs-on: ubuntu-latest
     name: Check that all tutorial notebooks are included in docs
-    needs: [get_notebooks]
-    strategy:
-      matrix:
-        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Check for file
       shell: bash
       # there are two levels that the notebooks can be in
-      run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" && -z "$(grep ${{ matrix.notebook }} docs/tutorials/*/*nblink)" ]] ; then
-        exit 1; fi
+      run: |
+        for file in examples/*ipynb; do
+           if [[ -z "$(grep $file docs/tutorials/*nblink)" && -z "$(grep $file docs/tutorials/*/*nblink)" ]] ; then
+              exit 1
+           fi
+        done
   no_extra_nblinks:
     runs-on: ubuntu-latest
     name: Check that we don't have any extra nblink files
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Check same number of nblink and notebooks
       shell: bash
       run: |
@@ -127,8 +112,16 @@ jobs:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v3
-    - uses: urlstechie/urlchecker-action@0.0.34
+    - uses: actions/checkout@v4
+      # there are several cells in the notebook whose output includes links that
+      # urlchecker htinks are invalid (though when I check them manually, they
+      # look fine). Regardless, they're unimportant -- they're part of warning
+      # messages and similar, so we don't want to check them.
+    - name: strip notebook output
+      run: |
+        pip install nbstripout
+        nbstripout examples/*ipynb
+    - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst,.ipynb
         print_all: false
@@ -142,6 +135,7 @@ jobs:
     - tests
     - all_tutorials_in_docs
     - no_extra_nblinks
+    - check_urls
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
