@@ -18,6 +18,7 @@ REGISTRY = {
     'portilla_simoncelli_synthesize_gpu.npz': '324efc2a6c54382aae414d361c099394227b56cd24460eebab2532f70728c3ee',
     'portilla_simoncelli_scales.npz': 'eae2db6bd5db7d37c28d8f8320c4dd4fa5ab38294f5be22f8cf69e5cd5e4936a',
     'sample_images.tar.gz': '0ba6fe668a61e9f3cb52032da740fbcf32399ffcc142ddb14380a8e404409bf5',
+    'test_images.tar.gz': 'd84ecb56e60d0a2ab619cf2345e428a9af60f9f6543cbb80751d2910dc9315f1',
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -36,6 +37,7 @@ REGISTRY_URLS = {
     'portilla_simoncelli_synthesize_gpu.npz': OSF_TEMPLATE.format('tn4y8'),
     'portilla_simoncelli_scales.npz': OSF_TEMPLATE.format('xhwv3'),
     'sample_images.tar.gz': OSF_TEMPLATE.format('6drmy'),
+    'test_images.tar.gz': OSF_TEMPLATE.format('au3b8'),
 }
 DOWNLOADABLE_FILES = list(REGISTRY.keys())
 
