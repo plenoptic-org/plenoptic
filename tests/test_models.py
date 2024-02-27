@@ -1,7 +1,7 @@
 # we do this to enable deterministic behavior on the gpu, see
 # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
 # details
-from conftest import DEVICE, DATA_DIR, IMG_DIR
+from conftest import DEVICE, IMG_DIR
 import scipy.io as sio
 import pyrtools as pt
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
@@ -39,14 +39,12 @@ def image_input():
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return po.data.osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz',
-                                DATA_DIR)
+    return po.data.fetch_data('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return po.data.osf_download('portilla_simoncelli_test_vectors.tar.gz',
-                                DATA_DIR)
+    return po.data.fetch_data('portilla_simoncelli_test_vectors.tar.gz')
 
 
 def get_portilla_simoncelli_synthesize_filename(torch_version=None):
@@ -81,14 +79,12 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize(torch_version=None):
-    return po.data.osf_download(get_portilla_simoncelli_synthesize_filename(torch_version),
-                                DATA_DIR)
+    return po.data.fetch_data(get_portilla_simoncelli_synthesize_filename(torch_version))
 
 
 @pytest.fixture()
 def portilla_simoncelli_scales():
-    return po.data.osf_download('portilla_simoncelli_scales.npz',
-                                DATA_DIR)
+    return po.data.fetch_data('portilla_simoncelli_scales.npz')
 
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)

@@ -4,13 +4,12 @@ import scipy.io as sio
 import torch
 import numpy as np
 import plenoptic as po
-from conftest import DATA_DIR, DEVICE, IMG_DIR
+from conftest import DEVICE, IMG_DIR
 
 
 @pytest.fixture()
 def test_files_dir():
-    return po.data.osf_download('plenoptic-test-files.tar.gz',
-                                DATA_DIR)
+    return po.data.fetch_data('plenoptic-test-files.tar.gz')
 
 
 def test_find_files(test_files_dir):
@@ -19,20 +18,17 @@ def test_find_files(test_files_dir):
 
 @pytest.fixture()
 def ssim_images():
-    return po.data.osf_download('ssim_images.tar.gz',
-                                DATA_DIR)
+    return po.data.fetch_data('ssim_images.tar.gz')
 
 
 @pytest.fixture()
 def msssim_images():
-    return po.data.osf_download('msssim_images.tar.gz',
-                                DATA_DIR)
+    return po.data.fetch_data('msssim_images.tar.gz')
 
 
 @pytest.fixture()
 def ssim_analysis():
-    ssim_analysis = po.data.osf_download('ssim_analysis.mat',
-                                         DATA_DIR)
+    ssim_analysis = po.data.fetch_data('ssim_analysis.mat')
     return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
