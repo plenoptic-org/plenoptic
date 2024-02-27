@@ -25,7 +25,7 @@ dependencies = [
     "imageio>=2.5",
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
-    "importlib-resources>=6.0"
+    "importlib-resources>=6.0",
 ]
 
 [build-system]
@@ -55,6 +55,7 @@ dev = [
     'pytest-xdist',
     "torchvision>=0.3",
     "requests>=2.21",
+    "pooch>=1.2.0",
 ]
 
 nb = [
@@ -62,6 +63,7 @@ nb = [
     'ipywidgets',
     "torchvision>=0.3",
     'nbclient>=0.5.5',
+    "pooch>=1.2.0",
 ]
 
 [project.urls]
