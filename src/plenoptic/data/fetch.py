@@ -44,6 +44,7 @@ REGISTRY_URLS = {
 DOWNLOADABLE_FILES = list(REGISTRY.keys())
 
 import pathlib
+from typing import List
 try:
     import pooch
 except ImportError:
@@ -61,6 +62,15 @@ else:
         retry_if_failed=2,
         allow_updates="POOCH_ALLOW_UPDATES",
     )
+
+
+def find_shared_directory(paths: List[pathlib.Path]) -> pathlib.Path:
+    """Find directory shared by all paths."""
+    for dir in paths[0].parents:
+        if all([dir in p.parents for p in paths]):
+            break
+    return dir
+
 
 def fetch_data(dataset_name: str) -> pathlib.Path:
     """Download data, using pooch. These are largely used for testing.
@@ -85,7 +95,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
                             progressbar=True,
                             processor=processor)
     if dataset_name.endswith('.tar.gz'):
-        fname = pathlib.Path(fname[0]).parent
+        fname = find_shared_directory([pathlib.Path(f) for f in fname])
     else:
         fname = pathlib.Path(fname)
     return fname
