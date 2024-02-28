@@ -28,17 +28,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade --upgrade-strategy eager .[dev,nb] papermill
-    - name: Download TID2013 dataset
-      run: |
-        mkdir -p data
-        wget https://osf.io/7nfkz/download -O ./data/tid2013.rar
-        7z x ./data/tid2013.rar -o./data/tid2013/
-    - name: Download Portilla-Simoncelli data
-      run: |
-        wget https://osf.io/eqr3t/download -O ./data/portilla_simoncelli_images.tar.gz
-        tar xfz ./data/portilla_simoncelli_images.tar.gz --directory=./data/
     - name: Run notebooks
-      if: ${{ !contains(fromJSON('["examples/Demo_Eigendistortion.ipynb", "examples/Metamer-Portilla-Simoncelli.ipynb"]'), matrix.notebook) }}
       run: |
         for file in examples/*ipynb; do
            # these first two notebooks take much longer than the rest to run (2

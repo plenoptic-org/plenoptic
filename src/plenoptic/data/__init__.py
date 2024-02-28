@@ -3,7 +3,7 @@ from .fetch import fetch_data, DOWNLOADABLE_FILES
 import torch
 
 __all__ = ['einstein', 'curie', 'parrot', 'reptile_skin',
-           'fetch_data', 'DOWNLOADABLE_FILES']
+           'color_wheel', 'fetch_data', 'DOWNLOADABLE_FILES']
 def __dir__():
     return __all__
 
@@ -22,3 +22,7 @@ def parrot(as_gray: bool = False) -> torch.Tensor:
 
 def reptile_skin() -> torch.Tensor:
     return data_utils.get('reptile_skin')
+
+
+def color_wheel(as_gray: bool = False) -> torch.Tensor:
+    return data_utils.get('color_wheel', as_gray=as_gray)
