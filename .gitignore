@@ -36,3 +36,6 @@ docs/tutorials/assets
 
 # created automatically by setuptools.scm, don't track
 src/plenoptic/version.py
+
+# gets created during install
+build/
