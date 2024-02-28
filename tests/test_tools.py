@@ -15,8 +15,8 @@ class TestData(object):
 
     def test_load_images_fail(self):
         with pytest.raises(ValueError, match='All images must be the same shape'):
-            po.load_images([op.join(IMG_DIR, '256', 'einstein.pgm'),
-                            op.join(IMG_DIR, 'mixed', 'bubbles.png')])
+            po.load_images([IMG_DIR / '256' / 'einstein.pgm',
+                            IMG_DIR / 'mixed' / 'bubbles.png'])
 
 
 class TestSignal(object):
@@ -139,7 +139,7 @@ class TestSignal(object):
     def test_expand_shrink(self, img, factor):
         # expand then shrink will be the same as the original image, up to this
         # fudge factor
-        img = po.load_images(op.join(DATA_DIR, f"256/{img}.pgm")).to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / f"{img}.pgm").to(DEVICE)
         modified = po.tools.shrink(po.tools.expand(img, factor), factor)
         torch.testing.assert_close(img, modified, atol=2e-2, rtol=1e-6)
 

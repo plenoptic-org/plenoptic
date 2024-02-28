@@ -117,9 +117,10 @@ class PortillaSimoncelli(nn.Module):
         self._necessary_stats_dict = self._create_necessary_stats_dict(scales_shape_dict)
         # turn this into tensor we can use in forward pass. first into a
         # boolean mask...
-        self._necessary_stats_mask = einops.pack(list(self._necessary_stats_dict.values()), '*')[0]
+        _necessary_stats_mask = einops.pack(list(self._necessary_stats_dict.values()), '*')[0]
         # then into a tensor of indices
-        self._necessary_stats_mask = torch.where(self._necessary_stats_mask)[0]
+        _necessary_stats_mask = torch.where(_necessary_stats_mask)[0]
+        self.register_buffer('_necessary_stats_mask', _necessary_stats_mask)
 
         # This array is composed of the following values: 'pixel_statistics',
         # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
