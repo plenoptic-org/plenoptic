@@ -30,6 +30,9 @@ jobs:
           [[ $(find dist/ -type f -name "*tar.gz" -printf x | wc -c) == 1 ]] || exit 1
       - name: Check setuptools_scm version against git tag
         shell: bash
+        # this won't work if we use workflow dispatch, so no sense in running
+        # it.
+        if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           # we use the error code of this comparison: =~ is bash's regex
           # operator, so it checks whether the right side is contained in the
@@ -82,6 +85,10 @@ jobs:
           name: artifact
           path: dist
       - name: Publish package to test pypi
+        if: github.event_name == 'release' && github.event.action == 'published'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+      - name: Publish package to real pypi
+        if: github.event_name == 'workflow_dispatch'
+        uses: pypa/gh-action-pypi-publish@release/v1
