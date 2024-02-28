@@ -7,7 +7,7 @@ import pyrtools as pt
 import numpy as np
 from itertools import product
 from plenoptic.tools.data import to_numpy
-from conftest import DEVICE, DATA_DIR
+from conftest import DEVICE, IMG_DIR
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
@@ -81,7 +81,7 @@ class TestSteerablePyramid(object):
                                            for shape in [None, 224, '128_1', '128_2']])
     def img(self, request):
         im, shape = request.param.split('-')
-        img = po.load_images(op.join(DATA_DIR, f'256/{im}.pgm')).to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / f'{im}.pgm').to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
@@ -93,7 +93,8 @@ class TestSteerablePyramid(object):
     @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2' ]])
     def multichannel_img(self, request):
         shape = request.param
-        img = po.load_images(op.join(DATA_DIR, f'512/flowers.jpg'), as_gray=False).to(DEVICE)
+        # use fixture for img and use color_wheel instead.
+        img = po.load_images(IMG_DIR / "mixed" / 'flowers.jpg', as_gray=False).to(DEVICE)
         if shape == '224':
             img = img[..., :224, :224]
         elif shape == '128_1':
@@ -290,3 +291,14 @@ class TestSteerablePyramid(object):
         with expectation:
             pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
+
+    @pytest.mark.parametrize('order', range(1, 16))
+    def test_buffers(self, order):
+        pyr = po.simul.SteerablePyramidFreq((256, 256), order=order)
+        buffers = [k for k, _ in pyr.named_buffers()]
+        names = ['lo0mask', 'hi0mask']
+        for s in range(pyr.num_scales):
+            names.extend([f'_himasks_scale_{s}', f'_lomasks_scale_{s}',
+                          f'_anglemasks_scale_{s}', f'_anglemasks_recon_scale_{s}'])
+        assert len(buffers) == len(names), "pyramid doesn't have the right number of buffers!"
+        assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"

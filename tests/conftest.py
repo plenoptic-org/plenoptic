@@ -1,13 +1,14 @@
 import pytest
 import plenoptic as po
 import os.path as op
+import pathlib
 import torch
 
 import plenoptic.simulate.canonical_computations.filters as filters
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DTYPE = torch.float32
-DATA_DIR = op.join(op.dirname(op.realpath(__file__)), '..', 'data')
+IMG_DIR = po.data.fetch_data('test_images.tar.gz')
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)
@@ -25,12 +26,12 @@ class ColorModel(torch.nn.Module):
 
 @pytest.fixture(scope='package')
 def curie_img():
-    return po.load_images(op.join(DATA_DIR, '256/curie.pgm')).to(DEVICE)
+    return po.load_images(IMG_DIR / "256" / 'curie.pgm').to(DEVICE)
 
 
 @pytest.fixture(scope='package')
 def einstein_img():
-    return po.load_images(op.join(DATA_DIR, '256/einstein.pgm')).to(DEVICE)
+    return po.load_images(IMG_DIR / "256" / 'curie.pgm').to(DEVICE)
 
 @pytest.fixture(scope='package')
 def einstein_small_seq(einstein_img_small):
@@ -42,7 +43,7 @@ def einstein_img_small(einstein_img):
 
 @pytest.fixture(scope='package')
 def color_img():
-    img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'),
+    img = po.load_images(IMG_DIR / "256" / 'color_wheel.jpg',
                          as_gray=False).to(DEVICE)
     return img[..., :256, :256]
 
@@ -67,6 +68,16 @@ def get_model(name):
                 return pyr_tensor
         # setting height=1 and # order=1 limits the size
         return spyr((256, 256), height=1, order=1).to(DEVICE)
+    elif name == "LPyr":
+        # in order to get a tensor back, need to wrap laplacian pyramid so that
+        # we can flatten the output. in practice, not the best way to use this
+        class lpyr(po.simul.LaplacianPyramid):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            def forward(self, *args, **kwargs):
+                coeffs = super().forward(*args, **kwargs)
+                return torch.cat([c.flatten(-2) for c in coeffs], -1)
+        return lpyr().to(DEVICE)
     elif name == 'Identity':
         return po.simul.models.naive.Identity().to(DEVICE)
     elif name == 'NLP':
@@ -120,6 +131,8 @@ def get_model(name):
         model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(model)
         return model
+    elif name == "PortillaSimoncelli":
+        return po.simul.PortillaSimoncelli((256, 256))
 
 
 @pytest.fixture(scope='package')

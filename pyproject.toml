@@ -4,10 +4,12 @@ dynamic = ["version"]
 authors = [{name="Plenoptic authors"}]
 description = "Python library for model-based stimulus synthesis."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Science/Research",
 ]
@@ -23,6 +25,7 @@ dependencies = [
     "imageio>=2.5",
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
+    "importlib-resources>=6.0",
 ]
 
 [build-system]
@@ -43,6 +46,7 @@ docs = [
      # https://nbsphinx.readthedocs.io/en/0.6.0/installation.html#Pygments-Lexer-for-Syntax-Highlighting
      'ipython',
      'sphinx-copybutton',
+     'sphinxemoji',
 ]
 
 dev = [
@@ -50,6 +54,7 @@ dev = [
     'pytest-cov',
     'pytest-xdist',
     "requests>=2.21",
+    "pooch>=1.2.0",
 ]
 
 nb = [
@@ -57,12 +62,13 @@ nb = [
     'ipywidgets',
     'nbclient>=0.5.5',
     "torchvision>=0.3",
+    "pooch>=1.2.0",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
 "Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
-"Download" = "https://zenodo.org/record/3995056"
+"Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
 [tool.setuptools.packages.find]
 where = ["src"]

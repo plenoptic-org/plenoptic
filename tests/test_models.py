@@ -1,11 +1,9 @@
 # we do this to enable deterministic behavior on the gpu, see
 # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
 # details
-from conftest import DEVICE, DATA_DIR
 from collections import OrderedDict
-from test_metric import osf_download
-import os.path as op
 import einops
+from conftest import DEVICE, IMG_DIR
 import scipy.io as sio
 import pyrtools as pt
 from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
@@ -21,6 +19,23 @@ from contextlib import nullcontext as does_not_raise
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 
+ALL_MODELS = [
+    "LPyr",
+    "SPyr",
+    "frontend.LinearNonlinear",
+    "frontend.LuminanceGainControl",
+    "frontend.LuminanceContrastGainControl",
+    "frontend.OnOff",
+    "naive.Identity",
+    "naive.Linear",
+    "naive.Gaussian",
+    "naive.CenterSurround",
+    "PortillaSimoncelli",
+    "Identity",
+    "NLP",
+]
+
+
 @pytest.fixture()
 def image_input():
     return torch.rand(1, 1, 100, 100)
@@ -28,12 +43,12 @@ def image_input():
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
+    return po.data.fetch_data('portilla_simoncelli_matlab_test_vectors.tar.gz')
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return osf_download('portilla_simoncelli_test_vectors_refactor.tar.gz')
+    return po.data.fetch_data('portilla_simoncelli_test_vectors_refactor.tar.gz')
 
 
 def get_portilla_simoncelli_synthesize_filename(torch_version=None):
@@ -71,7 +86,7 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize(torch_version=None):
-    return osf_download(get_portilla_simoncelli_synthesize_filename(torch_version))
+    return po.data.fetch_data(get_portilla_simoncelli_synthesize_filename(torch_version))
 
 
 @pytest.fixture()
@@ -79,8 +94,49 @@ def portilla_simoncelli_scales():
     # During PS refactor, we changed the structure of the
     # _representation_scales attribute, so have a different file to test
     # against
-    return osf_download(f'portilla_simoncelli_scales_ps-refactor.npz')
+    return po.data.fetch_data('portilla_simoncelli_scales_ps-refactor.npz')
 
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cuda(model, einstein_img):
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cpu_and_back(model, einstein_img):
+    model.cpu()
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == 'cpu', reason="Can only test on cuda")
+def test_cuda_and_back(model, einstein_img):
+    model.cuda()
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_cpu(model, einstein_img):
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_validate_model(model):
+    po.tools.remove_grad(model)
+    po.tools.validate.validate_model(model, device=DEVICE,
+                                     image_shape=(1, 1, 256, 256))
 
 class TestNonLinearities(object):
     def test_rectangular_to_polar_dict(self, basic_stim):
@@ -139,7 +195,6 @@ class TestLaplacianPyramid(object):
             # and, depending on the parity of the image, sometimes performs additional zero padding
             # after upsampling up to one row/column. This causes inconsistency on the right and
             # bottom edges, so they are exluded in the comparison.
-
 
 class TestFrontEnd:
 
@@ -486,7 +541,7 @@ class TestPortillaSimoncelli(object):
         # multiplying by 255 before converting to float64 (rather than
         # converting to float64 and then multiplying by 255) matters, because
         # floating points are fun.
-        im0 = 255 * po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = 255 * po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
@@ -523,7 +578,7 @@ class TestPortillaSimoncelli(object):
                              spatial_corr_width, im,
                              portilla_simoncelli_test_vectors):
 
-        im0 = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im0 = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
@@ -651,7 +706,7 @@ class TestPortillaSimoncelli(object):
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("img_size", [255, 254, 252, 160])
     def test_other_size_images(self, n_scales, img_size):
-        im0 = po.load_images(op.join(DATA_DIR, f"256/nuts.pgm")).to(DEVICE)
+        im0 = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         im0 = im0[..., :img_size, :img_size]
         if any([(img_size / 2**i) % 2 for i in range(n_scales)]):
             expectation = pytest.raises(ValueError, match='Because of how the Portilla-Simoncelli model handles multiscale')
@@ -666,7 +721,7 @@ class TestPortillaSimoncelli(object):
 
     @pytest.mark.parametrize("img_size", [160, 128])
     def test_nonsquare_images(self, img_size):
-        im0 = po.load_images(op.join(DATA_DIR, f"256/nuts.pgm")).to(DEVICE)
+        im0 = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         im0 = im0[..., :img_size]
         model = po.simul.PortillaSimoncelli(
             im0.shape[-2:],
@@ -713,7 +768,7 @@ class TestPortillaSimoncelli(object):
             ).to(DEVICE)
         _, axes = model.plot_representation(model(einstein_img))
         orig_y = axes[0].containers[0].markerline.get_ydata()
-        img = po.load_images(op.join(DATA_DIR, "256", "nuts.pgm")).to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         artists = model.update_plot(axes, model(img).cpu())
         updated_y = artists[0].get_ydata()
         if np.equal(orig_y, updated_y).all():
@@ -789,7 +844,7 @@ class TestPortillaSimoncelli(object):
                           im):
         # test that the computed statistics have the redundancies we think they
         # do
-        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im = im.to(torch.float64).to(DEVICE)
         model = po.simul.PortillaSimoncelli(
             im.shape[-2:],
@@ -858,7 +913,7 @@ class TestPortillaSimoncelli(object):
     def test_crosscorrs(self, n_scales, n_orientations, spatial_corr_width,
                         im):
         # test that cross-correlations we compute are actual cross correlations
-        im = po.load_images(op.join(DATA_DIR, f"256/{im}.pgm"))
+        im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im = im.to(torch.float64).to(DEVICE)
         model = po.simul.PortillaSimoncelli(
             im.shape[-2:],

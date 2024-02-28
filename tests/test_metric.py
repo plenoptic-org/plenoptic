@@ -1,124 +1,43 @@
 import pytest
-import requests
-import math
-import tqdm
-import tarfile
 import os
-import os.path as op
 import scipy.io as sio
 import torch
 import numpy as np
 import plenoptic as po
-from conftest import DATA_DIR, DEVICE
-
-
-# If you add anything here, remember to update the docstring in osf_download!
-OSF_URL = {'plenoptic-test-files.tar.gz': 'q9kn8', 'ssim_images.tar.gz': 'j65tw',
-           'ssim_analysis.mat': 'ndtc7', 'msssim_images.tar.gz': '5fuba', 'MAD_results.tar.gz': 'jwcsr',
-           'portilla_simoncelli_matlab_test_vectors.tar.gz': 'qtn5y',
-           'portilla_simoncelli_test_vectors.tar.gz': '8r2gq',
-           'portilla_simoncelli_test_vectors_refactor.tar.gz': 'ca7qt',
-           'portilla_simoncelli_images.tar.gz':'eqr3t',
-           'portilla_simoncelli_synthesize.npz': 'a7p9r',
-           'portilla_simoncelli_synthesize_torch_v1.12.0.npz': 'gbv8e',
-           'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': 'vmwzd',
-           'portilla_simoncelli_synthesize_gpu.npz': 'tn4y8',
-           'portilla_simoncelli_synthesize_gpu_ps-refactor.npz': 'mqs6y',
-           'portilla_simoncelli_scales.npz': 'xhwv3',
-           'portilla_simoncelli_scales_ps-refactor.npz': 'nvpr4'}
-
-
-
-def osf_download(filename):
-    r"""Download file from plenoptic OSF page.
-
-    From the OSF project at https://osf.io/ts37w/.
-
-    Downloads the specified file to `plenoptic/data`, extracts and deletes the
-    the .tar.gz file (if applicable), and returns the path.
-
-    Parameters
-    ----------
-    filename : {'plenoptic-test-files.tar.gz', 'ssim_images.tar.gz',
-                'ssim_analysis.mat', 'msssim_images.tar.gz',
-                'MAD_results.tar.gz',
-                'portilla_simoncelli_images.tar.gz',
-                'portilla_simoncelli_matlab_test_vectors.tar.gz',
-                'portilla_simoncelli_test_vectors.tar.gz',
-                'portilla_simoncelli_test_vectors_refactor.tar.gz',
-                'portilla_simoncelli_synthesize.npz',
-                'portilla_simoncelli_synthesize_torch_v1.12.0.npz',
-                'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz',
-                'portilla_simoncelli_synthesize_gpu.npz',
-                'portilla_simoncelli_scales.npz',
-                'portilla_simoncelli_scales_ps-refactor.npz'}
-        Which file to download.
-
-    Returns
-    -------
-    path : str
-        The path to the downloaded directory or file.
-
-    """
-    path = op.join(op.dirname(op.realpath(__file__)), '..', 'data', filename)
-    if not op.exists(path.replace('.tar.gz', '')):
-        print(f"{filename} not found, downloading now...")
-        # Streaming, so we can iterate over the response.
-        r = requests.get(f"https://osf.io/{OSF_URL[filename]}/download",
-                         stream=True)
-
-        # Total size in bytes.
-        total_size = int(r.headers.get('content-length', 0))
-        block_size = 1024*1024
-        wrote = 0
-        with open(path, 'wb') as f:
-            for data in tqdm.tqdm(r.iter_content(block_size), unit='MB',
-                                  unit_scale=True,
-                                  total=math.ceil(total_size//block_size)):
-                wrote += len(data)
-                f.write(data)
-        if total_size != 0 and wrote != total_size:
-            raise Exception(f"Error downloading {filename}!")
-        if filename.endswith('.tar.gz'):
-            with tarfile.open(path) as f:
-                f.extractall(op.dirname(path))
-            os.remove(path)
-        print("DONE")
-    return path.replace('.tar.gz', '')
+from conftest import DEVICE, IMG_DIR
 
 
 @pytest.fixture()
 def test_files_dir():
-    return osf_download('plenoptic-test-files.tar.gz')
+    return po.data.fetch_data('plenoptic-test-files.tar.gz')
 
 
 def test_find_files(test_files_dir):
-    assert op.exists(op.join(test_files_dir, 'buildSCFpyr0.mat'))
+    assert os.path.exists(os.path.join(test_files_dir, 'buildSCFpyr0.mat'))
 
 
 @pytest.fixture()
 def ssim_images():
-    return osf_download('ssim_images.tar.gz')
+    return po.data.fetch_data('ssim_images.tar.gz')
 
 
 @pytest.fixture()
 def msssim_images():
-    return osf_download('msssim_images.tar.gz')
+    return po.data.fetch_data('msssim_images.tar.gz')
 
 
 @pytest.fixture()
 def ssim_analysis():
-    ssim_analysis = osf_download('ssim_analysis.mat')
+    ssim_analysis = po.data.fetch_data('ssim_analysis.mat')
     return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
-@pytest.mark.parametrize('paths', [DATA_DIR, op.join(DATA_DIR, '256/einstein.png'),
-                                   op.join(DATA_DIR, '256'),
-                                   [op.join(DATA_DIR, '256/einstein.png'),
-                                    op.join(DATA_DIR, '256/curie.pgm')]])
+@pytest.mark.parametrize('paths', [IMG_DIR / "mixed", IMG_DIR / "256" / 'einstein.pgm',
+                                   [IMG_DIR / "256" / "einstein.pgm",
+                                    IMG_DIR / "256" / 'curie.pgm']])
 @pytest.mark.parametrize('as_gray', [True, False])
 def test_load_images(paths, as_gray):
-    if paths == DATA_DIR:
+    if paths == IMG_DIR / "mixed":
         # there are images of different sizes in here, which means we should raise
         # an Exception
         with pytest.raises(Exception):
@@ -197,14 +116,14 @@ class TestPerceptualMetrics(object):
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(op.join(ssim_images, ssim_analysis['base_img'])).to(DEVICE)
+        return po.load_images(os.path.join(ssim_images, ssim_analysis['base_img'])).to(DEVICE)
 
     @pytest.mark.parametrize('weighted', [True, False])
     @pytest.mark.parametrize('other_img', np.arange(1, 11))
     def test_ssim_analysis(self, weighted, other_img, ssim_images,
                            ssim_analysis, ssim_base_img):
         mat_type = {True: 'weighted', False: 'standard'}[weighted]
-        other = po.load_images(op.join(ssim_images, f"samp{other_img}.tif")).to(DEVICE)
+        other = po.load_images(os.path.join(ssim_images, f"samp{other_img}.tif")).to(DEVICE)
         # dynamic range is 1 for these images, because po.load_images
         # automatically re-ranges them. They were comptued with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
@@ -220,9 +139,9 @@ class TestPerceptualMetrics(object):
         # True values are defined by https://ece.uwaterloo.ca/~z70wang/research/iwssim/msssim.zip
         true_values = torch.tensor([1.0000000, 0.9112161, 0.7699084, 0.8785111, 0.9488805], device=DEVICE)
         computed_values = torch.zeros_like(true_values)
-        base_img = po.load_images(op.join(msssim_images, "samp0.tiff")).to(DEVICE)
+        base_img = po.load_images(os.path.join(msssim_images, "samp0.tiff")).to(DEVICE)
         for i in range(len(true_values)):
-            other_img = po.load_images(op.join(msssim_images, f"samp{i}.tiff")).to(DEVICE)
+            other_img = po.load_images(os.path.join(msssim_images, f"samp{i}.tiff")).to(DEVICE)
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 

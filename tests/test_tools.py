@@ -8,15 +8,15 @@ import einops
 import torch
 from numpy.random import randint
 from contextlib import nullcontext as does_not_raise
-from conftest import DEVICE, DATA_DIR
+from conftest import DEVICE, IMG_DIR
 
 
 class TestData(object):
 
     def test_load_images_fail(self):
         with pytest.raises(ValueError, match='All images must be the same shape'):
-            po.load_images([op.join(DATA_DIR, '256', 'einstein.pgm'),
-                            op.join(DATA_DIR, '512', 'bubbles.png')])
+            po.load_images([op.join(IMG_DIR, '256', 'einstein.pgm'),
+                            op.join(IMG_DIR, 'mixed', 'bubbles.png')])
 
 
 class TestSignal(object):

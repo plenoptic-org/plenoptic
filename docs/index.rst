@@ -4,13 +4,13 @@
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
                     :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
-.. |python-version-shield| image:: https://img.shields.io/badge/python-3.7%7C3.8%7C3.9%7C3.10-blue.svg
+.. |python-version-shield| image:: https://img.shields.io/badge/python-3.10%7C3.11%7C3.12-blue.svg
 
 .. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
 		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
 
-.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3995057.svg
-            :target: https://doi.org/10.5281/zenodo.3995057
+.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg
+            :target: https://zenodo.org/doi/10.5281/zenodo.10151130
 
 .. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
              :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
@@ -26,6 +26,7 @@
 
 plenoptic
 *********
+.. _index:
 
 |pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
 
@@ -34,12 +35,8 @@ plenoptic
    :align: center
    :alt: plenoptic logo
 
-``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. 
-Most examples are visual, but the tools can also be used for auditory models. 
-The generated stimuli enable interpretation of model properties through examination of features that are 
-enhanced, suppressed, or descarded.
-More importantly, they can facilitate the scientific proceess, through use in perceptual or neural experiments 
-aimed at validating/falsifying model predictions.
+``plenoptic`` is a python library for model-based synthesis of perceptual stimuli. For ``plenoptic``, models are those of visual [1]_ information processing: they accept an image as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
+
 
 Getting started
 ---------------
@@ -214,6 +211,13 @@ cite us! See the :ref:`citation` for more details.
    reproducibility
    API Documentation <api/modules>
    tutorials/advanced/*
+
+.. [1] These methods also work with auditory models, such as in `Feather et al.,
+       2019
+       <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
+       though we haven't yet implemented examples. If you're interested, please
+       post in `Discussions
+       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.
