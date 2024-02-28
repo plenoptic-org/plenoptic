@@ -53,7 +53,7 @@ dev = [
     "torchvision>=0.3",
     "requests>=2.21",
     "nox",
-    "ruff"
+    "ruff>=0.2"
 ]
 
 nb = [
