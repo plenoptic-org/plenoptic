@@ -81,7 +81,7 @@ addopts = "--cov=plenoptic"
 testpaths = ["tests"]
 
 [tool.ruff]
-
+src = ['src']
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
