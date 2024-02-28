@@ -10,9 +10,12 @@ import matplotlib.lines as lines
 import numpy as np
 import pyrtools as pt
 import scipy.io as sio
+from ..data import fetch_data
 
 
-def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents/MAD_Competition/data/results',
+def plot_MAD_results(original_image, noise_levels=None,
+                     results_dir=None,
+                     ssim_images_dir=None,
                      zoom=3, vrange='indep1', **kwargs):
     r"""plot original MAD results, provided by Zhou Wang
 
@@ -37,8 +40,14 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents
     noise_levels : list or None, optional
         which noise levels to plot. if None, will plot all. If a list,
         elements must be 2**i where i is in [1, 10]
-    results_dir : str, optional
-        path to the results directory containing the results.mat files
+    results_dir : None or str, optional
+        path to the results directory containing the results.mat files. If
+        None, we call `po.data.fetch_data` to download (requires optional
+        dependency pooch).
+    ssim_images_dir : None or str, optional
+        path to the directory containing the .tif images used in SSIM paper. If
+        None, we call `po.data.fetch_data` to download (requires optional
+        dependency pooch).
     zoom : int, optional
         amount to zoom each image, passed to pyrtools.imshow
     vrange : str, optional
@@ -61,14 +70,12 @@ def plot_MAD_results(original_image, noise_levels=None, results_dir='~/Documents
         ``pd.DataFrame(results).T``
 
     """
-    img_path = op.join(op.expanduser(results_dir), f"{original_image}.tif")
-    try:
-        orig_img = imageio.imread(img_path)
-    except FileNotFoundError:
-        # two basic places to check, either the same directory as the results,
-        # or replace results with ssim_images
-        img_path = op.join(op.dirname(op.dirname(img_path)), 'ssim_images', f"{original_image}.tif")
-        orig_img = imageio.imread(img_path)
+    if results_dir is None:
+        results_dir = str(fetch_data('MAD_results.tar.gz'))
+    if ssim_images_dir is None:
+        ssim_images_dir = str(fetch_data('ssim_images.tar.gz'))
+    img_path = op.join(op.expanduser(ssim_images_dir), f"{original_image}.tif")
+    orig_img = imageio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:
         noise_levels = [2**i for i in range(1, 11)]

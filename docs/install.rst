@@ -33,7 +33,7 @@ Optional dependencies
 
 The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the pip install command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``torchvision``, ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for more details on how to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
+* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for more details on how to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 * If you would like to locally build the documentation: ``pip install -e .[docs]``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 * If you would like to run the tests: ``pip install -e .[dev]``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 
@@ -66,7 +66,7 @@ Installing jupyter and setting up the kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you wish to locally run the notebooks, you will need to install ``jupyter``,
-``ipywidgets``, and (for some of the notebooks) ``torchvision`` .
+``ipywidgets``, and (for some of the notebooks) ``torchvision`` and ``pooch`` .
 There are three possible ways of getting a local jupyter install working with this
 package, depending on how you wish to handle virtual environments.
 
@@ -79,7 +79,7 @@ package, depending on how you wish to handle virtual environments.
    do the following::
 
    $ conda activate plenoptic
-   $ conda install -c conda-forge jupyterlab ipywidgets torchvision
+   $ conda install -c conda-forge jupyterlab ipywidgets torchvision pooch
 
    With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyuter into that separate virtual environment, which is wasteful.
 
@@ -95,8 +95,8 @@ package, depending on how you wish to handle virtual environments.
    $ # install jupyter lab and nb_conda_kernels in your base environment
    $ conda install -c conda-forge jupyterlab ipywidgets
    $ conda install nb_conda_kernels
-   $ # install ipykernel and torchvision in the plenoptic environment
-   $ conda install -n plenoptic ipykernel torchvision
+   $ # install ipykernel, torchvision, and pooch in the plenoptic environment
+   $ conda install -n plenoptic ipykernel torchvision pooch
 
    With this setup, you have a single jupyter install that can run kernels from any of your conda environments. All you have to do is install ``ipykernel`` (and restart jupyter) and you should see the new kernel!
 
@@ -109,7 +109,7 @@ package, depending on how you wish to handle virtual environments.
    $ # install jupyter lab and nb_conda_kernels in your base environment
    $ conda install -c conda-forge jupyterlab ipywidgets
    $ # install ipykernel and torchvision in the plenoptic environment
-   $ conda install -n plenoptic ipykernel torchvision
+   $ conda install -n plenoptic ipykernel torchvision pooch
    $ conda activate plenoptic
    $ python -m ipykernel install --prefix=/path/to/jupyter/env --name 'plenoptic'
 
@@ -117,7 +117,7 @@ package, depending on how you wish to handle virtual environments.
 
    With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from *any* virtual environment (not just conda!) and have fewer packages installed in your ``base`` environment, but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
 
-   .. note:: If you're not using conda to manage your environments, the key idea is to install ``jupyter`` and ``ipywidgets`` in one environment, then install ``ipykernel`` and ``torchvision`` in the same environment as plenoptic, and then run the ``ipykernel install`` command **using the plenoptic environment's python**.
+   .. note:: If you're not using conda to manage your environments, the key idea is to install ``jupyter`` and ``ipywidgets`` in one environment, then install ``ipykernel``, ``torchvision``, and ``pooch`` in the same environment as plenoptic, and then run the ``ipykernel install`` command **using the plenoptic environment's python**.
 
 The following table summarizes the advantages and disadvantages of these three choices:
 

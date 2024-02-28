@@ -1,4 +1,4 @@
-from glob import glob
+import pathlib
 from typing import List, Optional, Union, Tuple
 import warnings
 
@@ -89,19 +89,27 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     images
         4d tensor containing the images.
     """
-    if isinstance(paths, str):
-        if op.isfile(paths):
+    try:
+        paths = pathlib.Path(paths)
+        if paths.is_file():
             paths = [paths]
-        elif op.isdir(paths):
-            paths = glob(op.join(paths, "*"))
+        elif paths.is_dir():
+            paths = [path for path in paths.iterdir()]
         else:
-            raise Exception(
-                "paths must either a single file, a list of "
-                "files, or a single directory, unsure what "
-                "to do with %s!" % paths
-            )
+            if not paths.exists():
+                raise FileNotFoundError(f"File {paths} not found!")
+
+    except TypeError:
+        # assume it is an iterable of paths already
+        pass
+
     images = []
     for p in paths:
+        # convert to pathlib path
+        p = pathlib.Path(p)
+        if not p.exists():
+            raise FileNotFoundError(f"File {p} not found!")
+
         try:
             im = imageio.imread(p)
         except ValueError:

@@ -6,7 +6,6 @@ import plenoptic as po
 import pyrtools as pt
 import numpy as np
 from test_models import TestPortillaSimoncelli, get_portilla_simoncelli_synthesize_filename
-from test_metric import osf_download
 from conftest import DEVICE
 
 
@@ -29,7 +28,7 @@ def update_ps_synthesis_test_file():
 
     """
     # for now, we want to compare against the one that worked for pytorch version 1.11
-    ps_synth_file = osf_download(get_portilla_simoncelli_synthesize_filename('1.11'))
+    ps_synth_file = po.data.fetch_data(get_portilla_simoncelli_synthesize_filename('1.11'))
     print(f'Loading from {ps_synth_file}')
 
     with np.load(ps_synth_file) as f:
