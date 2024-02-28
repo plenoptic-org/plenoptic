@@ -18,7 +18,7 @@ REGISTRY = {
     'portilla_simoncelli_synthesize_gpu.npz': '324efc2a6c54382aae414d361c099394227b56cd24460eebab2532f70728c3ee',
     'portilla_simoncelli_scales.npz': 'eae2db6bd5db7d37c28d8f8320c4dd4fa5ab38294f5be22f8cf69e5cd5e4936a',
     'sample_images.tar.gz': '0ba6fe668a61e9f3cb52032da740fbcf32399ffcc142ddb14380a8e404409bf5',
-    'test_images.tar.gz': '295727fc84a8e0e469f215f781f09e83c2422ba66526a215e4ce12cbd925c66f',
+    'test_images.tar.gz': 'eaf35f5f6136e2d51e513f00202a11188a85cae8c6f44141fb9666de25ae9554',
     'tid2013.tar.gz': 'bc486ac749b6cfca8dc5f5340b04b9bb01ab24149a5f3a712f13e9d0489dcde0',
 }
 
