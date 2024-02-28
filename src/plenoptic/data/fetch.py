@@ -58,6 +58,8 @@ else:
         base_url="",
         urls=REGISTRY_URLS,
         registry=REGISTRY,
+        retry_if_failed=2,
+        allow_updates="POOCH_ALLOW_UPDATES",
     )
 
 def fetch_data(dataset_name: str) -> pathlib.Path:

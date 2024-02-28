@@ -6,6 +6,10 @@ on:
   pull_request:
     branches:
     - main
+# want pooch to raise an error if I've updated the file and forgot to update the
+# hash.
+env:
+  POOCH_ALLOW_UPDATES: false
 
 jobs:
   # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
