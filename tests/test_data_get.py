@@ -70,4 +70,4 @@ def test_data_get_shape(item_name, img_shape):
                                        'einstein', 'reptile_skin'])
 def test_data_module(item_name):
     """Test that data module works."""
-    assert eval(f"po.data.{item_name}()", po.data.data_utils.get(item_name)).all()
+    assert (eval(f"po.data.{item_name}()") == po.data.data_utils.get(item_name)).all()
