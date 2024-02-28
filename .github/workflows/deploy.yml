@@ -72,7 +72,7 @@ jobs:
         with:
           path: dist/*
 
- publish:
+  publish:
     name: Upload release to Test PyPI
     needs: [build]
     environment: pypi
