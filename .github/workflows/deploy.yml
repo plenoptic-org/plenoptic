@@ -48,7 +48,7 @@ jobs:
         # square brackets but passes them directly to pip install
         shell: bash
         run: |
-          pip install "$(ls dist/*whl)[dev,nb]"
+          pip install "$(ls dist/*whl)[dev,nb]" papermill
       - name: Run tests
         run: |
           pytest -n auto
