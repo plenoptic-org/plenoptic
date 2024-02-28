@@ -37,14 +37,14 @@ def test_data_get_path(item_name, expectation):
                 path.unlink()  # This deletes the file
 
 
-@pytest.mark.parametrize("item_name", ["color_wheel", "flowers", "curie"])
+@pytest.mark.parametrize("item_name", ["color_wheel", "parrot", "curie"])
 def test_data_get_path_type(item_name):
     """Test that the returned path object is an instance of Traversable."""
     assert isinstance(po.data.data_utils.get_path(item_name), Traversable)
 
 
 @pytest.mark.parametrize(
-    "item_name", ["color_wheel", "flowers", "curie"]
+    "item_name", ["color_wheel", "parrot", "curie"]
 )
 def test_data_get_type(item_name):
     """Test that the retrieved data is of type Tensor."""
@@ -56,7 +56,7 @@ def test_data_get_type(item_name):
     "item_name, img_shape",
     [
         ("color_wheel", (1, 3, 600, 600)),
-        ("flowers", (1, 3, 512, 512)),
+        ("parrot", (1, 3, 254, 266)),
         ("curie", (1, 1, 256, 256))
     ]
 )
@@ -64,3 +64,10 @@ def test_data_get_shape(item_name, img_shape):
     """Check if the shape of the retrieved image matches the expected dimensions."""
     img = po.data.data_utils.get(item_name)
     assert all(shp == img_shape[i] for i, shp in enumerate(img.shape))
+
+
+@pytest.mark.parametrize("item_name", ["color_wheel", "parrot", "curie",
+                                       'einstein', 'reptile_skin'])
+def test_data_module(item_name):
+    """Test that data module works."""
+    assert eval(f"po.data.{item_name}()", po.data.data_utils.get(item_name)).all()
