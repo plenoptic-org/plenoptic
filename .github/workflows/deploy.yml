@@ -60,6 +60,8 @@ jobs:
       - name: Run tests
         run: |
           pytest -n auto
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3.1
       - name: Run notebooks
         run: |
           for file in examples/*ipynb; do
