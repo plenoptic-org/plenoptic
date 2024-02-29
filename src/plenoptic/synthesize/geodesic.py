@@ -30,7 +30,8 @@ class Geodesic(OptimizedSynthesis):
     Parameters
     ----------
     image_a, image_b
-        Start and stop anchor points of the geodesic, of shape [1, C, H, W].
+        Start and stop anchor points of the geodesic, of shape (1, channel,
+        height, width).
     model
         an analysis model that computes representations on signals like `image_a`.
     n_steps
@@ -51,8 +52,8 @@ class Geodesic(OptimizedSynthesis):
     ----------
     geodesic: Tensor
         the synthesized sequence of images between the two anchor points that
-        minimizes representation path energy, of shape ``(n_steps+1, C, H,
-        W)``. It starts with image_a and ends with image_b.
+        minimizes representation path energy, of shape ``(n_steps+1, channel,
+        height, width)``. It starts with image_a and ends with image_b.
     pixelfade: Tensor
         the straight interpolation between the two anchor points,
         used as reference

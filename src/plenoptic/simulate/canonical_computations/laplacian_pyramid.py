@@ -38,7 +38,7 @@ class LaplacianPyramid(nn.Module):
 
         Parameters
         ----------
-        x: torch.Tensor of shape (B, C, H, W)
+        x: torch.Tensor of shape (batch, channel, height, width)
             Image, or batch of images. If there are multiple channels,
             the Laplacian is computed separately for each of them
 
@@ -71,7 +71,7 @@ class LaplacianPyramid(nn.Module):
 
         Returns
         -------
-        x: torch.Tensor of shape (B, C, H, W)
+        x: torch.Tensor of shape (batch, channel, height, width)
             Image, or batch of images
         """
 

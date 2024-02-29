@@ -6,10 +6,10 @@ import plenoptic as po
 import pyrtools as pt
 import numpy as np
 from test_models import TestPortillaSimoncelli, get_portilla_simoncelli_synthesize_filename
-from conftest import DEVICE
+from typing import Optional
 
 
-def update_ps_synthesis_test_file():
+def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
     """Create new test file for test_models.test_ps_synthesis().
 
     We cannot guarantee perfect reproducibility across pytorch versions, but we
@@ -19,7 +19,15 @@ def update_ps_synthesis_test_file():
     ensure it still looks good.
 
     After generating this file and checking it looks good, upload it to the OSF
-    plenoptic-files project: https://osf.io/ts37w/files/osfstorage
+    plenoptic-files project: https://osf.io/ts37w/files/osfstorage, then update
+    test_models.get_portilla_simoncelli_synthesize_filename and
+    test_metric.OSF_URL
+
+    Parameters
+    ----------
+    torch_version
+        The version of pytorch for which we should grab the corresponding test
+        file. If None, we use the installed version.
 
     Returns
     -------
@@ -27,8 +35,7 @@ def update_ps_synthesis_test_file():
         Metamer object for inspection
 
     """
-    # for now, we want to compare against the one that worked for pytorch version 1.11
-    ps_synth_file = po.data.fetch_data(get_portilla_simoncelli_synthesize_filename('1.11'))
+    ps_synth_file = po.data.fetch_data(get_portilla_simoncelli_synthesize_filename(torch_version))
     print(f'Loading from {ps_synth_file}')
 
     with np.load(ps_synth_file) as f:
@@ -40,11 +47,11 @@ def update_ps_synthesis_test_file():
     met = TestPortillaSimoncelli().test_ps_synthesis(ps_synth_file, False)
 
     torch_v = torch.__version__.split('+')[0]
-    file_name_parts = re.findall('(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*).npz',
+    file_name_parts = re.findall('(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*)(_ps-refactor)?.npz',
                                  ps_synth_file)[0]
-    output_file_name = ''.join(file_name_parts[:2]) + f'_torch_v{torch_v}.npz'
-    output = po.to_numpy(met.synthesized_signal).squeeze()
-    rep = po.to_numpy(met.model(met.synthesized_signal)).squeeze()
+    output_file_name = ''.join(file_name_parts[:2]) + f'_torch_v{torch_v}{file_name_parts[-1]}.npz'
+    output = po.to_numpy(met.metamer).squeeze()
+    rep = po.to_numpy(met.model(met.metamer)).squeeze()
     try:
         np.testing.assert_allclose(output, im_synth.squeeze(), rtol=1e-4, atol=1e-4)
         np.testing.assert_allclose(rep, rep_synth.squeeze(), rtol=1e-4, atol=1e-4)
