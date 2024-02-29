@@ -20,6 +20,10 @@ REGISTRY = {
     'sample_images.tar.gz': '0ba6fe668a61e9f3cb52032da740fbcf32399ffcc142ddb14380a8e404409bf5',
     'test_images.tar.gz': 'eaf35f5f6136e2d51e513f00202a11188a85cae8c6f44141fb9666de25ae9554',
     'tid2013.tar.gz': 'bc486ac749b6cfca8dc5f5340b04b9bb01ab24149a5f3a712f13e9d0489dcde0',
+    'portilla_simoncelli_test_vectors_refactor.tar.gz': '2ca60f1a60b192668567eb3d94c0cdc8679b23bf94a98331890c41eb9406503a',
+    'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': '9525844b71cf81509b86ed9677172745353588c6bb54e4de8000d695598afa47',
+    'portilla_simoncelli_synthesize_gpu_ps-refactor.npz': '9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61',
+    'portilla_simoncelli_scales_ps-refactor.npz': '1053790a37707627810482beb0dd059cbc193efd688b60c441b3548a75626fdf',
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -40,8 +44,12 @@ REGISTRY_URLS = {
     'sample_images.tar.gz': OSF_TEMPLATE.format('6drmy'),
     'test_images.tar.gz': OSF_TEMPLATE.format('au3b8'),
     'tid2013.tar.gz': OSF_TEMPLATE.format('uscgv'),
+    'portilla_simoncelli_test_vectors_refactor.tar.gz': OSF_TEMPLATE.format('ca7qt'),
+    'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': OSF_TEMPLATE.format('vmwzd'),
+    'portilla_simoncelli_synthesize_gpu_ps-refactor.npz': OSF_TEMPLATE.format('mqs6y'),
+    'portilla_simoncelli_scales_ps-refactor.npz': OSF_TEMPLATE.format('nvpr4'),
 }
-DOWNLOADABLE_FILES = list(REGISTRY.keys())
+DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
 import pathlib
 from typing import List

@@ -3,7 +3,6 @@ import plenoptic as po
 import os.path as op
 import pathlib
 import torch
-from torchvision.transforms.functional import center_crop
 
 import plenoptic.simulate.canonical_computations.filters as filters
 
@@ -40,7 +39,7 @@ def einstein_small_seq(einstein_img_small):
 
 @pytest.fixture(scope='package')
 def einstein_img_small(einstein_img):
-    return center_crop(einstein_img, [64]).to(DEVICE)
+    return po.tools.center_crop(einstein_img, 64).to(DEVICE)
 
 @pytest.fixture(scope='package')
 def color_img():

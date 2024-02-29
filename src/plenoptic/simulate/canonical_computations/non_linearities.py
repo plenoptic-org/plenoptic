@@ -79,7 +79,7 @@ def local_gain_control(x, epsilon=1e-8):
     Parameters
     ----------
     x : torch.Tensor
-        Tensor of shape (B,C,H,W)
+        Tensor of shape (batch, channel, height, width)
     epsilon: float, optional
         Small constant to avoid division by zero.
 
@@ -134,7 +134,7 @@ def local_gain_release(norm, direction, epsilon=1e-8):
     Returns
     -------
     x : torch.Tensor
-        Tensor of shape (B,C,H,W)
+        Tensor of shape (batch, channel, height, width)
 
     Notes
     -----
@@ -163,7 +163,7 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     Parameters
     ----------
     coeff_dict : dict
-        A dictionary containing tensors of shape (B,C,H,W)
+        A dictionary containing tensors of shape (batch, channel, height, width)
     residuals: bool, optional
         An option to carry around residuals in the energy dict.
         Note that the transformation is not applied to the residuals,
@@ -219,7 +219,7 @@ def local_gain_release_dict(energy, state, residuals=True):
     Returns
     -------
     coeff_dict : dict
-        A dictionary containing tensors of shape (B,C,H,W)
+        A dictionary containing tensors of shape (batch, channel, height, width)
 
     Notes
     -----

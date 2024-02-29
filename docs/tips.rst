@@ -36,7 +36,7 @@ methods.
 - For metamers, this means double-checking that the difference between the model
   representation of the metamer and the target image is small enough. If your
   model's representation is multi-scale, trying coarse-to-fine optimization may
-  help (see `notebook <tutorials/06_Metamer.html#Coarse-to-fine-optimization>`_
+  help (see `notebook <tutorials/intro/06_Metamer.html#Coarse-to-fine-optimization>`_
   for details).
 - For MAD competition, this means double-checking that the reference metric is
   constant and that the optimized metric has converged at a lower or higher
@@ -59,6 +59,40 @@ Additionally, it may be helpful to visualize the progression of synthesis, using
 each synthesis method's ``animate`` or ``plot_synthesis_status`` helper
 functions (e.g., :func:`plenoptic.synthesize.metamer.plot_synthesis_status`).
 
+Tweaking the model
+------------------
+
+You can also improve your changes of finding a good synthesis by tweaking the
+model. For example, the loss function used for metamer synthesis by default is
+mean-squared error. This implicitly weights all aspects of the model's
+representation equally. Thus, if there are portions of the representation whose
+magnitudes are significantly smaller than the others, they might not be matched
+at the same rate as the others. You can address this using coarse-to-fine
+synthesis or picking a more suitable loss function, but it's generally a good
+idea for all of a model's representation to have roughly the same magnitude. You
+can do this in a principled or empirical manner:
+
+- Principled: compose your representation of statistics that you know lie within
+  the same range. For example, use correlations instead of covariances (see the
+  Portilla-Simoncelli model, and in particular `how plenoptic's implementation
+  differs from matlab
+  <tutorials/models/Metamer-Portilla-Simoncelli#7.-Notable-differences-between-Matlab-and-Python-Implementations>`_
+  for an example of this).
+- Empirical: measure your model's representation on a dataset of relevant
+  natural images and then use this output to z-score your model's representation
+  on each pass (see [Ziemba2021]_ for an example; this is what the Van Hateren
+  database is used for).
+- In the middle: normalize statistics based on their value in the original image
+  (note: not the image the model is taking as input! this will likely make
+  optimization very difficult).
+
+If you are computing a multi-channel representation, you may have a similar
+problem where one channel is larger or smaller than the others. Here, tweaking
+the loss function might be more useful. Using something like `logsumexp` (the
+log of the sum of exponentials, a smooth approximation of the maximum function)
+to combine across channels after using something like L2-norm to compute the
+loss within each channel might help.
+
 None of the existing synthesis methods meet my needs
 ====================================================
 
@@ -79,4 +113,4 @@ methods.
 
 If you extend a method successfully or would like help making it work, please
 let us know by posting a `discussion!
-<https://github.com/Flatiron-CCN/plenoptic/discussions>`_
+<https://github.com/LabForComputationalVision/plenoptic/discussions>`_

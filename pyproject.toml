@@ -53,7 +53,6 @@ dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "torchvision>=0.3",
     "requests>=2.21",
     "pooch>=1.2.0",
 ]
@@ -61,8 +60,8 @@ dev = [
 nb = [
     'jupyter',
     'ipywidgets',
-    "torchvision>=0.3",
     'nbclient>=0.5.5',
+    "torchvision>=0.3",
     "pooch>=1.2.0",
 ]
 

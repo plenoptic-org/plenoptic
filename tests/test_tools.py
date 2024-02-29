@@ -4,6 +4,7 @@ import scipy.ndimage
 import plenoptic as po
 import os.path as op
 import pytest
+import einops
 import torch
 from numpy.random import randint
 from contextlib import nullcontext as does_not_raise
@@ -14,8 +15,8 @@ class TestData(object):
 
     def test_load_images_fail(self):
         with pytest.raises(ValueError, match='All images must be the same shape'):
-            po.load_images([op.join(IMG_DIR, '256', 'einstein.pgm'),
-                            op.join(IMG_DIR, 'mixed', 'bubbles.png')])
+            po.load_images([IMG_DIR / '256' / 'einstein.pgm',
+                            IMG_DIR / 'mixed' / 'bubbles.png'])
 
 
 class TestSignal(object):
@@ -51,14 +52,11 @@ class TestSignal(object):
         assert torch.norm(b - B) < 1e-3
 
     @pytest.mark.parametrize("n", range(1, 15))
-    def test_autocorr(self, n):
+    def test_autocorrelation(self, n):
         x = po.tools.make_synthetic_stimuli().to(DEVICE)
         x_centered = x - x.mean((2, 3), keepdim=True)
-        a = po.tools.autocorr(x_centered, n_shifts=n)
-
-        # import matplotlib.pyplot as plt
-        # po.imshow(a, zoom=4)
-        # plt.show()
+        a = po.tools.autocorrelation(x_centered)
+        a = po.tools.center_crop(a, n)
 
         # autocorr with zero delay is variance
         assert (torch.abs(
@@ -92,6 +90,116 @@ class TestSignal(object):
             assert po.tools.add_noise(A, B).shape[0] == max(size_A, size_B)
 
 
+    @pytest.mark.parametrize('factor', [.5, 1, 1.5, 2, 1.1])
+    @pytest.mark.parametrize('img_size', [256, 128, 200])
+    def test_expand(self, factor, img_size, einstein_img):
+        einstein_img = einstein_img.clone()[..., :img_size]
+        if int(factor * img_size) != factor * img_size:
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-1\] must be')
+        elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
+            expectation = pytest.raises(ValueError, match='factor \* x.shape\[-2\] must be')
+        elif factor <= 1:
+            expectation = pytest.raises(ValueError, match='factor must be strictly greater')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            expanded = po.tools.expand(einstein_img, factor)
+            np.testing.assert_equal(expanded.shape[-2:], [factor * s for s in einstein_img.shape[-2:]])
+
+    @pytest.mark.parametrize('factor', [.5, 1, 1.5, 2, 1.1])
+    @pytest.mark.parametrize('img_size', [256, 128, 200])
+    def test_shrink(self, factor, img_size, einstein_img):
+        einstein_img = einstein_img.clone()[..., :img_size]
+        if int(img_size / factor) != img_size / factor:
+            expectation = pytest.raises(ValueError, match='x.shape\[-1\]/factor must be')
+        elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
+            expectation = pytest.raises(ValueError, match='x.shape\[-2\]/factor must be')
+        elif factor <= 1:
+            expectation = pytest.raises(ValueError, match='factor must be strictly greater')
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            shrunk = po.tools.shrink(einstein_img, factor)
+            np.testing.assert_equal(shrunk.shape[-2:], [s / factor for s in einstein_img.shape[-2:]])
+
+    @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
+    def test_shrink_batch_channel(self, batch_channel, einstein_img):
+        shrunk = po.tools.shrink(einstein_img.repeat((*batch_channel, 1, 1)), 2)
+        size = batch_channel + [s / 2 for s in einstein_img.shape[-2:]]
+        np.testing.assert_equal(shrunk.shape, size)
+
+    @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
+    def test_expand_batch_channel(self, batch_channel, einstein_img):
+        expanded = po.tools.expand(einstein_img.repeat((*batch_channel, 1, 1)), 2)
+        size = batch_channel + [2 * s for s in einstein_img.shape[-2:]]
+        np.testing.assert_equal(expanded.shape, size)
+
+    @pytest.mark.parametrize('factor', [1.5, 2])
+    @pytest.mark.parametrize("img", ["curie", "einstein", "metal", "nuts"])
+    def test_expand_shrink(self, img, factor):
+        # expand then shrink will be the same as the original image, up to this
+        # fudge factor
+        img = po.load_images(IMG_DIR / "256" / f"{img}.pgm").to(DEVICE)
+        modified = po.tools.shrink(po.tools.expand(img, factor), factor)
+        torch.testing.assert_close(img, modified, atol=2e-2, rtol=1e-6)
+
+    @pytest.mark.parametrize("phase", [0, np.pi/2, np.pi])
+    def test_modulate_phase_correlation(self, phase):
+        # here we create an image that has sinusoids at two frequencies, with
+        # some phase offset. Because their frequencies are an octave apart,
+        # they will show up in neighboring scales of the steerable pyramid
+        # coefficients. Based on their phase offset, the coefficients should
+        # either be correlated, uncorrelated, or anti-correlated, which is only
+        # recoverable after using expand and doubling the phase of the lower
+        # frequency one (this trick is used in th PS texture model)
+        X = torch.arange(256).unsqueeze(1).repeat(1, 256) / 256 * 2 * torch.pi
+        X = X.unsqueeze(0).unsqueeze(0)
+        X = torch.sin(8*X) + torch.sin(16*X+phase)
+
+        pyr = po.simul.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
+        pyr_coeffs = pyr(X)
+        a = pyr_coeffs[(3, 2)]
+        b = pyr_coeffs[(2, 2)]
+        a = po.tools.expand(a, 2) / 4
+        a = po.tools.modulate_phase(a, 2)
+
+        # this is the correlation as computed in the PS texture model, which is
+        # where modulate phase is used
+        corr = einops.einsum(a.real, b.real, 'b c h w, b c h w -> b c')
+        corr = corr / (torch.mul(*a.shape[-2:])) / (a.std() * b.std())
+
+        tgt_corr = {0: .4999, np.pi/2: 0, np.pi: -.4999}[phase]
+
+        np.testing.assert_allclose(corr, tgt_corr, rtol=1e-5, atol=1e-5)
+
+    def test_modulate_phase_noreal(self):
+        X = torch.arange(256).unsqueeze(1).repeat(1, 256) / 256 * 2 * torch.pi
+        X = X.unsqueeze(0).unsqueeze(0)
+
+        with pytest.raises(TypeError, match="x must be a complex-valued tensor"):
+            po.tools.modulate_phase(X)
+
+    @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
+    def test_modulate_phase_batch_channel(self, batch_channel):
+        X = torch.arange(256).unsqueeze(1).repeat(1, 256) / 256 * 2 * torch.pi
+        X = X.unsqueeze(0).unsqueeze(0).repeat((*batch_channel, 1, 1))
+        X = torch.sin(8*X) + torch.sin(16*X)
+
+        pyr = po.simul.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
+        pyr_coeffs = pyr(X)
+        a = pyr_coeffs[(3, 2)]
+        a = po.tools.expand(a, 2) / 4
+        a = po.tools.modulate_phase(a, 2)
+
+        # shape should be preferred
+        np.testing.assert_equal(a.shape[:2], batch_channel)
+
+        # because the signal is just repeated along the batch and channel dims,
+        # modulated version should be too (ensures we're not mixing batch or
+        # channel)
+        np.testing.assert_array_equal(a, a.roll(1, 1))
+        np.testing.assert_array_equal(a, a.roll(1, 0))
+
 class TestStats(object):
 
     def test_stats(self):
@@ -116,6 +224,26 @@ class TestStats(object):
         k = po.tools.kurtosis(lap_samples, dim=1)
         assert k.mean() > 3
 
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    def test_var_multidim(self, batch_channel):
+        B, D = 32, 512
+        x = torch.randn(*batch_channel, B, D)
+        var = po.tools.variance(x, dim=(-1, -2))
+        np.testing.assert_equal(var.shape, batch_channel)
+
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    def test_skew_multidim(self, batch_channel):
+        B, D = 32, 512
+        x = torch.randn(*batch_channel, B, D)
+        skew = po.tools.skew(x, dim=(-1, -2))
+        np.testing.assert_equal(skew.shape, batch_channel)
+
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    def test_kurt_multidim(self, batch_channel):
+        B, D = 32, 512
+        x = torch.randn(*batch_channel, B, D)
+        kurt = po.tools.kurtosis(x, dim=(-1, -2))
+        np.testing.assert_equal(kurt.shape, batch_channel)
 
 class TestDownsampleUpsample(object):
 
@@ -308,7 +436,7 @@ class TestValidate(object):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_pass(self):
-        model = po.simul.PortillaSimoncelli((64, 64)).to(DEVICE)
+        model = po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
         po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, *model.image_shape),
                                                   device=DEVICE)
 
