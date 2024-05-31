@@ -16,14 +16,14 @@ def minimum(
     ----------
     x
         Input tensor.
-    dim 
+    dim
         Dimensions over which you would like to compute the minimum.
-    keepdim 
+    keepdim
         Keep original dimensions of tensor when returning result.
 
     Returns
     -------
-    min_x 
+    min_x
         Minimum value of x.
     """
     if dim is None:
@@ -273,7 +273,7 @@ def steer(
 
     steervect = np.dot(steervect, steermtx)
 
-    steervect = torch.tensor(steervect, dtype=basis.dtype).to(device)
+    steervect = torch.from_numpy(steervect, dtype=basis.dtype).to(device)
     if steervect.shape[0] > 1:
         tmp = basis @ steervect
         res = tmp.sum().t()
@@ -363,7 +363,7 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
         be along the batch dimension.
 
     """
-    noise_mse = torch.tensor(
+    noise_mse = torch.as_tensor(
         noise_mse, dtype=torch.float32, device=img.device
     ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
@@ -377,7 +377,7 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
     return img + noise
 
 
-def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
+def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
     """Modulate the phase of a complex signal.
 
     Doubling the phase of a complex signal allows you to, for example, take the
@@ -471,8 +471,11 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
 
     """
     h, w = x.shape[-2:]
-    return x[..., (h//2 - output_size//2) : (h//2 + (output_size+1)//2),
-             (w//2 - output_size//2) : (w//2 + (output_size+1)//2)]
+    return x[
+        ...,
+        (h // 2 - output_size // 2) : (h // 2 + (output_size + 1) // 2),
+        (w // 2 - output_size // 2) : (w // 2 + (output_size + 1) // 2),
+    ]
 
 
 def expand(x: Tensor, factor: float) -> Tensor:
@@ -507,9 +510,13 @@ def expand(x: Tensor, factor: float) -> Tensor:
     mx = factor * im_x
     my = factor * im_y
     if int(mx) != mx:
-        raise ValueError(f"factor * x.shape[-1] must be an integer but got {mx} instead!")
+        raise ValueError(
+            f"factor * x.shape[-1] must be an integer but got {mx} instead!"
+        )
     if int(my) != my:
-        raise ValueError(f"factor * x.shape[-2] must be an integer but got {my} instead!")
+        raise ValueError(
+            f"factor * x.shape[-2] must be an integer but got {my} instead!"
+        )
     mx = int(mx)
     my = int(my)
 
@@ -595,7 +602,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     mx = int(mx)
     my = int(my)
 
-    fourier = 1/factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
+    fourier = 1 / factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
     fourier_small = torch.zeros(
         *x.shape[:-2],
         my,
@@ -617,9 +624,18 @@ def shrink(x: Tensor, factor: int) -> Tensor:
 
     # This line is equivalent to
     fourier_small[..., 1:, 1:] = fourier[..., y1:y2, x1:x2]
-    fourier_small[..., 0, 1:] = (fourier[..., y1-1, x1:x2] + fourier[..., y2, x1:x2])/ 2
-    fourier_small[..., 1:, 0] = (fourier[..., y1:y2, x1-1] + fourier[..., y1:y2, x2])/ 2
-    fourier_small[..., 0, 0] = (fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4
+    fourier_small[..., 0, 1:] = (
+        fourier[..., y1 - 1, x1:x2] + fourier[..., y2, x1:x2]
+    ) / 2
+    fourier_small[..., 1:, 0] = (
+        fourier[..., y1:y2, x1 - 1] + fourier[..., y1:y2, x2]
+    ) / 2
+    fourier_small[..., 0, 0] = (
+        fourier[..., y1 - 1, x1 - 1]
+        + fourier[..., y1 - 1, x2]
+        + fourier[..., y2, x1 - 1]
+        + fourier[..., y2, x2]
+    ) / 4
 
     fourier_small = torch.fft.ifftshift(fourier_small, dim=(-2, -1))
     im_small = torch.fft.ifft2(fourier_small)

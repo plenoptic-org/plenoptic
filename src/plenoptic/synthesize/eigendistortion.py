@@ -117,8 +117,9 @@ class Eigendistortion(Synthesis):
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
         validate_input(image, no_batch=True)
-        validate_model(model, image_shape=image.shape,
-                       image_dtype=image.dtype, device=image.device)
+        validate_model(
+            model, image_shape=image.shape, image_dtype=image.dtype, device=image.device
+        )
 
         (
             self.batch_size,
@@ -143,7 +144,7 @@ class Eigendistortion(Synthesis):
         self._eigenindex = None
 
     def _init_representation(self, image):
-        """Set self._representation_flat, based on model and image """
+        """Set self._representation_flat, based on model and image"""
         self._image = self._image_flat.view(*image.shape)
         image_representation = self.model(self.image)
 
@@ -331,7 +332,7 @@ class Eigendistortion(Synthesis):
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
-        d_lambda = torch.tensor(float("inf"))
+        d_lambda = torch.as_tensor(float("inf"))
         lmbda_new, v_new = None, None
         desc = ("Top" if shift == 0 else "Bottom") + f" k={k} eigendists"
         pbar = tqdm(range(max_iter), desc=desc)
@@ -352,7 +353,9 @@ class Eigendistortion(Synthesis):
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
-            d_lambda = torch.linalg.vector_norm(lmbda - lmbda_new, ord=2)  # stability of eigenspace
+            d_lambda = torch.linalg.vector_norm(
+                lmbda - lmbda_new, ord=2
+            )  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
 
@@ -506,14 +509,21 @@ class Eigendistortion(Synthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = ["_jacobian", "_eigendistortions", "_eigenvalues",
-                 "_eigenindex", "_model", "_image", "_image_flat",
-                 "_representation_flat"]
+        attrs = [
+            "_jacobian",
+            "_eigendistortions",
+            "_eigenvalues",
+            "_eigenindex",
+            "_model",
+            "_image",
+            "_image_flat",
+            "_representation_flat",
+        ]
         super().to(*args, attrs=attrs, **kwargs)
 
-    def load(self, file_path: str,
-             map_location: Union[str, None] = None,
-             **pickle_load_args):
+    def load(
+        self, file_path: str, map_location: Union[str, None] = None, **pickle_load_args
+    ):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Eigendistortion`` object --
@@ -547,12 +557,15 @@ class Eigendistortion(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['_image', '_representation_flat']
+        check_attributes = ["_image", "_representation_flat"]
         check_loss_functions = []
-        super().load(file_path, map_location=map_location,
-                     check_attributes=check_attributes,
-                     check_loss_functions=check_loss_functions,
-                     **pickle_load_args)
+        super().load(
+            file_path,
+            map_location=map_location,
+            check_attributes=check_attributes,
+            check_loss_functions=check_loss_functions,
+            **pickle_load_args,
+        )
         # make these require a grad again
         self._image_flat.requires_grad_()
         # we need _representation_flat and _image_flat to be connected in the
@@ -570,22 +583,22 @@ class Eigendistortion(Synthesis):
 
     @property
     def jacobian(self):
-        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``. """
+        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``."""
         return self._jacobian
 
     @property
     def eigendistortions(self):
-        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue. """
+        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue."""
         return self._eigendistortions
 
     @property
     def eigenvalues(self):
-        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order. """
+        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order."""
         return self._eigenvalues
 
     @property
     def eigenindex(self):
-        """Index of each eigenvector/eigenvalue. """
+        """Index of each eigenvector/eigenvalue."""
         return self._eigenindex
 
 

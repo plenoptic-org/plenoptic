@@ -138,9 +138,11 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
     if len(set([i.shape for i in images])) > 1:
-        raise ValueError("All images must be the same shape but got the following: "
-                         f"{[i.shape for i in images]}")
-    images = torch.tensor(np.array(images), dtype=torch.float32)
+        raise ValueError(
+            "All images must be the same shape but got the following: "
+            f"{[i.shape for i in images]}"
+        )
+    images = torch.from_numpy(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
             raise ValueError(

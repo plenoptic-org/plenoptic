@@ -3,6 +3,7 @@
 Construct a steerable pyramid on matrix two dimensional signals, in the
 Fourier domain.
 """
+
 import warnings
 from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
@@ -166,11 +167,12 @@ class SteerablePyramidFreq(nn.Module):
         self.YIrcos = np.sqrt(1.0 - self.Yrcos**2)
 
         # create low and high masks
-        lo0mask = interpolate1d(self.log_rad, self.YIrcos, self.Xrcos)
+        lo0mask = interpolate1d(
+            self.log_rad, self.YIrcos, self.Xrcos
+        )  # datatype: np.ndarray
         hi0mask = interpolate1d(self.log_rad, self.Yrcos, self.Xrcos)
-        self.register_buffer('lo0mask', torch.tensor(lo0mask).unsqueeze(0))
-        self.register_buffer('hi0mask', torch.tensor(hi0mask).unsqueeze(0))
-
+        self.register_buffer("lo0mask", torch.from_numpy(lo0mask).unsqueeze(0))
+        self.register_buffer("hi0mask", torch.from_numpy(hi0mask).unsqueeze(0))
 
         # need a mock image to down-sample so that we correctly
         # construct the differently-sized masks
@@ -216,7 +218,9 @@ class SteerablePyramidFreq(nn.Module):
                 Ycosn_recon = Ycosn_forward
 
             himask = interpolate1d(log_rad, self.Yrcos, Xrcos)
-            self.register_buffer(f'_himasks_scale_{i}', torch.tensor(himask).unsqueeze(0))
+            self.register_buffer(
+                f"_himasks_scale_{i}", torch.from_numpy(himask).unsqueeze(0)
+            )
 
             anglemasks = []
             anglemasks_recon = []
@@ -227,14 +231,18 @@ class SteerablePyramidFreq(nn.Module):
                 anglemask_recon = interpolate1d(
                     angle, Ycosn_recon, self.Xcosn + np.pi * b / self.num_orientations
                 )
-                anglemasks.append(torch.tensor(anglemask).unsqueeze(0))
-                anglemasks_recon.append(torch.tensor(anglemask_recon).unsqueeze(0))
+                anglemasks.append(torch.from_numpy(anglemask).unsqueeze(0))
+                anglemasks_recon.append(torch.from_numpy(anglemask_recon).unsqueeze(0))
 
-            self.register_buffer(f'_anglemasks_scale_{i}', torch.cat(anglemasks))
-            self.register_buffer(f'_anglemasks_recon_scale_{i}', torch.cat(anglemasks_recon))
+            self.register_buffer(f"_anglemasks_scale_{i}", torch.cat(anglemasks))
+            self.register_buffer(
+                f"_anglemasks_recon_scale_{i}", torch.cat(anglemasks_recon)
+            )
             if not self.downsample:
                 lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
-                self.register_buffer(f'_lomasks_scale_{i}', torch.tensor(lomask).unsqueeze(0))
+                self.register_buffer(
+                    f"_lomasks_scale_{i}", torch.from_numpy(lomask).unsqueeze(0)
+                )
                 self._loindices.append([np.array([0, 0]), dims])
                 lodft = lodft * lomask
 
@@ -253,7 +261,9 @@ class SteerablePyramidFreq(nn.Module):
                 angle = angle[lostart[0] : loend[0], lostart[1] : loend[1]]
 
                 lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
-                self.register_buffer(f'_lomasks_scale_{i}', torch.tensor(lomask).unsqueeze(0))
+                self.register_buffer(
+                    f"_lomasks_scale_{i}", torch.from_numpy(lomask).unsqueeze(0)
+                )
                 # subsampling
                 lodft = lodft[lostart[0] : loend[0], lostart[1] : loend[1]]
                 # convolution in spatial domain
@@ -325,7 +335,7 @@ class SteerablePyramidFreq(nn.Module):
 
             if i in scales:
                 # high-pass mask is selected based on the current scale
-                himask = getattr(self, f'_himasks_scale_{i}')
+                himask = getattr(self, f"_himasks_scale_{i}")
                 # compute filter output at each orientation
                 for b in range(self.num_orientations):
 
@@ -335,7 +345,7 @@ class SteerablePyramidFreq(nn.Module):
                     # the complex_const variable comes from the Fourier transform of a gaussian derivative.
                     # Based on the order of the gaussian, this constant changes.
 
-                    anglemask = getattr(self, f'_anglemasks_scale_{i}')[b]
+                    anglemask = getattr(self, f"_anglemasks_scale_{i}")[b]
 
                     complex_const = np.power(complex(0, -1), self.order)
                     banddft = complex_const * lodft * anglemask * himask
@@ -361,7 +371,7 @@ class SteerablePyramidFreq(nn.Module):
             if not self.downsample:
                 # no subsampling of angle and rad
                 # just use lo0mask
-                lomask = getattr(self, f'_lomasks_scale_{i}')
+                lomask = getattr(self, f"_lomasks_scale_{i}")
                 lodft = lodft * lomask
 
                 # because we don't subsample here, if we are not using orthonormalization that
@@ -380,7 +390,7 @@ class SteerablePyramidFreq(nn.Module):
                 # subsampling of the dft for next scale
                 lodft = lodft[:, :, lostart[0] : loend[0], lostart[1] : loend[1]]
                 # low-pass filter mask is selected
-                lomask = getattr(self, f'_lomasks_scale_{i}')
+                lomask = getattr(self, f"_lomasks_scale_{i}")
                 # again multiply dft by subsampled mask (convolution in spatial domain)
 
                 lodft = lodft * lomask
@@ -581,7 +591,9 @@ class SteerablePyramidFreq(nn.Module):
         """
         if isinstance(levels, str):
             if levels != "all":
-                raise TypeError(f"levels must be a list of levels or the string 'all' but got {levels}")
+                raise TypeError(
+                    f"levels must be a list of levels or the string 'all' but got {levels}"
+                )
             levels = (
                 ["residual_highpass"]
                 + list(range(self.num_scales))
@@ -589,10 +601,10 @@ class SteerablePyramidFreq(nn.Module):
             )
         else:
             if not hasattr(levels, "__iter__"):
-                raise TypeError(f"levels must be a list of levels or the string 'all' but got {levels}")
-            levs_nums = np.array(
-                [int(i) for i in levels if isinstance(i, int)]
-            )
+                raise TypeError(
+                    f"levels must be a list of levels or the string 'all' but got {levels}"
+                )
+            levs_nums = np.array([int(i) for i in levels if isinstance(i, int)])
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
             assert (
                 levs_nums < self.num_scales
@@ -619,9 +631,7 @@ class SteerablePyramidFreq(nn.Module):
             levels.pop(0)
         return levels
 
-    def _recon_bands_check(
-        self, bands: Union[Literal["all"], List[int]]
-    ) -> List[int]:
+    def _recon_bands_check(self, bands: Union[Literal["all"], List[int]]) -> List[int]:
         """Check whether bands arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
@@ -644,11 +654,15 @@ class SteerablePyramidFreq(nn.Module):
         """
         if isinstance(bands, str):
             if bands != "all":
-                raise TypeError(f"bands must be a list of ints or the string 'all' but got {bands}")
+                raise TypeError(
+                    f"bands must be a list of ints or the string 'all' but got {bands}"
+                )
             bands = np.arange(self.num_orientations)
         else:
             if not hasattr(bands, "__iter__"):
-                raise TypeError(f"bands must be a list of ints or the string 'all' but got {bands}")
+                raise TypeError(
+                    f"bands must be a list of ints or the string 'all' but got {bands}"
+                )
             bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
             assert (
@@ -843,9 +857,7 @@ class SteerablePyramidFreq(nn.Module):
                 lodft = fft.fftshift(lodft)
             else:
                 lodft = fft.fft2(
-                    torch.zeros_like(
-                        pyr_coeffs["residual_lowpass"]
-                    ),
+                    torch.zeros_like(pyr_coeffs["residual_lowpass"]),
                     dim=(-2, -1),
                     norm=self.fft_norm,
                 )
@@ -854,12 +866,12 @@ class SteerablePyramidFreq(nn.Module):
 
         # Reconstruct from orientation bands
         # update himask
-        himask = getattr(self, f'_himasks_scale_{scale}')
+        himask = getattr(self, f"_himasks_scale_{scale}")
         orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
 
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
-                anglemask = getattr(self, f'_anglemasks_recon_scale_{scale}')[b]
+                anglemask = getattr(self, f"_anglemasks_recon_scale_{scale}")[b]
                 coeffs = pyr_coeffs[(scale, b)]
                 if self.tight_frame and self.is_complex:
                     coeffs = coeffs * np.sqrt(2)
@@ -875,7 +887,7 @@ class SteerablePyramidFreq(nn.Module):
         lostart, loend = self._loindices[scale]
 
         # create lowpass mask
-        lomask = getattr(self, f'_lomasks_scale_{scale}')
+        lomask = getattr(self, f"_lomasks_scale_{scale}")
 
         # Recursively reconstruct by going to the next scale
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale + 1)

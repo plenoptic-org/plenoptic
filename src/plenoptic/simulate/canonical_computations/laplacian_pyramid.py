@@ -5,7 +5,7 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 class LaplacianPyramid(nn.Module):
     """Laplacian Pyramid in Torch.
-   
+
     The Laplacian pyramid [1]_ is a multiscale image representation. It
     decomposes the image by computing the local mean using Gaussian blurring
     filters and substracting it from the image and repeating this operation on
@@ -51,7 +51,7 @@ class LaplacianPyramid(nn.Module):
 
         y = []
         for scale in range(self.n_scales - 1):
-            odd = torch.tensor(x.shape)[2:4] % 2
+            odd = torch.as_tensor(x.shape)[2:4] % 2
             x_down = blur_downsample(x, scale_filter=self.scale_filter)
             x_up = upsample_blur(x_down, odd, scale_filter=self.scale_filter)
             y.append(x - x_up)
@@ -77,7 +77,7 @@ class LaplacianPyramid(nn.Module):
 
         x = y[self.n_scales - 1]
         for scale in range(self.n_scales - 1, 0, -1):
-            odd = torch.tensor(y[scale - 1].shape)[2:4] % 2
+            odd = torch.as_tensor(y[scale - 1].shape)[2:4] % 2
             y_up = upsample_blur(x, odd, scale_filter=self.scale_filter)
             x = y[scale - 1] + y_up
 
