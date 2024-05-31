@@ -10,6 +10,7 @@ __pycache__/
 .ftpconfig
 .idea/
 .vscode/
+.coverage*
 
 *.npz
 *.mat

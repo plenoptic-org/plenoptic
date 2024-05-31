@@ -265,7 +265,7 @@ class TestNaive(object):
         else:
             assert model._filt is None
 
-    @pytest.mark.parametrize("center_std", [1., torch.tensor([1., 2.])])
+    @pytest.mark.parametrize("center_std", [1., torch.as_tensor([1., 2.])])
     @pytest.mark.parametrize("out_channels", [1, 2, 3])
     @pytest.mark.parametrize("on_center", [True, [True, False]])
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
@@ -643,7 +643,7 @@ class TestPortillaSimoncelli(object):
             im_synth = f['im_synth']
             rep_synth = f['rep_synth']
 
-        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
+        im0 = torch.as_tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
         model = po.simul.PortillaSimoncelli(im0.shape[-2:],
                                             n_scales=4,
                                             n_orientations=4,
@@ -651,7 +651,7 @@ class TestPortillaSimoncelli(object):
                                             ).to(DEVICE).to(torch.float64)
 
         po.tools.set_seed(1)
-        im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
+        im_init = torch.as_tensor(im_init).unsqueeze(0).unsqueeze(0)
         met = po.synth.MetamerCTF(im0, model, initial_image=im_init,
                                   loss_function=po.tools.optim.l2_norm,
                                   range_penalty_lambda=0,
@@ -1000,7 +1000,7 @@ class TestPortillaSimoncelli(object):
             ps.convert_to_dict(rep[..., :-10])
 
 class TestFilters:
-    @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
+    @pytest.mark.parametrize("std", [5., torch.as_tensor(1., device=DEVICE), -1., 0.])
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
@@ -1015,7 +1015,7 @@ class TestFilters:
             assert filt.sum().isclose(torch.ones(1, device=DEVICE) * out_channels)
 
     def test_circular_gaussian2d_wrong_std_length(self):
-        std = torch.tensor([1., 2.], device=DEVICE)
+        std = torch.as_tensor([1., 2.], device=DEVICE)
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)
