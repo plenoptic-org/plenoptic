@@ -273,7 +273,7 @@ def steer(
 
     steervect = np.dot(steervect, steermtx)
 
-    steervect = torch.tensor(steervect, dtype=basis.dtype).to(device)
+    steervect = torch.as_tensor(steervect, dtype=basis.dtype).to(device)
     if steervect.shape[0] > 1:
         tmp = basis @ steervect
         res = tmp.sum().t()

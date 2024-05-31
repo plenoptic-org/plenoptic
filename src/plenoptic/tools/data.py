@@ -140,7 +140,7 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     if len(set([i.shape for i in images])) > 1:
         raise ValueError("All images must be the same shape but got the following: "
                          f"{[i.shape for i in images]}")
-    images = torch.tensor(np.array(images), dtype=torch.float32)
+    images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
             raise ValueError(
@@ -262,9 +262,10 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
     stimuli = torch.cat(
         [
-            torch.tensor(s, dtype=torch.float32, requires_grad=requires_grad)
+            torch.as_tensor(s, dtype=torch.float32)
             .unsqueeze(0)
             .unsqueeze(0)
+            .requires_grad_(requires_grad)
             for s in stim
         ],
         dim=0,

@@ -37,7 +37,7 @@ def _ssim_parts(img1, img2, pad=False):
         these work.
 
     """
-    img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
+    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn("Image range falls outside [0, 1]."
                        f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
@@ -60,7 +60,7 @@ def _ssim_parts(img1, img2, pad=False):
         raise ValueError("Input images must have same dtype!")
 
     real_size = min(11, img1.shape[2], img1.shape[3])
-    std = torch.tensor(1.5).to(img1.device)
+    std = torch.as_tensor(1.5).to(img1.device)
     window = circular_gaussian2d(real_size, std=std).to(img1.dtype)
 
     # these two checks are guaranteed with our above bits, but if we add
@@ -375,7 +375,7 @@ def normalized_laplacian_pyramid(img):
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
-        filt = torch.tensor(spatialpooling_filters[N_b], dtype=torch.float32,
+        filt = torch.as_tensor(spatialpooling_filters[N_b], dtype=torch.float32,
                             device=img.device).repeat(channel, 1, 1, 1)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
@@ -438,7 +438,7 @@ def nlpd(img1, img2):
         warnings.warn("NLPD was designed for grayscale images and here it will be computed separately for each "
                       "channel (so channels are treated in the same way as batches).")
         
-    img_ranges = torch.tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
+    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn("Image range falls outside [0, 1]."
                        f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "

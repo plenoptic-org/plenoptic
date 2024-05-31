@@ -168,8 +168,8 @@ class SteerablePyramidFreq(nn.Module):
         # create low and high masks
         lo0mask = interpolate1d(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = interpolate1d(self.log_rad, self.Yrcos, self.Xrcos)
-        self.register_buffer('lo0mask', torch.tensor(lo0mask).unsqueeze(0))
-        self.register_buffer('hi0mask', torch.tensor(hi0mask).unsqueeze(0))
+        self.register_buffer('lo0mask', torch.as_tensor(lo0mask).unsqueeze(0))
+        self.register_buffer('hi0mask', torch.as_tensor(hi0mask).unsqueeze(0))
 
 
         # need a mock image to down-sample so that we correctly
@@ -216,7 +216,7 @@ class SteerablePyramidFreq(nn.Module):
                 Ycosn_recon = Ycosn_forward
 
             himask = interpolate1d(log_rad, self.Yrcos, Xrcos)
-            self.register_buffer(f'_himasks_scale_{i}', torch.tensor(himask).unsqueeze(0))
+            self.register_buffer(f'_himasks_scale_{i}', torch.as_tensor(himask).unsqueeze(0))
 
             anglemasks = []
             anglemasks_recon = []
@@ -227,14 +227,14 @@ class SteerablePyramidFreq(nn.Module):
                 anglemask_recon = interpolate1d(
                     angle, Ycosn_recon, self.Xcosn + np.pi * b / self.num_orientations
                 )
-                anglemasks.append(torch.tensor(anglemask).unsqueeze(0))
-                anglemasks_recon.append(torch.tensor(anglemask_recon).unsqueeze(0))
+                anglemasks.append(torch.as_tensor(anglemask).unsqueeze(0))
+                anglemasks_recon.append(torch.as_tensor(anglemask_recon).unsqueeze(0))
 
             self.register_buffer(f'_anglemasks_scale_{i}', torch.cat(anglemasks))
             self.register_buffer(f'_anglemasks_recon_scale_{i}', torch.cat(anglemasks_recon))
             if not self.downsample:
                 lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
-                self.register_buffer(f'_lomasks_scale_{i}', torch.tensor(lomask).unsqueeze(0))
+                self.register_buffer(f'_lomasks_scale_{i}', torch.as_tensor(lomask).unsqueeze(0))
                 self._loindices.append([np.array([0, 0]), dims])
                 lodft = lodft * lomask
 

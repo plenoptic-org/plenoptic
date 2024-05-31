@@ -103,7 +103,7 @@ def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
+    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt * 2
     return upsample_convolve(x, odd, filt)

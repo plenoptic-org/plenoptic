@@ -73,7 +73,7 @@ class Linear(nn.Module):
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
         if default_filters:
-            var = torch.tensor(3.)
+            var = torch.as_tensor(3.)
             f1 = circular_gaussian2d(kernel_size, std=torch.sqrt(var))
 
             f2 = circular_gaussian2d(kernel_size, std=torch.sqrt(var/3))
