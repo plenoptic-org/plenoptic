@@ -253,7 +253,7 @@ class SteerablePyramidFreq(nn.Module):
                 angle = angle[lostart[0] : loend[0], lostart[1] : loend[1]]
 
                 lomask = interpolate1d(log_rad, self.YIrcos, Xrcos)
-                self.register_buffer(f'_lomasks_scale_{i}', torch.tensor(lomask).unsqueeze(0))
+                self.register_buffer(f'_lomasks_scale_{i}', torch.to_tensor(lomask).unsqueeze(0))
                 # subsampling
                 lodft = lodft[lostart[0] : loend[0], lostart[1] : loend[1]]
                 # convolution in spatial domain
