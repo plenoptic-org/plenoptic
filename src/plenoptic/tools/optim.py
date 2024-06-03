@@ -72,7 +72,7 @@ def l2_norm(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
     loss
         The L2-norm of the difference between ``ref_rep`` and ``synth_rep``.
     """
-    return torch.norm(ref_rep - synth_rep, p=2)
+    return torch.linalg.matrix_norm(ref_rep - synth_rep, ord=2)
 
 
 def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
@@ -99,7 +99,7 @@ def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
         Ratio of the squared l2-norm of the difference between ``ref_rep`` and
         ``synth_rep`` to the squared l2-norm of ``ref_rep``
     """
-    return torch.norm(ref_rep - synth_rep, p=2) ** 2 / torch.norm(ref_rep, p=2) ** 2
+    return torch.linalg.matrix_norm(ref_rep - synth_rep, p=2) ** 2 / torch.linalg.matrix_norm(ref_rep, p=2) ** 2
 
 
 def penalize_range(
