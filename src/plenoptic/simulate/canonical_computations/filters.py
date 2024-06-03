@@ -30,7 +30,7 @@ def gaussian1d(kernel_size: int = 11, std: Union[float, Tensor] = 1.5) -> Tensor
     """
     assert std > 0.0, "std must be positive"
     if isinstance(std, float):
-        std = torch.tensor(std)
+        std = torch.as_tensor(std)
     device = std.device
 
     x = torch.arange(kernel_size).to(device)
@@ -75,7 +75,7 @@ def circular_gaussian2d(
     assert out_channels >= 1, "number of filters must be positive integer"
     assert torch.all(std > 0.0), "stdev must be positive"
     assert len(std) == out_channels, "Number of stds must equal out_channels"
-    origin = torch.tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
+    origin = torch.as_tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 
     shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]  # height

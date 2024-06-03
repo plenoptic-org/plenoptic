@@ -341,17 +341,17 @@ class OptimizedSynthesis(Synthesis):
     @property
     def losses(self):
         """Synthesis loss over iterations."""
-        return torch.tensor(self._losses)
+        return torch.as_tensor(self._losses)
 
     @property
     def gradient_norm(self):
         """Synthesis gradient's L2 norm over iterations."""
-        return torch.tensor(self._gradient_norm)
+        return torch.as_tensor(self._gradient_norm)
 
     @property
     def pixel_change_norm(self):
         """L2 norm change in pixel values over iterations."""
-        return torch.tensor(self._pixel_change_norm)
+        return torch.as_tensor(self._pixel_change_norm)
 
     @property
     def store_progress(self):

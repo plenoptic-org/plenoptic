@@ -81,7 +81,7 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     start = start.reshape(1, -1)
     stop = stop.reshape(1, -1)
     D = start.shape[1]
-    dt = torch.tensor(1/n_steps)
+    dt = torch.as_tensor(1/n_steps)
     tt = torch.linspace(0, 1, steps=n_steps+1, device=device)[:, None]
 
     sigma = torch.sqrt(dt / D) * 2. * max_norm
