@@ -363,7 +363,7 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
         be along the batch dimension.
 
     """
-    noise_mse = torch.to_tensor(
+    noise_mse = torch.as_tensor(
         noise_mse, dtype=torch.float32, device=img.device
     ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
