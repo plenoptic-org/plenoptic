@@ -126,9 +126,9 @@ class MADCompetition(OptimizedSynthesis):
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
-            loss_ratio = torch.tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
+            loss_ratio = torch.as_tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
                                       dtype=torch.float32)
-            metric_tradeoff_lambda = torch.pow(torch.tensor(10),
+            metric_tradeoff_lambda = torch.pow(torch.as_tensor(10),
                                                torch.round(torch.log10(loss_ratio))).item()
             warnings.warn("Since metric_tradeoff_lamda was None, automatically set"
                           f" to {metric_tradeoff_lambda} to roughly balance metrics.")
@@ -535,11 +535,11 @@ class MADCompetition(OptimizedSynthesis):
 
     @property
     def reference_metric_loss(self):
-        return torch.tensor(self._reference_metric_loss)
+        return torch.as_tensor(self._reference_metric_loss)
 
     @property
     def optimized_metric_loss(self):
-        return torch.tensor(self._optimized_metric_loss)
+        return torch.as_tensor(self._optimized_metric_loss)
 
     @property
     def metric_tradeoff_lambda(self):

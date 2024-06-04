@@ -487,13 +487,13 @@ class OnOff(nn.Module):
         """Roughly interpreted from trained weights in Berardino et al 2017"""
         state_dict = OrderedDict(
             [
-                ("luminance_scalar", torch.tensor([3.2637, 14.3961])),
-                ("contrast_scalar", torch.tensor([7.3405, 16.7423])),
-                ("center_surround.center_std", torch.tensor([1.15, 0.56])),
-                ("center_surround.surround_std", torch.tensor([5.0, 1.6])),
-                ("center_surround.amplitude_ratio", torch.tensor([1.25])),
-                ("luminance.std", torch.tensor([8.7366, 1.4751])),
-                ("contrast.std", torch.tensor([2.7353, 1.5583])),
+                ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),
+                ("contrast_scalar", torch.as_tensor([7.3405, 16.7423])),
+                ("center_surround.center_std", torch.as_tensor([1.15, 0.56])),
+                ("center_surround.surround_std", torch.as_tensor([5.0, 1.6])),
+                ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
+                ("luminance.std", torch.as_tensor([8.7366, 1.4751])),
+                ("contrast.std", torch.as_tensor([2.7353, 1.5583])),
 
             ]
         )

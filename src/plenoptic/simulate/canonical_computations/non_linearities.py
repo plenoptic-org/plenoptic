@@ -112,7 +112,7 @@ def local_gain_control(x, epsilon=1e-8):
     p = 2.0
 
     norm = blur_downsample(torch.abs(x ** p)).pow(1 / p)
-    odd = torch.tensor(x.shape)[2:4] % 2
+    odd = torch.as_tensor(x.shape)[2:4] % 2
     direction = x / (upsample_blur(norm, odd) + epsilon)
 
     return norm, direction
@@ -152,7 +152,7 @@ def local_gain_release(norm, direction, epsilon=1e-8):
     hence the connection to local gain control.
     """
 
-    odd = torch.tensor(direction.shape)[2:4] % 2
+    odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
     return x
 

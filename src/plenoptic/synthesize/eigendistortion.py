@@ -331,7 +331,7 @@ class Eigendistortion(Synthesis):
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
-        d_lambda = torch.tensor(float("inf"))
+        d_lambda = torch.as_tensor(float("inf"))
         lmbda_new, v_new = None, None
         desc = ("Top" if shift == 0 else "Bottom") + f" k={k} eigendists"
         pbar = tqdm(range(max_iter), desc=desc)

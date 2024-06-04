@@ -21,7 +21,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, y1, '-o', label='hi')
-        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.as_tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
@@ -34,9 +34,9 @@ class TestDisplay(object):
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
         if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
+            y2 = torch.as_tensor(y2).reshape(1, 2, *y1.shape)
         elif how == 'dict':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.plot(x, y1, '-o', label='hi')
@@ -62,11 +62,11 @@ class TestDisplay(object):
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
         if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, len(x))
+            y2 = torch.as_tensor(y2).reshape(1, 2, len(x))
         elif how == 'dict-multi':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
         elif how == 'dict-single':
-            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+            y2 = {0: torch.as_tensor(y2[0]).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
@@ -90,7 +90,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.stem(x, y1, '-o', label='hi')
-        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        po.tools.update_plot(ax, torch.as_tensor(y2).reshape(1, 1, len(x)))
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
@@ -103,9 +103,9 @@ class TestDisplay(object):
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
         if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
+            y2 = torch.as_tensor(y2).reshape(1, 2, *y1.shape)
         elif how == 'dict':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.stem(x, y1, label='hi')
@@ -131,11 +131,11 @@ class TestDisplay(object):
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
         if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, len(x))
+            y2 = torch.as_tensor(y2).reshape(1, 2, len(x))
         elif how == 'dict-multi':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
         elif how == 'dict-single':
-            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+            y2 = {0: torch.as_tensor(y2[0]).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=str(i))
@@ -158,7 +158,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.tools.update_plot(ax, torch.tensor(y2))
+        po.tools.update_plot(ax, torch.as_tensor(y2))
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
@@ -170,9 +170,9 @@ class TestDisplay(object):
         y1 = np.random.rand(1, 2, 100, 100)
         y2 = np.random.rand(1, 2, 100, 100)
         if how == 'tensor':
-            y2 = torch.tensor(y2)
+            y2 = torch.as_tensor(y2)
         elif how == 'dict':
-            y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
+            y2 = {i: torch.as_tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
         fig = pt.imshow([y for y in y1.squeeze()])
         po.tools.update_plot(fig.axes, y2)
         for i, ax in enumerate(fig.axes):
@@ -193,7 +193,7 @@ class TestDisplay(object):
         y2 = np.random.rand(*x2.shape)
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
-        data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 1, len(x2), 2)
+        data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(1, 1, len(x2), 2)
         po.tools.update_plot(ax, data)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
@@ -208,9 +208,9 @@ class TestDisplay(object):
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(2, *y1.shape)
         if how == 'tensor':
-            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, len(x1), 2)
+            data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(1, 2, len(x1), 2)
         elif how == 'dict':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, len(x1), 2) for i in range(2)}
+            data = {i: torch.stack((torch.as_tensor(x2[i]), torch.as_tensor(y2[i])), -1).reshape(1, 1, len(x1), 2) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.scatter(x1, y1)
@@ -237,11 +237,11 @@ class TestDisplay(object):
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
         if how == 'tensor':
-            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, x1.shape[-1], 2)
+            data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(1, 2, x1.shape[-1], 2)
         elif how == 'dict-multi':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
+            data = {i: torch.stack((torch.as_tensor(x2[i]), torch.as_tensor(y2[i])), -1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
         elif how == 'dict-single':
-            data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])), -1).reshape(1, 1, x1.shape[-1], 2)}
+            data = {0: torch.stack((torch.as_tensor(x2[0]), torch.as_tensor(y2[0])), -1).reshape(1, 1, x1.shape[-1], 2)}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
@@ -254,7 +254,7 @@ class TestDisplay(object):
             elif how == 'dict-multi':
                 data_check = data[i]
             elif how == 'dict-single':
-                tmp = torch.stack((torch.tensor(x1), torch.tensor(y1)), -1)
+                tmp = torch.stack((torch.as_tensor(x1), torch.as_tensor(y1)), -1)
                 data_check = {0: data[0], 1: tmp[1]}[i]
             if not np.allclose(ax_data, data_check):
                 raise Exception("Didn't update points of the scatter plot correctly!")
@@ -264,9 +264,9 @@ class TestDisplay(object):
         x2 = np.random.rand(2, 100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
-        data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])),
+        data = {0: torch.stack((torch.as_tensor(x2[0]), torch.as_tensor(y2[0])),
                                -1).reshape(1, 1, x2.shape[-1], 2)}
-        data[1] = torch.tensor(y2[1]).reshape(1, 1, x2.shape[-1])
+        data[1] = torch.as_tensor(y2[1]).reshape(1, 1, x2.shape[-1])
         fig, axes = plt.subplots(1, 2)
         for i, ax in enumerate(axes):
             if i == 0:

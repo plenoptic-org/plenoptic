@@ -273,7 +273,7 @@ def steer(
 
     steervect = np.dot(steervect, steermtx)
 
-    steervect = torch.tensor(steervect, dtype=basis.dtype).to(device)
+    steervect = torch.as_tensor(steervect, dtype=basis.dtype).to(device)
     if steervect.shape[0] > 1:
         tmp = basis @ steervect
         res = tmp.sum().t()
@@ -363,7 +363,7 @@ def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
         be along the batch dimension.
 
     """
-    noise_mse = torch.tensor(
+    noise_mse = torch.as_tensor(
         noise_mse, dtype=torch.float32, device=img.device
     ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)

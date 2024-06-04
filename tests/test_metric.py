@@ -107,11 +107,11 @@ class TestPerceptualMetrics(object):
     @pytest.mark.parametrize('noise_as_tensor', [True, False])
     def test_add_noise(self, einstein_img, noise_lvl, noise_as_tensor):
         if noise_as_tensor:
-            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
+            noise_lvl = torch.as_tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
         noisy = po.tools.add_noise(einstein_img, noise_lvl).to(DEVICE)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
-            noise_lvl = torch.tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
+            noise_lvl = torch.as_tensor(noise_lvl, dtype=torch.float32, device=DEVICE).unsqueeze(1)
         assert torch.allclose(po.metric.mse(einstein_img, noisy), noise_lvl)
 
     @pytest.fixture
@@ -129,7 +129,7 @@ class TestPerceptualMetrics(object):
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
         # that should be corrected for
         plen_val = po.metric.ssim(ssim_base_img, other, weighted)
-        mat_val = torch.tensor(ssim_analysis[mat_type][f'samp{other_img}'].astype(np.float32), device=DEVICE)
+        mat_val = torch.as_tensor(ssim_analysis[mat_type][f'samp{other_img}'].astype(np.float32), device=DEVICE)
         # float32 precision is ~1e-6 (see `np.finfo(np.float32)`), and the
         # errors increase through multiplication and other operations.
         print(plen_val-mat_val, plen_val, mat_val)
@@ -137,7 +137,7 @@ class TestPerceptualMetrics(object):
 
     def test_msssim_analysis(self, msssim_images):
         # True values are defined by https://ece.uwaterloo.ca/~z70wang/research/iwssim/msssim.zip
-        true_values = torch.tensor([1.0000000, 0.9112161, 0.7699084, 0.8785111, 0.9488805], device=DEVICE)
+        true_values = torch.as_tensor([1.0000000, 0.9112161, 0.7699084, 0.8785111, 0.9488805], device=DEVICE)
         computed_values = torch.zeros_like(true_values)
         base_img = po.load_images(os.path.join(msssim_images, "samp0.tiff")).to(DEVICE)
         for i in range(len(true_values)):
