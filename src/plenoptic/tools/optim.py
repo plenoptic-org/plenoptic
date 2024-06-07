@@ -99,7 +99,7 @@ def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
         Ratio of the squared l2-norm of the difference between ``ref_rep`` and
         ``synth_rep`` to the squared l2-norm of ``ref_rep``
     """
-    return torch.linalg.vector_norm(ref_rep - synth_rep, p=2) ** 2 / torch.linalg.vector_norm(ref_rep, p=2) ** 2
+    return torch.linalg.norm(ref_rep - synth_rep, p=2) ** 2 / torch.linalg.norm(ref_rep, p=2) ** 2
 
 
 def penalize_range(
