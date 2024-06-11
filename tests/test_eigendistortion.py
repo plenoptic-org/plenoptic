@@ -248,7 +248,7 @@ class TestAutodiffFunctions:
         x, y, x_dim, y_dim, k = state
 
         U = torch.randn((y_dim, k), device=DEVICE)
-        U = U / U.norm(dim=0, p=2)
+        U = U / torch.linalg.vector_norm(U, ord=2, dim=0)
 
         vjp = autodiff.vector_jacobian_product(y, x, U, detach=detach)
         assert vjp.shape == (x_dim, k)
@@ -258,7 +258,7 @@ class TestAutodiffFunctions:
         x, y, x_dim, y_dim, k = state
 
         V = torch.randn((x_dim, k), device=DEVICE)
-        V = V / V.norm(dim=0, p=2)
+        V = V / torch.linalg.vector_norm(V, ord=2, dim=0)
         jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
         assert x.requires_grad and y.requires_grad
@@ -303,7 +303,7 @@ class TestAutodiffFunctions:
         k = 10
         x_dim = x0.numel()
         V = torch.randn((x_dim, k), device=DEVICE)  # random directions
-        V = V / V.norm(dim=0, p=2)
+        V = V / torch.linalg.vector_norm(V, ord=2, dim=0)
 
         e = Eigendistortion(x0, mdl)
         x, y = e._image_flat, e._representation_flat
