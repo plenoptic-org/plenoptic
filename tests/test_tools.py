@@ -35,8 +35,8 @@ class TestSignal(object):
 
         z = po.tools.polar_to_rectangular(*po.tools.rectangular_to_polar(torch.complex(x, y)))
 
-        assert torch.linalg.norm(x - z.real) < 1e-3
-        assert torch.linalg.norm(y - z.imag) < 1e-3
+        assert torch.linalg.vector_norm((x - z.real).flatten(), ord=2) < 1e-3
+        assert torch.linalg.vector_norm((y - z.imag).flatten(), ord=2) < 1e-3
 
     def test_coordinate_identity_transform_polar(self):
         dims = (10, 5, 256, 256)
