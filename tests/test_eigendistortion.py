@@ -296,7 +296,7 @@ class TestAutodiffFunctions:
                 return y
 
         x0 = torch.randn((1, 1, 5, 1), requires_grad=True, device=DEVICE)
-        x0 = x0 / x0.norm()
+        x0 = x0 / torch.linalg.vector_norm(x0, ord=2)
         mdl = LM().to(DEVICE)
         remove_grad(mdl)
 
