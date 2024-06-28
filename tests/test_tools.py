@@ -48,8 +48,8 @@ class TestSignal(object):
 
         A, B = po.tools.rectangular_to_polar(po.tools.polar_to_rectangular(a, b))
 
-        assert torch.linalg.norm(a - A) < 1e-3
-        assert torch.linalg.norm(b - B) < 1e-3
+        assert torch.linalg.vector_norm((a - A).flatten(), ord=2) < 1e-3
+        assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
 
     @pytest.mark.parametrize("n", range(1, 15))
     def test_autocorrelation(self, n):
