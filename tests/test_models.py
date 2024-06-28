@@ -152,7 +152,8 @@ class TestNonLinearities(object):
         x = torch.randn((10, 1, 256, 256), device=DEVICE)
         norm, direction = po.simul.non_linearities.local_gain_control(x)
         x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
-        assert torch.linalg.norm(x - x_hat) < 1e-4
+        diff = x - x_hat
+        assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
     def test_local_gain_control_dict(self, basic_stim):
         spr = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=5,
