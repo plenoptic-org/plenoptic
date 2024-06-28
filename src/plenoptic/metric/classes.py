@@ -11,10 +11,8 @@ class NLP(torch.nn.Module):
 
     NOTE: synthesis using this class will not be the exact same as
     synthesis using the ``plenoptic.metric.nlpd`` function (by default),
-    because the synthesis methods use ``torch.linalg.norm(x - y, ord=2)`` as the
-    distance metric between representations, whereas ``nlpd`` uses the
-    root-mean square of the distance (i.e.,
-    ``torch.sqrt(torch.mean(x-y)**2))``
+    because the ``nlpd`` function uses the root-mean square of the L2 distance (i.e.,
+    ``torch.sqrt(torch.mean(x-y)**2))`` as the distance metric between representations.
 
     """
     def __init__(self):
