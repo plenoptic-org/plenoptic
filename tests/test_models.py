@@ -146,13 +146,15 @@ class TestNonLinearities(object):
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
         for key in y.keys():
-            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+            diff = y[key] - y_hat[key]
+            assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
     def test_local_gain_control(self):
         x = torch.randn((10, 1, 256, 256), device=DEVICE)
         norm, direction = po.simul.non_linearities.local_gain_control(x)
         x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
-        assert torch.norm(x - x_hat) < 1e-4
+        diff = x - x_hat
+        assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
     def test_local_gain_control_dict(self, basic_stim):
         spr = po.simul.SteerablePyramidFreq(basic_stim.shape[-2:], height=5,
@@ -161,7 +163,8 @@ class TestNonLinearities(object):
         energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
         y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
         for key in y.keys():
-            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+            diff = y[key] - y_hat[key]
+            assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
 
 class TestLaplacianPyramid(object):

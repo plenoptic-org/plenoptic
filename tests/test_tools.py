@@ -35,8 +35,8 @@ class TestSignal(object):
 
         z = po.tools.polar_to_rectangular(*po.tools.rectangular_to_polar(torch.complex(x, y)))
 
-        assert torch.norm(x - z.real) < 1e-3
-        assert torch.norm(y - z.imag) < 1e-3
+        assert torch.linalg.vector_norm((x - z.real).flatten(), ord=2) < 1e-3
+        assert torch.linalg.vector_norm((y - z.imag).flatten(), ord=2) < 1e-3
 
     def test_coordinate_identity_transform_polar(self):
         dims = (10, 5, 256, 256)
@@ -48,8 +48,8 @@ class TestSignal(object):
 
         A, B = po.tools.rectangular_to_polar(po.tools.polar_to_rectangular(a, b))
 
-        assert torch.norm(a - A) < 1e-3
-        assert torch.norm(b - B) < 1e-3
+        assert torch.linalg.vector_norm((a - A).flatten(), ord=2) < 1e-3
+        assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
 
     @pytest.mark.parametrize("n", range(1, 15))
     def test_autocorrelation(self, n):
