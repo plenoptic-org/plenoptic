@@ -32,6 +32,8 @@ class LinearNonlinear(nn.Module):
     """Linear-Nonlinear model, applies a difference of Gaussians filter followed by an
     activation function. Model is described in [1]_ and [2]_.
 
+    This model is called LN in Berardino et al. 2017 [1]_.
+
     Parameters
     ----------
     kernel_size:
@@ -48,40 +50,63 @@ class LinearNonlinear(nn.Module):
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "reflect".
-
+    pretrained:
+        Whether or not to load model params from [3]_. See Notes for details.
     activation:
         Activation function following linear convolution.
+    cache_filt:
+        Whether or not to cache the filter. Avoids regenerating filt with each
+        forward pass.
 
     Attributes
     ----------
     center_surround: nn.Module
         `CenterSurround` difference of Gaussians filter.
 
+    Notes
+    -----
+    These 2 parameters (standard deviations) were taken from Table 2, page 149
+    from [3]_ and are the values used [1]_. Please use these pretrained weights
+    at your own discretion.
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+       representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+       sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
     """
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: Tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
+        pretrained: bool = False,
         activation: Callable[[Tensor], Tensor] = F.softplus,
+        cache_filt: bool = False,
     ):
         super().__init__()
+        if pretrained:
+            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            if cache_filt is False:
+                warn("pretrained is True but cache_filt is False. Set cache_filt to "
+                     "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
+        if pretrained:
+            self.load_state_dict(self._pretrained_state_dict())
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
@@ -110,10 +135,23 @@ class LinearNonlinear(nn.Module):
 
         return fig
 
+    @staticmethod
+    def _pretrained_state_dict() -> OrderedDict:
+        """Copied from Table 2 in Berardino, 2018"""
+        state_dict = OrderedDict(
+            [
+                ("center_surround.center_std", torch.as_tensor([.5339])),
+                ("center_surround.surround_std", torch.as_tensor([6.148])),
+                ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
+            ]
+        )
+        return state_dict
 
 class LuminanceGainControl(nn.Module):
-    """ Linear center-surround followed by luminance gain control and activation.
+    """Linear center-surround followed by luminance gain control and activation.
     Model is described in [1]_ and [2]_.
+
+    This model is called LG in Berardino et al. 2017 [1]_.
 
     Parameters
     ----------
@@ -131,9 +169,13 @@ class LuminanceGainControl(nn.Module):
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "reflect".
-
+    pretrained:
+        Whether or not to load model params from [3]_. See Notes for details.
     activation:
         Activation function following linear convolution.
+    cache_filt:
+        Whether or not to cache the filter. Avoids regenerating filt with each
+        forward pass.
 
     Attributes
     ----------
@@ -144,32 +186,55 @@ class LuminanceGainControl(nn.Module):
     luminance_scalar: nn.Parameter
         Scale factor for luminance normalization.
 
+    Notes
+    -----
+    These 4 parameters (standard deviations and scalar constants) were taken
+    from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
+    these pretrained weights at your own discretion.
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
         representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+       sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
     """
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: Tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
+        pretrained: bool = False,
         activation: Callable[[Tensor], Tensor] = F.softplus,
+        cache_filt: bool = False,
     ):
         super().__init__()
+        if pretrained:
+            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            if cache_filt is False:
+                warn("pretrained is True but cache_filt is False. Set cache_filt to "
+                     "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
-        self.luminance = Gaussian(kernel_size=kernel_size)
+        self.luminance = Gaussian(
+            kernel_size=kernel_size,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
+        )
         self.luminance_scalar = nn.Parameter(torch.rand(1) * 10)
+        if pretrained:
+            self.load_state_dict(self._pretrained_state_dict())
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
@@ -209,10 +274,26 @@ class LuminanceGainControl(nn.Module):
 
         return fig
 
+    @staticmethod
+    def _pretrained_state_dict() -> OrderedDict:
+        """Copied from Table 2 in Berardino, 2018"""
+        state_dict = OrderedDict(
+            [
+                ("luminance_scalar", torch.as_tensor([14.95])),
+                ("center_surround.center_std", torch.as_tensor([1.962])),
+                ("center_surround.surround_std", torch.as_tensor([4.235])),
+                ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
+                ("luminance.std", torch.as_tensor([4.235])),
+            ]
+        )
+        return state_dict
+
 
 class LuminanceContrastGainControl(nn.Module):
-    """ Linear center-surround followed by luminance and contrast gain control,
+    """Linear center-surround followed by luminance and contrast gain control,
     and activation function. Model is described in [1]_ and [2]_.
+
+    This model is called LGG in Berardino et al. 2017 [1]_.
 
     Parameters
     ----------
@@ -230,8 +311,13 @@ class LuminanceContrastGainControl(nn.Module):
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
         Padding for convolution, defaults to "reflect".
+    pretrained:
+        Whether or not to load model params from [3]_. See Notes for details.
     activation:
         Activation function following linear convolution.
+    cache_filt:
+        Whether or not to cache the filter. Avoids regenerating filt with each
+        forward pass.
 
     Attributes
     ----------
@@ -246,38 +332,63 @@ class LuminanceContrastGainControl(nn.Module):
     contrast_scalar: nn.Parameter
         Scale factor for contrast normalization.
 
+    Notes
+    -----
+    These 6 parameters (standard deviations and constants) were taken from
+    Table 2, page 149 from [3]_ and are the values used [1]_. Please use these
+    pretrained weights at your own discretion.
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
         representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+       sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
     """
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: Tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
+        pretrained: bool = False,
         activation: Callable[[Tensor], Tensor] = F.softplus,
+        cache_filt: bool = False,
     ):
         super().__init__()
-
+        if pretrained:
+            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            if cache_filt is False:
+                warn("pretrained is True but cache_filt is False. Set cache_filt to "
+                     "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
             width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
-        self.luminance = Gaussian(kernel_size)
-        self.contrast = Gaussian(kernel_size)
+        self.luminance = Gaussian(
+            kernel_size=kernel_size,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
+        )
+        self.contrast = Gaussian(
+            kernel_size=kernel_size,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
+        )
 
         self.luminance_scalar = nn.Parameter(torch.rand(1) * 10)
         self.contrast_scalar = nn.Parameter(torch.rand(1) * 10)
-
+        if pretrained:
+            self.load_state_dict(self._pretrained_state_dict())
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
@@ -321,12 +432,29 @@ class LuminanceContrastGainControl(nn.Module):
 
         return fig
 
+    @staticmethod
+    def _pretrained_state_dict() -> OrderedDict:
+        """Copied from Table 2 in Berardino, 2018"""
+        state_dict = OrderedDict(
+            [
+                ("luminance_scalar", torch.as_tensor([2.94])),
+                ("contrast_scalar", torch.as_tensor([34.03])),
+                ("center_surround.center_std", torch.as_tensor([.7363])),
+                ("center_surround.surround_std", torch.as_tensor([48.37])),
+                ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
+                ("luminance.std", torch.as_tensor([170.99])),
+                ("contrast.std", torch.as_tensor([2.658])),
+
+            ]
+        )
+        return state_dict
+
 
 class OnOff(nn.Module):
     """Two-channel on-off and off-on center-surround model with local contrast and
     luminance gain control.
 
-    This model is called OnOff in Berardino et al 2017.
+    This model is called OnOff in Berardino et al 2017 [1]_.
 
     Parameters
     ----------
@@ -356,32 +484,33 @@ class OnOff(nn.Module):
 
     Notes
     -----
-    These 12 parameters (standard deviations & scalar constants) were reverse-engineered
-    from model from [1]_, [2]_. Please use these pretrained weights at your own
-    discretion.
+    These 12 parameters (standard deviations & scalar constants) were taken
+    from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
+    these pretrained weights at your own discretion.
 
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
-        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+       hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+       sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
     """
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: Tuple[int, int],
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-        pretrained=False,
+        pretrained: bool = False,
         activation: Callable[[Tensor], Tensor] = F.softplus,
         apply_mask: bool = False,
         cache_filt: bool = False,
-
     ):
         super().__init__()
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
         if pretrained:
             assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
@@ -484,17 +613,16 @@ class OnOff(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Roughly interpreted from trained weights in Berardino et al 2017"""
+        """Copied from Table 2 in Berardino, 2018"""
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),
                 ("contrast_scalar", torch.as_tensor([7.3405, 16.7423])),
-                ("center_surround.center_std", torch.as_tensor([1.15, 0.56])),
-                ("center_surround.surround_std", torch.as_tensor([5.0, 1.6])),
+                ("center_surround.center_std", torch.as_tensor([1.237, 0.3233])),
+                ("center_surround.surround_std", torch.as_tensor([30.12, 2.184])),
                 ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
-                ("luminance.std", torch.as_tensor([8.7366, 1.4751])),
-                ("contrast.std", torch.as_tensor([2.7353, 1.5583])),
-
+                ("luminance.std", torch.as_tensor([76.4, 2.184])),
+                ("contrast.std", torch.as_tensor([7.49, 2.43])),
             ]
         )
         return state_dict
