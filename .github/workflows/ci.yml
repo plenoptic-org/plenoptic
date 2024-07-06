@@ -121,6 +121,12 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
+  ruff-linting:
+    runs-on: ubuntu-latest
+    name: Run Ruff linter and check code formatting
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
 
   check:
     if: always()

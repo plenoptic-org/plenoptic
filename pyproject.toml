@@ -83,7 +83,8 @@ local_scheme = 'no-local-version'
 addopts = "--cov=plenoptic"
 testpaths = ["tests"]
 
-[tool.ruff.lint]
+[tool.ruff]
+extend-include = ["*.ipynb"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
