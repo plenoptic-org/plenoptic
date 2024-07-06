@@ -55,6 +55,7 @@ dev = [
     'pytest-xdist',
     "requests>=2.21",
     "pooch>=1.2.0",
+    "ruff>=0.5.1",
 ]
 
 nb = [
@@ -82,3 +83,7 @@ local_scheme = 'no-local-version'
 addopts = "--cov=plenoptic"
 testpaths = ["tests"]
 
+[tool.ruff.lint]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
