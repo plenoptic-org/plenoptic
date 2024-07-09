@@ -146,6 +146,8 @@ class PortillaSimoncelli(nn.Module):
         ]
 
     def _create_scales_shape_dict(self) -> OrderedDict:
+
+        
         """Create dictionary defining scales and shape of each stat.
 
         This dictionary functions as metadata which is used for two main
