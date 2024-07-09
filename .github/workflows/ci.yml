@@ -123,12 +123,17 @@ jobs:
         retry_count: 3
   ruff-linting:
     runs-on: ubuntu-latest
-    name: Run Ruff linter and check code formatting
+    name: Run Ruff linter
     steps:
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
           args: 'check'
+  ruff-formatting:
+    runs-on: ubuntu-latest
+    name: Run Ruff code formatting check
+    steps:
+      - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
           args: 'format --check'
