@@ -85,30 +85,9 @@ testpaths = ["tests"]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
-
-[tool.ruff.lint]
-select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # error message formatting
-    "EM",
-]
+src = ['src']
 # ignore a variety of directories
-ignore = [
-    "docs",
-    "build",
-    "dist",
-    "src/plenoptic/version.py",
+exclude = [
     ".bzr",
     ".direnv",
     ".eggs",
@@ -136,6 +115,23 @@ ignore = [
     "venv",
     "tests",
     ]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
 
 
 
