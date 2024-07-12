@@ -86,5 +86,58 @@ testpaths = ["tests"]
 [tool.ruff]
 extend-include = ["*.ipynb"]
 
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # error message formatting
+    "EM",
+]
+# ignore a variety of directories
+ignore = [
+    "docs",
+    "build",
+    "dist",
+    "src/plenoptic/version.py",
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".github",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "tests",
+    ]
+
+
+
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
