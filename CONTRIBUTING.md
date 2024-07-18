@@ -199,6 +199,117 @@ several choices for how to run a subset of the tests:
 View the [pytest documentation](http://doc.pytest.org/en/latest/usage.html) for
 more info.
 
+### Using nox to simplify testing and linting
+This section is optional but if you want to easily run tests in an isolated environment 
+using the [nox](https://nox.thea.codes/en/stable/) command-line tool. 
+
+`nox` is installed automatically as a `[dev]` dependency of plenoptic. 
+
+To run all tests and linters through `nox`, from the root folder of the 
+plenoptic package, execute the following command,
+
+```bash
+nox
+```
+
+`nox` will read the configuration from the `noxfile.py` script. 
+
+If you want to run just the tests, add the following option,
+
+```bash
+nox -s tests
+```
+
+and for running only the linters, 
+
+```bash
+nox -s linters
+```
+
+`nox` offers a variety of configuration options, you can learn more about it from their 
+[documentation](https://nox.thea.codes/en/stable/config.html).
+
+#### Multi-python version testing with pyenv
+Sometimes, before opening a pull-request that will trigger the `.github/workflow/ci.yml` continuous 
+integration workflow, you may want to test your changes over all the supported python versions locally.
+
+Handling multiple installed python versions on the same machine can be challenging and confusing.
+[`pyenv`](https://github.com/pyenv/pyenv) is a great tool that really comes to the rescue. 
+
+This tool doesn't come with the package dependencies and has to be installed separately. Installation instructions 
+are system specific but the package readme is very details, see 
+[here](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation).
+
+Follow carefully the instructions to configure pyenv after installation. 
+
+Once you have tha package installed and configured, you can install multiple python version through it. 
+First get a list of the available versions with the command,
+
+```bash
+pyenv install -l
+```
+
+Install the python version you need. For this example, let's assume we want `python 3.10.11` and `python 3.11.8`,
+
+```bash
+pyenv install 3.10.11
+pyenv install 3.11.8
+```
+
+You can check which python version is currently set as default, by typing,
+
+```bash
+pyenv which python
+```
+
+And you can list all available versions of python with,
+
+```bash
+pyenv versions
+```
+If you want to run `nox` on multiple python versions, all you need to do is: 
+
+1. Set your desired versions as `global`.
+    ```bash
+    pyenv global 3.11.8 3.10.11
+    ```
+    This will make both version available, and the default python will be set to the first one listed 
+    (`3.11.8` in this case).
+2. Run nox specifying the python version as an option.
+    ```bash
+    nox -p 3.10
+    ```
+   
+Note that `noxfile.py` lists the available option as keyword arguments in a session specific manner.
+
+If you have multiple python version installed, we recommend to manage your virtual environments 
+through `pyenv`. For that you'll need to install the extension 
+[`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv).
+
+This tool works with most of the environment managers including (`venv` and `conda`).
+Creating an environment with it is as simple as calling,
+
+```bash
+pyenv virtualenv my-python my-enviroment
+```
+
+Here, `my-python` is the python version, one between `pyenv versions`, and `my-environment` is your
+new environment name.
+
+If `my-python` has `conda` installed, it will create a conda environment, if not, it will use `venv`.
+
+You can list the virtual environment only with,
+
+```bash
+pyenv virtualenvs
+```
+
+And you can uninstall an environment with,
+
+```bash
+pyenv uninstall my-environment
+```
+
 ### Adding tests 
 
 New tests can be added in any of the existing `tests/test_*.py` scripts. Tests

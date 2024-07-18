@@ -55,6 +55,7 @@ dev = [
     'pytest-xdist',
     "requests>=2.21",
     "pooch>=1.2.0",
+    "nox",
     "ruff>=0.5.1",
 ]
 
@@ -86,7 +87,7 @@ testpaths = ["tests"]
 [tool.ruff]
 extend-include = ["*.ipynb"]
 src = ['src']
-# ignore a variety of directories
+# Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
     ".direnv",
@@ -110,11 +111,18 @@ exclude = [
     "__pypackages__",
     "_build",
     "buck-out",
+    "build",
+    "dist",
     "node_modules",
     "site-packages",
     "venv",
     "tests",
+    "examples",
+    "docs",
     ]
+    
+# Set the maximum line length to 79.
+line-length = 79
 
 [tool.ruff.lint]
 select = [
