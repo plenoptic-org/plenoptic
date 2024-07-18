@@ -2,9 +2,23 @@ repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
+    # Validates YAML files for syntax errors.
     -   id: check-yaml
+    # Ensures files have a newline at the end.
     -   id: end-of-file-fixer
+    # Removes trailing whitespace characters from files.
     -   id: trailing-whitespace
+    # Renames test files to follow a standard naming convention, often starting with test_.
+    -   id: name-tests-test
+    # Detects debug statments (e.g., print, console.log, etc.) left in code.
+    - id: debug-statements
+    # Checks for files that contain merge conflict strings (e.g., <<<<<<<, =======, >>>>>>>).
+    - id: check-merge-conflict
+    # Checks for large files added to the repository, typically to prevent accidental inclusion of large binaries or datasets.
+    - id: check-added-large-files
+    # Detects potential filename conflicts due to case-insensitive filesystems (e.g., Windows) where File.txt and file.txt would be considered the same.
+    - id: check-case-conflict
+
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.1.4
   hooks:
