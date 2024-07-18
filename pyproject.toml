@@ -120,7 +120,7 @@ exclude = [
     "examples",
     "docs",
     ]
-    
+
 # Set the maximum line length to 79.
 line-length = 79
 
@@ -139,9 +139,6 @@ select = [
     # isort
     "I",
 ]
-
-
-
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
