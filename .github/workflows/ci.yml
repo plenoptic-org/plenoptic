@@ -72,8 +72,8 @@ jobs:
     - name: Run tests with pytest
       run: |
         pytest -n auto --cov-report xml
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@7598e39340e1dff4d6ebf7cf07a5e8184bde67e7 # v4.0.1
+    - name: Upload coverage to Codecov4
+      uses: codecov/codecov-action@v4 #codecov/codecov-action@7598e39340e1dff4d6ebf7cf07a5e8184bde67e7 # v4.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   all_tutorials_in_docs:
@@ -149,6 +149,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
-      uses: re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2
+      uses: re-actors/alls-green@release/v1 #re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2, link does not work anymore
       with:
         jobs: ${{ toJSON(needs) }}
