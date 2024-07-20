@@ -149,6 +149,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
-      uses: re-actors/alls-green@release/v1 #re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2, link does not work anymore
+      uses: re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2
       with:
         jobs: ${{ toJSON(needs) }}
