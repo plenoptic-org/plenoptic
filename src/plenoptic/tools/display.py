@@ -532,26 +532,6 @@ def rescale_ylim(axes, data):
         ax.set_ylim((-y_max, y_max))
 
 
-def convert_anim_to_html(anim):
-    r"""convert a matplotlib animation object to HTML (for display)
-
-    This is a simple little wrapper function that allows the animation
-    to be displayed in a Jupyter notebook
-
-    Parameters
-    ----------
-    anim : `matplotlib.animation.FuncAnimation`
-        The animation object to convert to HTML
-    """
-
-    # to_html5_video will call savefig with a dpi kwarg, so our
-    # custom figure class will raise a warning. we don't want to
-    # worry people, so we go ahead and suppress it
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=UserWarning)
-        return HTML(anim.to_html5_video())
-
-
 def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     r"""convenience wrapper for plotting stem plots
 
