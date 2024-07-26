@@ -929,16 +929,29 @@ class PortillaSimoncelli(nn.Module):
           between each orientation at each scale (summarized using Euclidean
           norm)
 
-        If self.n_scales > 1, we also have:
+        If self.n_scales > 1, we also have combination of the following, where all
+        cross-correlations are summarized using Euclidean norm over the 
+        channel dimension:
         
         - cross_scale_correlation_magnitude: the cross-correlations between the
           pyramid coefficient magnitude at one scale and the same orientation
-          at the next-coarsest scale (summarized using Euclidean norm).
+          at the next-coarsest scale.
 
         - cross_scale_correlation_real: the cross-correlations between the real
           component of the pyramid coefficients and the real and imaginary
-          components (at the same orientation) at the next-coarsest scale
-          (summarized using Euclidean norm).
+          components (at the same orientation) at the next-coarsest scale.
+
+        - cross_channel_correlation: the cross-correlations between the channels 
+          of the image.
+
+        - cross_channel_correlation_magnitude: the cross-correlations between 
+          the channels of the magnitude of the pyramid coefficients.
+
+        - cross_channel_correlation_real: the cross-correlations between the
+            channels of the real component of the pyramid coefficients, referred
+            to as 'phase' in Brown et al., 2023.
+
+        
 
         Parameters
         ----------
@@ -970,14 +983,6 @@ class PortillaSimoncelli(nn.Module):
             List of 6 or 8 axes containing the plot (depending on self.n_scales)
 
         """
-        if self.n_scales != 1:
-            n_rows = 3
-            n_cols = 3
-        else:
-            # then we don't have any cross-scale correlations, so fewer axes.
-            n_rows = 2
-            n_cols = 3
-
         # pick the batch_idx we want (but keep the data 3d), and average over
         # channels (but keep the data 3d). We keep data 3d because
         # convert_to_dict relies on it.
@@ -986,6 +991,15 @@ class PortillaSimoncelli(nn.Module):
         # of the first two dims
         rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
         data = self._representation_for_plotting(rep)
+
+        # Determine plot grid layout
+        if self.n_scales != 1:
+            n_rows = 3
+            n_cols = int(np.ceil(len(data)/n_rows))
+        else:
+            # then we don't have any cross-scale correlations, so fewer axes.
+            n_rows = 2
+            n_cols = int(np.ceil(len(data)/n_rows))
 
         # Set up grid spec
         if ax is None:
@@ -1006,7 +1020,7 @@ class PortillaSimoncelli(nn.Module):
         # plot data
         axes = []
         for i, (k, v) in enumerate(data.items()):
-            ax = fig.add_subplot(gs[i // 3, i % 3])
+            ax = fig.add_subplot(gs[i // n_cols, i % n_cols])
             ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
             axes.append(ax)
 
