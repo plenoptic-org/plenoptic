@@ -121,22 +121,27 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
-  ruff-linting:
+  ruff_linting_formatting:
     runs-on: ubuntu-latest
-    name: Run Ruff linter
     steps:
+      - name: Run Ruff linter
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
           args: 'check'
-  ruff-formatting:
-    runs-on: ubuntu-latest
-    name: Run Ruff code formatting check
-    steps:
+      - name: Run Ruff code formatting check      
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
           args: 'format --check'
+  # ruff-formatting:
+  #   runs-on: ubuntu-latest
+  #   name: Run Ruff code formatting check
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: chartboost/ruff-action@v1
+  #       with:
+  #         args: 'format --check'
 
   check:
     if: always()
@@ -146,6 +151,7 @@ jobs:
     - all_tutorials_in_docs
     - no_extra_nblinks
     - check_urls
+    - ruff_linting_formatting
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
