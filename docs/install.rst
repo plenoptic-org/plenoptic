@@ -46,7 +46,7 @@ The above instructions will install plenoptic and its core dependencies. You may
 
 These optional dependencies can be joined with a comma, e.g., ``pip install -e .[docs,dev]``
 
-.. info:: Note that you must install with ``pip`` (not ``conda``) in order to install the optional dependencies.
+.. note:: Note that you must install with ``pip`` (not ``conda``) in order to install the optional dependencies.
 
 ffmpeg and videos
 -----------------
