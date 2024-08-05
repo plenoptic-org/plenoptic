@@ -1484,12 +1484,14 @@ def animate(metamer: Metamer,
     ``metamer.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
-    We return the matplotlib FuncAnimation object. In order to view it in a
-    Jupyter notebook, use the
-    ``plenoptic.tools.display.convert_anim_to_html(anim)`` function. In order
-    to save, use ``anim.save(filename)`` (note for this that you'll need the
-    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick,
-    etc). Either of these will probably take a reasonably long amount of time.
+    This functions returns a matplotlib FuncAnimation object. See our documentation
+    (e.g.,
+    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    for examples on how to view it in a Jupyter notebook. In order to save, use
+    ``anim.save(filename)``. In either case, this can take a while and you'll need the
+    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
+    [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html) for
+    more details.
 
     Parameters
     ----------

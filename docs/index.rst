@@ -94,21 +94,21 @@ Contents
 Synthesis methods
 ^^^^^^^^^^^^^^^^^
 
-- `Metamers <tutorials/06_Metamer.nblink>`_: given a model and a reference image,
+- `Metamers <tutorials/intro/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
   that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). 
   This method makes explicit those features that the model retains/discards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
     [Feather2019]_, [Wallis2019]_, [Ziemba2021]_
-- `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_: given a model and a
+- `Eigendistortions <tutorials/intro/02_Eigendistortions.nblink>`_: given a model and a
   reference image, compute the image perturbations that produce the smallest/largest 
   change in the model response space. These are the 
   image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
 - `Maximal differentiation (MAD) competition
-  <tutorials/07_MAD_Competition.nblink>`_: given a reference image and two models that measure distance
+  <tutorials/intro/08_MAD_Competition.nblink>`_: given a reference image and two models that measure distance
   between images, generate pairs of images that optimally
   differentiate the models. Specifically, synthesize a pair of images that are equi-distant from
   the reference image according to model-1, but maximally/minimally distant according to model-2.  Synthesize
@@ -117,7 +117,7 @@ Synthesis methods
   their sensitivities most differ.
 
   - Example papers: [Wang2008]_
-- `Geodesics <tutorials/05_Geodesics.nblink>`_: given a model and two images,
+- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_: given a model and two images,
   synthesize a sequence of images that lie on the shortest ("geodesic") path in
   the model's representation space. This method allows examination of the larger-scale geometric
   properties of model representation (as opposed to the local properties captured by 
