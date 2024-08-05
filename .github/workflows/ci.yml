@@ -137,7 +137,7 @@ jobs:
           pip install --upgrade --upgrade-strategy eager .[dev]
       - name: Run ruff linter
         run: |
-          ruff check
+          ruff check --config=pyproject.toml
   ruff_formatting:
     runs-on: ubuntu-latest
     name: Run Ruff code formatting check
@@ -154,7 +154,7 @@ jobs:
           pip install --upgrade --upgrade-strategy eager .[dev]
       - name: Run ruff formatter
         run: |
-          ruff format --check
+          ruff format --check --config=pyproject.toml
 
   check:
     if: always()

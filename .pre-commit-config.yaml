@@ -4,8 +4,10 @@ repos:
   hooks:
     # Run the formatter.
     - id: ruff-format
+      args: [--config=pyproject.toml]
     # Run the linter.
     - id: ruff
+      args: [--config=pyproject.toml]
 
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
