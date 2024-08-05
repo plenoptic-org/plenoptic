@@ -5,15 +5,20 @@ Installation
 
 ``plenoptic`` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a `bug report <https://github.com/LabForComputationalVision/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_!
 
-The easiest way to install ``plenoptic`` is from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) using pip within a new virtual environment. The instructions on this page use `conda <https://docs.conda.io/en/latest/>`_, which we recommend if you are unfamiliar with python environment management, but other virtual environment systems should work. If you wish to follow these instructions and do not have ``conda`` installed on your machine, I recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.::
+You can install ``plenoptic`` from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) or `conda-forge <https://anaconda.org/conda-forge/plenoptic>`_.
+
+The instructions on this page use `conda <https://docs.conda.io/en/latest/>`_, which we recommend if you are unfamiliar with python environment management, but other virtual environment systems should work. If you wish to follow these instructions and do not have ``conda`` installed on your machine, I recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.::
 
 $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
-$ pip install plenoptic
+$ conda install plenoptic -c conda-forge
 
-Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. `Open an issue <https://github.com/LabForComputationalVision/plenoptic/issues>`_ and we'll try to help you figure out the problem!
+Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. `Open an issue <https://github.com/LabForComputationalVision/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_ and we'll try to help you figure out the problem!
 
-You can also install it directly from source to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version::
+Installing from source
+----------------------
+
+You can also install plenoptic directly from source in order to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version::
 
 $ conda create --name plenoptic pip python=3.9
 $ conda activate plenoptic
@@ -23,6 +28,8 @@ $ cd plenoptic
 $ # install in editable mode with `-e` or, equivalently, `--editable`
 $ pip install -e .
 
+.. warning:: When using pip with a conda environment, as in this example, all pip commands should come after all the conda commands (e.g., you shouldn't run ``conda install matplotlib`` after the ``pip install -e .`` above), because conda is unaware of any changes that pip makes. See `here <https://www.anaconda.com/blog/using-pip-in-a-conda-environment>`_ for more details. In particular, this means that if you want to install :ref:`jupyter <Jupyter>` in the same environment as the editable install or plenoptic's :ref:`optional-deps`, you should run all the ``conda install`` commands found in those sections **before** running ``pip install``. If you use ``venv`` or some other environment management system, this is not a problem.
+
 With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
 
 .. attention:: To install ``plenoptic`` in editable mode, you need ``pip >= 21.3`` (see pip's `changelog <https://pip.pypa.io/en/stable/news/#id286>`_). If you run into `an error <https://github.com/LabForComputationalVision/plenoptic/issues/227>`_ after running the ``pip install -e .`` command, try updating your pip version with ``pip install --upgrade pip``.
@@ -31,13 +38,15 @@ With an editable copy, any changes locally will be automatically reflected in yo
 Optional dependencies
 ---------------------
 
-The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the pip install command and can be installed for either a local, editable install or one directly from PyPI:
+The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
 * If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for more details on how to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 * If you would like to locally build the documentation: ``pip install -e .[docs]``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 * If you would like to run the tests: ``pip install -e .[dev]``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 
-These optional dependencies can be joined with a comma: ``pip install -e .[docs,dev]``
+These optional dependencies can be joined with a comma, e.g., ``pip install -e .[docs,dev]``
+
+.. info:: Note that you must install with ``pip`` (not ``conda``) in order to install the optional dependencies.
 
 ffmpeg and videos
 -----------------

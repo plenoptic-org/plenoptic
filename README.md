@@ -1,6 +1,7 @@
 # plenoptic
 
 [![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/plenoptic/badges/version.svg)](https://anaconda.org/conda-forge/plenoptic)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE)
 ![Python version](https://img.shields.io/badge/python-3.10|3.11|3.12-blue.svg)
 [![Build Status](https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg)](https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild)
@@ -34,11 +35,20 @@ aimed at validating or falsifying model predictions.
 
 ### Installation
 
-The best way to install `plenoptic` is via `pip`.
+The best way to install `plenoptic` is via `pip`:
 
 ``` bash
 $ pip install plenoptic
 ```
+
+or `conda`:
+
+``` bash
+$ conda install plenoptic -c conda-forge
+```
+
+> [!WARNING]
+> We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. See [here](https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32) for the status of that issue.
 
 Our dependencies include [pytorch](https://pytorch.org/) and
 [pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take
