@@ -8,24 +8,24 @@ repos:
     - id: ruff
 
 
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
-    # note: pre-commit runs top-to-bottom, so put the hooks that modify content first,
-    # followed by checks that might be more likely to pass after the modifactaion hooks (like flake8)
-    hooks:
-    # Checks for large files added to the repository, typically to prevent accidental inclusion of large binaries or datasets.
-    - id: check-added-large-files
-    # Detects potential filename conflicts due to case-insensitive filesystems (e.g., Windows) where File.txt and file.txt would be considered the same.
-    - id: check-case-conflict
-    # Checks for files that contain merge conflict strings (e.g., <<<<<<<, =======, >>>>>>>).
-    - id: check-merge-conflict
-    # Validates YAML files for syntax errors.
-    - id: check-yaml
-    # Detects debug statments (e.g., print, console.log, etc.) left in code.
-    - id: debug-statements
-    # Ensures files have a newline at the end.
-    - id: end-of-file-fixer
-    # Renames test files to follow a standard naming convention, often starting with test_.
-    - id: name-tests-test
-    # Removes trailing whitespace characters from files.
-    - id: trailing-whitespace
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v2.3.0
+  # note: pre-commit runs top-to-bottom, so put the hooks that modify content first,
+  # followed by checks that might be more likely to pass after the modifactaion hooks (like flake8)
+  hooks:
+  # Checks for large files added to the repository, typically to prevent accidental inclusion of large binaries or datasets.
+  - id: check-added-large-files
+  # Detects potential filename conflicts due to case-insensitive filesystems (e.g., Windows) where File.txt and file.txt would be considered the same.
+  - id: check-case-conflict
+  # Checks for files that contain merge conflict strings (e.g., <<<<<<<, =======, >>>>>>>).
+  - id: check-merge-conflict
+  # Validates YAML files for syntax errors.
+  - id: check-yaml
+  # Detects debug statments (e.g., print, console.log, etc.) left in code.
+  - id: debug-statements
+  # Ensures files have a newline at the end.
+  - id: end-of-file-fixer
+  # Renames test files to follow a standard naming convention, often starting with test_.
+  - id: name-tests-test
+  # Removes trailing whitespace characters from files.
+  - id: trailing-whitespace
