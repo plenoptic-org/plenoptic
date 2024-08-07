@@ -941,18 +941,6 @@ class PortillaSimoncelli(nn.Module):
           component of the pyramid coefficients and the real and imaginary
           components (at the same orientation) at the next-coarsest scale.
 
-        - cross_channel_correlation: the cross-correlations between the channels 
-          of the image.
-
-        - cross_channel_correlation_magnitude: the cross-correlations between 
-          the channels of the magnitude of the pyramid coefficients.
-
-        - cross_channel_correlation_real: the cross-correlations between the
-            channels of the real component of the pyramid coefficients, referred
-            to as 'phase' in Brown et al., 2023.
-
-        
-
         Parameters
         ----------
         data :
