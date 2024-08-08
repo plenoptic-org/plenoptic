@@ -14,8 +14,11 @@ from ..tools.data import to_numpy
 from ..tools.optim import penalize_range
 from ..tools.validate import validate_input, validate_model
 from ..tools.convergence import pixel_change_convergence
-from ..tools.straightness import (deviation_from_line, make_straight_line,
-                                  sample_brownian_bridge)
+from ..tools.straightness import (
+    deviation_from_line,
+    make_straight_line,
+    sample_brownian_bridge,
+)
 
 
 class Geodesic(OptimizedSynthesis):
@@ -96,16 +99,26 @@ class Geodesic(OptimizedSynthesis):
         http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
     """
-    def __init__(self, image_a: Tensor, image_b: Tensor,
-                 model: torch.nn.Module, n_steps: int = 10,
-                 initial_sequence: Literal['straight', 'bridge'] = 'straight',
-                 range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float, float] = (0, 1)):
+
+    def __init__(
+        self,
+        image_a: Tensor,
+        image_b: Tensor,
+        model: torch.nn.Module,
+        n_steps: int = 10,
+        initial_sequence: Literal["straight", "bridge"] = "straight",
+        range_penalty_lambda: float = 0.1,
+        allowed_range: Tuple[float, float] = (0, 1),
+    ):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
         validate_input(image_b, no_batch=True, allowed_range=allowed_range)
-        validate_model(model, image_shape=image_a.shape, image_dtype=image_a.dtype,
-                       device=image_a.device)
+        validate_model(
+            model,
+            image_shape=image_a.shape,
+            image_dtype=image_a.dtype,
+            device=image_a.device,
+        )
 
         self.n_steps = n_steps
         self._model = model
@@ -126,22 +139,27 @@ class Geodesic(OptimizedSynthesis):
             (``'straight'``), or with a brownian bridge between the two anchors
             (``'bridge'``).
         """
-        if initial_sequence == 'bridge':
+        if initial_sequence == "bridge":
             geodesic = sample_brownian_bridge(start, stop, n_steps)
-        elif initial_sequence == 'straight':
+        elif initial_sequence == "straight":
             geodesic = make_straight_line(start, stop, n_steps)
         else:
-            raise ValueError(f"Don't know how to handle initial_sequence={initial_sequence}")
-        _, geodesic, _ = torch.split(geodesic, [1, n_steps-1, 1])
+            raise ValueError(
+                f"Don't know how to handle initial_sequence={initial_sequence}"
+            )
+        _, geodesic, _ = torch.split(geodesic, [1, n_steps - 1, 1])
         self._initial_sequence = initial_sequence
         geodesic.requires_grad_()
         self._geodesic = geodesic
 
-    def synthesize(self, max_iter: int = 1000,
-                   optimizer: Optional[torch.optim.Optimizer] = None,
-                   store_progress: Union[bool, int] = False,
-                   stop_criterion: Optional[float] = None,
-                   stop_iters_to_check: int = 50):
+    def synthesize(
+        self,
+        max_iter: int = 1000,
+        optimizer: Optional[torch.optim.Optimizer] = None,
+        store_progress: Union[bool, int] = False,
+        stop_criterion: Optional[float] = None,
+        stop_iters_to_check: int = 50,
+    ):
         """Synthesize a geodesic via optimization.
 
         Parameters
@@ -173,10 +191,17 @@ class Geodesic(OptimizedSynthesis):
         """
         if stop_criterion is None:
             # semi arbitrary default choice of tolerance
-            stop_criterion = torch.linalg.vector_norm(self.pixelfade, ord=2) / 1e4 * (1 + 5 ** .5) / 2
-        print(f"\n Stop criterion for pixel_change_norm = {stop_criterion:.5e}")
+            stop_criterion = (
+                torch.linalg.vector_norm(self.pixelfade, ord=2)
+                / 1e4
+                * (1 + 5**0.5)
+                / 2
+            )
+        print(
+            f"\n Stop criterion for pixel_change_norm = {stop_criterion:.5e}"
+        )
 
-        self._initialize_optimizer(optimizer, '_geodesic', .001)
+        self._initialize_optimizer(optimizer, "_geodesic", 0.001)
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -191,7 +216,9 @@ class Geodesic(OptimizedSynthesis):
                 raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(stop_criterion, stop_iters_to_check):
-                warnings.warn("Pixel change norm has converged, stopping synthesis")
+                warnings.warn(
+                    "Pixel change norm has converged, stopping synthesis"
+                )
                 break
 
         pbar.close()
@@ -224,16 +251,19 @@ class Geodesic(OptimizedSynthesis):
         if geodesic is None:
             geodesic = self.geodesic
         self._geodesic_representation = self.model(geodesic)
-        self._most_recent_step_energy = self._calculate_step_energy(self._geodesic_representation)
+        self._most_recent_step_energy = self._calculate_step_energy(
+            self._geodesic_representation
+        )
         loss = self._most_recent_step_energy.mean()
         range_penalty = penalize_range(self.geodesic, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
     def _calculate_step_energy(self, z):
-        """calculate the energy (i.e. squared l2 norm) of each step in `z`.
-        """
+        """calculate the energy (i.e. squared l2 norm) of each step in `z`."""
         velocity = torch.diff(z, dim=0)
-        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
+        step_energy = (
+            torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
+        )
         return step_energy
 
     def _optimizer_step(self, pbar):
@@ -254,21 +284,30 @@ class Geodesic(OptimizedSynthesis):
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
 
-        grad_norm = torch.linalg.vector_norm(self._geodesic.grad.data,
-                                             ord=2, dim=None)
+        grad_norm = torch.linalg.vector_norm(
+            self._geodesic.grad.data, ord=2, dim=None
+        )
         self._gradient_norm.append(grad_norm)
 
-        pixel_change_norm = torch.linalg.vector_norm(self._geodesic - last_iter_geodesic,
-                                                     ord=2, dim=None)
+        pixel_change_norm = torch.linalg.vector_norm(
+            self._geodesic - last_iter_geodesic, ord=2, dim=None
+        )
         self._pixel_change_norm.append(pixel_change_norm)
         # displaying some information
-        pbar.set_postfix(OrderedDict([('loss', f'{loss.item():.4e}'),
-                         ('gradient norm', f'{grad_norm.item():.4e}'),
-                         ('pixel change norm', f"{pixel_change_norm.item():.5e}")]))
+        pbar.set_postfix(
+            OrderedDict(
+                [
+                    ("loss", f"{loss.item():.4e}"),
+                    ("gradient norm", f"{grad_norm.item():.4e}"),
+                    ("pixel change norm", f"{pixel_change_norm.item():.5e}"),
+                ]
+            )
+        )
         return loss
 
-    def _check_convergence(self, stop_criterion: float,
-                           stop_iters_to_check: int) -> bool:
+    def _check_convergence(
+        self, stop_criterion: float, stop_iters_to_check: int
+    ) -> bool:
         """Check whether the pixel change norm has stabilized and, if so, return True.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
@@ -297,7 +336,9 @@ class Geodesic(OptimizedSynthesis):
             Whether the pixel change norm has stabilized or not.
 
         """
-        return pixel_change_convergence(self, stop_criterion, stop_iters_to_check)
+        return pixel_change_convergence(
+            self, stop_criterion, stop_iters_to_check
+        )
 
     def calculate_jerkiness(self, geodesic: Optional[Tensor] = None) -> Tensor:
         """Compute the alignment of representation's acceleration to model local curvature.
@@ -321,15 +362,19 @@ class Geodesic(OptimizedSynthesis):
         geodesic_representation = self.model(geodesic)
         velocity = torch.diff(geodesic_representation, dim=0)
         acceleration = torch.diff(velocity, dim=0)
-        acc_magnitude = torch.linalg.vector_norm(acceleration, ord=2, dim=[1,2,3],
-                                                 keepdim=True)
+        acc_magnitude = torch.linalg.vector_norm(
+            acceleration, ord=2, dim=[1, 2, 3], keepdim=True
+        )
         acc_direction = torch.div(acceleration, acc_magnitude)
         # we slice the output of the VJP, rather than slicing geodesic, because
         # slicing interferes with the gradient computation:
         # https://stackoverflow.com/a/54767100
-        accJac = self._vector_jacobian_product(geodesic_representation[1:-1],
-                                               geodesic, acc_direction)[1:-1]
-        step_jerkiness = torch.linalg.vector_norm(accJac, dim=[1,2,3], ord=2) ** 2
+        accJac = self._vector_jacobian_product(
+            geodesic_representation[1:-1], geodesic, acc_direction
+        )[1:-1]
+        step_jerkiness = (
+            torch.linalg.vector_norm(accJac, dim=[1, 2, 3], ord=2) ** 2
+        )
         return step_jerkiness
 
     def _vector_jacobian_product(self, y, x, a):
@@ -337,9 +382,9 @@ class Geodesic(OptimizedSynthesis):
         and allow for further gradient computations by retaining,
         and creating the graph.
         """
-        accJac = autograd.grad(y, x, a,
-                               retain_graph=True,
-                               create_graph=True)[0]
+        accJac = autograd.grad(y, x, a, retain_graph=True, create_graph=True)[
+            0
+        ]
         return accJac
 
     def _store(self, i: int) -> bool:
@@ -362,15 +407,29 @@ class Geodesic(OptimizedSynthesis):
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
             try:
-                self._step_energy.append(self._most_recent_step_energy.detach().to('cpu'))
-                self._dev_from_line.append(torch.stack(deviation_from_line(self._geodesic_representation.detach().to('cpu'))).T)
+                self._step_energy.append(
+                    self._most_recent_step_energy.detach().to("cpu")
+                )
+                self._dev_from_line.append(
+                    torch.stack(
+                        deviation_from_line(
+                            self._geodesic_representation.detach().to("cpu")
+                        )
+                    ).T
+                )
             except AttributeError:
                 # the first time _store is called (i.e., before optimizer is
                 # stepped for first time) those attributes won't be
                 # initialized
                 geod_rep = self.model(self.geodesic)
-                self._step_energy.append(self._calculate_step_energy(geod_rep).detach().to('cpu'))
-                self._dev_from_line.append(torch.stack(deviation_from_line(geod_rep.detach().to('cpu'))).T)
+                self._step_energy.append(
+                    self._calculate_step_energy(geod_rep).detach().to("cpu")
+                )
+                self._dev_from_line.append(
+                    torch.stack(
+                        deviation_from_line(geod_rep.detach().to("cpu"))
+                    ).T
+                )
             stored = True
         else:
             stored = False
@@ -427,13 +486,23 @@ class Geodesic(OptimizedSynthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = ['_image_a', '_image_b', '_geodesic', '_model',
-                 '_step_energy', '_dev_from_line', 'pixelfade']
+        attrs = [
+            "_image_a",
+            "_image_b",
+            "_geodesic",
+            "_model",
+            "_step_energy",
+            "_dev_from_line",
+            "pixelfade",
+        ]
         super().to(*args, attrs=attrs, **kwargs)
 
-    def load(self, file_path: str,
-             map_location: Union[str, None] = None,
-             **pickle_load_args):
+    def load(
+        self,
+        file_path: str,
+        map_location: Union[str, None] = None,
+        **pickle_load_args,
+    ):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Geodesic`` object -- we will
@@ -469,28 +538,47 @@ class Geodesic(OptimizedSynthesis):
         *then* load.
 
         """
-        check_attributes = ['_image_a', '_image_b', 'n_steps',
-                            '_initial_sequence', '_range_penalty_lambda',
-                            '_allowed_range', 'pixelfade']
+        check_attributes = [
+            "_image_a",
+            "_image_b",
+            "n_steps",
+            "_initial_sequence",
+            "_range_penalty_lambda",
+            "_allowed_range",
+            "pixelfade",
+        ]
         check_loss_functions = []
         new_loss = self.objective_function(self.pixelfade)
-        super().load(file_path, map_location=map_location,
-                     check_attributes=check_attributes,
-                     check_loss_functions=check_loss_functions,
-                     **pickle_load_args)
-        old_loss = self.__dict__.pop('_save_check')
+        super().load(
+            file_path,
+            map_location=map_location,
+            check_attributes=check_attributes,
+            check_loss_functions=check_loss_functions,
+            **pickle_load_args,
+        )
+        old_loss = self.__dict__.pop("_save_check")
         if not torch.allclose(new_loss, old_loss, rtol=1e-2):
-            raise ValueError("objective_function on pixelfade of saved and initialized Geodesic object are different! Do they use the same model?"
-                             f" Self: {new_loss}, Saved: {old_loss}")
+            raise ValueError(
+                "objective_function on pixelfade of saved and initialized Geodesic object are different! Do they use the same model?"
+                f" Self: {new_loss}, Saved: {old_loss}"
+            )
         # make this require a grad again
         self._geodesic.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if len(self._dev_from_line) and self._dev_from_line[0].device.type != 'cpu':
-            self._dev_from_line = [dev.to('cpu') for dev in self._dev_from_line]
-        if len(self._step_energy) and self._step_energy[0].device.type != 'cpu':
-            self._step_energy = [step.to('cpu') for step in self._step_energy]
+        if (
+            len(self._dev_from_line)
+            and self._dev_from_line[0].device.type != "cpu"
+        ):
+            self._dev_from_line = [
+                dev.to("cpu") for dev in self._dev_from_line
+            ]
+        if (
+            len(self._step_energy)
+            and self._step_energy[0].device.type != "cpu"
+        ):
+            self._step_energy = [step.to("cpu") for step in self._step_energy]
 
     @property
     def model(self):
@@ -535,9 +623,9 @@ class Geodesic(OptimizedSynthesis):
         return torch.stack(self._dev_from_line)
 
 
-def plot_loss(geodesic: Geodesic,
-              ax: Union[mpl.axes.Axes, None] = None,
-              **kwargs) -> mpl.axes.Axes:
+def plot_loss(
+    geodesic: Geodesic, ax: Union[mpl.axes.Axes, None] = None, **kwargs
+) -> mpl.axes.Axes:
     """Plot synthesis loss.
 
     Parameters
@@ -559,14 +647,15 @@ def plot_loss(geodesic: Geodesic,
     if ax is None:
         ax = plt.gca()
     ax.semilogy(geodesic.losses, **kwargs)
-    ax.set(xlabel='Synthesis iteration',
-           ylabel='Loss')
+    ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
 
-def plot_deviation_from_line(geodesic: Geodesic,
-                             natural_video: Union[Tensor, None] = None,
-                             ax: Union[mpl.axes.Axes, None] = None
-                             ) -> mpl.axes.Axes:
+
+def plot_deviation_from_line(
+    geodesic: Geodesic,
+    natural_video: Union[Tensor, None] = None,
+    ax: Union[mpl.axes.Axes, None] = None,
+) -> mpl.axes.Axes:
     """Visual diagnostic of geodesic linearity in representation space.
 
     This plot illustrates the deviation from the straight line connecting
@@ -609,18 +698,24 @@ def plot_deviation_from_line(geodesic: Geodesic,
         ax = plt.gca()
 
     pixelfade_dev = deviation_from_line(geodesic.model(geodesic.pixelfade))
-    ax.plot(*[to_numpy(d) for d in pixelfade_dev], 'g-o', label='pixelfade')
+    ax.plot(*[to_numpy(d) for d in pixelfade_dev], "g-o", label="pixelfade")
 
-    geodesic_dev = deviation_from_line(geodesic.model(geodesic.geodesic).detach())
-    ax.plot(*[to_numpy(d) for d in geodesic_dev], 'r-o', label='geodesic')
+    geodesic_dev = deviation_from_line(
+        geodesic.model(geodesic.geodesic).detach()
+    )
+    ax.plot(*[to_numpy(d) for d in geodesic_dev], "r-o", label="geodesic")
 
     if natural_video is not None:
         video_dev = deviation_from_line(geodesic.model(natural_video))
-        ax.plot(*[to_numpy(d) for d in video_dev], 'b-o', label='natural video')
+        ax.plot(
+            *[to_numpy(d) for d in video_dev], "b-o", label="natural video"
+        )
 
-    ax.set(xlabel='Distance along representation line',
-           ylabel='Distance from representation line',
-           title='Deviation from the straight line')
+    ax.set(
+        xlabel="Distance along representation line",
+        ylabel="Distance from representation line",
+        title="Deviation from the straight line",
+    )
     ax.legend(loc=1)
 
     return ax

@@ -1,5 +1,5 @@
-"""Tools related to optimization such as more objective functions.
-"""
+"""Tools related to optimization such as more objective functions."""
+
 import torch
 from torch import Tensor
 from typing import Optional, Tuple
@@ -99,11 +99,16 @@ def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
         Ratio of the squared l2-norm of the difference between ``ref_rep`` and
         ``synth_rep`` to the squared l2-norm of ``ref_rep``
     """
-    return torch.linalg.vector_norm(ref_rep - synth_rep, ord=2) ** 2 / torch.linalg.vector_norm(ref_rep, ord=2) ** 2
+    return (
+        torch.linalg.vector_norm(ref_rep - synth_rep, ord=2) ** 2
+        / torch.linalg.vector_norm(ref_rep, ord=2) ** 2
+    )
 
 
 def penalize_range(
-    synth_img: Tensor, allowed_range: Tuple[float, float] = (0.0, 1.0), **kwargs
+    synth_img: Tensor,
+    allowed_range: Tuple[float, float] = (0.0, 1.0),
+    **kwargs,
 ) -> Tensor:
     r"""penalize values outside of allowed_range
 

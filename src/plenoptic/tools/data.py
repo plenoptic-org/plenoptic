@@ -28,10 +28,14 @@ NUMPY_TO_TORCH_TYPES = {
     np.complex128: torch.complex128,
 }
 
-TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
+TORCH_TO_NUMPY_TYPES = {
+    value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()
+}
 
 
-def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
+def to_numpy(
+    x: Union[Tensor, np.ndarray], squeeze: bool = False
+) -> np.ndarray:
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
@@ -138,8 +142,10 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
     if len(set([i.shape for i in images])) > 1:
-        raise ValueError("All images must be the same shape but got the following: "
-                         f"{[i.shape for i in images]}")
+        raise ValueError(
+            "All images must be the same shape but got the following: "
+            f"{[i.shape for i in images]}"
+        )
     images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
@@ -194,7 +200,9 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
-def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
+def make_synthetic_stimuli(
+    size: int = 256, requires_grad: bool = True
+) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
@@ -223,10 +231,13 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
     bar = np.zeros((size, size))
     bar[
-        size // 2 - size // 10 : size // 2 + size // 10, size // 2 - 1 : size // 2 + 1
+        size // 2 - size // 10 : size // 2 + size // 10,
+        size // 2 - 1 : size // 2 + 1,
     ] = 1
 
-    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
+    curv_edge = synthetic_images.disk(
+        size=size, radius=size / 1.2, origin=(size, size)
+    )
 
     sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(
         size, covariance=size

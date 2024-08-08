@@ -17,17 +17,21 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 ``False`` if not.
 
 """
+
 # to avoid circular import error:
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ..synthesize.synthesis import OptimizedSynthesis
     from ..synthesize.metamer import Metamer
 
 
-def loss_convergence(synth: "OptimizedSynthesis",
-                     stop_criterion: float,
-                     stop_iters_to_check: int) -> bool:
+def loss_convergence(
+    synth: "OptimizedSynthesis",
+    stop_criterion: float,
+    stop_iters_to_check: int,
+) -> bool:
     r"""Check whether the loss has stabilized and, if so, return True.
 
      Have we been synthesizing for ``stop_iters_to_check`` iterations?
@@ -59,13 +63,17 @@ def loss_convergence(synth: "OptimizedSynthesis",
 
     """
     if len(synth.losses) > stop_iters_to_check:
-        if abs(synth.losses[-stop_iters_to_check] - synth.losses[-1]) < stop_criterion:
+        if (
+            abs(synth.losses[-stop_iters_to_check] - synth.losses[-1])
+            < stop_criterion
+        ):
             return True
     return False
 
 
-def coarse_to_fine_enough(synth: "Metamer", i: int,
-                          ctf_iters_to_check: int) -> bool:
+def coarse_to_fine_enough(
+    synth: "Metamer", i: int, ctf_iters_to_check: int
+) -> bool:
     r"""Check whether we've synthesized all scales and done so for at least ctf_iters_to_check iterations
 
     This is meant to be paired with another convergence check, such as ``loss_convergence``.
@@ -86,18 +94,20 @@ def coarse_to_fine_enough(synth: "Metamer", i: int,
         Whether we've been doing coarse to fine synthesis for long enough.
 
     """
-    all_scales = synth.scales[0] == 'all'
+    all_scales = synth.scales[0] == "all"
     # synth.scales_timing['all'] will only be a non-empty list if all_scales is
     # True, so we only check it then. This is equivalent to checking if both conditions are trued
     if all_scales:
-        return (i - synth.scales_timing['all'][0]) > ctf_iters_to_check
+        return (i - synth.scales_timing["all"][0]) > ctf_iters_to_check
     else:
         return False
 
 
-def pixel_change_convergence(synth: "OptimizedSynthesis",
-                             stop_criterion: float,
-                             stop_iters_to_check: int) -> bool:
+def pixel_change_convergence(
+    synth: "OptimizedSynthesis",
+    stop_criterion: float,
+    stop_iters_to_check: int,
+) -> bool:
     """Check whether the pixel change norm has stabilized and, if so, return True.
 
      Have we been synthesizing for ``stop_iters_to_check`` iterations?
@@ -129,6 +139,8 @@ def pixel_change_convergence(synth: "OptimizedSynthesis",
 
     """
     if len(synth.pixel_change_norm) > stop_iters_to_check:
-        if (synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all():
+        if (
+            synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion
+        ).all():
             return True
     return False

@@ -72,7 +72,9 @@ def skew(
         mean = torch.mean(x, dim=dim, keepdim=True)
     if var is None:
         var = variance(x, mean=mean, dim=dim, keepdim=keepdim)
-    return torch.mean((x - mean).pow(3), dim=dim, keepdim=keepdim) / var.pow(1.5)
+    return torch.mean((x - mean).pow(3), dim=dim, keepdim=keepdim) / var.pow(
+        1.5
+    )
 
 
 def kurtosis(
@@ -114,4 +116,6 @@ def kurtosis(
         mean = torch.mean(x, dim=dim, keepdim=True)
     if var is None:
         var = variance(x, mean=mean, dim=dim, keepdim=keepdim)
-    return torch.mean(torch.abs(x - mean).pow(4), dim=dim, keepdim=keepdim) / var.pow(2)
+    return torch.mean(
+        torch.abs(x - mean).pow(4), dim=dim, keepdim=keepdim
+    ) / var.pow(2)
