@@ -1,11 +1,14 @@
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
 import torch
-from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torch import Tensor
+import torch.fft as fft
+from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
 def minimum(
-    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
+    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
     r"""Compute minimum in torch over any axis or combination of axes in tensor.
 
@@ -13,14 +16,14 @@ def minimum(
     ----------
     x
         Input tensor.
-    dim
+    dim 
         Dimensions over which you would like to compute the minimum.
-    keepdim
+    keepdim 
         Keep original dimensions of tensor when returning result.
 
     Returns
     -------
-    min_x
+    min_x 
         Minimum value of x.
     """
     if dim is None:
@@ -33,7 +36,7 @@ def minimum(
 
 
 def maximum(
-    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
+    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
     r"""Compute maximum in torch over any dim or combination of axes in tensor.
 
@@ -70,8 +73,8 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
 
 
 def raised_cosine(
-    width: float = 1, position: float = 0, values: tuple[float, float] = (0, 1)
-) -> tuple[np.ndarray, np.ndarray]:
+    width: float = 1, position: float = 0, values: Tuple[float, float] = (0, 1)
+) -> Tuple[np.ndarray, np.ndarray]:
     """Return a lookup table containing a "raised cosine" soft threshold function.
 
     Y =  VALUES(1)
@@ -113,7 +116,7 @@ def raised_cosine(
 
 
 def interpolate1d(
-    x_new: Tensor, Y: Tensor | np.ndarray, X: Tensor | np.ndarray
+    x_new: Tensor, Y: Union[Tensor, np.ndarray], X: Union[Tensor, np.ndarray]
 ) -> Tensor:
     r"""One-dimensional linear interpolation.
 
@@ -142,7 +145,7 @@ def interpolate1d(
     return np.reshape(out, x_new.shape)
 
 
-def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
+def rectangular_to_polar(x: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Rectangular to polar coordinate transform
 
     Parameters
@@ -187,9 +190,9 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
 def steer(
     basis: Tensor,
-    angle: np.ndarray | Tensor | float,
-    harmonics: list[int] | None = None,
-    steermtx: Tensor | np.ndarray | None = None,
+    angle: Union[np.ndarray, Tensor, float],
+    harmonics: Optional[List[int]] = None,
+    steermtx: Optional[Union[Tensor, np.ndarray]] = None,
     return_weights: bool = False,
     even_phase: bool = True,
 ):
@@ -283,9 +286,9 @@ def steer(
 
 
 def make_disk(
-    img_size: int | tuple[int, int] | torch.Size,
-    outer_radius: float | None = None,
-    inner_radius: float | None = None,
+    img_size: Union[int, Tuple[int, int], torch.Size],
+    outer_radius: Optional[float] = None,
+    inner_radius: Optional[float] = None,
 ) -> Tensor:
     r"""Create a circular mask with softened edges to  an image.
 
@@ -324,6 +327,7 @@ def make_disk(
 
     for i in range(img_size[0]):  # height
         for j in range(img_size[1]):  # width
+
             r = np.sqrt((i - i0) ** 2 + (j - j0) ** 2)
 
             if r > outer_radius:
@@ -331,15 +335,13 @@ def make_disk(
             elif r < inner_radius:
                 mask[i][j] = 1
             else:
-                radial_decay = (r - inner_radius) / (
-                    outer_radius - inner_radius
-                )
+                radial_decay = (r - inner_radius) / (outer_radius - inner_radius)
                 mask[i][j] = (1 + np.cos(np.pi * radial_decay)) / 2
 
     return mask
 
 
-def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
+def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
     """Add normally distributed noise to an image
 
     This adds normally-distributed noise to an image so that the resulting
@@ -366,9 +368,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
     noise = 200 * torch.randn(
-        max(noise_mse.shape[0], img.shape[0]),
-        *img.shape[1:],
-        device=img.device,
+        max(noise_mse.shape[0], img.shape[0]), *img.shape[1:], device=img.device
     )
     noise = noise - noise.mean()
     noise = noise * torch.sqrt(
@@ -377,7 +377,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     return img + noise
 
 
-def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
+def modulate_phase(x: Tensor, phase_factor: float = 2.) -> Tensor:
     """Modulate the phase of a complex signal.
 
     Doubling the phase of a complex signal allows you to, for example, take the
@@ -471,11 +471,8 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
 
     """
     h, w = x.shape[-2:]
-    return x[
-        ...,
-        (h // 2 - output_size // 2) : (h // 2 + (output_size + 1) // 2),
-        (w // 2 - output_size // 2) : (w // 2 + (output_size + 1) // 2),
-    ]
+    return x[..., (h//2 - output_size//2) : (h//2 + (output_size+1)//2),
+             (w//2 - output_size//2) : (w//2 + (output_size+1)//2)]
 
 
 def expand(x: Tensor, factor: float) -> Tensor:
@@ -510,13 +507,9 @@ def expand(x: Tensor, factor: float) -> Tensor:
     mx = factor * im_x
     my = factor * im_y
     if int(mx) != mx:
-        raise ValueError(
-            f"factor * x.shape[-1] must be an integer but got {mx} instead!"
-        )
+        raise ValueError(f"factor * x.shape[-1] must be an integer but got {mx} instead!")
     if int(my) != my:
-        raise ValueError(
-            f"factor * x.shape[-2] must be an integer but got {my} instead!"
-        )
+        raise ValueError(f"factor * x.shape[-2] must be an integer but got {my} instead!")
     mx = int(mx)
     my = int(my)
 
@@ -595,20 +588,14 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     my = im_y / factor
 
     if int(mx) != mx:
-        raise ValueError(
-            f"x.shape[-1]/factor must be an integer but got {mx} instead!"
-        )
+        raise ValueError(f"x.shape[-1]/factor must be an integer but got {mx} instead!")
     if int(my) != my:
-        raise ValueError(
-            f"x.shape[-2]/factor must be an integer but got {my} instead!"
-        )
+        raise ValueError(f"x.shape[-2]/factor must be an integer but got {my} instead!")
 
     mx = int(mx)
     my = int(my)
 
-    fourier = (
-        1 / factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
-    )
+    fourier = 1/factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
     fourier_small = torch.zeros(
         *x.shape[:-2],
         my,
@@ -630,18 +617,9 @@ def shrink(x: Tensor, factor: int) -> Tensor:
 
     # This line is equivalent to
     fourier_small[..., 1:, 1:] = fourier[..., y1:y2, x1:x2]
-    fourier_small[..., 0, 1:] = (
-        fourier[..., y1 - 1, x1:x2] + fourier[..., y2, x1:x2]
-    ) / 2
-    fourier_small[..., 1:, 0] = (
-        fourier[..., y1:y2, x1 - 1] + fourier[..., y1:y2, x2]
-    ) / 2
-    fourier_small[..., 0, 0] = (
-        fourier[..., y1 - 1, x1 - 1]
-        + fourier[..., y1 - 1, x2]
-        + fourier[..., y2, x1 - 1]
-        + fourier[..., y2, x2]
-    ) / 4
+    fourier_small[..., 0, 1:] = (fourier[..., y1-1, x1:x2] + fourier[..., y2, x1:x2])/ 2
+    fourier_small[..., 1:, 0] = (fourier[..., y1:y2, x1-1] + fourier[..., y1:y2, x2])/ 2
+    fourier_small[..., 0, 0] = (fourier[..., y1-1, x1-1] + fourier[..., y1-1, x2] + fourier[..., y2, x1-1] + fourier[..., y2, x2]) / 4
 
     fourier_small = torch.fft.ifftshift(fourier_small, dim=(-2, -1))
     im_small = torch.fft.ifft2(fourier_small)

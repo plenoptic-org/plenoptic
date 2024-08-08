@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-
+from typing import Tuple
 from .validate import validate_input
 
 
@@ -26,9 +26,7 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     validate_input(start, no_batch=True)
     validate_input(stop, no_batch=True)
     if start.shape != stop.shape:
-        raise ValueError(
-            f"start and stop must be same shape, but got {start.shape} and {stop.shape}!"
-        )
+        raise ValueError(f"start and stop must be same shape, but got {start.shape} and {stop.shape}!")
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
     shape = start.shape[1:]
@@ -36,17 +34,15 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     device = start.device
     start = start.reshape(1, -1)
     stop = stop.reshape(1, -1)
-    tt = torch.linspace(0, 1, steps=n_steps + 1, device=device).view(
-        n_steps + 1, 1
-    )
+    tt = torch.linspace(0, 1, steps=n_steps+1, device=device
+                        ).view(n_steps+1, 1)
     straight = (1 - tt) * start + tt * stop
 
-    return straight.reshape((n_steps + 1, *shape))
+    return straight.reshape((n_steps+1, *shape))
 
 
-def sample_brownian_bridge(
-    start: Tensor, stop: Tensor, n_steps: int, max_norm: float = 1
-) -> Tensor:
+def sample_brownian_bridge(start: Tensor, stop: Tensor,
+                           n_steps: int, max_norm: float = 1) -> Tensor:
     """Sample a brownian bridge between `start` and `stop` made up of `n_steps`
 
     Parameters
@@ -74,9 +70,7 @@ def sample_brownian_bridge(
     validate_input(start, no_batch=True)
     validate_input(stop, no_batch=True)
     if start.shape != stop.shape:
-        raise ValueError(
-            f"start and stop must be same shape, but got {start.shape} and {stop.shape}!"
-        )
+        raise ValueError(f"start and stop must be same shape, but got {start.shape} and {stop.shape}!")
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
     if max_norm < 0:
@@ -87,22 +81,21 @@ def sample_brownian_bridge(
     start = start.reshape(1, -1)
     stop = stop.reshape(1, -1)
     D = start.shape[1]
-    dt = torch.as_tensor(1 / n_steps)
-    tt = torch.linspace(0, 1, steps=n_steps + 1, device=device)[:, None]
+    dt = torch.as_tensor(1/n_steps)
+    tt = torch.linspace(0, 1, steps=n_steps+1, device=device)[:, None]
 
-    sigma = torch.sqrt(dt / D) * 2.0 * max_norm
-    dW = sigma * torch.randn(n_steps + 1, D, device=device)
+    sigma = torch.sqrt(dt / D) * 2. * max_norm
+    dW = sigma * torch.randn(n_steps+1, D, device=device)
     dW[0] = start.flatten()
     W = torch.cumsum(dW, dim=0)
 
     bridge = W - tt * (W[-1:] - stop)
 
-    return bridge.reshape((n_steps + 1, *shape))
+    return bridge.reshape((n_steps+1, *shape))
 
 
-def deviation_from_line(
-    sequence: Tensor, normalize: bool = True
-) -> tuple[Tensor, Tensor]:
+def deviation_from_line(sequence: Tensor,
+                        normalize: bool = True) -> Tuple[Tensor, Tensor]:
     """Compute the deviation of `sequence` to the straight line between its endpoints.
 
     Project each point of the path `sequence` onto the line defined by
@@ -133,15 +126,14 @@ def deviation_from_line(
     y0 = y[0].view(1, D)
     y1 = y[-1].view(1, D)
 
-    line = y1 - y0
+    line = (y1 - y0)
     line_length = torch.linalg.vector_norm(line, ord=2)
     line = line / line_length
     y_centered = y - y0
     dist_along_line = y_centered @ line[0]
     projection = dist_along_line.view(T, 1) * line
-    dist_from_line = torch.linalg.vector_norm(
-        y_centered - projection, dim=1, ord=2
-    )
+    dist_from_line = torch.linalg.vector_norm(y_centered - projection, dim=1,
+                                              ord=2)
 
     if normalize:
         dist_along_line /= line_length
@@ -170,9 +162,9 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     validate_input(image, no_batch=True)
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
-    sequence = torch.empty(n_steps + 1, *image.shape[1:]).to(image.device)
+    sequence = torch.empty(n_steps+1, *image.shape[1:]).to(image.device)
 
-    for shift in range(n_steps + 1):
+    for shift in range(n_steps+1):
         sequence[shift] = torch.roll(image, shift, [-1])
 
     return sequence

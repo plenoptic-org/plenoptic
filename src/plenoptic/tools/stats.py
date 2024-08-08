@@ -1,11 +1,13 @@
+from typing import List, Optional, Union
+
 import torch
 from torch import Tensor
 
 
 def variance(
     x: Tensor,
-    mean: float | Tensor | None = None,
-    dim: int | list[int] | None = None,
+    mean: Optional[Union[float, Tensor]] = None,
+    dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
     r"""Calculate sample variance.
@@ -39,9 +41,9 @@ def variance(
 
 def skew(
     x: Tensor,
-    mean: float | Tensor | None = None,
-    var: float | Tensor | None = None,
-    dim: int | list[int] | None = None,
+    mean: Optional[Union[float, Tensor]] = None,
+    var: Optional[Union[float, Tensor]] = None,
+    dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
     r"""Sample estimate of `x` *asymmetry* about its mean
@@ -70,16 +72,14 @@ def skew(
         mean = torch.mean(x, dim=dim, keepdim=True)
     if var is None:
         var = variance(x, mean=mean, dim=dim, keepdim=keepdim)
-    return torch.mean((x - mean).pow(3), dim=dim, keepdim=keepdim) / var.pow(
-        1.5
-    )
+    return torch.mean((x - mean).pow(3), dim=dim, keepdim=keepdim) / var.pow(1.5)
 
 
 def kurtosis(
     x: Tensor,
-    mean: float | Tensor | None = None,
-    var: float | Tensor | None = None,
-    dim: int | list[int] | None = None,
+    mean: Optional[Union[float, Tensor]] = None,
+    var: Optional[Union[float, Tensor]] = None,
+    dim: Optional[Union[int, List[int]]] = None,
     keepdim: bool = False,
 ) -> Tensor:
     r"""sample estimate of `x` *tailedness* (presence of outliers)
@@ -114,6 +114,4 @@ def kurtosis(
         mean = torch.mean(x, dim=dim, keepdim=True)
     if var is None:
         var = variance(x, mean=mean, dim=dim, keepdim=keepdim)
-    return torch.mean(
-        torch.abs(x - mean).pow(4), dim=dim, keepdim=keepdim
-    ) / var.pow(2)
+    return torch.mean(torch.abs(x - mean).pow(4), dim=dim, keepdim=keepdim) / var.pow(2)

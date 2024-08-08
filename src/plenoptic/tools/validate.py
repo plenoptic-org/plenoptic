@@ -1,16 +1,16 @@
 """Functions to validate synthesis inputs. """
-import itertools
-import warnings
-from collections.abc import Callable
-
 import torch
+import warnings
+import itertools
+from typing import Tuple, Optional, Callable, Union
 from torch import Tensor
+import warnings
 
 
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
-    allowed_range: tuple[float, float] | None = None,
+    allowed_range: Optional[Tuple[float, float]] = None,
 ):
     """Determine whether input_tensor tensor can be used for synthesis.
 
@@ -39,17 +39,10 @@ def validate_input(
 
     """
     # validate dtype
-    if input_tensor.dtype not in [
-        torch.float16,
-        torch.complex32,
-        torch.float32,
-        torch.complex64,
-        torch.float64,
-        torch.complex128,
-    ]:
-        raise TypeError(
-            f"Only float or complex dtypes are allowed but got type {input_tensor.dtype}"
-        )
+    if input_tensor.dtype not in [torch.float16, torch.complex32,
+                                  torch.float32, torch.complex64,
+                                  torch.float64, torch.complex128]:
+        raise TypeError(f"Only float or complex dtypes are allowed but got type {input_tensor.dtype}")
     if input_tensor.ndimension() != 4:
         if no_batch:
             n_batch = 1
@@ -64,29 +57,24 @@ def validate_input(
     if no_batch and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
-        raise ValueError("input_tensor batch dimension must be 1.")
+        raise ValueError(f"input_tensor batch dimension must be 1.")
     if allowed_range is not None:
         if allowed_range[0] >= allowed_range[1]:
             raise ValueError(
                 "allowed_range[0] must be strictly less than"
                 f" allowed_range[1], but got {allowed_range}"
             )
-        if (
-            input_tensor.min() < allowed_range[0]
-            or input_tensor.max() > allowed_range[1]
-        ):
+        if input_tensor.min() < allowed_range[0] or input_tensor.max() > allowed_range[1]:
             raise ValueError(
                 f"input_tensor range must lie within {allowed_range}, but got"
                 f" {(input_tensor.min().item(), input_tensor.max().item())}"
             )
 
 
-def validate_model(
-    model: torch.nn.Module,
-    image_shape: tuple[int, int, int, int] | None = None,
-    image_dtype: torch.dtype = torch.float32,
-    device: str | torch.device = "cpu",
-):
+def validate_model(model: torch.nn.Module,
+                   image_shape: Optional[Tuple[int, int, int, int]] = None,
+                   image_dtype: torch.dtype = torch.float32,
+                   device: Union[str, torch.device] = 'cpu'):
     """Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
@@ -138,9 +126,8 @@ def validate_model(
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(
-        image_shape, dtype=image_dtype, requires_grad=False, device=device
-    )
+    test_img = torch.rand(image_shape, dtype=image_dtype, requires_grad=False,
+                          device=device)
     try:
         if model(test_img).requires_grad:
             raise ValueError(
@@ -176,14 +163,12 @@ def validate_model(
     elif image_dtype in [torch.float64, torch.complex128]:
         allowed_dtypes = [torch.float64, torch.complex128]
     else:
-        raise TypeError(
-            f"Only float or complex dtypes are allowed but got type {image_dtype}"
-        )
+        raise TypeError(f"Only float or complex dtypes are allowed but got type {image_dtype}")
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
     if model(test_img).ndimension() not in [3, 4]:
         raise ValueError(
-            "When given a 4d input, model output must be three- or four-"
+            f"When given a 4d input, model output must be three- or four-"
             "dimensional but had {model(test_img).ndimension()} dimensions instead!"
         )
     if model(test_img).device != test_img.device:
@@ -196,11 +181,9 @@ def validate_model(
         )
 
 
-def validate_coarse_to_fine(
-    model: torch.nn.Module,
-    image_shape: tuple[int, int, int, int] | None = None,
-    device: str | torch.device = "cpu",
-):
+def validate_coarse_to_fine(model: torch.nn.Module,
+                            image_shape: Optional[Tuple[int, int, int, int]] = None,
+                            device: Union[str, torch.device] = 'cpu'):
     """Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
@@ -225,9 +208,7 @@ def validate_coarse_to_fine(
         Which device to place the test image on.
 
     """
-    warnings.warn(
-        "Validating whether model can work with coarse-to-fine synthesis -- this can take a while!"
-    )
+    warnings.warn("Validating whether model can work with coarse-to-fine synthesis -- this can take a while!")
     msg = "and therefore we cannot do coarse-to-fine synthesis"
     if not hasattr(model, "scales"):
         raise AttributeError(f"model has no scales attribute {msg}")
@@ -240,7 +221,7 @@ def validate_coarse_to_fine(
             try:
                 if model_output_shape == model(test_img, scales=sc).shape:
                     raise ValueError(
-                        "Output of model forward method doesn't change"
+                        f"Output of model forward method doesn't change"
                         " shape when scales keyword arg is set to {sc} {msg}"
                     )
             except TypeError:
@@ -249,12 +230,10 @@ def validate_coarse_to_fine(
                 )
 
 
-def validate_metric(
-    metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
-    image_shape: tuple[int, int, int, int] | None = None,
-    image_dtype: torch.dtype = torch.float32,
-    device: str | torch.device = "cpu",
-):
+def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                    image_shape: Optional[Tuple[int, int, int, int]] = None,
+                    image_dtype: torch.dtype = torch.float32,
+                    device: Union[str, torch.device] = 'cpu'):
     """Determines whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
@@ -291,9 +270,7 @@ def validate_metric(
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:
-        raise TypeError(
-            "metric should be callable and accept two 4d tensors as input"
-        )
+        raise TypeError("metric should be callable and accept two 4d tensors as input")
     # as of torch 2.0.0, this is a RuntimeError (a Tensor with X elements
     # cannot be converted to Scalar); previously it was a ValueError (only one
     # element tensors can be converted to Python scalars)

@@ -1,7 +1,6 @@
-import warnings
-
 import torch
 from torch import Tensor
+import warnings
 
 
 def jacobian(y: Tensor, x: Tensor) -> Tensor:
@@ -41,9 +40,7 @@ def jacobian(y: Tensor, x: Tensor) -> Tensor:
         .t()
     )
 
-    if (
-        y.shape[0] == 1
-    ):  # need to return a 2D tensor even if y dimensionality is 1
+    if y.shape[0] == 1:  # need to return a 2D tensor even if y dimensionality is 1
         J = J.unsqueeze(0)
 
     return J.detach()

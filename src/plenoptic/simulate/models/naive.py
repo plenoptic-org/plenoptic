@@ -1,5 +1,8 @@
+from typing import Union, Tuple, List
 import torch
-from torch import Tensor, nn
+from torch import nn, nn as nn, Tensor
+from torch import Tensor
+import numpy as np
 from torch.nn import functional as F
 
 from ...tools.conv import same_padding
@@ -55,7 +58,7 @@ class Linear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: int | tuple[int, int] = (3, 3),
+        kernel_size: Union[int, Tuple[int, int]] = (3, 3),
         pad_mode: str = "circular",
         default_filters: bool = True,
     ):
@@ -70,10 +73,10 @@ class Linear(nn.Module):
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
         if default_filters:
-            var = torch.as_tensor(3.0)
+            var = torch.as_tensor(3.)
             f1 = circular_gaussian2d(kernel_size, std=torch.sqrt(var))
 
-            f2 = circular_gaussian2d(kernel_size, std=torch.sqrt(var / 3))
+            f2 = circular_gaussian2d(kernel_size, std=torch.sqrt(var/3))
 
             f2 = f2 - f1
             f2 = f2 / f2.sum()
@@ -107,8 +110,8 @@ class Gaussian(nn.Module):
 
     def __init__(
         self,
-        kernel_size: int | tuple[int, int],
-        std: float | Tensor = 3.0,
+        kernel_size: Union[int, Tuple[int, int]],
+        std: Union[float, Tensor] = 3.0,
         pad_mode: str = "reflect",
         out_channels: int = 1,
         cache_filt: bool = False,
@@ -126,19 +129,17 @@ class Gaussian(nn.Module):
         self.out_channels = out_channels
 
         self.cache_filt = cache_filt
-        self.register_buffer("_filt", None)
+        self.register_buffer('_filt', None)
 
     @property
     def filt(self):
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
-            filt = circular_gaussian2d(
-                self.kernel_size, self.std, self.out_channels
-            )
+            filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
 
             if self.cache_filt:
-                self.register_buffer("_filt", filt)
+                self.register_buffer('_filt', filt)
             return filt
 
     def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
@@ -195,12 +196,12 @@ class CenterSurround(nn.Module):
 
     def __init__(
         self,
-        kernel_size: int | tuple[int, int],
-        on_center: bool | list[bool,] = True,
+        kernel_size: Union[int, Tuple[int, int]],
+        on_center: Union[bool, List[bool, ]] = True,
         width_ratio_limit: float = 2.0,
         amplitude_ratio: float = 1.25,
-        center_std: float | Tensor = 1.0,
-        surround_std: float | Tensor = 4.0,
+        center_std: Union[float, Tensor] = 1.0,
+        surround_std: Union[float, Tensor] = 4.0,
         out_channels: int = 1,
         pad_mode: str = "reflect",
         cache_filt: bool = False,
@@ -210,46 +211,31 @@ class CenterSurround(nn.Module):
         # make sure each channel is on-off or off-on
         if isinstance(on_center, bool):
             on_center = [on_center] * out_channels
-        assert (
-            len(on_center) == out_channels
-        ), "len(on_center) must match out_channels"
+        assert len(on_center) == out_channels, "len(on_center) must match out_channels"
 
         # make sure each channel has a center and surround std
         if isinstance(center_std, float) or center_std.shape == torch.Size([]):
             center_std = torch.ones(out_channels) * center_std
-        if isinstance(surround_std, float) or surround_std.shape == torch.Size(
-            []
-        ):
+        if isinstance(surround_std, float) or surround_std.shape == torch.Size([]):
             surround_std = torch.ones(out_channels) * surround_std
-        assert (
-            len(center_std) == out_channels
-            and len(surround_std) == out_channels
-        ), "stds must correspond to each out_channel"
-        assert (
-            width_ratio_limit > 1.0
-        ), "stdev of surround must be greater than center"
-        assert (
-            amplitude_ratio >= 1.0
-        ), "ratio of amplitudes must at least be 1."
+        assert len(center_std) == out_channels and len(surround_std) == out_channels, "stds must correspond to each out_channel"
+        assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
+        assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
         self.on_center = on_center
 
         self.kernel_size = kernel_size
         self.width_ratio_limit = width_ratio_limit
-        self.register_buffer(
-            "amplitude_ratio", torch.as_tensor(amplitude_ratio)
-        )
+        self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
 
         self.center_std = nn.Parameter(torch.ones(out_channels) * center_std)
-        self.surround_std = nn.Parameter(
-            torch.ones(out_channels) * surround_std
-        )
+        self.surround_std = nn.Parameter(torch.ones(out_channels) * surround_std)
 
         self.out_channels = out_channels
         self.pad_mode = pad_mode
 
         self.cache_filt = cache_filt
-        self.register_buffer("_filt", None)
+        self.register_buffer('_filt', None)
 
     @property
     def filt(self) -> Tensor:
@@ -260,32 +246,24 @@ class CenterSurround(nn.Module):
             on_amp = self.amplitude_ratio
             device = on_amp.device
 
-            filt_center = circular_gaussian2d(
-                self.kernel_size, self.center_std, self.out_channels
-            )
-            filt_surround = circular_gaussian2d(
-                self.kernel_size, self.surround_std, self.out_channels
-            )
+            filt_center = circular_gaussian2d(self.kernel_size, self.center_std, self.out_channels)
+            filt_surround = circular_gaussian2d(self.kernel_size, self.surround_std, self.out_channels)
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor(
-                [1.0 if x else -1.0 for x in self.on_center]
-            ).to(device)
+            sign = torch.as_tensor([1. if x else -1. for x in self.on_center]).to(device)
             sign = sign.view(self.out_channels, 1, 1, 1)
 
             filt = on_amp * (sign * (filt_center - filt_surround))
 
             if self.cache_filt:
-                self.register_buffer("_filt", filt)
+                self.register_buffer('_filt', filt)
         return filt
 
     def _clamp_surround_std(self):
         """Clamps surround standard deviation to ratio_limit times center_std"""
         lower_bound = self.width_ratio_limit * self.center_std
         for i, lb in enumerate(lower_bound):
-            self.surround_std[i].data = self.surround_std[i].data.clamp(
-                min=float(lb)
-            )
+            self.surround_std[i].data = self.surround_std[i].data.clamp(min=float(lb))
 
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

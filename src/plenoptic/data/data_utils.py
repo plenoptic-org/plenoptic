@@ -1,5 +1,7 @@
 from importlib import resources
 from importlib.abc import Traversable
+from typing import Union
+
 
 from ..tools.data import load_images
 
@@ -28,18 +30,12 @@ def get_path(item_name: str) -> Traversable:
     This function uses glob to search for files in the current directory matching the `item_name`.
     It is assumed that there is only one file matching the name regardless of its extension.
     """
-    fhs = [
-        file
-        for file in resources.files("plenoptic.data").iterdir()
-        if file.stem == item_name
-    ]
-    assert (
-        len(fhs) == 1
-    ), f"Expected exactly one file for {item_name}, but found {len(fhs)}."
+    fhs = [file for file in resources.files("plenoptic.data").iterdir() if file.stem == item_name]
+    assert len(fhs) == 1, f"Expected exactly one file for {item_name}, but found {len(fhs)}."
     return fhs[0]
 
 
-def get(*item_names: str, as_gray: None | bool = None):
+def get(*item_names: str, as_gray: Union[None, bool] = None):
     """Load an image based on the item name from the package's data resources.
 
     Parameters

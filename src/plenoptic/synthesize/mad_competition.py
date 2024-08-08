@@ -1,21 +1,19 @@
 """Run MAD Competition."""
-import warnings
-from collections import OrderedDict
-from collections.abc import Callable
-from typing import Literal
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
-from pyrtools.tools.display import make_figure as pt_make_figure
+import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
-
-from ..tools import data, display, optim
-from ..tools.convergence import loss_convergence
-from ..tools.validate import validate_input, validate_metric
+from ..tools import optim, display, data
+from typing import Union, Tuple, Callable, List, Dict, Optional
+from typing_extensions import Literal
 from .synthesis import OptimizedSynthesis
+import warnings
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from collections import OrderedDict
+from pyrtools.tools.display import make_figure as pt_make_figure
+from ..tools.validate import validate_input, validate_metric
+from ..tools.convergence import loss_convergence
 
 
 class MADCompetition(OptimizedSynthesis):
@@ -99,32 +97,20 @@ class MADCompetition(OptimizedSynthesis):
            http://dx.doi.org/10.1167/8.12.8
 
     """
-
-    def __init__(
-        self,
-        image: Tensor,
-        optimized_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
-        reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
-        minmax: Literal["min", "max"],
-        initial_noise: float = 0.1,
-        metric_tradeoff_lambda: float | None = None,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
-    ):
+    def __init__(self, image: Tensor,
+                 optimized_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                 reference_metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
+                 minmax: Literal['min', 'max'],
+                 initial_noise: float = .1,
+                 metric_tradeoff_lambda: Optional[float] = None,
+                 range_penalty_lambda: float = .1,
+                 allowed_range: Tuple[float, float] = (0, 1)):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
-        validate_metric(
-            optimized_metric,
-            image_shape=image.shape,
-            image_dtype=image.dtype,
-            device=image.device,
-        )
-        validate_metric(
-            reference_metric,
-            image_shape=image.shape,
-            image_dtype=image.dtype,
-            device=image.device,
-        )
+        validate_metric(optimized_metric, image_shape=image.shape, image_dtype=image.dtype,
+                        device=image.device)
+        validate_metric(reference_metric, image_shape=image.shape, image_dtype=image.dtype,
+                        device=image.device)
         self._optimized_metric = optimized_metric
         self._reference_metric = reference_metric
         self._image = image.detach()
@@ -132,33 +118,25 @@ class MADCompetition(OptimizedSynthesis):
         self.scheduler = None
         self._optimized_metric_loss = []
         self._reference_metric_loss = []
-        if minmax not in ["min", "max"]:
-            raise ValueError(
-                "synthesis_target must be one of {'min', 'max'}, but got "
-                f"value {minmax} instead!"
-            )
+        if minmax not in ['min', 'max']:
+            raise ValueError("synthesis_target must be one of {'min', 'max'}, but got "
+                             f"value {minmax} instead!")
         self._minmax = minmax
         self._initialize(initial_noise)
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
-            loss_ratio = torch.as_tensor(
-                self.optimized_metric_loss[-1]
-                / self.reference_metric_loss[-1],
-                dtype=torch.float32,
-            )
-            metric_tradeoff_lambda = torch.pow(
-                torch.as_tensor(10), torch.round(torch.log10(loss_ratio))
-            ).item()
-            warnings.warn(
-                "Since metric_tradeoff_lamda was None, automatically set"
-                f" to {metric_tradeoff_lambda} to roughly balance metrics."
-            )
+            loss_ratio = torch.as_tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
+                                      dtype=torch.float32)
+            metric_tradeoff_lambda = torch.pow(torch.as_tensor(10),
+                                               torch.round(torch.log10(loss_ratio))).item()
+            warnings.warn("Since metric_tradeoff_lamda was None, automatically set"
+                          f" to {metric_tradeoff_lambda} to roughly balance metrics.")
         self._metric_tradeoff_lambda = metric_tradeoff_lambda
         self._store_progress = None
         self._saved_mad_image = []
 
-    def _initialize(self, initial_noise: float = 0.1):
+    def _initialize(self, initial_noise: float = .1):
         """Initialize the synthesized image.
 
         Initialize ``self.mad_image`` attribute to be ``image`` plus
@@ -171,28 +149,24 @@ class MADCompetition(OptimizedSynthesis):
             ``mad_image`` from ``image``.
 
         """
-        mad_image = self.image + initial_noise * torch.randn_like(self.image)
+        mad_image = (self.image + initial_noise *
+                     torch.randn_like(self.image))
         mad_image = mad_image.clamp(*self.allowed_range)
         self._initial_image = mad_image.clone()
         mad_image.requires_grad_()
         self._mad_image = mad_image
-        self._reference_metric_target = self.reference_metric(
-            self.image, self.mad_image
-        ).item()
+        self._reference_metric_target = self.reference_metric(self.image,
+                                                              self.mad_image).item()
         self._reference_metric_loss.append(self._reference_metric_target)
-        self._optimized_metric_loss.append(
-            self.optimized_metric(self.image, self.mad_image).item()
-        )
+        self._optimized_metric_loss.append(self.optimized_metric(self.image,
+                                                                 self.mad_image).item())
 
-    def synthesize(
-        self,
-        max_iter: int = 100,
-        optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
-        store_progress: bool | int = False,
-        stop_criterion: float = 1e-4,
-        stop_iters_to_check: int = 50,
-    ):
+    def synthesize(self, max_iter: int = 100,
+                   optimizer: Optional[torch.optim.Optimizer] = None,
+                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+                   store_progress: Union[bool, int] = False,
+                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50
+                   ):
         r"""Synthesize a MAD image.
 
         Update the pixels of ``initial_image`` to maximize or minimize
@@ -254,9 +228,9 @@ class MADCompetition(OptimizedSynthesis):
 
         pbar.close()
 
-    def objective_function(
-        self, mad_image: Tensor | None = None, image: Tensor | None = None
-    ) -> Tensor:
+    def objective_function(self,
+                           mad_image: Optional[Tensor] = None,
+                           image: Optional[Tensor] = None) -> Tensor:
         r"""Compute the MADCompetition synthesis loss.
 
         This computes:
@@ -294,18 +268,15 @@ class MADCompetition(OptimizedSynthesis):
             image = self.image
         if mad_image is None:
             mad_image = self.mad_image
-        synth_target = {"min": 1, "max": -1}[self.minmax]
+        synth_target = {'min': 1, 'max': -1}[self.minmax]
         synthesis_loss = self.optimized_metric(image, mad_image)
-        fixed_loss = (
-            self._reference_metric_target
-            - self.reference_metric(image, mad_image)
-        ).pow(2)
-        range_penalty = optim.penalize_range(mad_image, self.allowed_range)
-        return (
-            synth_target * synthesis_loss
-            + self.metric_tradeoff_lambda * fixed_loss
-            + self.range_penalty_lambda * range_penalty
-        )
+        fixed_loss = (self._reference_metric_target -
+                      self.reference_metric(image, mad_image)).pow(2)
+        range_penalty = optim.penalize_range(mad_image,
+                                             self.allowed_range)
+        return (synth_target * synthesis_loss +
+                self.metric_tradeoff_lambda * fixed_loss +
+                self.range_penalty_lambda * range_penalty)
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""Compute and propagate gradients, then step the optimizer to update mad_image.
@@ -327,9 +298,8 @@ class MADCompetition(OptimizedSynthesis):
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
-        grad_norm = torch.linalg.vector_norm(
-            self.mad_image.grad.data, ord=2, dim=None
-        )
+        grad_norm = torch.linalg.vector_norm(self.mad_image.grad.data,
+                                             ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         fm = self.reference_metric(self.image, self.mad_image)
@@ -341,22 +311,18 @@ class MADCompetition(OptimizedSynthesis):
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change_norm = torch.linalg.vector_norm(
-            self.mad_image - last_iter_mad_image, ord=2, dim=None
-        )
+        pixel_change_norm = torch.linalg.vector_norm(self.mad_image - last_iter_mad_image,
+                                                     ord=2, dim=None)
         self._pixel_change_norm.append(pixel_change_norm.item())
 
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
-            OrderedDict(
-                loss=f"{loss.item():.04e}",
-                learning_rate=self.optimizer.param_groups[0]["lr"],
-                gradient_norm=f"{grad_norm.item():.04e}",
-                pixel_change_norm=f"{pixel_change_norm.item():.04e}",
-                reference_metric=f"{fm.item():.04e}",
-                optimized_metric=f"{sm.item():.04e}",
-            )
-        )
+            OrderedDict(loss=f"{loss.item():.04e}",
+                        learning_rate=self.optimizer.param_groups[0]['lr'],
+                        gradient_norm=f"{grad_norm.item():.04e}",
+                        pixel_change_norm=f"{pixel_change_norm.item():.04e}",
+                        reference_metric=f'{fm.item():.04e}',
+                        optimized_metric=f'{sm.item():.04e}'))
         return loss
 
     def _check_convergence(self, stop_criterion, stop_iters_to_check):
@@ -392,7 +358,7 @@ class MADCompetition(OptimizedSynthesis):
 
     def _initialize_optimizer(self, optimizer, scheduler):
         """Initialize optimizer and scheduler."""
-        super()._initialize_optimizer(optimizer, "mad_image")
+        super()._initialize_optimizer(optimizer, 'mad_image')
         self.scheduler = scheduler
 
     def _store(self, i: int) -> bool:
@@ -413,7 +379,7 @@ class MADCompetition(OptimizedSynthesis):
         """
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
-            self._saved_mad_image.append(self.mad_image.clone().to("cpu"))
+            self._saved_mad_image.append(self.mad_image.clone().to('cpu'))
             stored = True
         else:
             stored = False
@@ -439,9 +405,9 @@ class MADCompetition(OptimizedSynthesis):
         # if the metrics are Modules, then we don't want to save them. If
         # they're functions then saving them is fine.
         if isinstance(self.optimized_metric, torch.nn.Module):
-            attrs.pop("_optimized_metric")
+            attrs.pop('_optimized_metric')
         if isinstance(self.reference_metric, torch.nn.Module):
-            attrs.pop("_reference_metric")
+            attrs.pop('_reference_metric')
         super().save(file_path, attrs=attrs)
 
     def to(self, *args, **kwargs):
@@ -478,7 +444,8 @@ class MADCompetition(OptimizedSynthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = ["_initial_image", "_image", "_mad_image", "_saved_mad_image"]
+        attrs = ['_initial_image', '_image', '_mad_image',
+                 '_saved_mad_image']
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
@@ -491,12 +458,9 @@ class MADCompetition(OptimizedSynthesis):
         except AttributeError:
             pass
 
-    def load(
-        self,
-        file_path: str,
-        map_location: None | None = None,
-        **pickle_load_args,
-    ):
+    def load(self, file_path: str,
+             map_location: Optional[None] = None,
+             **pickle_load_args):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``MADCompetition`` object -- we
@@ -533,33 +497,21 @@ class MADCompetition(OptimizedSynthesis):
         *then* load.
 
         """
-        check_attributes = [
-            "_image",
-            "_metric_tradeoff_lambda",
-            "_range_penalty_lambda",
-            "_allowed_range",
-            "_minmax",
-        ]
-        check_loss_functions = ["_reference_metric", "_optimized_metric"]
-        super().load(
-            file_path,
-            map_location=map_location,
-            check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
-            **pickle_load_args,
-        )
+        check_attributes = ['_image', '_metric_tradeoff_lambda',
+                            '_range_penalty_lambda', '_allowed_range',
+                            '_minmax']
+        check_loss_functions = ['_reference_metric', '_optimized_metric']
+        super().load(file_path, map_location=map_location,
+                     check_attributes=check_attributes,
+                     check_loss_functions=check_loss_functions,
+                     **pickle_load_args)
         # make this require a grad again
         self.mad_image.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if (
-            len(self._saved_mad_image)
-            and self._saved_mad_image[0].device.type != "cpu"
-        ):
-            self._saved_mad_image = [
-                mad.to("cpu") for mad in self._saved_mad_image
-            ]
+        if len(self._saved_mad_image) and self._saved_mad_image[0].device.type != 'cpu':
+            self._saved_mad_image = [mad.to('cpu') for mad in self._saved_mad_image]
 
     @property
     def mad_image(self):
@@ -602,12 +554,10 @@ class MADCompetition(OptimizedSynthesis):
         return torch.stack(self._saved_mad_image)
 
 
-def plot_loss(
-    mad: MADCompetition,
-    iteration: int | None = None,
-    axes: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
-    **kwargs,
-) -> mpl.axes.Axes:
+def plot_loss(mad: MADCompetition,
+              iteration: Optional[int] = None,
+              axes: Union[List[mpl.axes.Axes], mpl.axes.Axes, None] = None,
+              **kwargs) -> mpl.axes.Axes:
     """Plot metric losses.
 
     Plots ``mad.optimized_metric_loss`` and ``mad.reference_metric_loss`` on two
@@ -652,32 +602,30 @@ def plot_loss(
             loss_idx = iteration
     if axes is None:
         axes = plt.gca()
-    if not hasattr(axes, "__iter__"):
-        axes = display.clean_up_axes(
-            axes, False, ["top", "right", "bottom", "left"], ["x", "y"]
-        )
+    if not hasattr(axes, '__iter__'):
+        axes = display.clean_up_axes(axes, False,
+                                     ['top', 'right', 'bottom', 'left'],
+                                     ['x', 'y'])
         gs = axes.get_subplotspec().subgridspec(1, 2)
         fig = axes.figure
         axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
     losses = [mad.reference_metric_loss, mad.optimized_metric_loss]
-    names = ["Reference metric loss", "Optimized metric loss"]
-    for ax, loss, name in zip(axes, losses, names, strict=False):
+    names = ['Reference metric loss', 'Optimized metric loss']
+    for ax, loss, name in zip(axes, losses, names):
         ax.plot(loss, **kwargs)
-        ax.scatter(loss_idx, loss[loss_idx], c="r")
-        ax.set(xlabel="Synthesis iteration", ylabel=name)
+        ax.scatter(loss_idx, loss[loss_idx], c='r')
+        ax.set(xlabel='Synthesis iteration', ylabel=name)
     return ax
 
 
-def display_mad_image(
-    mad: MADCompetition,
-    batch_idx: int = 0,
-    channel_idx: int | None = None,
-    zoom: float | None = None,
-    iteration: int | None = None,
-    ax: mpl.axes.Axes | None = None,
-    title: str = "MADCompetition",
-    **kwargs,
-) -> mpl.axes.Axes:
+def display_mad_image(mad: MADCompetition,
+                      batch_idx: int = 0,
+                      channel_idx: Optional[int] = None,
+                      zoom: Optional[float] = None,
+                      iteration: Optional[int] = None,
+                      ax: Optional[mpl.axes.Axes] = None,
+                      title: str = 'MADCompetition',
+                      **kwargs) -> mpl.axes.Axes:
     """Display MAD image.
 
     You can specify what iteration to view by using the ``iteration`` arg.
@@ -732,30 +680,21 @@ def display_mad_image(
         as_rgb = False
     if ax is None:
         ax = plt.gca()
-    display.imshow(
-        image,
-        ax=ax,
-        title=title,
-        zoom=zoom,
-        batch_idx=batch_idx,
-        channel_idx=channel_idx,
-        as_rgb=as_rgb,
-        **kwargs,
-    )
+    display.imshow(image, ax=ax, title=title, zoom=zoom,
+                   batch_idx=batch_idx, channel_idx=channel_idx,
+                   as_rgb=as_rgb, **kwargs)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     return ax
 
 
-def plot_pixel_values(
-    mad: MADCompetition,
-    batch_idx: int = 0,
-    channel_idx: int | None = None,
-    iteration: int | None = None,
-    ylim: tuple[float] | Literal[False] = False,
-    ax: mpl.axes.Axes | None = None,
-    **kwargs,
-) -> mpl.axes.Axes:
+def plot_pixel_values(mad: MADCompetition,
+                      batch_idx: int = 0,
+                      channel_idx: Optional[int] = None,
+                      iteration: Optional[int] = None,
+                      ylim: Union[Tuple[float], Literal[False]] = False,
+                      ax: Optional[mpl.axes.Axes] = None,
+                      **kwargs) -> mpl.axes.Axes:
     r"""Plot histogram of pixel values of reference and MAD images.
 
     As a way to check the distributions of pixel intensities and see
@@ -787,12 +726,11 @@ def plot_pixel_values(
         Creates axes.
 
     """
-
     def _freedman_diaconis_bins(a):
         """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn."""
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
-        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
+        iqr = np.diff(np.percentile(a, [.25, .75]))[0]
         if len(a) < 2:
             return 1
         h = 2 * iqr / (len(a) ** (1 / 3))
@@ -802,7 +740,7 @@ def plot_pixel_values(
         else:
             return int(np.ceil((a.max() - a.min()) / h))
 
-    kwargs.setdefault("alpha", 0.4)
+    kwargs.setdefault('alpha', .4)
     if iteration is None:
         mad_image = mad.mad_image[batch_idx]
     else:
@@ -815,18 +753,10 @@ def plot_pixel_values(
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
     mad_image = data.to_numpy(mad_image).flatten()
-    ax.hist(
-        image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label="Reference image",
-        **kwargs,
-    )
-    ax.hist(
-        mad_image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label="MAD image",
-        **kwargs,
-    )
+    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
+            label='Reference image', **kwargs)
+    ax.hist(mad_image, bins=min(_freedman_diaconis_bins(image), 50),
+            label='MAD image', **kwargs)
     ax.legend()
     if ylim:
         ax.set_ylim(ylim)
@@ -834,9 +764,8 @@ def plot_pixel_values(
     return ax
 
 
-def _check_included_plots(
-    to_check: list[str] | dict[str, int], to_check_name: str
-):
+def _check_included_plots(to_check: Union[List[str], Dict[str, int]],
+                          to_check_name: str):
     """Check whether the user wanted us to create plots that we can't.
 
     Helper function for plot_synthesis_status and animate.
@@ -853,37 +782,26 @@ def _check_included_plots(
         Name of the `to_check` variable, used in the error message.
 
     """
-    allowed_vals = [
-        "display_mad_image",
-        "plot_loss",
-        "plot_pixel_values",
-        "misc",
-    ]
+    allowed_vals = ['display_mad_image', 'plot_loss', 'plot_pixel_values', 'misc']
     try:
         vals = to_check.keys()
     except AttributeError:
         vals = to_check
     not_allowed = [v for v in vals if v not in allowed_vals]
     if not_allowed:
-        raise ValueError(
-            f"{to_check_name} contained value(s) {not_allowed}! "
-            f"Only {allowed_vals} are permissible!"
-        )
+        raise ValueError(f'{to_check_name} contained value(s) {not_allowed}! '
+                         f'Only {allowed_vals} are permissible!')
 
 
-def _setup_synthesis_fig(
-    fig: mpl.figure.Figure | None = None,
-    axes_idx: dict[str, int] = {},
-    figsize: tuple[float] | None = None,
-    included_plots: list[str] = [
-        "display_mad_image",
-        "plot_loss",
-        "plot_pixel_values",
-    ],
-    display_mad_image_width: float = 1,
-    plot_loss_width: float = 2,
-    plot_pixel_values_width: float = 1,
-) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
+def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
+                         axes_idx: Dict[str, int] = {},
+                         figsize: Optional[Tuple[float]] = None,
+                         included_plots: List[str] = ['display_mad_image',
+                                                      'plot_loss',
+                                                      'plot_pixel_values'],
+                         display_mad_image_width: float = 1,
+                         plot_loss_width: float = 2,
+                         plot_pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
     Creates figure with enough axes for the all the plots you want. Will
@@ -934,75 +852,64 @@ def _setup_synthesis_fig(
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if "display_mad_image" in included_plots:
+    if 'display_mad_image' in included_plots:
         n_subplots += 1
         width_ratios.append(display_mad_image_width)
-        if "display_mad_image" not in axes_idx.keys():
-            axes_idx["display_mad_image"] = data._find_min_int(
-                axes_idx.values()
-            )
-    if "plot_loss" in included_plots:
+        if 'display_mad_image' not in axes_idx.keys():
+            axes_idx['display_mad_image'] = data._find_min_int(axes_idx.values())
+    if 'plot_loss' in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
-        if "plot_loss" not in axes_idx.keys():
-            axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
-    if "plot_pixel_values" in included_plots:
+        if 'plot_loss' not in axes_idx.keys():
+            axes_idx['plot_loss'] = data._find_min_int(axes_idx.values())
+    if 'plot_pixel_values' in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
-        if "plot_pixel_values" not in axes_idx.keys():
-            axes_idx["plot_pixel_values"] = data._find_min_int(
-                axes_idx.values()
-            )
+        if 'plot_pixel_values' not in axes_idx.keys():
+            axes_idx['plot_pixel_values'] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
             # we want (5, 5) for each subplot, with a bit of room between
             # each subplot
-            figsize = ((width_ratios * 5).sum() + width_ratios.sum() - 1, 5)
+            figsize = ((width_ratios*5).sum() + width_ratios.sum()-1, 5)
         width_ratios = width_ratios / width_ratios.sum()
-        fig, axes = plt.subplots(
-            1,
-            n_subplots,
-            figsize=figsize,
-            gridspec_kw={"width_ratios": width_ratios},
-        )
+        fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
+                                 gridspec_kw={'width_ratios': width_ratios})
         if n_subplots == 1:
             axes = [axes]
     else:
         axes = fig.axes
     # make sure misc contains all the empty axes
-    misc_axes = axes_idx.get("misc", [])
-    if not hasattr(misc_axes, "__iter__"):
+    misc_axes = axes_idx.get('misc', [])
+    if not hasattr(misc_axes, '__iter__'):
         misc_axes = [misc_axes]
     all_axes = []
     for i in axes_idx.values():
         # so if it's a list of ints
-        if hasattr(i, "__iter__"):
+        if hasattr(i, '__iter__'):
             all_axes.extend(i)
         else:
             all_axes.append(i)
     misc_axes += [i for i, _ in enumerate(fig.axes) if i not in all_axes]
-    axes_idx["misc"] = misc_axes
+    axes_idx['misc'] = misc_axes
     return fig, axes, axes_idx
 
 
-def plot_synthesis_status(
-    mad: MADCompetition,
-    batch_idx: int = 0,
-    channel_idx: int | None = None,
-    iteration: int | None = None,
-    vrange: tuple[float] | str = "indep1",
-    zoom: float | None = None,
-    fig: mpl.figure.Figure | None = None,
-    axes_idx: dict[str, int] = {},
-    figsize: tuple[float] | None = None,
-    included_plots: list[str] = [
-        "display_mad_image",
-        "plot_loss",
-        "plot_pixel_values",
-    ],
-    width_ratios: dict[str, float] = {},
-) -> tuple[mpl.figure.Figure, dict[str, int]]:
+def plot_synthesis_status(mad: MADCompetition,
+                          batch_idx: int = 0,
+                          channel_idx: Optional[int] = None,
+                          iteration: Optional[int] = None,
+                          vrange: Union[Tuple[float], str] = 'indep1',
+                          zoom: Optional[float] = None,
+                          fig: Optional[mpl.figure.Figure] = None,
+                          axes_idx: Dict[str, int] = {},
+                          figsize: Optional[Tuple[float]] = None,
+                          included_plots: List[str] = ['display_mad_image',
+                                                       'plot_loss',
+                                                       'plot_pixel_values'],
+                          width_ratios: Dict[str, float] = {},
+                          ) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
     r"""Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create two
@@ -1070,75 +977,62 @@ def plot_synthesis_status(
 
     """
     if iteration is not None and not mad.store_progress:
-        raise ValueError(
-            "synthesis() was run with store_progress=False, "
-            "cannot specify which iteration to plot (only"
-            " last one, with iteration=None)"
-        )
+        raise ValueError("synthesis() was run with store_progress=False, "
+                         "cannot specify which iteration to plot (only"
+                         " last one, with iteration=None)")
     if mad.mad_image.ndim not in [3, 4]:
-        raise ValueError(
-            "plot_synthesis_status() expects 3 or 4d data;"
-            "unexpected behavior will result otherwise!"
-        )
-    _check_included_plots(included_plots, "included_plots")
-    _check_included_plots(width_ratios, "width_ratios")
-    _check_included_plots(axes_idx, "axes_idx")
-    width_ratios = {f"{k}_width": v for k, v in width_ratios.items()}
-    fig, axes, axes_idx = _setup_synthesis_fig(
-        fig, axes_idx, figsize, included_plots, **width_ratios
-    )
+        raise ValueError("plot_synthesis_status() expects 3 or 4d data;"
+                         "unexpected behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
+    width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
+    fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
+                                               included_plots,
+                                               **width_ratios)
 
-    if "display_mad_image" in included_plots:
-        display_mad_image(
-            mad,
-            batch_idx=batch_idx,
-            channel_idx=channel_idx,
-            iteration=iteration,
-            ax=axes[axes_idx["display_mad_image"]],
-            zoom=zoom,
-            vrange=vrange,
-        )
-    if "plot_loss" in included_plots:
-        plot_loss(mad, iteration=iteration, axes=axes[axes_idx["plot_loss"]])
+    if 'display_mad_image' in included_plots:
+        display_mad_image(mad, batch_idx=batch_idx,
+                          channel_idx=channel_idx,
+                          iteration=iteration,
+                          ax=axes[axes_idx['display_mad_image']],
+                          zoom=zoom, vrange=vrange)
+    if 'plot_loss' in included_plots:
+        plot_loss(mad, iteration=iteration, axes=axes[axes_idx['plot_loss']])
         # this function creates a single axis for loss, which plot_loss then
         # split into two. this makes sure the right two axes are present in the
         # dict
         all_axes = []
         for i in axes_idx.values():
             # so if it's a list of ints
-            if hasattr(i, "__iter__"):
+            if hasattr(i, '__iter__'):
                 all_axes.extend(i)
             else:
                 all_axes.append(i)
-        new_axes = [i for i, _ in enumerate(fig.axes) if i not in all_axes]
-        axes_idx["plot_loss"] = new_axes
-    if "plot_pixel_values" in included_plots:
-        plot_pixel_values(
-            mad,
-            batch_idx=batch_idx,
-            channel_idx=channel_idx,
-            iteration=iteration,
-            ax=axes[axes_idx["plot_pixel_values"]],
-        )
+        new_axes = [i for i, _ in enumerate(fig.axes)
+                    if i not in all_axes]
+        axes_idx['plot_loss'] = new_axes
+    if 'plot_pixel_values' in included_plots:
+        plot_pixel_values(mad, batch_idx=batch_idx,
+                          channel_idx=channel_idx,
+                          iteration=iteration,
+                          ax=axes[axes_idx['plot_pixel_values']])
     return fig, axes_idx
 
 
-def animate(
-    mad: MADCompetition,
-    framerate: int = 10,
-    batch_idx: int = 0,
-    channel_idx: int | None = None,
-    zoom: float | None = None,
-    fig: mpl.figure.Figure | None = None,
-    axes_idx: dict[str, int] = {},
-    figsize: tuple[float] | None = None,
-    included_plots: list[str] = [
-        "display_mad_image",
-        "plot_loss",
-        "plot_pixel_values",
-    ],
-    width_ratios: dict[str, float] = {},
-) -> mpl.animation.FuncAnimation:
+def animate(mad: MADCompetition,
+            framerate: int = 10,
+            batch_idx: int = 0,
+            channel_idx: Optional[int] = None,
+            zoom: Optional[float] = None,
+            fig: Optional[mpl.figure.Figure] = None,
+            axes_idx: Dict[str, int] = {},
+            figsize: Optional[Tuple[float]] = None,
+            included_plots: List[str] = ['display_mad_image',
+                                         'plot_loss',
+                                         'plot_pixel_values'],
+            width_ratios: Dict[str, float] = {},
+            ) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
 
     This is essentially the figure produced by
@@ -1211,67 +1105,51 @@ def animate(
 
     """
     if not mad.store_progress:
-        raise ValueError(
-            "synthesize() was run with store_progress=False,"
-            " cannot animate!"
-        )
+        raise ValueError("synthesize() was run with store_progress=False,"
+                         " cannot animate!")
     if mad.mad_image.ndim not in [3, 4]:
-        raise ValueError(
-            "animate() expects 3 or 4d data; unexpected"
-            " behavior will result otherwise!"
-        )
-    _check_included_plots(included_plots, "included_plots")
-    _check_included_plots(width_ratios, "width_ratios")
-    _check_included_plots(axes_idx, "axes_idx")
+        raise ValueError("animate() expects 3 or 4d data; unexpected"
+                         " behavior will result otherwise!")
+    _check_included_plots(included_plots, 'included_plots')
+    _check_included_plots(width_ratios, 'width_ratios')
+    _check_included_plots(axes_idx, 'axes_idx')
     # we run plot_synthesis_status to initialize the figure if either fig is
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure
     if fig is None or not any([ax.get_title() for ax in fig.axes]):
-        fig, axes_idx = plot_synthesis_status(
-            mad=mad,
-            batch_idx=batch_idx,
-            channel_idx=channel_idx,
-            iteration=0,
-            figsize=figsize,
-            zoom=zoom,
-            fig=fig,
-            included_plots=included_plots,
-            axes_idx=axes_idx,
-            width_ratios=width_ratios,
-        )
+        fig, axes_idx = plot_synthesis_status(mad=mad,
+                                              batch_idx=batch_idx,
+                                              channel_idx=channel_idx,
+                                              iteration=0, figsize=figsize,
+                                              zoom=zoom, fig=fig,
+                                              included_plots=included_plots,
+                                              axes_idx=axes_idx,
+                                              width_ratios=width_ratios)
     # grab the artist for the second plot (we don't need to do this for the
     # MAD image plot, because we use the update_plot function for that)
-    if "plot_loss" in included_plots:
-        scat = [fig.axes[i].collections[0] for i in axes_idx["plot_loss"]]
+    if 'plot_loss' in included_plots:
+        scat = [fig.axes[i].collections[0] for i in axes_idx['plot_loss']]
     # can also have multiple plots
 
     def movie_plot(i):
         artists = []
-        if "display_mad_image" in included_plots:
-            artists.extend(
-                display.update_plot(
-                    fig.axes[axes_idx["display_mad_image"]],
-                    data=mad.saved_mad_image[i],
-                    batch_idx=batch_idx,
-                )
-            )
-        if "plot_pixel_values" in included_plots:
+        if 'display_mad_image' in included_plots:
+            artists.extend(display.update_plot(fig.axes[axes_idx['display_mad_image']],
+                                               data=mad.saved_mad_image[i],
+                                               batch_idx=batch_idx))
+        if 'plot_pixel_values' in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for
             # example, changed the tick locator or formatter. not sure how
             # to handle this best right now
-            fig.axes[axes_idx["plot_pixel_values"]].clear()
-            plot_pixel_values(
-                mad,
-                batch_idx=batch_idx,
-                channel_idx=channel_idx,
-                iteration=i,
-                ax=fig.axes[axes_idx["plot_pixel_values"]],
-            )
-        if "plot_loss" in included_plots:
+            fig.axes[axes_idx['plot_pixel_values']].clear()
+            plot_pixel_values(mad, batch_idx=batch_idx,
+                              channel_idx=channel_idx, iteration=i,
+                              ax=fig.axes[axes_idx['plot_pixel_values']])
+        if 'plot_loss' in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
-            x_val = i * mad.store_progress
+            x_val = i*mad.store_progress
             scat[0].set_offsets((x_val, mad.reference_metric_loss[x_val]))
             scat[1].set_offsets((x_val, mad.optimized_metric_loss[x_val]))
             artists.extend(scat)
@@ -1279,28 +1157,22 @@ def animate(
         return artists
 
     # don't need an init_func, since we handle initialization ourselves
-    anim = mpl.animation.FuncAnimation(
-        fig,
-        movie_plot,
-        frames=len(mad.saved_mad_image),
-        blit=True,
-        interval=1000.0 / framerate,
-        repeat=False,
-    )
+    anim = mpl.animation.FuncAnimation(fig, movie_plot,
+                                       frames=len(mad.saved_mad_image),
+                                       blit=True, interval=1000./framerate,
+                                       repeat=False)
     plt.close(fig)
     return anim
 
 
-def display_mad_image_all(
-    mad_metric1_min: MADCompetition,
-    mad_metric2_min: MADCompetition,
-    mad_metric1_max: MADCompetition,
-    mad_metric2_max: MADCompetition,
-    metric1_name: str | None = None,
-    metric2_name: str | None = None,
-    zoom: int | float = 1,
-    **kwargs,
-) -> mpl.figure.Figure:
+def display_mad_image_all(mad_metric1_min: MADCompetition,
+                          mad_metric2_min: MADCompetition,
+                          mad_metric1_max: MADCompetition,
+                          mad_metric2_max: MADCompetition,
+                          metric1_name: Optional[str] = None,
+                          metric2_name: Optional[str] = None,
+                          zoom: Union[int, float] = 1,
+                          **kwargs) -> mpl.figure.Figure:
     """Display all MAD Competition images.
 
     To generate a full set of MAD Competition images, you need four instances:
@@ -1344,74 +1216,49 @@ def display_mad_image_all(
     # this is a bit of a hack right now, because they don't all have same
     # initial image
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
         metric2_name = mad_metric2_min.optimized_metric.__name__
-    fig = pt_make_figure(
-        3, 2, [zoom * i for i in mad_metric1_min.image.shape[-2:]]
-    )
+    fig = pt_make_figure(3, 2, [zoom * i for i in
+                                mad_metric1_min.image.shape[-2:]])
     mads = [mad_metric1_min, mad_metric1_max, mad_metric2_min, mad_metric2_max]
-    titles = [
-        f"Minimize {metric1_name}",
-        f"Maximize {metric1_name}",
-        f"Minimize {metric2_name}",
-        f"Maximize {metric2_name}",
-    ]
+    titles = [f'Minimize {metric1_name}', f'Maximize {metric1_name}',
+              f'Minimize {metric2_name}', f'Maximize {metric2_name}']
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if (
-        kwargs.get("channel_idx", None) is None
-        and mad_metric1_min.initial_image.shape[1] > 1
-    ):
+    if kwargs.get('channel_idx', None) is None and mad_metric1_min.initial_image.shape[1] > 1:
         as_rgb = True
     else:
         as_rgb = False
-    display.imshow(
-        mad_metric1_min.image,
-        ax=fig.axes[0],
-        title="Reference image",
-        zoom=zoom,
-        as_rgb=as_rgb,
-        **kwargs,
-    )
-    display.imshow(
-        mad_metric1_min.initial_image,
-        ax=fig.axes[1],
-        title="Initial (noisy) image",
-        zoom=zoom,
-        as_rgb=as_rgb,
-        **kwargs,
-    )
-    for ax, mad, title in zip(fig.axes[2:], mads, titles, strict=False):
-        display_mad_image(mad, zoom=zoom, ax=ax, title=title, **kwargs)
+    display.imshow(mad_metric1_min.image, ax=fig.axes[0],
+                   title='Reference image', zoom=zoom, as_rgb=as_rgb,
+                   **kwargs)
+    display.imshow(mad_metric1_min.initial_image, ax=fig.axes[1],
+                   title='Initial (noisy) image', zoom=zoom, as_rgb=as_rgb,
+                   **kwargs)
+    for ax, mad, title in zip(fig.axes[2:], mads, titles):
+        display_mad_image(mad, zoom=zoom, ax=ax, title=title,
+                                   **kwargs)
     return fig
 
 
-def plot_loss_all(
-    mad_metric1_min: MADCompetition,
-    mad_metric2_min: MADCompetition,
-    mad_metric1_max: MADCompetition,
-    mad_metric2_max: MADCompetition,
-    metric1_name: str | None = None,
-    metric2_name: str | None = None,
-    metric1_kwargs: dict = {"c": "C0"},
-    metric2_kwargs: dict = {"c": "C1"},
-    min_kwargs: dict = {"linestyle": "--"},
-    max_kwargs: dict = {"linestyle": "-"},
-    figsize=(10, 5),
-) -> mpl.figure.Figure:
+def plot_loss_all(mad_metric1_min: MADCompetition,
+                  mad_metric2_min: MADCompetition,
+                  mad_metric1_max: MADCompetition,
+                  mad_metric2_max: MADCompetition,
+                  metric1_name: Optional[str] = None,
+                  metric2_name: Optional[str] = None,
+                  metric1_kwargs: Dict = {'c': 'C0'},
+                  metric2_kwargs: Dict = {'c': 'C1'},
+                  min_kwargs: Dict = {'linestyle': '--'},
+                  max_kwargs: Dict = {'linestyle': '-'},
+                  figsize=(10, 5)) -> mpl.figure.Figure:
     """Plot loss for full set of MAD Competiton instances.
 
     To generate a full set of MAD Competition images, you need four instances:
@@ -1459,52 +1306,26 @@ def plot_loss_all(
 
     """
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
         metric2_name = mad_metric2_min.optimized_metric.__name__
     fig, axes = plt.subplots(1, 2, figsize=figsize)
-    plot_loss(
-        mad_metric1_min,
-        axes=axes,
-        label=f"Minimize {metric1_name}",
-        **metric1_kwargs,
-        **min_kwargs,
-    )
-    plot_loss(
-        mad_metric1_max,
-        axes=axes,
-        label=f"Maximize {metric1_name}",
-        **metric1_kwargs,
-        **max_kwargs,
-    )
+    plot_loss(mad_metric1_min, axes=axes, label=f'Minimize {metric1_name}',
+              **metric1_kwargs, **min_kwargs)
+    plot_loss(mad_metric1_max, axes=axes, label=f'Maximize {metric1_name}',
+              **metric1_kwargs, **max_kwargs)
     # we pass the axes backwards here because the fixed and synthesis metrics are the opposite as they are in the instances above.
-    plot_loss(
-        mad_metric2_min,
-        axes=axes[::-1],
-        label=f"Minimize {metric2_name}",
-        **metric2_kwargs,
-        **min_kwargs,
-    )
-    plot_loss(
-        mad_metric2_max,
-        axes=axes[::-1],
-        label=f"Maximize {metric2_name}",
-        **metric2_kwargs,
-        **max_kwargs,
-    )
-    axes[0].set(ylabel="Loss", title=metric2_name)
-    axes[1].set(ylabel="Loss", title=metric1_name)
-    axes[1].legend(loc="center left", bbox_to_anchor=(1.1, 0.5))
+    plot_loss(mad_metric2_min, axes=axes[::-1], label=f'Minimize {metric2_name}',
+              **metric2_kwargs, **min_kwargs)
+    plot_loss(mad_metric2_max, axes=axes[::-1], label=f'Maximize {metric2_name}',
+              **metric2_kwargs, **max_kwargs)
+    axes[0].set(ylabel='Loss', title=metric2_name)
+    axes[1].set(ylabel='Loss', title=metric1_name)
+    axes[1].legend(loc='center left', bbox_to_anchor=(1.1, .5))
     return fig

@@ -7,7 +7,7 @@ images have the same values for all PS texture stats, humans should
 consider them as members of the same family of textures.
 """
 from collections import OrderedDict
-from typing import Literal, Union
+from typing import List, Optional, Tuple, Union
 
 import einops
 import matplotlib as mpl
@@ -17,16 +17,15 @@ import torch
 import torch.fft
 import torch.nn as nn
 from torch import Tensor
+from typing_extensions import Literal
 
 from ...tools import signal, stats
 from ...tools.data import to_numpy
 from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
 from ...tools.validate import validate_input
+from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 from ..canonical_computations.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
-)
-from ..canonical_computations.steerable_pyramid_freq import (
-    SteerablePyramidFreq,
 )
 
 SCALES_TYPE = Union[Literal["pixel_statistics"], PYR_SCALES_TYPE]
@@ -81,7 +80,7 @@ class PortillaSimoncelli(nn.Module):
 
     def __init__(
         self,
-        image_shape: tuple[int, int],
+        image_shape: Tuple[int, int],
         n_scales: int = 4,
         n_orientations: int = 4,
         spatial_corr_width: int = 9,
@@ -147,6 +146,8 @@ class PortillaSimoncelli(nn.Module):
         ]
 
     def _create_scales_shape_dict(self) -> OrderedDict:
+
+        
         """Create dictionary defining scales and shape of each stat.
 
         This dictionary functions as metadata which is used for two main
@@ -220,11 +221,7 @@ class PortillaSimoncelli(nn.Module):
         shape_dict["kurtosis_reconstructed"] = scales_with_lowpass
 
         auto_corr = np.ones(
-            (
-                self.spatial_corr_width,
-                self.spatial_corr_width,
-                self.n_scales + 1,
-            ),
+            (self.spatial_corr_width, self.spatial_corr_width, self.n_scales + 1),
             dtype=object,
         )
         auto_corr *= einops.rearrange(scales_with_lowpass, "s -> 1 1 s")
@@ -233,8 +230,7 @@ class PortillaSimoncelli(nn.Module):
         shape_dict["std_reconstructed"] = scales_with_lowpass
 
         cross_orientation_corr_mag = np.ones(
-            (self.n_orientations, self.n_orientations, self.n_scales),
-            dtype=int,
+            (self.n_orientations, self.n_orientations, self.n_scales), dtype=int
         )
         cross_orientation_corr_mag *= einops.rearrange(scales, "s -> 1 1 s")
         shape_dict[
@@ -246,21 +242,15 @@ class PortillaSimoncelli(nn.Module):
         shape_dict["magnitude_std"] = mags_std
 
         cross_scale_corr_mag = np.ones(
-            (self.n_orientations, self.n_orientations, self.n_scales - 1),
-            dtype=int,
+            (self.n_orientations, self.n_orientations, self.n_scales - 1), dtype=int
         )
-        cross_scale_corr_mag *= einops.rearrange(
-            scales_without_coarsest, "s -> 1 1 s"
-        )
+        cross_scale_corr_mag *= einops.rearrange(scales_without_coarsest, "s -> 1 1 s")
         shape_dict["cross_scale_correlation_magnitude"] = cross_scale_corr_mag
 
         cross_scale_corr_real = np.ones(
-            (self.n_orientations, 2 * self.n_orientations, self.n_scales - 1),
-            dtype=int,
+            (self.n_orientations, 2 * self.n_orientations, self.n_scales - 1), dtype=int
         )
-        cross_scale_corr_real *= einops.rearrange(
-            scales_without_coarsest, "s -> 1 1 s"
-        )
+        cross_scale_corr_real *= einops.rearrange(scales_without_coarsest, "s -> 1 1 s")
         shape_dict["cross_scale_correlation_real"] = cross_scale_corr_real
 
         shape_dict["var_highpass_residual"] = np.array(["residual_highpass"])
@@ -297,9 +287,7 @@ class PortillaSimoncelli(nn.Module):
         mask_dict = scales_shape_dict.copy()
         # Pre-compute some necessary indices.
         # Lower triangular indices (including diagonal), for auto correlations
-        tril_inds = torch.tril_indices(
-            self.spatial_corr_width, self.spatial_corr_width
-        )
+        tril_inds = torch.tril_indices(self.spatial_corr_width, self.spatial_corr_width)
         # Get the second half of the diagonal, i.e., everything from the center
         # element on. These are all repeated for the auto correlations. (As
         # these are autocorrelations (rather than auto-covariance) matrices,
@@ -312,14 +300,9 @@ class PortillaSimoncelli(nn.Module):
         # for cross_orientation_correlation_magnitude (because we've normalized
         # this matrix to be true cross-correlations, the diagonals are all 1,
         # like for the auto-correlations)
-        triu_inds = torch.triu_indices(
-            self.n_orientations, self.n_orientations
-        )
+        triu_inds = torch.triu_indices(self.n_orientations, self.n_orientations)
         for k, v in mask_dict.items():
-            if k in [
-                "auto_correlation_magnitude",
-                "auto_correlation_reconstructed",
-            ]:
+            if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
                 # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
                 # Start with all False, then place True in necessary stats.
                 mask = torch.zeros(v.shape, dtype=torch.bool)
@@ -341,7 +324,7 @@ class PortillaSimoncelli(nn.Module):
         return mask_dict
 
     def forward(
-        self, image: Tensor, scales: list[SCALES_TYPE] | None = None
+        self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
     ) -> Tensor:
         r"""Generate Texture Statistics representation of an image.
 
@@ -389,17 +372,14 @@ class PortillaSimoncelli(nn.Module):
         # real_pyr_coeffs, which contain the demeaned magnitude of the pyramid
         # coefficients and the real part of the pyramid coefficients
         # respectively.
-        (
-            mag_pyr_coeffs,
-            real_pyr_coeffs,
-        ) = self._compute_intermediate_representations(pyr_coeffs)
+        mag_pyr_coeffs, real_pyr_coeffs = self._compute_intermediate_representations(
+            pyr_coeffs
+        )
 
         # Then, the reconstructed lowpass image at each scale. (this is a list
         # of length n_scales+1 containing tensors of shape (batch, channel,
         # height, width))
-        reconstructed_images = self._reconstruct_lowpass_at_each_scale(
-            pyr_dict
-        )
+        reconstructed_images = self._reconstruct_lowpass_at_each_scale(pyr_dict)
         # the reconstructed_images list goes from coarse-to-fine, but we want
         # each of the stats computed from it to go from fine-to-coarse, so we
         # reverse its direction.
@@ -421,9 +401,7 @@ class PortillaSimoncelli(nn.Module):
         # tensor of shape (batch, channel, spatial_corr_width,
         # spatial_corr_width, n_scales+1), and var_recon is a tensor of shape
         # (batch, channel, n_scales+1)
-        autocorr_recon, var_recon = self._compute_autocorr(
-            reconstructed_images
-        )
+        autocorr_recon, var_recon = self._compute_autocorr(reconstructed_images)
         # Compute the standard deviation, skew, and kurtosis of each
         # reconstructed lowpass image. std_recon, skew_recon, and
         # kurtosis_recon will all end up as tensors of shape (batch, channel,
@@ -449,28 +427,23 @@ class PortillaSimoncelli(nn.Module):
         if self.n_scales != 1:
             # First, double the phase the coefficients, so we can correctly
             # compute correlations across scales.
-            (
-                phase_doubled_mags,
-                phase_doubled_sep,
-            ) = self._double_phase_pyr_coeffs(pyr_coeffs)
+            phase_doubled_mags, phase_doubled_sep = self._double_phase_pyr_coeffs(
+                pyr_coeffs
+            )
             # Compute the cross-scale correlations between the magnitude
             # coefficients. For each coefficient, we're correlating it with the
             # coefficients at the next-coarsest scale. this will be a tensor of
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
             cross_scale_corr_mags, _ = self._compute_cross_correlation(
-                mag_pyr_coeffs[:-1],
-                phase_doubled_mags,
-                tensors_are_identical=False,
+                mag_pyr_coeffs[:-1], phase_doubled_mags, tensors_are_identical=False
             )
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
             # n_orientations, 2*n_orientations, n_scales-1)
             cross_scale_corr_real, _ = self._compute_cross_correlation(
-                real_pyr_coeffs[:-1],
-                phase_doubled_sep,
-                tensors_are_identical=False,
+                real_pyr_coeffs[:-1], phase_doubled_sep, tensors_are_identical=False
             )
 
         # Compute the variance of the highpass residual
@@ -507,14 +480,12 @@ class PortillaSimoncelli(nn.Module):
 
         # Return the subset of stats corresponding to the specified scale.
         if scales is not None:
-            representation_tensor = self.remove_scales(
-                representation_tensor, scales
-            )
+            representation_tensor = self.remove_scales(representation_tensor, scales)
 
         return representation_tensor
 
     def remove_scales(
-        self, representation_tensor: Tensor, scales_to_keep: list[SCALES_TYPE]
+        self, representation_tensor: Tensor, scales_to_keep: List[SCALES_TYPE]
     ) -> Tensor:
         """Remove statistics not associated with scales.
 
@@ -619,9 +590,7 @@ class PortillaSimoncelli(nn.Module):
                 device=representation_tensor.device,
             )
             # v.sum() gives the number of necessary elements from this stat
-            this_stat_vec = representation_tensor[
-                ..., n_filled : n_filled + v.sum()
-            ]
+            this_stat_vec = representation_tensor[..., n_filled : n_filled + v.sum()]
             # use boolean indexing to put the values from new_stat_vec in the
             # appropriate place
             new_v[..., v] = this_stat_vec
@@ -631,7 +600,7 @@ class PortillaSimoncelli(nn.Module):
 
     def _compute_pyr_coeffs(
         self, image: Tensor
-    ) -> tuple[OrderedDict, list[Tensor], Tensor, Tensor]:
+    ) -> Tuple[OrderedDict, List[Tensor], Tensor, Tensor]:
         """Compute pyramid coefficients of image.
 
         Note that the residual lowpass has been demeaned independently for each
@@ -673,9 +642,7 @@ class PortillaSimoncelli(nn.Module):
         # of shape (batch, channel, n_orientations, height, width) (note that
         # height and width halves on each scale)
         coeffs_list = [
-            torch.stack(
-                [pyr_coeffs[(i, j)] for j in range(self.n_orientations)], 2
-            )
+            torch.stack([pyr_coeffs[(i, j)] for j in range(self.n_orientations)], 2)
             for i in range(self.n_scales)
         ]
         return pyr_coeffs, coeffs_list, highpass, lowpass
@@ -712,14 +679,12 @@ class PortillaSimoncelli(nn.Module):
         # mean needed to be unflattened to be used by skew and kurtosis
         # correctly, but we'll want it to be flattened like this in the final
         # representation tensor
-        return einops.pack(
-            [mean, var, skew, kurtosis, img_min, img_max], "b c *"
-        )[0]
+        return einops.pack([mean, var, skew, kurtosis, img_min, img_max], "b c *")[0]
 
     @staticmethod
     def _compute_intermediate_representations(
         pyr_coeffs: Tensor
-    ) -> tuple[list[Tensor], list[Tensor]]:
+    ) -> Tuple[List[Tensor], List[Tensor]]:
         """Compute useful intermediate representations.
 
         These representations are:
@@ -754,17 +719,14 @@ class PortillaSimoncelli(nn.Module):
             mag.mean((-2, -1), keepdim=True) for mag in magnitude_pyr_coeffs
         ]
         magnitude_pyr_coeffs = [
-            mag - mn
-            for mag, mn in zip(
-                magnitude_pyr_coeffs, magnitude_means, strict=False
-            )
+            mag - mn for mag, mn in zip(magnitude_pyr_coeffs, magnitude_means)
         ]
         real_pyr_coeffs = [coeff.real for coeff in pyr_coeffs]
         return magnitude_pyr_coeffs, real_pyr_coeffs
 
     def _reconstruct_lowpass_at_each_scale(
         self, pyr_coeffs_dict: OrderedDict
-    ) -> list[Tensor]:
+    ) -> List[Tensor]:
         """Reconstruct the lowpass unoriented image at each scale.
 
         The autocorrelation, standard deviation, skew, and kurtosis of each of
@@ -799,15 +761,12 @@ class PortillaSimoncelli(nn.Module):
         # values across scales. This could also be handled by making the
         # pyramid tight frame
         reconstructed_images[:-1] = [
-            signal.shrink(r, 2 ** (self.n_scales - i))
-            * 4 ** (self.n_scales - i)
+            signal.shrink(r, 2 ** (self.n_scales - i)) * 4 ** (self.n_scales - i)
             for i, r in enumerate(reconstructed_images[:-1])
         ]
         return reconstructed_images
 
-    def _compute_autocorr(
-        self, coeffs_list: list[Tensor]
-    ) -> tuple[Tensor, Tensor]:
+    def _compute_autocorr(self, coeffs_list: List[Tensor]) -> Tuple[Tensor, Tensor]:
         """Compute the autocorrelation of some statistics.
 
         Parameters
@@ -843,18 +802,16 @@ class PortillaSimoncelli(nn.Module):
             )
         acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
         var = [signal.center_crop(ac, 1) for ac in acs]
-        acs = [ac / v for ac, v in zip(acs, var, strict=False)]
+        acs = [ac / v for ac, v in zip(acs, var)]
         var = einops.pack(var, "b c *")[0]
         acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
         acs = torch.stack(acs, 2)
-        return einops.rearrange(
-            acs, f"b c {dims} a1 a2 -> b c a1 a2 {dims}"
-        ), var
+        return einops.rearrange(acs, f"b c {dims} a1 a2 -> b c a1 a2 {dims}"), var
 
     @staticmethod
     def _compute_skew_kurtosis_recon(
-        reconstructed_images: list[Tensor], var_recon: Tensor, img_var: Tensor
-    ) -> tuple[Tensor, Tensor]:
+        reconstructed_images: List[Tensor], var_recon: Tensor, img_var: Tensor
+    ) -> Tuple[Tensor, Tensor]:
         """Compute the skew and kurtosis of each lowpass reconstructed image.
 
         For each scale, if the ratio of its variance to the original image's
@@ -902,17 +859,15 @@ class PortillaSimoncelli(nn.Module):
         res = torch.finfo(img_var.dtype).resolution
         unstable_locs = var_recon / img_var.unsqueeze(-1) < res
         skew_recon = torch.where(unstable_locs, skew_default, skew_recon)
-        kurtosis_recon = torch.where(
-            unstable_locs, kurtosis_default, kurtosis_recon
-        )
+        kurtosis_recon = torch.where(unstable_locs, kurtosis_default, kurtosis_recon)
         return skew_recon, kurtosis_recon
 
     def _compute_cross_correlation(
         self,
-        coeffs_tensor: list[Tensor],
-        coeffs_tensor_other: list[Tensor],
+        coeffs_tensor: List[Tensor],
+        coeffs_tensor_other: List[Tensor],
         tensors_are_identical: bool = False,
-    ) -> tuple[Tensor, Tensor]:
+    ) -> Tuple[Tensor, Tensor]:
         """Compute cross-correlations.
 
         Parameters
@@ -939,9 +894,7 @@ class PortillaSimoncelli(nn.Module):
         """
         covars = []
         coeffs_var = []
-        for coeff, coeff_other in zip(
-            coeffs_tensor, coeffs_tensor_other, strict=False
-        ):
+        for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
             # precompute this, which we'll use for normalization
             numel = torch.mul(*coeff.shape[-2:])
             # compute the covariance
@@ -955,18 +908,14 @@ class PortillaSimoncelli(nn.Module):
             # First, compute the variances of each coeff (if coeff and
             # coeff_other are identical, this is equivalent to the diagonal of
             # the above covar matrix, but re-computing it is actually faster)
-            coeff_var = einops.einsum(
-                coeff, coeff, "b c o1 h w, b c o1 h w -> b c o1"
-            )
+            coeff_var = einops.einsum(coeff, coeff, "b c o1 h w, b c o1 h w -> b c o1")
             coeff_var = coeff_var / numel
             coeffs_var.append(coeff_var)
             if tensors_are_identical:
                 coeff_other_var = coeff_var
             else:
                 coeff_other_var = einops.einsum(
-                    coeff_other,
-                    coeff_other,
-                    "b c o2 h w, b c o2 h w -> b c o2",
+                    coeff_other, coeff_other, "b c o2 h w, b c o2 h w -> b c o2"
                 )
                 coeff_other_var = coeff_other_var / numel
             # Then compute the outer product of those variances.
@@ -980,8 +929,8 @@ class PortillaSimoncelli(nn.Module):
 
     @staticmethod
     def _double_phase_pyr_coeffs(
-        pyr_coeffs: list[Tensor]
-    ) -> tuple[list[Tensor], list[Tensor]]:
+        pyr_coeffs: List[Tensor]
+    ) -> Tuple[List[Tensor], List[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
 
         Parameters
@@ -1022,21 +971,19 @@ class PortillaSimoncelli(nn.Module):
             )
             doubled_phase_mags.append(doubled_phase_mag)
             doubled_phase_sep.append(
-                einops.pack(
-                    [doubled_phase.real, doubled_phase.imag], "b c * h w"
-                )[0]
+                einops.pack([doubled_phase.real, doubled_phase.imag], "b c * h w")[0]
             )
         return doubled_phase_mags, doubled_phase_sep
 
     def plot_representation(
         self,
         data: Tensor,
-        ax: plt.Axes | None = None,
-        figsize: tuple[float, float] = (15, 15),
-        ylim: tuple[float, float] | Literal[False] | None = None,
+        ax: Optional[plt.Axes] = None,
+        figsize: Tuple[float, float] = (15, 15),
+        ylim: Optional[Union[Tuple[float, float], Literal[False]]] = None,
         batch_idx: int = 0,
-        title: str | None = None,
-    ) -> tuple[plt.Figure, list[plt.Axes]]:
+        title: Optional[str] = None,
+    ) -> Tuple[plt.Figure, List[plt.Axes]]:
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
@@ -1199,10 +1146,10 @@ class PortillaSimoncelli(nn.Module):
 
     def update_plot(
         self,
-        axes: list[plt.Axes],
+        axes: List[plt.Axes],
         data: Tensor,
         batch_idx: int = 0,
-    ) -> list[plt.Artist]:
+    ) -> List[plt.Artist]:
         r"""Update the information in our representation plot.
 
         This is used for creating an animation of the representation
@@ -1255,7 +1202,7 @@ class PortillaSimoncelli(nn.Module):
         # of the first two dims
         rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
         rep = self._representation_for_plotting(rep)
-        for ax, d in zip(axes, rep.values(), strict=False):
+        for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
                 vals = np.array([dd.detach() for dd in d.values()])
             else:
