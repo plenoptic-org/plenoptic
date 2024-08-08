@@ -206,15 +206,15 @@ Beyond Metamers
 for performing image synthesis. Each method allows for different exploration of
 a model's representational space:
 
-- `Metamers <tutorials/06_Metamer.nblink>`_ investigate what features the model
+- `Metamers <tutorials/intro/06_Metamer.nblink>`_ investigate what features the model
   disregards entirely.
-- `Eigendistortions <tutorials/02_Eigendistortions.nblink>`_ investigates which
+- `Eigendistortions <tutorials/intro/02_Eigendistortions.nblink>`_ investigates which
   features the model considers the least and which it considers the most
   important
 - `Maximal differentiation (MAD) competition
-  <tutorials/07_MAD_Competition.nblink>`_ enables efficient comparison of two
+  <tutorials/intro/07_MAD_Competition.nblink>`_ enables efficient comparison of two
   metrics, highlighting the aspects in which their sensitivities differ.
-- `Geodesics <tutorials/05_Geodesics.nblink>`_ investigates how a model represents
+- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_ investigates how a model represents
   motion and what changes to an image it considers reasonable.
 
 The goal of this package is to facilitate model exploration and understanding.
