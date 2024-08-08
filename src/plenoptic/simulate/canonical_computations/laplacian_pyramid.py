@@ -5,7 +5,7 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 class LaplacianPyramid(nn.Module):
     """Laplacian Pyramid in Torch.
-   
+
     The Laplacian pyramid [1]_ is a multiscale image representation. It
     decomposes the image by computing the local mean using Gaussian blurring
     filters and substracting it from the image and repeating this operation on
