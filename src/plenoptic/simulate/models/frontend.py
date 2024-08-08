@@ -10,22 +10,25 @@ References
 .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
-from typing import Tuple, Union, Callable
+from collections import OrderedDict
+from collections.abc import Callable
+from warnings import warn
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .naive import Gaussian, CenterSurround
 from ...tools.display import imshow
 from ...tools.signal import make_disk
-from collections import OrderedDict
-from warnings import warn
+from .naive import CenterSurround, Gaussian
 
-
-__all__ = ["LinearNonlinear", "LuminanceGainControl",
-           "LuminanceContrastGainControl", "OnOff"]
+__all__ = [
+    "LinearNonlinear",
+    "LuminanceGainControl",
+    "LuminanceContrastGainControl",
+    "OnOff",
+]
 
 
 class LinearNonlinear(nn.Module):
@@ -66,12 +69,11 @@ class LinearNonlinear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -112,7 +114,7 @@ class LinearNonlinear(nn.Module):
 
 
 class LuminanceGainControl(nn.Module):
-    """ Linear center-surround followed by luminance gain control and activation.
+    """Linear center-surround followed by luminance gain control and activation.
     Model is described in [1]_ and [2]_.
 
     Parameters
@@ -150,14 +152,14 @@ class LuminanceGainControl(nn.Module):
         representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
+
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -201,17 +203,25 @@ class LuminanceGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = ["linear filt", "luminance filt",]
+        title = [
+            "linear filt",
+            "luminance filt",
+        ]
 
         fig = imshow(
-            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=2,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig
 
 
 class LuminanceContrastGainControl(nn.Module):
-    """ Linear center-surround followed by luminance and contrast gain control,
+    """Linear center-surround followed by luminance and contrast gain control,
     and activation function. Model is described in [1]_ and [2]_.
 
     Parameters
@@ -255,12 +265,11 @@ class LuminanceContrastGainControl(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
-
         activation: Callable[[Tensor], Tensor] = F.softplus,
     ):
         super().__init__()
@@ -285,7 +294,9 @@ class LuminanceContrastGainControl(nn.Module):
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar * lum)
 
-        con = self.contrast(lum_normed.pow(2)).sqrt() + 1E-6  # avoid div by zero
+        con = (
+            self.contrast(lum_normed.pow(2)).sqrt() + 1e-6
+        )  # avoid div by zero
         con_normed = lum_normed / (1 + self.contrast_scalar * con)
         y = self.activation(con_normed)
         return y
@@ -316,7 +327,12 @@ class LuminanceContrastGainControl(nn.Module):
         title = ["linear filt", "luminance filt", "contrast filt"]
 
         fig = imshow(
-            weights, title=title, col_wrap=3, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=3,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig
@@ -369,7 +385,7 @@ class OnOff(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
@@ -377,16 +393,20 @@ class OnOff(nn.Module):
         activation: Callable[[Tensor], Tensor] = F.softplus,
         apply_mask: bool = False,
         cache_filt: bool = False,
-
     ):
         super().__init__()
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
         if pretrained:
-            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert kernel_size == (
+                31,
+                31,
+            ), "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
-                warn("pretrained is True but cache_filt is False. Set cache_filt to "
-                     "True for efficiency unless you are fine-tuning.")
+                warn(
+                    "pretrained is True but cache_filt is False. Set cache_filt to "
+                    "True for efficiency unless you are fine-tuning."
+                )
 
         self.center_surround = CenterSurround(
             kernel_size=kernel_size,
@@ -399,17 +419,17 @@ class OnOff(nn.Module):
         )
 
         self.luminance = Gaussian(
-           kernel_size=kernel_size,
-           out_channels=2,
-           pad_mode=pad_mode,
-           cache_filt=cache_filt,
+            kernel_size=kernel_size,
+            out_channels=2,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
 
         self.contrast = Gaussian(
-           kernel_size=kernel_size,
-           out_channels=2,
-           pad_mode=pad_mode,
-           cache_filt=cache_filt,
+            kernel_size=kernel_size,
+            out_channels=2,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
 
         # init scalar values around fitted parameters found in Berardino et al 2017
@@ -426,15 +446,23 @@ class OnOff(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         linear = self.center_surround(x)
         lum = self.luminance(x)
-        lum_normed = linear / (1 + self.luminance_scalar.view(1, 2, 1, 1) * lum)
+        lum_normed = linear / (
+            1 + self.luminance_scalar.view(1, 2, 1, 1) * lum
+        )
 
-        con = self.contrast(lum_normed.pow(2), groups=2).sqrt() + 1E-6  # avoid div by 0
-        con_normed = lum_normed / (1 + self.contrast_scalar.view(1, 2, 1, 1) * con)
+        con = (
+            self.contrast(lum_normed.pow(2), groups=2).sqrt() + 1e-6
+        )  # avoid div by 0
+        con_normed = lum_normed / (
+            1 + self.contrast_scalar.view(1, 2, 1, 1) * con
+        )
         y = self.activation(con_normed)
 
         if self.apply_mask:
             im_shape = x.shape[-2:]
-            if self._disk is None or self._disk.shape != im_shape:  # cache new mask
+            if (
+                self._disk is None or self._disk.shape != im_shape
+            ):  # cache new mask
                 self._disk = make_disk(im_shape).to(x.device)
             if self._disk.device != x.device:
                 self._disk = self._disk.to(x.device)
@@ -442,7 +470,6 @@ class OnOff(nn.Module):
             y = self._disk * y  # apply the mask
 
         return y
-
 
     def display_filters(self, zoom=5.0, **kwargs):
         """Displays convolutional filters of model
@@ -477,7 +504,12 @@ class OnOff(nn.Module):
         ]
 
         fig = imshow(
-            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=2,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig
@@ -494,7 +526,6 @@ class OnOff(nn.Module):
                 ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
                 ("luminance.std", torch.as_tensor([8.7366, 1.4751])),
                 ("contrast.std", torch.as_tensor([2.7353, 1.5583])),
-
             ]
         )
         return state_dict

@@ -1,18 +1,22 @@
-from typing import Tuple, List, Callable, Union, Optional
 import warnings
-from typing_extensions import Literal
+from collections.abc import Callable
+from typing import Literal
 
 import matplotlib.pyplot
-from matplotlib.figure import Figure
 import numpy as np
 import torch
+from matplotlib.figure import Figure
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from .synthesis import Synthesis
-from .autodiff import jacobian, vector_jacobian_product, jacobian_vector_product
 from ..tools.display import imshow
 from ..tools.validate import validate_input, validate_model
+from .autodiff import (
+    jacobian,
+    jacobian_vector_product,
+    vector_jacobian_product,
+)
+from .synthesis import Synthesis
 
 
 def fisher_info_matrix_vector_product(
@@ -49,7 +53,7 @@ def fisher_info_matrix_vector_product(
 
 
 def fisher_info_matrix_eigenvalue(
-    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Optional[Tensor] = None
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
 ) -> Tensor:
     r"""Compute the eigenvalues of the Fisher Information Matrix corresponding to eigenvectors in v
     :math:`\lambda= v^T F v`
@@ -60,7 +64,7 @@ def fisher_info_matrix_eigenvalue(
     Fv = fisher_info_matrix_vector_product(y, x, v, dummy_vec)
 
     # compute eigenvalues for all vectors in v
-    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
+    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T, strict=False)])
     return lmbda
 
 
@@ -117,8 +121,12 @@ class Eigendistortion(Synthesis):
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
         validate_input(image, no_batch=True)
-        validate_model(model, image_shape=image.shape,
-                       image_dtype=image.dtype, device=image.device)
+        validate_model(
+            model,
+            image_shape=image.shape,
+            image_dtype=image.dtype,
+            device=image.device,
+        )
 
         (
             self.batch_size,
@@ -143,7 +151,7 @@ class Eigendistortion(Synthesis):
         self._eigenindex = None
 
     def _init_representation(self, image):
-        """Set self._representation_flat, based on model and image """
+        """Set self._representation_flat, based on model and image"""
         self._image = self._image_flat.view(*image.shape)
         image_representation = self.model(self.image)
 
@@ -193,24 +201,29 @@ class Eigendistortion(Synthesis):
 
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
-        assert method in allowed_methods, f"method must be in {allowed_methods}"
+        assert (
+            method in allowed_methods
+        ), f"method must be in {allowed_methods}"
 
         if (
             method == "exact"
-            and self._representation_flat.size(0) * self._image_flat.size(0) > 1e6
+            and self._representation_flat.size(0) * self._image_flat.size(0)
+            > 1e6
         ):
             warnings.warn(
                 "Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'randomized_svd'}."
             )
 
         if method == "exact":  # compute exact Jacobian
-            print(f"Computing all eigendistortions")
+            print("Computing all eigendistortions")
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = torch.arange(len(eig_vecs))
 
         elif method == "randomized_svd":
-            print(f"Estimating top k={k} eigendistortions using randomized SVD")
+            print(
+                f"Estimating top k={k} eigendistortions using randomized SVD"
+            )
             lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(
                 k=k, p=p, q=q
             )
@@ -224,7 +237,6 @@ class Eigendistortion(Synthesis):
             )
 
         else:  # method == 'power'
-
             assert max_iter > 0, "max_iter must be greater than zero"
 
             lmbda_max, v_max = self._synthesize_power(
@@ -235,16 +247,20 @@ class Eigendistortion(Synthesis):
             )
             n = v_max.shape[0]
 
-            eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
+            eig_vecs = self._vector_to_image(
+                torch.cat((v_max, v_min), dim=1).detach()
+            )
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
             eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n - k, n)))
 
         # reshape to (n x num_chans x h x w)
-        self._eigendistortions = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
+        self._eigendistortions = (
+            torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
+        )
         self._eigenvalues = torch.abs(eig_vals.detach())
         self._eigenindex = eig_vecs_ind
 
-    def _synthesize_exact(self) -> Tuple[Tensor, Tensor]:
+    def _synthesize_exact(self) -> tuple[Tensor, Tensor]:
         r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
 
         To be used when the input is small (e.g. less than 70x70 image on cluster or 30x30 on your own machine). This
@@ -284,8 +300,8 @@ class Eigendistortion(Synthesis):
         return J
 
     def _synthesize_power(
-        self, k: int, shift: Union[Tensor, float], tol: float, max_iter: int
-    ) -> Tuple[Tensor, Tensor]:
+        self, k: int, shift: Tensor | float, tol: float, max_iter: int
+    ) -> tuple[Tensor, Tensor]:
         r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
 
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
@@ -326,7 +342,9 @@ class Eigendistortion(Synthesis):
         v = torch.randn(len(x), k, device=x.device, dtype=x.dtype)
         v = v / torch.linalg.vector_norm(v, dim=0, keepdim=True, ord=2)
 
-        _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
+        _dummy_vec = torch.ones_like(
+            y, requires_grad=True
+        )  # cache a dummy vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
@@ -348,11 +366,15 @@ class Eigendistortion(Synthesis):
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
-            v_new, _ = torch.linalg.qr(Fv, "reduced")  # (ortho)normalize vector(s)
+            v_new, _ = torch.linalg.qr(
+                Fv, "reduced"
+            )  # (ortho)normalize vector(s)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
-            d_lambda = torch.linalg.vector_norm(lmbda - lmbda_new, ord=2)  # stability of eigenspace
+            d_lambda = torch.linalg.vector_norm(
+                lmbda - lmbda_new, ord=2
+            )  # stability of eigenspace
             v = v_new
             lmbda = lmbda_new
 
@@ -362,7 +384,7 @@ class Eigendistortion(Synthesis):
 
     def _synthesize_randomized_svd(
         self, k: int, p: int, q: int
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         r"""Synthesize eigendistortions using randomized truncated SVD.
 
         This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
@@ -421,11 +443,13 @@ class Eigendistortion(Synthesis):
             y, x, torch.randn(n, 20).to(x.device), _dummy_vec
         )
         error_approx = omega - (Q @ Q.T @ omega)
-        error_approx = torch.linalg.vector_norm(error_approx, dim=0, ord=2).mean()
+        error_approx = torch.linalg.vector_norm(
+            error_approx, dim=0, ord=2
+        ).mean()
 
         return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
-    def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
+    def _vector_to_image(self, vecs: Tensor) -> list[Tensor]:
         r"""Reshapes eigenvectors back into correct image dimensions.
 
         Parameters
@@ -441,7 +465,9 @@ class Eigendistortion(Synthesis):
         """
 
         imgs = [
-            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
+            vecs[:, i].reshape(
+                (self.n_channels, self.im_height, self.im_width)
+            )
             for i in range(vecs.shape[1])
         ]
         return imgs
@@ -453,7 +479,9 @@ class Eigendistortion(Synthesis):
         i = idx_range[idx]
 
         all_idx = self.eigenindex
-        assert i in all_idx, "eigenindex must be the index of one of the vectors"
+        assert (
+            i in all_idx
+        ), "eigenindex must be the index of one of the vectors"
         assert (
             all_idx is not None and len(all_idx) != 0
         ), "No eigendistortions synthesized"
@@ -506,14 +534,24 @@ class Eigendistortion(Synthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = ["_jacobian", "_eigendistortions", "_eigenvalues",
-                 "_eigenindex", "_model", "_image", "_image_flat",
-                 "_representation_flat"]
+        attrs = [
+            "_jacobian",
+            "_eigendistortions",
+            "_eigenvalues",
+            "_eigenindex",
+            "_model",
+            "_image",
+            "_image_flat",
+            "_representation_flat",
+        ]
         super().to(*args, attrs=attrs, **kwargs)
 
-    def load(self, file_path: str,
-             map_location: Union[str, None] = None,
-             **pickle_load_args):
+    def load(
+        self,
+        file_path: str,
+        map_location: str | None = None,
+        **pickle_load_args,
+    ):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Eigendistortion`` object --
@@ -547,12 +585,15 @@ class Eigendistortion(Synthesis):
         *then* load.
 
         """
-        check_attributes = ['_image', '_representation_flat']
+        check_attributes = ["_image", "_representation_flat"]
         check_loss_functions = []
-        super().load(file_path, map_location=map_location,
-                     check_attributes=check_attributes,
-                     check_loss_functions=check_loss_functions,
-                     **pickle_load_args)
+        super().load(
+            file_path,
+            map_location=map_location,
+            check_attributes=check_attributes,
+            check_loss_functions=check_loss_functions,
+            **pickle_load_args,
+        )
         # make these require a grad again
         self._image_flat.requires_grad_()
         # we need _representation_flat and _image_flat to be connected in the
@@ -570,22 +611,22 @@ class Eigendistortion(Synthesis):
 
     @property
     def jacobian(self):
-        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``. """
+        """Is only set when :func:`synthesize` is run with ``method='exact'``. Default to ``None``."""
         return self._jacobian
 
     @property
     def eigendistortions(self):
-        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue. """
+        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by eigenvalue."""
         return self._eigendistortions
 
     @property
     def eigenvalues(self):
-        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order. """
+        """Tensor of eigenvalues corresponding to each eigendistortion, listed in decreasing order."""
         return self._eigenvalues
 
     @property
     def eigenindex(self):
-        """Index of each eigenvector/eigenvalue. """
+        """Index of each eigenvector/eigenvalue."""
         return self._eigenindex
 
 
@@ -594,7 +635,7 @@ def display_eigendistortion(
     eigenindex: int = 0,
     alpha: float = 5.0,
     process_image: Callable[[Tensor], Tensor] = lambda x: x,
-    ax: Optional[matplotlib.pyplot.axis] = None,
+    ax: matplotlib.pyplot.axis | None = None,
     plot_complex: str = "rectangular",
     **kwargs,
 ) -> Figure:

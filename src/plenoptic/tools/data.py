@@ -1,13 +1,12 @@
+import os.path as op
 import pathlib
-from typing import List, Optional, Union, Tuple
 import warnings
 
 import imageio
 import numpy as np
-import os.path as op
+import torch
 from pyrtools import synthetic_images
 from skimage import color
-import torch
 from torch import Tensor
 
 from .signal import rescale
@@ -28,10 +27,12 @@ NUMPY_TO_TORCH_TYPES = {
     np.complex128: torch.complex128,
 }
 
-TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
+TORCH_TO_NUMPY_TYPES = {
+    value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()
+}
 
 
-def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
+def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
@@ -57,7 +58,7 @@ def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
     return x
 
 
-def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
+def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     r"""Correctly load in images
 
     Our models and synthesis methods expect their inputs to be 4d
@@ -138,8 +139,10 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
     if len(set([i.shape for i in images])) > 1:
-        raise ValueError("All images must be the same shape but got the following: "
-                         f"{[i.shape for i in images]}")
+        raise ValueError(
+            "All images must be the same shape but got the following: "
+            f"{[i.shape for i in images]}"
+        )
     images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
@@ -194,7 +197,9 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
-def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
+def make_synthetic_stimuli(
+    size: int = 256, requires_grad: bool = True
+) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
@@ -223,10 +228,13 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
     bar = np.zeros((size, size))
     bar[
-        size // 2 - size // 10 : size // 2 + size // 10, size // 2 - 1 : size // 2 + 1
+        size // 2 - size // 10 : size // 2 + size // 10,
+        size // 2 - 1 : size // 2 + 1,
     ] = 1
 
-    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
+    curv_edge = synthetic_images.disk(
+        size=size, radius=size / 1.2, origin=(size, size)
+    )
 
     sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(
         size, covariance=size
@@ -275,10 +283,10 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
 
 def polar_radius(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     exponent: float = 1.0,
-    origin: Optional[Union[int, Tuple[int, int]]] = None,
-    device: Optional[Union[str, torch.device]] = None,
+    origin: int | tuple[int, int] | None = None,
+    device: str | torch.device | None = None,
 ) -> Tensor:
     """Make distance-from-origin (r) matrix
 
@@ -336,10 +344,10 @@ def polar_radius(
 
 
 def polar_angle(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     phase: float = 0.0,
-    origin: Optional[Union[int, Tuple[float, float]]] = None,
-    device: Optional[torch.device] = None,
+    origin: int | tuple[float, float] | None = None,
+    device: torch.device | None = None,
 ) -> Tensor:
     """Make polar angle matrix (in radians).
 

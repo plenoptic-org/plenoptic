@@ -1,28 +1,38 @@
-from . import data_utils
-from .fetch import fetch_data, DOWNLOADABLE_FILES
 import torch
 
-__all__ = ['einstein', 'curie', 'parrot', 'reptile_skin',
-           'color_wheel', 'fetch_data', 'DOWNLOADABLE_FILES']
+from . import data_utils
+from .fetch import DOWNLOADABLE_FILES, fetch_data
+
+__all__ = [
+    "einstein",
+    "curie",
+    "parrot",
+    "reptile_skin",
+    "color_wheel",
+    "fetch_data",
+    "DOWNLOADABLE_FILES",
+]
+
+
 def __dir__():
     return __all__
 
 
 def einstein() -> torch.Tensor:
-    return data_utils.get('einstein')
+    return data_utils.get("einstein")
 
 
 def curie() -> torch.Tensor:
-    return data_utils.get('curie')
+    return data_utils.get("curie")
 
 
 def parrot(as_gray: bool = False) -> torch.Tensor:
-    return data_utils.get('parrot', as_gray=as_gray)
+    return data_utils.get("parrot", as_gray=as_gray)
 
 
 def reptile_skin() -> torch.Tensor:
-    return data_utils.get('reptile_skin')
+    return data_utils.get("reptile_skin")
 
 
 def color_wheel(as_gray: bool = False) -> torch.Tensor:
-    return data_utils.get('color_wheel', as_gray=as_gray)
+    return data_utils.get("color_wheel", as_gray=as_gray)
