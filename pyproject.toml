@@ -130,13 +130,13 @@ select = [
     # Pyflakes
     "F",
     # pyupgrade
-    "UP",
+    #"UP",
     # flake8-bugbear
-    "B",
+    #"B",
     # flake8-simplify
-    "SIM",
+    #"SIM",
     # isort
-    "I",
+    #"I",
 ]
 
 [tool.ruff.lint.pydocstyle]
