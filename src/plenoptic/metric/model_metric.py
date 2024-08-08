@@ -2,7 +2,6 @@ import torch
 
 
 def model_metric(x, y, model):
-
     """
     Calculate distance between x and y in model space root mean squared error
 
