@@ -127,7 +127,8 @@ line-length = 79
 select = [
     # pycodestyle
     "E",
-    # Pyflakes
+    # Pyflakes: basic static analzsis for common errors like undefined names
+    # and missing imports.
     "F",
     # pyupgrade
     #"UP",
