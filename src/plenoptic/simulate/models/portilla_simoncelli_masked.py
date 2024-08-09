@@ -29,7 +29,7 @@ from ..canonical_computations.steerable_pyramid_freq import SCALES_TYPE as PYR_S
 SCALES_TYPE = Union[Literal["pixel_statistics"], PYR_SCALES_TYPE]
 
 
-class PortillaSimoncelli(nn.Module):
+class PortillaSimoncelliMasked(nn.Module):
     r"""Portila-Simoncelli texture statistics.
 
     The Portilla-Simoncelli (PS) texture statistics are a set of image
@@ -50,6 +50,8 @@ class PortillaSimoncelli(nn.Module):
     ----------
     image_shape:
         Shape of input image.
+    mask:
+        List of 3d tensors.
     n_scales:
         The number of pyramid scales used to measure the statistics (default=4)
     n_orientations:
@@ -79,6 +81,7 @@ class PortillaSimoncelli(nn.Module):
     def __init__(
         self,
         image_shape: Tuple[int, int],
+        mask: List[Tensor],
         n_scales: int = 4,
         n_orientations: int = 4,
         spatial_corr_width: int = 9,
@@ -91,6 +94,13 @@ class PortillaSimoncelli(nn.Module):
             raise ValueError("Because of how the Portilla-Simoncelli model handles "
                              "multiscale representations, it only works with images"
                              " whose shape can be divided by 2 `n_scales` times.")
+        if any([m.ndim != 3 for m in mask]):
+            raise ValueError("All masks must be 3d!")
+        if any([m.shape[-2:] != image_shape for m in mask]):
+            raise ValueError("Last two dimensions of mask must be height and width and must match image_shape!")
+        # normalize the mask so that when we multiply them through, we're taking the
+        # weighted average, instead of the sum.
+        self.mask = [m / einops.reduce(m, 'm h w -> m 1 1', 'sum') for m in mask]
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
