@@ -8,7 +8,7 @@ consider them as members of the same family of textures.
 """
 
 from collections import OrderedDict
-from typing import Union  # noqa: UP035
+from typing import Union
 
 import einops
 import matplotlib as mpl
@@ -18,7 +18,7 @@ import torch
 import torch.fft
 import torch.nn as nn
 from torch import Tensor
-from typing_extensions import Literal  # noqa: UP035
+from typing_extensions import Literal
 
 from ...tools import signal, stats
 from ...tools.data import to_numpy
@@ -239,9 +239,9 @@ class PortillaSimoncelli(nn.Module):
             dtype=int,
         )
         cross_orientation_corr_mag *= einops.rearrange(scales, "s -> 1 1 s")
-        shape_dict[
-            "cross_orientation_correlation_magnitude"
-        ] = cross_orientation_corr_mag
+        shape_dict["cross_orientation_correlation_magnitude"] = (
+            cross_orientation_corr_mag
+        )
 
         mags_std = np.ones((self.n_orientations, self.n_scales), dtype=int)
         mags_std *= einops.rearrange(scales, "s -> 1 s")

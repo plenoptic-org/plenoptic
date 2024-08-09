@@ -3,7 +3,7 @@
 import torch
 import warnings
 import itertools
-from typing import Callable  # noqa: UP035
+from typing import Callable
 from torch import Tensor
 
 

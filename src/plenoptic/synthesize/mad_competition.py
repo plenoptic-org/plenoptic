@@ -5,8 +5,8 @@ import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
 from ..tools import optim, display, data
-from typing import Callable  # noqa: UP035
-from typing_extensions import Literal  # noqa: UP035
+from typing import Callable
+from typing_extensions import Literal
 from .synthesis import OptimizedSynthesis
 import warnings
 import matplotlib as mpl

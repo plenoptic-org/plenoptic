@@ -1,6 +1,6 @@
-from typing import Callable  # noqa: UP035
+from typing import Callable
 import warnings
-from typing_extensions import Literal  # noqa: UP035
+from typing_extensions import Literal
 
 import matplotlib.pyplot
 from matplotlib.figure import Figure

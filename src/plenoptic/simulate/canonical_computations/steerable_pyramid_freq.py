@@ -6,7 +6,7 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
-from typing import Union  # noqa: UP035
+from typing import Union
 
 import numpy as np
 import torch
@@ -15,7 +15,7 @@ import torch.nn as nn
 from einops import rearrange
 from scipy.special import factorial
 from torch import Tensor
-from typing_extensions import Literal  # noqa: UP035
+from typing_extensions import Literal
 from numpy.typing import NDArray
 
 from ...tools.signal import interpolate1d, raised_cosine, steer

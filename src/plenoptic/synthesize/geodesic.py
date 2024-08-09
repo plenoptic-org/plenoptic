@@ -6,7 +6,7 @@ import torch
 import torch.autograd as autograd
 from torch import Tensor
 from tqdm.auto import tqdm
-from typing_extensions import Literal  # noqa: UP035
+from typing_extensions import Literal
 
 from .synthesis import OptimizedSynthesis
 from ..tools.data import to_numpy
