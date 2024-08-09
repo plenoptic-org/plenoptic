@@ -101,6 +101,9 @@ class PortillaSimoncelliMasked(nn.Module):
         # normalize the mask so that when we multiply them through, we're taking the
         # weighted average, instead of the sum.
         self.mask = [m / einops.reduce(m, 'm h w -> m 1 1', 'sum') for m in mask]
+        # these indices are used to create the einsum expressions
+        self._mask_input_idx = ', '.join([f'm{i} h w' for i in range(len(mask))])
+        self._mask_output_idx = f"{' '.join([f'm{i}' for i in range(len(mask))])}"
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
         self.n_orientations = n_orientations
@@ -602,12 +605,16 @@ class PortillaSimoncelliMasked(nn.Module):
                        for i in range(self.n_scales)]
         return pyr_coeffs, coeffs_list, highpass, lowpass
 
-    @staticmethod
-    def _compute_pixel_stats(image: Tensor) -> Tensor:
-        """Compute the pixel stats: first four moments, min, and max.
+    def _compute_pixel_stats(self, mask: List[Tensor], image: Tensor) -> Tensor:
+        """Compute the pixel stats: first four moments.
+
+        Note that for the masked version, these are the *non-central* moments, i.e.,
+        they're just the image raised to the first through fourth powers.
 
         Parameters
         ----------
+        mask :
+            The mask to use for weighting.
         image :
             4d tensor of shape (batch, channel, height, width) containing input
             image. Stats are computed indepently for each batch and channel.
@@ -615,26 +622,15 @@ class PortillaSimoncelliMasked(nn.Module):
         Returns
         -------
         pixel_stats :
-            3d tensor of shape (batch, channel, 6) containing the mean,
-            variance, skew, kurtosis, minimum pixel value, and maximum pixel
-            value (in that order)
+            4d tensor of shape (batch, channel, masks, 4) containing the first four
+            non-central moments
 
         """
-        mean = torch.mean(image, dim=(-2, -1), keepdim=True)
-        # we use torch.var instead of plenoptic.tools.variance, because our
-        # variance is the uncorrected (or sample) variance and we want the
-        # corrected one here.
-        var = stats.variance(image, dim=(-2, -1))
-        skew = stats.skew(image, mean=mean, var=var, dim=[-2, -1])
-        kurtosis = stats.kurtosis(image, mean=mean, var=var, dim=[-2, -1])
-        # can't compute min/max over two dims simultaneously with
-        # torch.min/max, so use einops
-        img_min = einops.reduce(image, 'b c h w -> b c', 'min')
-        img_max = einops.reduce(image, 'b c h w -> b c', 'max')
-        # mean needed to be unflattened to be used by skew and kurtosis
-        # correctly, but we'll want it to be flattened like this in the final
-        # representation tensor
-        return einops.pack([mean, var, skew, kurtosis, img_min, img_max], 'b c *')[0]
+        mean = einops.einsum(*mask, image, f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        var = einops.einsum(*mask, image.pow(2), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        skew = einops.einsum(*mask, image.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        kurtosis = einops.einsum(*mask, image.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        return einops.rearrange([mean, var, skew, kurtosis], f'stats b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) stats')
 
     @staticmethod
     def _compute_intermediate_representations(pyr_coeffs: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
