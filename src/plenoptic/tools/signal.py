@@ -1,14 +1,11 @@
-from typing import List, Optional, Tuple, Union
-
 import numpy as np
 import torch
 from torch import Tensor
-import torch.fft as fft
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
 def minimum(
-    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
+    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
 ) -> Tensor:
     r"""Compute minimum in torch over any axis or combination of axes in tensor.
 
@@ -36,7 +33,7 @@ def minimum(
 
 
 def maximum(
-    x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
+    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
 ) -> Tensor:
     r"""Compute maximum in torch over any dim or combination of axes in tensor.
 
@@ -73,8 +70,8 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
 
 
 def raised_cosine(
-    width: float = 1, position: float = 0, values: Tuple[float, float] = (0, 1)
-) -> Tuple[np.ndarray, np.ndarray]:
+    width: float = 1, position: float = 0, values: tuple[float, float] = (0, 1)
+) -> tuple[np.ndarray, np.ndarray]:
     """Return a lookup table containing a "raised cosine" soft threshold function.
 
     Y =  VALUES(1)
@@ -116,7 +113,7 @@ def raised_cosine(
 
 
 def interpolate1d(
-    x_new: Tensor, Y: Union[Tensor, np.ndarray], X: Union[Tensor, np.ndarray]
+    x_new: Tensor, Y: Tensor | np.ndarray, X: Tensor | np.ndarray
 ) -> Tensor:
     r"""One-dimensional linear interpolation.
 
@@ -145,7 +142,7 @@ def interpolate1d(
     return np.reshape(out, x_new.shape)
 
 
-def rectangular_to_polar(x: Tensor) -> Tuple[Tensor, Tensor]:
+def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
     r"""Rectangular to polar coordinate transform
 
     Parameters
@@ -190,9 +187,9 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
 def steer(
     basis: Tensor,
-    angle: Union[np.ndarray, Tensor, float],
-    harmonics: Optional[List[int]] = None,
-    steermtx: Optional[Union[Tensor, np.ndarray]] = None,
+    angle: np.ndarray | Tensor | float,
+    harmonics: list[int] | None = None,
+    steermtx: Tensor | np.ndarray | None = None,
     return_weights: bool = False,
     even_phase: bool = True,
 ):
@@ -286,9 +283,9 @@ def steer(
 
 
 def make_disk(
-    img_size: Union[int, Tuple[int, int], torch.Size],
-    outer_radius: Optional[float] = None,
-    inner_radius: Optional[float] = None,
+    img_size: int | tuple[int, int] | torch.Size,
+    outer_radius: float | None = None,
+    inner_radius: float | None = None,
 ) -> Tensor:
     r"""Create a circular mask with softened edges to  an image.
 
@@ -342,7 +339,7 @@ def make_disk(
     return mask
 
 
-def add_noise(img: Tensor, noise_mse: Union[float, List[float]]) -> Tensor:
+def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     """Add normally distributed noise to an image
 
     This adds normally-distributed noise to an image so that the resulting

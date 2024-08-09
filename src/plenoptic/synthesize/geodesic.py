@@ -6,8 +6,7 @@ import torch
 import torch.autograd as autograd
 from torch import Tensor
 from tqdm.auto import tqdm
-from typing import Union, Tuple, Optional
-from typing_extensions import Literal
+from typing_extensions import Literal  # noqa: UP035
 
 from .synthesis import OptimizedSynthesis
 from ..tools.data import to_numpy
@@ -108,7 +107,7 @@ class Geodesic(OptimizedSynthesis):
         n_steps: int = 10,
         initial_sequence: Literal["straight", "bridge"] = "straight",
         range_penalty_lambda: float = 0.1,
-        allowed_range: Tuple[float, float] = (0, 1),
+        allowed_range: tuple[float, float] = (0, 1),
     ):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image_a, no_batch=True, allowed_range=allowed_range)
@@ -155,9 +154,9 @@ class Geodesic(OptimizedSynthesis):
     def synthesize(
         self,
         max_iter: int = 1000,
-        optimizer: Optional[torch.optim.Optimizer] = None,
-        store_progress: Union[bool, int] = False,
-        stop_criterion: Optional[float] = None,
+        optimizer: torch.optim.Optimizer | None = None,
+        store_progress: bool | int = False,
+        stop_criterion: float | None = None,
         stop_iters_to_check: int = 50,
     ):
         """Synthesize a geodesic via optimization.
@@ -223,7 +222,7 @@ class Geodesic(OptimizedSynthesis):
 
         pbar.close()
 
-    def objective_function(self, geodesic: Optional[Tensor] = None) -> Tensor:
+    def objective_function(self, geodesic: Tensor | None = None) -> Tensor:
         """Compute geodesic synthesis loss.
 
         This is the path energy (i.e., squared L2 norm of each step) of the
@@ -340,7 +339,7 @@ class Geodesic(OptimizedSynthesis):
             self, stop_criterion, stop_iters_to_check
         )
 
-    def calculate_jerkiness(self, geodesic: Optional[Tensor] = None) -> Tensor:
+    def calculate_jerkiness(self, geodesic: Tensor | None = None) -> Tensor:
         """Compute the alignment of representation's acceleration to model local curvature.
 
         This is the first order optimality condition for a geodesic, and can be
@@ -500,7 +499,7 @@ class Geodesic(OptimizedSynthesis):
     def load(
         self,
         file_path: str,
-        map_location: Union[str, None] = None,
+        map_location: str | None = None,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -624,7 +623,7 @@ class Geodesic(OptimizedSynthesis):
 
 
 def plot_loss(
-    geodesic: Geodesic, ax: Union[mpl.axes.Axes, None] = None, **kwargs
+    geodesic: Geodesic, ax: mpl.axes.Axes | None = None, **kwargs
 ) -> mpl.axes.Axes:
     """Plot synthesis loss.
 
@@ -653,8 +652,8 @@ def plot_loss(
 
 def plot_deviation_from_line(
     geodesic: Geodesic,
-    natural_video: Union[Tensor, None] = None,
-    ax: Union[mpl.axes.Axes, None] = None,
+    natural_video: Tensor | None = None,
+    ax: mpl.axes.Axes | None = None,
 ) -> mpl.axes.Axes:
     """Visual diagnostic of geodesic linearity in representation space.
 

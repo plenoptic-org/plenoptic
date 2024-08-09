@@ -6,7 +6,7 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
-from typing import List, Optional, Tuple, Union
+from typing import Union  # noqa: UP035
 
 import numpy as np
 import torch
@@ -15,7 +15,7 @@ import torch.nn as nn
 from einops import rearrange
 from scipy.special import factorial
 from torch import Tensor
-from typing_extensions import Literal
+from typing_extensions import Literal  # noqa: UP035
 from numpy.typing import NDArray
 
 from ...tools.signal import interpolate1d, raised_cosine, steer
@@ -23,7 +23,7 @@ from ...tools.signal import interpolate1d, raised_cosine, steer
 complex_types = [torch.cdouble, torch.cfloat]
 SCALES_TYPE = Union[int, Literal["residual_lowpass", "residual_highpass"]]
 KEYS_TYPE = Union[
-    Tuple[int, int], Literal["residual_lowpass", "residual_highpass"]
+    tuple[int, int], Literal["residual_lowpass", "residual_highpass"]
 ]
 
 
@@ -98,8 +98,8 @@ class SteerablePyramidFreq(nn.Module):
 
     def __init__(
         self,
-        image_shape: Tuple[int, int],
-        height: Union[Literal["auto"], int] = "auto",
+        image_shape: tuple[int, int],
+        height: Literal["auto"] | int = "auto",
         order: int = 3,
         twidth: int = 1,
         is_complex: bool = False,
@@ -299,7 +299,7 @@ class SteerablePyramidFreq(nn.Module):
     def forward(
         self,
         x: Tensor,
-        scales: Optional[List[SCALES_TYPE]] = None,
+        scales: list[SCALES_TYPE] | None = None,
     ) -> OrderedDict:
         r"""Generate the steerable pyramid coefficients for an image
 
@@ -432,7 +432,7 @@ class SteerablePyramidFreq(nn.Module):
     @staticmethod
     def convert_pyr_to_tensor(
         pyr_coeffs: OrderedDict, split_complex: bool = False
-    ) -> Tuple[Tensor, Tuple[int, bool, List[KEYS_TYPE]]]:
+    ) -> tuple[Tensor, tuple[int, bool, list[KEYS_TYPE]]]:
         r"""Convert coefficient dictionary to a tensor.
 
         The output tensor has shape (batch, channel, height, width) and is
@@ -508,10 +508,10 @@ class SteerablePyramidFreq(nn.Module):
         try:
             pyr_tensor = torch.cat(coeff_list, dim=1)
             pyr_info = tuple([num_channels, split_complex, pyr_keys])
-        except RuntimeError as e:
+        except RuntimeError:
             raise Exception(
-                """feature maps could not be concatenated into tensor. 
-            Check that you are using coefficients that are not downsampled across scales. 
+                """feature maps could not be concatenated into tensor.
+            Check that you are using coefficients that are not downsampled across scales.
             This is done with the 'downsample=False' argument for the pyramid"""
             )
 
@@ -522,7 +522,7 @@ class SteerablePyramidFreq(nn.Module):
         pyr_tensor: Tensor,
         num_channels: int,
         split_complex: bool,
-        pyr_keys: List[KEYS_TYPE],
+        pyr_keys: list[KEYS_TYPE],
     ) -> OrderedDict:
         r"""Convert pyramid coefficient tensor to dictionary format.
 
@@ -591,8 +591,8 @@ class SteerablePyramidFreq(nn.Module):
         return pyr_coeffs
 
     def _recon_levels_check(
-        self, levels: Union[Literal["all"], List[SCALES_TYPE]]
-    ) -> List[SCALES_TYPE]:
+        self, levels: Literal["all"] | list[SCALES_TYPE]
+    ) -> list[SCALES_TYPE]:
         r"""Check whether levels arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`),
@@ -661,8 +661,8 @@ class SteerablePyramidFreq(nn.Module):
         return levels
 
     def _recon_bands_check(
-        self, bands: Union[Literal["all"], List[int]]
-    ) -> List[int]:
+        self, bands: Literal["all"] | list[int]
+    ) -> list[int]:
         """Check whether bands arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
@@ -706,10 +706,10 @@ class SteerablePyramidFreq(nn.Module):
 
     def _recon_keys(
         self,
-        levels: Union[Literal["all"], List[SCALES_TYPE]],
-        bands: Union[Literal["all"], List[int]],
-        max_orientations: Optional[int] = None,
-    ) -> List[KEYS_TYPE]:
+        levels: Literal["all"] | list[SCALES_TYPE],
+        bands: Literal["all"] | list[int],
+        max_orientations: int | None = None,
+    ) -> list[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`),
@@ -747,11 +747,9 @@ class SteerablePyramidFreq(nn.Module):
             for i in bands:
                 if i >= max_orientations:
                     warnings.warn(
-                        (
-                            "You wanted band %d in the reconstruction but max_orientation"
-                            " is %d, so we're ignoring that band"
-                            % (i, max_orientations)
-                        )
+                        "You wanted band %d in the reconstruction but max_orientation"
+                        " is %d, so we're ignoring that band"
+                        % (i, max_orientations)
                     )
             bands = [i for i in bands if i < max_orientations]
         recon_keys = []
@@ -768,8 +766,8 @@ class SteerablePyramidFreq(nn.Module):
     def recon_pyr(
         self,
         pyr_coeffs: OrderedDict,
-        levels: Union[Literal["all"], List[SCALES_TYPE]] = "all",
-        bands: Union[Literal["all"], List[int]] = "all",
+        levels: Literal["all"] | list[SCALES_TYPE] = "all",
+        bands: Literal["all"] | list[int] = "all",
     ) -> Tensor:
         """Reconstruct the image or batch of images, optionally using subset of pyramid coefficients.
 
@@ -859,7 +857,7 @@ class SteerablePyramidFreq(nn.Module):
         return reconstruction
 
     def _recon_levels(
-        self, pyr_coeffs: OrderedDict, recon_keys: List[KEYS_TYPE], scale: int
+        self, pyr_coeffs: OrderedDict, recon_keys: list[KEYS_TYPE], scale: int
     ) -> Tensor:
         """Recursive function used to build the reconstruction. Called by recon_pyr
 
@@ -950,9 +948,9 @@ class SteerablePyramidFreq(nn.Module):
     def steer_coeffs(
         self,
         pyr_coeffs: OrderedDict,
-        angles: List[float],
+        angles: list[float],
         even_phase: bool = True,
-    ) -> Tuple[dict, dict]:
+    ) -> tuple[dict, dict]:
         """Steer pyramid coefficients to the specified angles
 
         This allows you to have filters that have the Gaussian derivative order specified in

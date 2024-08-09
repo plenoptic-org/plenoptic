@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from typing import Tuple
 from .validate import validate_input
 
 
@@ -102,7 +101,7 @@ def sample_brownian_bridge(
 
 def deviation_from_line(
     sequence: Tensor, normalize: bool = True
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     """Compute the deviation of `sequence` to the straight line between its endpoints.
 
     Project each point of the path `sequence` onto the line defined by

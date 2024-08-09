@@ -1,15 +1,10 @@
-from typing import Union, Tuple
-
 import torch
 from torch import Tensor
-from warnings import warn
 
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
-def gaussian1d(
-    kernel_size: int = 11, std: Union[float, Tensor] = 1.5
-) -> Tensor:
+def gaussian1d(kernel_size: int = 11, std: float | Tensor = 1.5) -> Tensor:
     """Normalized 1D Gaussian.
 
     1d Gaussian of size `kernel_size`, centered half-way, with variable std
@@ -43,8 +38,8 @@ def gaussian1d(
 
 
 def circular_gaussian2d(
-    kernel_size: Union[int, Tuple[int, int]],
-    std: Union[float, Tensor],
+    kernel_size: int | tuple[int, int],
+    std: float | Tensor,
     out_channels: int = 1,
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.

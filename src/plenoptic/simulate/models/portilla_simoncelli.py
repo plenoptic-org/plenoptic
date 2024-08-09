@@ -8,7 +8,7 @@ consider them as members of the same family of textures.
 """
 
 from collections import OrderedDict
-from typing import List, Optional, Tuple, Union
+from typing import Union  # noqa: UP035
 
 import einops
 import matplotlib as mpl
@@ -18,7 +18,7 @@ import torch
 import torch.fft
 import torch.nn as nn
 from torch import Tensor
-from typing_extensions import Literal
+from typing_extensions import Literal  # noqa: UP035
 
 from ...tools import signal, stats
 from ...tools.data import to_numpy
@@ -83,7 +83,7 @@ class PortillaSimoncelli(nn.Module):
 
     def __init__(
         self,
-        image_shape: Tuple[int, int],
+        image_shape: tuple[int, int],
         n_scales: int = 4,
         n_orientations: int = 4,
         spatial_corr_width: int = 9,
@@ -239,9 +239,9 @@ class PortillaSimoncelli(nn.Module):
             dtype=int,
         )
         cross_orientation_corr_mag *= einops.rearrange(scales, "s -> 1 1 s")
-        shape_dict["cross_orientation_correlation_magnitude"] = (
-            cross_orientation_corr_mag
-        )
+        shape_dict[
+            "cross_orientation_correlation_magnitude"
+        ] = cross_orientation_corr_mag
 
         mags_std = np.ones((self.n_orientations, self.n_scales), dtype=int)
         mags_std *= einops.rearrange(scales, "s -> 1 s")
@@ -343,7 +343,7 @@ class PortillaSimoncelli(nn.Module):
         return mask_dict
 
     def forward(
-        self, image: Tensor, scales: Optional[List[SCALES_TYPE]] = None
+        self, image: Tensor, scales: list[SCALES_TYPE] | None = None
     ) -> Tensor:
         r"""Generate Texture Statistics representation of an image.
 
@@ -391,9 +391,10 @@ class PortillaSimoncelli(nn.Module):
         # real_pyr_coeffs, which contain the demeaned magnitude of the pyramid
         # coefficients and the real part of the pyramid coefficients
         # respectively.
-        mag_pyr_coeffs, real_pyr_coeffs = (
-            self._compute_intermediate_representations(pyr_coeffs)
-        )
+        (
+            mag_pyr_coeffs,
+            real_pyr_coeffs,
+        ) = self._compute_intermediate_representations(pyr_coeffs)
 
         # Then, the reconstructed lowpass image at each scale. (this is a list
         # of length n_scales+1 containing tensors of shape (batch, channel,
@@ -450,9 +451,10 @@ class PortillaSimoncelli(nn.Module):
         if self.n_scales != 1:
             # First, double the phase the coefficients, so we can correctly
             # compute correlations across scales.
-            phase_doubled_mags, phase_doubled_sep = (
-                self._double_phase_pyr_coeffs(pyr_coeffs)
-            )
+            (
+                phase_doubled_mags,
+                phase_doubled_sep,
+            ) = self._double_phase_pyr_coeffs(pyr_coeffs)
             # Compute the cross-scale correlations between the magnitude
             # coefficients. For each coefficient, we're correlating it with the
             # coefficients at the next-coarsest scale. this will be a tensor of
@@ -514,7 +516,7 @@ class PortillaSimoncelli(nn.Module):
         return representation_tensor
 
     def remove_scales(
-        self, representation_tensor: Tensor, scales_to_keep: List[SCALES_TYPE]
+        self, representation_tensor: Tensor, scales_to_keep: list[SCALES_TYPE]
     ) -> Tensor:
         """Remove statistics not associated with scales.
 
@@ -631,7 +633,7 @@ class PortillaSimoncelli(nn.Module):
 
     def _compute_pyr_coeffs(
         self, image: Tensor
-    ) -> Tuple[OrderedDict, List[Tensor], Tensor, Tensor]:
+    ) -> tuple[OrderedDict, list[Tensor], Tensor, Tensor]:
         """Compute pyramid coefficients of image.
 
         Note that the residual lowpass has been demeaned independently for each
@@ -719,7 +721,7 @@ class PortillaSimoncelli(nn.Module):
     @staticmethod
     def _compute_intermediate_representations(
         pyr_coeffs: Tensor,
-    ) -> Tuple[List[Tensor], List[Tensor]]:
+    ) -> tuple[list[Tensor], list[Tensor]]:
         """Compute useful intermediate representations.
 
         These representations are:
@@ -761,7 +763,7 @@ class PortillaSimoncelli(nn.Module):
 
     def _reconstruct_lowpass_at_each_scale(
         self, pyr_coeffs_dict: OrderedDict
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         """Reconstruct the lowpass unoriented image at each scale.
 
         The autocorrelation, standard deviation, skew, and kurtosis of each of
@@ -803,8 +805,8 @@ class PortillaSimoncelli(nn.Module):
         return reconstructed_images
 
     def _compute_autocorr(
-        self, coeffs_list: List[Tensor]
-    ) -> Tuple[Tensor, Tensor]:
+        self, coeffs_list: list[Tensor]
+    ) -> tuple[Tensor, Tensor]:
         """Compute the autocorrelation of some statistics.
 
         Parameters
@@ -850,8 +852,8 @@ class PortillaSimoncelli(nn.Module):
 
     @staticmethod
     def _compute_skew_kurtosis_recon(
-        reconstructed_images: List[Tensor], var_recon: Tensor, img_var: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+        reconstructed_images: list[Tensor], var_recon: Tensor, img_var: Tensor
+    ) -> tuple[Tensor, Tensor]:
         """Compute the skew and kurtosis of each lowpass reconstructed image.
 
         For each scale, if the ratio of its variance to the original image's
@@ -906,10 +908,10 @@ class PortillaSimoncelli(nn.Module):
 
     def _compute_cross_correlation(
         self,
-        coeffs_tensor: List[Tensor],
-        coeffs_tensor_other: List[Tensor],
+        coeffs_tensor: list[Tensor],
+        coeffs_tensor_other: list[Tensor],
         tensors_are_identical: bool = False,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         """Compute cross-correlations.
 
         Parameters
@@ -975,8 +977,8 @@ class PortillaSimoncelli(nn.Module):
 
     @staticmethod
     def _double_phase_pyr_coeffs(
-        pyr_coeffs: List[Tensor],
-    ) -> Tuple[List[Tensor], List[Tensor]]:
+        pyr_coeffs: list[Tensor],
+    ) -> tuple[list[Tensor], list[Tensor]]:
         """Upsample and double the phase of pyramid coefficients.
 
         Parameters
@@ -1026,12 +1028,12 @@ class PortillaSimoncelli(nn.Module):
     def plot_representation(
         self,
         data: Tensor,
-        ax: Optional[plt.Axes] = None,
-        figsize: Tuple[float, float] = (15, 15),
-        ylim: Optional[Union[Tuple[float, float], Literal[False]]] = None,
+        ax: plt.Axes | None = None,
+        figsize: tuple[float, float] = (15, 15),
+        ylim: tuple[float, float] | Literal[False] | None = None,
         batch_idx: int = 0,
-        title: Optional[str] = None,
-    ) -> Tuple[plt.Figure, List[plt.Axes]]:
+        title: str | None = None,
+    ) -> tuple[plt.Figure, list[plt.Axes]]:
         r"""Plot the representation in a human viewable format -- stem
         plots with data separated out by statistic type.
 
@@ -1194,10 +1196,10 @@ class PortillaSimoncelli(nn.Module):
 
     def update_plot(
         self,
-        axes: List[plt.Axes],
+        axes: list[plt.Axes],
         data: Tensor,
         batch_idx: int = 0,
-    ) -> List[plt.Artist]:
+    ) -> list[plt.Artist]:
         r"""Update the information in our representation plot.
 
         This is used for creating an animation of the representation

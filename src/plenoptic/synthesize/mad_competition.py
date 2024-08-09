@@ -5,8 +5,8 @@ import numpy as np
 from torch import Tensor
 from tqdm.auto import tqdm
 from ..tools import optim, display, data
-from typing import Union, Tuple, Callable, List, Dict, Optional
-from typing_extensions import Literal
+from typing import Callable  # noqa: UP035
+from typing_extensions import Literal  # noqa: UP035
 from .synthesis import OptimizedSynthesis
 import warnings
 import matplotlib as mpl
@@ -102,17 +102,13 @@ class MADCompetition(OptimizedSynthesis):
     def __init__(
         self,
         image: Tensor,
-        optimized_metric: Union[
-            torch.nn.Module, Callable[[Tensor, Tensor], Tensor]
-        ],
-        reference_metric: Union[
-            torch.nn.Module, Callable[[Tensor, Tensor], Tensor]
-        ],
+        optimized_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
+        reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
         initial_noise: float = 0.1,
-        metric_tradeoff_lambda: Optional[float] = None,
+        metric_tradeoff_lambda: float | None = None,
         range_penalty_lambda: float = 0.1,
-        allowed_range: Tuple[float, float] = (0, 1),
+        allowed_range: tuple[float, float] = (0, 1),
     ):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
@@ -190,9 +186,9 @@ class MADCompetition(OptimizedSynthesis):
     def synthesize(
         self,
         max_iter: int = 100,
-        optimizer: Optional[torch.optim.Optimizer] = None,
-        scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-        store_progress: Union[bool, int] = False,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
     ):
@@ -259,8 +255,8 @@ class MADCompetition(OptimizedSynthesis):
 
     def objective_function(
         self,
-        mad_image: Optional[Tensor] = None,
-        image: Optional[Tensor] = None,
+        mad_image: Tensor | None = None,
+        image: Tensor | None = None,
     ) -> Tensor:
         r"""Compute the MADCompetition synthesis loss.
 
@@ -499,7 +495,7 @@ class MADCompetition(OptimizedSynthesis):
     def load(
         self,
         file_path: str,
-        map_location: Optional[None] = None,
+        map_location: None | None = None,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -609,8 +605,8 @@ class MADCompetition(OptimizedSynthesis):
 
 def plot_loss(
     mad: MADCompetition,
-    iteration: Optional[int] = None,
-    axes: Union[List[mpl.axes.Axes], mpl.axes.Axes, None] = None,
+    iteration: int | None = None,
+    axes: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
     **kwargs,
 ) -> mpl.axes.Axes:
     """Plot metric losses.
@@ -676,10 +672,10 @@ def plot_loss(
 def display_mad_image(
     mad: MADCompetition,
     batch_idx: int = 0,
-    channel_idx: Optional[int] = None,
-    zoom: Optional[float] = None,
-    iteration: Optional[int] = None,
-    ax: Optional[mpl.axes.Axes] = None,
+    channel_idx: int | None = None,
+    zoom: float | None = None,
+    iteration: int | None = None,
+    ax: mpl.axes.Axes | None = None,
     title: str = "MADCompetition",
     **kwargs,
 ) -> mpl.axes.Axes:
@@ -755,10 +751,10 @@ def display_mad_image(
 def plot_pixel_values(
     mad: MADCompetition,
     batch_idx: int = 0,
-    channel_idx: Optional[int] = None,
-    iteration: Optional[int] = None,
-    ylim: Union[Tuple[float], Literal[False]] = False,
-    ax: Optional[mpl.axes.Axes] = None,
+    channel_idx: int | None = None,
+    iteration: int | None = None,
+    ylim: tuple[float] | Literal[False] = False,
+    ax: mpl.axes.Axes | None = None,
     **kwargs,
 ) -> mpl.axes.Axes:
     r"""Plot histogram of pixel values of reference and MAD images.
@@ -840,7 +836,7 @@ def plot_pixel_values(
 
 
 def _check_included_plots(
-    to_check: Union[List[str], Dict[str, int]], to_check_name: str
+    to_check: list[str] | dict[str, int], to_check_name: str
 ):
     """Check whether the user wanted us to create plots that we can't.
 
@@ -877,10 +873,10 @@ def _check_included_plots(
 
 
 def _setup_synthesis_fig(
-    fig: Optional[mpl.figure.Figure] = None,
-    axes_idx: Dict[str, int] = {},
-    figsize: Optional[Tuple[float]] = None,
-    included_plots: List[str] = [
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float] | None = None,
+    included_plots: list[str] = [
         "display_mad_image",
         "plot_loss",
         "plot_pixel_values",
@@ -888,7 +884,7 @@ def _setup_synthesis_fig(
     display_mad_image_width: float = 1,
     plot_loss_width: float = 2,
     plot_pixel_values_width: float = 1,
-) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
+) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
     Creates figure with enough axes for the all the plots you want. Will
@@ -994,20 +990,20 @@ def _setup_synthesis_fig(
 def plot_synthesis_status(
     mad: MADCompetition,
     batch_idx: int = 0,
-    channel_idx: Optional[int] = None,
-    iteration: Optional[int] = None,
-    vrange: Union[Tuple[float], str] = "indep1",
-    zoom: Optional[float] = None,
-    fig: Optional[mpl.figure.Figure] = None,
-    axes_idx: Dict[str, int] = {},
-    figsize: Optional[Tuple[float]] = None,
-    included_plots: List[str] = [
+    channel_idx: int | None = None,
+    iteration: int | None = None,
+    vrange: tuple[float] | str = "indep1",
+    zoom: float | None = None,
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float] | None = None,
+    included_plots: list[str] = [
         "display_mad_image",
         "plot_loss",
         "plot_pixel_values",
     ],
-    width_ratios: Dict[str, float] = {},
-) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
+    width_ratios: dict[str, float] = {},
+) -> tuple[mpl.figure.Figure, dict[str, int]]:
     r"""Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create two
@@ -1132,17 +1128,17 @@ def animate(
     mad: MADCompetition,
     framerate: int = 10,
     batch_idx: int = 0,
-    channel_idx: Optional[int] = None,
-    zoom: Optional[float] = None,
-    fig: Optional[mpl.figure.Figure] = None,
-    axes_idx: Dict[str, int] = {},
-    figsize: Optional[Tuple[float]] = None,
-    included_plots: List[str] = [
+    channel_idx: int | None = None,
+    zoom: float | None = None,
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float] | None = None,
+    included_plots: list[str] = [
         "display_mad_image",
         "plot_loss",
         "plot_pixel_values",
     ],
-    width_ratios: Dict[str, float] = {},
+    width_ratios: dict[str, float] = {},
 ) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
 
@@ -1301,9 +1297,9 @@ def display_mad_image_all(
     mad_metric2_min: MADCompetition,
     mad_metric1_max: MADCompetition,
     mad_metric2_max: MADCompetition,
-    metric1_name: Optional[str] = None,
-    metric2_name: Optional[str] = None,
-    zoom: Union[int, float] = 1,
+    metric1_name: str | None = None,
+    metric2_name: str | None = None,
+    zoom: int | float = 1,
     **kwargs,
 ) -> mpl.figure.Figure:
     """Display all MAD Competition images.
@@ -1409,12 +1405,12 @@ def plot_loss_all(
     mad_metric2_min: MADCompetition,
     mad_metric1_max: MADCompetition,
     mad_metric2_max: MADCompetition,
-    metric1_name: Optional[str] = None,
-    metric2_name: Optional[str] = None,
-    metric1_kwargs: Dict = {"c": "C0"},
-    metric2_kwargs: Dict = {"c": "C1"},
-    min_kwargs: Dict = {"linestyle": "--"},
-    max_kwargs: Dict = {"linestyle": "-"},
+    metric1_name: str | None = None,
+    metric2_name: str | None = None,
+    metric1_kwargs: dict = {"c": "C0"},
+    metric2_kwargs: dict = {"c": "C1"},
+    min_kwargs: dict = {"linestyle": "--"},
+    max_kwargs: dict = {"linestyle": "-"},
     figsize=(10, 5),
 ) -> mpl.figure.Figure:
     """Plot loss for full set of MAD Competiton instances.

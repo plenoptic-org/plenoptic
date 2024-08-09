@@ -3,7 +3,6 @@
 import abc
 import warnings
 import torch
-from typing import Optional, List, Tuple, Union
 
 
 class Synthesis(abc.ABC):
@@ -21,7 +20,7 @@ class Synthesis(abc.ABC):
         r"""Synthesize something."""
         pass
 
-    def save(self, file_path: str, attrs: Optional[List[str]] = None):
+    def save(self, file_path: str, attrs: list[str] | None = None):
         r"""Save all relevant (non-model) variables in .pt file.
 
         If you leave attrs as None, we grab vars(self) and exclude 'model'.
@@ -62,9 +61,9 @@ class Synthesis(abc.ABC):
     def load(
         self,
         file_path: str,
-        map_location: Optional[str] = None,
-        check_attributes: List[str] = [],
-        check_loss_functions: List[str] = [],
+        map_location: str | None = None,
+        check_attributes: list[str] = [],
+        check_loss_functions: list[str] = [],
         **pickle_load_args,
     ):
         r"""Load all relevant attributes from a .pt file.
@@ -195,7 +194,7 @@ class Synthesis(abc.ABC):
             setattr(self, k, v)
 
     @abc.abstractmethod
-    def to(self, *args, attrs: List[str] = [], **kwargs):
+    def to(self, *args, attrs: list[str] = [], **kwargs):
         r"""Moves and/or casts the parameters and buffers.
         Similar to ``save``, this is an abstract method only because you
         need to define the attributes to call to on.
@@ -270,7 +269,7 @@ class OptimizedSynthesis(Synthesis):
     def __init__(
         self,
         range_penalty_lambda: float = 0.1,
-        allowed_range: Tuple[float, float] = (0, 1),
+        allowed_range: tuple[float, float] = (0, 1),
     ):
         """Initialize the properties of OptimizedSynthesis."""
         self._losses = []
@@ -327,7 +326,7 @@ class OptimizedSynthesis(Synthesis):
 
     def _initialize_optimizer(
         self,
-        optimizer: Optional[torch.optim.Optimizer],
+        optimizer: torch.optim.Optimizer | None,
         synth_name: str,
         learning_rate: float = 0.01,
     ):
@@ -394,7 +393,7 @@ class OptimizedSynthesis(Synthesis):
         return self._store_progress
 
     @store_progress.setter
-    def store_progress(self, store_progress: Union[bool, int]):
+    def store_progress(self, store_progress: bool | int):
         """Initialize store_progress.
 
         Sets the ``self.store_progress`` attribute, as well as changing the

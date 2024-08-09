@@ -1,8 +1,5 @@
-from typing import Union, Tuple, List
 import torch
-from torch import nn, nn as nn, Tensor
-from torch import Tensor
-import numpy as np
+from torch import nn as nn, Tensor
 from torch.nn import functional as F
 
 from ...tools.conv import same_padding
@@ -58,7 +55,7 @@ class Linear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]] = (3, 3),
+        kernel_size: int | tuple[int, int] = (3, 3),
         pad_mode: str = "circular",
         default_filters: bool = True,
     ):
@@ -110,8 +107,8 @@ class Gaussian(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
-        std: Union[float, Tensor] = 3.0,
+        kernel_size: int | tuple[int, int],
+        std: float | Tensor = 3.0,
         pad_mode: str = "reflect",
         out_channels: int = 1,
         cache_filt: bool = False,
@@ -198,12 +195,12 @@ class CenterSurround(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
-        on_center: Union[bool, List[bool,]] = True,
+        kernel_size: int | tuple[int, int],
+        on_center: bool | list[bool,] = True,
         width_ratio_limit: float = 2.0,
         amplitude_ratio: float = 1.25,
-        center_std: Union[float, Tensor] = 1.0,
-        surround_std: Union[float, Tensor] = 4.0,
+        center_std: float | Tensor = 1.0,
+        surround_std: float | Tensor = 4.0,
         out_channels: int = 1,
         pad_mode: str = "reflect",
         cache_filt: bool = False,

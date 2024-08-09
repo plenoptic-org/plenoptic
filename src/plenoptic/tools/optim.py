@@ -2,11 +2,10 @@
 
 import torch
 from torch import Tensor
-from typing import Optional, Tuple
 import numpy as np
 
 
-def set_seed(seed: Optional[int] = None) -> None:
+def set_seed(seed: int | None = None) -> None:
     """Set the seed.
 
     We call both ``torch.manual_seed()`` and ``np.random.seed()``.
@@ -107,7 +106,7 @@ def relative_MSE(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
 
 def penalize_range(
     synth_img: Tensor,
-    allowed_range: Tuple[float, float] = (0.0, 1.0),
+    allowed_range: tuple[float, float] = (0.0, 1.0),
     **kwargs,
 ) -> Tensor:
     r"""penalize values outside of allowed_range

@@ -1,6 +1,6 @@
-from typing import Tuple, List, Callable, Union, Optional
+from typing import Callable  # noqa: UP035
 import warnings
-from typing_extensions import Literal
+from typing_extensions import Literal  # noqa: UP035
 
 import matplotlib.pyplot
 from matplotlib.figure import Figure
@@ -54,7 +54,7 @@ def fisher_info_matrix_vector_product(
 
 
 def fisher_info_matrix_eigenvalue(
-    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Optional[Tensor] = None
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
 ) -> Tensor:
     r"""Compute the eigenvalues of the Fisher Information Matrix corresponding to eigenvectors in v
     :math:`\lambda= v^T F v`
@@ -216,7 +216,7 @@ class Eigendistortion(Synthesis):
             )
 
         if method == "exact":  # compute exact Jacobian
-            print(f"Computing all eigendistortions")
+            print("Computing all eigendistortions")
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = torch.arange(len(eig_vecs))
@@ -261,7 +261,7 @@ class Eigendistortion(Synthesis):
         self._eigenvalues = torch.abs(eig_vals.detach())
         self._eigenindex = eig_vecs_ind
 
-    def _synthesize_exact(self) -> Tuple[Tensor, Tensor]:
+    def _synthesize_exact(self) -> tuple[Tensor, Tensor]:
         r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
 
         To be used when the input is small (e.g. less than 70x70 image on cluster or 30x30 on your own machine). This
@@ -301,8 +301,8 @@ class Eigendistortion(Synthesis):
         return J
 
     def _synthesize_power(
-        self, k: int, shift: Union[Tensor, float], tol: float, max_iter: int
-    ) -> Tuple[Tensor, Tensor]:
+        self, k: int, shift: Tensor | float, tol: float, max_iter: int
+    ) -> tuple[Tensor, Tensor]:
         r"""Use power method (or orthogonal iteration when k>1) to obtain largest (smallest) eigenvalue/vector pairs.
 
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors of the Fisher
@@ -385,7 +385,7 @@ class Eigendistortion(Synthesis):
 
     def _synthesize_randomized_svd(
         self, k: int, p: int, q: int
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         r"""Synthesize eigendistortions using randomized truncated SVD.
 
         This method approximates the column space of the Fisher Info Matrix, projects the FIM into that column space,
@@ -450,7 +450,7 @@ class Eigendistortion(Synthesis):
 
         return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
-    def _vector_to_image(self, vecs: Tensor) -> List[Tensor]:
+    def _vector_to_image(self, vecs: Tensor) -> list[Tensor]:
         r"""Reshapes eigenvectors back into correct image dimensions.
 
         Parameters
@@ -550,7 +550,7 @@ class Eigendistortion(Synthesis):
     def load(
         self,
         file_path: str,
-        map_location: Union[str, None] = None,
+        map_location: str | None = None,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -636,7 +636,7 @@ def display_eigendistortion(
     eigenindex: int = 0,
     alpha: float = 5.0,
     process_image: Callable[[Tensor], Tensor] = lambda x: x,
-    ax: Optional[matplotlib.pyplot.axis] = None,
+    ax: matplotlib.pyplot.axis | None = None,
     plot_complex: str = "rectangular",
     **kwargs,
 ) -> Figure:

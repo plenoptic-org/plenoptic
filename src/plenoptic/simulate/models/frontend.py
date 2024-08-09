@@ -10,7 +10,7 @@ References
 .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
-from typing import Tuple, Union, Callable
+from typing import Callable  # noqa: UP035
 
 import torch
 import torch.nn as nn
@@ -70,7 +70,7 @@ class LinearNonlinear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
@@ -156,7 +156,7 @@ class LuminanceGainControl(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
@@ -266,7 +266,7 @@ class LuminanceContrastGainControl(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
@@ -386,7 +386,7 @@ class OnOff(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",

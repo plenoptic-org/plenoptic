@@ -3,7 +3,6 @@ import torch
 from torch import Tensor
 import torch.nn.functional as F
 import pyrtools as pt
-from typing import Union, Tuple
 import math
 
 
@@ -145,9 +144,9 @@ def _get_same_padding(
 
 def same_padding(
     x: Tensor,
-    kernel_size: Union[int, Tuple[int, int]],
-    stride: Union[int, Tuple[int, int]] = (1, 1),
-    dilation: Union[int, Tuple[int, int]] = (1, 1),
+    kernel_size: int | tuple[int, int],
+    stride: int | tuple[int, int] = (1, 1),
+    dilation: int | tuple[int, int] = (1, 1),
     pad_mode: str = "circular",
 ) -> Tensor:
     """Pad a tensor so that 2D convolution will result in output with same dims."""

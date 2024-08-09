@@ -5,7 +5,6 @@ from tqdm.auto import tqdm
 from .synthesis import Synthesis
 from ..tools.validate import validate_input, validate_model
 from ..tools import optim
-from typing import Union
 
 
 class SimpleMetamer(Synthesis):
@@ -46,7 +45,7 @@ class SimpleMetamer(Synthesis):
     def synthesize(
         self,
         max_iter: int = 100,
-        optimizer: Union[None, torch.optim.Optimizer] = None,
+        optimizer: None | torch.optim.Optimizer = None,
     ) -> torch.Tensor:
         """Synthesize a simple metamer.
 
@@ -108,7 +107,7 @@ class SimpleMetamer(Synthesis):
         """
         super().save(file_path, attrs=None)
 
-    def load(self, file_path: str, map_location: Union[str, None] = None):
+    def load(self, file_path: str, map_location: str | None = None):
         r"""Load all relevant attributes from a .pt file.
 
         Note this operates in place and so doesn't return anything.

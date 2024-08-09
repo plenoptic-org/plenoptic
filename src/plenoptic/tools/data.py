@@ -1,5 +1,4 @@
 import pathlib
-from typing import List, Optional, Union, Tuple
 import warnings
 
 import imageio
@@ -33,9 +32,7 @@ TORCH_TO_NUMPY_TYPES = {
 }
 
 
-def to_numpy(
-    x: Union[Tensor, np.ndarray], squeeze: bool = False
-) -> np.ndarray:
+def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
@@ -61,7 +58,7 @@ def to_numpy(
     return x
 
 
-def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
+def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     r"""Correctly load in images
 
     Our models and synthesis methods expect their inputs to be 4d
@@ -286,10 +283,10 @@ def make_synthetic_stimuli(
 
 
 def polar_radius(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     exponent: float = 1.0,
-    origin: Optional[Union[int, Tuple[int, int]]] = None,
-    device: Optional[Union[str, torch.device]] = None,
+    origin: int | tuple[int, int] | None = None,
+    device: str | torch.device | None = None,
 ) -> Tensor:
     """Make distance-from-origin (r) matrix
 
@@ -347,10 +344,10 @@ def polar_radius(
 
 
 def polar_angle(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     phase: float = 0.0,
-    origin: Optional[Union[int, Tuple[float, float]]] = None,
-    device: Optional[torch.device] = None,
+    origin: int | tuple[float, float] | None = None,
+    device: torch.device | None = None,
 ) -> Tensor:
     """Make polar angle matrix (in radians).
 
