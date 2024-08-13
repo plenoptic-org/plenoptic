@@ -14,6 +14,8 @@ def lint(session):
 def tests(session):
     # run tests
     session.install("pytest")
+    # Install pytest-cov for coverage reporting
+    session.install("pytest-cov")
     # Install dependencies listed in pyproject.toml
     session.install(
         "numpy>=1.1",
@@ -26,6 +28,7 @@ def tests(session):
         "scikit-image>=0.15.0",
         "einops>=0.3.0",
         "importlib-resources>=6.0",
+        "pooch>=1.5",
     )
     session.env["PYTHONPATH"] = str(Path().resolve() / "src")
     session.run("pytest")

@@ -495,7 +495,7 @@ class MADCompetition(OptimizedSynthesis):
     def load(
         self,
         file_path: str,
-        map_location: None | None = None,
+        map_location: str | None = None,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
