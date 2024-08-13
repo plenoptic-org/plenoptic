@@ -100,8 +100,9 @@ class PortillaSimoncelliMasked(nn.Module):
         if any([m.shape[-2:] != image_shape for m in mask]):
             raise ValueError("Last two dimensions of mask must be height and width and must match image_shape!")
         self.mask = []
-        for i in range(n_scales):
-            # we need to downsample the masks for each scale
+        # we need to downsample the masks for each scale, plus one additional scale for
+        # the reconstructed lowpass image
+        for i in range(n_scales+1):
             if i == 0:
                 scale_mask = mask
             else:
@@ -201,7 +202,9 @@ class PortillaSimoncelliMasked(nn.Module):
 
         img_h, img_w = image_shape
         rolls_h, rolls_w = [], []
-        for _ in range(self.n_scales):
+        # need one additional scale, since we compute the autocorrelation of the
+        # reconstructed lowpass images as well
+        for _ in range(self.n_scales+1):
             arange_h = torch.arange(img_h).view((1, 1, img_h, 1)).repeat((1, 1, 1, img_h))
             arange_w = torch.arange(img_w).view((1, 1, 1, img_w)).repeat((1, 1, img_w, 1))
             rolls_h.append(torch.stack([arange_h.roll(i, -2) for i in autocorr_shift_vals[0]], 2))
