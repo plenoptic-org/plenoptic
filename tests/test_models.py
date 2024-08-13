@@ -326,9 +326,11 @@ def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
         n_scales,
         n_orientations,
     )
+    # in the plenoptic version, auto_correlation_magnitude shape has n_scales and
+    # n_orientations flipped relative to the matlab representation
     rep["auto_correlation_magnitude"] = vec[
         ..., n_filled : (n_filled + np.prod(nn))
-    ].unflatten(-1, nn)
+    ].unflatten(-1, nn).transpose(-1, -2)
     n_filled += np.prod(nn)
 
     # skew_reconstructed & kurtosis_reconstructed
@@ -589,7 +591,11 @@ class TestPortillaSimoncelli(object):
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE).to(torch.float64)
-        output = ps(im0)
+        output = ps.convert_to_dict(ps(im0))
+        # the scales and orientations dimensions are flipped in the
+        # auto_correlation_magnitude relative to when we first did this.
+        output['auto_correlation_magnitude'] = output['auto_correlation_magnitude'].transpose(-1, -2)
+        output = ps.convert_to_tensor(output)
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
                         f"{im}_scales-{n_scales}_ori-{n_orientations}_"
@@ -702,7 +708,14 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=spatial_corr_width,
             ).to(DEVICE)
 
-        output = model._representation_scales
+        # the scales and orientations dimensions are flipped in the
+        # auto_correlation_magnitude relative to when we first did this.
+        scales_dict = model._create_scales_shape_dict()
+        # this transpose looks a bit different because it's numpy's transpose
+        scales_dict['auto_correlation_magnitude'] = scales_dict['auto_correlation_magnitude'].transpose(0, 1, 3, 2)
+        output = einops.pack(list(scales_dict.values()), '*')[0]
+        # just select the scales of the necessary stats.
+        output = output[model._necessary_stats_mask]
 
         np.testing.assert_equal(output, saved)
 
