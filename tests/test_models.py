@@ -74,8 +74,8 @@ def get_portilla_simoncelli_synthesize_filename(torch_version=None):
     # during refactor, we changed PS model output so that it doesn't include
     # redundant stats. This changes the solution that is found (though not its
     # quality)
-    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}_ps-refactor.npz'
-    # synthesis gives differnet outputs on cpu vs gpu, so we have two different
+    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}_ps-refactor-2.npz'
+    # synthesis gives different outputs on cpu vs gpu, so we have two different
     # versions to test against
     if DEVICE.type == 'cpu':
         gpu = ''

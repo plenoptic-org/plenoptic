@@ -21,7 +21,7 @@ def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
     After generating this file and checking it looks good, upload it to the OSF
     plenoptic-files project: https://osf.io/ts37w/files/osfstorage, then update
     test_models.get_portilla_simoncelli_synthesize_filename and
-    test_metric.OSF_URL
+    fetch.REGISTRY_URLS and fetch.REGISTRY
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
 
     torch_v = torch.__version__.split('+')[0]
     file_name_parts = re.findall('(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*)(_ps-refactor)?.npz',
-                                 ps_synth_file)[0]
+                                 ps_synth_file.name)[0]
     output_file_name = ''.join(file_name_parts[:2]) + f'_torch_v{torch_v}{file_name_parts[-1]}.npz'
     output = po.to_numpy(met.metamer).squeeze()
     rep = po.to_numpy(met.model(met.metamer)).squeeze()

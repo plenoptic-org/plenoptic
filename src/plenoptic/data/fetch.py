@@ -24,6 +24,7 @@ REGISTRY = {
     'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': '9525844b71cf81509b86ed9677172745353588c6bb54e4de8000d695598afa47',
     'portilla_simoncelli_synthesize_gpu_ps-refactor.npz': '9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61',
     'portilla_simoncelli_scales_ps-refactor.npz': '1053790a37707627810482beb0dd059cbc193efd688b60c441b3548a75626fdf',
+    'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz': 'ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4',
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -48,6 +49,7 @@ REGISTRY_URLS = {
     'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz': OSF_TEMPLATE.format('vmwzd'),
     'portilla_simoncelli_synthesize_gpu_ps-refactor.npz': OSF_TEMPLATE.format('mqs6y'),
     'portilla_simoncelli_scales_ps-refactor.npz': OSF_TEMPLATE.format('nvpr4'),
+    'portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz': OSF_TEMPLATE.format('en8du'),
 }
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
