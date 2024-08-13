@@ -185,11 +185,11 @@ class PortillaSimoncelli(nn.Module):
         # corresponding scale.
 
         auto_corr_mag = np.ones((self.spatial_corr_width, self.spatial_corr_width,
-                                 self.n_scales, self.n_orientations), dtype=int)
+                                 self.n_orientations, self.n_scales), dtype=int)
         # this rearrange call is turning scales from 1d with shape (n_scales, )
         # to 4d with shape (1, 1, n_scales, 1), so that it matches
         # auto_corr_mag. the following rearrange calls do similar.
-        auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 s 1')
+        auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 1 s')
         shape_dict['auto_correlation_magnitude'] = auto_corr_mag
 
         shape_dict['skew_reconstructed'] = scales_with_lowpass
@@ -359,8 +359,8 @@ class PortillaSimoncelli(nn.Module):
 
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
         # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
-        # n_scales, n_orientations). var_mags is a tensor of shape (batch, channel,
-        # n_scales, n_orientations)
+        # n_orientations, n_scales). var_mags is a tensor of shape (batch, channel,
+        # n_orientations, n_scales)
         autocorr_mags, mags_var = self._compute_autocorr(mag_pyr_coeffs)
         # mags_var is the variance of the magnitude coefficients at each scale (it's an
         # intermediary of the computation of the auto-correlations). We take the square
@@ -399,7 +399,7 @@ class PortillaSimoncelli(nn.Module):
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
             cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
-                                                                    mags_var[..., :-1, :])
+                                                                    mags_var[..., :-1])
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
@@ -714,12 +714,12 @@ class PortillaSimoncelli(nn.Module):
         -------
         autocorrs :
             Tensor of shape (batch, channel, spatial_corr_width,
-            spatial_corr_width, s, *) containing the autocorrelation (up to
+            spatial_corr_width, *, s) containing the autocorrelation (up to
             distance ``spatial_corr_width//2``) of each element in
             ``coeffs_list``, computed independently over all but the final two
             dimensions.
         vars :
-            3d Tensor of shape (batch, channel, s, *) containing the variance
+            3d Tensor of shape (batch, channel, *, s) containing the variance
             of each element in ``coeffs_list``, computed independently over all
             but the final two dimensions.
 
@@ -733,10 +733,10 @@ class PortillaSimoncelli(nn.Module):
         acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
         var = [signal.center_crop(ac, 1) for ac in acs]
         acs = [ac/v for ac, v in zip(acs, var)]
-        var = einops.rearrange(var, f's b c {dims} 1 1 -> b c s {dims}')
+        var = einops.rearrange(var, f's b c {dims} 1 1 -> b c {dims} s')
         acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
         acs = torch.stack(acs, 2)
-        return einops.rearrange(acs, f'b c s {dims} a1 a2 -> b c a1 a2 s {dims}'), var
+        return einops.rearrange(acs, f'b c s {dims} a1 a2 -> b c a1 a2 {dims} s'), var
 
     @staticmethod
     def _compute_skew_kurtosis_recon(reconstructed_images: List[Tensor], var_recon: Tensor,
@@ -801,7 +801,7 @@ class PortillaSimoncelli(nn.Module):
         coeffs_var, coeffs_other_var :
             Two optional tensors containing the variances of coeffs_tensor and
             coeffs_tensor_other, respectively, in case they've already been computed.
-            Should be of shape (batch, channel, n_scales, n_orientations). Used to
+            Should be of shape (batch, channel, n_orientations, n_scales). Used to
             normalize the covariances into cross-correlations.
 
         Returns
@@ -829,14 +829,14 @@ class PortillaSimoncelli(nn.Module):
                                           'b c o1 h w, b c o1 h w -> b c o1')
                 coeff_var = coeff_var / numel
             else:
-                coeff_var = coeffs_var[..., i, :]
+                coeff_var = coeffs_var[..., i]
             if coeffs_other_var is None:
                 # First, compute the variances of each coeff
                 coeff_other_var = einops.einsum(coeff_other, coeff_other,
                                           'b c o1 h w, b c o1 h w -> b c o1')
                 coeff_other_var = coeff_other_var / numel
             else:
-                coeff_other_var = coeffs_other_var[..., i, :]
+                coeff_other_var = coeffs_other_var[..., i]
             # Then compute the outer product of those variances.
             var_outer_prod = einops.einsum(coeff_var, coeff_other_var,
                                            'b c o1, b c o2 -> b c o1 o2')
