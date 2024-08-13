@@ -13,3 +13,11 @@ def tests(session):
     # run tests
     session.install("pytest")
     session.run("pytest")
+    # queue up coverage session to run next
+    session.notify("coverage")
+
+
+@nox.session
+def coverage(session):
+    session.install("coverage")
+    session.run("coverage")
