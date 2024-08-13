@@ -81,7 +81,7 @@ version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]
-addopts = "--cov=plenoptic"
+addopts = ["--cov=plenoptic",]
 testpaths = ["tests"]
 
 [tool.ruff]
