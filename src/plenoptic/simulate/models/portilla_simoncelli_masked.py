@@ -434,20 +434,18 @@ class PortillaSimoncelliMasked(nn.Module):
 
         # Now, start calculating the PS texture stats.
 
-        # Calculate pixel statistics (mean, variance, skew, kurtosis, min,
-        # max).
+        # Calculate pixel statistics (mean, variance, skew, kurtosis). This is a tensor
+        # of shape (batch, channel, masks, 4)
         pixel_stats = self._compute_pixel_stats(self.mask, image)
 
-        # Compute the central autocorrelation of the coefficient magnitudes.
-        # This is a tensor of shape: (batch, channel, spatial_corr_width,
-        # spatial_corr_width, n_scales, n_orientations)
+        # Compute the central autocorrelation of the coefficient magnitudes. This is a
+        # tensor of shape: (batch, channel, masks, n_shifts, n_scales, n_orientations)
         autocorr_mags, _ = self._compute_autocorr(self.mask, mag_pyr_coeffs)
 
-        # Compute the central autocorrelation of the reconstructed lowpass
-        # images at each scale (and their variances). autocorr_recon is a
-        # tensor of shape (batch, channel, spatial_corr_width,
-        # spatial_corr_width, n_scales+1), and var_recon is a tensor of shape
-        # (batch, channel, n_scales+1)
+        # Compute the central autocorrelation of the reconstructed lowpass images at
+        # each scale (and their variances). autocorr_recon is a tensor of shape (batch,
+        # channel, masks, n_shifts, n_scales+1), and var_recon is a tensor of shape
+        # (batch, channel, masks, n_scales+1)
         autocorr_recon, var_recon = self._compute_autocorr(self.mask, reconstructed_images)
         # Compute the standard deviation, skew, and kurtosis of each
         # reconstructed lowpass image. std_recon, skew_recon, and
