@@ -98,9 +98,14 @@ class PortillaSimoncelliMasked(nn.Module):
             raise ValueError("All masks must be 3d!")
         if any([m.shape[-2:] != image_shape for m in mask]):
             raise ValueError("Last two dimensions of mask must be height and width and must match image_shape!")
-        # normalize the mask so that when we multiply them through, we're taking the
-        # weighted average, instead of the sum.
-        self.mask = [m / einops.reduce(m, 'm h w -> m 1 1', 'sum') for m in mask]
+        self.mask = []
+        for i in range(n_scales):
+            # we need to downsample the masks for each scale
+            if i == 0:
+                scale_mask = mask
+            else:
+                scale_mask = [signal.shrink(m, 2**i) for m in mask]
+            self.mask.append(scale_mask)
         # these indices are used to create the einsum expressions
         self._mask_input_idx = ', '.join([f'm{i} h w' for i in range(len(mask))])
         self._mask_output_idx = f"{' '.join([f'm{i}' for i in range(len(mask))])}"
@@ -368,7 +373,7 @@ class PortillaSimoncelliMasked(nn.Module):
 
         # Calculate pixel statistics (mean, variance, skew, kurtosis, min,
         # max).
-        pixel_stats = self._compute_pixel_stats(image)
+        pixel_stats = self._compute_pixel_stats(self.mask, image)
 
         # Compute the central autocorrelation of the coefficient magnitudes.
         # This is a tensor of shape: (batch, channel, spatial_corr_width,
@@ -626,10 +631,10 @@ class PortillaSimoncelliMasked(nn.Module):
             non-central moments
 
         """
-        mean = einops.einsum(*mask, image, f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        var = einops.einsum(*mask, image.pow(2), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        skew = einops.einsum(*mask, image.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        kurtosis = einops.einsum(*mask, image.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        mean = einops.einsum(*mask[0], image, f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        var = einops.einsum(*mask[0], image.pow(2), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        skew = einops.einsum(*mask[0], image.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        kurtosis = einops.einsum(*mask[0], image.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
         return einops.rearrange([mean, var, skew, kurtosis], f'stats b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) stats')
 
     @staticmethod
