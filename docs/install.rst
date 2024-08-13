@@ -29,7 +29,7 @@ $ conda install plenoptic -c conda-forge
 Installing with pip
 -------------------
 
-Wile ``conda`` handles both virtual environment management **and** package installation, ``pip`` only installs packages; you'll need to use some other system to manage your virtual environment. You can use ``conda`` to manage your virtual environment and ``pip`` to install packages, but note that when using pip with a conda environment, all pip commands should come after all the conda commands (e.g., you shouldn't run ``conda install matplotlib`` after ``pip install plenoptic``), because conda is unaware of any changes that pip makes. See `here <https://www.anaconda.com/blog/using-pip-in-a-conda-environment>`_ for more details.
+While ``conda`` handles both virtual environment management **and** package installation, ``pip`` only installs packages; you'll need to use some other system to manage your virtual environment. You can use ``conda`` to manage your virtual environment and ``pip`` to install packages, but note that when using pip with a conda environment, all pip commands should come after all the conda commands (e.g., you shouldn't run ``conda install matplotlib`` after ``pip install plenoptic``), because conda is unaware of any changes that pip makes. See `here <https://www.anaconda.com/blog/using-pip-in-a-conda-environment>`_ for more details.
 
 In order to avoid this problem, here we'll use python's built-in `venv <https://docs.python.org/3/library/venv.html>`_ to manage the virtual environment with ``pip``.
 
@@ -57,7 +57,7 @@ Note that when using ``venv``, you have to decide where you'd like to place the 
 
 .. _source:
 
-Installing from source
+Installing from source (for developers)
 ^^^^^^^^^^^^^^^^^^^^^^
 
 You can also install plenoptic directly from source in order to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version.
