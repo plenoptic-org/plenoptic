@@ -51,7 +51,8 @@ class PortillaSimoncelliMasked(nn.Module):
     image_shape:
         Shape of input image.
     mask:
-        List of 3d tensors.
+        List of 3d tensors. We use the masks to perform sums, and so the masks should be
+        normalized in order to perform the averages. See tutorial for example.
     n_scales:
         The number of pyramid scales used to measure the statistics (default=4)
     n_orientations:
@@ -111,6 +112,12 @@ class PortillaSimoncelliMasked(nn.Module):
         self._mask_output_idx = f"{' '.join([f'm{i}' for i in range(len(mask))])}"
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
+        # these are each lists of tensors of shape (batch, channel, n_shifts, height,
+        # width), one per scale, where n_shifts is approximately spatial_corr_width^2 /
+        # 2
+        rolls_h, rolls_w, var_idx = self._create_autocorr_idx(spatial_corr_width, image_shape)
+        self._autocorr_rolls_h, self._autocorr_rolls_w = rolls_h, rolls_w
+        self._var_idx = var_idx
         self.n_orientations = n_orientations
         self._pyr = SteerablePyramidFreq(
             self.image_shape,
@@ -149,6 +156,59 @@ class PortillaSimoncelliMasked(nn.Module):
         self._representation_scales = einops.pack(list(scales_shape_dict.values()), '*')[0]
         # just select the scales of the necessary stats.
         self._representation_scales = self._representation_scales[self._necessary_stats_mask]
+
+    def _create_autocorr_idx(self, spatial_corr_width, image_shape) -> Tuple[List[Tensor], List[Tensor], int]:
+        """Create indices used to shift images when computing autocorrelation.
+
+        The autocorrelation of ``img`` is the product of ``img`` with itself shifted by
+        a small number of pixels. That is: ``einops.einsum(img, img.roll(i, -1).roll(j,
+        -2))`` for some relevant values of i and j. This method computes the indices
+        corresponding to those rolls, so that we can simply call ``img.gather(rolls_h,
+        -2).gather(rolls_w, -1)`` during the forward pass instead of ``img.roll(i,
+        -1).roll(j, -2)``, which is less efficient.
+
+        Because of the symmetry of autocorrelations (see Portilla-Simoncelli notebook
+        for details), we do not need the full ``spatial_corr_width**2`` shifts, we only
+        need everything below the diagonal (e.g., we don't need to roll both 1 pixel to
+        the left and 1 pixel to the right).
+
+        Parameters
+        ----------
+        spatial_corr_width :
+            The width of the spatial auto-correlation.
+        image_shape :
+            Shape of input image.
+
+        Returns
+        -------
+        rolls_h, rolls_w :
+            List of tensors of shape ``(1, 1, n_shifts, height, width)`` giving the
+            shifts along the height (``shape[-2]``) and width (``shape[-1]``) dimensions
+            required for computing the autocorrelations. Each entry in the list
+            corresponds to a different scale, and thus height and width decrease.
+        var_idx :
+            Index into the ``n_shifts`` dimension of the rolls tensors that corresponds
+            to a shift of (0, 0); this is the variance, and is used to normalize the
+            autocorrelations.
+
+        """
+        # because of the symmetry of autocorrelation, in order to generate all
+        # autocorrelations, we only need the lower triangle (so that we take the
+        # autocorrelation between the image and itself shifted 1 pixel to the left, but
+        # not also shifted 1 pixel to the right).
+        autocorr_shift_vals = [i-3 for i in np.tril_indices(spatial_corr_width)]
+        var_idx = np.where(np.bitwise_and(*[s == 0 for s in autocorr_shift_vals]))[0][0]
+
+        img_h, img_w = image_shape
+        rolls_h, rolls_w = [], []
+        for _ in range(self.n_scales):
+            arange_h = torch.arange(img_h).view((1, 1, img_h, 1)).repeat((1, 1, 1, img_h))
+            arange_w = torch.arange(img_w).view((1, 1, 1, img_w)).repeat((1, 1, img_w, 1))
+            rolls_h.append(torch.stack([arange_h.roll(i, -2) for i in autocorr_shift_vals[0]], 2))
+            rolls_w.append(torch.stack([arange_w.roll(i, -1) for i in autocorr_shift_vals[1]], 2))
+            img_h = int(img_h // 2)
+            img_w = int(img_w // 2)
+        return rolls_h, rolls_w, var_idx
 
     def _create_scales_shape_dict(self) -> OrderedDict:
         """Create dictionary defining scales and shape of each stat.
@@ -378,14 +438,14 @@ class PortillaSimoncelliMasked(nn.Module):
         # Compute the central autocorrelation of the coefficient magnitudes.
         # This is a tensor of shape: (batch, channel, spatial_corr_width,
         # spatial_corr_width, n_scales, n_orientations)
-        autocorr_mags, _ = self._compute_autocorr(mag_pyr_coeffs)
+        autocorr_mags, _ = self._compute_autocorr(self.mask, mag_pyr_coeffs)
 
         # Compute the central autocorrelation of the reconstructed lowpass
         # images at each scale (and their variances). autocorr_recon is a
         # tensor of shape (batch, channel, spatial_corr_width,
         # spatial_corr_width, n_scales+1), and var_recon is a tensor of shape
         # (batch, channel, n_scales+1)
-        autocorr_recon, var_recon = self._compute_autocorr(reconstructed_images)
+        autocorr_recon, var_recon = self._compute_autocorr(self.mask, reconstructed_images)
         # Compute the standard deviation, skew, and kurtosis of each
         # reconstructed lowpass image. std_recon, skew_recon, and
         # kurtosis_recon will all end up as tensors of shape (batch, channel,
@@ -710,11 +770,13 @@ class PortillaSimoncelliMasked(nn.Module):
                                      for i, r in enumerate(reconstructed_images[:-1])]
         return reconstructed_images
 
-    def _compute_autocorr(self, coeffs_list: List[Tensor]) -> Tuple[Tensor, Tensor]:
+    def _compute_autocorr(self, mask: List[Tensor], coeffs_list: List[Tensor]) -> Tuple[Tensor, Tensor]:
         """Compute the autocorrelation of some statistics.
 
         Parameters
         ----------
+        mask :
+            The mask to use for weighting.
         coeffs_list :
             List (of length s) of tensors of shape (batch, channel, *, height,
             width), where * is zero or one additional dimensions. Intended use
@@ -725,30 +787,45 @@ class PortillaSimoncelliMasked(nn.Module):
         Returns
         -------
         autocorrs :
-            Tensor of shape (batch, channel, spatial_corr_width,
-            spatial_corr_width, s, *) containing the autocorrelation (up to
-            distance ``spatial_corr_width//2``) of each element in
-            ``coeffs_list``, computed independently over all but the final two
-            dimensions.
+            Tensor of shape (batch, channel, masks, n_autocorrs, s, *) containing the
+            autocorrelation (up to distance ``spatial_corr_width//2``) of each element
+            in ``coeffs_list``, computed independently over all but the final two
+            dimensions. ``n_autocorrs`` is the number of unique autocorrelation values,
+            which is approximately sptial_corr_width^2 / 2.
         vars :
-            3d Tensor of shape (batch, channel, s, *) containing the variance
-            of each element in ``coeffs_list``, computed independently over all
-            but the final two dimensions.
+            Tensor of shape (batch, channel, masks, s, *) containing the variance of
+            each element in ``coeffs_list``, computed independently over all but the
+            final two dimensions.
 
         """
         if coeffs_list[0].ndim == 5:
-            dims = 's o'
+            dims = 'o'
+            rolls_h = [r.unsqueeze(2) for r in self._autocorr_rolls_h]
+            rolls_w = [r.unsqueeze(2) for r in self._autocorr_rolls_w]
         elif coeffs_list[0].ndim == 4:
-            dims = 's'
+            dims = ''
+            rolls_h = self._autocorr_rolls_h
+            rolls_w = self._autocorr_rolls_w
         else:
             raise ValueError("coeffs_list must contain tensors of either 4 or 5 dimensions!")
-        acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
-        var = [signal.center_crop(ac, 1) for ac in acs]
-        acs = [ac/v for ac, v in zip(acs, var)]
-        var = einops.pack(var, 'b c *')[0]
-        acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
-        acs = torch.stack(acs, 2)
-        return einops.rearrange(acs, f'b c {dims} a1 a2 -> b c a1 a2 {dims}'), var
+        n_shifts = rolls_h[0].shape[-2]
+        autocorr_expr = f"{self._mask_input_idx}, b c {dims} h w, b c {dims} shift h w -> b c {self._mask_output_idx} shift {dims}"
+        acs = []
+        vars = []
+        # iterate through scales
+        for coeff, rolls_h, rolls_w, scale_mask in zip(coeffs_list, rolls_h, rolls_w, mask):
+            # the following two lines are equivalent to having two for loops over
+            # range(-spatial_corr_width//2, spatial_corr_width//2) and using roll along
+            # the last two indices, but is much more efficient, especially on the gpu.
+            rolled_coeff = einops.repeat(coeff, f'b c {dims} h w -> b c {dims} shift h w', shift=n_shifts)
+            rolled_coeff = rolled_coeff.gather(-2, rolls_h).gather(-1, rolls_w)
+            autocorr = einops.einsum(*scale_mask, coeff, rolled_coeff, autocorr_expr)
+            var = autocorr[:, :, :, :, self._var_idx].unsqueeze(4)
+            acs.append(autocorr / var)
+            vars.append(var)
+        acs = einops.rearrange(acs, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) shifts scales {dims}')
+        vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) (shifts scales) {dims}', shifts=1)
+        return acs, vars
 
     @staticmethod
     def _compute_skew_kurtosis_recon(reconstructed_images: List[Tensor], var_recon: Tensor,
