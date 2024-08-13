@@ -636,7 +636,8 @@ def display_eigendistortion(
     eigenindex: int = 0,
     alpha: float = 5.0,
     process_image: Callable[[Tensor], Tensor] = lambda x: x,
-    ax: matplotlib.pyplot.axis | None = None,
+    # ax: matplotlib.pyplot.axis | None = None,
+    ax: matplotlib.axes.Axes | None = None,
     plot_complex: str = "rectangular",
     **kwargs,
 ) -> Figure:
