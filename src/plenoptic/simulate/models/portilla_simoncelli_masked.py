@@ -447,12 +447,12 @@ class PortillaSimoncelliMasked(nn.Module):
         # channel, masks, n_shifts, n_scales+1), and var_recon is a tensor of shape
         # (batch, channel, masks, n_scales+1)
         autocorr_recon, var_recon = self._compute_autocorr(self.mask, reconstructed_images)
-        # Compute the standard deviation, skew, and kurtosis of each
-        # reconstructed lowpass image. std_recon, skew_recon, and
-        # kurtosis_recon will all end up as tensors of shape (batch, channel,
-        # n_scales+1)
+        # Compute the standard deviation, skew, and kurtosis of each reconstructed
+        # lowpass image. std_recon, skew_recon, and kurtosis_recon will all end up as
+        # tensors of shape (batch, channel, masks, n_scales+1)
         std_recon = var_recon.sqrt()
-        skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(reconstructed_images,
+        skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(self.mask,
+                                                                       reconstructed_images,
                                                                        var_recon,
                                                                        pixel_stats[..., 1])
 
@@ -828,8 +828,9 @@ class PortillaSimoncelliMasked(nn.Module):
         vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) (shifts scales) {dims}', shifts=1)
         return acs, vars
 
-    @staticmethod
-    def _compute_skew_kurtosis_recon(reconstructed_images: List[Tensor], var_recon: Tensor,
+    def _compute_skew_kurtosis_recon(self, mask: List[Tensor],
+                                     reconstructed_images: List[Tensor],
+                                     var_recon: Tensor,
                                      img_var: Tensor) -> Tuple[Tensor, Tensor]:
         """Compute the skew and kurtosis of each lowpass reconstructed image.
 
@@ -841,38 +842,41 @@ class PortillaSimoncelliMasked(nn.Module):
 
         Parameters
         ----------
+        mask :
+            The mask to use for weighting.
         reconstructed_images :
             List of length n_scales+1 containing the reconstructed unoriented
             image at each scale, from fine to coarse. The final image is
             reconstructed just from the residual lowpass image.
         var_recon :
-            Tensor of shape (batch, channel, n_scales+1) containing the
+            Tensor of shape (batch, channel, masks, n_scales+1) containing the
             variance of each tensor in reconstruced_images
         img_var :
-            Tensor of shape (batch, channel) containing the pixel variance
-            (from pixel_stats tensor)
+            Tensor of shape (batch, channel, masks) containing the pixel variance (from
+            pixel_stats tensor)
 
         Returns
         -------
         skew_recon, kurtosis_recon :
-            Tensors of shape (batch, channel, n_scales+1) containing the skew
+            Tensors of shape (batch, channel, masks, n_scales+1) containing the skew
             and kurtosis, respectively, of each tensor in
             ``reconstructed_images``.
 
         """
-        skew_recon = [stats.skew(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
-                      for i, im in enumerate(reconstructed_images)]
-        skew_recon = torch.stack(skew_recon, -1)
-        kurtosis_recon = [stats.kurtosis(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
-                          for i, im in enumerate(reconstructed_images)]
-        kurtosis_recon = torch.stack(kurtosis_recon, -1)
+        skew_recon = []
+        kurtosis_recon = []
+        for img, m in zip(reconstructed_images, mask):
+            skew_recon.append(einops.einsum(*m, img.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
+            kurtosis_recon.append(einops.einsum(*m, img.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
+        skew_recon = einops.rearrange(skew_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
+        kurtosis_recon = einops.rearrange(kurtosis_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
         skew_default = torch.zeros_like(skew_recon)
         kurtosis_default = 3 * torch.ones_like(kurtosis_recon)
-        # if this variance ratio is too small, then use the default values
-        # instead. unsqueeze is used here because var_recon is shape (batch,
-        # channel, scales+1), whereas img_var is just (batch, channel)
+        # if this variance ratio is too small, then use the default values instead.
+        # unsqueeze is used here because var_recon is shape (batch, channel, masks,
+        # scales+1), whereas img_var is just (batch, channel, masks)
         res = torch.finfo(img_var.dtype).resolution
-        unstable_locs = var_recon / img_var.unsqueeze(-1) < res
+        unstable_locs = (var_recon / img_var.unsqueeze(-1)) < res
         skew_recon = torch.where(unstable_locs, skew_default, skew_recon)
         kurtosis_recon = torch.where(unstable_locs, kurtosis_default, kurtosis_recon)
         return skew_recon, kurtosis_recon
