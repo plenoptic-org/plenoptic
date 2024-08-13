@@ -357,10 +357,15 @@ class PortillaSimoncelli(nn.Module):
         # max).
         pixel_stats = self._compute_pixel_stats(image)
 
-        # Compute the central autocorrelation of the coefficient magnitudes.
-        # This is a tensor of shape: (batch, channel, spatial_corr_width,
-        # spatial_corr_width, n_scales, n_orientations)
-        autocorr_mags, _ = self._compute_autocorr(mag_pyr_coeffs)
+        # Compute the central autocorrelation of the coefficient magnitudes. This is a
+        # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
+        # n_scales, n_orientations). var_mags is a tensor of shape (batch, channel,
+        # n_scales, n_orientations)
+        autocorr_mags, mags_var = self._compute_autocorr(mag_pyr_coeffs)
+        # mags_var is the variance of the magnitude coefficients at each scale (it's an
+        # intermediary of the computation of the auto-correlations). We take the square
+        # root to get the standard deviation.
+        mags_std = mags_var.sqrt()
 
         # Compute the central autocorrelation of the reconstructed lowpass
         # images at each scale (and their variances). autocorr_recon is a
@@ -380,13 +385,8 @@ class PortillaSimoncelli(nn.Module):
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale. this will be a tensor of shape (batch,
         # channel, n_orientations, n_orientations, n_scales)
-        cross_ori_corr_mags, mags_var = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
-                                                                        tensors_are_identical=True)
-        # mags_var is the variance of the magnitude coefficients at each scale
-        # (it's an intermediary of the computation of the cross-orientation
-        # correlations), of shape (batch, channel, n_orientations, n_scales).
-        # We take the square root to get the standard deviation.
-        mags_std = mags_var.sqrt()
+        cross_ori_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
+                                                              mags_var, mags_var)
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -398,14 +398,13 @@ class PortillaSimoncelli(nn.Module):
             # coefficients at the next-coarsest scale. this will be a tensor of
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
-            cross_scale_corr_mags, _ = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
-                                                                       tensors_are_identical=False)
+            cross_scale_corr_mags = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
+                                                                    mags_var[..., :-1, :])
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
             # n_orientations, 2*n_orientations, n_scales-1)
-            cross_scale_corr_real, _ = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep,
-                                                                       tensors_are_identical=False)
+            cross_scale_corr_real = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep)
 
         # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
@@ -726,18 +725,18 @@ class PortillaSimoncelli(nn.Module):
 
         """
         if coeffs_list[0].ndim == 5:
-            dims = 's o'
+            dims = 'o'
         elif coeffs_list[0].ndim == 4:
-            dims = 's'
+            dims = ''
         else:
             raise ValueError("coeffs_list must contain tensors of either 4 or 5 dimensions!")
         acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
         var = [signal.center_crop(ac, 1) for ac in acs]
         acs = [ac/v for ac, v in zip(acs, var)]
-        var = einops.pack(var, 'b c *')[0]
+        var = einops.rearrange(var, f's b c {dims} 1 1 -> b c s {dims}')
         acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
         acs = torch.stack(acs, 2)
-        return einops.rearrange(acs, f'b c {dims} a1 a2 -> b c a1 a2 {dims}'), var
+        return einops.rearrange(acs, f'b c s {dims} a1 a2 -> b c a1 a2 s {dims}'), var
 
     @staticmethod
     def _compute_skew_kurtosis_recon(reconstructed_images: List[Tensor], var_recon: Tensor,
@@ -790,7 +789,8 @@ class PortillaSimoncelli(nn.Module):
 
     def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
                                    coeffs_tensor_other: List[Tensor],
-                                   tensors_are_identical: bool = False) -> Tuple[Tensor, Tensor]:
+                                   coeffs_var: Optional[Tensor] = None,
+                                   coeffs_other_var: Optional[Tensor] = None) -> Tensor:
         """Compute cross-correlations.
 
         Parameters
@@ -798,10 +798,11 @@ class PortillaSimoncelli(nn.Module):
         coeffs_tensor, coeffs_tensor_other :
             The two lists of length scales, each containing 5d tensors of shape
             (batch, channel, n_orientations, height, width) to be correlated.
-        tensors_are_identical :
-             Whether coeffs_tensor and coeffs_tensor_other are two copies of
-             the same tensor (True) or not (False). If True, we only have to
-             compute the variance of one of them, which saves time.
+        coeffs_var, coeffs_other_var :
+            Two optional tensors containing the variances of coeffs_tensor and
+            coeffs_tensor_other, respectively, in case they've already been computed.
+            Should be of shape (batch, channel, n_scales, n_orientations). Used to
+            normalize the covariances into cross-correlations.
 
         Returns
         -------
@@ -809,15 +810,10 @@ class PortillaSimoncelli(nn.Module):
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
-        coeffs_var :
-            Tensor of shape (batch, channel, n_orientations, scales) containing
-            the variance of the `coeffs` input at each scale (Note: only the
-            first input, not the second).
 
         """
         covars = []
-        coeffs_var = []
-        for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
+        for i, (coeff, coeff_other) in enumerate(zip(coeffs_tensor, coeffs_tensor_other)):
             # precompute this, which we'll use for normalization
             numel = torch.mul(*coeff.shape[-2:])
             # compute the covariance
@@ -827,26 +823,27 @@ class PortillaSimoncelli(nn.Module):
             # Then normalize it to get the Pearson product-moment correlation
             # coefficient, see
             # https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html.
-            # First, compute the variances of each coeff (if coeff and
-            # coeff_other are identical, this is equivalent to the diagonal of
-            # the above covar matrix, but re-computing it is actually faster)
-            coeff_var = einops.einsum(coeff, coeff,
-                                      'b c o1 h w, b c o1 h w -> b c o1')
-            coeff_var = coeff_var / numel
-            coeffs_var.append(coeff_var)
-            if tensors_are_identical:
-                coeff_other_var = coeff_var
+            if coeffs_var is None:
+                # First, compute the variances of each coeff
+                coeff_var = einops.einsum(coeff, coeff,
+                                          'b c o1 h w, b c o1 h w -> b c o1')
+                coeff_var = coeff_var / numel
             else:
+                coeff_var = coeffs_var[..., i, :]
+            if coeffs_other_var is None:
+                # First, compute the variances of each coeff
                 coeff_other_var = einops.einsum(coeff_other, coeff_other,
-                                                'b c o2 h w, b c o2 h w -> b c o2')
+                                          'b c o1 h w, b c o1 h w -> b c o1')
                 coeff_other_var = coeff_other_var / numel
+            else:
+                coeff_other_var = coeffs_other_var[..., i, :]
             # Then compute the outer product of those variances.
             var_outer_prod = einops.einsum(coeff_var, coeff_other_var,
                                            'b c o1, b c o2 -> b c o1 o2')
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
             covars.append(covar / var_outer_prod.sqrt())
-        return torch.stack(covars, -1), torch.stack(coeffs_var, -1)
+        return torch.stack(covars, -1)
 
     @staticmethod
     def _double_phase_pyr_coeffs(pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
