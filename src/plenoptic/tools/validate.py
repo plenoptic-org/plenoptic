@@ -299,13 +299,15 @@ def validate_metric(
     # element tensors can be converted to Python scalars)
     except (ValueError, RuntimeError):
         raise ValueError(
-            f"metric should return a scalar value but output had shape {metric(test_img, test_img).shape}"
+            "metric should return a scalar value but"
+            + f" output had shape {metric(test_img, test_img).shape}"
         )
     # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
     # of 5e-7 to check for zero
     if same_val > 5e-7:
         raise ValueError(
-            f"metric should return <= 5e-7 on two identical images but got {same_val}"
+            "metric should return <= 5e-7 on"
+            + f" two identical images but got {same_val}"
         )
 
 
