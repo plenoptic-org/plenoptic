@@ -19,9 +19,9 @@ import torch.nn as nn
 from torch import Tensor
 from typing_extensions import Literal
 
-from ...tools import signal, stats
+from ...tools import signal
 from ...tools.data import to_numpy
-from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
+from ...tools.display import clean_up_axes, update_stem, imshow
 from ...tools.validate import validate_input
 from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 from ..canonical_computations.steerable_pyramid_freq import SCALES_TYPE as PYR_SCALES_TYPE
@@ -113,13 +113,14 @@ class PortillaSimoncelliMasked(nn.Module):
         self._mask_output_idx = f"{' '.join([f'm{i}' for i in range(len(mask))])}"
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
-        # these are each lists of tensors of shape (batch, channel, n_shifts, height,
-        # width), one per scale, where n_shifts is approximately spatial_corr_width^2 /
+        self.n_orientations = n_orientations
+        # these are each lists of tensors of shape (batch, channel, n_autocorrs, height,
+        # width), one per scale, where n_autocorrs is approximately spatial_corr_width^2 /
         # 2
         rolls_h, rolls_w, var_idx = self._create_autocorr_idx(spatial_corr_width, image_shape)
         self._autocorr_rolls_h, self._autocorr_rolls_w = rolls_h, rolls_w
+        self._n_autocorrs = self._autocorr_rolls_h[0].shape[3]
         self._var_idx = var_idx
-        self.n_orientations = n_orientations
         self._pyr = SteerablePyramidFreq(
             self.image_shape,
             height=self.n_scales,
@@ -183,12 +184,12 @@ class PortillaSimoncelliMasked(nn.Module):
         Returns
         -------
         rolls_h, rolls_w :
-            List of tensors of shape ``(1, 1, n_shifts, height, width)`` giving the
-            shifts along the height (``shape[-2]``) and width (``shape[-1]``) dimensions
-            required for computing the autocorrelations. Each entry in the list
-            corresponds to a different scale, and thus height and width decrease.
+            List of tensors of shape ``(1, 1, n_orientations, n_autocorrs, height, width)``
+            giving the shifts along the height (``shape[-2]``) and width (``shape[-1]``)
+            dimensions required for computing the autocorrelations. Each entry in the
+            list corresponds to a different scale, and thus height and width decrease.
         var_idx :
-            Index into the ``n_shifts`` dimension of the rolls tensors that corresponds
+            Index into the ``n_autocorrs`` dimension of the rolls tensors that corresponds
             to a shift of (0, 0); this is the variance, and is used to normalize the
             autocorrelations.
 
@@ -205,10 +206,10 @@ class PortillaSimoncelliMasked(nn.Module):
         # need one additional scale, since we compute the autocorrelation of the
         # reconstructed lowpass images as well
         for _ in range(self.n_scales+1):
-            arange_h = torch.arange(img_h).view((1, 1, img_h, 1)).repeat((1, 1, 1, img_h))
-            arange_w = torch.arange(img_w).view((1, 1, 1, img_w)).repeat((1, 1, img_w, 1))
-            rolls_h.append(torch.stack([arange_h.roll(i, -2) for i in autocorr_shift_vals[0]], 2))
-            rolls_w.append(torch.stack([arange_w.roll(i, -1) for i in autocorr_shift_vals[1]], 2))
+            arange_h = torch.arange(img_h).view((1, 1, 1, img_h, 1)).repeat((1, 1, self.n_orientations, 1, img_h))
+            arange_w = torch.arange(img_w).view((1, 1, 1, 1, img_w)).repeat((1, 1, self.n_orientations, img_w, 1))
+            rolls_h.append(torch.stack([arange_h.roll(i, -2) for i in autocorr_shift_vals[0]], 3))
+            rolls_w.append(torch.stack([arange_w.roll(i, -1) for i in autocorr_shift_vals[1]], 3))
             img_h = int(img_h // 2)
             img_w = int(img_w // 2)
         return rolls_h, rolls_w, var_idx
@@ -247,7 +248,7 @@ class PortillaSimoncelliMasked(nn.Module):
         """
         shape_dict = OrderedDict()
         # There are 6 pixel statistics
-        shape_dict['pixel_statistics'] = np.array(6*['pixel_statistics'])
+        shape_dict['pixel_statistics'] = np.array(4*['pixel_statistics'])
 
         # These are the basic building blocks of the scale assignments for many
         # of the statistics calculated by the PortillaSimoncelli model.
@@ -265,21 +266,19 @@ class PortillaSimoncelliMasked(nn.Module):
         # arrays above to turn those 1s into values describing the
         # corresponding scale.
 
-        auto_corr_mag = np.ones((self.spatial_corr_width, self.spatial_corr_width,
-                                 self.n_scales, self.n_orientations), dtype=int)
+        auto_corr_mag = np.ones((self._n_autocorrs, self.n_orientations, self.n_scales), dtype=int)
         # this rearrange call is turning scales from 1d with shape (n_scales, )
         # to 4d with shape (1, 1, n_scales, 1), so that it matches
         # auto_corr_mag. the following rearrange calls do similar.
-        auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 s 1')
+        auto_corr_mag *= einops.rearrange(scales, 's -> 1 1 s')
         shape_dict['auto_correlation_magnitude'] = auto_corr_mag
 
         shape_dict['skew_reconstructed'] = scales_with_lowpass
 
         shape_dict['kurtosis_reconstructed'] = scales_with_lowpass
 
-        auto_corr = np.ones((self.spatial_corr_width, self.spatial_corr_width,
-                             self.n_scales+1), dtype=object)
-        auto_corr *= einops.rearrange(scales_with_lowpass, 's -> 1 1 s')
+        auto_corr = np.ones((self._n_autocorrs, self.n_scales+1), dtype=object)
+        auto_corr *= einops.rearrange(scales_with_lowpass, 's -> 1 s')
         shape_dict['auto_correlation_reconstructed'] = auto_corr
 
         shape_dict['std_reconstructed'] = scales_with_lowpass
@@ -333,17 +332,6 @@ class PortillaSimoncelliMasked(nn.Module):
 
         """
         mask_dict = scales_shape_dict.copy()
-        # Pre-compute some necessary indices.
-        # Lower triangular indices (including diagonal), for auto correlations
-        tril_inds = torch.tril_indices(self.spatial_corr_width,
-                                       self.spatial_corr_width)
-        # Get the second half of the diagonal, i.e., everything from the center
-        # element on. These are all repeated for the auto correlations. (As
-        # these are autocorrelations (rather than auto-covariance) matrices,
-        # they've been normalized by the variance and so the center element is
-        # always 1, and thus uninformative)
-        diag_repeated = torch.arange(start=self.spatial_corr_width//2,
-                                     end=self.spatial_corr_width)
         # Upper triangle indices, including diagonal. These are redundant stats
         # for cross_orientation_correlation_magnitude (because we've normalized
         # this matrix to be true cross-correlations, the diagonals are all 1,
@@ -351,17 +339,7 @@ class PortillaSimoncelliMasked(nn.Module):
         triu_inds = torch.triu_indices(self.n_orientations,
                                        self.n_orientations)
         for k, v in mask_dict.items():
-            if k in ["auto_correlation_magnitude", "auto_correlation_reconstructed"]:
-                # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
-                # Start with all False, then place True in necessary stats.
-                mask = torch.zeros(v.shape, dtype=torch.bool)
-                mask[tril_inds[0], tril_inds[1]] = True
-                # if spatial_corr_width is even, then the first row is not
-                # redundant with anything either
-                if np.mod(self.spatial_corr_width, 2) == 0:
-                    mask[0] = True
-                mask[diag_repeated, diag_repeated] = False
-            elif k == 'cross_orientation_correlation_magnitude':
+            if k == 'cross_orientation_correlation_magnitude':
                 # Symmetry M_{i,j} = M_{j,i}.
                 # Start with all True, then place False in redundant stats.
                 mask = torch.ones(v.shape, dtype=torch.bool)
@@ -439,23 +417,25 @@ class PortillaSimoncelliMasked(nn.Module):
         pixel_stats = self._compute_pixel_stats(self.mask, image)
 
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
-        # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
-        # n_orientations, n_scales).
+        # tensor of shape: (batch, channel, masks, n_autocorrs, n_orientations, n_scales).
         autocorr_mags, mags_var = self._compute_autocorr(self.mask, mag_pyr_coeffs)
         # mags_var is the variance of the magnitude coefficients at each scale (it's an
         # intermediary of the computation of the auto-correlations). We take the square
-        # root to get the standard deviation.
-        mags_std = mags_var.sqrt()
+        # root to get the standard deviation. After this, mags_std will have shape
+        # (batch, channel, masks, n_orientations, n_scale)
+        mags_std = einops.rearrange(mags_var.sqrt(),
+                                    f'b c {self._mask_output_idx} o s -> b c ({self._mask_output_idx}) o s')
 
         # Compute the central autocorrelation of the reconstructed lowpass images at
         # each scale (and their variances). autocorr_recon is a tensor of shape (batch,
-        # channel, masks, n_shifts, n_scales+1), and var_recon is a tensor of shape
+        # channel, masks, n_autocorrs, n_scales+1), and var_recon is a tensor of shape
         # (batch, channel, masks, n_scales+1)
         autocorr_recon, var_recon = self._compute_autocorr(self.mask, reconstructed_images)
         # Compute the standard deviation, skew, and kurtosis of each reconstructed
         # lowpass image. std_recon, skew_recon, and kurtosis_recon will all end up as
         # tensors of shape (batch, channel, masks, n_scales+1)
-        std_recon = var_recon.sqrt()
+        std_recon = einops.rearrange(var_recon.sqrt(),
+                                     f'b c {self._mask_output_idx} s -> b c ({self._mask_output_idx}) s')
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(self.mask,
                                                                        reconstructed_images,
                                                                        var_recon,
@@ -487,7 +467,10 @@ class PortillaSimoncelliMasked(nn.Module):
             cross_scale_corr_real = self._compute_cross_correlation(self.mask, real_pyr_coeffs[:-1], phase_doubled_sep)
 
         # Compute the variance of the highpass residual
-        var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
+        var_highpass_residual = einops.einsum(*self.mask[0], highpass.pow(2),
+                                              f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        var_highpass_residual = einops.rearrange(var_highpass_residual,
+                                                 f'b c {self._mask_output_idx} -> b c ({self._mask_output_idx})')
 
         # Now, combine all these stats together, first into a list
         all_stats = [pixel_stats, autocorr_mags, skew_recon,
@@ -497,7 +480,7 @@ class PortillaSimoncelliMasked(nn.Module):
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
         # And then pack them into a 3d tensor
-        representation_tensor, pack_info = einops.pack(all_stats, 'b c *')
+        representation_tensor, pack_info = einops.pack(all_stats, 'b c m *')
 
         # the only time when this is None is during testing, when we make sure
         # that our assumptions are all valid.
@@ -614,7 +597,7 @@ class PortillaSimoncelliMasked(nn.Module):
             # each statistic is a tensor with batch and channel dimensions as
             # found in representation_tensor and all the other dimensions
             # determined by the values in necessary_stats_dict.
-            shape = (*representation_tensor.shape[:2], *v.shape)
+            shape = (*representation_tensor.shape[:3], *v.shape)
             new_v = torch.nan * torch.ones(shape, dtype=representation_tensor.dtype,
                                            device=representation_tensor.device)
             # v.sum() gives the number of necessary elements from this stat
@@ -692,10 +675,11 @@ class PortillaSimoncelliMasked(nn.Module):
             non-central moments
 
         """
-        mean = einops.einsum(*mask[0], image, f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        var = einops.einsum(*mask[0], image.pow(2), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        skew = einops.einsum(*mask[0], image.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
-        kurtosis = einops.einsum(*mask[0], image.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}")
+        weighted_avg_expr = f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"
+        mean = einops.einsum(*mask[0], image, weighted_avg_expr)
+        var = einops.einsum(*mask[0], image.pow(2), weighted_avg_expr)
+        skew = einops.einsum(*mask[0], image.pow(3), weighted_avg_expr)
+        kurtosis = einops.einsum(*mask[0], image.pow(4), weighted_avg_expr)
         return einops.rearrange([mean, var, skew, kurtosis], f'stats b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) stats')
 
     @staticmethod
@@ -794,22 +778,23 @@ class PortillaSimoncelliMasked(nn.Module):
             dimensions. ``n_autocorrs`` is the number of unique autocorrelation values,
             which is approximately sptial_corr_width^2 / 2.
         vars :
-            Tensor of shape (batch, channel, masks, *, s) containing the variance of
+            Tensor of shape (batch, channel, *masks, *, s) containing the variance of
             each element in ``coeffs_list``, computed independently over all but the
-            final two dimensions.
+            final two dimensions. Note that by *masks, we indicate that the dimensions
+            will not be combined, so that if ``len(masks)==2``, *masks would hold two
+            dimensions.
 
         """
         if coeffs_list[0].ndim == 5:
             dims = 'o'
-            rolls_h = [r.unsqueeze(2) for r in self._autocorr_rolls_h]
-            rolls_w = [r.unsqueeze(2) for r in self._autocorr_rolls_w]
-        elif coeffs_list[0].ndim == 4:
-            dims = ''
             rolls_h = self._autocorr_rolls_h
             rolls_w = self._autocorr_rolls_w
+        elif coeffs_list[0].ndim == 4:
+            dims = ''
+            rolls_h = [r[:, :, 0] for r in self._autocorr_rolls_h]
+            rolls_w = [r[:, :, 0] for r in self._autocorr_rolls_w]
         else:
             raise ValueError("coeffs_list must contain tensors of either 4 or 5 dimensions!")
-        n_shifts = rolls_h[0].shape[-2]
         autocorr_expr = f"{self._mask_input_idx}, b c {dims} h w, b c {dims} shift h w -> b c {self._mask_output_idx} shift {dims}"
         acs = []
         vars = []
@@ -818,14 +803,15 @@ class PortillaSimoncelliMasked(nn.Module):
             # the following two lines are equivalent to having two for loops over
             # range(-spatial_corr_width//2, spatial_corr_width//2) and using roll along
             # the last two indices, but is much more efficient, especially on the gpu.
-            rolled_coeff = einops.repeat(coeff, f'b c {dims} h w -> b c {dims} shift h w', shift=n_shifts)
+            rolled_coeff = einops.repeat(coeff, f'b c {dims} h w -> b c {dims} shift h w',
+                                         shift=self._n_autocorrs)
             rolled_coeff = rolled_coeff.gather(-2, rolls_h).gather(-1, rolls_w)
             autocorr = einops.einsum(*scale_mask, coeff, rolled_coeff, autocorr_expr)
             var = autocorr[:, :, :, :, self._var_idx].unsqueeze(4)
             acs.append(autocorr / var)
             vars.append(var)
         acs = einops.rearrange(acs, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) shifts {dims} scales')
-        vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) {dims} (shifts scales)', shifts=1)
+        vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c {self._mask_output_idx} {dims} (shifts scales)', shifts=1)
         return acs, vars
 
     def _compute_skew_kurtosis_recon(self, mask: List[Tensor],
@@ -876,12 +862,14 @@ class PortillaSimoncelliMasked(nn.Module):
         # unsqueeze is used here because var_recon is shape (batch, channel, masks,
         # scales+1), whereas img_var is just (batch, channel, masks)
         res = torch.finfo(img_var.dtype).resolution
+        var_recon = einops.rearrange(var_recon, f'b c {self._mask_output_idx} scales -> b c ({self._mask_output_idx}) scales')
         unstable_locs = (var_recon / img_var.unsqueeze(-1)) < res
         skew_recon = torch.where(unstable_locs, skew_default, skew_recon)
         kurtosis_recon = torch.where(unstable_locs, kurtosis_default, kurtosis_recon)
         return skew_recon, kurtosis_recon
 
-    def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
+    def _compute_cross_correlation(self, mask: List[Tensor],
+                                   coeffs_tensor: List[Tensor],
                                    coeffs_tensor_other: List[Tensor],
                                    coeffs_var: Optional[Tensor] = None,
                                    coeffs_other_var: Optional[Tensor] = None) -> Tensor:
@@ -895,49 +883,48 @@ class PortillaSimoncelliMasked(nn.Module):
         coeffs_var, coeffs_other_var :
             Two optional tensors containing the variances of coeffs_tensor and
             coeffs_tensor_other, respectively, in case they've already been computed.
-            Should be of shape (batch, channel, n_orientations, n_scales). Used to
-            normalize the covariances into cross-correlations.
+            Should be of shape (batch, channel, *masks, n_orientations, n_scales). Note
+            that by *masks, we indicate that the dimensions should not be combined, so
+            that if ``len(masks)==2``, *masks would hold two dimensions. Used to
+            normalize the covariances into cross-correlations. Intended use is the
+            output of ``_compute_autocorr``.
 
         Returns
         -------
         cross_corrs :
-            Tensor of shape (batch, channel, n_orientations, n_orientations,
-            scales) containing the cross-correlations at each
-            scale.
+            Tensor of shape (batch, channel, masks, n_orientations, n_orientations,
+            scales) containing the cross-correlations at each scale.
 
         """
         covars = []
-        for i, (coeff, coeff_other) in enumerate(zip(coeffs_tensor, coeffs_tensor_other)):
-            # precompute this, which we'll use for normalization
-            numel = torch.mul(*coeff.shape[-2:])
+        covar_expr = f'{self._mask_input_idx}, b c o1 h w, b c o2 h w -> b c {self._mask_output_idx} o1 o2'
+        var_expr = f'{self._mask_input_idx}, b c o1 h w, b c o1 h w -> b c {self._mask_output_idx} o1'
+        outer_prod_expr = f'b c {self._mask_output_idx} o1, b c {self._mask_output_idx} o2 -> b c {self._mask_output_idx} o1 o2'
+        for i, (scale_mask, coeff, coeff_other) in enumerate(zip(mask, coeffs_tensor, coeffs_tensor_other)):
             # compute the covariance
-            covar = einops.einsum(coeff, coeff_other,
-                                  'b c o1 h w, b c o2 h w -> b c o1 o2')
-            covar = covar / numel
+            covar = einops.einsum(*scale_mask, coeff, coeff_other, covar_expr)
             # Then normalize it to get the Pearson product-moment correlation
             # coefficient, see
             # https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html.
             if coeffs_var is None:
                 # First, compute the variances of each coeff
-                coeff_var = einops.einsum(coeff, coeff,
-                                          'b c o1 h w, b c o1 h w -> b c o1')
-                coeff_var = coeff_var / numel
+                coeff_var = einops.einsum(*scale_mask, coeff, coeff,
+                                          var_expr)
             else:
                 coeff_var = coeffs_var[..., i]
             if coeffs_other_var is None:
                 # First, compute the variances of each coeff
-                coeff_other_var = einops.einsum(coeff_other, coeff_other,
-                                          'b c o1 h w, b c o1 h w -> b c o1')
-                coeff_other_var = coeff_other_var / numel
+                coeff_other_var = einops.einsum(*scale_mask, coeff_other, coeff_other,
+                                                var_expr)
             else:
                 coeff_other_var = coeffs_other_var[..., i]
             # Then compute the outer product of those variances.
             var_outer_prod = einops.einsum(coeff_var, coeff_other_var,
-                                           'b c o1, b c o2 -> b c o1 o2')
+                                           outer_prod_expr)
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
             covars.append(covar / var_outer_prod.sqrt())
-        return torch.stack(covars, -1)
+        return einops.rearrange(covars, f'scales b c {self._mask_output_idx} o1 o2 -> b c ({self._mask_output_idx}) o1 o2 scales')
 
     @staticmethod
     def _double_phase_pyr_coeffs(pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
@@ -1098,7 +1085,7 @@ class PortillaSimoncelliMasked(nn.Module):
         axes = []
         for i, (k, v) in enumerate(data.items()):
             ax = fig.add_subplot(gs[i // 3, i % 3])
-            ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
+            ax = imshow(to_numpy(einops.rearrange(v, 'm s -> 1 1 m s')), ax=ax, title=k)
             axes.append(ax)
 
         if title is not None:
@@ -1112,21 +1099,18 @@ class PortillaSimoncelliMasked(nn.Module):
         Intended as a helper function for plot_representation.
 
         """
-        if rep['skew_reconstructed'].ndim > 1:
-            raise ValueError("Currently, only know how to plot single batch and channel at a time! "
-                             "Select and/or average over those dimensions")
         data = OrderedDict()
         data["pixels+var_highpass"] = torch.cat([rep.pop("pixel_statistics"),
-                                                 rep.pop("var_highpass_residual")])
+                                                 rep.pop("var_highpass_residual")], -1)
         data["std+skew+kurtosis recon"] = torch.cat(
             (
                 rep.pop("std_reconstructed"),
                 rep.pop("skew_reconstructed"),
                 rep.pop("kurtosis_reconstructed"),
-            )
+            ), -1
         )
 
-        data['magnitude_std'] = rep.pop('magnitude_std')
+        data['magnitude_std'] = rep.pop('magnitude_std').flatten(1)
 
         # want to plot these in a specific order
         all_keys = ['auto_correlation_reconstructed',
@@ -1140,9 +1124,13 @@ class PortillaSimoncelliMasked(nn.Module):
             # if we only have one scale, no cross-scale stats
             if k.startswith('cross_scale') and self.n_scales == 1:
                 continue
-            # we compute L2 norm manually, since there are NaNs (marking
-            # redundant stats)
-            data[k] = rep[k].pow(2).nansum((0, 1)).sqrt().flatten()
+            # these will then be 2d, with masks on the first dimension
+            if k == 'cross_orientation_correlation_magnitude':
+                # this one has nans in it (indicating unnecessary stats), and so we need
+                # to compute the L2 norm ourselves
+                data[k] = rep[k].pow(2).nansum((1, 2)).sqrt()
+            else:
+                data[k] = torch.linalg.vector_norm(rep[k], ord=2, dim=1).flatten(1)
 
         return data
 
