@@ -865,9 +865,9 @@ class PortillaSimoncelliMasked(nn.Module):
         """
         skew_recon = []
         kurtosis_recon = []
-        for img, m in zip(reconstructed_images, mask):
-            skew_recon.append(einops.einsum(*m, img.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
-            kurtosis_recon.append(einops.einsum(*m, img.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
+        for img, scale_mask in zip(reconstructed_images, mask):
+            skew_recon.append(einops.einsum(*scale_mask, img.pow(3), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
+            kurtosis_recon.append(einops.einsum(*scale_mask, img.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
         skew_recon = einops.rearrange(skew_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
         kurtosis_recon = einops.rearrange(kurtosis_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
         skew_default = torch.zeros_like(skew_recon)
