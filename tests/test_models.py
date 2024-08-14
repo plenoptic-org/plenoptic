@@ -51,42 +51,9 @@ def portilla_simoncelli_test_vectors():
     return po.data.fetch_data('portilla_simoncelli_test_vectors_refactor.tar.gz')
 
 
-def get_portilla_simoncelli_synthesize_filename(torch_version=None):
-    """Helper function to get pathname.
-
-    We can't call fixtures directly (feature removed in pytest 4.0), so we use
-    this helper function to get the name, which we use in
-    tests/utils.update_ps_synthesis_test_file()
-
-    """
-    if torch_version is None:
-        # the bit after the + defines the CUDA version used (if any), which
-        # doesn't appear to be relevant for this.
-        torch_version = torch.__version__.split('+')[0]
-    # following https://stackoverflow.com/a/11887885 for how to compare version
-    # strings
-    if version.parse(torch_version) < version.parse('1.12') or DEVICE.type == 'cuda':
-        torch_version = ''
-    # going from 1.11 to 1.12 only changes this synthesis output on cpu, not
-    # gpu
-    else:
-        torch_version = '_torch_v1.12.0'
-    # during refactor, we changed PS model output so that it doesn't include
-    # redundant stats. This changes the solution that is found (though not its
-    # quality)
-    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}_ps-refactor.npz'
-    # synthesis gives differnet outputs on cpu vs gpu, so we have two different
-    # versions to test against
-    if DEVICE.type == 'cpu':
-        gpu = ''
-    elif DEVICE.type == 'cuda':
-        gpu = '_gpu'
-    return name_template.format(gpu=gpu, torch_version=torch_version)
-
-
 @pytest.fixture()
-def portilla_simoncelli_synthesize(torch_version=None):
-    return po.data.fetch_data(get_portilla_simoncelli_synthesize_filename(torch_version))
+def portilla_simoncelli_synthesize():
+    return po.data.fetch_data('portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz')
 
 
 @pytest.fixture()
@@ -326,9 +293,11 @@ def convert_matlab_ps_rep_to_dict(vec: torch.Tensor, n_scales: int,
         n_scales,
         n_orientations,
     )
+    # in the plenoptic version, auto_correlation_magnitude shape has n_scales and
+    # n_orientations flipped relative to the matlab representation
     rep["auto_correlation_magnitude"] = vec[
         ..., n_filled : (n_filled + np.prod(nn))
-    ].unflatten(-1, nn)
+    ].unflatten(-1, nn).transpose(-1, -2)
     n_filled += np.prod(nn)
 
     # skew_reconstructed & kurtosis_reconstructed
@@ -589,7 +558,11 @@ class TestPortillaSimoncelli(object):
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE).to(torch.float64)
-        output = ps(im0)
+        output = ps.convert_to_dict(ps(im0))
+        # the scales and orientations dimensions are flipped in the
+        # auto_correlation_magnitude relative to when we first did this.
+        output['auto_correlation_magnitude'] = output['auto_correlation_magnitude'].transpose(-1, -2)
+        output = ps.convert_to_tensor(output)
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
                         f"{im}_scales-{n_scales}_ori-{n_orientations}_"
@@ -702,7 +675,14 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=spatial_corr_width,
             ).to(DEVICE)
 
-        output = model._representation_scales
+        # the scales and orientations dimensions are flipped in the
+        # auto_correlation_magnitude relative to when we first did this.
+        scales_dict = model._create_scales_shape_dict()
+        # this transpose looks a bit different because it's numpy's transpose
+        scales_dict['auto_correlation_magnitude'] = scales_dict['auto_correlation_magnitude'].transpose(0, 1, 3, 2)
+        output = einops.pack(list(scales_dict.values()), '*')[0]
+        # just select the scales of the necessary stats.
+        output = output[model._necessary_stats_mask.cpu()]
 
         np.testing.assert_equal(output, saved)
 
