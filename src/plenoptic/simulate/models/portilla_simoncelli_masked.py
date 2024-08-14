@@ -883,7 +883,8 @@ class PortillaSimoncelliMasked(nn.Module):
 
     def _compute_cross_correlation(self, coeffs_tensor: List[Tensor],
                                    coeffs_tensor_other: List[Tensor],
-                                   tensors_are_identical: bool = False) -> Tuple[Tensor, Tensor]:
+                                   coeffs_var: Optional[Tensor] = None,
+                                   coeffs_other_var: Optional[Tensor] = None) -> Tensor:
         """Compute cross-correlations.
 
         Parameters
@@ -891,10 +892,11 @@ class PortillaSimoncelliMasked(nn.Module):
         coeffs_tensor, coeffs_tensor_other :
             The two lists of length scales, each containing 5d tensors of shape
             (batch, channel, n_orientations, height, width) to be correlated.
-        tensors_are_identical :
-             Whether coeffs_tensor and coeffs_tensor_other are two copies of
-             the same tensor (True) or not (False). If True, we only have to
-             compute the variance of one of them, which saves time.
+        coeffs_var, coeffs_other_var :
+            Two optional tensors containing the variances of coeffs_tensor and
+            coeffs_tensor_other, respectively, in case they've already been computed.
+            Should be of shape (batch, channel, n_orientations, n_scales). Used to
+            normalize the covariances into cross-correlations.
 
         Returns
         -------
@@ -902,15 +904,10 @@ class PortillaSimoncelliMasked(nn.Module):
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
-        coeffs_var :
-            Tensor of shape (batch, channel, n_orientations, scales) containing
-            the variance of the `coeffs` input at each scale (Note: only the
-            first input, not the second).
 
         """
         covars = []
-        coeffs_var = []
-        for coeff, coeff_other in zip(coeffs_tensor, coeffs_tensor_other):
+        for i, (coeff, coeff_other) in enumerate(zip(coeffs_tensor, coeffs_tensor_other)):
             # precompute this, which we'll use for normalization
             numel = torch.mul(*coeff.shape[-2:])
             # compute the covariance
@@ -920,26 +917,27 @@ class PortillaSimoncelliMasked(nn.Module):
             # Then normalize it to get the Pearson product-moment correlation
             # coefficient, see
             # https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html.
-            # First, compute the variances of each coeff (if coeff and
-            # coeff_other are identical, this is equivalent to the diagonal of
-            # the above covar matrix, but re-computing it is actually faster)
-            coeff_var = einops.einsum(coeff, coeff,
-                                      'b c o1 h w, b c o1 h w -> b c o1')
-            coeff_var = coeff_var / numel
-            coeffs_var.append(coeff_var)
-            if tensors_are_identical:
-                coeff_other_var = coeff_var
+            if coeffs_var is None:
+                # First, compute the variances of each coeff
+                coeff_var = einops.einsum(coeff, coeff,
+                                          'b c o1 h w, b c o1 h w -> b c o1')
+                coeff_var = coeff_var / numel
             else:
+                coeff_var = coeffs_var[..., i]
+            if coeffs_other_var is None:
+                # First, compute the variances of each coeff
                 coeff_other_var = einops.einsum(coeff_other, coeff_other,
-                                                'b c o2 h w, b c o2 h w -> b c o2')
+                                          'b c o1 h w, b c o1 h w -> b c o1')
                 coeff_other_var = coeff_other_var / numel
+            else:
+                coeff_other_var = coeffs_other_var[..., i]
             # Then compute the outer product of those variances.
             var_outer_prod = einops.einsum(coeff_var, coeff_other_var,
                                            'b c o1, b c o2 -> b c o1 o2')
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
             covars.append(covar / var_outer_prod.sqrt())
-        return torch.stack(covars, -1), torch.stack(coeffs_var, -1)
+        return torch.stack(covars, -1)
 
     @staticmethod
     def _double_phase_pyr_coeffs(pyr_coeffs: List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]:
