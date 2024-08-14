@@ -5,7 +5,7 @@ import re
 import plenoptic as po
 import pyrtools as pt
 import numpy as np
-from test_models import TestPortillaSimoncelli, get_portilla_simoncelli_synthesize_filename
+from test_models import TestPortillaSimoncelli
 from typing import Optional
 
 
@@ -35,7 +35,7 @@ def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
         Metamer object for inspection
 
     """
-    ps_synth_file = po.data.fetch_data(get_portilla_simoncelli_synthesize_filename(torch_version))
+    ps_synth_file = po.data.fetch_data('portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz')
     print(f'Loading from {ps_synth_file}')
 
     with np.load(ps_synth_file) as f:
