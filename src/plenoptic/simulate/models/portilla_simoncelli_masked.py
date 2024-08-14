@@ -439,8 +439,13 @@ class PortillaSimoncelliMasked(nn.Module):
         pixel_stats = self._compute_pixel_stats(self.mask, image)
 
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
-        # tensor of shape: (batch, channel, masks, n_shifts, n_scales, n_orientations)
-        autocorr_mags, _ = self._compute_autocorr(self.mask, mag_pyr_coeffs)
+        # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
+        # n_orientations, n_scales).
+        autocorr_mags, mags_var = self._compute_autocorr(self.mask, mag_pyr_coeffs)
+        # mags_var is the variance of the magnitude coefficients at each scale (it's an
+        # intermediary of the computation of the auto-correlations). We take the square
+        # root to get the standard deviation.
+        mags_std = mags_var.sqrt()
 
         # Compute the central autocorrelation of the reconstructed lowpass images at
         # each scale (and their variances). autocorr_recon is a tensor of shape (batch,
@@ -459,13 +464,8 @@ class PortillaSimoncelliMasked(nn.Module):
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale. this will be a tensor of shape (batch,
         # channel, n_orientations, n_orientations, n_scales)
-        cross_ori_corr_mags, mags_var = self._compute_cross_correlation(mag_pyr_coeffs, mag_pyr_coeffs,
-                                                                        tensors_are_identical=True)
-        # mags_var is the variance of the magnitude coefficients at each scale
-        # (it's an intermediary of the computation of the cross-orientation
-        # correlations), of shape (batch, channel, n_orientations, n_scales).
-        # We take the square root to get the standard deviation.
-        mags_std = mags_var.sqrt()
+        cross_ori_corr_mags = self._compute_cross_correlation(self.mask, mag_pyr_coeffs, mag_pyr_coeffs,
+                                                              mags_var, mags_var)
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -477,14 +477,14 @@ class PortillaSimoncelliMasked(nn.Module):
             # coefficients at the next-coarsest scale. this will be a tensor of
             # shape (batch, channel, n_orientations, n_orientations,
             # n_scales-1)
-            cross_scale_corr_mags, _ = self._compute_cross_correlation(mag_pyr_coeffs[:-1], phase_doubled_mags,
-                                                                       tensors_are_identical=False)
+            cross_scale_corr_mags = self._compute_cross_correlation(self.mask, mag_pyr_coeffs[:-1],
+                                                                    phase_doubled_mags,
+                                                                    mags_var[..., :-1])
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
             # n_orientations, 2*n_orientations, n_scales-1)
-            cross_scale_corr_real, _ = self._compute_cross_correlation(real_pyr_coeffs[:-1], phase_doubled_sep,
-                                                                       tensors_are_identical=False)
+            cross_scale_corr_real = self._compute_cross_correlation(self.mask, real_pyr_coeffs[:-1], phase_doubled_sep)
 
         # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
@@ -788,13 +788,13 @@ class PortillaSimoncelliMasked(nn.Module):
         Returns
         -------
         autocorrs :
-            Tensor of shape (batch, channel, masks, n_autocorrs, s, *) containing the
+            Tensor of shape (batch, channel, masks, n_autocorrs, *, s) containing the
             autocorrelation (up to distance ``spatial_corr_width//2``) of each element
             in ``coeffs_list``, computed independently over all but the final two
             dimensions. ``n_autocorrs`` is the number of unique autocorrelation values,
             which is approximately sptial_corr_width^2 / 2.
         vars :
-            Tensor of shape (batch, channel, masks, s, *) containing the variance of
+            Tensor of shape (batch, channel, masks, *, s) containing the variance of
             each element in ``coeffs_list``, computed independently over all but the
             final two dimensions.
 
@@ -824,8 +824,8 @@ class PortillaSimoncelliMasked(nn.Module):
             var = autocorr[:, :, :, :, self._var_idx].unsqueeze(4)
             acs.append(autocorr / var)
             vars.append(var)
-        acs = einops.rearrange(acs, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) shifts scales {dims}')
-        vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) (shifts scales) {dims}', shifts=1)
+        acs = einops.rearrange(acs, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) shifts {dims} scales')
+        vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) {dims} (shifts scales)', shifts=1)
         return acs, vars
 
     def _compute_skew_kurtosis_recon(self, mask: List[Tensor],
