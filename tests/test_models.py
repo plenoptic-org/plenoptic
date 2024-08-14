@@ -682,7 +682,7 @@ class TestPortillaSimoncelli(object):
         scales_dict['auto_correlation_magnitude'] = scales_dict['auto_correlation_magnitude'].transpose(0, 1, 3, 2)
         output = einops.pack(list(scales_dict.values()), '*')[0]
         # just select the scales of the necessary stats.
-        output = output[model._necessary_stats_mask]
+        output = output[model._necessary_stats_mask.cpu()]
 
         np.testing.assert_equal(output, saved)
 
