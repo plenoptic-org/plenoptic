@@ -63,17 +63,12 @@ def loss_convergence(
 
     """
     if len(synth.losses) > stop_iters_to_check:
-        if (
-            abs(synth.losses[-stop_iters_to_check] - synth.losses[-1])
-            < stop_criterion
-        ):
+        if abs(synth.losses[-stop_iters_to_check] - synth.losses[-1]) < stop_criterion:
             return True
     return False
 
 
-def coarse_to_fine_enough(
-    synth: "Metamer", i: int, ctf_iters_to_check: int
-) -> bool:
+def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> bool:
     r"""Check whether we've synthesized all scales and done so for at least ctf_iters_to_check iterations
 
     This is meant to be paired with another convergence check, such as ``loss_convergence``.
@@ -139,8 +134,6 @@ def pixel_change_convergence(
 
     """
     if len(synth.pixel_change_norm) > stop_iters_to_check:
-        if (
-            synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion
-        ).all():
+        if (synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all():
             return True
     return False

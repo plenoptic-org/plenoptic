@@ -142,8 +142,9 @@ class Eigendistortion(Synthesis):
         self._init_representation(image)
 
         print(
-            f"\nInitializing Eigendistortion -- "
-            f"Input dim: {len(self._image_flat.squeeze())} | Output dim: {len(self._representation_flat.squeeze())}"
+            "\nInitializing Eigendistortion -- Input dim:"
+            f" {len(self._image_flat.squeeze())} | Output dim:"
+            f" {len(self._representation_flat.squeeze())}"
         )
 
         self._jacobian = None
@@ -202,17 +203,15 @@ class Eigendistortion(Synthesis):
 
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
-        assert (
-            method in allowed_methods
-        ), f"method must be in {allowed_methods}"
+        assert method in allowed_methods, f"method must be in {allowed_methods}"
 
         if (
             method == "exact"
-            and self._representation_flat.size(0) * self._image_flat.size(0)
-            > 1e6
+            and self._representation_flat.size(0) * self._image_flat.size(0) > 1e6
         ):
             warnings.warn(
-                "Jacobian > 1e6 elements and may cause out-of-memory. Use method =  {'power', 'randomized_svd'}."
+                "Jacobian > 1e6 elements and may cause out-of-memory. Use"
+                " method =  {'power', 'randomized_svd'}."
             )
 
         if method == "exact":  # compute exact Jacobian
@@ -222,9 +221,7 @@ class Eigendistortion(Synthesis):
             eig_vecs_ind = torch.arange(len(eig_vecs))
 
         elif method == "randomized_svd":
-            print(
-                f"Estimating top k={k} eigendistortions using randomized SVD"
-            )
+            print(f"Estimating top k={k} eigendistortions using randomized SVD")
             lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(
                 k=k, p=p, q=q
             )
@@ -234,7 +231,8 @@ class Eigendistortion(Synthesis):
 
             # display the approximate estimation error of the range space
             print(
-                f"Randomized SVD complete! Estimated spectral approximation error = {error_approx:.2f}"
+                "Randomized SVD complete! Estimated spectral approximation"
+                f" error = {error_approx:.2f}"
             )
 
         else:  # method == 'power'
@@ -248,16 +246,12 @@ class Eigendistortion(Synthesis):
             )
             n = v_max.shape[0]
 
-            eig_vecs = self._vector_to_image(
-                torch.cat((v_max, v_min), dim=1).detach()
-            )
+            eig_vecs = self._vector_to_image(torch.cat((v_max, v_min), dim=1).detach())
             eig_vals = torch.cat([lmbda_max, lmbda_min]).squeeze()
             eig_vecs_ind = torch.cat((torch.arange(k), torch.arange(n - k, n)))
 
         # reshape to (n x num_chans x h x w)
-        self._eigendistortions = (
-            torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
-        )
+        self._eigendistortions = torch.stack(eig_vecs, 0) if len(eig_vecs) != 0 else []
         self._eigenvalues = torch.abs(eig_vals.detach())
         self._eigenindex = eig_vecs_ind
 
@@ -343,9 +337,7 @@ class Eigendistortion(Synthesis):
         v = torch.randn(len(x), k, device=x.device, dtype=x.dtype)
         v = v / torch.linalg.vector_norm(v, dim=0, keepdim=True, ord=2)
 
-        _dummy_vec = torch.ones_like(
-            y, requires_grad=True
-        )  # cache a dummy vec for jvp
+        _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
         Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
         lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
@@ -367,9 +359,7 @@ class Eigendistortion(Synthesis):
             Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
-            v_new, _ = torch.linalg.qr(
-                Fv, "reduced"
-            )  # (ortho)normalize vector(s)
+            v_new, _ = torch.linalg.qr(Fv, "reduced")  # (ortho)normalize vector(s)
 
             lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
@@ -444,9 +434,7 @@ class Eigendistortion(Synthesis):
             y, x, torch.randn(n, 20).to(x.device), _dummy_vec
         )
         error_approx = omega - (Q @ Q.T @ omega)
-        error_approx = torch.linalg.vector_norm(
-            error_approx, dim=0, ord=2
-        ).mean()
+        error_approx = torch.linalg.vector_norm(error_approx, dim=0, ord=2).mean()
 
         return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
@@ -466,9 +454,7 @@ class Eigendistortion(Synthesis):
         """
 
         imgs = [
-            vecs[:, i].reshape(
-                (self.n_channels, self.im_height, self.im_width)
-            )
+            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
             for i in range(vecs.shape[1])
         ]
         return imgs
@@ -480,9 +466,7 @@ class Eigendistortion(Synthesis):
         i = idx_range[idx]
 
         all_idx = self.eigenindex
-        assert (
-            i in all_idx
-        ), "eigenindex must be the index of one of the vectors"
+        assert i in all_idx, "eigenindex must be the index of one of the vectors"
         assert (
             all_idx is not None and len(all_idx) != 0
         ), "No eigendistortions synthesized"

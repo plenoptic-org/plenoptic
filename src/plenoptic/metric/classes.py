@@ -37,9 +37,7 @@ class NLP(torch.nn.Module):
 
         """
         if image.shape[0] > 1 or image.shape[1] > 1:
-            raise Exception(
-                "For now, this only supports batch and channel size 1"
-            )
+            raise Exception("For now, this only supports batch and channel size 1")
         activations = normalized_laplacian_pyramid(image)
         # activations is a list of tensors, each at a different scale
         # (down-sampled by factors of 2). To combine these into one

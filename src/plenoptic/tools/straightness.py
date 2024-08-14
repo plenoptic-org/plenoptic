@@ -26,7 +26,8 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     validate_input(stop, no_batch=True)
     if start.shape != stop.shape:
         raise ValueError(
-            f"start and stop must be same shape, but got {start.shape} and {stop.shape}!"
+            f"start and stop must be same shape, but got {start.shape} and"
+            f" {stop.shape}!"
         )
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
@@ -35,9 +36,7 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     device = start.device
     start = start.reshape(1, -1)
     stop = stop.reshape(1, -1)
-    tt = torch.linspace(0, 1, steps=n_steps + 1, device=device).view(
-        n_steps + 1, 1
-    )
+    tt = torch.linspace(0, 1, steps=n_steps + 1, device=device).view(n_steps + 1, 1)
     straight = (1 - tt) * start + tt * stop
 
     return straight.reshape((n_steps + 1, *shape))
@@ -74,7 +73,8 @@ def sample_brownian_bridge(
     validate_input(stop, no_batch=True)
     if start.shape != stop.shape:
         raise ValueError(
-            f"start and stop must be same shape, but got {start.shape} and {stop.shape}!"
+            f"start and stop must be same shape, but got {start.shape} and"
+            f" {stop.shape}!"
         )
     if n_steps <= 0:
         raise ValueError(f"n_steps must be positive, but got {n_steps}")
@@ -138,9 +138,7 @@ def deviation_from_line(
     y_centered = y - y0
     dist_along_line = y_centered @ line[0]
     projection = dist_along_line.view(T, 1) * line
-    dist_from_line = torch.linalg.vector_norm(
-        y_centered - projection, dim=1, ord=2
-    )
+    dist_from_line = torch.linalg.vector_norm(y_centered - projection, dim=1, ord=2)
 
     if normalize:
         dist_along_line /= line_length

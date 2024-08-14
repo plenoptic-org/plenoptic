@@ -142,8 +142,7 @@ class MADCompetition(OptimizedSynthesis):
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
             loss_ratio = torch.as_tensor(
-                self.optimized_metric_loss[-1]
-                / self.reference_metric_loss[-1],
+                self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
                 dtype=torch.float32,
             )
             metric_tradeoff_lambda = torch.pow(
@@ -298,8 +297,7 @@ class MADCompetition(OptimizedSynthesis):
         synth_target = {"min": 1, "max": -1}[self.minmax]
         synthesis_loss = self.optimized_metric(image, mad_image)
         fixed_loss = (
-            self._reference_metric_target
-            - self.reference_metric(image, mad_image)
+            self._reference_metric_target - self.reference_metric(image, mad_image)
         ).pow(2)
         range_penalty = optim.penalize_range(mad_image, self.allowed_range)
         return (
@@ -328,9 +326,7 @@ class MADCompetition(OptimizedSynthesis):
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
-        grad_norm = torch.linalg.vector_norm(
-            self.mad_image.grad.data, ord=2, dim=None
-        )
+        grad_norm = torch.linalg.vector_norm(self.mad_image.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         fm = self.reference_metric(self.image, self.mad_image)
@@ -554,13 +550,8 @@ class MADCompetition(OptimizedSynthesis):
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if (
-            len(self._saved_mad_image)
-            and self._saved_mad_image[0].device.type != "cpu"
-        ):
-            self._saved_mad_image = [
-                mad.to("cpu") for mad in self._saved_mad_image
-            ]
+        if len(self._saved_mad_image) and self._saved_mad_image[0].device.type != "cpu":
+            self._saved_mad_image = [mad.to("cpu") for mad in self._saved_mad_image]
 
     @property
     def mad_image(self):
@@ -835,9 +826,7 @@ def plot_pixel_values(
     return ax
 
 
-def _check_included_plots(
-    to_check: list[str] | dict[str, int], to_check_name: str
-):
+def _check_included_plots(to_check: list[str] | dict[str, int], to_check_name: str):
     """Check whether the user wanted us to create plots that we can't.
 
     Helper function for plot_synthesis_status and animate.
@@ -939,9 +928,7 @@ def _setup_synthesis_fig(
         n_subplots += 1
         width_ratios.append(display_mad_image_width)
         if "display_mad_image" not in axes_idx.keys():
-            axes_idx["display_mad_image"] = data._find_min_int(
-                axes_idx.values()
-            )
+            axes_idx["display_mad_image"] = data._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
@@ -951,9 +938,7 @@ def _setup_synthesis_fig(
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
         if "plot_pixel_values" not in axes_idx.keys():
-            axes_idx["plot_pixel_values"] = data._find_min_int(
-                axes_idx.values()
-            )
+            axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -1213,8 +1198,7 @@ def animate(
     """
     if not mad.store_progress:
         raise ValueError(
-            "synthesize() was run with store_progress=False,"
-            " cannot animate!"
+            "synthesize() was run with store_progress=False, cannot animate!"
         )
     if mad.mad_image.ndim not in [3, 4]:
         raise ValueError(
@@ -1345,24 +1329,16 @@ def display_mad_image_all(
     # this is a bit of a hack right now, because they don't all have same
     # initial image
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:
         metric2_name = mad_metric2_min.optimized_metric.__name__
-    fig = pt_make_figure(
-        3, 2, [zoom * i for i in mad_metric1_min.image.shape[-2:]]
-    )
+    fig = pt_make_figure(3, 2, [zoom * i for i in mad_metric1_min.image.shape[-2:]])
     mads = [mad_metric1_min, mad_metric1_max, mad_metric2_min, mad_metric2_max]
     titles = [
         f"Minimize {metric1_name}",
@@ -1460,17 +1436,11 @@ def plot_loss_all(
 
     """
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric1_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if not torch.allclose(mad_metric1_min.image, mad_metric2_max.image):
-        raise ValueError(
-            "All four instances of MADCompetition must have same image!"
-        )
+        raise ValueError("All four instances of MADCompetition must have same image!")
     if metric1_name is None:
         metric1_name = mad_metric1_min.optimized_metric.__name__
     if metric2_name is None:

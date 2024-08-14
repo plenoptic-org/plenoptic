@@ -72,17 +72,11 @@ def circular_gaussian2d(
     assert out_channels >= 1, "number of filters must be positive integer"
     assert torch.all(std > 0.0), "stdev must be positive"
     assert len(std) == out_channels, "Number of stds must equal out_channels"
-    origin = torch.as_tensor(
-        ((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0)
-    )
+    origin = torch.as_tensor(((kernel_size[0] + 1) / 2.0, (kernel_size[1] + 1) / 2.0))
     origin = origin.to(device)
 
-    shift_y = (
-        torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]
-    )  # height
-    shift_x = (
-        torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]
-    )  # width
+    shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]  # height
+    shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]  # width
 
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 

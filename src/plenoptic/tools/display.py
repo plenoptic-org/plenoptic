@@ -138,8 +138,7 @@ def imshow(
         if as_rgb:
             if im.shape[1] not in [3, 4]:
                 raise Exception(
-                    "If as_rgb is True, then channel must have 3 "
-                    "or 4 elements!"
+                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
                 )
             im = im.transpose(0, 2, 3, 1)
             # want to insert a fake "channel" dimension here, so our putting it
@@ -147,8 +146,9 @@ def imshow(
             im = im.reshape((im.shape[0], 1, *im.shape[1:]))
         elif im.shape[1] > 1 and im.shape[0] > 1:
             raise Exception(
-                "Don't know how to plot images with more than one channel and batch!"
-                " Use batch_idx / channel_idx to choose a subset for plotting"
+                "Don't know how to plot images with more than one channel and"
+                " batch! Use batch_idx / channel_idx to choose a subset for"
+                " plotting"
             )
         # by iterating through it twice, we make sure to peel apart the batch
         # and channel dimensions so that they each show up as a separate image.
@@ -346,8 +346,7 @@ def animshow(
         if as_rgb:
             if vid.shape[1] not in [3, 4]:
                 raise Exception(
-                    "If as_rgb is True, then channel must have 3 "
-                    "or 4 elements!"
+                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
                 )
             vid = vid.transpose(0, 2, 3, 4, 1)
             # want to insert a fake "channel" dimension here, so our putting it
@@ -355,8 +354,9 @@ def animshow(
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
         elif vid.shape[1] > 1 and vid.shape[0] > 1:
             raise Exception(
-                "Don't know how to plot images with more than one channel and batch!"
-                " Use batch_idx / channel_idx to choose a subset for plotting"
+                "Don't know how to plot images with more than one channel and"
+                " batch! Use batch_idx / channel_idx to choose a subset for"
+                " plotting"
             )
         # by iterating through it twice, we make sure to peel apart the batch
         # and channel dimensions so that they each show up as a separate video.
@@ -690,9 +690,7 @@ def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
         ax = plt.gca()
     if xvals is not None:
         basefmt = " "
-        ax.hlines(
-            len(xvals[0]) * [0], xvals[0], xvals[1], colors="C3", zorder=10
-        )
+        ax.hlines(len(xvals[0]) * [0], xvals[0], xvals[1], colors="C3", zorder=10)
     else:
         # this is the default basefmt value
         basefmt = None
@@ -752,11 +750,7 @@ def _get_artists_from_axes(axes, data):
                     " with keys corresponding to the labels of the artists"
                     " to update to resolve this."
                 )
-            elif (
-                data_check == 2
-                and data.ndim > 2
-                and data.shape[-3] != len(artists)
-            ):
+            elif data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
                 raise Exception(
                     f"data has {data.shape[-3]} things to plot, but "
                     f"your axis contains {len(artists)} plotting artists, "
@@ -797,11 +791,7 @@ def _get_artists_from_axes(axes, data):
                     f"you passed {len(axes)} axes , so unsure how "
                     "to continue!"
                 )
-            if (
-                data_check == 2
-                and data.ndim > 2
-                and data.shape[-3] != len(artists)
-            ):
+            if data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
                 raise Exception(
                     f"data has {data.shape[-3]} things to plot, but "
                     f"you passed {len(axes)} axes , so unsure how "
@@ -903,17 +893,14 @@ def update_plot(axes, data, model=None, batch_idx=0):
                 # instead, as suggested
                 # https://stackoverflow.com/questions/43629270/how-to-get-single-value-from-dict-with-single-entry
                 try:
-                    if (
-                        next(iter(ax_artists.values())).get_array().data.ndim
-                        > 1
-                    ):
+                    if next(iter(ax_artists.values())).get_array().data.ndim > 1:
                         # then this is an RGBA image
                         data_dict = {"00": data}
                 except Exception as e:
                     raise Exception(
-                        "Thought this was an RGB(A) image based on the number of "
-                        "artists and data shape, but something is off! "
-                        f"Original exception: {e}"
+                        "Thought this was an RGB(A) image based on the number"
+                        " of artists and data shape, but something is off!"
+                        f" Original exception: {e}"
                     )
             else:
                 for i, d in enumerate(data.unbind(1)):
@@ -1064,9 +1051,7 @@ def plot_representation(
         else:
             warnings.warn("data has keys, so we're ignoring title!")
         # want to make sure the axis we're taking over is basically invisible.
-        ax = clean_up_axes(
-            ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
-        )
+        ax = clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
         axes = []
         if len(list(data.values())[0].shape) == 3:
             # then this is 'vector-like'
@@ -1106,9 +1091,7 @@ def plot_representation(
             # ylim at all
             ylim = False
         else:
-            raise Exception(
-                "Don't know what to do with data of shape" f" {data.shape}"
-            )
+            raise Exception(f"Don't know what to do with data of shape {data.shape}")
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)

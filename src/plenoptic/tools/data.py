@@ -27,9 +27,7 @@ NUMPY_TO_TORCH_TYPES = {
     np.complex128: torch.complex128,
 }
 
-TORCH_TO_NUMPY_TYPES = {
-    value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()
-}
+TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
 
 def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
@@ -147,7 +145,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     if as_gray:
         if images.ndimension() != 3:
             raise ValueError(
-                "For loading in images as grayscale, this should be a 3d tensor!"
+                "For loading in images as grayscale, this should be a 3d" " tensor!"
             )
         images = images.unsqueeze(1)
     else:
@@ -161,7 +159,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
                 images = images.unsqueeze(1)
     if images.ndimension() != 4:
         raise ValueError(
-            "Somehow ended up with other than 4 dimensions! Not sure how we got here"
+            "Somehow ended up with other than 4 dimensions! Not sure how we" " got here"
         )
     return images
 
@@ -197,9 +195,7 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
-def make_synthetic_stimuli(
-    size: int = 256, requires_grad: bool = True
-) -> Tensor:
+def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 
     Parameters
@@ -232,9 +228,7 @@ def make_synthetic_stimuli(
         size // 2 - 1 : size // 2 + 1,
     ] = 1
 
-    curv_edge = synthetic_images.disk(
-        size=size, radius=size / 1.2, origin=(size, size)
-    )
+    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
 
     sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(
         size, covariance=size

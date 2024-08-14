@@ -133,9 +133,7 @@ class Gaussian(nn.Module):
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
-            filt = circular_gaussian2d(
-                self.kernel_size, self.std, self.out_channels
-            )
+            filt = circular_gaussian2d(self.kernel_size, self.std, self.out_channels)
 
             if self.cache_filt:
                 self.register_buffer("_filt", filt)
@@ -210,40 +208,27 @@ class CenterSurround(nn.Module):
         # make sure each channel is on-off or off-on
         if isinstance(on_center, bool):
             on_center = [on_center] * out_channels
-        assert (
-            len(on_center) == out_channels
-        ), "len(on_center) must match out_channels"
+        assert len(on_center) == out_channels, "len(on_center) must match out_channels"
 
         # make sure each channel has a center and surround std
         if isinstance(center_std, float) or center_std.shape == torch.Size([]):
             center_std = torch.ones(out_channels) * center_std
-        if isinstance(surround_std, float) or surround_std.shape == torch.Size(
-            []
-        ):
+        if isinstance(surround_std, float) or surround_std.shape == torch.Size([]):
             surround_std = torch.ones(out_channels) * surround_std
         assert (
-            len(center_std) == out_channels
-            and len(surround_std) == out_channels
+            len(center_std) == out_channels and len(surround_std) == out_channels
         ), "stds must correspond to each out_channel"
-        assert (
-            width_ratio_limit > 1.0
-        ), "stdev of surround must be greater than center"
-        assert (
-            amplitude_ratio >= 1.0
-        ), "ratio of amplitudes must at least be 1."
+        assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
+        assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
         self.on_center = on_center
 
         self.kernel_size = kernel_size
         self.width_ratio_limit = width_ratio_limit
-        self.register_buffer(
-            "amplitude_ratio", torch.as_tensor(amplitude_ratio)
-        )
+        self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
 
         self.center_std = nn.Parameter(torch.ones(out_channels) * center_std)
-        self.surround_std = nn.Parameter(
-            torch.ones(out_channels) * surround_std
-        )
+        self.surround_std = nn.Parameter(torch.ones(out_channels) * surround_std)
 
         self.out_channels = out_channels
         self.pad_mode = pad_mode
@@ -268,9 +253,9 @@ class CenterSurround(nn.Module):
             )
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor(
-                [1.0 if x else -1.0 for x in self.on_center]
-            ).to(device)
+            sign = torch.as_tensor([1.0 if x else -1.0 for x in self.on_center]).to(
+                device
+            )
             sign = sign.view(self.out_channels, 1, 1, 1)
 
             filt = on_amp * (sign * (filt_center - filt_surround))
@@ -283,9 +268,7 @@ class CenterSurround(nn.Module):
         """Clamps surround standard deviation to ratio_limit times center_std"""
         lower_bound = self.width_ratio_limit * self.center_std
         for i, lb in enumerate(lower_bound):
-            self.surround_std[i].data = self.surround_std[i].data.clamp(
-                min=float(lb)
-            )
+            self.surround_std[i].data = self.surround_std[i].data.clamp(min=float(lb))
 
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

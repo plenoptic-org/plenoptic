@@ -36,9 +36,7 @@ def _ssim_parts(img1, img2, pad=False):
         these work.
 
     """
-    img_ranges = torch.as_tensor(
-        [[img1.min(), img1.max()], [img2.min(), img2.max()]]
-    )
+    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
             "Image range falls outside [0, 1]."
@@ -48,16 +46,13 @@ def _ssim_parts(img1, img2, pad=False):
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
-            "Input images should have four dimensions: (batch, channel, height, width)"
+            "Input images should have four dimensions: (batch, channel,"
+            " height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
     for i in range(2):
-        if (
-            img1.shape[i] != img2.shape[i]
-            and img1.shape[i] != 1
-            and img2.shape[i] != 1
-        ):
+        if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
             raise Exception(
                 "Either img1 and img2 should have the same number of "
                 "elements in each dimension, or one of "
@@ -66,8 +61,9 @@ def _ssim_parts(img1, img2, pad=False):
             )
     if img1.shape[1] > 1 or img2.shape[1] > 1:
         warnings.warn(
-            "SSIM was designed for grayscale images and here it will be computed separately for each "
-            "channel (so channels are treated in the same way as batches)."
+            "SSIM was designed for grayscale images and here it will be"
+            " computed separately for each channel (so channels are treated in"
+            " the same way as batches)."
         )
     if img1.dtype != img2.dtype:
         raise ValueError("Input images must have same dtype!")
@@ -92,9 +88,7 @@ def _ssim_parts(img1, img2, pad=False):
     def windowed_average(img):
         padd = 0
         (n_batches, n_channels, _, _) = img.shape
-        img = img.reshape(
-            n_batches * n_channels, 1, img.shape[2], img.shape[3]
-        )
+        img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
         img_average = F.conv2d(img, window, padding=padd)
         img_average = img_average.reshape(
             n_batches, n_channels, img_average.shape[2], img_average.shape[3]
@@ -119,9 +113,7 @@ def _ssim_parts(img1, img2, pad=False):
     # structure component. The contrast-structure component has to be separated
     # when computing MS-SSIM.
     luminance_map = (2 * mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)
-    contrast_structure_map = (2.0 * sigma12 + C2) / (
-        sigma1_sq + sigma2_sq + C2
-    )
+    contrast_structure_map = (2.0 * sigma12 + C2) / (sigma1_sq + sigma2_sq + C2)
     map_ssim = luminance_map * contrast_structure_map
 
     # the weight used for stability
@@ -349,18 +341,14 @@ def ms_ssim(img1, img2, power_factors=None):
         power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
     def downsample(img):
-        img = F.pad(
-            img, (0, img.shape[3] % 2, 0, img.shape[2] % 2), mode="replicate"
-        )
+        img = F.pad(img, (0, img.shape[3] % 2, 0, img.shape[2] % 2), mode="replicate")
         img = F.avg_pool2d(img, kernel_size=2)
         return img
 
     msssim = 1
     for i in range(len(power_factors) - 1):
         _, contrast_structure_map, _ = _ssim_parts(img1, img2)
-        msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(
-            power_factors[i]
-        )
+        msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(power_factors[i])
         img1 = downsample(img1)
         img2 = downsample(img2)
     map_ssim, _, _ = _ssim_parts(img1, img2)
@@ -463,16 +451,13 @@ def nlpd(img1, img2):
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
-            "Input images should have four dimensions: (batch, channel, height, width)"
+            "Input images should have four dimensions: (batch, channel,"
+            " height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
     for i in range(2):
-        if (
-            img1.shape[i] != img2.shape[i]
-            and img1.shape[i] != 1
-            and img2.shape[i] != 1
-        ):
+        if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
             raise Exception(
                 "Either img1 and img2 should have the same number of "
                 "elements in each dimension, or one of "
@@ -481,13 +466,12 @@ def nlpd(img1, img2):
             )
     if img1.shape[1] > 1 or img2.shape[1] > 1:
         warnings.warn(
-            "NLPD was designed for grayscale images and here it will be computed separately for each "
-            "channel (so channels are treated in the same way as batches)."
+            "NLPD was designed for grayscale images and here it will be"
+            " computed separately for each channel (so channels are treated in"
+            " the same way as batches)."
         )
 
-    img_ranges = torch.as_tensor(
-        [[img1.min(), img1.max()], [img2.min(), img2.max()]]
-    )
+    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
             "Image range falls outside [0, 1]."
@@ -501,8 +485,6 @@ def nlpd(img1, img2):
     epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
     for i in range(6):
-        dist.append(
-            torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2, dim=(2, 3)) + epsilon)
-        )
+        dist.append(torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2, dim=(2, 3)) + epsilon))
 
     return torch.stack(dist).mean(dim=0)

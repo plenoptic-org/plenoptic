@@ -4,9 +4,7 @@ from torch import Tensor
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
 
-def minimum(
-    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
-) -> Tensor:
+def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
     r"""Compute minimum in torch over any axis or combination of axes in tensor.
 
     Parameters
@@ -32,9 +30,7 @@ def minimum(
     return min_x
 
 
-def maximum(
-    x: Tensor, dim: list[int] | None = None, keepdim: bool = False
-) -> Tensor:
+def maximum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
     r"""Compute maximum in torch over any dim or combination of axes in tensor.
 
     Parameters
@@ -331,9 +327,7 @@ def make_disk(
             elif r < inner_radius:
                 mask[i][j] = 1
             else:
-                radial_decay = (r - inner_radius) / (
-                    outer_radius - inner_radius
-                )
+                radial_decay = (r - inner_radius) / (outer_radius - inner_radius)
                 mask[i][j] = (1 + np.cos(np.pi * radial_decay)) / 2
 
     return mask
@@ -595,20 +589,14 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     my = im_y / factor
 
     if int(mx) != mx:
-        raise ValueError(
-            f"x.shape[-1]/factor must be an integer but got {mx} instead!"
-        )
+        raise ValueError(f"x.shape[-1]/factor must be an integer but got {mx} instead!")
     if int(my) != my:
-        raise ValueError(
-            f"x.shape[-2]/factor must be an integer but got {my} instead!"
-        )
+        raise ValueError(f"x.shape[-2]/factor must be an integer but got {my} instead!")
 
     mx = int(mx)
     my = int(my)
 
-    fourier = (
-        1 / factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
-    )
+    fourier = 1 / factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
     fourier_small = torch.zeros(
         *x.shape[:-2],
         my,

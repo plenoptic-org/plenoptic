@@ -145,15 +145,11 @@ def plot_MAD_results(
         [zoom * i + 1 for i in images.shape[-2:]],
         vert_pct=0.75,
     )
-    for img, ax, t, vr, s in zip(
-        images, fig.axes, titles, vrange_list, super_titles
-    ):
+    for img, ax, t, vr, s in zip(images, fig.axes, titles, vrange_list, super_titles):
         # these are the blanks
         if (img == 1).all():
             continue
-        pt.imshow(
-            img, ax=ax, title=t, zoom=zoom, vrange=vr, cmap=cmap, **kwargs
-        )
+        pt.imshow(img, ax=ax, title=t, zoom=zoom, vrange=vr, cmap=cmap, **kwargs)
         if s is not None:
             font = {
                 k.replace("_", ""): v

@@ -191,14 +191,9 @@ class Geodesic(OptimizedSynthesis):
         if stop_criterion is None:
             # semi arbitrary default choice of tolerance
             stop_criterion = (
-                torch.linalg.vector_norm(self.pixelfade, ord=2)
-                / 1e4
-                * (1 + 5**0.5)
-                / 2
+                torch.linalg.vector_norm(self.pixelfade, ord=2) / 1e4 * (1 + 5**0.5) / 2
             )
-        print(
-            f"\n Stop criterion for pixel_change_norm = {stop_criterion:.5e}"
-        )
+        print(f"\n Stop criterion for pixel_change_norm = {stop_criterion:.5e}")
 
         self._initialize_optimizer(optimizer, "_geodesic", 0.001)
 
@@ -215,9 +210,7 @@ class Geodesic(OptimizedSynthesis):
                 raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(stop_criterion, stop_iters_to_check):
-                warnings.warn(
-                    "Pixel change norm has converged, stopping synthesis"
-                )
+                warnings.warn("Pixel change norm has converged, stopping synthesis")
                 break
 
         pbar.close()
@@ -260,9 +253,7 @@ class Geodesic(OptimizedSynthesis):
     def _calculate_step_energy(self, z):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`."""
         velocity = torch.diff(z, dim=0)
-        step_energy = (
-            torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
-        )
+        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
         return step_energy
 
     def _optimizer_step(self, pbar):
@@ -283,9 +274,7 @@ class Geodesic(OptimizedSynthesis):
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
 
-        grad_norm = torch.linalg.vector_norm(
-            self._geodesic.grad.data, ord=2, dim=None
-        )
+        grad_norm = torch.linalg.vector_norm(self._geodesic.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm)
 
         pixel_change_norm = torch.linalg.vector_norm(
@@ -335,9 +324,7 @@ class Geodesic(OptimizedSynthesis):
             Whether the pixel change norm has stabilized or not.
 
         """
-        return pixel_change_convergence(
-            self, stop_criterion, stop_iters_to_check
-        )
+        return pixel_change_convergence(self, stop_criterion, stop_iters_to_check)
 
     def calculate_jerkiness(self, geodesic: Tensor | None = None) -> Tensor:
         """Compute the alignment of representation's acceleration to model local curvature.
@@ -371,9 +358,7 @@ class Geodesic(OptimizedSynthesis):
         accJac = self._vector_jacobian_product(
             geodesic_representation[1:-1], geodesic, acc_direction
         )[1:-1]
-        step_jerkiness = (
-            torch.linalg.vector_norm(accJac, dim=[1, 2, 3], ord=2) ** 2
-        )
+        step_jerkiness = torch.linalg.vector_norm(accJac, dim=[1, 2, 3], ord=2) ** 2
         return step_jerkiness
 
     def _vector_jacobian_product(self, y, x, a):
@@ -381,9 +366,7 @@ class Geodesic(OptimizedSynthesis):
         and allow for further gradient computations by retaining,
         and creating the graph.
         """
-        accJac = autograd.grad(y, x, a, retain_graph=True, create_graph=True)[
-            0
-        ]
+        accJac = autograd.grad(y, x, a, retain_graph=True, create_graph=True)[0]
         return accJac
 
     def _store(self, i: int) -> bool:
@@ -425,9 +408,7 @@ class Geodesic(OptimizedSynthesis):
                     self._calculate_step_energy(geod_rep).detach().to("cpu")
                 )
                 self._dev_from_line.append(
-                    torch.stack(
-                        deviation_from_line(geod_rep.detach().to("cpu"))
-                    ).T
+                    torch.stack(deviation_from_line(geod_rep.detach().to("cpu"))).T
                 )
             stored = True
         else:
@@ -558,7 +539,8 @@ class Geodesic(OptimizedSynthesis):
         old_loss = self.__dict__.pop("_save_check")
         if not torch.allclose(new_loss, old_loss, rtol=1e-2):
             raise ValueError(
-                "objective_function on pixelfade of saved and initialized Geodesic object are different! Do they use the same model?"
+                "objective_function on pixelfade of saved and initialized"
+                " Geodesic object are different! Do they use the same model?"
                 f" Self: {new_loss}, Saved: {old_loss}"
             )
         # make this require a grad again
@@ -566,17 +548,9 @@ class Geodesic(OptimizedSynthesis):
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if (
-            len(self._dev_from_line)
-            and self._dev_from_line[0].device.type != "cpu"
-        ):
-            self._dev_from_line = [
-                dev.to("cpu") for dev in self._dev_from_line
-            ]
-        if (
-            len(self._step_energy)
-            and self._step_energy[0].device.type != "cpu"
-        ):
+        if len(self._dev_from_line) and self._dev_from_line[0].device.type != "cpu":
+            self._dev_from_line = [dev.to("cpu") for dev in self._dev_from_line]
+        if len(self._step_energy) and self._step_energy[0].device.type != "cpu":
             self._step_energy = [step.to("cpu") for step in self._step_energy]
 
     @property
@@ -699,16 +673,12 @@ def plot_deviation_from_line(
     pixelfade_dev = deviation_from_line(geodesic.model(geodesic.pixelfade))
     ax.plot(*[to_numpy(d) for d in pixelfade_dev], "g-o", label="pixelfade")
 
-    geodesic_dev = deviation_from_line(
-        geodesic.model(geodesic.geodesic).detach()
-    )
+    geodesic_dev = deviation_from_line(geodesic.model(geodesic.geodesic).detach())
     ax.plot(*[to_numpy(d) for d in geodesic_dev], "r-o", label="geodesic")
 
     if natural_video is not None:
         video_dev = deviation_from_line(geodesic.model(natural_video))
-        ax.plot(
-            *[to_numpy(d) for d in video_dev], "b-o", label="natural video"
-        )
+        ax.plot(*[to_numpy(d) for d in video_dev], "b-o", label="natural video")
 
     ax.set(
         xlabel="Distance along representation line",

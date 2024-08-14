@@ -182,8 +182,7 @@ def validate_model(
         allowed_dtypes = [torch.float64, torch.complex128]
     else:
         raise TypeError(
-            "Only float or complex dtypes are allowed but got type"
-            f" {image_dtype}"
+            "Only float or complex dtypes are allowed but got type" f" {image_dtype}"
         )
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
@@ -300,9 +299,7 @@ def validate_metric(
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:
-        raise TypeError(
-            "metric should be callable and accept two 4d tensors as input"
-        )
+        raise TypeError("metric should be callable and accept two 4d tensors as input")
     # as of torch 2.0.0, this is a RuntimeError (a Tensor with X elements
     # cannot be converted to Scalar); previously it was a ValueError (only one
     # element tensors can be converted to Python scalars)

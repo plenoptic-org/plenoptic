@@ -23,9 +23,7 @@ def correlate_downsample(image, filt, padding_mode="reflect"):
     assert isinstance(image, torch.Tensor) and isinstance(filt, torch.Tensor)
     assert image.ndim == 4 and filt.ndim == 2
     n_channels = image.shape[1]
-    image_padded = same_padding(
-        image, kernel_size=filt.shape, pad_mode=padding_mode
-    )
+    image_padded = same_padding(image, kernel_size=filt.shape, pad_mode=padding_mode)
     return F.conv2d(
         image_padded,
         filt.repeat(n_channels, 1, 1, 1),
@@ -70,9 +68,7 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
         groups=n_channels,
     )
     image_postpad = F.pad(image_upsample, tuple(pad % 2))
-    return F.conv2d(
-        image_postpad, filt.repeat(n_channels, 1, 1, 1), groups=n_channels
-    )
+    return F.conv2d(image_postpad, filt.repeat(n_channels, 1, 1, 1), groups=n_channels)
 
 
 def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
@@ -92,9 +88,7 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.as_tensor(
-        np.outer(f, f), dtype=torch.float32, device=x.device
-    )
+    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt / 2
     for _ in range(n_scales):
@@ -120,24 +114,15 @@ def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.as_tensor(
-        np.outer(f, f), dtype=torch.float32, device=x.device
-    )
+    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
     if scale_filter:
         filt = filt * 2
     return upsample_convolve(x, odd, filt)
 
 
-def _get_same_padding(
-    x: int, kernel_size: int, stride: int, dilation: int
-) -> int:
+def _get_same_padding(x: int, kernel_size: int, stride: int, dilation: int) -> int:
     """Helper function to determine integer padding for F.pad() given img and kernel"""
-    pad = (
-        (math.ceil(x / stride) - 1) * stride
-        + (kernel_size - 1) * dilation
-        + 1
-        - x
-    )
+    pad = (math.ceil(x / stride) - 1) * stride + (kernel_size - 1) * dilation + 1 - x
     pad = max(pad, 0)
     return pad
 
@@ -150,9 +135,7 @@ def same_padding(
     pad_mode: str = "circular",
 ) -> Tensor:
     """Pad a tensor so that 2D convolution will result in output with same dims."""
-    assert (
-        len(x.shape) > 2
-    ), "Input must be tensor whose last dims are height x width"
+    assert len(x.shape) > 2, "Input must be tensor whose last dims are height x width"
     ih, iw = x.shape[-2:]
     pad_h = _get_same_padding(ih, kernel_size[0], stride[0], dilation[0])
     pad_w = _get_same_padding(iw, kernel_size[1], stride[1], dilation[1])

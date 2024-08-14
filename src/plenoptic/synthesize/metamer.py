@@ -145,9 +145,7 @@ class Metamer(OptimizedSynthesis):
             if initial_image.size() != self.image.size():
                 raise ValueError("initial_image and image must be same size!")
             metamer = initial_image.clone().detach()
-            metamer = metamer.to(
-                dtype=self.image.dtype, device=self.image.device
-            )
+            metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
             metamer.requires_grad_()
         self._metamer = metamer
 
@@ -246,9 +244,7 @@ class Metamer(OptimizedSynthesis):
             metamer_representation = self.model(self.metamer)
         if target_representation is None:
             target_representation = self.target_representation
-        loss = self.loss_function(
-            metamer_representation, target_representation
-        )
+        loss = self.loss_function(metamer_representation, target_representation)
         range_penalty = optim.penalize_range(self.metamer, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
@@ -273,9 +269,7 @@ class Metamer(OptimizedSynthesis):
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
 
-        grad_norm = torch.linalg.vector_norm(
-            self.metamer.grad.data, ord=2, dim=None
-        )
+        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         # optionally step the scheduler
@@ -503,13 +497,8 @@ class Metamer(OptimizedSynthesis):
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if (
-            len(self._saved_metamer)
-            and self._saved_metamer[0].device.type != "cpu"
-        ):
-            self._saved_metamer = [
-                met.to("cpu") for met in self._saved_metamer
-            ]
+        if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
+            self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
 
     @property
     def model(self):
@@ -774,10 +763,7 @@ class MetamerCTF(Metamer):
         # has stopped declining and, if so, switch to the next scale. Then
         # we're checking if self.scales_loss is long enough to check
         # ctf_iters_to_check back.
-        if (
-            len(self.scales) > 1
-            and len(self.scales_loss) >= ctf_iters_to_check
-        ):
+        if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
             # Now we check whether loss has decreased less than
             # change_scale_criterion
             if (change_scale_criterion is None) or abs(
@@ -789,13 +775,9 @@ class MetamerCTF(Metamer):
                     len(self.losses) - self.scales_timing[self.scales[0]][0]
                     >= ctf_iters_to_check
                 ):
-                    self._scales_timing[self.scales[0]].append(
-                        len(self.losses) - 1
-                    )
+                    self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
                     self._scales_finished.append(self._scales.pop(0))
-                    self._scales_timing[self.scales[0]].append(
-                        len(self.losses)
-                    )
+                    self._scales_timing[self.scales[0]].append(len(self.losses))
                     # reset optimizer's lr.
                     for pg in self.optimizer.param_groups:
                         pg["lr"] = pg["initial_lr"]
@@ -806,9 +788,7 @@ class MetamerCTF(Metamer):
         self._scales_loss.append(loss.item())
         self._losses.append(overall_loss.item())
 
-        grad_norm = torch.linalg.vector_norm(
-            self.metamer.grad.data, ord=2, dim=None
-        )
+        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         # optionally step the scheduler
@@ -977,9 +957,7 @@ class MetamerCTF(Metamer):
         *then* load.
 
         """
-        super()._load(
-            file_path, map_location, ["_coarse_to_fine"], **pickle_load_args
-        )
+        super()._load(file_path, map_location, ["_coarse_to_fine"], **pickle_load_args)
 
     @property
     def coarse_to_fine(self):
@@ -1155,9 +1133,7 @@ def _representation_error(
     """
     if iteration is not None:
         metamer_rep = metamer.model(
-            metamer.saved_metamer[iteration].to(
-                metamer.target_representation.device
-            )
+            metamer.saved_metamer[iteration].to(metamer.target_representation.device)
         )
     else:
         metamer_rep = metamer.model(metamer.metamer, **kwargs)
@@ -1312,9 +1288,7 @@ def plot_pixel_values(
     return ax
 
 
-def _check_included_plots(
-    to_check: list[str] | dict[str, float], to_check_name: str
-):
+def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name: str):
     """Check whether the user wanted us to create plots that we can't.
 
     Helper function for plot_synthesis_status and animate.
@@ -1438,9 +1412,7 @@ def _setup_synthesis_fig(
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
         if "plot_pixel_values" not in axes_idx.keys():
-            axes_idx["plot_pixel_values"] = data._find_min_int(
-                axes_idx.values()
-            )
+            axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -1766,8 +1738,7 @@ def animate(
     """
     if not metamer.store_progress:
         raise ValueError(
-            "synthesize() was run with store_progress=False,"
-            " cannot animate!"
+            "synthesize() was run with store_progress=False, cannot animate!"
         )
     if metamer.metamer.ndim not in [3, 4]:
         raise ValueError(
@@ -1788,13 +1759,9 @@ def animate(
                 ylim_rescale_interval = int(ylim.replace("rescale", ""))
             except ValueError:
                 # then there's nothing we can convert to an int there
-                ylim_rescale_interval = int(
-                    (metamer.saved_metamer.shape[0] - 1) // 10
-                )
+                ylim_rescale_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
                 if ylim_rescale_interval == 0:
-                    ylim_rescale_interval = int(
-                        metamer.saved_metamer.shape[0] - 1
-                    )
+                    ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
             ylim = None
         else:
             raise ValueError("Don't know how to handle ylim %s!" % ylim)
@@ -1842,8 +1809,8 @@ def animate(
     if metamer.target_representation.ndimension() == 4:
         if "plot_representation_error" in included_plots:
             warnings.warn(
-                "Looks like representation is image-like, haven't fully thought out how"
-                " to best handle rescaling color ranges yet!"
+                "Looks like representation is image-like, haven't fully"
+                " thought out how to best handle rescaling color ranges yet!"
             )
         # replace the bit of the title that specifies the range,
         # since we don't make any promises about that. we have to do

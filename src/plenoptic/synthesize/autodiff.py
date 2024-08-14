@@ -22,8 +22,9 @@ def jacobian(y: Tensor, x: Tensor) -> Tensor:
 
     if x.numel() > 1e4:
         warnings.warn(
-            "Calculation of Jacobian with input dimensionality greater than 1E4 may take too long; consider"
-            "an iterative method (e.g. power method, randomized svd) instead."
+            "Calculation of Jacobian with input dimensionality greater than"
+            " 1E4 may take too long; consideran iterative method (e.g. power"
+            " method, randomized svd) instead."
         )
 
     J = (
@@ -40,9 +41,7 @@ def jacobian(y: Tensor, x: Tensor) -> Tensor:
         .t()
     )
 
-    if (
-        y.shape[0] == 1
-    ):  # need to return a 2D tensor even if y dimensionality is 1
+    if y.shape[0] == 1:  # need to return a 2D tensor even if y dimensionality is 1
         J = J.unsqueeze(0)
 
     return J.detach()

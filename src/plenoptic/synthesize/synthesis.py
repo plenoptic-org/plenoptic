@@ -103,9 +103,7 @@ class Synthesis(abc.ABC):
             ``torch.load``, see that function's docstring for details.
 
         """
-        tmp_dict = torch.load(
-            file_path, map_location=map_location, **pickle_load_args
-        )
+        tmp_dict = torch.load(file_path, map_location=map_location, **pickle_load_args)
         if map_location is not None:
             device = map_location
         else:
@@ -354,9 +352,7 @@ class OptimizedSynthesis(Synthesis):
                 )
         else:
             if self.optimizer is not None:
-                raise TypeError(
-                    "When resuming synthesis, optimizer arg must be None!"
-                )
+                raise TypeError("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]["params"]
             if len(params) != 1 or not torch.equal(params[0], synth_attr):
                 raise ValueError(
@@ -413,10 +409,7 @@ class OptimizedSynthesis(Synthesis):
         if store_progress:
             if store_progress is True:
                 store_progress = 1
-        if (
-            self.store_progress is not None
-            and store_progress != self.store_progress
-        ):
+        if self.store_progress is not None and store_progress != self.store_progress:
             # we require store_progress to be the same because otherwise the
             # subsampling relationship between attrs that are stored every
             # iteration (loss, gradient, etc) and those that are stored every

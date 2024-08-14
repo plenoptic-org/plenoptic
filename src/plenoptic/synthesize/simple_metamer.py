@@ -68,9 +68,7 @@ class SimpleMetamer(Synthesis):
         """
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam(
-                    [self.metamer], lr=0.01, amsgrad=True
-                )
+                self.optimizer = torch.optim.Adam([self.metamer], lr=0.01, amsgrad=True)
         else:
             self.optimizer = optimizer
 
@@ -85,9 +83,7 @@ class SimpleMetamer(Synthesis):
                 # function. You could theoretically also just clamp metamer on
                 # each step of the iteration, but the penalty in the loss seems
                 # to work better in practice
-                loss = optim.mse(
-                    metamer_representation, self.target_representation
-                )
+                loss = optim.mse(metamer_representation, self.target_representation)
                 loss = loss + 0.1 * optim.penalize_range(self.metamer, (0, 1))
                 self.losses.append(loss.item())
                 loss.backward(retain_graph=False)
