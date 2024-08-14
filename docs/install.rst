@@ -182,8 +182,6 @@ environments and how you wish to handle them.
 
       With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from *any* virtual environment (not just conda!) and have fewer packages installed in your ``base`` environment, but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
 
-      .. note:: If you're not using conda to manage your environments, the key idea is to install ``jupyter`` and ``ipywidgets`` in one environment, then install ``ipykernel``, ``torchvision``, and ``pooch`` in the same environment as plenoptic, and then run the ``ipykernel install`` command **using the plenoptic environment's python**.
-
 .. tab:: pip and venv
 
    1. Install jupyter in the same environment as ``plenoptic``. This is the easiest but, if you have multiple virtual environments and want to use Jupyter notebooks in each of them, it will take up a lot of space.
