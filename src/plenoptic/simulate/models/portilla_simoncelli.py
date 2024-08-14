@@ -359,8 +359,7 @@ class PortillaSimoncelli(nn.Module):
 
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
         # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
-        # n_orientations, n_scales). var_mags is a tensor of shape (batch, channel,
-        # n_orientations, n_scales)
+        # n_orientations, n_scales).
         autocorr_mags, mags_var = self._compute_autocorr(mag_pyr_coeffs)
         # mags_var is the variance of the magnitude coefficients at each scale (it's an
         # intermediary of the computation of the auto-correlations). We take the square
