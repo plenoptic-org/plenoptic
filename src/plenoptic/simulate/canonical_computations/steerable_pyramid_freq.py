@@ -339,10 +339,13 @@ class SteerablePyramidFreq(nn.Module):
                 himask = getattr(self, f"_himasks_scale_{i}")
                 # compute filter output at each orientation
                 for b in range(self.num_orientations):
-                    # band pass filtering is done in the fourier space as multiplying by the fft of a gaussian derivative.
-                    # The oriented dft is computed as a product of the fft of the low-passed component,
-                    # the precomputed anglemask (specifies orientation), and the precomputed hipass mask (creating a bandpass filter)
-                    # the complex_const variable comes from the Fourier transform of a gaussian derivative.
+                    # band pass filtering is done in the fourier space as multiplying
+                    #  by the fft of a gaussian derivative.
+                    # The oriented dft is computed as a product of the fft of the
+                    # low-passed component, the precomputed anglemask (specifies
+                    # orientation), and the precomputed hipass mask (creating a bandpass
+                    # filter) the complex_const variable comes from the Fourier
+                    # transform of a gaussian derivative.
                     # Based on the order of the gaussian, this constant changes.
 
                     anglemask = getattr(self, f"_anglemasks_scale_{i}")[b]
@@ -351,7 +354,8 @@ class SteerablePyramidFreq(nn.Module):
                     banddft = complex_const * lodft * anglemask * himask
                     # fft output is then shifted to center frequencies
                     band = fft.ifftshift(banddft)
-                    # ifft is applied to recover the filtered representation in spatial domain
+                    # ifft is applied to recover the filtered representation in spatial
+                    # domain
                     band = fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
 
                     # for real pyramid, take the real component of the complex band
@@ -359,8 +363,8 @@ class SteerablePyramidFreq(nn.Module):
                         pyr_coeffs[(i, b)] = band.real
                     else:
                         # Because the input signal is real, to maintain a tight frame
-                        # if the complex pyramid is used, magnitudes need to be divided by sqrt(2)
-                        # because energy is doubled.
+                        # if the complex pyramid is used, magnitudes need to be divided
+                        # by sqrt(2) because energy is doubled.
 
                         if self.tight_frame:
                             band = band / np.sqrt(2)
@@ -373,9 +377,11 @@ class SteerablePyramidFreq(nn.Module):
                 lomask = getattr(self, f"_lomasks_scale_{i}")
                 lodft = lodft * lomask
 
-                # because we don't subsample here, if we are not using orthonormalization that
-                # we need to manually account for the subsampling, so that energy in each band remains the same
-                # the energy is cut by factor of 4 so we need to scale magnitudes by factor of 2
+                # Since we don't subsample here, if we are not using
+                # orthonormalization that we need to manually account for the
+                # subsampling, so that energy in each band remains the same
+                # the energy is cut by factor of 4 so we need to scale magnitudes
+                # by factor of 2.
 
                 if self.fft_norm != "ortho":
                     lodft = 2 * lodft
@@ -617,8 +623,8 @@ class SteerablePyramidFreq(nn.Module):
             if "residual_lowpass" in levels:
                 levs_tmp = levs_tmp + ["residual_lowpass"]
             levels = levs_tmp
-        # not all pyramids have residual highpass / lowpass, but it's easier to construct the list
-        # including them, then remove them if necessary.
+        # not all pyramids have residual highpass / lowpass, but it's easier
+        # to construct the list including them, then remove them if necessary.
         if (
             "residual_lowpass" not in self.pyr_size.keys()
             and "residual_lowpass" in levels
@@ -634,9 +640,10 @@ class SteerablePyramidFreq(nn.Module):
     def _recon_bands_check(self, bands: Literal["all"] | list[int]) -> list[int]:
         """Check whether bands arg is valid for reconstruction and return valid version
 
-        When reconstructing the input image (i.e., when calling `recon_pyr()`), the user specifies
-        which orientations to include. This makes sure those orientations are valid and gets them
-        in the form we expect for the rest of the reconstruction. If the user passes `'all'`, this
+        When reconstructing the input image (i.e., when calling `recon_pyr()`),
+        the user specifies which orientations to include. This makes sure those
+        orientations are valid and gets them in the form we expect for the rest
+        of the reconstruction. If the user passes `'all'`, this
         constructs the appropriate list (based on the values of `pyr_coeffs`).
 
         Parameters
@@ -679,7 +686,8 @@ class SteerablePyramidFreq(nn.Module):
         bands: Literal["all"] | list[int],
         max_orientations: int | None = None,
     ) -> list[KEYS_TYPE]:
-        """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid reconstruction
+        """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid
+        reconstruction
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`),
         the user specifies some subset of the pyramid coefficients to include
@@ -738,7 +746,8 @@ class SteerablePyramidFreq(nn.Module):
         levels: Literal["all"] | list[SCALES_TYPE] = "all",
         bands: Literal["all"] | list[int] = "all",
     ) -> Tensor:
-        """Reconstruct the image or batch of images, optionally using subset of pyramid coefficients.
+        """Reconstruct the image or batch of images, optionally using subset of
+        pyramid coefficients.
 
         NOTE: in order to call this function, you need to have
         previously called `self.forward(x)`, where `x` is the tensor you
@@ -894,7 +903,8 @@ class SteerablePyramidFreq(nn.Module):
 
         # Recursively reconstruct by going to the next scale
         reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale + 1)
-        # in not downsampled case, rescale the magnitudes of the reconstructed dft at each level by factor of 2 to account for the scaling in the forward
+        # in not downsampled case, rescale the magnitudes of the reconstructed
+        # dft at each level by factor of 2 to account for the scaling in the forward
         if (not self.tight_frame) and (not self.downsample):
             reslevdft = reslevdft / 2
         # create output for reconstruction result
@@ -914,8 +924,8 @@ class SteerablePyramidFreq(nn.Module):
     ) -> tuple[dict, dict]:
         """Steer pyramid coefficients to the specified angles
 
-        This allows you to have filters that have the Gaussian derivative order specified in
-        construction, but arbitrary angles or number of orientations.
+        This allows you to have filters that have the Gaussian derivative order
+        specified in construction, but arbitrary angles or number of orientations.
 
         Parameters
         ----------
@@ -924,7 +934,8 @@ class SteerablePyramidFreq(nn.Module):
         angles :
             list of angles (in radians) to steer the pyramid coefficients to
         even_phase :
-            specifies whether the harmonics are cosine or sine phase aligned about those positions.
+            specifies whether the harmonics are cosine or sine phase aligned
+            about those positions.
 
         Returns
         -------

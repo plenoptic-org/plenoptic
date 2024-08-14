@@ -411,18 +411,19 @@ def normalized_laplacian_pyramid(img):
 def nlpd(img1, img2):
     """Normalized Laplacian Pyramid Distance
 
-    As described in  [1]_, this is an image quality metric based on the transformations associated with the early
-    visual system: local luminance subtraction and local contrast gain control
+    As described in  [1]_, this is an image quality metric based on the transformations
+    associated with the early visual system: local luminance subtraction and local
+    contrast gain control.
 
     A laplacian pyramid subtracts a local estimate of the mean luminance at six scales.
-    Then a local gain control divides these centered coefficients by a weighted sum of absolute values
-    in spatial neighborhood.
+    Then a local gain control divides these centered coefficients by a weighted sum of
+    absolute values in spatial neighborhood.
 
     These weights parameters were optimized for redundancy reduction over an training
     database of (undistorted) natural images.
 
-    Note that we compute root mean squared error for each scale, and then average over these,
-    effectively giving larger weight to the lower frequency coefficients
+    Note that we compute root mean squared error for each scale, and then average over
+    these, effectively giving larger weight to the lower frequency coefficients
     (which are fewer in number, due to subsampling).
 
     Parameters
@@ -445,8 +446,9 @@ def nlpd(img1, img2):
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality
-       assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+    image quality assessment using a normalized Laplacian pyramid. Electronic Imaging,
+    2016(16), pp.1-6.
     """
 
     if not img1.ndim == img2.ndim == 4:

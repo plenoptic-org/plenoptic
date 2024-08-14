@@ -17,9 +17,10 @@ class LaplacianPyramid(nn.Module):
     n_scales: int
         number of scales to compute
     scale_filter: bool, optional
-        If true, the norm of the downsampling/upsampling filter is 1. If false (default), it is 2.
-        If the norm is 1, the image is multiplied by 4 during the upsampling operation; the net effect
-        is that the `n`th scale of the pyramid is divided by `2^n`.
+        If true, the norm of the downsampling/upsampling filter is 1. If false
+        (default), it is 2.
+        If the norm is 1, the image is multiplied by 4 during the upsampling operation;
+        the net effect is that the `n`th scale of the pyramid is divided by `2^n`.
 
     References
     ----------
