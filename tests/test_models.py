@@ -52,7 +52,7 @@ def portilla_simoncelli_test_vectors():
 
 
 @pytest.fixture()
-def portilla_simoncelli_synthesize(torch_version=None):
+def portilla_simoncelli_synthesize():
     return po.data.fetch_data('portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz')
 
 
