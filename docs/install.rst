@@ -55,7 +55,7 @@ In order to avoid this problem, here we'll use python's built-in `venv <https://
       # create the environment
       $ python -m venv path\to\environments\plenoptic-venv
       # activate the environment
-      $ path\to\environment\plenoptic-venv\bin\activate
+      $ path\to\environment\plenoptic-venv\Scripts\activate
       $ pip install plenoptic
 
 Note that when using ``venv``, you have to decide where you'd like to place the folder containing all files related to the virtual environment. If the virtual environment is related to the development of a package, as in :ref:`source`, it is typical to place them within the repository for that package. Otherwise, it is typical to place them all in a single directory somewhere so they're easy to keep track of.
@@ -89,7 +89,7 @@ You can also install plenoptic directly from source in order to have a local edi
       # create the environment
       $ python -m venv .venv
       # activate the environment
-      $ .venv\bin\activate
+      $ .venv\Scripts\activate
       # install in editable mode with `-e` or, equivalently, `--editable`
       $ pip install -e .
 
@@ -210,14 +210,14 @@ environments and how you wish to handle them.
             .. code-block:: powershell
 
                $ cd path\to\plenoptic
-               $ .venv\bin\activate
+               $ .venv\Scripts\activate
                $ pip install -e .[nb]
 
          .. tab:: plenoptic installed from PyPI
 
-            .. code-block:: shell
+            .. code-block:: powershell
 
-               $ source path\to\environments\plenoptic-venv\bin\activate
+               $ path\to\environments\plenoptic-venv\Scripts\activate
                $ pip install plenoptic[nb]
 
       With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyter into that separate virtual environment, which is wasteful.
@@ -253,10 +253,10 @@ environments and how you wish to handle them.
 
             .. code-block:: powershell
 
-               $ path\to\environments\jupyter-venv\bin\activate
+               $ path\to\environments\jupyter-venv\Scripts\activate
                $ pip install jupyterlab ipywidgets
                $ cd path\to\plenoptic
-               $ .venv\bin\activate
+               $ .venv\Scripts\activate
                $ pip install ipykernel torchvision pooch
                $ python -m ipykernel install --prefix=path\to\environments\jupyter-venv\ --name 'plenoptic'
 
@@ -264,9 +264,9 @@ environments and how you wish to handle them.
 
             .. code-block:: shell
 
-               $ path\to\environments\jupyter-venv\bin\activate
+               $ path\to\environments\jupyter-venv\Scripts\activate
                $ pip install jupyterlab ipywidgets
-               $ source path\to\environments\plenoptic-venv\bin\activate
+               $ path\to\environments\plenoptic-venv\Scripts\activate
                $ pip install ipykernel torchvision pooch
                $ python -m ipykernel install --prefix=\path\to\environments\jupyter-env\ --name 'plenoptic'
 
