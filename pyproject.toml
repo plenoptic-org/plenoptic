@@ -120,7 +120,7 @@ exclude = [
     "docs",
     ]
 
-# Set the maximum line length to 79. Default is 88.
+# Set the maximum line length.
 line-length = 79
 
 [tool.ruff.lint]
