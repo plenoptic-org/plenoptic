@@ -21,7 +21,7 @@ from typing_extensions import Literal
 
 from ...tools import signal
 from ...tools.data import to_numpy
-from ...tools.display import clean_up_axes, update_stem, imshow
+from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
 from ...tools.validate import validate_input
 from ..canonical_computations.steerable_pyramid_freq import SteerablePyramidFreq
 from ..canonical_computations.steerable_pyramid_freq import SCALES_TYPE as PYR_SCALES_TYPE
@@ -118,8 +118,10 @@ class PortillaSimoncelliMasked(nn.Module):
         # width), one per scale, where n_autocorrs is approximately spatial_corr_width^2 /
         # 2
         rolls_h, rolls_w, var_idx = self._create_autocorr_idx(spatial_corr_width, image_shape)
-        self._autocorr_rolls_h, self._autocorr_rolls_w = rolls_h, rolls_w
-        self._n_autocorrs = self._autocorr_rolls_h[0].shape[3]
+        for i, (h, w) in enumerate(zip(rolls_h, rolls_w)):
+            self.register_buffer(f'_autocorr_rolls_h_scale_{i}', h)
+            self.register_buffer(f'_autocorr_rolls_w_scale_{i}', w)
+        self._n_autocorrs = rolls_h[0].shape[3]
         self._var_idx = var_idx
         self._pyr = SteerablePyramidFreq(
             self.image_shape,
@@ -414,7 +416,7 @@ class PortillaSimoncelliMasked(nn.Module):
 
         # Calculate pixel statistics (mean, variance, skew, kurtosis). This is a tensor
         # of shape (batch, channel, masks, 4)
-        pixel_stats = self._compute_pixel_stats(self.mask, image)
+        pixel_stats = self._compute_pixel_stats(self.mask[0], image)
 
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
         # tensor of shape: (batch, channel, masks, n_autocorrs, n_orientations, n_scales).
@@ -1085,7 +1087,7 @@ class PortillaSimoncelliMasked(nn.Module):
         axes = []
         for i, (k, v) in enumerate(data.items()):
             ax = fig.add_subplot(gs[i // 3, i % 3])
-            ax = imshow(to_numpy(einops.rearrange(v, 'm s -> 1 1 m s')), ax=ax, title=k)
+            ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
             axes.append(ax)
 
         if title is not None:
@@ -1193,11 +1195,7 @@ class PortillaSimoncelliMasked(nn.Module):
         rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
         rep = self._representation_for_plotting(rep)
         for ax, d in zip(axes, rep.values()):
-            if isinstance(d, dict):
-                vals = np.array([dd.detach() for dd in d.values()])
-            else:
-                vals = d.flatten().detach().numpy()
-
+            vals = to_numpy(d.flatten())
             sc = update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists
