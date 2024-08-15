@@ -873,6 +873,7 @@ class PortillaSimoncelliMasked(nn.Module):
             ``reconstructed_images``.
 
         """
+        var_recon = einops.rearrange(var_recon, f'b c {self._mask_output_idx} scales -> b c ({self._mask_output_idx}) scales')
         skew_recon = []
         kurtosis_recon = []
         for img, scale_mask in zip(reconstructed_images, mask):
@@ -880,13 +881,14 @@ class PortillaSimoncelliMasked(nn.Module):
             kurtosis_recon.append(einops.einsum(*scale_mask, img.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
         skew_recon = einops.rearrange(skew_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
         kurtosis_recon = einops.rearrange(kurtosis_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
+        skew_recon = skew_recon / var_recon.pow(1.5)
+        kurtosis_recon = kurtosis_recon / var_recon.pow(2)
         skew_default = torch.zeros_like(skew_recon)
         kurtosis_default = 3 * torch.ones_like(kurtosis_recon)
         # if this variance ratio is too small, then use the default values instead.
         # unsqueeze is used here because var_recon is shape (batch, channel, masks,
         # scales+1), whereas img_var is just (batch, channel, masks)
         res = torch.finfo(img_var.dtype).resolution
-        var_recon = einops.rearrange(var_recon, f'b c {self._mask_output_idx} scales -> b c ({self._mask_output_idx}) scales')
         unstable_locs = (var_recon / img_var.unsqueeze(-1)) < res
         skew_recon = torch.where(unstable_locs, skew_default, skew_recon)
         kurtosis_recon = torch.where(unstable_locs, kurtosis_default, kurtosis_recon)
