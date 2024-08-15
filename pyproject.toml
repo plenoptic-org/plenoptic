@@ -47,6 +47,7 @@ docs = [
      'ipython',
      'sphinx-copybutton',
      'sphinxemoji',
+     'sphinx-inline-tabs',
 ]
 
 dev = [
