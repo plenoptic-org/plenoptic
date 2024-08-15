@@ -700,10 +700,10 @@ class PortillaSimoncelliMasked(nn.Module):
 
         """
         weighted_avg_expr = f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"
-        mean = einops.einsum(*mask[0], image, weighted_avg_expr)
-        var = einops.einsum(*mask[0], image.pow(2), weighted_avg_expr)
-        skew = einops.einsum(*mask[0], image.pow(3), weighted_avg_expr)
-        kurtosis = einops.einsum(*mask[0], image.pow(4), weighted_avg_expr)
+        mean = einops.einsum(*mask, image, weighted_avg_expr)
+        var = einops.einsum(*mask, image.pow(2), weighted_avg_expr)
+        skew = einops.einsum(*mask, image.pow(3), weighted_avg_expr)
+        kurtosis = einops.einsum(*mask, image.pow(4), weighted_avg_expr)
         return einops.rearrange([mean, var, skew, kurtosis], f'stats b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) stats')
 
     @staticmethod
