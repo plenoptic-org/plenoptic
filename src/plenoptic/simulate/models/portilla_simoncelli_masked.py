@@ -99,17 +99,20 @@ class PortillaSimoncelliMasked(nn.Module):
             raise ValueError("All masks must be 3d!")
         if any([m.shape[-2:] != image_shape for m in mask]):
             raise ValueError("Last two dimensions of mask must be height and width and must match image_shape!")
-        self.mask = []
         # we need to downsample the masks for each scale, plus one additional scale for
         # the reconstructed lowpass image
         for i in range(n_scales+1):
             if i == 0:
                 scale_mask = mask
             else:
-                scale_mask = [signal.shrink(m, 2**i) for m in mask]
-            self.mask.append(scale_mask)
+                # multiply by the factor of four in order to keep the sum
+                # approximately equal across scales.
+                scale_mask = [4**(i/len(mask)) * signal.shrink(m, 2**i) for m in mask]
+            for j, m in enumerate(scale_mask):
+                self.register_buffer(f'_mask_{j}_scale_{i}', m)
         # these indices are used to create the einsum expressions
         self._mask_input_idx = ', '.join([f'm{i} h w' for i in range(len(mask))])
+        self._n_masks = len(mask)
         self._mask_output_idx = f"{' '.join([f'm{i}' for i in range(len(mask))])}"
         self.spatial_corr_width = spatial_corr_width
         self.n_scales = n_scales
@@ -160,6 +163,25 @@ class PortillaSimoncelliMasked(nn.Module):
         self._representation_scales = einops.pack(list(scales_shape_dict.values()), '*')[0]
         # just select the scales of the necessary stats.
         self._representation_scales = self._representation_scales[self._necessary_stats_mask]
+
+    @property
+    def mask(self):
+        # inspired by
+        # https://discuss.pytorch.org/t/why-no-nn-bufferlist-like-function-for-registered-buffer-tensor/18884/10
+        return [[getattr(self, f'_mask_{j}_scale_{i}')for j in range(self._n_masks)]
+                for i in range(self.n_scales+1)]
+
+    @property
+    def _autocorr_rolls_h(self):
+        # inspired by
+        # https://discuss.pytorch.org/t/why-no-nn-bufferlist-like-function-for-registered-buffer-tensor/18884/10
+        return [getattr(self, f'_autocorr_rolls_h_scale_{i}') for i in range(self.n_scales+1)]
+
+    @property
+    def _autocorr_rolls_w(self):
+        # inspired by
+        # https://discuss.pytorch.org/t/why-no-nn-bufferlist-like-function-for-registered-buffer-tensor/18884/10
+        return [getattr(self, f'_autocorr_rolls_w_scale_{i}') for i in range(self.n_scales+1)]
 
     def _create_autocorr_idx(self, spatial_corr_width, image_shape) -> Tuple[List[Tensor], List[Tensor], int]:
         """Create indices used to shift images when computing autocorrelation.
