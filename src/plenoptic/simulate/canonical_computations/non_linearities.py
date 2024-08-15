@@ -26,7 +26,7 @@ def rectangular_to_polar_dict(coeff_dict, residuals=False):
     """
     energy = {}
     state = {}
-    for key in coeff_dict.keys():
+    for key in coeff_dict:
         # ignore residuals
         if isinstance(key, tuple) or not key.startswith("residual"):
             energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
@@ -60,7 +60,7 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
     """
 
     coeff_dict = {}
-    for key in energy.keys():
+    for key in energy:
         # ignore residuals
 
         if isinstance(key, tuple) or not key.startswith("residual"):
@@ -189,7 +189,7 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     energy = {}
     state = {}
 
-    for key in coeff_dict.keys():
+    for key in coeff_dict:
         if isinstance(key, tuple) or not key.startswith("residual"):
             energy[key], state[key] = local_gain_control(coeff_dict[key])
 
@@ -229,7 +229,7 @@ def local_gain_release_dict(energy, state, residuals=True):
     """
     coeff_dict = {}
 
-    for key in energy.keys():
+    for key in energy:
         if isinstance(key, tuple) or not key.startswith("residual"):
             coeff_dict[key] = local_gain_release(energy[key], state[key])
 

@@ -137,10 +137,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
             " Please use pip or "
             "conda to install 'pooch'."
         )
-    if dataset_name.endswith(".tar.gz"):
-        processor = pooch.Untar()
-    else:
-        processor = None
+    processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
     fname = retriever.fetch(dataset_name, progressbar=True, processor=processor)
     if dataset_name.endswith(".tar.gz"):
         fname = find_shared_directory([pathlib.Path(f) for f in fname])

@@ -1078,18 +1078,12 @@ def display_metamer(
         The matplotlib axes containing the plot.
 
     """
-    if iteration is None:
-        image = metamer.metamer
-    else:
-        image = metamer.saved_metamer[iteration]
+    image = metamer.metamer if iteration is None else metamer.saved_metamer[iteration]
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if channel_idx is None and image.shape[1] > 1:
-        as_rgb = True
-    else:
-        as_rgb = False
+    as_rgb = bool(channel_idx is None and image.shape[1] > 1)
     if ax is None:
         ax = plt.gca()
     display.imshow(
@@ -1394,24 +1388,24 @@ def _setup_synthesis_fig(
     if "display_metamer" in included_plots:
         n_subplots += 1
         width_ratios.append(display_metamer_width)
-        if "display_metamer" not in axes_idx.keys():
+        if "display_metamer" not in axes_idx:
             axes_idx["display_metamer"] = data._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
-        if "plot_loss" not in axes_idx.keys():
+        if "plot_loss" not in axes_idx:
             axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
     if "plot_representation_error" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_representation_error_width)
-        if "plot_representation_error" not in axes_idx.keys():
+        if "plot_representation_error" not in axes_idx:
             axes_idx["plot_representation_error"] = data._find_min_int(
                 axes_idx.values()
             )
     if "plot_pixel_values" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
-        if "plot_pixel_values" not in axes_idx.keys():
+        if "plot_pixel_values" not in axes_idx:
             axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
@@ -1764,7 +1758,7 @@ def animate(
                     ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
             ylim = None
         else:
-            raise ValueError("Don't know how to handle ylim %s!" % ylim)
+            raise ValueError(f"Don't know how to handle ylim {ylim}!")
     except AttributeError:
         # this way we'll never rescale
         ylim_rescale_interval = len(metamer.saved_metamer) + 1

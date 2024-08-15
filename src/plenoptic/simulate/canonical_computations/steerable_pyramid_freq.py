@@ -476,11 +476,11 @@ class SteerablePyramidFreq(nn.Module):
                     else:
                         coeff_list_bands.append(coeffs)
 
-            if "residual_highpass" in pyr_coeffs.keys():
+            if "residual_highpass" in pyr_coeffs:
                 coeff_list_bands.insert(0, coeff_list_resid[0])
-                if "residual_lowpass" in pyr_coeffs.keys():
+                if "residual_lowpass" in pyr_coeffs:
                     coeff_list_bands.append(coeff_list_resid[1])
-            elif "residual_lowpass" in pyr_coeffs.keys():
+            elif "residual_lowpass" in pyr_coeffs:
                 coeff_list_bands.append(coeff_list_resid[0])
 
             coeff_list.extend(coeff_list_bands)
@@ -563,7 +563,7 @@ class SteerablePyramidFreq(nn.Module):
                     else:
                         band = pyr_tensor[:, i, ...].unsqueeze(1)
                         i += 1
-                if k not in pyr_coeffs.keys():
+                if k not in pyr_coeffs:
                     pyr_coeffs[k] = band
                 else:
                     pyr_coeffs[k] = torch.cat([pyr_coeffs[k], band], dim=1)
@@ -626,12 +626,12 @@ class SteerablePyramidFreq(nn.Module):
         # not all pyramids have residual highpass / lowpass, but it's easier
         # to construct the list including them, then remove them if necessary.
         if (
-            "residual_lowpass" not in self.pyr_size.keys()
+            "residual_lowpass" not in self.pyr_size
             and "residual_lowpass" in levels
         ):
             levels.pop(-1)
         if (
-            "residual_highpass" not in self.pyr_size.keys()
+            "residual_highpass" not in self.pyr_size
             and "residual_highpass" in levels
         ):
             levels.pop(0)
@@ -779,7 +779,7 @@ class SteerablePyramidFreq(nn.Module):
         # to include all levels
         for s in self.scales:
             if isinstance(s, str):
-                if s not in pyr_coeffs.keys():
+                if s not in pyr_coeffs:
                     raise Exception(
                         f"scale {s} not in pyr_coeffs! pyr_coeffs must include"
                         " all scales, so make sure forward() was called with"
@@ -787,7 +787,7 @@ class SteerablePyramidFreq(nn.Module):
                     )
             else:
                 for b in range(self.num_orientations):
-                    if (s, b) not in pyr_coeffs.keys():
+                    if (s, b) not in pyr_coeffs:
                         raise Exception(
                             f"scale {s} not in pyr_coeffs! pyr_coeffs must"
                             " include all scales, so make sure forward() was"

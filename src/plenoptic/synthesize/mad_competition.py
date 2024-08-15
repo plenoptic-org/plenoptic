@@ -15,6 +15,7 @@ from collections import OrderedDict
 from pyrtools.tools.display import make_figure as pt_make_figure
 from ..tools.validate import validate_input, validate_metric
 from ..tools.convergence import loss_convergence
+import contextlib
 
 
 class MADCompetition(OptimizedSynthesis):
@@ -479,14 +480,10 @@ class MADCompetition(OptimizedSynthesis):
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.
-        try:
+        with contextlib.suppress(AttributeError):
             self.reference_metric.to(*args, **kwargs)
-        except AttributeError:
-            pass
-        try:
+        with contextlib.suppress(AttributeError):
             self.optimized_metric.to(*args, **kwargs)
-        except AttributeError:
-            pass
 
     def load(
         self,
@@ -710,18 +707,12 @@ def display_mad_image(
         The matplotlib axes containing the plot.
 
     """
-    if iteration is None:
-        image = mad.mad_image
-    else:
-        image = mad.saved_mad_image[iteration]
+    image = mad.mad_image if iteration is None else mad.saved_mad_image[iteration]
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if channel_idx is None and image.shape[1] > 1:
-        as_rgb = True
-    else:
-        as_rgb = False
+    as_rgb = bool(channel_idx is None and image.shape[1] > 1)
     if ax is None:
         ax = plt.gca()
     display.imshow(
@@ -927,17 +918,17 @@ def _setup_synthesis_fig(
     if "display_mad_image" in included_plots:
         n_subplots += 1
         width_ratios.append(display_mad_image_width)
-        if "display_mad_image" not in axes_idx.keys():
+        if "display_mad_image" not in axes_idx:
             axes_idx["display_mad_image"] = data._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
-        if "plot_loss" not in axes_idx.keys():
+        if "plot_loss" not in axes_idx:
             axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
     if "plot_pixel_values" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
-        if "plot_pixel_values" not in axes_idx.keys():
+        if "plot_pixel_values" not in axes_idx:
             axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)

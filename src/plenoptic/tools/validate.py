@@ -55,10 +55,7 @@ def validate_input(
             + f" allowed but got type {input_tensor.dtype}"
         )
     if input_tensor.ndimension() != 4:
-        if no_batch:
-            n_batch = 1
-        else:
-            n_batch = "n_batch"
+        n_batch = 1 if no_batch else "n_batch"
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError(

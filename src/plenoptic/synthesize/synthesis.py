@@ -119,10 +119,7 @@ class Synthesis(abc.ABC):
             # the initial underscore. This is because this function
             # needs to be able to set the attribute, which can only be
             # done with the hidden version.
-            if k.startswith("_"):
-                display_k = k[1:]
-            else:
-                display_k = k
+            display_k = k[1:] if k.startswith("_") else k
             if not hasattr(self, k):
                 raise AttributeError(
                     "All values of `check_attributes` should be "
@@ -172,10 +169,7 @@ class Synthesis(abc.ABC):
                     )
         for k in check_loss_functions:
             # same as above
-            if k.startswith("_"):
-                display_k = k[1:]
-            else:
-                display_k = k
+            display_k = k[1:] if k.startswith("_") else k
             # this way, we know it's the right shape
             tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
@@ -406,9 +400,8 @@ class OptimizedSynthesis(Synthesis):
             True or int>0, ``self.saved_metamer`` contains the stored images.
 
         """
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
+        if store_progress and store_progress is True:
+            store_progress = 1
         if self.store_progress is not None and store_progress != self.store_progress:
             # we require store_progress to be the same because otherwise the
             # subsampling relationship between attrs that are stored every
