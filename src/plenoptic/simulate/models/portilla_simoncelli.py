@@ -1112,11 +1112,7 @@ class PortillaSimoncelli(nn.Module):
         rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
         rep = self._representation_for_plotting(rep)
         for ax, d in zip(axes, rep.values()):
-            if isinstance(d, dict):
-                vals = np.array([dd.detach() for dd in d.values()])
-            else:
-                vals = d.flatten().detach().numpy()
-
+            vals = to_numpy(d.flatten())
             sc = update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists
