@@ -1,6 +1,9 @@
 .. |pypi-shield| image:: https://img.shields.io/pypi/v/plenoptic.svg
 			 :target: https://pypi.org/project/plenoptic/
 
+.. |conda-shield| image:: https://anaconda.org/conda-forge/plenoptic/badges/version.svg
+                  :target: https://anaconda.org/conda-forge/plenoptic
+
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
                     :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
 
@@ -28,7 +31,7 @@ plenoptic
 *********
 .. _index:
 
-|pypi-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
+|pypi-shield| |conda-shield| |license-shield| |python-version-shield| |build| |zenodo| |codecov| |binder|
 
 
 .. image:: images/plenoptic_logo_wide.svg
@@ -52,6 +55,12 @@ Installation
 The best way to install ``plenoptic`` is via ``pip``::
 
 $ pip install plenoptic
+
+or ``conda``::
+
+$ conda install plenoptic -c conda-forge
+
+.. warning::  We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. See `here <https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32>`_ for the status of that issue.
 
 See the :ref:`install` page for more details, including how to set up an isolated
 virtual environment (recommended).

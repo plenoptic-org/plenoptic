@@ -40,3 +40,7 @@ src/plenoptic/version.py
 
 # gets created during install
 build/
+
+# venv
+.venv
+venv
