@@ -18,7 +18,7 @@ import torch
 import torch.fft
 import torch.nn as nn
 from torch import Tensor
-from typing_extensions import Literal
+from typing import Literal
 
 from ...tools import signal, stats
 from ...tools.data import to_numpy

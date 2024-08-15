@@ -1,6 +1,6 @@
-from typing import Callable
+from collections.abc import Callable
 import warnings
-from typing_extensions import Literal
+from typing import Literal
 
 import matplotlib.pyplot
 from matplotlib.figure import Figure

@@ -13,8 +13,8 @@ from ..tools.validate import (
     validate_coarse_to_fine,
 )
 from ..tools.convergence import coarse_to_fine_enough, loss_convergence
-from typing import Callable
-from typing_extensions import Literal
+from collections.abc import Callable
+from typing import Literal
 from .synthesis import OptimizedSynthesis
 import warnings
 import matplotlib as mpl

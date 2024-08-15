@@ -15,7 +15,7 @@ import torch.nn as nn
 from einops import rearrange
 from scipy.special import factorial
 from torch import Tensor
-from typing_extensions import Literal
+from typing import Literal
 from numpy.typing import NDArray
 
 from ...tools.signal import interpolate1d, raised_cosine, steer

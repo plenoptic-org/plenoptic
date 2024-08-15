@@ -10,7 +10,7 @@ References
 .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 import torch.nn as nn
