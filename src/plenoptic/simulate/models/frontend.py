@@ -63,8 +63,8 @@ class LinearNonlinear(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions
+    of hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
@@ -147,8 +147,8 @@ class LuminanceGainControl(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+    hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
@@ -257,8 +257,8 @@ class LuminanceContrastGainControl(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+    hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     """
 
