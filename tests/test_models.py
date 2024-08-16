@@ -558,11 +558,7 @@ class TestPortillaSimoncelli(object):
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE).to(torch.float64)
-        output = ps.convert_to_dict(ps(im0))
-        # the scales and orientations dimensions are flipped in the
-        # auto_correlation_magnitude relative to when we first did this.
-        output['auto_correlation_magnitude'] = output['auto_correlation_magnitude'].transpose(-1, -2)
-        output = ps.convert_to_tensor(output)
+        output = ps(im0)
 
         saved = np.load(f"{portilla_simoncelli_test_vectors}/"
                         f"{im}_scales-{n_scales}_ori-{n_orientations}_"
@@ -675,14 +671,7 @@ class TestPortillaSimoncelli(object):
             spatial_corr_width=spatial_corr_width,
             ).to(DEVICE)
 
-        # the scales and orientations dimensions are flipped in the
-        # auto_correlation_magnitude relative to when we first did this.
-        scales_dict = model._create_scales_shape_dict()
-        # this transpose looks a bit different because it's numpy's transpose
-        scales_dict['auto_correlation_magnitude'] = scales_dict['auto_correlation_magnitude'].transpose(0, 1, 3, 2)
-        output = einops.pack(list(scales_dict.values()), '*')[0]
-        # just select the scales of the necessary stats.
-        output = output[model._necessary_stats_mask.cpu()]
+        output = model._representation_scales
 
         np.testing.assert_equal(output, saved)
 

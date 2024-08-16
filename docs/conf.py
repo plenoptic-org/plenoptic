@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinxemoji.sphinxemoji',
+    'sphinx_inline_tabs'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -93,6 +94,7 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 
 numfig = True
+
 
 # -- Options for HTML output -------------------------------------------------
 
