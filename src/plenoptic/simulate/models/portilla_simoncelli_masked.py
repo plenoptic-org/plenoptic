@@ -20,6 +20,7 @@ from torch import Tensor
 from typing_extensions import Literal
 
 from ...tools import signal
+from ...tools.conv import blur_downsample
 from ...tools.data import to_numpy
 from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
 from ...tools.validate import validate_input
@@ -99,6 +100,8 @@ class PortillaSimoncelliMasked(nn.Module):
             raise ValueError("All masks must be 3d!")
         if any([m.shape[-2:] != image_shape for m in mask]):
             raise ValueError("Last two dimensions of mask must be height and width and must match image_shape!")
+        if any([m.min() < 0 for m in mask]):
+            raise ValueError("All masks must be non-negative!")
         # we need to downsample the masks for each scale, plus one additional scale for
         # the reconstructed lowpass image
         for i in range(n_scales+1):
@@ -107,9 +110,15 @@ class PortillaSimoncelliMasked(nn.Module):
             else:
                 # multiply by the factor of four in order to keep the sum
                 # approximately equal across scales.
-                scale_mask = [4**(i/len(mask)) * signal.shrink(m, 2**i) for m in mask]
+                scale_mask = [4**(i/len(mask)) * blur_downsample(m.unsqueeze(0),
+                                                                 i, scale_filter=True).squeeze(0)
+                              for m in mask]
             for j, m in enumerate(scale_mask):
-                self.register_buffer(f'_mask_{j}_scale_{i}', m)
+                # it's possible negative values will get introduced by the downsampling
+                # above, in which case we remove them, since they mess up our
+                # computations. in particular, they could result in negative variance
+                # values.
+                self.register_buffer(f'_mask_{j}_scale_{i}', m.clip(min=0))
         # these indices are used to create the einsum expressions
         self._mask_input_idx = ', '.join([f'm{i} h w' for i in range(len(mask))])
         self._n_masks = len(mask)
