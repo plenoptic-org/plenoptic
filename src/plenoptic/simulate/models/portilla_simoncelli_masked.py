@@ -1048,8 +1048,8 @@ class PortillaSimoncelliMasked(nn.Module):
             self,
             data: Tensor,
             ax: Optional[plt.Axes] = None,
-            figsize: Tuple[float, float] = (15, 15),
-            ylim: Optional[Union[Tuple[float, float], Literal[False]]] = None,
+            figsize: Tuple[float, float] = (15, 5),
+            ylim: Optional[Union[Tuple[float, float], Literal[False]]] = False,
             batch_idx: int = 0,
             title: Optional[str] = None,
     ) -> Tuple[plt.Figure, List[plt.Axes]]:
