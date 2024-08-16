@@ -77,7 +77,7 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
+    filt = torch.as_tensor(np.outer(f, f), dtype=x.dtype, device=x.device)
     if scale_filter:
         filt = filt / 2
     for _ in range(n_scales):
