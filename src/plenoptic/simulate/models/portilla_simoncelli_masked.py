@@ -171,13 +171,13 @@ class PortillaSimoncelliMasked(nn.Module):
         self._representation_scales = einops.pack(list(scales_shape_dict.values()), '*')[0]
         # just select the scales of the necessary stats.
         self._representation_scales = self._representation_scales[self._necessary_stats_mask]
-        # we divide one statistic by another at several points in this model. depending
-        # on the windows, the divisor might be zero or close to zero. adding this
-        # epsilon to the division is a common way of avoiding this problem.
-        self._division_epsilon = 1e-6
-        # similarly for taking the sqrt, this ensures that we don't have a small
-        # negative value in our tensor beforehand, which would result in a nan
-        self._sqrt_epsilon = 1e-6
+        # There are two types of computations where we add a little epsilon to help with
+        # stability:
+        # - division of one statistic by another
+        # - taking the sqrt of one statistic
+        # In both cases, adding a small epsilon avoids a NaN or (for division) an
+        # unreasonably large number.
+        self._stability_epsilon = 1e-6
 
     @property
     def mask(self):
@@ -469,7 +469,7 @@ class PortillaSimoncelliMasked(nn.Module):
         # intermediary of the computation of the auto-correlations). We take the square
         # root to get the standard deviation. After this, mags_std will have shape
         # (batch, channel, masks, n_orientations, n_scale)
-        mags_std = einops.rearrange((mags_var + self._sqrt_epsilon).sqrt(),
+        mags_std = einops.rearrange((mags_var + self._stability_epsilon).sqrt(),
                                     f'b c {self._mask_output_idx} o s -> b c ({self._mask_output_idx}) o s')
 
         # Compute the central autocorrelation of the reconstructed lowpass images at
@@ -480,7 +480,7 @@ class PortillaSimoncelliMasked(nn.Module):
         # Compute the standard deviation, skew, and kurtosis of each reconstructed
         # lowpass image. std_recon, skew_recon, and kurtosis_recon will all end up as
         # tensors of shape (batch, channel, masks, n_scales+1)
-        std_recon = einops.rearrange((var_recon + self._sqrt_epsilon).sqrt(),
+        std_recon = einops.rearrange((var_recon + self._stability_epsilon).sqrt(),
                                      f'b c {self._mask_output_idx} s -> b c ({self._mask_output_idx}) s')
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(self.mask,
                                                                        reconstructed_images,
@@ -860,44 +860,11 @@ class PortillaSimoncelliMasked(nn.Module):
             var = torch.narrow(autocorr, var_dim, -1, 1)
             # and then drop the variance from here
             acs.append(torch.narrow(autocorr, var_dim, 0, self._n_autocorrs-1)
-                       / (var + self._division_epsilon))
+                       / (var + self._stability_epsilon))
             vars.append(var)
         acs = einops.rearrange(acs, f'scales b c {self._mask_output_idx} shifts {dims} -> b c ({self._mask_output_idx}) shifts {dims} scales')
         vars = einops.rearrange(vars, f'scales b c {self._mask_output_idx} shifts {dims} -> b c {self._mask_output_idx} {dims} (shifts scales)', shifts=1)
         return acs, vars
-
-    def _check_for_unstable_locs(self, variance: Tensor, stat_to_replace: Tensor) -> Tensor:
-        """Check whether variance is near zero and, if so, replace corresponding stat_to_replace values with zero.
-
-        The Portilla-Simoncelli textre model contains several statistics that are
-        divided by some variance: cross-correlations, auto-correlations, skew, and
-        kurtosis. If the corresponding variance is 0 (or almost 0), dividing by the
-        variance gives an unreasonable value, and so we replace the corresponding
-        correlation or higher moment with zero, effectively removing that statistic
-        from the gradient computation.
-
-        We define "almost zero" as being below the resolution value for the corresponding
-        dtype, i.e., ``torch.finfo(stat_to_replace.dtype).resolution`` (1e-6 for
-        float32, 1e-15 for float64)`
-
-        Parameters
-        ----------
-        variance :
-            Some variance statistic (on the whole image, on the reconstructed lowpass
-            images, etc.), which was used to normalize ``stat_to_replace``.
-        stat_to_replace :
-            The statistic divided by the variance. If the variance is near-zero
-            anywhere, we'll replace the corresponding values with 0.
-
-        Returns
-        -------
-        replaced_stat :
-            ``stat_to_replace``, with the unstable values replaced with zero.
-
-        """
-        default_vals = torch.zeros_like(stat_to_replace)
-        unstable_locs = variance < self._dtype_resolution
-        return torch.where(unstable_locs, default_vals, stat_to_replace)
 
     def _compute_skew_kurtosis_recon(self, mask: List[Tensor],
                                      reconstructed_images: List[Tensor],
@@ -938,8 +905,8 @@ class PortillaSimoncelliMasked(nn.Module):
             kurtosis_recon.append(einops.einsum(*scale_mask, img.pow(4), f"{self._mask_input_idx}, b c h w -> b c {self._mask_output_idx}"))
         skew_recon = einops.rearrange(skew_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
         kurtosis_recon = einops.rearrange(kurtosis_recon, f'scales b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) scales')
-        skew_recon = skew_recon / (var_recon.pow(1.5) + self._division_epsilon)
-        kurtosis_recon = kurtosis_recon / (var_recon.pow(2) + self._division_epsilon)
+        skew_recon = skew_recon / (var_recon.pow(1.5) + self._stability_epsilon)
+        kurtosis_recon = kurtosis_recon / (var_recon.pow(2) + self._stability_epsilon)
         return skew_recon, kurtosis_recon
 
     def _compute_cross_correlation(self, mask: List[Tensor],
@@ -997,8 +964,8 @@ class PortillaSimoncelliMasked(nn.Module):
                                            outer_prod_expr)
             # And the sqrt of this is what we use to normalize the covariance
             # into the cross-correlation
-            std_outer_prod = (var_outer_prod + self._sqrt_epsilon).sqrt()
-            covars.append(covar / (std_outer_prod + self._division_epsilon))
+            std_outer_prod = (var_outer_prod + self._stability_epsilon).sqrt()
+            covars.append(covar / (std_outer_prod + self._stability_epsilon))
         return einops.rearrange(covars, f'scales b c {self._mask_output_idx} o1 o2 -> b c ({self._mask_output_idx}) o1 o2 scales')
 
     @staticmethod
