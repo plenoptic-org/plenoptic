@@ -36,7 +36,7 @@ authors:
     given-names: Xinyuan
     orcid: "https://orcid.org/0000-0003-1770-631X"
 doi: 10.5281/zenodo.10151130
-repository-code: "https://github.com/LabForComputationalVision/plenoptic"
+repository-code: "https://github.com/plenoptic-org/plenoptic"
 url: "https://plenoptic.readthedocs.io/"
 license: MIT
 keywords:

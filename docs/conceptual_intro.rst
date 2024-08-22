@@ -231,7 +231,7 @@ predictions to test.
        <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
        though we haven't yet implemented examples. If you're interested, please
        post in `Discussions
-       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
+       <https://github.com/plenoptic-org/plenoptic/discussions)>`_!
 .. [#] for example, as of February 2022, more than 100 models have above 95% top
   5 accuracy on ImageNet, with 9 models within a percent of the top performer at
   99.02%. Furthermore, the state of the art top 5 accuracy has been at or above

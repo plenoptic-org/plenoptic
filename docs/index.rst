@@ -5,21 +5,21 @@
                   :target: https://anaconda.org/conda-forge/plenoptic
 
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
-                    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
+                    :target: https://github.com/plenoptic-org/plenoptic/blob/main/LICENSE
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.10%7C3.11%7C3.12-blue.svg
 
-.. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
-		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
+.. |build| image:: https://github.com/plenoptic-org/plenoptic/workflows/build/badge.svg
+		     :target: https://github.com/plenoptic-org/plenoptic/actions?query=workflow%3Abuild
 
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg
             :target: https://zenodo.org/doi/10.5281/zenodo.10151130
 
-.. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
-             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
+.. |codecov| image:: https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
+             :target: https://codecov.io/gh/plenoptic-org/plenoptic
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
-		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples
+		    :target: https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples
 
 .. plenoptic documentation master file, created by
    sphinx-quickstart on Thu Jun 20 15:56:27 2019.
@@ -157,20 +157,20 @@ Getting help
 We communicate via several channels on Github:
 
 - To report a bug, open an `issue
-  <https://github.com/LabForComputationalVision/plenoptic/issues>`_.
+  <https://github.com/plenoptic-org/plenoptic/issues>`_.
 - To send suggestions for extensions or enhancements, please post in the `ideas
   section
-  <https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas>`_
+  <https://github.com/plenoptic-org/plenoptic/discussions/categories/ideas>`_
   of discussions first. We'll discuss it there and, if we decide to pursue it,
   open an issue to track progress.
 - To ask usage questions, discuss broad issues, or
   show off what you've made with plenoptic, go to `Discussions
-  <https://github.com/LabForComputationalVision/plenoptic/discussions>`_.
+  <https://github.com/plenoptic-org/plenoptic/discussions>`_.
 - To contribute to the project, see the `contributing guide
-  <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_.
+  <https://github.com/plenoptic-org/plenoptic/blob/main/CONTRIBUTING.md>`_.
 
 In all cases, we request that you respect our `code of conduct
-<https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
+<https://github.com/plenoptic-org/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 Citing us
 ---------
@@ -226,7 +226,7 @@ cite us! See the :ref:`citation` for more details.
        <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
        though we haven't yet implemented examples. If you're interested, please
        post in `Discussions
-       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
+       <https://github.com/plenoptic-org/plenoptic/discussions)>`_!
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.

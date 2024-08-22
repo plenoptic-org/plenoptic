@@ -10,10 +10,10 @@ overview of the project and how to get everything installed, as well as pointers
 for further reading, depending on your interests.
 
 If you encounter any issues with `plenoptic`, first search the existing
-[issues](https://github.com/LabForComputationalVision/plenoptic/issues) and
-[discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+[issues](https://github.com/plenoptic-org/plenoptic/issues) and
+[discussions](https://github.com/plenoptic-org/plenoptic/discussions)
 to see if there's already information to help you. If not, please open a new
-[issue](https://github.com/LabForComputationalVision/plenoptic/issues)! We have
+[issue](https://github.com/plenoptic-org/plenoptic/issues)! We have
 a template for bug reports, and following it (so you provide the necessary
 details) will make solving your problem much easier.
 
@@ -23,26 +23,26 @@ familiar with the project, it can be very helpful for us if you go through the
 tutorials, README, and documentation and let us know if anything is unclear,
 what needs more detail (or clearer writing), etc. For those that want to
 contribute code, we also have many
-[issues](https://github.com/LabForComputationalVision/plenoptic/issues) that we
+[issues](https://github.com/plenoptic-org/plenoptic/issues) that we
 are working through. If you would like to work on one of those, please give it a
 try!
 
 In order to submit changes, create a branch or fork of the project, make your
 changes, add documentation and tests, and submit a [Pull
-Request](https://github.com/LabForComputationalVision/plenoptic/pulls). See
+Request](https://github.com/plenoptic-org/plenoptic/pulls). See
 [contributing to the code below](#contributing-to-the-code) for more details on
 this process.
 
 We try to keep all our communication on Github, and we use several channels:
 
--   [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+-   [Discussions](https://github.com/plenoptic-org/plenoptic/discussions)
     is the place to ask usage questions, discuss issues too broad for a
     single issue, or show off what you've made with plenoptic.
 -   If you've come across a bug, open an
-    [issue](https://github.com/LabForComputationalVision/plenoptic/issues).
+    [issue](https://github.com/plenoptic-org/plenoptic/issues).
 -   If you have an idea for an extension or enhancement, please post in the
     [ideas
-    section](https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas)
+    section](https://github.com/plenoptic-org/plenoptic/discussions/categories/ideas)
     of discussions first. We'll discuss it there and, if we decide to pursue it,
     open an issue to track progress.
 
@@ -74,15 +74,15 @@ increments the version number, and uploading the new release to PyPI (see
 
 In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that the Caiman uses **git** flow, which involves a separate develop branch in addition to main).
 
-Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/LabForComputationalVision/plenoptic/discussions) to get help.
+Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/plenoptic-org/plenoptic/discussions) to get help.
 
 #### Creating a development environment
 
 You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
 
-1. Go to the [plenoptic repo](https://github.com/LabForComputationalVision/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/LabForComputationalVision/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
-3. Add the `upstream` branch: `git remote add upstream https://github.com/LabForComputationalVision/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
+1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
+2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
 You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
@@ -157,7 +157,7 @@ versioning](https://semver.org/):
 When doing a new release, the following steps must be taken:
 1. In a new PR:
   - Update all the [binder](https://mybinder.org) links, which are of the form
-    `https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/X.Y.Z?filepath=examples`,
+    `https://mybinder.org/v2/gh/plenoptic-org/plenoptic/X.Y.Z?filepath=examples`,
     which are found in `README.md`, `index.rst`, `examples/README.md`, and some
     of the tutorial notebooks found in `examples/`. Note that the version tag
     must match the github tag (specified in the next step) or the link won't

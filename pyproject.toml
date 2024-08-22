@@ -67,7 +67,7 @@ nb = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
+"Homepage" = "https://github.com/plenoptic-org/plenoptic"
 "Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
 "Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
