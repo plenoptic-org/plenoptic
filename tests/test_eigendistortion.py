@@ -88,12 +88,6 @@ class TestEigendistortionSynthesis:
         assert len(ed.eigenvalues) == k
 
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
-    def test_temp(self, model, einstein_img):
-        y = model(einstein_img)
-        print(y.shape)
-        # e_pow = Eigendistortion(einstein_img, model)
-
-    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., 125:125+25, 125:125+25]
