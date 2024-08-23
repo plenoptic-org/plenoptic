@@ -13,7 +13,7 @@ plt.rcParams['savefig.edgecolor'] = 'white'
 plt.rcParams['savefig.bbox'] = 'tight'
 
 # 2-deg fundamentals (energy linear, 5nm stepsize) from Stockman & Sharpe 2000,
-# downloaded from https://www.cvrl.org/cones.htm
+# downloaded from http://www.cvrl.org/cones.htm
 CONES = {"nm": [400, 405, 410, 415, 420, 425, 430, 435, 440, 445, 450, 455,
                 460, 465, 470, 475, 480, 485, 490, 495, 500, 505, 510, 515,
                 520, 525, 530, 535, 540, 545, 550, 555, 560, 565, 570, 575,
