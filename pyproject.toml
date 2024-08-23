@@ -54,7 +54,6 @@ dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "requests>=2.21",
     "pooch>=1.2.0",
 ]
 
