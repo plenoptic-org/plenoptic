@@ -94,7 +94,7 @@ class MADCompetition(OptimizedSynthesis):
     .. [1] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
            competition: A methodology for comparing computational models of
            perceptual discriminability. Journal of Vision, 8(12), 1–13.
-           http://dx.doi.org/10.1167/8.12.8
+           https://dx.doi.org/10.1167/8.12.8
 
     """
     def __init__(self, image: Tensor,

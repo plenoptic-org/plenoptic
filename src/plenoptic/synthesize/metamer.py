@@ -78,8 +78,8 @@ class Metamer(OptimizedSynthesis):
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model
        based on Joint Statistics of Complex Wavelet Coefficients. Int'l
        Journal of Computer Vision. 40(1):49-71, October, 2000.
-       http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
-       http://www.cns.nyu.edu/~lcv/texture/
+       https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       https://www.cns.nyu.edu/~lcv/texture/
 
     """
     def __init__(self, image: Tensor, model: torch.nn.Module,

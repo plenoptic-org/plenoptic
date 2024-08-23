@@ -181,7 +181,7 @@ def ssim(img1, img2, weighted=False, pad=False):
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
-       http://dx.doi.org/10.1167/8.12.8
+       https://dx.doi.org/10.1167/8.12.8
 
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
@@ -253,7 +253,7 @@ def ssim_map(img1, img2):
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
-       http://dx.doi.org/10.1167/8.12.8
+       https://dx.doi.org/10.1167/8.12.8
 
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
