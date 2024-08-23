@@ -239,9 +239,9 @@ predictions to test.
 
 .. [Helmholtz1852] Helmholtz, H. (1852). LXXXI. on the theory of compound
    colours. The London, Edinburgh, and Dublin Philosophical Magazine and Journal
-   of Science, 4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
+   of Science, 4(28), 519–534. https://dx.doi.org/10.1080/14786445208647175
 .. [Lettvin1976] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4),
-   10–20. http://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
+   10–20. https://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
 .. [Szegedy2013] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
    Goodfellow, I., & Fergus, R. (2013). Intriguing properties of neural
    networks. https://arxiv.org/abs/1312.6199

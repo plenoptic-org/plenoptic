@@ -8,7 +8,7 @@
 [![Documentation Status](https://readthedocs.org/projects/plenoptic/badge/?version=latest)](https://plenoptic.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
 [![codecov](https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/plenoptic-org/plenoptic)
-[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
 ![](docs/images/plenoptic_logo_wide.svg)

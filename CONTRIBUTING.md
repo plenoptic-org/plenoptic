@@ -196,7 +196,7 @@ several choices for how to run a subset of the tests:
 - Another example specifying a test method in the command line: `pytest
   test_mod.py::TestClass::test_method`
 
-View the [pytest documentation](http://doc.pytest.org/en/latest/usage.html) for
+View the [pytest documentation](https://doc.pytest.org/en/latest/usage.html) for
 more info.
 
 ### Adding tests 

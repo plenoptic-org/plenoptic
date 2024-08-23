@@ -110,8 +110,8 @@ class Eigendistortion(Synthesis):
     .. [1] Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
            Eigen-distortions of hierarchical representations. In Advances in
            neural information processing systems (pp. 3530-3539).
-           http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
-           http://www.cns.nyu.edu/~lcv/eigendistortions/
+           https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
+           https://www.cns.nyu.edu/~lcv/eigendistortions/
 
     """
 
