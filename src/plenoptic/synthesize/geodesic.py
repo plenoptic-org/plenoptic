@@ -8,6 +8,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 from typing import Union, Tuple, Optional
 from typing_extensions import Literal
+from deprecated.sphinx import deprecated
 
 from .synthesis import OptimizedSynthesis
 from ..tools.data import to_numpy
@@ -17,7 +18,7 @@ from ..tools.convergence import pixel_change_convergence
 from ..tools.straightness import (deviation_from_line, make_straight_line,
                                   sample_brownian_bridge)
 
-
+@deprecated("Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.0.3")
 class Geodesic(OptimizedSynthesis):
     r"""Synthesize an approximate geodesic between two images according to a model.
 
@@ -535,6 +536,7 @@ class Geodesic(OptimizedSynthesis):
         return torch.stack(self._dev_from_line)
 
 
+@deprecated("Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.0.3")
 def plot_loss(geodesic: Geodesic,
               ax: Union[mpl.axes.Axes, None] = None,
               **kwargs) -> mpl.axes.Axes:
@@ -563,6 +565,7 @@ def plot_loss(geodesic: Geodesic,
            ylabel='Loss')
     return ax
 
+@deprecated("Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.0.3")
 def plot_deviation_from_line(geodesic: Geodesic,
                              natural_video: Union[Tensor, None] = None,
                              ax: Union[mpl.axes.Axes, None] = None
