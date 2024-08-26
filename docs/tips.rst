@@ -113,4 +113,4 @@ methods.
 
 If you extend a method successfully or would like help making it work, please
 let us know by posting a `discussion!
-<https://github.com/LabForComputationalVision/plenoptic/discussions>`_
+<https://github.com/plenoptic-org/plenoptic/discussions>`_

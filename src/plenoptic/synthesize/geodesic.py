@@ -93,7 +93,7 @@ class Geodesic(OptimizedSynthesis):
     .. [1] Geodesics of learned representations
         O J Hénaff and E P Simoncelli
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
-        http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
+        https://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
     """
     def __init__(self, image_a: Tensor, image_b: Tensor,

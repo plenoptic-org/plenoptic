@@ -26,7 +26,7 @@ reproducibility:
 - PyTorch 1.8 and 1.9 give the same results, but 1.10 changes results in
   changes, probably due to the difference in how the sub-gradient for
   ``torch.min`` and ``torch.max`` are computed (`see this PR
-  <https://github.com/LabForComputationalVision/plenoptic/pull/96#issuecomment-973318291>`_).
+  <https://github.com/plenoptic-org/plenoptic/pull/96#issuecomment-973318291>`_).
 
 - PyTorch 1.12 breaks reproducibility with 1.10 and 1.11, unclear why (`see this
-  issue <https://github.com/LabForComputationalVision/plenoptic/issues/165>`_).
+  issue <https://github.com/plenoptic-org/plenoptic/issues/165>`_).

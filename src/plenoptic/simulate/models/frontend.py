@@ -7,7 +7,7 @@ References
 ----------
 .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
     representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-.. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+.. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
 from typing import Tuple, Union, Callable
@@ -73,11 +73,10 @@ class LinearNonlinear(nn.Module):
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-
+       2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
     """
 
     def __init__(
@@ -196,11 +195,10 @@ class LuminanceGainControl(nn.Module):
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
         representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-
+       2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
     """
     def __init__(
         self,
@@ -342,11 +340,10 @@ class LuminanceContrastGainControl(nn.Module):
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
         representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-
+       2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
     """
 
     def __init__(
@@ -492,11 +489,10 @@ class OnOff(nn.Module):
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-       2018; http://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-
+       2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
     """
 
     def __init__(

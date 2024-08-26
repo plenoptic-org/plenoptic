@@ -64,5 +64,5 @@ for an example):
 .. [PS] J Portilla and E P Simoncelli. A Parametric Texture Model based on Joint
         Statistics of Complex Wavelet Coefficients. Int'l Journal of Computer
         Vision. 40(1):49-71, October, 2000. `abstract
-        <http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html>`_,
-        `paper <http://www.cns.nyu.edu/~lcv/texture/>`_.
+        <https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html>`_,
+        `paper <https://www.cns.nyu.edu/~lcv/texture/>`_.

@@ -183,11 +183,14 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
     monitor 1000 pixels wide; the notebook handles the rescaling in a way we
     can't control).
 
-    This functions returns the matplotlib FuncAnimation object. In order to
-    view it in a Jupyter notebook, use the
-    ``plenoptic.convert_anim_to_html(anim)`` function. In order to save, use
-    ``anim.save(filename)`` (note for this that you'll need the appropriate
-    writer installed and on your path, e.g., ffmpeg, imagemagick, etc).
+    This functions returns a matplotlib FuncAnimation object. See our documentation
+    (e.g.,
+    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    for examples on how to view it in a Jupyter notebook. In order to save, use
+    ``anim.save(filename)``. In either case, this can take a while and you'll need the
+    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
+    [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html) for
+    more details.
 
     Parameters
     ----------
@@ -289,8 +292,6 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
     `matplotlib.rcParams['animation.writer'] = writer`, see
     https://matplotlib.org/stable/api/animation_api.html#writer-classes for
     more details.
-
-    For displaying in a jupyter notebook, ffmpeg appears to be required.
 
     """
     if not isinstance(video, list):
@@ -530,26 +531,6 @@ def rescale_ylim(axes, data):
         y_max = np.max([find_ymax(d) for d in data.values()])
     for ax in axes:
         ax.set_ylim((-y_max, y_max))
-
-
-def convert_anim_to_html(anim):
-    r"""convert a matplotlib animation object to HTML (for display)
-
-    This is a simple little wrapper function that allows the animation
-    to be displayed in a Jupyter notebook
-
-    Parameters
-    ----------
-    anim : `matplotlib.animation.FuncAnimation`
-        The animation object to convert to HTML
-    """
-
-    # to_html5_video will call savefig with a dpi kwarg, so our
-    # custom figure class will raise a warning. we don't want to
-    # worry people, so we go ahead and suppress it
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=UserWarning)
-        return HTML(anim.to_html5_video())
 
 
 def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
