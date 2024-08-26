@@ -3,14 +3,14 @@
 Installation
 ************
 
-``plenoptic`` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a `bug report <https://github.com/LabForComputationalVision/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_!
+``plenoptic`` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a `bug report <https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_!
 
 You can install ``plenoptic`` from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) or `conda-forge <https://anaconda.org/conda-forge/plenoptic>`_, and we provide separate instructions for the two methods. If you will be contributing to ``plenoptic``, and so need an editable install and :ref:`optional-deps`, you should use :ref:`pip <pip>`. Otherwise, you can use whichever you are more familiar with, though we have noticed that it tends to be easier to install `pytorch <https://pytorch.org/>`_ with GPU support using ``conda``.
 
 .. tip::
    If you are unfamiliar with python environment management, we recommend :ref:`conda`.
 
-Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. `Open an issue <https://github.com/LabForComputationalVision/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_ and we'll try to help you figure out the problem!
+Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https://pyrtools.readthedocs.io/en/latest/>`_. Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. `Open an issue <https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_ and we'll try to help you figure out the problem!
 
 .. _conda:
 
@@ -65,13 +65,13 @@ Note that when using ``venv``, you have to decide where you'd like to place the 
 Installing from source (for developers)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can also install plenoptic directly from source in order to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version.
+You can also install plenoptic directly from source in order to have a local editable copy. This is most useful for developing (for more info, see `our contributing guide <https://github.com/plenoptic-org/plenoptic/blob/main/CONTRIBUTING.md>`_) or if you want to use the most cutting-edge version.
 
 .. tab:: Linux / MacOS
 
    .. code-block:: shell
 
-      $ git clone https://github.com/LabForComputationalVision/plenoptic.git
+      $ git clone https://github.com/plenoptic-org/plenoptic.git
       $ cd plenoptic
       # create the environment
       $ python -m venv .venv
@@ -84,7 +84,7 @@ You can also install plenoptic directly from source in order to have a local edi
 
    .. code-block:: powershell
 
-      $ git clone https://github.com/LabForComputationalVision/plenoptic.git
+      $ git clone https://github.com/plenoptic-org/plenoptic.git
       $ cd plenoptic
       # create the environment
       $ python -m venv .venv
@@ -97,7 +97,7 @@ With an editable copy, any changes locally will be automatically reflected in yo
 
 Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named ``.venv`` within the ``plenoptic/`` directory you cloned. Therefore, if you delete the ``plenoptic/`` directory, you'll need to rerun the setup above to create a new virtual environment.
 
-.. attention:: To install ``plenoptic`` in editable mode, you need ``pip >= 21.3`` (see pip's `changelog <https://pip.pypa.io/en/stable/news/#id286>`_). If you run into `an error <https://github.com/LabForComputationalVision/plenoptic/issues/227>`_ after running the ``pip install -e .`` command, try updating your pip version with ``pip install --upgrade pip``.
+.. attention:: To install ``plenoptic`` in editable mode, you need ``pip >= 21.3`` (see pip's `changelog <https://pip.pypa.io/en/stable/news/#id286>`_). If you run into `an error <https://github.com/plenoptic-org/plenoptic/issues/227>`_ after running the ``pip install -e .`` command, try updating your pip version with ``pip install --upgrade pip``.
 
 .. _optional-deps:
 
@@ -106,20 +106,20 @@ Optional dependencies
 
 The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
+* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 * If you would like to locally build the documentation: ``pip install -e .[docs]``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 * If you would like to run the tests: ``pip install -e .[dev]``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 
 These optional dependencies can be joined with a comma, e.g., ``pip install -e .[docs,dev]``
 
-.. note:: Note that ``conda`` does not support optional dependencies, though you can view our optional dependencies in the `pyproject.toml <https://github.com/LabForComputationalVision/plenoptic/blob/main/pyproject.toml#L35>`_ file, if you wish to install them yourself.
+.. note:: Note that ``conda`` does not support optional dependencies, though you can view our optional dependencies in the `pyproject.toml <https://github.com/plenoptic-org/plenoptic/blob/main/pyproject.toml#L35>`_ file, if you wish to install them yourself.
 
 .. _jupyter:
 
 Running notebooks locally
 -------------------------
 
-.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples>`_, no installation required!
+.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 
 Installing jupyter and setting up the kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -310,7 +310,7 @@ Running the notebooks
 
 Once you have jupyter installed and the kernel set up, navigate to plenoptic's ``examples/`` directory on your terminal and activate the environment you installed jupyter into, then run ``jupyter`` and open up the notebooks. If you did not install ``jupyter`` into the same environment as ``plenoptic``, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
 
-.. attention:: If you did not install ``plenoptic`` from source, then you will not have the notebooks on your machine and will need to download them directly from `our GitHub repo <https://github.com/LabForComputationalVision/plenoptic/tree/main/examples>`_. If installed them from source (and thus ran ``git clone``), then the notebooks can be found in the ``examples/`` directory.
+.. attention:: If you did not install ``plenoptic`` from source, then you will not have the notebooks on your machine and will need to download them directly from `our GitHub repo <https://github.com/plenoptic-org/plenoptic/tree/main/examples>`_. If installed them from source (and thus ran ``git clone``), then the notebooks can be found in the ``examples/`` directory.
 
 ffmpeg and videos
 -----------------

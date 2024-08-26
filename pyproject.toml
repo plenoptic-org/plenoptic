@@ -55,7 +55,6 @@ dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "requests>=2.21",
     "pooch>=1.2.0",
 ]
 
@@ -68,7 +67,7 @@ nb = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
+"Homepage" = "https://github.com/plenoptic-org/plenoptic"
 "Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
 "Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
