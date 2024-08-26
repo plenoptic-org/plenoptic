@@ -41,11 +41,6 @@ class LinearNonlinear(nn.Module):
     on_center:
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    width_ratio_limit:
-        Sets a lower bound on the ratio of `surround_std` over `center_std`.
-        The surround Gaussian must be wider than the center Gaussian in order to be a
-        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
-        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -81,9 +76,8 @@ class LinearNonlinear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Tuple[int, int],
+        kernel_size: Union[int, Tuple[int, int]],
         on_center: bool = True,
-        width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
         pretrained: bool = False,
@@ -92,14 +86,13 @@ class LinearNonlinear(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
                 warn("pretrained is True but cache_filt is False. Set cache_filt to "
                      "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
-            width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
             cache_filt=cache_filt,
@@ -159,11 +152,6 @@ class LuminanceGainControl(nn.Module):
     on_center:
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    width_ratio_limit:
-        Sets a lower bound on the ratio of `surround_std` over `center_std`.
-        The surround Gaussian must be wider than the center Gaussian in order to be a
-        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
-        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -202,9 +190,8 @@ class LuminanceGainControl(nn.Module):
     """
     def __init__(
         self,
-        kernel_size: Tuple[int, int],
+        kernel_size: Union[int, Tuple[int, int]],
         on_center: bool = True,
-        width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
         pretrained: bool = False,
@@ -213,14 +200,13 @@ class LuminanceGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
                 warn("pretrained is True but cache_filt is False. Set cache_filt to "
                      "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
-            width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
             cache_filt=cache_filt,
@@ -300,11 +286,6 @@ class LuminanceContrastGainControl(nn.Module):
     on_center:
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    width_ratio_limit:
-        Sets a lower bound on the ratio of `surround_std` over `center_std`.
-        The surround Gaussian must be wider than the center Gaussian in order to be a
-        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
-        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -348,9 +329,8 @@ class LuminanceContrastGainControl(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Tuple[int, int],
+        kernel_size: Union[int, Tuple[int, int]],
         on_center: bool = True,
-        width_ratio_limit: float = 4.0,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
         pretrained: bool = False,
@@ -359,14 +339,13 @@ class LuminanceContrastGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
                 warn("pretrained is True but cache_filt is False. Set cache_filt to "
                      "True for efficiency unless you are fine-tuning.")
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
-            width_ratio_limit,
             amplitude_ratio,
             pad_mode=pad_mode,
             cache_filt=cache_filt,
@@ -457,11 +436,6 @@ class OnOff(nn.Module):
     ----------
     kernel_size:
         Shape of convolutional kernel.
-    width_ratio_limit:
-        Sets a lower bound on the ratio of `surround_std` over `center_std`.
-        The surround Gaussian must be wider than the center Gaussian in order to be a
-        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
-        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     pad_mode:
@@ -497,8 +471,7 @@ class OnOff(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Tuple[int, int],
-        width_ratio_limit: float = 4.0,
+        kernel_size: Union[int, Tuple[int, int]],
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
         pretrained: bool = False,
@@ -508,14 +481,13 @@ class OnOff(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size == (31, 31), "pretrained model has kernel_size (31, 31)"
+            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
             if cache_filt is False:
                 warn("pretrained is True but cache_filt is False. Set cache_filt to "
                      "True for efficiency unless you are fine-tuning.")
 
         self.center_surround = CenterSurround(
             kernel_size=kernel_size,
-            width_ratio_limit=width_ratio_limit,
             on_center=[True, False],
             amplitude_ratio=amplitude_ratio,
             out_channels=2,
