@@ -12,8 +12,6 @@ from torch import Tensor
 
 from .signal import rescale
 
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), "..", "..", "data/256")
-
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in
     np.uint8: torch.uint8,

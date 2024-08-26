@@ -8,7 +8,6 @@ from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
 
 import os
-import pickle
 
 DIRNAME = os.path.dirname(__file__)
 
