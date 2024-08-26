@@ -8,9 +8,6 @@ from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
 
-import os
-import pickle
-
 DIR = resources.files('plenoptic.metric')
 
 
