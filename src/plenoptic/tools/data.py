@@ -162,7 +162,7 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     return images
 
 
-@deprecated("Load images using :py:func:`load_images` instead", "1.0.3")
+@deprecated("Load images using :py:func:`load_images` instead", "1.1.0")
 def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     r"""Convert image from float to 8 or 16 bit image
 
@@ -198,7 +198,7 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
-@deprecated("Use :py:func:`pyrtools.synthetic_images` instead", "1.0.3")
+@deprecated("Use :py:func:`pyrtools.synthetic_images` instead", "1.1.0")
 def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 

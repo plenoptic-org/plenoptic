@@ -9,7 +9,7 @@ from typing import Union
 from deprecated.sphinx import deprecated
 
 
-@deprecated("Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.0.3")
+@deprecated("Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.1.0")
 class SimpleMetamer(Synthesis):
     r"""Simple version of metamer synthesis.
 

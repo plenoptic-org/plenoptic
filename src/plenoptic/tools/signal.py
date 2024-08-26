@@ -9,7 +9,7 @@ from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from deprecated.sphinx import deprecated
 
 
-@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.0.3")
+@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.1.0")
 def minimum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
@@ -42,7 +42,7 @@ def minimum(
     return min_x
 
 
-@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.0.3")
+@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.1.0")
 def maximum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
