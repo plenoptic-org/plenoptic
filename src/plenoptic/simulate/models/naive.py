@@ -67,6 +67,8 @@ class Linear(nn.Module):
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
 
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
 
@@ -224,6 +226,8 @@ class CenterSurround(nn.Module):
 
         self.on_center = on_center
 
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
         self.width_ratio_limit = width_ratio_limit
         self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))

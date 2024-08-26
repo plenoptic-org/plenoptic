@@ -219,6 +219,21 @@ class TestNaive(object):
         y = model(img)
         assert y.requires_grad
 
+    @pytest.mark.parametrize("mdl",["naive.Linear", "naive.Gaussian", "naive.CenterSurround"])
+    def test_kernel_size(self, mdl, einstein_img):
+        kernel_size = 10
+        if mdl == "naive.Gaussian":
+            model = po.simul.Gaussian(kernel_size, 1.).to(DEVICE)
+            model2 = po.simul.Gaussian((kernel_size, kernel_size), 1.).to(DEVICE)
+        elif mdl == "naive.Linear":
+            model = po.simul.Linear(kernel_size).to(DEVICE)
+            model2 = po.simul.Linear((kernel_size, kernel_size)).to(DEVICE)
+        elif mdl == "naive.CenterSurround":
+            model = po.simul.CenterSurround(kernel_size).to(DEVICE)
+            model2 = po.simul.CenterSurround((kernel_size, kernel_size)).to(DEVICE)
+        assert torch.allclose(model(einstein_img), model2(einstein_img)), "Kernels somehow different!"
+
+
     @pytest.mark.parametrize("mdl", ["naive.Gaussian", "naive.CenterSurround"])
     @pytest.mark.parametrize("cache_filt", [False, True])
     def test_cache_filt(self, cache_filt, mdl):
