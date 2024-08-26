@@ -1,4 +1,3 @@
-from . import data_utils
 from .fetch import fetch_data, DOWNLOADABLE_FILES
 import torch
 from importlib import resources
