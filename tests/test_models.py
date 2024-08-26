@@ -37,11 +37,6 @@ ALL_MODELS = [
 
 
 @pytest.fixture()
-def image_input():
-    return torch.rand(1, 1, 100, 100)
-
-
-@pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
     return po.data.fetch_data('portilla_simoncelli_matlab_test_vectors.tar.gz')
 

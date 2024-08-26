@@ -1,13 +1,8 @@
 import pytest
 import plenoptic as po
-import os.path as op
-import pathlib
 import torch
 
-import plenoptic.simulate.canonical_computations.filters as filters
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DTYPE = torch.float32
 IMG_DIR = po.data.fetch_data('test_images.tar.gz')
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
