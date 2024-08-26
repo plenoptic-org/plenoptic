@@ -31,7 +31,7 @@ pipeline {
       pip install -U pip
 	  pip install -U .[dev] --verbose
       python3.11 -c "import torch; print(torch.cuda.current_device())"
-	  python3.11 -m pytest
+	  python3.11 -m pytest -n 8
 	'''
       }
     }
