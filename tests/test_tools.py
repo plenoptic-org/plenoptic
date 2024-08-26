@@ -458,3 +458,16 @@ class TestValidate(object):
     @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_remove_grad(self, model):
         po.tools.validate.validate_model(model, device=DEVICE)
+
+
+class TestOptim(object):
+
+    def test_penalize_range_above(self):
+        img = .5 * torch.ones((1, 1, 4, 4))
+        img[..., 0, :] = 2
+        assert po.tools.optim.penalize_range(img).item() == 4
+
+    def test_penalize_range_below(self):
+        img = .5 * torch.ones((1, 1, 4, 4))
+        img[..., 0, :] = -1
+        assert po.tools.optim.penalize_range(img).item() == 4
