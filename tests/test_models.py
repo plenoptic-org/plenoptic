@@ -993,12 +993,18 @@ class TestFilters:
             circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
-    @pytest.mark.parametrize("std", [1., 20., 0.])
-    def test_gaussian1d(self, kernel_size, std):
-        if std <= 0:
-            with pytest.raises(AssertionError):
-                gaussian1d(kernel_size, std)
-        else:
+    @pytest.mark.parametrize("std,expectation", [
+        (1., does_not_raise()),
+        (20., does_not_raise()),
+        (0., pytest.raises(ValueError, match="must be positive")),
+        (1, does_not_raise()),
+        ([1, 1], pytest.raises(ValueError, match="must have only one element")),
+        (torch.tensor(1), does_not_raise()),
+        (torch.tensor([1]), does_not_raise()),
+        (torch.tensor([1, 1]), pytest.raises(ValueError, match="must have only one element")),
+    ])
+    def test_gaussian1d(self, kernel_size, std, expectation):
+        with expectation:
             filt = gaussian1d(kernel_size, std)
             assert filt.sum().isclose(torch.ones(1))
             assert filt.shape == torch.Size([kernel_size])
