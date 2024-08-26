@@ -6,7 +6,10 @@ from torch import Tensor
 import torch.fft as fft
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 
+from deprecated.sphinx import deprecated
 
+
+@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.0.3")
 def minimum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
@@ -25,6 +28,10 @@ def minimum(
     -------
     min_x 
         Minimum value of x.
+
+    Notes
+    -----
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -35,6 +42,7 @@ def minimum(
     return min_x
 
 
+@deprecated("Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce", version="1.0.3")
 def maximum(
     x: Tensor, dim: Optional[List[int]] = None, keepdim: bool = False
 ) -> Tensor:
@@ -53,6 +61,10 @@ def maximum(
     -------
     max_x
         Maximum value of x.
+
+    Notes
+    -----
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))

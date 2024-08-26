@@ -557,6 +557,9 @@ def plot_loss(geodesic: Geodesic,
     ax :
         Axes containing the plot.
 
+    Notes
+    -----
+
     """
     if ax is None:
         ax = plt.gca()
@@ -564,6 +567,7 @@ def plot_loss(geodesic: Geodesic,
     ax.set(xlabel='Synthesis iteration',
            ylabel='Loss')
     return ax
+
 
 @deprecated("Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.0.3")
 def plot_deviation_from_line(geodesic: Geodesic,

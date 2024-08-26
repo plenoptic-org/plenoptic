@@ -24,6 +24,9 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     straight
         Tensor of shape (n_steps+1, channel, height, width)
 
+    Notes
+    -----
+
     """
     validate_input(start, no_batch=True)
     validate_input(stop, no_batch=True)
@@ -68,6 +71,9 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     bridge
         sequence of shape (n_steps+1, channel, height, width) a brownian bridge
         across the two pylons
+
+    Notes
+    -----
 
     """
     validate_input(start, no_batch=True)
@@ -123,6 +129,9 @@ def deviation_from_line(sequence: Tensor,
     dist_from_line
         sequence of T euclidian distances to the line
 
+    Notes
+    -----
+
     """
     validate_input(sequence)
     y = sequence.reshape(sequence.shape[0], -1)
@@ -162,6 +171,9 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     -------
     sequence
         translation sequence of shape (n_steps+1, channel, height, width)
+
+    Notes
+    -----
 
     """
     validate_input(image, no_batch=True)

@@ -11,6 +11,7 @@ import torch
 from torch import Tensor
 
 from .signal import rescale
+from deprecated.sphinx import deprecated
 
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in
@@ -161,6 +162,7 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
     return images
 
 
+@deprecated("Load images using :py:func:`load_images` instead", "1.0.3")
 def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     r"""Convert image from float to 8 or 16 bit image
 
@@ -184,6 +186,10 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     -------
     im
         The converted image, now with dtype=dtype
+
+    Notes
+    -----
+
     """
     if im.max() > 1:
         raise Exception(
@@ -192,6 +198,7 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
+@deprecated("Use :py:func:`pyrtools.synthetic_images` instead", "1.0.3")
 def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 
@@ -208,6 +215,10 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
         Tensor of shape [11, 1, size, size]. The set of basic stiuli:
         [impulse, step_edge, ramp, bar, curv_edge, sine_grating, square_grating,
         polar_angle, angular_sine, zone_plate, fractal]
+
+    Notes
+    -----
+
     """
 
     impulse = np.zeros((size, size))

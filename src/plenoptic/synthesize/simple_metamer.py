@@ -6,8 +6,10 @@ from .synthesis import Synthesis
 from ..tools.validate import validate_input, validate_model
 from ..tools import optim
 from typing import Union
+from deprecated.sphinx import deprecated
 
 
+@deprecated("Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.0.3")
 class SimpleMetamer(Synthesis):
     r"""Simple version of metamer synthesis.
 
@@ -25,6 +27,9 @@ class SimpleMetamer(Synthesis):
         match.
     model
         The visual model whose representation we wish to match.
+
+    Notes
+    -----
 
     """
 
