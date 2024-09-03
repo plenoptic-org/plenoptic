@@ -1,15 +1,14 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+from importlib import resources
 import warnings
 
 from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
 
-import os
-
-DIRNAME = os.path.dirname(__file__)
+DIR = resources.files('plenoptic.metric')
 
 
 def _ssim_parts(img1, img2, pad=False):
@@ -365,8 +364,8 @@ def normalized_laplacian_pyramid(img):
     (_, channel, height, width) = img.size()
 
     N_scales = 6
-    spatialpooling_filters = np.load(os.path.join(DIRNAME, 'DN_filts.npy'))
-    sigmas = np.load(os.path.join(DIRNAME, 'DN_sigmas.npy'))
+    spatialpooling_filters = np.load(DIR / 'DN_filts.npy')
+    sigmas = np.load(DIR / 'DN_sigmas.npy')
 
     L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.forward(img)

@@ -126,9 +126,8 @@ def penalize_range(
     penalty
         Penalty for values outside range
     """
-    # the indexing should flatten it
-    below_min = synth_img[synth_img < allowed_range[0]]
-    below_min = torch.pow(below_min - allowed_range[0], 2)
-    above_max = synth_img[synth_img > allowed_range[1]]
-    above_max = torch.pow(above_max - allowed_range[1], 2)
-    return torch.sum(torch.cat([below_min, above_max]))
+    # Using clip like this is equivalent to using boolean indexing (e.g.,
+    # synth_img[synth_img < allowed_range[0]]) but much faster
+    below_min = torch.clip(synth_img - allowed_range[0], max=0).pow(2).sum()
+    above_max = torch.clip(synth_img - allowed_range[1], min=0).pow(2).sum()
+    return below_min + above_max
