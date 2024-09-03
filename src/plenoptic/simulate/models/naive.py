@@ -66,9 +66,6 @@ class Linear(nn.Module):
 
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
-
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
 
