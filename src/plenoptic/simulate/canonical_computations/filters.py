@@ -2,7 +2,6 @@ from typing import Union, Tuple
 
 import torch
 from torch import Tensor
-from warnings import warn
 
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 

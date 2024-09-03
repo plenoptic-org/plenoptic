@@ -104,11 +104,6 @@ with a random string, `matplotlib` will tell you the available choices.
     a second pair with the roles of the two models reversed. This method
     allows for efficient comparison of two metrics, highlighting the
     aspects in which their sensitivities differ.
--   [Geodesics](examples/05_Geodesics.ipynb): given a model and two
-    images, synthesize a sequence of images that lie on the shortest
-    ("geodesic") path in the model's representation space. This
-    method investigates how a model represents motion and what changes
-    to an image it consider reasonable.
 
 ### Models, Metrics, and Model Components
 
