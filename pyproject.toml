@@ -49,6 +49,7 @@ docs = [
      'sphinx-copybutton',
      'sphinxemoji',
      'sphinx-inline-tabs',
+     'docutils>=0.18.1,<0.21',
 ]
 
 dev = [
