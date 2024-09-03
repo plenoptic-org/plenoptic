@@ -202,8 +202,8 @@ class TestFrontEnd:
     def test_kernel_size(self, mdl, einstein_img):
         kernel_size = 31
         if mdl == "frontend.LinearNonlinear":
-            model = po.simul.LinearNonlinear(kernel_size).to(DEVICE)
-            model2 = po.simul.LinearNonlinear((kernel_size, kernel_size)).to(DEVICE)
+            model = po.simul.LinearNonlinear(kernel_size, pretrained=True).to(DEVICE)
+            model2 = po.simul.LinearNonlinear((kernel_size, kernel_size), pretrained=True).to(DEVICE)
         elif mdl == "frontend.LuminanceGainControl":
             model = po.simul.LuminanceGainControl(kernel_size, pretrained=True).to(DEVICE)
             model2 = po.simul.LuminanceGainControl((kernel_size, kernel_size), pretrained=True).to(DEVICE)
