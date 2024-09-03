@@ -537,11 +537,11 @@ class Eigendistortion(Synthesis):
 
         Examples
         --------
-        >>> geo = po.synth.Geodesic(img_a, img_b, model)
-        >>> geo.synthesize(max_iter=10, store_progress=True)
-        >>> geo.save('geo.pt')
-        >>> geo_copy = po.synth.Geodesic(img_a, img_b, model)
-        >>> geo_copy.load('geo.pt')
+        >>> eig = po.synth.Eigendistortion(img, model)
+        >>> eig.synthesize(max_iter=10)
+        >>> eig.save('eig.pt')
+        >>> eig_copy = po.synth.Eigendistortion(img, model)
+        >>> eig_copy.load('eig.pt')
 
         Note that you must create a new instance of the Synthesis object and
         *then* load.

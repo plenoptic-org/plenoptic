@@ -6,10 +6,6 @@ import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
 from .data import to_numpy
-try:
-    from IPython.display import HTML
-except ImportError:
-    warnings.warn("Unable to import IPython.display.HTML")
 
 
 def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,

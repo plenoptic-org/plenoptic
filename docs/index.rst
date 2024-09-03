@@ -117,13 +117,6 @@ Synthesis methods
   their sensitivities most differ.
 
   - Example papers: [Wang2008]_
-- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_: given a model and two images,
-  synthesize a sequence of images that lie on the shortest ("geodesic") path in
-  the model's representation space. This method allows examination of the larger-scale geometric
-  properties of model representation (as opposed to the local properties captured by 
-  the eigendistortions).
-
-  - Example papers: [Henaff2016]_, [Henaff2020]_
 
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -256,13 +249,6 @@ cite us! See the :ref:`citation` for more details.
    perceptual discriminability. Journal of Vision, 8(12), 1–13.
    https://ece.uwaterloo.ca/~z70wang/research/mad/
    https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf
-.. [Henaff2016] H\'enaff, O.~J., & Simoncelli, E.~P. (2016). Geodesics of
-   learned representations. ICLR.
-   https://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf
-.. [Henaff2020] O Hénaff, Y Bai, J Charlton, I Nauhaus, E P Simoncelli and R L T
-   Goris. Primary visual cortex straightens natural video trajectories Nature
-   Communications, vol.12(5982), Oct 2021.
-   https://www.cns.nyu.edu/pub/lcv/henaff20-reprint.pdf
 .. [Simoncelli1992] Simoncelli, E. P., Freeman, W. T., Adelson, E. H., &
    Heeger, D. J. (1992). Shiftable Multi-Scale Transforms. IEEE Trans.
    Information Theory, 38(2), 587–607. https://dx.doi.org/10.1109/18.119725

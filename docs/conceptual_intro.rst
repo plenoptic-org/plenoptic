@@ -214,8 +214,6 @@ a model's representational space:
 - `Maximal differentiation (MAD) competition
   <tutorials/intro/07_MAD_Competition.nblink>`_ enables efficient comparison of two
   metrics, highlighting the aspects in which their sensitivities differ.
-- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_ investigates how a model represents
-  motion and what changes to an image it considers reasonable.
 
 The goal of this package is to facilitate model exploration and understanding.
 We hope that providing these tools helps tighten the model-experiment loop: when

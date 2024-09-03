@@ -994,7 +994,6 @@ class PortillaSimoncelli(nn.Module):
             fig = plt.figure(figsize=figsize)
             gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
         else:
-            # warnings.warn("ax is not None, so we're ignoring figsize...")
             # want to make sure the axis we're taking over is basically invisible.
             ax = clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]

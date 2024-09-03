@@ -2,8 +2,10 @@ import torch
 from torch import Tensor
 from typing import Tuple
 from .validate import validate_input
+from deprecated.sphinx import deprecated
 
 
+@deprecated("Deprecated along with Geodesic, which is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.1.0")
 def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     """make a straight line between `start` and `stop` with `n_steps` transitions.
 
@@ -21,6 +23,9 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     -------
     straight
         Tensor of shape (n_steps+1, channel, height, width)
+
+    Notes
+    -----
 
     """
     validate_input(start, no_batch=True)
@@ -41,6 +46,7 @@ def make_straight_line(start: Tensor, stop: Tensor, n_steps: int) -> Tensor:
     return straight.reshape((n_steps+1, *shape))
 
 
+@deprecated("Deprecated along with Geodesic, which is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.1.0")
 def sample_brownian_bridge(start: Tensor, stop: Tensor,
                            n_steps: int, max_norm: float = 1) -> Tensor:
     """Sample a brownian bridge between `start` and `stop` made up of `n_steps`
@@ -65,6 +71,9 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     bridge
         sequence of shape (n_steps+1, channel, height, width) a brownian bridge
         across the two pylons
+
+    Notes
+    -----
 
     """
     validate_input(start, no_batch=True)
@@ -94,6 +103,7 @@ def sample_brownian_bridge(start: Tensor, stop: Tensor,
     return bridge.reshape((n_steps+1, *shape))
 
 
+@deprecated("Deprecated along with Geodesic, which is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.1.0")
 def deviation_from_line(sequence: Tensor,
                         normalize: bool = True) -> Tuple[Tensor, Tensor]:
     """Compute the deviation of `sequence` to the straight line between its endpoints.
@@ -119,6 +129,9 @@ def deviation_from_line(sequence: Tensor,
     dist_from_line
         sequence of T euclidian distances to the line
 
+    Notes
+    -----
+
     """
     validate_input(sequence)
     y = sequence.reshape(sequence.shape[0], -1)
@@ -142,6 +155,7 @@ def deviation_from_line(sequence: Tensor,
     return dist_along_line, dist_from_line
 
 
+@deprecated("Deprecated along with Geodesic, which is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development", "1.1.0")
 def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     """make a horizontal translation sequence on `image`
 
@@ -157,6 +171,9 @@ def translation_sequence(image: Tensor, n_steps: int = 10) -> Tensor:
     -------
     sequence
         translation sequence of shape (n_steps+1, channel, height, width)
+
+    Notes
+    -----
 
     """
     validate_input(image, no_batch=True)

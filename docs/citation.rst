@@ -31,7 +31,6 @@ component you use:
 -  :class:`plenoptic.synthesize.metamer.Metamer`: or :class:`plenoptic.synthesize.metamer.MetamerCTF`: [Portilla2000]_.
 - :class:`plenoptic.synthesize.mad_competition.MADCompetition`: [Wang2008]_.
 - :class:`plenoptic.synthesize.eigendistortion.Eigendistortion`: [Berardino2017]_.
-- :class:`plenoptic.synthesize.geodesic.Geodesic`: [Henaff2016]_.
 - :class:`plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`: [Simoncelli1995]_ ([Simoncelli1992]_ contains a longer discussion about the motivation and the logic, while [Simoncelli1995]_ describes the implementation that is used here).
 - :class:`plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`: [Portilla2000]_.
 - :class:`plenoptic.simulate.models.frontend` (any model): [Berardino2017]_.
