@@ -198,6 +198,22 @@ class TestFrontEnd:
         fig = model.display_filters()
         plt.close(fig)
 
+    @pytest.mark.parametrize("mdl", all_models)
+    def test_kernel_size(self, mdl, einstein_img):
+        kernel_size = 31
+        if mdl == "frontend.LinearNonlinear":
+            model = po.simul.LinearNonlinear(kernel_size, pretrained=True).to(DEVICE)
+            model2 = po.simul.LinearNonlinear((kernel_size, kernel_size), pretrained=True).to(DEVICE)
+        elif mdl == "frontend.LuminanceGainControl":
+            model = po.simul.LuminanceGainControl(kernel_size, pretrained=True).to(DEVICE)
+            model2 = po.simul.LuminanceGainControl((kernel_size, kernel_size), pretrained=True).to(DEVICE)
+        elif mdl == "frontend.LuminanceContrastGainControl":
+            model = po.simul.LuminanceContrastGainControl(kernel_size, pretrained=True).to(DEVICE)
+            model2 = po.simul.LuminanceContrastGainControl((kernel_size, kernel_size), pretrained=True).to(DEVICE)
+        elif mdl == "frontend.OnOff":
+            model = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
+            model2 = po.simul.OnOff((kernel_size, kernel_size), pretrained=True).to(DEVICE)
+        assert torch.allclose(model(einstein_img), model2(einstein_img)), "Kernels somehow different!"
 
 class TestNaive(object):
 
@@ -213,6 +229,21 @@ class TestNaive(object):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         y = model(img)
         assert y.requires_grad
+
+    @pytest.mark.parametrize("mdl",["naive.Linear", "naive.Gaussian", "naive.CenterSurround"])
+    def test_kernel_size(self, mdl, einstein_img):
+        kernel_size = 10
+        if mdl == "naive.Gaussian":
+            model = po.simul.Gaussian(kernel_size, 1.).to(DEVICE)
+            model2 = po.simul.Gaussian((kernel_size, kernel_size), 1.).to(DEVICE)
+        elif mdl == "naive.Linear":
+            model = po.simul.Linear(kernel_size).to(DEVICE)
+            model2 = po.simul.Linear((kernel_size, kernel_size)).to(DEVICE)
+        elif mdl == "naive.CenterSurround":
+            model = po.simul.CenterSurround(kernel_size).to(DEVICE)
+            model2 = po.simul.CenterSurround((kernel_size, kernel_size)).to(DEVICE)
+        assert torch.allclose(model(einstein_img), model2(einstein_img)), "Kernels somehow different!"
+
 
     @pytest.mark.parametrize("mdl", ["naive.Gaussian", "naive.CenterSurround"])
     @pytest.mark.parametrize("cache_filt", [False, True])
@@ -988,12 +1019,18 @@ class TestFilters:
             circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize("kernel_size", [5, 11, 20])
-    @pytest.mark.parametrize("std", [1., 20., 0.])
-    def test_gaussian1d(self, kernel_size, std):
-        if std <= 0:
-            with pytest.raises(AssertionError):
-                gaussian1d(kernel_size, std)
-        else:
+    @pytest.mark.parametrize("std,expectation", [
+        (1., does_not_raise()),
+        (20., does_not_raise()),
+        (0., pytest.raises(ValueError, match="must be positive")),
+        (1, does_not_raise()),
+        ([1, 1], pytest.raises(ValueError, match="must have only one element")),
+        (torch.tensor(1), does_not_raise()),
+        (torch.tensor([1]), does_not_raise()),
+        (torch.tensor([1, 1]), pytest.raises(ValueError, match="must have only one element")),
+    ])
+    def test_gaussian1d(self, kernel_size, std, expectation):
+        with expectation:
             filt = gaussian1d(kernel_size, std)
             assert filt.sum().isclose(torch.ones(1))
             assert filt.shape == torch.Size([kernel_size])

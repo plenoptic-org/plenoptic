@@ -225,6 +225,6 @@ class TestMetamers(object):
         po.tools.set_seed(0)
         met = po.synth.Metamer(einstein_img, model)
         # takes different numbers of iter to converge on GPU and CPU
-        met.synthesize(max_iter=30, stop_criterion=1e-5, stop_iters_to_check=5)
+        met.synthesize(max_iter=35, stop_criterion=1e-5, stop_iters_to_check=5)
         assert abs(met.losses[-5]-met.losses[-1]) < 1e-5, "Didn't stop when hit criterion!"
         assert abs(met.losses[-6]-met.losses[-2]) > 1e-5, "Stopped after hit criterion!"

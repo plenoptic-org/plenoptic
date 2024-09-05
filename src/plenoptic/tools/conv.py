@@ -123,9 +123,9 @@ def _get_same_padding(
 
 def same_padding(
         x: Tensor,
-        kernel_size: Union[int, Tuple[int, int]],
-        stride: Union[int, Tuple[int, int]] = (1, 1),
-        dilation: Union[int, Tuple[int, int]] = (1, 1),
+        kernel_size: Tuple[int, int],
+        stride: Tuple[int, int] = (1, 1),
+        dilation: Tuple[int, int] = (1, 1),
         pad_mode: str = "circular",
 ) -> Tensor:
     """Pad a tensor so that 2D convolution will result in output with same dims."""
