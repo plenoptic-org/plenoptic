@@ -171,13 +171,16 @@ class TestEigendistortionSynthesis:
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=5, method='power')
         if to_type == 'dtype':
-            ed.to(torch.float16)
-            assert ed.image.dtype == torch.float16
-            assert ed.eigendistortions.dtype == torch.float16
+            # can't use the power method on a float16 tensor, so we use float64 instead
+            # here.
+            ed.to(torch.float64)
+            assert ed.image.dtype == torch.float64
+            assert ed.eigendistortions.dtype == torch.float64
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == 'device' and DEVICE.type != 'cpu':
             ed.to('cpu')
         ed.eigendistortions - ed.image
+        ed.synthesize(max_iter=5, method='power')
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize('model', ['Identity'], indirect=True)

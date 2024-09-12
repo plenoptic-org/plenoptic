@@ -507,9 +507,19 @@ class Eigendistortion(Synthesis):
 
         """
         attrs = ["_jacobian", "_eigendistortions", "_eigenvalues",
-                 "_eigenindex", "_model", "_image", "_image_flat",
+                 "_eigenindex", "_image", "_image_flat",
                  "_representation_flat"]
         super().to(*args, attrs=attrs, **kwargs)
+        # we need _representation_flat and _image_flat to be connected in the
+        # computation graph for the autograd calls to work, so we reinitialize
+        # it here
+        self._init_representation(self.image)
+        # try to call .to() on model. this should work, but it might fail if e.g., this
+        # a custom model that doesn't inherit torch.nn.Module
+        try:
+            self._model = self._model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("Unable to call model.to(), so we leave it as is.")
 
     def load(self, file_path: str,
              map_location: Union[str, None] = None,

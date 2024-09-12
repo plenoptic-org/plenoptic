@@ -126,6 +126,7 @@ class TestMAD(object):
         # this
         mad.initial_image - mad.image
         mad.mad_image - mad.image
+        mad.synthesize(max_iter=5)
 
     @pytest.mark.skipif(DEVICE.type == 'cpu', reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):

@@ -167,6 +167,7 @@ class TestMetamers(object):
         elif to_type == 'device' and DEVICE.type != 'cpu':
             met.to('cpu')
         met.metamer - met.image
+        met.synthesize(max_iter=5)
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
