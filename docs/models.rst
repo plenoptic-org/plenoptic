@@ -46,9 +46,10 @@ metric meets the following requirements and see :class:`plenoptic.metric` for
 some examples):
 
 * a metric must be callable, accept two 4d ``torch.Tensor`` objects as inputs,
-  and return a scalar as output. This can be a ``torch.nn.Module`` object, like
-  models, but the examples metrics are all functions.
+  and return a scalar as output. It can be a ``torch.nn.Module`` object or other
+  callable object, like models, as well as a function.
 * when called on two identical inputs, the metric must return a value of 0.
+* it must always return a non-negative number.
 
 Finally, :class:`plenoptic.synthesize.metamer.Metamer` supports coarse-to-fine
 synthesis, as described in [PS]_. To make use of coarse-to-fine synthesis, your

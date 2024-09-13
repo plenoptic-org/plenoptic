@@ -284,6 +284,11 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
         raise ValueError(
             f"metric should return <= 5e-7 on two identical images but got {same_val}"
         )
+    # this is hard to test
+    for i in range(20):
+        second_test_img = torch.rand_like(test_img)
+        if metric(test_img, second_test_img).item() < 0:
+            raise ValueError("metric should always return non-negative numbers!")
 
 
 def remove_grad(model: torch.nn.Module):
