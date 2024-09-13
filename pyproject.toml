@@ -139,6 +139,7 @@ select = [
     # isort
     #"I",
 ]
+ignore = ["SIM105"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
