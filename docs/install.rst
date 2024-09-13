@@ -119,7 +119,7 @@ These optional dependencies can be joined with a comma, e.g., ``pip install -e .
 Running notebooks locally
 -------------------------
 
-.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
+.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples>`_, no installation required!
 
 Installing jupyter and setting up the kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
