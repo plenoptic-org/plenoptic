@@ -165,7 +165,7 @@ class TestEigendistortionSynthesis:
             # check that can resume
             ed_copy.synthesize(max_iter=4, method=method)
 
-    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('model', ['Identity', 'NonModule'], indirect=True)
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
