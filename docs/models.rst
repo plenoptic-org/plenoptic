@@ -12,8 +12,12 @@ way to check whether your model meets the following requirements, and see
 * should inherit ``torch.nn.Module`` (this is not strictly necessary, but will
   make meeting the other requirements easier).
 * must be callable, be able to accept a 4d ``torch.Tensor`` as input, and return
-  a 3d or 4d ``torch.Tensor`` as output. If you inherit ``torch.nn.Module``,
-  implementing the ``forward()`` method will make your model callable.
+  a 3d or 4d ``torch.Tensor`` as output.
+
+  * If you inherit ``torch.nn.Module``, implementing the ``forward()`` method
+    will make your model callable.
+  * Otherwise, implement the ``__call__()`` method.
+
 * the above transformation must be differentiable by ``torch``. In practice,
   this generally means you perform all computations using ``torch`` functions
   (unless you want to write a custom ``.backward()`` method).

@@ -174,7 +174,7 @@ def validate_model(model: torch.nn.Module,
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
         raise RuntimeError("model changes device of input, don't do that!")
-    if model.training:
+    if hasattr(model, 'training') and model.training:
         warnings.warn(
             "model is in training mode, you probably want to call eval()"
             " to switch to evaluation mode"
