@@ -128,6 +128,13 @@ def get_model(name):
         return model
     elif name == "PortillaSimoncelli":
         return po.simul.PortillaSimoncelli((256, 256))
+    elif name == "NonModule":
+        class NonModule:
+            def __init__(self):
+                self.name = "nonmodule"
+            def __call__(self, x):
+                return 1 * x
+        return NonModule()
 
 
 @pytest.fixture(scope='package')

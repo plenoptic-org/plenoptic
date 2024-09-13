@@ -174,7 +174,7 @@ def validate_model(model: torch.nn.Module,
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
         raise RuntimeError("model changes device of input, don't do that!")
-    if model.training:
+    if hasattr(model, 'training') and model.training:
         warnings.warn(
             "model is in training mode, you probably want to call eval()"
             " to switch to evaluation mode"
@@ -284,6 +284,11 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
         raise ValueError(
             f"metric should return <= 5e-7 on two identical images but got {same_val}"
         )
+    # this is hard to test
+    for i in range(20):
+        second_test_img = torch.rand_like(test_img)
+        if metric(test_img, second_test_img).item() < 0:
+            raise ValueError("metric should always return non-negative numbers!")
 
 
 def remove_grad(model: torch.nn.Module):

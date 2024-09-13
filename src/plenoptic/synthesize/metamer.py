@@ -387,8 +387,14 @@ class Metamer(OptimizedSynthesis):
 
         """
         attrs = ['_image', '_target_representation',
-                 '_metamer', '_model', '_saved_metamer']
+                 '_metamer', '_saved_metamer']
         super().to(*args, attrs=attrs, **kwargs)
+        # try to call .to() on model. this should work, but it might fail if e.g., this
+        # a custom model that doesn't inherit torch.nn.Module
+        try:
+            self._model = self._model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("Unable to call model.to(), so we leave it as is.")
 
     def load(self, file_path: str,
              map_location: Optional[str] = None,

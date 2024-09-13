@@ -373,7 +373,7 @@ def normalized_laplacian_pyramid(img):
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
-        filt = torch.as_tensor(spatialpooling_filters[N_b], dtype=torch.float32,
+        filt = torch.as_tensor(spatialpooling_filters[N_b], dtype=img.dtype,
                             device=img.device).repeat(channel, 1, 1, 1)
         filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
         normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))

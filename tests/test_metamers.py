@@ -154,7 +154,7 @@ class TestMetamers(object):
         assert met_copy.image.device.type == 'cpu'
         met_copy.synthesize(max_iter=4, store_progress=True)
 
-    @pytest.mark.parametrize('model', ['Identity'], indirect=True)
+    @pytest.mark.parametrize('model', ['Identity', 'NonModule'], indirect=True)
     @pytest.mark.parametrize('to_type', ['dtype', 'device'])
     def test_to(self, curie_img, model, to_type):
         met = po.synth.Metamer(curie_img, model)
@@ -167,6 +167,7 @@ class TestMetamers(object):
         elif to_type == 'device' and DEVICE.type != 'cpu':
             met.to('cpu')
         met.metamer - met.image
+        met.synthesize(max_iter=5)
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported

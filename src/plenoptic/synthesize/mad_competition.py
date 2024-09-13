@@ -127,7 +127,7 @@ class MADCompetition(OptimizedSynthesis):
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
             loss_ratio = torch.as_tensor(self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
-                                      dtype=torch.float32)
+                                         dtype=image.dtype)
             metric_tradeoff_lambda = torch.pow(torch.as_tensor(10),
                                                torch.round(torch.log10(loss_ratio))).item()
             warnings.warn("Since metric_tradeoff_lamda was None, automatically set"
