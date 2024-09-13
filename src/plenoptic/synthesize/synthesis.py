@@ -2,6 +2,7 @@
 import abc
 import warnings
 import torch
+import numpy as np
 from typing import Optional, List, Tuple, Union
 
 
@@ -149,6 +150,11 @@ class Synthesis(abc.ABC):
                                            f"{tmp_dict[k].dtype}")
                     else:
                         raise e
+            elif isinstance(getattr(self, k), float):
+                if not np.allclose(getattr(self, k), tmp_dict[k]):
+                    raise ValueError(f"Saved and initialized {display_k} are different!"
+                                     f" Self: {getattr(self, k)}, "
+                                     f"Saved: {tmp_dict[k]}")
             else:
                 if getattr(self, k) != tmp_dict[k]:
                     raise ValueError(f"Saved and initialized {display_k} are different!"
