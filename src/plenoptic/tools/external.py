@@ -96,18 +96,18 @@ def plot_MAD_results(
         "im_fixssim_minmse",
         "im_fixssim_maxmse",
     ]
-    for l in noise_levels:
+    for level in noise_levels:
         mat = sio.loadmat(
             op.join(
                 op.expanduser(results_dir),
-                f"{original_image}_L{l}_results.mat",
+                f"{original_image}_L{level}_results.mat",
             ),
             squeeze_me=True,
         )
         # remove these metadata keys
         [mat.pop(k) for k in ["__header__", "__version__", "__globals__"]]
         key_titles = [
-            f"Noise level: {l}",
+            f"Noise level: {level}",
             f"Best SSIM: {mat['maxssim']:.05f}",
             f"Worst SSIM: {mat['minssim']:.05f}",
             f"Best MSE: {mat['minmse']:.05f}",
@@ -125,8 +125,8 @@ def plot_MAD_results(
             titles.append(t)
             super_titles.append(s)
         # this then just contains the loss information
-        mat.update({"noise_level": l, "original_image": original_image})
-        results[f"L{l}"] = mat
+        mat.update({"noise_level": level, "original_image": original_image})
+        results[f"L{level}"] = mat
     images = images.transpose((2, 0, 1))
     if vrange.startswith("row"):
         vrange_list = []
