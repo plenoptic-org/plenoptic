@@ -437,7 +437,8 @@ def pyrshow(
         <1, must be 1/d where d is a a divisor of the size of the largest
         image.
     show_residuals : `bool`
-        whether to display the residual bands (lowpass, highpass depending on the pyramid type)
+        whether to display the residual bands (lowpass, highpass depending on the
+        pyramid type)
     cmap : matplotlib colormap, optional
         colormap to use when showing these images
     plot_complex : {'rectangular', 'polar', 'logpolar'}
