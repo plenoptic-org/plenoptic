@@ -150,13 +150,11 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
         images = images.unsqueeze(1)
     else:
         if images.ndimension() == 3:
-            # either this was a single color image or multiple grayscale ones
-            if len(paths) > 1:
-                # then single color image, so add the batch dimension
-                images = images.unsqueeze(0)
-            else:
-                # then multiple grayscales ones, so add channel dimension
-                images = images.unsqueeze(1)
+            # either this was a single color image:
+            # so add the batch dimension
+            #  or multiple grayscale images:
+            # so add channel dimension
+            images = images.unsqueeze(0) if len(paths) > 1 else images.unsqueeze(1)
     if images.ndimension() != 4:
         raise ValueError(
             "Somehow ended up with other than 4 dimensions! Not sure how we" " got here"
