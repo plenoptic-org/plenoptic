@@ -133,7 +133,7 @@ def pixel_change_convergence(
         Whether the pixel change norm has stabilized or not.
 
     """
-    if len(synth.pixel_change_norm) > stop_iters_to_check:
-        if (synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all():
-            return True
-    return False
+    return (
+        len(synth.pixel_change_norm) > stop_iters_to_check
+        and (synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all()
+    )
