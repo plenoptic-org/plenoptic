@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from ..synthesize.metamer import Metamer
 
 
+# ignoring E501 to keep the diagram below readable
+# ruff: noqa: E501
 def loss_convergence(
     synth: "OptimizedSynthesis",
     stop_criterion: float,
@@ -62,10 +64,10 @@ def loss_convergence(
         Whether the loss has stabilized or not.
 
     """
-    if len(synth.losses) > stop_iters_to_check:
-        if abs(synth.losses[-stop_iters_to_check] - synth.losses[-1]) < stop_criterion:
-            return True
-    return False
+    return (
+        len(synth.losses) > stop_iters_to_check
+        and abs(synth.losses[-stop_iters_to_check] - synth.losses[-1]) < stop_criterion
+    )
 
 
 def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> bool:
