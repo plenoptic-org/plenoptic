@@ -343,20 +343,22 @@ def polar_angle(
 ) -> Tensor:
     """Make polar angle matrix (in radians).
 
-    Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
-    X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
+    Compute a matrix of given size containing samples of the polar angle (in radians, CW
+    from the X-axis, ranging from -pi to pi), relative to given phase, about the given
+    origin pixel.
 
     Parameters
     ----------
     size
-        If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
-        a 2-tuple of ints specifying the dimensions
+        If an int, we assume the image should be of dimensions `(size, size)`. if a
+        tuple, must be a 2-tuple of ints specifying the dimensions
     phase
         The phase of the polar angle function (in radians, clockwise from the X-axis)
     origin
-        The center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
-        tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
-        if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
+        The center of the image. if an int, we assume the origin is at
+        `(origin, origin)`. if a tuple, must be a 2-tuple of ints specifying the origin
+        (where `(0, 0)` is the upper left). If None, we assume the origin lies at the
+        center of the matrix, `(size+1)/2`.
     device
         The device to create this tensor on.
 
