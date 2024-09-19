@@ -1012,13 +1012,13 @@ def plot_loss(
     """
     if iteration is None:
         loss_idx = len(metamer.losses) - 1
+    elif iteration < 0:
+        # in order to get the x-value of the dot to line up,
+        # need to use this work-around
+        loss_idx = len(metamer.losses) + iteration
     else:
-        if iteration < 0:
-            # in order to get the x-value of the dot to line up,
-            # need to use this work-around
-            loss_idx = len(metamer.losses) + iteration
-        else:
-            loss_idx = iteration
+        loss_idx = iteration
+
     if ax is None:
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
@@ -1237,7 +1237,8 @@ def plot_pixel_values(
     """
 
     def _freedman_diaconis_bins(a):
-        """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn."""
+        """Calculate number of hist bins using Freedman-Diaconis rule. copied from
+        seaborn."""
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
         iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
