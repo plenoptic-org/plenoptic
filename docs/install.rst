@@ -95,7 +95,7 @@ You can also install plenoptic directly from source in order to have a local edi
 
 With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
 
-In this setup, we're installing the ``dev`` optional dependencies as well as the core dependencies. This will allow you to run our tests. See the :ref:`optional-deps` section for more details.
+In this setup, we're installing the ``dev`` optional dependencies as well as the core dependencies. This will allow you to run our tests. They are, as the name implies, optional (you can just run ``pip install -e .`` without the ``[dev]``), but if you are developing, you will probably want to be able to run the tests. See the :ref:`optional-deps` section for more details and the other sets of optional dependencies.
 
 Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named ``.venv`` within the ``plenoptic/`` directory you cloned. Therefore, if you delete the ``plenoptic/`` directory, you'll need to rerun the setup above to create a new virtual environment.
 
@@ -106,7 +106,7 @@ Note that, with the above setup, all files related to your virtual environment a
 Optional dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
+In addition to installing plenoptic and its core dependencies, you may also wish to install some of our optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
 * If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
 * If you would like to locally build the documentation: ``pip install -e ".[docs]"``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
