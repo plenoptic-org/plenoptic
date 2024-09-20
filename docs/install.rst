@@ -78,7 +78,7 @@ You can also install plenoptic directly from source in order to have a local edi
       # activate the environment
       $ source .venv/bin/activate
       # install in editable mode with `-e` or, equivalently, `--editable`
-      $ pip install -e .
+      $ pip install -e ".[dev]"
 
 .. tab:: Windows
 
@@ -91,9 +91,11 @@ You can also install plenoptic directly from source in order to have a local edi
       # activate the environment
       $ .venv\Scripts\activate
       # install in editable mode with `-e` or, equivalently, `--editable`
-      $ pip install -e .
+      $ pip install -e ".[dev]"
 
 With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
+
+In this setup, we're installing the ``dev`` optional dependencies as well as the core dependencies. This will allow you to run our tests. See the :ref:`optional-deps` section for more details.
 
 Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named ``.venv`` within the ``plenoptic/`` directory you cloned. Therefore, if you delete the ``plenoptic/`` directory, you'll need to rerun the setup above to create a new virtual environment.
 
@@ -106,11 +108,11 @@ Optional dependencies
 
 The above instructions will install plenoptic and its core dependencies. You may also wish to install some additional optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install plenoptic[nb]`` or ``pip install -e .[nb]``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
-* If you would like to locally build the documentation: ``pip install -e .[docs]``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
-* If you would like to run the tests: ``pip install -e .[dev]``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
+* If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.0.1?filepath=examples>`_, no installation required!
+* If you would like to locally build the documentation: ``pip install -e ".[docs]"``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
+* If you would like to run the tests: ``pip install -e ".[dev]"``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 
-These optional dependencies can be joined with a comma, e.g., ``pip install -e .[docs,dev]``
+These optional dependencies can be joined with a comma, e.g., ``pip install -e ".[docs,dev]"``
 
 .. note:: Note that ``conda`` does not support optional dependencies, though you can view our optional dependencies in the `pyproject.toml <https://github.com/plenoptic-org/plenoptic/blob/main/pyproject.toml#L35>`_ file, if you wish to install them yourself.
 
@@ -194,14 +196,14 @@ environments and how you wish to handle them.
 
                $ cd path/to/plenoptic
                $ source .venv/bin/activate
-               $ pip install -e .[nb]
+               $ pip install -e ".[nb]"
 
          .. tab:: plenoptic installed from PyPI
 
             .. code-block:: shell
 
                $ source path/to/environments/plenoptic-venv/bin/activate
-               $ pip install plenoptic[nb]
+               $ pip install "plenoptic[nb]"
 
       .. tab:: Windows
 
@@ -211,14 +213,14 @@ environments and how you wish to handle them.
 
                $ cd path\to\plenoptic
                $ .venv\Scripts\activate
-               $ pip install -e .[nb]
+               $ pip install -e ".[nb]"
 
          .. tab:: plenoptic installed from PyPI
 
             .. code-block:: powershell
 
                $ path\to\environments\plenoptic-venv\Scripts\activate
-               $ pip install plenoptic[nb]
+               $ pip install "plenoptic[nb]"
 
       With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyter into that separate virtual environment, which is wasteful.
 

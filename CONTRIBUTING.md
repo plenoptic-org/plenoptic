@@ -84,7 +84,7 @@ You'll need a local installation of `plenoptic` which keeps up-to-date with any 
 2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
 3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
-You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
 #### Creating a new branch
 
@@ -176,7 +176,7 @@ Note that the binder link I have been unable to find a way to make binder use th
 
 Before running tests locally, you'll need
 [ffmpeg](https://ffmpeg.org/download.html) installed on your system, as well as
-the `dev` optional dependencies (i.e., you should run `pip install -e .[dev]`
+the `dev` optional dependencies (i.e., you should run `pip install -e ".[dev]"`
 from within your local copy of `plenoptic`).
 
 To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
@@ -471,7 +471,7 @@ conda env create -f docs/environment.yml
 # activate the environment
 conda activate plenoptic_docs
 # install plenoptic
-pip install -e .[docs]
+pip install -e ".[docs]"
 # build documentation
 cd docs/
 make html
