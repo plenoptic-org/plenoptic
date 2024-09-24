@@ -177,6 +177,7 @@ cite us! See the :ref:`citation` for more details.
    :glob:
 
    install
+   jupyter
    conceptual_intro
    models
    tutorials/*
