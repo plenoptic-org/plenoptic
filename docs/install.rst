@@ -5,7 +5,9 @@ Installation
 
 ``plenoptic`` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a `bug report <https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=>`_!
 
-You can install ``plenoptic`` from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) or `conda-forge <https://anaconda.org/conda-forge/plenoptic>`_, and we provide separate instructions for the two methods. If you will be contributing to ``plenoptic``, and so need an editable install and :ref:`optional-deps`, you should use :ref:`pip <pip>`. Otherwise, you can use whichever you are more familiar with, though we have noticed that it tends to be easier to install `pytorch <https://pytorch.org/>`_ with GPU support using ``conda``.
+You can install ``plenoptic`` from `PyPI <https://pypi.org/project/plenoptic/>`_  (the Python Package Index) or `conda-forge <https://anaconda.org/conda-forge/plenoptic>`_, and we provide separate instructions for the two methods.
+
+If you will be contributing to ``plenoptic``, and so need an editable install and :ref:`optional-deps`, you should use :ref:`pip <pip>`. Otherwise, you can use whichever you are more familiar with, though we have noticed that it tends to be easier to install `pytorch <https://pytorch.org/>`_ with GPU support using ``conda``.
 
 .. tip::
    If you are unfamiliar with python environment management, we recommend :ref:`conda`.
@@ -34,7 +36,7 @@ $ conda install plenoptic -c conda-forge
 Installing with pip
 -------------------
 
-While ``conda`` handles both virtual environment management **and** package installation, ``pip`` only installs packages; you'll need to use some other system to manage your virtual environment. You can use ``conda`` to manage your virtual environment and ``pip`` to install packages, but note that when using pip with a conda environment, all pip commands should come after all the conda commands (e.g., you shouldn't run ``conda install matplotlib`` after ``pip install plenoptic``), because conda is unaware of any changes that pip makes. See `this blog post <https://www.anaconda.com/blog/using-pip-in-a-conda-environment>`_ for more details.
+While ``conda`` handles both virtual environment management **and** package installation, ``pip`` only installs packages; you'll need to use some other system to manage your virtual environment.
 
 In order to avoid this problem, here we'll use python's built-in `venv <https://docs.python.org/3/library/venv.html>`_ to manage the virtual environment with ``pip``.
 
@@ -60,6 +62,9 @@ In order to avoid this problem, here we'll use python's built-in `venv <https://
 
 Note that when using ``venv``, you have to decide where you'd like to place the folder containing all files related to the virtual environment. If the virtual environment is related to the development of a package, as in :ref:`source`, it is typical to place them within the repository for that package. Otherwise, it is typical to place them all in a single directory somewhere so they're easy to keep track of.
 
+.. note::
+   You can use ``conda`` to manage your virtual environment and ``pip`` to install packages, but note that when using pip with a conda environment, all pip commands should come after all the conda commands (e.g., you shouldn't run ``conda install matplotlib`` after ``pip install plenoptic``), because conda is unaware of any changes that pip makes. See `this blog post <https://www.anaconda.com/blog/using-pip-in-a-conda-environment>`_ for more details.
+
 .. _source:
 
 Installing from source (for developers)
@@ -73,7 +78,7 @@ You can also install plenoptic directly from source in order to have a local edi
 
       $ git clone https://github.com/plenoptic-org/plenoptic.git
       $ cd plenoptic
-      # create the environment
+      # create the environment (this is typically placed in the package's root folder)
       $ python -m venv .venv
       # activate the environment
       $ source .venv/bin/activate
@@ -86,14 +91,15 @@ You can also install plenoptic directly from source in order to have a local edi
 
       $ git clone https://github.com/plenoptic-org/plenoptic.git
       $ cd plenoptic
-      # create the environment
+      # create the environment (this is typically placed in the package's root folder)
       $ python -m venv .venv
       # activate the environment
       $ .venv\Scripts\activate
       # install in editable mode with `-e` or, equivalently, `--editable`
       $ pip install -e ".[dev]"
 
-With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
+.. info::
+   With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
 
 In this setup, we're installing the ``dev`` optional dependencies as well as the core dependencies. This will allow you to run our tests. They are, as the name implies, optional (you can just run ``pip install -e .`` without the ``[dev]``), but if you are developing, you will probably want to be able to run the tests. See the :ref:`optional-deps` section for more details and the other sets of optional dependencies.
 
@@ -108,9 +114,9 @@ Optional dependencies
 
 In addition to installing plenoptic and its core dependencies, you may also wish to install some of our optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See the :ref:`jupyter section <jupyter>` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples>`_, no installation required!
-* If you would like to locally build the documentation: ``pip install -e ".[docs]"``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
+* If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See :ref:`jupyter` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples>`_, no installation required!
 * If you would like to run the tests: ``pip install -e ".[dev]"``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
+* If you would like to locally build the documentation: ``pip install -e ".[docs]"``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 
 These optional dependencies can be joined with a comma, e.g., ``pip install -e ".[docs,dev]"``
 
