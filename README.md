@@ -176,8 +176,9 @@ computational moels included in plenoptic.
 
 ## Support
 
-This package is supported by the Simons Foundation Flatiron Institute's Center
-for Computational Neuroscience.
+This package is supported by the [Simons Foundation Flatiron Institute's Center
+for Computational
+Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/).
 
 ![](docs/images/CCN-logo-wText.png)
 

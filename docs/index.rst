@@ -177,6 +177,7 @@ cite us! See the :ref:`citation` for more details.
    :glob:
 
    install
+   jupyter
    conceptual_intro
    models
    tutorials/*
@@ -277,8 +278,7 @@ cite us! See the :ref:`citation` for more details.
    Nature Communications, vol.12(4597).
    https://dx.doi.org/10.1038/s41467-021-24880-5
 
-This package is supported by the 'Center for Computational Neuroscience 
-<https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/>'_, 
+This package is supported by the `Center for Computational Neuroscience <https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/>`_,
 in the Flatiron Institute of the Simons Foundation.
 
 .. image:: images/CCN-logo-wText.png
