@@ -99,7 +99,7 @@ You can also install plenoptic directly from source in order to have a local edi
       $ pip install -e ".[dev]"
 
 .. info::
-   With an editable copy, any changes locally will be automatically reflected in your installation (under the hood, this command uses symlinks).
+   With an editable copy, which we specified with the ``-e`` / ``--editable`` flag, any changes made locally will be automatically reflected in your installation.
 
 In this setup, we're installing the ``dev`` optional dependencies as well as the core dependencies. This will allow you to run our tests. They are, as the name implies, optional (you can just run ``pip install -e .`` without the ``[dev]``), but if you are developing, you will probably want to be able to run the tests. See the :ref:`optional-deps` section for more details and the other sets of optional dependencies.
 
