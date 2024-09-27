@@ -6,11 +6,15 @@ import numpy as np
 import pyrtools as pt
 import matplotlib.pyplot as plt
 from .data import to_numpy
+import importlib.util
 
-try:
-    from IPython.display import HTML
-except ImportError:
-    warnings.warn("Unable to import IPython.display.HTML")
+
+# Check if IPython.display.HTML is available
+if importlib.util.find_spec("IPython.display"):
+    # ignore F401
+    from IPython.display import HTML  # noqa: F401
+else:
+    warnings.warn("Unable to find IPython.display.HTML")
 
 
 def imshow(
