@@ -8,7 +8,6 @@ consider them as members of the same family of textures.
 """
 
 from collections import OrderedDict
-from typing import Union
 
 import einops
 import matplotlib as mpl
@@ -31,7 +30,7 @@ from ..canonical_computations.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
 )
 
-SCALES_TYPE = Union[Literal["pixel_statistics"], PYR_SCALES_TYPE]
+SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 
 
 class PortillaSimoncelli(nn.Module):
@@ -1122,7 +1121,8 @@ class PortillaSimoncelli(nn.Module):
         return fig, axes
 
     def _representation_for_plotting(self, rep: OrderedDict) -> OrderedDict:
-        r"""Convert the data into a dictionary representation that is more convenient for plotting.
+        r"""Convert the data into a dictionary representation that is more convenient
+        for plotting.
 
         Intended as a helper function for plot_representation.
 
