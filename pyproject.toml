@@ -140,7 +140,6 @@ select = [
     #"I",
 ]
 ignore = ["SIM105"]
-ignore-init-module-imports = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
