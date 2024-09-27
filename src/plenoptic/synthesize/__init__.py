@@ -1,3 +1,5 @@
+# ignore F401 (unused import)
+# ruff: noqa: F401
 from .eigendistortion import Eigendistortion
 from .metamer import Metamer, MetamerCTF
 from .geodesic import Geodesic
