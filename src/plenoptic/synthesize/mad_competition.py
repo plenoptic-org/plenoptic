@@ -308,7 +308,8 @@ class MADCompetition(OptimizedSynthesis):
         )
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
-        r"""Compute and propagate gradients, then step the optimizer to update mad_image.
+        r"""Compute and propagate gradients, then step the optimizer to update
+        mad_image.
 
         Parameters
         ----------
@@ -363,7 +364,7 @@ class MADCompetition(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
+         | '---->Is abs(synth.loss[-1] - synth.loss[-stop_iters_to_check]) < stop_crit?
          |      no |
          |       | yes
          <-------' |
@@ -632,13 +633,11 @@ def plot_loss(
     """
     if iteration is None:
         loss_idx = len(mad.losses) - 1
+    elif iteration < 0:
+        loss_idx = len(mad.losses) + iteration  # Work-around for x-value alignment
     else:
-        if iteration < 0:
-            # in order to get the x-value of the dot to line up,
-            # need to use this work-around
-            loss_idx = len(mad.losses) + iteration
-        else:
-            loss_idx = iteration
+        loss_idx = iteration
+
     if axes is None:
         axes = plt.gca()
     if not hasattr(axes, "__iter__"):
@@ -772,7 +771,8 @@ def plot_pixel_values(
     """
 
     def _freedman_diaconis_bins(a):
-        """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn."""
+        """Calculate number of hist bins using Freedman-Diaconis rule. copied from
+        seaborn."""
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
         iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
@@ -1451,7 +1451,8 @@ def plot_loss_all(
         **metric1_kwargs,
         **max_kwargs,
     )
-    # we pass the axes backwards here because the fixed and synthesis metrics are the opposite as they are in the instances above.
+    # we pass the axes backwards here because the fixed and synthesis metrics are
+    # the opposite as they are in the instances above.
     plot_loss(
         mad_metric2_min,
         axes=axes[::-1],
