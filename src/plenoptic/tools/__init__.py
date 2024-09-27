@@ -1,5 +1,5 @@
-from .data import *
-from .conv import *
+# ignore F401 (unused import) and F403 (from module import *)
+# ruff: noqa:  F401, F403
 from .signal import *
 from .stats import *
 from .display import *
