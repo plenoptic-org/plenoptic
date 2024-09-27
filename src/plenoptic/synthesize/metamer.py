@@ -1804,8 +1804,8 @@ def animate(
                 fig.axes[i] for i in axes_idx["plot_representation_error"]
             ]
         except TypeError:
-            # in this case, axes_idx['plot_representation_error'] is not iterable and so is
-            # a single value
+            # in this case, axes_idx['plot_representation_error'] is not iterable and
+            # so is a single value
             rep_error_axes = [fig.axes[axes_idx["plot_representation_error"]]]
     else:
         rep_error_axes = []
@@ -1848,9 +1848,12 @@ def animate(
             )
             # again, we know that rep_error_axes contains all the axes
             # with the representation ratio info
-            if ((i + 1) % ylim_rescale_interval) == 0:
-                if metamer.target_representation.ndimension() == 3:
-                    display.rescale_ylim(rep_error_axes, rep_error)
+            if (
+                (i + 1) % ylim_rescale_interval == 0
+                and metamer.target_representation.ndimension() == 3
+            ):
+                display.rescale_ylim(rep_error_axes, rep_error)
+
         if "plot_pixel_values" in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for
