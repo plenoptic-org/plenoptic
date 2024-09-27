@@ -12,7 +12,8 @@ def get_path(item_name: str) -> Traversable:
     Parameters
     ----------
     item_name
-        The name of the item to find the file for, without specifying the file extension.
+        The name of the item to find the file for, without specifying the file
+        extension.
 
     Returns
     -------
@@ -26,8 +27,9 @@ def get_path(item_name: str) -> Traversable:
 
     Notes
     -----
-    This function uses glob to search for files in the current directory matching the `item_name`.
-    It is assumed that there is only one file matching the name regardless of its extension.
+    This function uses glob to search for files in the current directory matching the
+    `item_name`. It is assumed that there is only one file matching the name
+    regardless of its extension.
     """
     fhs = [
         file
@@ -53,13 +55,14 @@ def get(*item_names: str, as_gray: None | bool = None):
 
     Returns
     -------
-    The loaded image object. The exact return type depends on the `load_images` function implementation.
+    The loaded image object. The exact return type depends on the `load_images`
+    function implementation.
 
     Notes
     -----
-    This function first retrieves the full filename using `get_filename` and then loads the image
-    using `load_images` from the `tools.data` module. It supports loading images as grayscale if
-    they have a `.pgm` extension.
+    This function first retrieves the full filename using `get_filename` and then
+    loads the image using `load_images` from the `tools.data` module. It supports
+    loading images as grayscale if they have a `.pgm` extension.
 
     """
     paths = [get_path(name) for name in item_names]
