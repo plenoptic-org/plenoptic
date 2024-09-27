@@ -91,7 +91,8 @@ REGISTRY_URLS = {
 }
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
-import pathlib
+# ignore E402
+import pathlib  # noqa: E402
 
 try:
     import pooch
