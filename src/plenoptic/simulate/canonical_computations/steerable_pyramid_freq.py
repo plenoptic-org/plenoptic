@@ -21,8 +21,9 @@ from numpy.typing import NDArray
 from ...tools.signal import interpolate1d, raised_cosine, steer
 
 complex_types = [torch.cdouble, torch.cfloat]
-SCALES_TYPE = Union[int, Literal["residual_lowpass", "residual_highpass"]]
-KEYS_TYPE = Union[tuple[int, int], Literal["residual_lowpass", "residual_highpass"]]
+
+SCALES_TYPE = int | Literal["residual_lowpass", "residual_highpass"]
+KEYS_TYPE = tuple[int, int] | Literal["residual_lowpass", "residual_highpass"]
 
 
 class SteerablePyramidFreq(nn.Module):
@@ -625,15 +626,9 @@ class SteerablePyramidFreq(nn.Module):
             levels = levs_tmp
         # not all pyramids have residual highpass / lowpass, but it's easier
         # to construct the list including them, then remove them if necessary.
-        if (
-            "residual_lowpass" not in self.pyr_size
-            and "residual_lowpass" in levels
-        ):
+        if "residual_lowpass" not in self.pyr_size and "residual_lowpass" in levels:
             levels.pop(-1)
-        if (
-            "residual_highpass" not in self.pyr_size
-            and "residual_highpass" in levels
-        ):
+        if "residual_highpass" not in self.pyr_size and "residual_highpass" in levels:
             levels.pop(0)
         return levels
 
