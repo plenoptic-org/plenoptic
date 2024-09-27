@@ -297,7 +297,7 @@ class Metamer(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
+         | '----> Is the change in loss < stop_criterion over ``stop_iters_to_check``?
          |      no |
          |       | yes
          <-------' |
@@ -510,7 +510,8 @@ class Metamer(OptimizedSynthesis):
 
     @property
     def target_representation(self):
-        """Model representation of ``image``, the goal of synthesis is for ``model(metamer)`` to match this value."""
+        """Model representation of ``image``, the goal of synthesis is for
+        ``model(metamer)`` to match this value."""
         return self._target_representation
 
     @property
@@ -883,15 +884,16 @@ class MetamerCTF(Metamer):
         stop_iters_to_check: int,
         ctf_iters_to_check: int,
     ) -> bool:
-        r"""Check whether the loss has stabilized and whether we've synthesized all scales.
+        r"""Check whether the loss has stabilized and whether we've synthesized all
+        scales.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
+         | '---->Is the change in loss < stop_criterion over ``stop_iters_to_check``?
          |      no |
          |       | yes
-         |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
+         |-------' '---->Are all scales synthesized for `ctf_iters_to_check` iterations?
          |              no  |
          |               |  yes
          |---------------'  '----> return ``True``
