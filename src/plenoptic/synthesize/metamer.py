@@ -758,32 +758,40 @@ class MetamerCTF(Metamer):
 
         """
         last_iter_metamer = self.metamer.clone()
-        # The first check here is because the last scale will be 'all', and
-        # we never remove it. Otherwise, check to see if it looks like loss
-        # has stopped declining and, if so, switch to the next scale. Then
-        # we're checking if self.scales_loss is long enough to check
-        # ctf_iters_to_check back.
-        if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
-            # Now we check whether loss has decreased less than
-            # change_scale_criterion
-            if (change_scale_criterion is None) or abs(
-                self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]
-            ) < change_scale_criterion:
-                # and finally we check whether we've been optimizing this
-                # scale for ctf_iters_to_check
-                if (
-                    len(self.losses) - self.scales_timing[self.scales[0]][0]
-                    >= ctf_iters_to_check
-                ):
-                    self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
-                    self._scales_finished.append(self._scales.pop(0))
-                    self._scales_timing[self.scales[0]].append(len(self.losses))
-                    # reset optimizer's lr.
-                    for pg in self.optimizer.param_groups:
-                        pg["lr"] = pg["initial_lr"]
-                    # reset ctf target representation, so we update it on
-                    # next pass
-                    self._ctf_target_representation = None
+
+        # Check if conditions hold for switching scales:
+        # - Check if loss has decreased below the change_scale_criterion and
+        # - if we've been optimizing this scale for the required number of iterations
+        # - The first check here is because the last scale will be 'all', and
+        #   we never remove it
+
+        if (
+            len(self.scales) > 1
+            and len(self.scales_loss) >= ctf_iters_to_check
+            and (
+                change_scale_criterion is None
+                or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check])
+                < change_scale_criterion
+            )
+            and (
+                len(self.losses) - self.scales_timing[self.scales[0]][0]
+                >= ctf_iters_to_check
+            )
+        ):
+            self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
+            self._scales_finished.append(self._scales.pop(0))
+
+            # Only append if scales list is still non-empty after the pop
+            if self.scales:
+                self._scales_timing[self.scales[0]].append(len(self.losses))
+
+            # Reset optimizer's learning rate
+            for pg in self.optimizer.param_groups:
+                pg["lr"] = pg["initial_lr"]
+
+            # Reset ctf target representation for the next update
+            self._ctf_target_representation = None
+
         loss, overall_loss = self.optimizer.step(self._closure)
         self._scales_loss.append(loss.item())
         self._losses.append(overall_loss.item())
