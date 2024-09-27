@@ -225,7 +225,8 @@ class Geodesic(OptimizedSynthesis):
 
         - ``self._geodesic_representation = self.model(geodesic)``
 
-        - ``self._most_recent_step_energy = self._calculate_step_energy(self._geodesic_representation)``
+        - ``self._most_recent_step_energy = self._calculate_step_energy(
+            self._geodesic_representation)``
 
         These are cached because we might store them (if ``self.store_progress
         is True``) and don't want to recalcualte them
@@ -301,7 +302,8 @@ class Geodesic(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``(self.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all()``?
+         | '---->Is ``(self.pixel_change_norm[-stop_iters_to_check:] < s
+         |        |       top_criterion).all()``?
          |      no |
          |       | yes
          <-------' |
@@ -327,7 +329,8 @@ class Geodesic(OptimizedSynthesis):
         return pixel_change_convergence(self, stop_criterion, stop_iters_to_check)
 
     def calculate_jerkiness(self, geodesic: Tensor | None = None) -> Tensor:
-        """Compute the alignment of representation's acceleration to model local curvature.
+        """
+        Compute the alignment of representation's acceleration to model local curvature.
 
         This is the first order optimality condition for a geodesic, and can be
         used to assess the validity of the solution obtained by optimization.
@@ -573,7 +576,8 @@ class Geodesic(OptimizedSynthesis):
 
     @property
     def step_energy(self):
-        """Squared L2 norm of transition between geodesic frames in representation space.
+        """
+        Squared L2 norm of transition between geodesic frames in representation space.
 
         Has shape ``(np.ceil(synth_iter/store_progress), n_steps)``, where
         ``synth_iter`` is the number of iterations of synthesis that have
@@ -584,7 +588,8 @@ class Geodesic(OptimizedSynthesis):
 
     @property
     def dev_from_line(self):
-        """Deviation of representation each from of ``self.geodesic`` from a straight line.
+        """Deviation of representation each from of ``self.geodesic`` from a straight
+        line.
 
         Has shape ``(np.ceil(synth_iter/store_progress), n_steps+1, 2)``, where
         ``synth_iter`` is the number of iterations of synthesis that have
