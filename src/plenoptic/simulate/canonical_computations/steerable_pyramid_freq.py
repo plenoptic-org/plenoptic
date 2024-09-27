@@ -6,15 +6,16 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
+from typing import Literal
+
 import numpy as np
 import torch
 import torch.fft as fft
 import torch.nn as nn
 from einops import rearrange
+from numpy.typing import NDArray
 from scipy.special import factorial
 from torch import Tensor
-from typing import Literal
-from numpy.typing import NDArray
 
 from ...tools.signal import interpolate1d, raised_cosine, steer
 

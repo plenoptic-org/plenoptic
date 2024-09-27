@@ -11,6 +11,7 @@ import matplotlib.lines as lines
 import numpy as np
 import pyrtools as pt
 import scipy.io as sio
+
 from ..data import fetch_data
 
 

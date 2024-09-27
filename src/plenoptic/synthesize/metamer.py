@@ -1,25 +1,26 @@
 """Synthesize model metamers."""
 
-import torch
 import re
+import warnings
+from collections import OrderedDict
+from collections.abc import Callable
+from typing import Literal
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import optim, display, signal, data
+from ..tools import data, display, optim, signal
+from ..tools.convergence import coarse_to_fine_enough, loss_convergence
 from ..tools.validate import (
+    validate_coarse_to_fine,
     validate_input,
     validate_model,
-    validate_coarse_to_fine,
 )
-from ..tools.convergence import coarse_to_fine_enough, loss_convergence
-from collections.abc import Callable
-from typing import Literal
 from .synthesis import OptimizedSynthesis
-import warnings
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from collections import OrderedDict
 
 
 class Metamer(OptimizedSynthesis):

@@ -1,8 +1,8 @@
 """Tools related to optimization such as more objective functions."""
 
+import numpy as np
 import torch
 from torch import Tensor
-import numpy as np
 
 
 def set_seed(seed: int | None = None) -> None:

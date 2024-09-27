@@ -1,22 +1,22 @@
-from collections.abc import Callable
 import warnings
+from collections.abc import Callable
 from typing import Literal
 
 import matplotlib.pyplot
-from matplotlib.figure import Figure
 import numpy as np
 import torch
+from matplotlib.figure import Figure
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from .synthesis import Synthesis
-from .autodiff import (
-    jacobian,
-    vector_jacobian_product,
-    jacobian_vector_product,
-)
 from ..tools.display import imshow
 from ..tools.validate import validate_input, validate_model
+from .autodiff import (
+    jacobian,
+    jacobian_vector_product,
+    vector_jacobian_product,
+)
+from .synthesis import Synthesis
 
 
 def fisher_info_matrix_vector_product(

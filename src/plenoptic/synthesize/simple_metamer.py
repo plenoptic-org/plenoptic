@@ -2,9 +2,10 @@
 
 import torch
 from tqdm.auto import tqdm
-from .synthesis import Synthesis
-from ..tools.validate import validate_input, validate_model
+
 from ..tools import optim
+from ..tools.validate import validate_input, validate_model
+from .synthesis import Synthesis
 
 
 class SimpleMetamer(Synthesis):

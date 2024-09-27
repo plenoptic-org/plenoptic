@@ -1,9 +1,10 @@
 """Functions to validate synthesis inputs."""
 
-import torch
-import warnings
 import itertools
+import warnings
 from collections.abc import Callable
+
+import torch
 from torch import Tensor
 
 

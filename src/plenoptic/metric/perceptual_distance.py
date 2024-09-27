@@ -1,13 +1,13 @@
+import os
+import warnings
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-import warnings
 
 from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
-
-import os
 
 DIRNAME = os.path.dirname(__file__)
 

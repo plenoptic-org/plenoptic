@@ -1,6 +1,7 @@
-from . import data_utils
-from .fetch import fetch_data, DOWNLOADABLE_FILES
 import torch
+
+from . import data_utils
+from .fetch import DOWNLOADABLE_FILES, fetch_data
 
 __all__ = [
     "einstein",

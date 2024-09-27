@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from torch import Tensor
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
+from torch import Tensor
 
 
 def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:

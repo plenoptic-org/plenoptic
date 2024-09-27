@@ -8,6 +8,7 @@ consider them as members of the same family of textures.
 """
 
 from collections import OrderedDict
+from typing import Literal
 
 import einops
 import matplotlib as mpl
@@ -17,17 +18,16 @@ import torch
 import torch.fft
 import torch.nn as nn
 from torch import Tensor
-from typing import Literal
 
 from ...tools import signal, stats
 from ...tools.data import to_numpy
 from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
 from ...tools.validate import validate_input
 from ..canonical_computations.steerable_pyramid_freq import (
-    SteerablePyramidFreq,
+    SCALES_TYPE as PYR_SCALES_TYPE,
 )
 from ..canonical_computations.steerable_pyramid_freq import (
-    SCALES_TYPE as PYR_SCALES_TYPE,
+    SteerablePyramidFreq,
 )
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE

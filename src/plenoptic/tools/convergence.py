@@ -23,8 +23,8 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..synthesize.synthesis import OptimizedSynthesis
     from ..synthesize.metamer import Metamer
+    from ..synthesize.synthesis import OptimizedSynthesis
 
 
 # ignoring E501 to keep the diagram below readable

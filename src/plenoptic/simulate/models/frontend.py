@@ -10,19 +10,18 @@ References
 .. [2] http://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
+from collections import OrderedDict
 from collections.abc import Callable
+from warnings import warn
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .naive import Gaussian, CenterSurround
 from ...tools.display import imshow
 from ...tools.signal import make_disk
-from collections import OrderedDict
-from warnings import warn
-
+from .naive import CenterSurround, Gaussian
 
 __all__ = [
     "LinearNonlinear",

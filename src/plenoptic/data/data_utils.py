@@ -1,7 +1,6 @@
 from importlib import resources
 from importlib.abc import Traversable
 
-
 from ..tools.data import load_images
 
 

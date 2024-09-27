@@ -1,13 +1,14 @@
 """various helpful utilities for plotting or displaying information"""
 
+import importlib.util
 import warnings
-import torch
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
-import matplotlib.pyplot as plt
-from .data import to_numpy
-import importlib.util
+import torch
 
+from .data import to_numpy
 
 # Check if IPython.display.HTML is available
 if importlib.util.find_spec("IPython.display"):

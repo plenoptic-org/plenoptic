@@ -1,23 +1,24 @@
-from collections import OrderedDict
 import warnings
-import matplotlib.pyplot as plt
+from collections import OrderedDict
+from typing import Literal
+
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import torch
 import torch.autograd as autograd
 from torch import Tensor
 from tqdm.auto import tqdm
-from typing import Literal
 
-from .synthesis import OptimizedSynthesis
+from ..tools.convergence import pixel_change_convergence
 from ..tools.data import to_numpy
 from ..tools.optim import penalize_range
-from ..tools.validate import validate_input, validate_model
-from ..tools.convergence import pixel_change_convergence
 from ..tools.straightness import (
     deviation_from_line,
     make_straight_line,
     sample_brownian_bridge,
 )
+from ..tools.validate import validate_input, validate_model
+from .synthesis import OptimizedSynthesis
 
 
 class Geodesic(OptimizedSynthesis):

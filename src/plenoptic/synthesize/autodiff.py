@@ -1,6 +1,7 @@
+import warnings
+
 import torch
 from torch import Tensor
-import warnings
 
 
 def jacobian(y: Tensor, x: Tensor) -> Tensor:

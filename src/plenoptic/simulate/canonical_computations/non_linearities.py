@@ -1,6 +1,7 @@
 import torch
+
 from ...tools.conv import blur_downsample, upsample_blur
-from ...tools.signal import rectangular_to_polar, polar_to_rectangular
+from ...tools.signal import polar_to_rectangular, rectangular_to_polar
 
 
 def rectangular_to_polar_dict(coeff_dict, residuals=False):

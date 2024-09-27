@@ -1,5 +1,6 @@
 import torch
-from torch import nn as nn, Tensor
+from torch import Tensor
+from torch import nn as nn
 from torch.nn import functional as F
 
 from ...tools.conv import same_padding

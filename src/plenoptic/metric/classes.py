@@ -1,4 +1,5 @@
 import torch
+
 from .perceptual_distance import normalized_laplacian_pyramid
 
 

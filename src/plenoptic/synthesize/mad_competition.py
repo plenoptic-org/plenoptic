@@ -1,21 +1,23 @@
 """Run MAD Competition."""
 
-import torch
-import numpy as np
-from torch import Tensor
-from tqdm.auto import tqdm
-from ..tools import optim, display, data
+import contextlib
+import warnings
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Literal
-from .synthesis import OptimizedSynthesis
-import warnings
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from collections import OrderedDict
+import numpy as np
+import torch
 from pyrtools.tools.display import make_figure as pt_make_figure
-from ..tools.validate import validate_input, validate_metric
+from torch import Tensor
+from tqdm.auto import tqdm
+
+from ..tools import data, display, optim
 from ..tools.convergence import loss_convergence
-import contextlib
+from ..tools.validate import validate_input, validate_metric
+from .synthesis import OptimizedSynthesis
 
 
 class MADCompetition(OptimizedSynthesis):

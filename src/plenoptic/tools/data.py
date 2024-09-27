@@ -1,12 +1,12 @@
+import os.path as op
 import pathlib
 import warnings
 
 import imageio
 import numpy as np
-import os.path as op
+import torch
 from pyrtools import synthetic_images
 from skimage import color
-import torch
 from torch import Tensor
 
 from .signal import rescale

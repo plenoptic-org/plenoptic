@@ -1,5 +1,6 @@
-import nox
 from pathlib import Path
+
+import nox
 
 
 @nox.session(name="lint")
