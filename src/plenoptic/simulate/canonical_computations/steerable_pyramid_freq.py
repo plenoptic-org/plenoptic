@@ -6,8 +6,6 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
-from typing import Union
-
 import numpy as np
 import torch
 import torch.fft as fft
@@ -491,8 +489,8 @@ class SteerablePyramidFreq(nn.Module):
             pyr_info = tuple([num_channels, split_complex, pyr_keys])
         except RuntimeError:
             raise Exception(
-                """feature maps could not be concatenated into tensor.
-            Check that you are using coefficients that are not downsampled across scales.
+                """feature maps could not be concatenated into tensor. Check that you
+            are using coefficients that are not downsampled across scales.
             This is done with the 'downsample=False' argument for the pyramid"""
             )
 
@@ -574,7 +572,8 @@ class SteerablePyramidFreq(nn.Module):
     def _recon_levels_check(
         self, levels: Literal["all"] | list[SCALES_TYPE]
     ) -> list[SCALES_TYPE]:
-        r"""Check whether levels arg is valid for reconstruction and return valid version
+        r"""
+        Check whether levels arg is valid for reconstruction and return valid version
 
         When reconstructing the input image (i.e., when calling `recon_pyr()`),
         the user specifies which levels to include. This makes sure those
