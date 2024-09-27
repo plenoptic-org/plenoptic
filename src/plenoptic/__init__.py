@@ -1,4 +1,4 @@
-# ignore F401
+# ignore F401 (unused import)
 # ruff: noqa: F401
 from . import simulate as simul
 from . import synthesize as synth

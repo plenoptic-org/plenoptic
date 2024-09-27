@@ -1,4 +1,4 @@
-# ignore F401
+# ignore F401 (unused import) and F403 (from module import *)
 # ruff: noqa: F401, F403
 
 from .laplacian_pyramid import LaplacianPyramid
