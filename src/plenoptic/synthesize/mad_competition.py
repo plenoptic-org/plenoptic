@@ -98,7 +98,7 @@ class MADCompetition(OptimizedSynthesis):
     .. [1] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
            competition: A methodology for comparing computational models of
            perceptual discriminability. Journal of Vision, 8(12), 1–13.
-           http://dx.doi.org/10.1167/8.12.8
+           https://dx.doi.org/10.1167/8.12.8
 
     """
 
@@ -146,7 +146,7 @@ class MADCompetition(OptimizedSynthesis):
         if metric_tradeoff_lambda is None:
             loss_ratio = torch.as_tensor(
                 self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
-                dtype=torch.float32,
+                dtype=image.dtype,
             )
             metric_tradeoff_lambda = torch.pow(
                 torch.as_tensor(10), torch.round(torch.log10(loss_ratio))

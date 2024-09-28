@@ -1,6 +1,7 @@
 """Simple Metamer Class"""
 
 import torch
+from deprecated.sphinx import deprecated
 from tqdm.auto import tqdm
 
 from ..tools import optim
@@ -8,6 +9,9 @@ from ..tools.validate import validate_input, validate_model
 from .synthesis import Synthesis
 
 
+@deprecated(
+    "Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.1.0"
+)
 class SimpleMetamer(Synthesis):
     r"""Simple version of metamer synthesis.
 
@@ -25,6 +29,9 @@ class SimpleMetamer(Synthesis):
         match.
     model
         The visual model whose representation we wish to match.
+
+    Notes
+    -----
 
     """
 

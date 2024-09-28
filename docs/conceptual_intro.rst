@@ -214,8 +214,6 @@ a model's representational space:
 - `Maximal differentiation (MAD) competition
   <tutorials/intro/07_MAD_Competition.nblink>`_ enables efficient comparison of two
   metrics, highlighting the aspects in which their sensitivities differ.
-- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_ investigates how a model represents
-  motion and what changes to an image it considers reasonable.
 
 The goal of this package is to facilitate model exploration and understanding.
 We hope that providing these tools helps tighten the model-experiment loop: when
@@ -231,7 +229,7 @@ predictions to test.
        <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
        though we haven't yet implemented examples. If you're interested, please
        post in `Discussions
-       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
+       <https://github.com/plenoptic-org/plenoptic/discussions)>`_!
 .. [#] for example, as of February 2022, more than 100 models have above 95% top
   5 accuracy on ImageNet, with 9 models within a percent of the top performer at
   99.02%. Furthermore, the state of the art top 5 accuracy has been at or above
@@ -239,9 +237,10 @@ predictions to test.
 
 .. [Helmholtz1852] Helmholtz, H. (1852). LXXXI. on the theory of compound
    colours. The London, Edinburgh, and Dublin Philosophical Magazine and Journal
-   of Science, 4(28), 519–534. http://dx.doi.org/10.1080/14786445208647175
+   of Science, 4(28), 519–534. https://dx.doi.org/10.1080/14786445208647175
 .. [Lettvin1976] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4),
-   10–20. http://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
+   10–20.
+   https://web.archive.org/web/20221016220044/https://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
 .. [Szegedy2013] Szegedy, C., Zaremba, W., Sutskever, I., Bruna, J., Erhan, D.,
    Goodfellow, I., & Fergus, R. (2013). Intriguing properties of neural
    networks. https://arxiv.org/abs/1312.6199

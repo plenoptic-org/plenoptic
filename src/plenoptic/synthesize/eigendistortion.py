@@ -123,8 +123,8 @@ class Eigendistortion(Synthesis):
     .. [1] Berardino, A., Laparra, V., Ballé, J. and Simoncelli, E., 2017.
            Eigen-distortions of hierarchical representations. In Advances in
            neural information processing systems (pp. 3530-3539).
-           http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
-           http://www.cns.nyu.edu/~lcv/eigendistortions/
+           https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
+           https://www.cns.nyu.edu/~lcv/eigendistortions/
 
     """
 
@@ -546,12 +546,21 @@ class Eigendistortion(Synthesis):
             "_eigendistortions",
             "_eigenvalues",
             "_eigenindex",
-            "_model",
             "_image",
             "_image_flat",
             "_representation_flat",
         ]
         super().to(*args, attrs=attrs, **kwargs)
+        # we need _representation_flat and _image_flat to be connected in the
+        # computation graph for the autograd calls to work, so we reinitialize
+        # it here
+        self._init_representation(self.image)
+        # try to call .to() on model. this should work, but it might fail if e.g., this
+        # a custom model that doesn't inherit torch.nn.Module
+        try:
+            self._model = self._model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("Unable to call model.to(), so we leave it as is.")
 
     def load(
         self,
@@ -582,11 +591,11 @@ class Eigendistortion(Synthesis):
 
         Examples
         --------
-        >>> geo = po.synth.Geodesic(img_a, img_b, model)
-        >>> geo.synthesize(max_iter=10, store_progress=True)
-        >>> geo.save('geo.pt')
-        >>> geo_copy = po.synth.Geodesic(img_a, img_b, model)
-        >>> geo_copy.load('geo.pt')
+        >>> eig = po.synth.Eigendistortion(img, model)
+        >>> eig.synthesize(max_iter=10)
+        >>> eig.save('eig.pt')
+        >>> eig_copy = po.synth.Eigendistortion(img, model)
+        >>> eig_copy.load('eig.pt')
 
         Note that you must create a new instance of the Synthesis object and
         *then* load.

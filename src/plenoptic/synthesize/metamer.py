@@ -84,8 +84,8 @@ class Metamer(OptimizedSynthesis):
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model
        based on Joint Statistics of Complex Wavelet Coefficients. Int'l
        Journal of Computer Vision. 40(1):49-71, October, 2000.
-       http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
-       http://www.cns.nyu.edu/~lcv/texture/
+       https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       https://www.cns.nyu.edu/~lcv/texture/
 
     """
 
@@ -412,14 +412,14 @@ class Metamer(OptimizedSynthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = [
-            "_image",
-            "_target_representation",
-            "_metamer",
-            "_model",
-            "_saved_metamer",
-        ]
+        attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
+        # try to call .to() on model. this should work, but it might fail if e.g., this
+        # a custom model that doesn't inherit torch.nn.Module
+        try:
+            self._model = self._model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("Unable to call model.to(), so we leave it as is.")
 
     def load(
         self,

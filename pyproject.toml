@@ -26,6 +26,7 @@ dependencies = [
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
     "importlib-resources>=6.0",
+    "Deprecated",
 ]
 
 [build-system]
@@ -47,13 +48,14 @@ docs = [
      'ipython',
      'sphinx-copybutton',
      'sphinxemoji',
+     'sphinx-inline-tabs',
+     'docutils>=0.18.1,<0.21',
 ]
 
 dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "requests>=2.21",
     "pooch>=1.2.0",
     "nox",
     "ruff>=0.5.1",
@@ -68,7 +70,7 @@ nb = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
+"Homepage" = "https://github.com/plenoptic-org/plenoptic"
 "Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
 "Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
@@ -81,7 +83,7 @@ version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]
-addopts = ["--cov=plenoptic",]
+addopts = "--cov=plenoptic -n auto"
 testpaths = ["tests"]
 
 [tool.ruff]

@@ -90,7 +90,7 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
+    filt = torch.as_tensor(np.outer(f, f), dtype=x.dtype, device=x.device)
     if scale_filter:
         filt = filt / 2
     for _ in range(n_scales):
@@ -116,7 +116,7 @@ def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
     """
 
     f = pt.named_filter(filtname)
-    filt = torch.as_tensor(np.outer(f, f), dtype=torch.float32, device=x.device)
+    filt = torch.as_tensor(np.outer(f, f), dtype=x.dtype, device=x.device)
     if scale_filter:
         filt = filt * 2
     return upsample_convolve(x, odd, filt)
@@ -131,7 +131,7 @@ def _get_same_padding(x: int, kernel_size: int, stride: int, dilation: int) -> i
 
 def same_padding(
     x: Tensor,
-    kernel_size: int | tuple[int, int],
+    kernel_size: tuple[int, int],
     stride: int | tuple[int, int] = (1, 1),
     dilation: int | tuple[int, int] = (1, 1),
     pad_mode: str = "circular",

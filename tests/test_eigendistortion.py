@@ -105,13 +105,7 @@ class TestEigendistortionSynthesis:
         assert ed.eigenindex.allclose(torch.arange(k))
         assert len(ed.eigenvalues) == k
 
-    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
-    def test_temp(self, model, einstein_img):
-        y = model(einstein_img)
-        print(y.shape)
-        # e_pow = Eigendistortion(einstein_img, model)
-
-    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., 125 : 125 + 25, 125 : 125 + 25]
@@ -215,19 +209,22 @@ class TestEigendistortionSynthesis:
             # check that can resume
             ed_copy.synthesize(max_iter=4, method=method)
 
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
-    @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.parametrize('model', ['Identity', 'NonModule'], indirect=True)
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
-        ed.synthesize(max_iter=5, method="power")
-        if to_type == "dtype":
-            ed.to(torch.float16)
-            assert ed.image.dtype == torch.float16
-            assert ed.eigendistortions.dtype == torch.float16
+        ed.synthesize(max_iter=5, method='power')
+        if to_type == 'dtype':
+            # can't use the power method on a float16 tensor, so we use float64 instead
+            # here.
+            ed.to(torch.float64)
+            assert ed.image.dtype == torch.float64
+            assert ed.eigendistortions.dtype == torch.float64
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == "device" and DEVICE.type != "cpu":
             ed.to("cpu")
         ed.eigendistortions - ed.image
+        ed.synthesize(max_iter=5, method='power')
 
     @pytest.mark.skipif(
         DEVICE.type == "cpu", reason="Only makes sense to test on cuda"

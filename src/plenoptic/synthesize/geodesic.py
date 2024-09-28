@@ -6,6 +6,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import torch
 import torch.autograd as autograd
+from deprecated.sphinx import deprecated
 from torch import Tensor
 from tqdm.auto import tqdm
 
@@ -21,6 +22,10 @@ from ..tools.validate import validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
 
+@deprecated(
+    "Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development",  # noqa: E501
+    "1.1.0",
+)
 class Geodesic(OptimizedSynthesis):
     r"""Synthesize an approximate geodesic between two images according to a model.
 
@@ -96,7 +101,7 @@ class Geodesic(OptimizedSynthesis):
     .. [1] Geodesics of learned representations
         O J Hénaff and E P Simoncelli
         Published in Int'l Conf on Learning Representations (ICLR), May 2016.
-        http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
+        https://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Henaff16b
 
     """
 
@@ -602,6 +607,10 @@ class Geodesic(OptimizedSynthesis):
         return torch.stack(self._dev_from_line)
 
 
+@deprecated(
+    "Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development",  # noqa: E501
+    "1.1.0",
+)
 def plot_loss(
     geodesic: Geodesic, ax: mpl.axes.Axes | None = None, **kwargs
 ) -> mpl.axes.Axes:
@@ -622,6 +631,9 @@ def plot_loss(
     ax :
         Axes containing the plot.
 
+    Notes
+    -----
+
     """
     if ax is None:
         ax = plt.gca()
@@ -630,6 +642,10 @@ def plot_loss(
     return ax
 
 
+@deprecated(
+    "Geodesic is not robust enough yet, see https://github.com/plenoptic-org/geodesics for ongoing development",  # noqa: E501
+    "1.1.0",
+)
 def plot_deviation_from_line(
     geodesic: Geodesic,
     natural_video: Tensor | None = None,

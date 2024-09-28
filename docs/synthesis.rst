@@ -78,10 +78,10 @@ Furthermore:
   start with ``_``).
 * consider using the ``@property`` decorator to make important attributes
   write-only or differentiate between the public and private views. For example,
-  the optimized attribute of the :class:`plenoptic.synthesize.geodesic.Geodesic`
-  class is named ``_geodesic``, but the ``geodesic`` attribute returns this
-  tensor concatenated with two (unchanging) endpoints, as this is what the user
-  will most often want to interact with.
+  :class:`plenoptic.synthesize.mad_competition.MADCompetition` tracks the loss
+  of the reference metric in a list, ``_reference_metric_loss``, but the
+  ``reference_metric_loss`` attribute converts this list to a tensor before
+  returning it, as that's how the user will most often want to interact with it.
 
 The above are the only requirements that all synthesis methods must meet.
 
@@ -190,8 +190,7 @@ follow these guidelines:
   helper methods that aren't scientifically interesting (e.g.,
   ``_initialize_optimizer()``, ``_store()``).
 * Next, any other content-related methods, such as helper methods that perform
-  useful computations that are not called by ``__init__()`` or ``synthesize()``
-  (e.g., :class:`plenoptic.synthesize.geodesic.Geodesic.calculate_jerkiness`).
+  useful computations that are not called by ``__init__()`` or ``synthesize()``.
 * Next, the helper functions we ignored from earlier, such as
   ``_initialize_optimizer()`` and ``_store()``.
 * Next, ``save()``, ``load()``, ``to()``.

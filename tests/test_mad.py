@@ -29,6 +29,21 @@ def dis_ssim(*args):
     return (1 - po.metric.ssim(*args)).mean()
 
 
+class ModuleMetric(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.mdl = po.metric.NLP()
+    def forward(self, x, y):
+        return (self.mdl(x) - self.mdl(y)).abs().mean()
+
+
+class NonModuleMetric:
+    def __init__(self):
+        self.name = 'nonmodule'
+    def __call__(self, x, y):
+        return (x-y).abs().sum()
+
+
 class TestMAD(object):
 
     @pytest.mark.parametrize("target", ["min", "max"])
@@ -153,17 +168,17 @@ class TestMAD(object):
                 )
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
-    @pytest.mark.parametrize("to_type", ["dtype", "device"])
-    def test_to(self, curie_img, to_type):
-        mad = po.synth.MADCompetition(
-            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
-        )
+    @pytest.mark.parametrize('metric', [po.metric.mse, ModuleMetric(), NonModuleMetric()])
+    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    def test_to(self, curie_img, metric, to_type):
+        mad = po.synth.MADCompetition(curie_img, metric,
+                                      po.tools.optim.l2_norm, 'min')
         mad.synthesize(max_iter=5)
-        if to_type == "dtype":
-            mad.to(torch.float16)
-            assert mad.initial_image.dtype == torch.float16
-            assert mad.image.dtype == torch.float16
-            assert mad.mad_image.dtype == torch.float16
+        if to_type == 'dtype':
+            mad.to(torch.float64)
+            assert mad.initial_image.dtype == torch.float64
+            assert mad.image.dtype == torch.float64
+            assert mad.mad_image.dtype == torch.float64
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == "device" and DEVICE.type != "cpu":
             mad.to("cpu")
@@ -171,6 +186,7 @@ class TestMAD(object):
         # this
         mad.initial_image - mad.image
         mad.mad_image - mad.image
+        mad.synthesize(max_iter=5)
 
     @pytest.mark.skipif(
         DEVICE.type == "cpu", reason="Only makes sense to test on cuda"

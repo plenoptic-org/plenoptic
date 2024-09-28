@@ -64,7 +64,6 @@ class Linear(nn.Module):
 
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
-
         self.kernel_size = kernel_size
         self.pad_mode = pad_mode
 
@@ -158,9 +157,7 @@ class CenterSurround(nn.Module):
         f &= amplitude_ratio * center - surround \\
         f &= f/f.sum()
 
-    The signs of center and surround are determined by `center` argument. The standard
-    deviation of the surround Gaussian is constrained to be at least `width_ratio_limit`
-    times that of the center Gaussian.
+    The signs of center and surround are determined by ``on_center`` argument.
 
     Parameters
     ----------
@@ -171,11 +168,6 @@ class CenterSurround(nn.Module):
         (i.e. on-off or off-on). If List of bools, then list length must equal
         `out_channels`, if just a single bool, then all `out_channels` will be assumed
         to be all on-off or off-on.
-    width_ratio_limit:
-        Sets a lower bound on the ratio of `surround_std` over `center_std`.
-        The surround Gaussian must be wider than the center Gaussian in order to be a
-        proper Difference of Gaussians. `surround_std` will be clamped to `ratio_limit`
-        times `center_std`.
     amplitude_ratio:
         Ratio of center/surround amplitude. Applied before filter normalization.
     center_std:
@@ -195,8 +187,7 @@ class CenterSurround(nn.Module):
     def __init__(
         self,
         kernel_size: int | tuple[int, int],
-        on_center: bool | list[bool,] = True,
-        width_ratio_limit: float = 2.0,
+        on_center: bool | list[bool] = True,
         amplitude_ratio: float = 1.25,
         center_std: float | Tensor = 1.0,
         surround_std: float | Tensor = 4.0,
@@ -219,13 +210,13 @@ class CenterSurround(nn.Module):
         assert (
             len(center_std) == out_channels and len(surround_std) == out_channels
         ), "stds must correspond to each out_channel"
-        assert width_ratio_limit > 1.0, "stdev of surround must be greater than center"
         assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
         self.on_center = on_center
 
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
         self.kernel_size = kernel_size
-        self.width_ratio_limit = width_ratio_limit
         self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
 
         self.center_std = nn.Parameter(torch.ones(out_channels) * center_std)
@@ -265,15 +256,8 @@ class CenterSurround(nn.Module):
                 self.register_buffer("_filt", filt)
         return filt
 
-    def _clamp_surround_std(self):
-        """Clamps surround standard deviation to ratio_limit times center_std"""
-        lower_bound = self.width_ratio_limit * self.center_std
-        for i, lb in enumerate(lower_bound):
-            self.surround_std[i].data = self.surround_std[i].data.clamp(min=float(lb))
-
     def forward(self, x: Tensor) -> Tensor:
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-        self._clamp_surround_std()  # clip the surround stdev
 
         y = F.conv2d(x, self.filt, bias=None)
         return y

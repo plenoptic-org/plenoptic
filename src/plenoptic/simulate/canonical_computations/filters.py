@@ -4,7 +4,7 @@ from torch import Tensor
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
-def gaussian1d(kernel_size: int = 11, std: float | Tensor = 1.5) -> Tensor:
+def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
     """Normalized 1D Gaussian.
 
     1d Gaussian of size `kernel_size`, centered half-way, with variable std
@@ -25,9 +25,15 @@ def gaussian1d(kernel_size: int = 11, std: float | Tensor = 1.5) -> Tensor:
     filt:
         1d Gaussian with `Size([kernel_size])`.
     """
-    assert std > 0.0, "std must be positive"
-    if isinstance(std, float):
-        std = torch.as_tensor(std)
+    try:
+        dtype = std.dtype
+    except AttributeError:
+        dtype = torch.float32
+    std = torch.as_tensor(std, dtype=dtype)
+    if std.numel() != 1:
+        raise ValueError("std must have only one element!")
+    if std <= 0:
+        raise ValueError("std must be positive!")
     device = std.device
 
     x = torch.arange(kernel_size).to(device)

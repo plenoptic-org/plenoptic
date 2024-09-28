@@ -1,6 +1,5 @@
 """various helpful utilities for plotting or displaying information"""
 
-import importlib.util
 import warnings
 
 import matplotlib.pyplot as plt
@@ -9,13 +8,6 @@ import pyrtools as pt
 import torch
 
 from .data import to_numpy
-
-# Check if IPython.display.HTML is available
-if importlib.util.find_spec("IPython.display"):
-    # ignore F401
-    from IPython.display import HTML  # noqa: F401
-else:
-    warnings.warn("Unable to find IPython.display.HTML")
 
 
 def imshow(

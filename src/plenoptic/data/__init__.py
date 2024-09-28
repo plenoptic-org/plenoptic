@@ -1,6 +1,8 @@
+from importlib import resources
+
 import torch
 
-from . import data_utils
+from ..tools.data import load_images
 from .fetch import DOWNLOADABLE_FILES, fetch_data
 
 __all__ = [
@@ -18,21 +20,24 @@ def __dir__():
     return __all__
 
 
-def einstein() -> torch.Tensor:
-    return data_utils.get("einstein")
+FILES = resources.files(__name__)
 
 
-def curie() -> torch.Tensor:
-    return data_utils.get("curie")
+def einstein(as_gray: bool = True) -> torch.Tensor:
+    return load_images(FILES / "einstein.pgm", as_gray=as_gray)
+
+
+def curie(as_gray: bool = True) -> torch.Tensor:
+    return load_images(FILES / "curie.pgm", as_gray=as_gray)
 
 
 def parrot(as_gray: bool = False) -> torch.Tensor:
-    return data_utils.get("parrot", as_gray=as_gray)
+    return load_images(FILES / "parrot.png", as_gray=as_gray)
 
 
-def reptile_skin() -> torch.Tensor:
-    return data_utils.get("reptile_skin")
+def reptile_skin(as_gray: bool = True) -> torch.Tensor:
+    return load_images(FILES / "reptile_skin.pgm", as_gray=as_gray)
 
 
 def color_wheel(as_gray: bool = False) -> torch.Tensor:
-    return data_utils.get("color_wheel", as_gray=as_gray)
+    return load_images(FILES / "color_wheel.jpg", as_gray=as_gray)

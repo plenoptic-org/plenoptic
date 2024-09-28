@@ -5,63 +5,26 @@ This is inspired by scipy's datasets module.
 """
 
 REGISTRY = {
-    "plenoptic-test-files.tar.gz": (
-        "a6b8e03ecc8d7e40c505c88e6c767af5da670478d3bebb4e13a9d08ee4f39ae8"
-    ),
-    "ssim_images.tar.gz": (
-        "19c1955921a3c37d30c88724fd5a13bdbc9620c9e7dfaeaa3ff835283d2bb42e"
-    ),
-    "ssim_analysis.mat": (
-        "921d324783f06d1a2e6f1ce154c7ba9204f91c569772936991311ff299597f24"
-    ),
-    "msssim_images.tar.gz": (
-        "a01273c95c231ba9e860dfc48f2ac8044ac3db13ad7061739c29ea5f9f20382c"
-    ),
-    "MAD_results.tar.gz": (
-        "29794ed7dc14626f115b9e4173bff88884cb356378a1d4f1f6cd940dd5b31dbe"
-    ),
-    "portilla_simoncelli_matlab_test_vectors.tar.gz": (
-        "83087d4d9808a3935b8eb4197624bbae19007189cd0d786527084c98b0b0ab81"
-    ),
-    "portilla_simoncelli_test_vectors.tar.gz": (
-        "d67787620a0cf13addbe4588ec05b276105ff1fad46e72f8c58d99f184386dfb"
-    ),
-    "portilla_simoncelli_images.tar.gz": (
-        "4d3228fbb51de45b4fc81eba590d20f5861a54d9e46766c8431ab08326e80827"
-    ),
-    "portilla_simoncelli_synthesize.npz": (
-        "9c304580cd60e0275a2ef663187eccb71f2e6a31883c88acf4c6a699f4854c80"
-    ),
-    "portilla_simoncelli_synthesize_torch_v1.12.0.npz": (
-        "5a76ef223bac641c9d48a0b7f49b3ce0a05c12a48e96cd309866b1e7d5e4473f"
-    ),
-    "portilla_simoncelli_synthesize_gpu.npz": (
-        "324efc2a6c54382aae414d361c099394227b56cd24460eebab2532f70728c3ee"
-    ),
-    "portilla_simoncelli_scales.npz": (
-        "eae2db6bd5db7d37c28d8f8320c4dd4fa5ab38294f5be22f8cf69e5cd5e4936a"
-    ),
-    "sample_images.tar.gz": (
-        "0ba6fe668a61e9f3cb52032da740fbcf32399ffcc142ddb14380a8e404409bf5"
-    ),
-    "test_images.tar.gz": (
-        "eaf35f5f6136e2d51e513f00202a11188a85cae8c6f44141fb9666de25ae9554"
-    ),
-    "tid2013.tar.gz": (
-        "bc486ac749b6cfca8dc5f5340b04b9bb01ab24149a5f3a712f13e9d0489dcde0"
-    ),
-    "portilla_simoncelli_test_vectors_refactor.tar.gz": (
-        "2ca60f1a60b192668567eb3d94c0cdc8679b23bf94a98331890c41eb9406503a"
-    ),
-    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz": (
-        "9525844b71cf81509b86ed9677172745353588c6bb54e4de8000d695598afa47"
-    ),
-    "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": (
-        "9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61"
-    ),
-    "portilla_simoncelli_scales_ps-refactor.npz": (
-        "1053790a37707627810482beb0dd059cbc193efd688b60c441b3548a75626fdf"
-    ),
+    "plenoptic-test-files.tar.gz": "a6b8e03ecc8d7e40c505c88e6c767af5da670478d3bebb4e13a9d08ee4f39ae8",  # noqa: E501
+    "ssim_images.tar.gz": "19c1955921a3c37d30c88724fd5a13bdbc9620c9e7dfaeaa3ff835283d2bb42e",  # noqa: E501
+    "ssim_analysis.mat": "921d324783f06d1a2e6f1ce154c7ba9204f91c569772936991311ff299597f24",  # noqa: E501
+    "msssim_images.tar.gz": "a01273c95c231ba9e860dfc48f2ac8044ac3db13ad7061739c29ea5f9f20382c",  # noqa: E501
+    "MAD_results.tar.gz": "29794ed7dc14626f115b9e4173bff88884cb356378a1d4f1f6cd940dd5b31dbe",  # noqa: E501
+    "portilla_simoncelli_matlab_test_vectors.tar.gz": "83087d4d9808a3935b8eb4197624bbae19007189cd0d786527084c98b0b0ab81",  # noqa: E501
+    "portilla_simoncelli_test_vectors.tar.gz": "d67787620a0cf13addbe4588ec05b276105ff1fad46e72f8c58d99f184386dfb",  # noqa: E501
+    "portilla_simoncelli_images.tar.gz": "4d3228fbb51de45b4fc81eba590d20f5861a54d9e46766c8431ab08326e80827",  # noqa: E501
+    "portilla_simoncelli_synthesize.npz": "9c304580cd60e0275a2ef663187eccb71f2e6a31883c88acf4c6a699f4854c80",  # noqa: E501
+    "portilla_simoncelli_synthesize_torch_v1.12.0.npz": "5a76ef223bac641c9d48a0b7f49b3ce0a05c12a48e96cd309866b1e7d5e4473f",  # noqa: E501
+    "portilla_simoncelli_synthesize_gpu.npz": "324efc2a6c54382aae414d361c099394227b56cd24460eebab2532f70728c3ee",  # noqa: E501
+    "portilla_simoncelli_scales.npz": "eae2db6bd5db7d37c28d8f8320c4dd4fa5ab38294f5be22f8cf69e5cd5e4936a",  # noqa: E501
+    "sample_images.tar.gz": "0ba6fe668a61e9f3cb52032da740fbcf32399ffcc142ddb14380a8e404409bf5",  # noqa: E501
+    "test_images.tar.gz": "eaf35f5f6136e2d51e513f00202a11188a85cae8c6f44141fb9666de25ae9554",  # noqa: E501
+    "tid2013.tar.gz": "bc486ac749b6cfca8dc5f5340b04b9bb01ab24149a5f3a712f13e9d0489dcde0",  # noqa: E501
+    "portilla_simoncelli_test_vectors_refactor.tar.gz": "b72661836e5830c1473b8a2292075a8e9c1aca00faf97cc6809ec28f19d3f9ce",  # noqa: E501
+    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz": "9525844b71cf81509b86ed9677172745353588c6bb54e4de8000d695598afa47",  # noqa: E501
+    "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": "9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61",  # noqa: E501
+    "portilla_simoncelli_scales_ps-refactor.npz": "ce11d85e6bcf5fad1b819c36dac584c3e933706a0ee423ea1c76ffe0daccbae5",  # noqa: E501
+    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": "ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -83,11 +46,14 @@ REGISTRY_URLS = {
     "test_images.tar.gz": OSF_TEMPLATE.format("au3b8"),
     "tid2013.tar.gz": OSF_TEMPLATE.format("uscgv"),
     "portilla_simoncelli_test_vectors_refactor.tar.gz": OSF_TEMPLATE.format("ca7qt"),
-    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz": (
-        OSF_TEMPLATE.format("vmwzd")
+    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor.npz": OSF_TEMPLATE.format(
+        "vmwzd"
     ),
     "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": OSF_TEMPLATE.format("mqs6y"),
     "portilla_simoncelli_scales_ps-refactor.npz": OSF_TEMPLATE.format("nvpr4"),
+    "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": OSF_TEMPLATE.format(  # noqa: E501
+        "en8du"
+    ),
 }
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 

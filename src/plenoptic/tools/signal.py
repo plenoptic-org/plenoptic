@@ -1,9 +1,14 @@
 import numpy as np
 import torch
+from deprecated.sphinx import deprecated
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torch import Tensor
 
 
+@deprecated(
+    "Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce",
+    version="1.1.0",
+)
 def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
     r"""Compute minimum in torch over any axis or combination of axes in tensor.
 
@@ -20,6 +25,10 @@ def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> T
     -------
     min_x
         Minimum value of x.
+
+    Notes
+    -----
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -30,6 +39,10 @@ def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> T
     return min_x
 
 
+@deprecated(
+    "Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce",
+    version="1.1.0",
+)  # noqa: E501
 def maximum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
     r"""Compute maximum in torch over any dim or combination of axes in tensor.
 
@@ -46,6 +59,10 @@ def maximum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> T
     -------
     max_x
         Maximum value of x.
+
+    Notes
+    -----
+
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -356,7 +373,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
 
     """
     noise_mse = torch.as_tensor(
-        noise_mse, dtype=torch.float32, device=img.device
+        noise_mse, dtype=img.dtype, device=img.device
     ).unsqueeze(0)
     noise_mse = noise_mse.view(noise_mse.nelement(), 1, 1, 1)
     noise = 200 * torch.randn(

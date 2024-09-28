@@ -2,7 +2,7 @@
 #
 # This file only contains a selection of the most common options. For a full
 # list see the documentation:
-# http://www.sphinx-doc.org/en/master/config
+# https://www.sphinx-doc.org/en/master/config
 
 # -- Path setup --------------------------------------------------------------
 
@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinxemoji.sphinxemoji',
+    'sphinx_inline_tabs'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -93,6 +94,7 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 
 numfig = True
+
 
 # -- Options for HTML output -------------------------------------------------
 

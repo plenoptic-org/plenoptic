@@ -1,5 +1,6 @@
 import os
 import warnings
+from importlib import resources
 
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
 
-DIRNAME = os.path.dirname(__file__)
+DIRNAME = resources.files("plenoptic.metric")
 
 
 def _ssim_parts(img1, img2, pad=False):
@@ -192,7 +193,7 @@ def ssim(img1, img2, weighted=False, pad=False):
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
-       http://dx.doi.org/10.1167/8.12.8
+       https://dx.doi.org/10.1167/8.12.8
 
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
@@ -266,7 +267,7 @@ def ssim_map(img1, img2):
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
-       http://dx.doi.org/10.1167/8.12.8
+       https://dx.doi.org/10.1167/8.12.8
 
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
@@ -393,7 +394,7 @@ def normalized_laplacian_pyramid(img):
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
         filt = torch.as_tensor(
-            spatialpooling_filters[N_b], dtype=torch.float32, device=img.device
+            spatialpooling_filters[N_b], dtype=img.dtype, device=img.device
         ).repeat(channel, 1, 1, 1)
         filtered_activations = F.conv2d(
             torch.abs(laplacian_activations[N_b]),
