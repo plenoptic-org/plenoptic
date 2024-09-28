@@ -58,7 +58,7 @@ dev = [
     'pytest-xdist',
     "pooch>=1.2.0",
     "nox",
-    "ruff>=0.5.1",
+    "ruff>=0.6.8",
 ]
 
 nb = [
