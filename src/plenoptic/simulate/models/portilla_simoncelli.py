@@ -238,9 +238,9 @@ class PortillaSimoncelli(nn.Module):
             dtype=int,
         )
         cross_orientation_corr_mag *= einops.rearrange(scales, "s -> 1 1 s")
-        shape_dict["cross_orientation_correlation_magnitude"] = (
-            cross_orientation_corr_mag
-        )
+        shape_dict[
+            "cross_orientation_correlation_magnitude"
+        ] = cross_orientation_corr_mag
 
         mags_std = np.ones((self.n_orientations, self.n_scales), dtype=int)
         mags_std *= einops.rearrange(scales, "s -> 1 s")
