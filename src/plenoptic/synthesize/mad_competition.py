@@ -1341,10 +1341,7 @@ def display_mad_image_all(
     ]
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if (
-        kwargs.get("channel_idx", None) is None
-        and mad_metric1_min.initial_image.shape[1] > 1
-    ):
+    if kwargs.get("channel_idx") is None and mad_metric1_min.initial_image.shape[1] > 1:
         as_rgb = True
     else:
         as_rgb = False
