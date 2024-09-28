@@ -2,7 +2,6 @@ from math import pi
 import numpy as np
 import scipy.ndimage
 import plenoptic as po
-import os.path as op
 import pytest
 import einops
 import torch
