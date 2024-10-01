@@ -173,7 +173,7 @@ If you want to suppress an error across an entire file, do this:
 
 For more details, refer to the [documentation](https://docs.astral.sh/ruff/linter/#error-suppression).
 
-#### Style guide
+#### General Style Guide Recommendations:
 
 - Longer, descriptive names are preferred (e.g., `x` is not an appropriate name
   for a variable), especially for anything user-facing, such as methods,
@@ -182,6 +182,16 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   (see [below](#docstrings) for details). Hidden ones do not *need* to have
   complete docstrings, but they probably should.
 
+#### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
+Pre-commit hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where applicable (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit.
+
+Should you want to ignore pre-commit hooks, you can add `--no-verify` to your commit message like this:
+```bash
+git commit -m <my commit message> --no-verify
+```
+
+All of the above only applies, if you have the pre-commit package manager installed using
+`pip install pre-commit`.
 
 ### Adding models or synthesis methods
 
