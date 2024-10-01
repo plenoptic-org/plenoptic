@@ -3,7 +3,7 @@ import plenoptic as po
 import torch
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-IMG_DIR = po.data.fetch_data('test_images.tar.gz')
+IMG_DIR = po.data.fetch_data("test_images.tar.gz")
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)
@@ -44,9 +44,7 @@ def einstein_img_small(einstein_img):
 
 @pytest.fixture(scope="package")
 def color_img():
-    img = po.load_images(
-        IMG_DIR / "256" / "color_wheel.jpg", as_gray=False
-    ).to(DEVICE)
+    img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", as_gray=False).to(DEVICE)
     return img[..., :256, :256]
 
 
@@ -67,8 +65,8 @@ def get_model(name):
 
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = (
-                    po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(coeffs)
+                pyr_tensor, _ = po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(
+                    coeffs
                 )
                 return pyr_tensor
 
@@ -121,13 +119,9 @@ def get_model(name):
     elif name == "frontend.LuminanceContrastGainControl":
         return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
     elif name == "frontend.OnOff":
-        return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(
-            DEVICE
-        )
+        return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
     elif name == "frontend.OnOff.nograd":
-        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(
-            DEVICE
-        )
+        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(mdl)
         return mdl
     elif name == "VideoModel":
@@ -142,19 +136,20 @@ def get_model(name):
                 rep = super().forward(*args, **kwargs)
                 return rep.mean(0)
 
-        model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(
-            DEVICE
-        )
+        model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(model)
         return model
     elif name == "PortillaSimoncelli":
         return po.simul.PortillaSimoncelli((256, 256))
     elif name == "NonModule":
+
         class NonModule:
             def __init__(self):
                 self.name = "nonmodule"
+
             def __call__(self, x):
                 return 1 * x
+
         return NonModule()
 
 

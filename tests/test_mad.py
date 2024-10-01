@@ -33,19 +33,20 @@ class ModuleMetric(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.mdl = po.metric.NLP()
+
     def forward(self, x, y):
         return (self.mdl(x) - self.mdl(y)).abs().mean()
 
 
 class NonModuleMetric:
     def __init__(self):
-        self.name = 'nonmodule'
+        self.name = "nonmodule"
+
     def __call__(self, x, y):
-        return (x-y).abs().sum()
+        return (x - y).abs().sum()
 
 
 class TestMAD(object):
-
     @pytest.mark.parametrize("target", ["min", "max"])
     @pytest.mark.parametrize("model_order", ["mse-ssim", "ssim-mse"])
     @pytest.mark.parametrize("store_progress", [False, True, 2])
@@ -94,18 +95,14 @@ class TestMAD(object):
                 metric = dis_ssim
                 expectation = pytest.raises(
                     ValueError,
-                    match=(
-                        "Saved and initialized optimized_metric are different"
-                    ),
+                    match=("Saved and initialized optimized_metric are different"),
                 )
             elif fail == "metric2":
                 # this works with either rgb or grayscale images
                 metric2 = rgb_mse
                 expectation = pytest.raises(
                     ValueError,
-                    match=(
-                        "Saved and initialized reference_metric are different"
-                    ),
+                    match=("Saved and initialized reference_metric are different"),
                 )
             elif fail == "target":
                 target = "max"
@@ -118,8 +115,7 @@ class TestMAD(object):
                 expectation = pytest.raises(
                     ValueError,
                     match=(
-                        "Saved and initialized metric_tradeoff_lambda are"
-                        " different"
+                        "Saved and initialized metric_tradeoff_lambda are" " different"
                     ),
                 )
             mad_copy = po.synth.MADCompetition(
@@ -163,18 +159,17 @@ class TestMAD(object):
         if optimizer == "Adam" or optimizer == "Scheduler":
             optimizer = torch.optim.Adam([mad.mad_image])
             if optimizer == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    optimizer
-                )
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
-    @pytest.mark.parametrize('metric', [po.metric.mse, ModuleMetric(), NonModuleMetric()])
-    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    @pytest.mark.parametrize(
+        "metric", [po.metric.mse, ModuleMetric(), NonModuleMetric()]
+    )
+    @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, metric, to_type):
-        mad = po.synth.MADCompetition(curie_img, metric,
-                                      po.tools.optim.l2_norm, 'min')
+        mad = po.synth.MADCompetition(curie_img, metric, po.tools.optim.l2_norm, "min")
         mad.synthesize(max_iter=5)
-        if to_type == 'dtype':
+        if to_type == "dtype":
             mad.to(torch.float64)
             assert mad.initial_image.dtype == torch.float64
             assert mad.image.dtype == torch.float64
@@ -188,9 +183,7 @@ class TestMAD(object):
         mad.mad_image - mad.image
         mad.synthesize(max_iter=5)
 
-    @pytest.mark.skipif(
-        DEVICE.type == "cpu", reason="Only makes sense to test on cuda"
-    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
         curie_img = curie_img
         mad = po.synth.MADCompetition(
@@ -203,9 +196,7 @@ class TestMAD(object):
             curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         assert mad_copy.image.device.type == "cpu"
-        mad_copy.load(
-            op.join(tmp_path, "test_mad_map_location.pt"), map_location="cpu"
-        )
+        mad_copy.load(op.join(tmp_path, "test_mad_map_location.pt"), map_location="cpu")
         assert mad_copy.mad_image.device.type == "cpu"
         mad_copy.synthesize(max_iter=4, store_progress=True)
 
@@ -228,9 +219,7 @@ class TestMAD(object):
 
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     def test_store_rep(self, einstein_img, store_progress):
-        mad = po.synth.MADCompetition(
-            einstein_img, po.metric.mse, dis_ssim, "min"
-        )
+        mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, "min")
         max_iter = 3
         if store_progress == 3:
             max_iter = 6
@@ -244,12 +233,10 @@ class TestMAD(object):
         # these have a +1 because we calculate them during initialization as
         # well (so we know our starting point).
         assert len(mad.optimized_metric_loss) == max_iter + 1, (
-            "Didn't end up with enough optimized metric losses after first"
-            " synth!"
+            "Didn't end up with enough optimized metric losses after first" " synth!"
         )
         assert len(mad.reference_metric_loss) == max_iter + 1, (
-            "Didn't end up with enough reference metric losses after first"
-            " synth!"
+            "Didn't end up with enough reference metric losses after first" " synth!"
         )
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
         assert len(mad.saved_mad_image) == np.ceil(
@@ -259,18 +246,14 @@ class TestMAD(object):
             len(mad.losses) == 2 * max_iter
         ), "Didn't end up with enough losses after second synth!"
         assert len(mad.optimized_metric_loss) == 2 * max_iter + 1, (
-            "Didn't end up with enough optimized metric losses after second"
-            " synth!"
+            "Didn't end up with enough optimized metric losses after second" " synth!"
         )
         assert len(mad.reference_metric_loss) == 2 * max_iter + 1, (
-            "Didn't end up with enough reference metric losses after second"
-            " synth!"
+            "Didn't end up with enough reference metric losses after second" " synth!"
         )
 
     def test_continue(self, einstein_img):
-        mad = po.synth.MADCompetition(
-            einstein_img, po.metric.mse, dis_ssim, "min"
-        )
+        mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, "min")
         mad.synthesize(max_iter=3, store_progress=True)
         mad.synthesize(max_iter=3, store_progress=True)
 
@@ -280,17 +263,13 @@ class TestMAD(object):
         mad = po.synth.MADCompetition(img, po.metric.mse, dis_ssim, "min")
         mad.synthesize(max_iter=5)
         mad.image[..., 0, 0] = torch.nan
-        with pytest.raises(
-            ValueError, match="Found a NaN in loss during optimization"
-        ):
+        with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             mad.synthesize(max_iter=1)
 
     def test_change_precision_save_load(self, einstein_img, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
-        mad = po.synth.MADCompetition(
-            einstein_img, po.metric.mse, dis_ssim, "min"
-        )
+        mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, "min")
         mad.synthesize(max_iter=5)
         mad.to(torch.float64)
         assert mad.mad_image.dtype == torch.float64, "dtype incorrect!"
@@ -306,9 +285,7 @@ class TestMAD(object):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility
         po.tools.set_seed(0)
-        mad = po.synth.MADCompetition(
-            einstein_img, po.metric.mse, dis_ssim, "min"
-        )
+        mad = po.synth.MADCompetition(einstein_img, po.metric.mse, dis_ssim, "min")
         mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
         assert (
             abs(mad.losses[-5] - mad.losses[-1]) < 1e-3

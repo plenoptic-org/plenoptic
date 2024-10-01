@@ -18,7 +18,6 @@ def custom_loss(x1, x2):
 
 
 class TestMetamers(object):
-
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
@@ -57,8 +56,7 @@ class TestMetamers(object):
                 expectation = pytest.raises(
                     ValueError,
                     match=(
-                        "Saved and initialized target_representation are"
-                        " different"
+                        "Saved and initialized target_representation are" " different"
                     ),
                 )
             elif fail == "loss":
@@ -72,8 +70,7 @@ class TestMetamers(object):
                 expectation = pytest.raises(
                     ValueError,
                     match=(
-                        "Saved and initialized range_penalty_lambda are"
-                        " different"
+                        "Saved and initialized range_penalty_lambda are" " different"
                     ),
                 )
             elif fail == "dtype":
@@ -114,9 +111,7 @@ class TestMetamers(object):
                 "metamer",
                 "target_representation",
             ]:
-                if not getattr(met, k).allclose(
-                    getattr(met_copy, k), rtol=1e-2
-                ):
+                if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
                     raise ValueError(
                         "Something went wrong with saving and loading! %s not"
                         " the same" % k
@@ -173,9 +168,7 @@ class TestMetamers(object):
 
     @pytest.mark.parametrize("model", ["SPyr"], indirect=True)
     @pytest.mark.parametrize("coarse_to_fine", ["separate", "together"])
-    def test_coarse_to_fine(
-        self, einstein_img, model, coarse_to_fine, tmp_path
-    ):
+    def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
         metamer = po.synth.MetamerCTF(
             einstein_img, model, coarse_to_fine=coarse_to_fine
         )
@@ -185,17 +178,13 @@ class TestMetamers(object):
             change_scale_criterion=10,
             ctf_iters_to_check=1,
         )
-        assert (
-            len(metamer.scales_finished) > 0
-        ), "Didn't actually switch scales!"
+        assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
 
         metamer.save(op.join(tmp_path, "test_metamer_ctf.pt"))
         metamer_copy = po.synth.MetamerCTF(
             einstein_img, model, coarse_to_fine=coarse_to_fine
         )
-        metamer_copy.load(
-            op.join(tmp_path, "test_metamer_ctf.pt"), map_location=DEVICE
-        )
+        metamer_copy.load(op.join(tmp_path, "test_metamer_ctf.pt"), map_location=DEVICE)
         # check the ctf-related attributes all saved correctly
         for k in [
             "coarse_to_fine",
@@ -225,14 +214,10 @@ class TestMetamers(object):
         if optimizer == "Adam" or optimizer == "Scheduler":
             optimizer = torch.optim.Adam([met.metamer])
             if optimizer == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    optimizer
-                )
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
         met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
-    @pytest.mark.skipif(
-        DEVICE.type == "cpu", reason="Only makes sense to test on cuda"
-    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         curie_img = curie_img.to(DEVICE)
@@ -251,8 +236,8 @@ class TestMetamers(object):
         assert met_copy.image.device.type == "cpu"
         met_copy.synthesize(max_iter=4, store_progress=True)
 
-    @pytest.mark.parametrize('model', ['Identity', 'NonModule'], indirect=True)
-    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, model, to_type):
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=5)
@@ -268,9 +253,7 @@ class TestMetamers(object):
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
-    @pytest.mark.parametrize(
-        "model", ["ColorModel", "Identity"], indirect=True
-    )
+    @pytest.mark.parametrize("model", ["ColorModel", "Identity"], indirect=True)
     def test_multichannel(self, model, color_img):
         met = po.synth.Metamer(color_img, model)
         met.synthesize(max_iter=5)
@@ -280,9 +263,7 @@ class TestMetamers(object):
 
     # this determines whether we mix across batches (e.g., a video model) or
     # treat them separately, both of which are supported
-    @pytest.mark.parametrize(
-        "model", ["VideoModel", "Identity"], indirect=True
-    )
+    @pytest.mark.parametrize("model", ["VideoModel", "Identity"], indirect=True)
     def test_multibatch(self, model, einstein_img, curie_img):
         img = torch.cat([curie_img, einstein_img], dim=0)
         met = po.synth.Metamer(img, model)
@@ -311,9 +292,7 @@ class TestMetamers(object):
         met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=5)
         met.target_representation[..., 0, 0] = torch.nan
-        with pytest.raises(
-            ValueError, match="Found a NaN in loss during optimization"
-        ):
+        with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             met.synthesize(max_iter=1)
 
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
@@ -326,9 +305,7 @@ class TestMetamers(object):
         assert met.metamer.dtype == torch.float64, "dtype incorrect!"
         met.save(op.join(tmp_path, "test_metamer_change_prec_save_load.pt"))
         met_copy = po.synth.Metamer(einstein_img.to(torch.float64), model)
-        met_copy.load(
-            op.join(tmp_path, "test_metamer_change_prec_save_load.pt")
-        )
+        met_copy.load(op.join(tmp_path, "test_metamer_change_prec_save_load.pt"))
         met_copy.synthesize(max_iter=5)
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
@@ -340,5 +317,9 @@ class TestMetamers(object):
         met = po.synth.Metamer(einstein_img, model)
         # takes different numbers of iter to converge on GPU and CPU
         met.synthesize(max_iter=35, stop_criterion=1e-5, stop_iters_to_check=5)
-        assert abs(met.losses[-5]-met.losses[-1]) < 1e-5, "Didn't stop when hit criterion!"
-        assert abs(met.losses[-6]-met.losses[-2]) > 1e-5, "Stopped after hit criterion!"
+        assert (
+            abs(met.losses[-5] - met.losses[-1]) < 1e-5
+        ), "Didn't stop when hit criterion!"
+        assert (
+            abs(met.losses[-6] - met.losses[-2]) > 1e-5
+        ), "Stopped after hit criterion!"

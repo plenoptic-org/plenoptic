@@ -36,8 +36,10 @@ def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
         Metamer object for inspection
 
     """
-    ps_synth_file = po.data.fetch_data('portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz')
-    print(f'Loading from {ps_synth_file}')
+    ps_synth_file = po.data.fetch_data(
+        "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
+    )
+    print(f"Loading from {ps_synth_file}")
 
     with np.load(ps_synth_file) as f:
         im = f["im"]
@@ -47,19 +49,19 @@ def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
 
     met = TestPortillaSimoncelli().test_ps_synthesis(ps_synth_file, False)
 
-    torch_v = torch.__version__.split('+')[0]
-    file_name_parts = re.findall('(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*)(_ps-refactor)?(-2)?.npz',
-                                 ps_synth_file.name)[0]
-    output_file_name = ''.join(file_name_parts[:2]) + f'_torch_v{torch_v}{file_name_parts[-1]}.npz'
+    torch_v = torch.__version__.split("+")[0]
+    file_name_parts = re.findall(
+        "(.*portilla_simoncelli_synthesize)(_gpu)?(_torch_v)?([0-9.]*)(_ps-refactor)?(-2)?.npz",
+        ps_synth_file.name,
+    )[0]
+    output_file_name = (
+        "".join(file_name_parts[:2]) + f"_torch_v{torch_v}{file_name_parts[-1]}.npz"
+    )
     output = po.to_numpy(met.metamer).squeeze()
     rep = po.to_numpy(met.model(met.metamer)).squeeze()
     try:
-        np.testing.assert_allclose(
-            output, im_synth.squeeze(), rtol=1e-4, atol=1e-4
-        )
-        np.testing.assert_allclose(
-            rep, rep_synth.squeeze(), rtol=1e-4, atol=1e-4
-        )
+        np.testing.assert_allclose(output, im_synth.squeeze(), rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(rep, rep_synth.squeeze(), rtol=1e-4, atol=1e-4)
         print(
             "Current synthesis same as saved version, so not saving current"
             " synthesis."
@@ -94,7 +96,7 @@ def update_ps_torch_output(save_dir):
     n_scales = [1, 2, 3, 4]
     n_orientations = [2, 3, 4]
     spatial_corr_width = range(3, 10)
-    IMG_DIR = po.data.fetch_data('test_images.tar.gz')
+    IMG_DIR = po.data.fetch_data("test_images.tar.gz")
     im_names = ["curie", "einstein", "metal", "nuts"]
     ims = po.load_images([IMG_DIR / "256" / f"{im}.pgm" for im in im_names])
     for scale in n_scales:
@@ -108,10 +110,14 @@ def update_ps_torch_output(save_dir):
                         spatial_corr_width=width,
                     ).to(torch.float64)
                     output = po.to_numpy(ps(im.unsqueeze(0)))
-                    fname = save_dir / f"{name}_scales-{scale}_ori-{ori}_spat-{width}.npy"
+                    fname = (
+                        save_dir / f"{name}_scales-{scale}_ori-{ori}_spat-{width}.npy"
+                    )
                     np.save(fname, output)
-    print(f"All outputs have been saved in directory {save_dir}, now go to {save_dir.parent} "
-          f"and run `tar czf {save_dir.name} --directory={save_dir.with_suffix('.tar.gz').name}/ .`")
+    print(
+        f"All outputs have been saved in directory {save_dir}, now go to {save_dir.parent} "
+        f"and run `tar czf {save_dir.name} --directory={save_dir.with_suffix('.tar.gz').name}/ .`"
+    )
 
 
 def update_ps_scales(save_path):
@@ -122,7 +128,7 @@ def update_ps_scales(save_path):
 
     """
     save_path = pathlib.Path(save_path)
-    if save_path.suffix != '.npz':
+    if save_path.suffix != ".npz":
         raise ValueError(f"save_path must have suffix .npz but got {save_path.suffix}!")
     save_path.parent.mkdir(parents=True, exist_ok=True)
     n_scales = [1, 2, 3, 4]
@@ -138,6 +144,6 @@ def update_ps_scales(save_path):
                     n_orientations=ori,
                     spatial_corr_width=width,
                 )
-                key = f'scale-{scale}_ori-{ori}_width-{width}'
+                key = f"scale-{scale}_ori-{ori}_width-{width}"
                 output[key] = ps._representation_scales
     np.savez(save_path, **output)

@@ -49,19 +49,14 @@ def test_load_images(paths, as_gray):
             images = po.tools.data.load_images(paths, as_gray)
     else:
         images = po.tools.data.load_images(paths, as_gray)
-        assert (
-            images.ndimension() == 4
-        ), "load_images did not return a 4d tensor!"
+        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
 
 class TestPerceptualMetrics(object):
-
     @pytest.mark.parametrize("weighted", [True, False])
     def test_ssim_grad(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()
-        assert po.metric.ssim(
-            einstein_img, curie_img, weighted=weighted
-        ).requires_grad
+        assert po.metric.ssim(einstein_img, curie_img, weighted=weighted).requires_grad
         curie_img.requires_grad_(False)
 
     def test_msssim_grad(self, einstein_img, curie_img):
@@ -70,15 +65,9 @@ class TestPerceptualMetrics(object):
         curie_img.requires_grad_(False)
 
     @pytest.mark.parametrize("func_name", ["ssim", "ms-ssim", "nlpd"])
-    @pytest.mark.parametrize(
-        "size_A", [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)]
-    )
-    @pytest.mark.parametrize(
-        "size_B", [(), (3,), (1, 1), (6, 3), (3, 1), (1, 4)]
-    )
-    def test_batch_handling(
-        self, einstein_img, curie_img, func_name, size_A, size_B
-    ):
+    @pytest.mark.parametrize("size_A", [(), (3,), (1, 1), (6, 3), (6, 1), (6, 4)])
+    @pytest.mark.parametrize("size_B", [(), (3,), (1, 1), (6, 3), (3, 1), (1, 4)])
+    def test_batch_handling(self, einstein_img, curie_img, func_name, size_A, size_B):
         func = {
             "ssim": po.metric.ssim,
             "ms-ssim": po.metric.ms_ssim,
@@ -147,9 +136,9 @@ class TestPerceptualMetrics(object):
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(
-            os.path.join(ssim_images, ssim_analysis["base_img"])
-        ).to(DEVICE)
+        return po.load_images(os.path.join(ssim_images, ssim_analysis["base_img"])).to(
+            DEVICE
+        )
 
     @pytest.mark.parametrize("weighted", [True, False])
     @pytest.mark.parametrize("other_img", np.arange(1, 11))
@@ -157,9 +146,9 @@ class TestPerceptualMetrics(object):
         self, weighted, other_img, ssim_images, ssim_analysis, ssim_base_img
     ):
         mat_type = {True: "weighted", False: "standard"}[weighted]
-        other = po.load_images(
-            os.path.join(ssim_images, f"samp{other_img}.tif")
-        ).to(DEVICE)
+        other = po.load_images(os.path.join(ssim_images, f"samp{other_img}.tif")).to(
+            DEVICE
+        )
         # dynamic range is 1 for these images, because po.load_images
         # automatically re-ranges them. They were comptued with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
@@ -181,44 +170,34 @@ class TestPerceptualMetrics(object):
             device=DEVICE,
         )
         computed_values = torch.zeros_like(true_values)
-        base_img = po.load_images(
-            os.path.join(msssim_images, "samp0.tiff")
-        ).to(DEVICE)
+        base_img = po.load_images(os.path.join(msssim_images, "samp0.tiff")).to(DEVICE)
         for i in range(len(true_values)):
-            other_img = po.load_images(
-                os.path.join(msssim_images, f"samp{i}.tiff")
-            ).to(DEVICE)
+            other_img = po.load_images(os.path.join(msssim_images, f"samp{i}.tiff")).to(
+                DEVICE
+            )
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 
     def test_nlpd_grad(self, einstein_img, curie_img):
         curie_img.requires_grad_()
         assert po.metric.nlpd(einstein_img, curie_img).requires_grad
-        curie_img.requires_grad_(
-            False
-        )  # return to previous state for pytest fixtures
+        curie_img.requires_grad_(False)  # return to previous state for pytest fixtures
 
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_metric_grad(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
-        assert po.metric.model_metric(
-            einstein_img, curie_img, model
-        ).requires_grad
+        assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
         curie_img.requires_grad_(False)
 
     def test_ssim_dtype(self, einstein_img, curie_img):
-        po.metric.ssim(
-            einstein_img.to(torch.float64), curie_img.to(torch.float64)
-        )
+        po.metric.ssim(einstein_img.to(torch.float64), curie_img.to(torch.float64))
 
     def test_ssim_dtype_exception(self, einstein_img, curie_img):
         with pytest.raises(ValueError, match="must have same dtype"):
             po.metric.ssim(einstein_img.to(torch.float64), curie_img)
 
     def test_msssim_dtype(self, einstein_img, curie_img):
-        po.metric.ms_ssim(
-            einstein_img.to(torch.float64), curie_img.to(torch.float64)
-        )
+        po.metric.ms_ssim(einstein_img.to(torch.float64), curie_img.to(torch.float64))
 
     def test_msssim_dtype_exception(self, einstein_img, curie_img):
         with pytest.raises(ValueError, match="must have same dtype"):

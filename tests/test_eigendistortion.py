@@ -19,7 +19,6 @@ LARGE_DIM = 100
 
 
 class TestEigendistortionSynthesis:
-
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
@@ -105,7 +104,7 @@ class TestEigendistortionSynthesis:
         assert ed.eigenindex.allclose(torch.arange(k))
         assert len(ed.eigenvalues) == k
 
-    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., 125 : 125 + 25, 125 : 125 + 25]
@@ -154,9 +153,7 @@ class TestEigendistortionSynthesis:
         if method == "power":
             display_eigendistortion(eigendist, eigenindex=-1)
             display_eigendistortion(eigendist, eigenindex=-2)
-        elif (
-            method == "randomized_svd"
-        ):  # svd only has top k not bottom k eigendists
+        elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
             with pytest.raises(AssertionError):
                 display_eigendistortion(eigendist, eigenindex=-1)
         plt.close("all")
@@ -184,9 +181,7 @@ class TestEigendistortionSynthesis:
                 remove_grad(model)
                 expectation = pytest.raises(
                     RuntimeError,
-                    match=(
-                        "Attribute representation_flat have different shapes"
-                    ),
+                    match=("Attribute representation_flat have different shapes"),
                 )
             ed_copy = Eigendistortion(img, model)
             with expectation:
@@ -209,12 +204,12 @@ class TestEigendistortionSynthesis:
             # check that can resume
             ed_copy.synthesize(max_iter=4, method=method)
 
-    @pytest.mark.parametrize('model', ['Identity', 'NonModule'], indirect=True)
-    @pytest.mark.parametrize('to_type', ['dtype', 'device'])
+    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
-        ed.synthesize(max_iter=5, method='power')
-        if to_type == 'dtype':
+        ed.synthesize(max_iter=5, method="power")
+        if to_type == "dtype":
             # can't use the power method on a float16 tensor, so we use float64 instead
             # here.
             ed.to(torch.float64)
@@ -224,11 +219,9 @@ class TestEigendistortionSynthesis:
         elif to_type == "device" and DEVICE.type != "cpu":
             ed.to("cpu")
         ed.eigendistortions - ed.image
-        ed.synthesize(max_iter=5, method='power')
+        ed.synthesize(max_iter=5, method="power")
 
-    @pytest.mark.skipif(
-        DEVICE.type == "cpu", reason="Only makes sense to test on cuda"
-    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         curie_img = curie_img.to(DEVICE)
@@ -239,9 +232,7 @@ class TestEigendistortionSynthesis:
         # calling load with map_location effectively switches everything
         # over to that device
         ed_copy = Eigendistortion(curie_img, model)
-        ed_copy.load(
-            op.join(tmp_path, "test_eig_map_location.pt"), map_location="cpu"
-        )
+        ed_copy.load(op.join(tmp_path, "test_eig_map_location.pt"), map_location="cpu")
         assert ed_copy.eigendistortions.device.type == "cpu"
         assert ed_copy.image.device.type == "cpu"
         ed_copy.synthesize(max_iter=4, method="power")
@@ -262,7 +253,6 @@ class TestEigendistortionSynthesis:
 
 
 class TestAutodiffFunctions:
-
     @pytest.fixture(scope="class")
     def state(self, einstein_img):
         """variables to be reused across tests in this class"""
@@ -313,9 +303,7 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V, _ = torch.linalg.qr(
-            torch.ones((x_dim, k), device=DEVICE), "reduced"
-        )
+        V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
         U = V.clone()
         Jv = autodiff.jacobian_vector_product(y, x, V)
         Fv = autodiff.vector_jacobian_product(y, x, Jv)

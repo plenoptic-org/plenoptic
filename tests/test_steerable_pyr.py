@@ -31,9 +31,7 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
         else:
             coeff_2_np = coeff_2[k]
 
-        np.testing.assert_allclose(
-            coeff_1_np, coeff_2_np, rtol=rtol, atol=atol
-        )
+        np.testing.assert_allclose(coeff_1_np, coeff_2_np, rtol=rtol, atol=atol)
 
 
 def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
@@ -78,13 +76,10 @@ def check_parseval(im, coeff, rtol=1e-4, atol=0):
 
         total_band_energy += np.sum(np.abs(band) ** 2)
 
-    np.testing.assert_allclose(
-        total_band_energy, im_energy, rtol=rtol, atol=atol
-    )
+    np.testing.assert_allclose(total_band_energy, im_energy, rtol=rtol, atol=atol)
 
 
 class TestSteerablePyramid(object):
-
     @pytest.fixture(
         scope="class",
         params=[
@@ -111,9 +106,9 @@ class TestSteerablePyramid(object):
     def multichannel_img(self, request):
         shape = request.param
         # use fixture for img and use color_wheel instead.
-        img = po.load_images(
-            IMG_DIR / "mixed" / "flowers.jpg", as_gray=False
-        ).to(DEVICE)
+        img = po.load_images(IMG_DIR / "mixed" / "flowers.jpg", as_gray=False).to(
+            DEVICE
+        )
         if shape == "224":
             img = img[..., :224, :224]
         elif shape == "128_1":
@@ -129,9 +124,7 @@ class TestSteerablePyramid(object):
     # the spyr with those strange shapes
     @pytest.fixture(scope="class")
     def spyr(self, img, request):
-        height, order, is_complex, downsample, tightframe = (
-            request.param.split("-")
-        )
+        height, order, is_complex, downsample, tightframe = request.param.split("-")
         try:
             height = int(height)
         except ValueError:
@@ -152,9 +145,7 @@ class TestSteerablePyramid(object):
 
     @pytest.fixture(scope="class")
     def spyr_multi(self, multichannel_img, request):
-        height, order, is_complex, downsample, tightframe = (
-            request.param.split("-")
-        )
+        height, order, is_complex, downsample, tightframe = request.param.split("-")
         try:
             height = int(height)
         except ValueError:
@@ -220,9 +211,7 @@ class TestSteerablePyramid(object):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = (
-            max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
-        )
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
         spyr_not_downsample = po.simul.SteerablePyramidFreq(
@@ -282,9 +271,7 @@ class TestSteerablePyramid(object):
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = (
-            max([k[0] for k in torch_spc.keys() if isinstance(k[0], int)]) + 1
-        )
+        height = max([k[0] for k in torch_spc.keys() if isinstance(k[0], int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -348,9 +335,7 @@ class TestSteerablePyramid(object):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = (
-            max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
-        )
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -359,16 +344,10 @@ class TestSteerablePyramid(object):
         )
         recon_levels = [[0], [1, 3], [1, 3, 4]]
         recon_bands = [[1], [1, 3]]
-        for levels, bands in product(
-            ["all"] + recon_levels, ["all"] + recon_bands
-        ):
-            po_recon = to_numpy(
-                spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze()
-            )
+        for levels, bands in product(["all"] + recon_levels, ["all"] + recon_bands):
+            po_recon = to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_spyr.recon_pyr(levels, bands)
-            np.testing.assert_allclose(
-                po_recon, pt_recon, rtol=1e-4, atol=1e-4
-            )
+            np.testing.assert_allclose(po_recon, pt_recon, rtol=1e-4, atol=1e-4)
 
     @pytest.mark.parametrize(
         "spyr",
@@ -384,9 +363,7 @@ class TestSteerablePyramid(object):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = (
-            max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
-        )
+        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -410,10 +387,7 @@ class TestSteerablePyramid(object):
     )
     @pytest.mark.parametrize(
         "spyr",
-        [
-            f"auto-3-{c}-{d}-False"
-            for c, d in product([True, False], [True, False])
-        ],
+        [f"auto-3-{c}-{d}-False" for c, d in product([True, False], [True, False])],
         indirect=True,
     )
     def test_scales_arg(self, img, spyr, scales):
@@ -441,9 +415,7 @@ class TestSteerablePyramid(object):
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.simul.SteerablePyramidFreq(
-                img.shape[-2:], order=order
-            ).to(DEVICE)
+            pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
 
     @pytest.mark.parametrize("order", range(1, 16))
@@ -452,15 +424,15 @@ class TestSteerablePyramid(object):
         buffers = [k for k, _ in pyr.named_buffers()]
         names = ["lo0mask", "hi0mask"]
         for s in range(pyr.num_scales):
-            names.extend([
-                f"_himasks_scale_{s}",
-                f"_lomasks_scale_{s}",
-                f"_anglemasks_scale_{s}",
-                f"_anglemasks_recon_scale_{s}",
-            ])
+            names.extend(
+                [
+                    f"_himasks_scale_{s}",
+                    f"_lomasks_scale_{s}",
+                    f"_anglemasks_scale_{s}",
+                    f"_anglemasks_recon_scale_{s}",
+                ]
+            )
         assert len(buffers) == len(
             names
         ), "pyramid doesn't have the right number of buffers!"
-        assert set(buffers) == set(
-            names
-        ), "pyramid doesn't have the right buffers!"
+        assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"

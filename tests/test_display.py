@@ -15,7 +15,6 @@ from conftest import DEVICE, IMG_DIR
 
 
 class TestDisplay(object):
-
     def test_update_plot_line(self):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
@@ -37,10 +36,7 @@ class TestDisplay(object):
         if how == "tensor":
             y2 = torch.as_tensor(y2).reshape(1, 2, *y1.shape)
         elif how == "dict":
-            y2 = {
-                i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape)
-                for i in range(2)
-            }
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.plot(x, y1, "-o", label="hi")
@@ -68,10 +64,7 @@ class TestDisplay(object):
         if how == "tensor":
             y2 = torch.as_tensor(y2).reshape(1, 2, len(x))
         elif how == "dict-multi":
-            y2 = {
-                i: torch.as_tensor(y2[i]).reshape(1, 1, len(x))
-                for i in range(2)
-            }
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
         elif how == "dict-single":
             y2 = {0: torch.as_tensor(y2[0]).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
@@ -112,10 +105,7 @@ class TestDisplay(object):
         if how == "tensor":
             y2 = torch.as_tensor(y2).reshape(1, 2, *y1.shape)
         elif how == "dict":
-            y2 = {
-                i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape)
-                for i in range(2)
-            }
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
         fig, axes = plt.subplots(1, 2)
         for ax in axes:
             ax.stem(x, y1, label="hi")
@@ -143,19 +133,14 @@ class TestDisplay(object):
         if how == "tensor":
             y2 = torch.as_tensor(y2).reshape(1, 2, len(x))
         elif how == "dict-multi":
-            y2 = {
-                i: torch.as_tensor(y2[i]).reshape(1, 1, len(x))
-                for i in range(2)
-            }
+            y2 = {i: torch.as_tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
         elif how == "dict-single":
             y2 = {0: torch.as_tensor(y2[0]).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=str(i))
         po.tools.update_plot(ax, y2)
-        assert (
-            len(ax.containers) == 2
-        ), "Incorrect number of stems were plotted!"
+        assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
             if how == "tensor":
@@ -188,8 +173,7 @@ class TestDisplay(object):
             y2 = torch.as_tensor(y2)
         elif how == "dict":
             y2 = {
-                i: torch.as_tensor(y2[0, i]).reshape(1, 1, 100, 100)
-                for i in range(2)
+                i: torch.as_tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)
             }
         fig = pt.imshow([y for y in y1.squeeze()])
         po.tools.update_plot(fig.axes, y2)
@@ -211,16 +195,14 @@ class TestDisplay(object):
         y2 = np.random.rand(*x2.shape)
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
-        data = torch.stack(
-            (torch.as_tensor(x2), torch.as_tensor(y2)), -1
-        ).reshape(1, 1, len(x2), 2)
+        data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(
+            1, 1, len(x2), 2
+        )
         po.tools.update_plot(ax, data)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, data):
-            raise Exception(
-                "Didn't update points of the scatter plot correctly!"
-            )
+            raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
@@ -230,9 +212,9 @@ class TestDisplay(object):
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(2, *y1.shape)
         if how == "tensor":
-            data = torch.stack(
-                (torch.as_tensor(x2), torch.as_tensor(y2)), -1
-            ).reshape(1, 2, len(x1), 2)
+            data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(
+                1, 2, len(x1), 2
+            )
         elif how == "dict":
             data = {
                 i: torch.stack(
@@ -252,9 +234,7 @@ class TestDisplay(object):
             else:
                 data_check = data[i]
             if not np.allclose(ax_data, data_check):
-                raise Exception(
-                    "Didn't update points of the scatter plot correctly!"
-                )
+                raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
@@ -268,9 +248,9 @@ class TestDisplay(object):
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
         if how == "tensor":
-            data = torch.stack(
-                (torch.as_tensor(x2), torch.as_tensor(y2)), -1
-            ).reshape(1, 2, x1.shape[-1], 2)
+            data = torch.stack((torch.as_tensor(x2), torch.as_tensor(y2)), -1).reshape(
+                1, 2, x1.shape[-1], 2
+            )
         elif how == "dict-multi":
             data = {
                 i: torch.stack(
@@ -288,9 +268,7 @@ class TestDisplay(object):
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
         po.tools.update_plot(ax, data)
-        assert (
-            len(ax.collections) == 2
-        ), "Incorrect number of scatter plots created"
+        assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
         for i in range(2):
             ax_data = ax.collections[i].get_offsets()
             if how == "tensor":
@@ -298,14 +276,10 @@ class TestDisplay(object):
             elif how == "dict-multi":
                 data_check = data[i]
             elif how == "dict-single":
-                tmp = torch.stack(
-                    (torch.as_tensor(x1), torch.as_tensor(y1)), -1
-                )
+                tmp = torch.stack((torch.as_tensor(x1), torch.as_tensor(y1)), -1)
                 data_check = {0: data[0], 1: tmp[1]}[i]
             if not np.allclose(ax_data, data_check):
-                raise Exception(
-                    "Didn't update points of the scatter plot correctly!"
-                )
+                raise Exception("Didn't update points of the scatter plot correctly!")
 
     def test_update_plot_mixed_multi_axes(self):
         x1 = np.linspace(0, 1, 100)
@@ -327,36 +301,26 @@ class TestDisplay(object):
         po.tools.update_plot(axes, data)
         for i, ax in enumerate(axes):
             if i == 0:
-                assert (
-                    len(ax.collections) == 1
-                ), "Too many scatter plots created"
+                assert len(ax.collections) == 1, "Too many scatter plots created"
                 assert len(ax.lines) == 0, "Too many lines created"
                 ax_data = ax.collections[0].get_offsets()
             else:
-                assert (
-                    len(ax.collections) == 0
-                ), "Too many scatter plots created"
+                assert len(ax.collections) == 0, "Too many scatter plots created"
                 assert len(ax.lines) == 1, "Too many lines created"
                 _, ax_data = ax.lines[0].get_data()
             if not np.allclose(ax_data, data[i]):
-                raise Exception(
-                    "Didn't update points of the scatter plot correctly!"
-                )
+                raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
-    @pytest.mark.parametrize(
-        "is_complex", [False, "logpolar", "rectangular", "polar"]
-    )
+    @pytest.mark.parametrize("is_complex", [False, "logpolar", "rectangular", "polar"])
     @pytest.mark.parametrize("mini_im", [True, False])
     # test the edge cases where we try to plot a tensor that's (b, c, 1, w) or
     # (b, c, h, 1)
     @pytest.mark.parametrize("one_dim", [False, "h", "w"])
-    def test_imshow(
-        self, as_rgb, channel_idx, batch_idx, is_complex, mini_im, one_dim
-    ):
+    def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im, one_dim):
         fails = False
         if one_dim == "h":
             im_shape = [2, 4, 1, 5]
@@ -447,9 +411,7 @@ class TestDisplay(object):
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("show_residuals", [True, False])
-    def test_pyrshow(
-        self, steerpyr, channel_idx, batch_idx, show_residuals, curie_img
-    ):
+    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals, curie_img):
         fails = False
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
             fails = True
@@ -459,9 +421,7 @@ class TestDisplay(object):
         if show_residuals:
             n_axes += 2
         img = curie_img.clone()
-        img = img[
-            ..., : steerpyr.lo0mask.shape[-2], : steerpyr.lo0mask.shape[-1]
-        ]
+        img = img[..., : steerpyr.lo0mask.shape[-2], : steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
         if not fails:
             # unfortunately, can't figure out how to properly parametrize this
@@ -484,9 +444,7 @@ class TestDisplay(object):
                 plt.close("all")
         else:
             with pytest.raises(TypeError):
-                po.pyrshow(
-                    coeffs, batch_idx=batch_idx, channel_idx=channel_idx
-                )
+                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
 
     def test_display_test_signals(self):
         po.imshow(po.tools.make_synthetic_stimuli(128))
@@ -495,13 +453,9 @@ class TestDisplay(object):
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
-    @pytest.mark.parametrize(
-        "is_complex", [False, "logpolar", "rectangular", "polar"]
-    )
+    @pytest.mark.parametrize("is_complex", [False, "logpolar", "rectangular", "polar"])
     @pytest.mark.parametrize("mini_vid", [True, False])
-    def test_animshow(
-        self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid
-    ):
+    def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
         fails = False
         if is_complex:
             # this is 2 (the two complex components) * 4 (the four channels) *
@@ -667,9 +621,7 @@ def template_test_synthesis_all_plot(
     plt.close("all")
 
 
-def template_test_synthesis_custom_fig(
-    synthesis_object, func, fig_creation, tmp_path
-):
+def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
     # template function to test whether we can create our own figure and pass
     # it to the plotting and animating functions, specifying some or all of the
     # locations for the plots. Any synthesis object that has had synthesis()
@@ -716,14 +668,11 @@ def template_test_synthesis_custom_fig(
 
 
 class TestMADDisplay(object):
-
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_mad(self, request):
         # make the images really small so nothing takes as long
         if request.param == "rgb":
-            img = po.load_images(
-                IMG_DIR / "256" / "color_wheel.jpg", False
-            ).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
             img = img[..., :16, :16]
         else:
             img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
@@ -820,15 +769,9 @@ class TestMADDisplay(object):
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # plot_representation_error is an allowed value for metamer, but not MAD.
     # the second is just a typo
-    @pytest.mark.parametrize(
-        "val", ["plot_representation_error", "plot_mad_image"]
-    )
-    @pytest.mark.parametrize(
-        "variable", ["included_plots", "width_ratios", "axes_idx"]
-    )
-    def test_allowed_plots_exception(
-        self, synthesized_mad, func, val, variable
-    ):
+    @pytest.mark.parametrize("val", ["plot_representation_error", "plot_mad_image"])
+    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
             func = po.synth.mad_competition.plot_synthesis_status
         elif func == "animate":
@@ -845,15 +788,12 @@ class TestMADDisplay(object):
 
 
 class TestMetamerDisplay(object):
-
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_met(self, request):
         img = request.param
         # make the images really small so nothing takes as long
         if img == "rgb":
-            img = po.load_images(
-                IMG_DIR / "256" / "color_wheel.jpg", False
-            ).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
             img = img[..., :16, :16]
         else:
             img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
@@ -932,12 +872,8 @@ class TestMetamerDisplay(object):
     # display_mad_image is an allowed value for MAD but not metamer.
     # the second is just a typo
     @pytest.mark.parametrize("val", ["display_mad_image", "plot_metamer"])
-    @pytest.mark.parametrize(
-        "variable", ["included_plots", "width_ratios", "axes_idx"]
-    )
-    def test_allowed_plots_exception(
-        self, synthesized_met, func, val, variable
-    ):
+    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
             func = po.synth.metamer.plot_synthesis_status
         elif func == "animate":

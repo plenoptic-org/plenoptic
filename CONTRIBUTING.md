@@ -126,7 +126,54 @@ At this point, we will be notified of the pull request and will read it over. We
 
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
-### Style guide
+### Code Quality and Linting
+We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. To ensure your contributions meet these standards, please follow the guidelines below:
+
+#### Using Ruff
+
+Ruff is a fast and comprehensive Python formatter and linter that checks for common style and code quality issues. It combines multiple tools, like Pyflakes, pycodestyle, isort, and other linting rules into one efficient tool, which are specified in `pyproject.toml`. Before submitting your code, make sure to run Ruff to catch any issues.
+
+**Using Ruff for [Formatting](https://docs.astral.sh/ruff/formatter/#philosophy):**
+
+`ruff format` is the primary entrypoint to the formatter. It accepts a list of files or directories, and formats all discovered Python files:
+```bash
+ruff format                   # Format all files in the current directory.
+ruff format path/to/code/     # Format all files in `path/to/code` (and any subdirectories).
+ruff format path/to/file.py   # Format a single file.
+```
+For the full list of supported options, run `ruff format --help`.
+
+**Using Ruff for [Linting](https://docs.astral.sh/ruff/linter/):**
+
+To run Ruff on your code:
+```bash
+ruff check .
+```
+It'll then tell you which lines are violating linting rules and may suggest that some errors are automatically fixable.
+
+To automatically fix lintint errors, run:
+
+```bash
+ruff --fix .
+```
+
+Be careful with **unsafe fixes**, safe fixes are symbolized with the tools emoji and are listed [here](https://docs.astral.sh/ruff/rules/)!
+
+#### Ignoring Ruff Linting
+You may want to suppress lint errors, for example when too long lines (code `E501`) are desired because otherwise the url might not be readable anymore.
+You can do this by adding the following to the end of the line:
+
+```bash
+# noqa: E501
+```
+If you want to suppress an error across an entire file, do this:
+```bash
+# ruff: noqa: E501
+```
+
+For more details, refer to the [documentation](https://docs.astral.sh/ruff/linter/#error-suppression).
+
+#### Style guide
 
 - Longer, descriptive names are preferred (e.g., `x` is not an appropriate name
   for a variable), especially for anything user-facing, such as methods,
@@ -134,6 +181,7 @@ If your changes are integrated, you will be added as a Github contributor and as
 - Any public method or function must have a complete type-annotated docstring
   (see [below](#docstrings) for details). Hidden ones do not *need* to have
   complete docstrings, but they probably should.
+
 
 ### Adding models or synthesis methods
 
@@ -220,10 +268,16 @@ If you want to run just the tests, add the following option,
 nox -s tests
 ```
 
-and for running only the linters,
+for running only the linters,
 
 ```bash
 nox -s linters
+```
+
+and for testing only the coverage, run:
+
+```bash
+nox -s coverage
 ```
 
 `nox` offers a variety of configuration options, you can learn more about it from their

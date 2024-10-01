@@ -11,19 +11,17 @@ from conftest import DEVICE, IMG_DIR
 
 
 class TestData(object):
-
     def test_load_images_fail(self):
-        with pytest.raises(
-            ValueError, match="All images must be the same shape"
-        ):
-            po.load_images([
-                IMG_DIR / "256" / "einstein.pgm",
-                IMG_DIR / "mixed" / "bubbles.png",
-            ])
+        with pytest.raises(ValueError, match="All images must be the same shape"):
+            po.load_images(
+                [
+                    IMG_DIR / "256" / "einstein.pgm",
+                    IMG_DIR / "mixed" / "bubbles.png",
+                ]
+            )
 
 
 class TestSignal(object):
-
     def test_polar_amplitude_zero(self):
         a = torch.rand(10, device=DEVICE) * -1
         b = po.tools.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
@@ -51,9 +49,7 @@ class TestSignal(object):
         a = a / a.max()
         b = po.tools.rescale(torch.randn(dims, device=DEVICE), -pi / 2, pi / 2)
 
-        A, B = po.tools.rectangular_to_polar(
-            po.tools.polar_to_rectangular(a, b)
-        )
+        A, B = po.tools.rectangular_to_polar(po.tools.polar_to_rectangular(a, b))
 
         assert torch.linalg.vector_norm((a - A).flatten(), ord=2) < 1e-3
         assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
@@ -85,13 +81,15 @@ class TestSignal(object):
         assert (
             torch.abs(
                 (x_centered * torch.roll(x_centered, w, dims=3)).sum((2, 3))
-                / (x.shape[-2]*x.shape[-1])
-                - a[..., n//2, n//2+w])
-                < 1e-5).all()
+                / (x.shape[-2] * x.shape[-1])
+                - a[..., n // 2, n // 2 + w]
+            )
+            < 1e-5
+        ).all()
 
-    @pytest.mark.parametrize('size_A', [1, 3])
-    @pytest.mark.parametrize('size_B', [1, 2, 3])
-    @pytest.mark.parametrize('dtype', [torch.float16, torch.float32, torch.float64])
+    @pytest.mark.parametrize("size_A", [1, 3])
+    @pytest.mark.parametrize("size_B", [1, 2, 3])
+    @pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
     def test_add_noise(self, einstein_img, size_A, size_B, dtype):
         A = einstein_img.repeat(size_A, 1, 1, 1).to(dtype)
         B = size_B * [4]
@@ -109,10 +107,7 @@ class TestSignal(object):
             expectation = pytest.raises(
                 ValueError, match="factor \* x.shape\[-1\] must be"
             )
-        elif (
-            int(factor * einstein_img.shape[-2])
-            != factor * einstein_img.shape[-2]
-        ):
+        elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
             expectation = pytest.raises(
                 ValueError, match="factor \* x.shape\[-2\] must be"
             )
@@ -137,10 +132,7 @@ class TestSignal(object):
             expectation = pytest.raises(
                 ValueError, match="x.shape\[-1\]/factor must be"
             )
-        elif (
-            int(einstein_img.shape[-2] / factor)
-            != einstein_img.shape[-2] / factor
-        ):
+        elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
             expectation = pytest.raises(
                 ValueError, match="x.shape\[-2\]/factor must be"
             )
@@ -159,17 +151,13 @@ class TestSignal(object):
 
     @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
     def test_shrink_batch_channel(self, batch_channel, einstein_img):
-        shrunk = po.tools.shrink(
-            einstein_img.repeat((*batch_channel, 1, 1)), 2
-        )
+        shrunk = po.tools.shrink(einstein_img.repeat((*batch_channel, 1, 1)), 2)
         size = batch_channel + [s / 2 for s in einstein_img.shape[-2:]]
         np.testing.assert_equal(shrunk.shape, size)
 
     @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
     def test_expand_batch_channel(self, batch_channel, einstein_img):
-        expanded = po.tools.expand(
-            einstein_img.repeat((*batch_channel, 1, 1)), 2
-        )
+        expanded = po.tools.expand(einstein_img.repeat((*batch_channel, 1, 1)), 2)
         size = batch_channel + [2 * s for s in einstein_img.shape[-2:]]
         np.testing.assert_equal(expanded.shape, size)
 
@@ -215,9 +203,7 @@ class TestSignal(object):
         X = torch.arange(256).unsqueeze(1).repeat(1, 256) / 256 * 2 * torch.pi
         X = X.unsqueeze(0).unsqueeze(0)
 
-        with pytest.raises(
-            TypeError, match="x must be a complex-valued tensor"
-        ):
+        with pytest.raises(TypeError, match="x must be a complex-valued tensor"):
             po.tools.modulate_phase(X)
 
     @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
@@ -243,7 +229,6 @@ class TestSignal(object):
 
 
 class TestStats(object):
-
     def test_stats(self):
         torch.manual_seed(0)
         B, D = 32, 512
@@ -251,8 +236,7 @@ class TestStats(object):
         m = torch.mean(x, dim=1, keepdim=True)
         v = po.tools.variance(x, mean=m, dim=1, keepdim=True)
         assert (
-            torch.abs(v - torch.var(x, dim=1, keepdim=True, unbiased=False))
-            < 1e-5
+            torch.abs(v - torch.var(x, dim=1, keepdim=True, unbiased=False)) < 1e-5
         ).all()
         s = po.tools.skew(x, mean=m, var=v, dim=1)
         k = po.tools.kurtosis(x, mean=m, var=v, dim=1)
@@ -291,10 +275,9 @@ class TestStats(object):
 
 
 class TestDownsampleUpsample(object):
-
-    @pytest.mark.parametrize('odd', [0, 1])
-    @pytest.mark.parametrize('size', [9, 10, 11, 12])
-    @pytest.mark.parametrize('dtype', [torch.float32, torch.float64])
+    @pytest.mark.parametrize("odd", [0, 1])
+    @pytest.mark.parametrize("size", [9, 10, 11, 12])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     def test_filter(self, odd, size, dtype):
         img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE, dtype=dtype)
         img[0, 0, 12, 12] = 1
@@ -304,15 +287,21 @@ class TestDownsampleUpsample(object):
         filt = torch.as_tensor(filt, dtype=dtype, device=DEVICE)
         img_down = po.tools.correlate_downsample(img, filt=filt)
         img_up = po.tools.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
-        assert np.unravel_index(
-            img_up.cpu().numpy().argmax(), img_up.shape
-        ) == (0, 0, 12, 12)
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
+            0,
+            0,
+            12,
+            12,
+        )
 
         img_down = po.tools.blur_downsample(img)
         img_up = po.tools.upsample_blur(img_down, odd=(odd, 1))
-        assert np.unravel_index(
-            img_up.cpu().numpy().argmax(), img_up.shape
-        ) == (0, 0, 12, 12)
+        assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
+            0,
+            0,
+            12,
+            12,
+        )
 
     def test_multichannel(self):
         img = torch.randn([10, 3, 24, 25], device=DEVICE, dtype=torch.float32)
@@ -327,7 +316,6 @@ class TestDownsampleUpsample(object):
 
 
 class TestValidate(object):
-
     # https://docs.pytest.org/en/4.6.x/example/parametrize.html#parametrizing-conditional-raising
     @pytest.mark.parametrize(
         "shape,expectation",
@@ -338,21 +326,15 @@ class TestValidate(object):
             ((2, 3, 16, 16), does_not_raise()),
             (
                 (1, 1, 1, 16, 16),
-                pytest.raises(
-                    ValueError, match="input_tensor must be torch.Size"
-                ),
+                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
             ),
             (
                 (1, 16, 16),
-                pytest.raises(
-                    ValueError, match="input_tensor must be torch.Size"
-                ),
+                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
             ),
             (
                 (16, 16),
-                pytest.raises(
-                    ValueError, match="input_tensor must be torch.Size"
-                ),
+                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
             ),
         ],
     )
@@ -363,9 +345,7 @@ class TestValidate(object):
 
     def test_input_no_batch(self):
         img = torch.rand(2, 1, 16, 16)
-        with pytest.raises(
-            ValueError, match="input_tensor batch dimension must be 1"
-        ):
+        with pytest.raises(ValueError, match="input_tensor batch dimension must be 1"):
             po.tools.validate.validate_input(img, no_batch=True)
 
     @pytest.mark.parametrize(
@@ -373,15 +353,11 @@ class TestValidate(object):
         [
             (
                 "min",
-                pytest.raises(
-                    ValueError, match="input_tensor range must lie within"
-                ),
+                pytest.raises(ValueError, match="input_tensor range must lie within"),
             ),
             (
                 "max",
-                pytest.raises(
-                    ValueError, match="input_tensor range must lie within"
-                ),
+                pytest.raises(ValueError, match="input_tensor range must lie within"),
             ),
             (
                 "range",
@@ -434,9 +410,7 @@ class TestValidate(object):
                 return img.detach()
 
         model = TestModel()
-        with pytest.raises(
-            ValueError, match="model strips gradient from input"
-        ):
+        with pytest.raises(ValueError, match="model strips gradient from input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
     def test_model_numpy_and_back(self):
@@ -465,9 +439,7 @@ class TestValidate(object):
                 return img.to(torch.float16)
 
         model = TestModel()
-        with pytest.raises(
-            TypeError, match="model changes precision of input"
-        ):
+        with pytest.raises(TypeError, match="model changes precision of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.parametrize("direction", ["squeeze", "unsqueeze"])
@@ -483,14 +455,10 @@ class TestValidate(object):
                     return img.unsqueeze(0)
 
         model = TestModel()
-        with pytest.raises(
-            ValueError, match="When given a 4d input, model output"
-        ):
+        with pytest.raises(ValueError, match="When given a 4d input, model output"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
-    @pytest.mark.skipif(
-        DEVICE.type == "cpu", reason="Only makes sense to test on cuda"
-    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_model_device(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -500,17 +468,13 @@ class TestValidate(object):
                 return img.to("cpu")
 
         model = TestModel()
-        with pytest.raises(
-            RuntimeError, match="model changes device of input"
-        ):
+        with pytest.raises(RuntimeError, match="model changes device of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.parametrize("model", ["ColorModel"], indirect=True)
     def test_model_image_shape(self, model):
         img_shape = (1, 3, 16, 16)
-        po.tools.validate.validate_model(
-            model, image_shape=img_shape, device=DEVICE
-        )
+        po.tools.validate.validate_model(model, image_shape=img_shape, device=DEVICE)
 
     def test_validate_ctf_scales(self):
         class TestModel(torch.nn.Module):
@@ -521,9 +485,7 @@ class TestValidate(object):
                 return img
 
         model = TestModel()
-        with pytest.raises(
-            AttributeError, match="model has no scales attribute"
-        ):
+        with pytest.raises(AttributeError, match="model has no scales attribute"):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
     def test_validate_ctf_arg(self):
@@ -566,9 +528,7 @@ class TestValidate(object):
 
     def test_validate_metric_inputs(self):
         metric = lambda x: x
-        with pytest.raises(
-            TypeError, match="metric should be callable and accept two"
-        ):
+        with pytest.raises(TypeError, match="metric should be callable and accept two"):
             po.tools.validate.validate_metric(metric, device=DEVICE)
 
     def test_validate_metric_output_shape(self):
@@ -586,23 +546,24 @@ class TestValidate(object):
             po.tools.validate.validate_metric(metric, device=DEVICE)
 
     def test_validate_metric_nonnegative(self):
-        metric = lambda x, y : (x-y).sum()
-        with pytest.raises(ValueError, match="metric should always return non-negative"):
+        metric = lambda x, y: (x - y).sum()
+        with pytest.raises(
+            ValueError, match="metric should always return non-negative"
+        ):
             po.tools.validate.validate_metric(metric, device=DEVICE)
 
-    @pytest.mark.parametrize('model', ['frontend.OnOff.nograd'], indirect=True)
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     def test_remove_grad(self, model):
         po.tools.validate.validate_model(model, device=DEVICE)
 
 
 class TestOptim(object):
-
     def test_penalize_range_above(self):
-        img = .5 * torch.ones((1, 1, 4, 4))
+        img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
         assert po.tools.optim.penalize_range(img).item() == 4
 
     def test_penalize_range_below(self):
-        img = .5 * torch.ones((1, 1, 4, 4))
+        img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = -1
         assert po.tools.optim.penalize_range(img).item() == 4

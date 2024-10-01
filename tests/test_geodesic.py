@@ -8,7 +8,6 @@ from contextlib import nullcontext as does_not_raise
 
 
 class TestSequences(object):
-
     def test_deviation_from_line_and_brownian_bridge(self):
         """this probabilistic test passes with high probability
         in high dimensions, but for reproducibility we
@@ -53,9 +52,7 @@ class TestSequences(object):
             *einstein_img.shape[1:],
         ), "sample_brownian_bridge returned a tensor of the wrong shape!"
 
-    @pytest.mark.parametrize(
-        "fail", ["batch", "same_shape", "n_steps", "max_norm"]
-    )
+    @pytest.mark.parametrize("fail", ["batch", "same_shape", "n_steps", "max_norm"])
     def test_brownian_bridge_fail(self, einstein_img, curie_img, fail):
         n_steps = 2
         max_norm = 1
@@ -73,24 +70,18 @@ class TestSequences(object):
             )
         elif fail == "n_steps":
             n_steps = 0
-            expectation = pytest.raises(
-                ValueError, match="n_steps must be positive"
-            )
+            expectation = pytest.raises(ValueError, match="n_steps must be positive")
         elif fail == "max_norm":
             max_norm = -1
             expectation = pytest.raises(
                 ValueError, match="max_norm must be non-negative"
             )
         with expectation:
-            po.tools.sample_brownian_bridge(
-                einstein_img, curie_img, n_steps, max_norm
-            )
+            po.tools.sample_brownian_bridge(einstein_img, curie_img, n_steps, max_norm)
 
     @pytest.mark.parametrize("n_steps", [1, 10])
     @pytest.mark.parametrize("multichannel", [False, True])
-    def test_straight_line(
-        self, einstein_img, curie_img, n_steps, multichannel
-    ):
+    def test_straight_line(self, einstein_img, curie_img, n_steps, multichannel):
         if multichannel:
             einstein_img = einstein_img.repeat(1, 3, 1, 1)
             curie_img = curie_img.repeat(1, 3, 1, 1)
@@ -117,9 +108,7 @@ class TestSequences(object):
             )
         elif fail == "n_steps":
             n_steps = 0
-            expectation = pytest.raises(
-                ValueError, match="n_steps must be positive"
-            )
+            expectation = pytest.raises(ValueError, match="n_steps must be positive")
         with expectation:
             po.tools.make_straight_line(einstein_img, curie_img, n_steps)
 
@@ -127,9 +116,7 @@ class TestSequences(object):
     @pytest.mark.parametrize("multichannel", [False, True])
     def test_translation_sequence(self, einstein_img, n_steps, multichannel):
         if n_steps == 0:
-            expectation = pytest.raises(
-                ValueError, match="n_steps must be positive"
-            )
+            expectation = pytest.raises(ValueError, match="n_steps must be positive")
         else:
             expectation = does_not_raise()
         if multichannel:
@@ -165,25 +152,18 @@ class TestSequences(object):
 
 
 class TestGeodesic(object):
-
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     @pytest.mark.parametrize("init", ["straight", "bridge"])
     @pytest.mark.parametrize("optimizer", [None, "SGD"])
     @pytest.mark.parametrize("n_steps", [5, 10])
-    def test_texture(
-        self, einstein_img_small, model, init, optimizer, n_steps
-    ):
+    def test_texture(self, einstein_img_small, model, init, optimizer, n_steps):
         sequence = po.tools.translation_sequence(einstein_img_small, n_steps)
-        moog = po.synth.Geodesic(
-            sequence[:1], sequence[-1:], model, n_steps, init
-        )
+        moog = po.synth.Geodesic(sequence[:1], sequence[-1:], model, n_steps, init)
         if optimizer == "SGD":
             optimizer = torch.optim.SGD([moog._geodesic], lr=0.01)
         moog.synthesize(max_iter=5, optimizer=optimizer)
         po.synth.geodesic.plot_loss(moog)
-        po.synth.geodesic.plot_deviation_from_line(
-            moog, natural_video=sequence
-        )
+        po.synth.geodesic.plot_deviation_from_line(moog, natural_video=sequence)
         moog.calculate_jerkiness()
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
@@ -257,17 +237,14 @@ class TestGeodesic(object):
                 init = "bridge"
                 expectation = pytest.raises(
                     ValueError,
-                    match=(
-                        "Saved and initialized initial_sequence are different"
-                    ),
+                    match=("Saved and initialized initial_sequence are different"),
                 )
             elif fail == "range_penalty":
                 range_penalty = 0.5
                 expectation = pytest.raises(
                     ValueError,
                     match=(
-                        "Saved and initialized range_penalty_lambda are"
-                        " different"
+                        "Saved and initialized range_penalty_lambda are" " different"
                     ),
                 )
             moog_copy = po.synth.Geodesic(
@@ -297,9 +274,7 @@ class TestGeodesic(object):
                 map_location=DEVICE,
             )
             for k in ["image_a", "image_b", "pixelfade", "geodesic"]:
-                if not getattr(moog, k).allclose(
-                    getattr(moog_copy, k), rtol=1e-2
-                ):
+                if not getattr(moog, k).allclose(getattr(moog_copy, k), rtol=1e-2):
                     raise ValueError(
                         "Something went wrong with saving and loading!"
                         f" {k} not the same"
@@ -307,14 +282,10 @@ class TestGeodesic(object):
             # check that can resume
             moog_copy.synthesize(max_iter=4)
 
-    @pytest.mark.skipif(
-        DEVICE.type == "cpu", reason="Only makes sense to test on cuda"
-    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, einstein_small_seq, model, tmp_path):
-        moog = po.synth.Geodesic(
-            einstein_small_seq[:1], einstein_small_seq[-1:], model
-        )
+        moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:], model)
         moog.synthesize(max_iter=4, store_progress=True)
         moog.save(op.join(tmp_path, "test_geodesic_map_location.pt"))
         # calling load with map_location effectively switches everything
@@ -333,9 +304,7 @@ class TestGeodesic(object):
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, einstein_small_seq, model, to_type):
-        moog = po.synth.Geodesic(
-            einstein_small_seq[:1], einstein_small_seq[-1:], model
-        )
+        moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:], model)
         moog.synthesize(max_iter=5)
         if to_type == "dtype":
             moog.to(torch.float16)
@@ -347,14 +316,10 @@ class TestGeodesic(object):
         moog.geodesic - moog.image_a
 
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
-    def test_change_precision_save_load(
-        self, einstein_small_seq, model, tmp_path
-    ):
+    def test_change_precision_save_load(self, einstein_small_seq, model, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
-        moog = po.synth.Geodesic(
-            einstein_small_seq[:1], einstein_small_seq[-1:], model
-        )
+        moog = po.synth.Geodesic(einstein_small_seq[:1], einstein_small_seq[-1:], model)
         moog.synthesize(max_iter=5)
         moog.to(torch.float64)
         assert moog.geodesic.dtype == torch.float64, "dtype incorrect!"
@@ -367,9 +332,7 @@ class TestGeodesic(object):
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
-    @pytest.mark.parametrize(
-        "model", ["ColorModel", "Identity"], indirect=True
-    )
+    @pytest.mark.parametrize("model", ["ColorModel", "Identity"], indirect=True)
     def test_multichannel(self, color_img, model):
         img = color_img[..., :64, :64]
         seq = po.tools.translation_sequence(img, 5)
@@ -381,9 +344,7 @@ class TestGeodesic(object):
         )
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
-    @pytest.mark.parametrize(
-        "func", ["objective_function", "calculate_jerkiness"]
-    )
+    @pytest.mark.parametrize("func", ["objective_function", "calculate_jerkiness"])
     def test_funcs_external_tensor(self, einstein_small_seq, model, func):
         moog = po.synth.Geodesic(
             einstein_small_seq[:1], einstein_small_seq[-1:], model, 5
@@ -414,9 +375,7 @@ class TestGeodesic(object):
         moog = po.synth.Geodesic(seq[:1], seq[-1:], model, 5)
         moog.synthesize(max_iter=5)
         moog.image_a[..., 0, 0] = torch.nan
-        with pytest.raises(
-            ValueError, match="Found a NaN in loss during optimization"
-        ):
+        with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             moog.synthesize(max_iter=1)
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
@@ -457,9 +416,7 @@ class TestGeodesic(object):
         moog = po.synth.Geodesic(
             einstein_small_seq[:1], einstein_small_seq[-1:], model, 5
         )
-        moog.synthesize(
-            max_iter=10, stop_criterion=0.06, stop_iters_to_check=1
-        )
+        moog.synthesize(max_iter=10, stop_criterion=0.06, stop_iters_to_check=1)
         assert (
             abs(moog.pixel_change_norm[-1:]) < 0.06
         ).all(), "Didn't stop when hit criterion!"
