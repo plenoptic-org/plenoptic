@@ -131,7 +131,7 @@ We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Pytho
 
 #### Using Ruff
 
-Ruff is a fast and comprehensive Python formatter and linter that checks for common style and code quality issues. It combines multiple tools, like Pyflakes, pycodestyle, isort, and other linting rules into one efficient tool, which are specified in `pyproject.toml`. Before submitting your code, make sure to run Ruff to catch any issues.
+Ruff is a fast and comprehensive Python formatter and linter that checks for common style and code quality issues. It combines multiple tools, like black, Pyflakes, pycodestyle, isort, and other linting rules into one efficient tool, which are specified in `pyproject.toml`. Before submitting your code, make sure to run Ruff to catch any issues. See other sections of this document for how to use `nox` and `pre-commit` to simplify this process.
 
 **Using Ruff for [Formatting](https://docs.astral.sh/ruff/formatter/#philosophy):**
 
