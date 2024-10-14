@@ -307,7 +307,7 @@ Sometimes, before opening a pull-request that will trigger the `.github/workflow
 integration workflow, you may want to test your changes over all the supported python versions locally.
 
 Handling multiple installed python versions on the same machine can be challenging and confusing.
-[`pyenv`](https://github.com/pyenv/pyenv) is a great tool that really comes to the rescue.
+[`pyenv`](https://github.com/pyenv/pyenv) is a great tool that really comes to the rescue. Note that `pyenv` just handles python versions --- virtual environments have to be handled separately, using [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv)!
 
 This tool doesn't come with the package dependencies and has to be installed separately. Installation instructions
 are system specific but the package readme is very details, see
