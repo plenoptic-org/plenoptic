@@ -87,7 +87,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
-src = ["src", "tests"]
+src = ["src", "tests", "examples"]
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
