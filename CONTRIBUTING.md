@@ -164,7 +164,7 @@ ruff --fix .
 Be careful with **unsafe fixes**, safe fixes are symbolized with the tools emoji and are listed [here](https://docs.astral.sh/ruff/rules/)!
 
 #### Ignoring Ruff Linting
-You may want to suppress lint errors, for example when too long lines (code `E501`) are desired because otherwise the url might not be readable anymore.
+In some cases, it may be acceptable to suppress lint errors, for example when too long lines (code `E501`) are desired because otherwise the url might not be readable anymore. These ignores will be evaluated on a case-by-case basis.
 You can do this by adding the following to the end of the line:
 
 ```bash
