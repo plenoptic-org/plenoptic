@@ -83,7 +83,6 @@ jobs:
     name: Upload release to Test PyPI
     needs: [build]
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
