@@ -194,8 +194,11 @@ Should you want to ignore pre-commit hooks, you can add `--no-verify` to your co
 git commit -m <my commit message> --no-verify
 ```
 
-All of the above only applies, if you have the pre-commit package manager installed using
-`pip install pre-commit`.
+In order to use pre-commit, you must install the `pre-commit` package into your development environment, and then install the hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
 
 ### Adding models or synthesis methods
 
