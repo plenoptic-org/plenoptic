@@ -300,6 +300,8 @@ nox -s coverage
 `nox` offers a variety of configuration options, you can learn more about it from their
 [documentation](https://nox.thea.codes/en/stable/config.html).
 
+Note that nox works particularly well with pyenv, discussed later in this file, which makes it easy to install the multiple python versions used in testing.
+
 #### Multi-python version testing with pyenv
 Sometimes, before opening a pull-request that will trigger the `.github/workflow/ci.yml` continuous
 integration workflow, you may want to test your changes over all the supported python versions locally.
