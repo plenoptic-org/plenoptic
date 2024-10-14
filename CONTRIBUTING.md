@@ -126,7 +126,7 @@ At this point, we will be notified of the pull request and will read it over. We
 
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
-### Code Quality and Linting
+### Code Style and Linting
 We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. To ensure your contributions meet these standards, please follow the guidelines below:
 
 #### Using Ruff
