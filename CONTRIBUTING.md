@@ -187,7 +187,7 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   complete docstrings, but they probably should.
 
 #### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
-Pre-commit hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where applicable (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit.
+Pre-commit hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
 
 Should you want to ignore pre-commit hooks, you can add `--no-verify` to your commit message like this:
 ```bash
