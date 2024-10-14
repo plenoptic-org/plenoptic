@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+import pathlib
+
 """Fetch data using pooch.
 
 This is inspired by scipy's datasets module.
@@ -57,8 +60,6 @@ REGISTRY_URLS = {
 }
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
-# ignore E402
-import pathlib  # noqa: E402
 
 try:
     import pooch
