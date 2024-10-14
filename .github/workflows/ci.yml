@@ -113,7 +113,7 @@ jobs:
       # messages and similar, so we don't want to check them.
     - name: strip notebook output
       run: |
-        pip install nbstripout
+        pipx install nbstripout
         nbstripout examples/*ipynb
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
