@@ -45,4 +45,4 @@ class NLP(torch.nn.Module):
         # vector, we need to flatten each of them and then unsqueeze so
         # it is 3d
 
-        return torch.cat([i.flatten() for i in activations])[None, None, :]
+        return torch.cat([i.flatten() for i in activations]).unsqueeze(0).unsqueeze(0)
