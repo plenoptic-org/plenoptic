@@ -355,9 +355,7 @@ If you want to run `nox` on multiple python versions, all you need to do is:
 
 Note that `noxfile.py` lists the available option as keyword arguments in a session specific manner.
 
-If you have multiple python version installed, we recommend to manage your virtual environments
-through `pyenv`. For that you'll need to install the extension
-[`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv).
+As mentioned earlier, if you have multiple python version installed, we recommend you manage your virtual environments through `pyenv` using the [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv) extension.
 
 This tool works with most of the environment managers including (`venv` and `conda`).
 Creating an environment with it is as simple as calling,
