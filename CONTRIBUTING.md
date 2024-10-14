@@ -147,7 +147,7 @@ ruff format path/to/file.py   # Format a single file.
 ```
 For the full list of supported options, run `ruff format --help`.
 
-**Using Ruff for [Linting](https://docs.astral.sh/ruff/linter/):**
+##### Using Ruff for Linting:
 
 To run Ruff on your code:
 ```bash
