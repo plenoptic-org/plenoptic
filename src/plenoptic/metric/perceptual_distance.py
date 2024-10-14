@@ -1,6 +1,6 @@
-import os
 import warnings
 from importlib import resources
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -384,8 +384,9 @@ def normalized_laplacian_pyramid(img):
     (_, channel, height, width) = img.size()
 
     N_scales = 6
-    spatialpooling_filters = np.load(os.path.join(DIRNAME, "DN_filts.npy"))
-    sigmas = np.load(os.path.join(DIRNAME, "DN_sigmas.npy"))
+    spatialpooling_filters = np.load(Path(DIRNAME) / "DN_filts.npy")
+
+    sigmas = np.load(Path(DIRNAME) / "DN_sigmas.npy")
 
     L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.forward(img)
@@ -448,9 +449,8 @@ def nlpd(img1, img2):
     References
     ----------
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
-    image quality assessment using a normalized Laplacian pyramid. Electronic Imaging,
-    2016(16), pp.1-6.
-    """
+        image quality assessment using a normalized Laplacian pyramid. Electronic
+        Imaging, 2016(16), pp.1-6."""
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
