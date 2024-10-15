@@ -96,14 +96,14 @@ Synthesis methods
 
 - `Metamers <tutorials/intro/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
-  that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). 
+  that of the reference image (a "metamer", as originally defined in the literature on Trichromacy).
   This method makes explicit those features that the model retains/discards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
     [Feather2019]_, [Wallis2019]_, [Ziemba2021]_
 - `Eigendistortions <tutorials/intro/02_Eigendistortions.nblink>`_: given a model and a
-  reference image, compute the image perturbations that produce the smallest/largest 
-  change in the model response space. These are the 
+  reference image, compute the image perturbations that produce the smallest/largest
+  change in the model response space. These are the
   image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
