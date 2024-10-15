@@ -89,10 +89,8 @@ class LinearNonlinear(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [
-                31,
-                (31, 31),
-            ], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
                 warn(
                     "pretrained is True but cache_filt is False. Set cache_filt to "
@@ -208,10 +206,8 @@ class LuminanceGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [
-                31,
-                (31, 31),
-            ], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
                 warn(
                     "pretrained is True but cache_filt is False. Set cache_filt to "
@@ -360,10 +356,8 @@ class LuminanceContrastGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [
-                31,
-                (31, 31),
-            ], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
                 warn(
                     "pretrained is True but cache_filt is False. Set cache_filt to "
@@ -511,10 +505,8 @@ class OnOff(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [
-                31,
-                (31, 31),
-            ], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
                 warn(
                     "pretrained is True but cache_filt is False. Set"
