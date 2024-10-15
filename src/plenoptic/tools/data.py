@@ -1,5 +1,6 @@
 import pathlib
 import warnings
+from contextlib import suppress
 
 import imageio
 import numpy as np
@@ -44,11 +45,8 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     Converted tensor as `numpy.ndarray` on CPU.
     """
 
-    try:
+    with suppress(AttributeError):
         x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
-    except AttributeError:
-        # in this case, it's already a numpy array
-        pass
     if squeeze:
         x = x.squeeze()
     return x

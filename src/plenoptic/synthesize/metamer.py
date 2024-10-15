@@ -4,6 +4,7 @@ import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Literal
 
 import matplotlib as mpl
@@ -15,11 +16,7 @@ from tqdm.auto import tqdm
 
 from ..tools import data, display, optim, signal
 from ..tools.convergence import coarse_to_fine_enough, loss_convergence
-from ..tools.validate import (
-    validate_coarse_to_fine,
-    validate_input,
-    validate_model,
-)
+from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
 
@@ -1033,11 +1030,10 @@ def plot_loss(
     if ax is None:
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
-    try:
+
+    with suppress(IndexError):
         ax.scatter(loss_idx, metamer.losses[loss_idx], c="r")
-    except IndexError:
-        # then there's no loss here
-        pass
+
     ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
 
