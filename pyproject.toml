@@ -153,6 +153,4 @@ select = [
     # isort
     "I",
 ]
-ignore = ["SIM105"]
-
-convention = "numpy"
+ignore = []
