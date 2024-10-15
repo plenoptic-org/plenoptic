@@ -1,4 +1,3 @@
-# ignore F401
 # ruff: noqa: F401
 
 from .classes import NLP

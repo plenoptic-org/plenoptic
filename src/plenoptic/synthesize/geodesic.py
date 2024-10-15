@@ -308,8 +308,8 @@ class Geodesic(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``(self.pixel_change_norm[-stop_iters_to_check:] < s
-         |        |       top_criterion).all()``?
+         | '---->Is ``(self.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all()``?
+         |        |
          |      no |
          |       | yes
          <-------' |
@@ -331,7 +331,7 @@ class Geodesic(OptimizedSynthesis):
         loss_stabilized :
             Whether the pixel change norm has stabilized or not.
 
-        """
+        """  # noqa: E501
         return pixel_change_convergence(self, stop_criterion, stop_iters_to_check)
 
     def calculate_jerkiness(self, geodesic: Tensor | None = None) -> Tensor:

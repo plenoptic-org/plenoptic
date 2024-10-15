@@ -1,4 +1,4 @@
-# ignore F401 (unused import)
+# ignore unused imports
 # ruff: noqa: F401
 from .eigendistortion import Eigendistortion
 from .geodesic import Geodesic

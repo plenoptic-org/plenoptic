@@ -366,7 +366,7 @@ class MADCompetition(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is abs(synth.loss[-1] - synth.loss[-stop_iters_to_check]) < stop_crit?
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
          |      no |
          |       | yes
          <-------' |
@@ -388,7 +388,7 @@ class MADCompetition(OptimizedSynthesis):
         loss_stabilized :
             Whether the loss has stabilized or not.
 
-        """
+        """  # noqa: E501
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _initialize_optimizer(self, optimizer, scheduler):

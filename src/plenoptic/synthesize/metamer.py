@@ -295,7 +295,7 @@ class Metamer(OptimizedSynthesis):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '----> Is the change in loss < stop_criterion over ``stop_iters_to_check``?
+         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
          |      no |
          |       | yes
          <-------' |
@@ -317,7 +317,7 @@ class Metamer(OptimizedSynthesis):
         loss_stabilized :
             Whether the loss has stabilized or not.
 
-        """
+        """  # noqa: E501
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _initialize_optimizer(
@@ -888,10 +888,10 @@ class MetamerCTF(Metamer):
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is the change in loss < stop_criterion over ``stop_iters_to_check``?
+         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
          |      no |
          |       | yes
-         |-------' '---->Are all scales synthesized for `ctf_iters_to_check` iterations?
+         |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
          |              no  |
          |               |  yes
          |---------------'  '----> return ``True``
@@ -921,7 +921,7 @@ class MetamerCTF(Metamer):
         loss_stabilized :
             Whether the loss has stabilized and we've synthesized all scales.
 
-        """
+        """  # noqa: E501
         loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
         return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
 
