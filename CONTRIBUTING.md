@@ -127,7 +127,7 @@ At this point, we will be notified of the pull request and will read it over. We
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
 ### Code Style and Linting
-We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI and non-compliant code will not be merged! 
+We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI and non-compliant code will not be merged!
 
 #### Using Ruff
 
@@ -187,18 +187,22 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   complete docstrings, but they probably should.
 
 #### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
-Pre-commit hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
+[Pre-commit](https://pre-commit.com/) hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
 
-Should you want to ignore pre-commit hooks, you can add `--no-verify` to your commit message like this:
-```bash
-git commit -m <my commit message> --no-verify
-```
+Using pre-commit is optional. We use [pre-commit.ci](https://pre-commit.ci/) to run pre-commit as part of PRs (auto-fixing wherever possible), but it may simplify your life to integrate pre-commit into your workflow.
 
 In order to use pre-commit, you must install the `pre-commit` package into your development environment, and then install the hooks:
 
 ```bash
 pip install pre-commit
 pre-commit install
+```
+
+After installation, should you want to ignore pre-commit hooks for some reason, you can add `--no-verify` to your commit message like this:
+```bash
+git commit -m <my commit message> --no-verify
+```
+
 
 ### Adding models or synthesis methods
 
