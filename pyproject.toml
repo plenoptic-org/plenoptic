@@ -139,12 +139,11 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
-
 [tool.ruff.lint]
 select = [
     # pycodestyle
     "E",
-    # Pyflakes: basic static analzsis for common errors like undefined names
+    # Pyflakes: basic static analysis for common errors like undefined names
     # and missing imports.
     "F",
     # pyupgrade
