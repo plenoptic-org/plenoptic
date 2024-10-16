@@ -1,24 +1,24 @@
 # we do this to enable deterministic behavior on the gpu, see
 # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
 # details
-from collections import OrderedDict
-import einops
-from conftest import DEVICE, IMG_DIR
-import scipy.io as sio
-import pyrtools as pt
-from plenoptic.simulate.canonical_computations import (
-    gaussian1d,
-    circular_gaussian2d,
-)
-import plenoptic as po
-import torch
-import numpy as np
-import pytest
-import matplotlib.pyplot as plt
-from packaging import version
-from typing import Dict
 import os
+from collections import OrderedDict
 from contextlib import nullcontext as does_not_raise
+
+import einops
+import matplotlib.pyplot as plt
+import numpy as np
+import pyrtools as pt
+import pytest
+import scipy.io as sio
+import torch
+
+import plenoptic as po
+from conftest import DEVICE, IMG_DIR
+from plenoptic.simulate.canonical_computations import (
+    circular_gaussian2d,
+    gaussian1d,
+)
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -110,7 +110,7 @@ def test_validate_model(model):
     po.tools.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
 
 
-class TestNonLinearities(object):
+class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
         spc = po.simul.SteerablePyramidFreq(
             basic_stim.shape[-2:],
@@ -157,7 +157,7 @@ class TestNonLinearities(object):
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
 
-class TestLaplacianPyramid(object):
+class TestLaplacianPyramid:
     def test_grad(self, basic_stim):
         lpyr = po.simul.LaplacianPyramid().to(DEVICE)
         y = lpyr.forward(basic_stim)
@@ -263,7 +263,7 @@ class TestFrontEnd:
         ), "Kernels somehow different!"
 
 
-class TestNaive(object):
+class TestNaive:
     all_models = [
         "naive.Identity",
         "naive.Linear",
@@ -463,7 +463,7 @@ def convert_matlab_ps_rep_to_dict(
 
 def construct_normalizing_dict(
     plen_ps: po.simul.PortillaSimoncelli, img: torch.Tensor
-) -> Dict[str, torch.Tensor]:
+) -> dict[str, torch.Tensor]:
     """Construct dictionary to normalize covariances in PS representation.
 
     The matlab code computes covariances instead of correlations for the
@@ -605,7 +605,7 @@ def remove_redundant_and_normalize(
     return plen_ps.convert_to_tensor(matlab_rep)
 
 
-class TestPortillaSimoncelli(object):
+class TestPortillaSimoncelli:
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))

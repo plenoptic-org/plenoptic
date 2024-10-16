@@ -1,17 +1,18 @@
-import plenoptic.synthesize.autodiff as autodiff
-from plenoptic.tools import set_seed, remove_grad
+import os.path as op
+
+import matplotlib.pyplot as plt
 import pytest
 import torch
 from torch import nn
-from plenoptic.simulate import OnOff, Gaussian
-from plenoptic.tools import remove_grad
+
+import plenoptic.synthesize.autodiff as autodiff
+from conftest import DEVICE, get_model
+from plenoptic.simulate import Gaussian, OnOff
 from plenoptic.synthesize.eigendistortion import (
     Eigendistortion,
     display_eigendistortion,
 )
-from conftest import get_model, DEVICE
-import matplotlib.pyplot as plt
-import os.path as op
+from plenoptic.tools import remove_grad, set_seed
 
 # to be used for default model instantiation
 SMALL_DIM = 20

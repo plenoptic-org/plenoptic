@@ -1,13 +1,15 @@
-import plenoptic as po
-import numpy as np
 import os.path as op
-import pytest
-import torch
-from conftest import DEVICE
 from contextlib import nullcontext as does_not_raise
 
+import numpy as np
+import pytest
+import torch
 
-class TestSequences(object):
+import plenoptic as po
+from conftest import DEVICE
+
+
+class TestSequences:
     def test_deviation_from_line_and_brownian_bridge(self):
         """this probabilistic test passes with high probability
         in high dimensions, but for reproducibility we
@@ -151,7 +153,7 @@ class TestSequences(object):
         assert seq[0].device == einstein_img.device, f"{func} changed device!"
 
 
-class TestGeodesic(object):
+class TestGeodesic:
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     @pytest.mark.parametrize("init", ["straight", "bridge"])
     @pytest.mark.parametrize("optimizer", [None, "SGD"])

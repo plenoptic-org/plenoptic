@@ -5,11 +5,13 @@ import matplotlib as mpl
 # use the html backend, so we don't need to have ffmpeg
 mpl.rcParams["animation.writer"] = "html"
 mpl.use("agg")
-import pytest
-import plenoptic as po
-import torch
 import os.path as op
+
 import numpy as np
+import pytest
+import torch
+
+import plenoptic as po
 from conftest import DEVICE
 
 
@@ -46,7 +48,7 @@ class NonModuleMetric:
         return (x - y).abs().sum()
 
 
-class TestMAD(object):
+class TestMAD:
     @pytest.mark.parametrize("target", ["min", "max"])
     @pytest.mark.parametrize("model_order", ["mse-ssim", "ssim-mse"])
     @pytest.mark.parametrize("store_progress", [False, True, 2])

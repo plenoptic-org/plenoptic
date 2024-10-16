@@ -1,13 +1,14 @@
-import os.path as op
 from contextlib import nullcontext as does_not_raise
-import torch
-import plenoptic as po
-import pytest
-import pyrtools as pt
-import numpy as np
 from itertools import product
-from plenoptic.tools.data import to_numpy
+
+import numpy as np
+import pyrtools as pt
+import pytest
+import torch
+
+import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.tools.data import to_numpy
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
@@ -79,7 +80,7 @@ def check_parseval(im, coeff, rtol=1e-4, atol=0):
     np.testing.assert_allclose(total_band_energy, im_energy, rtol=rtol, atol=atol)
 
 
-class TestSteerablePyramid(object):
+class TestSteerablePyramid:
     @pytest.fixture(
         scope="class",
         params=[

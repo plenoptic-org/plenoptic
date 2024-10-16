@@ -1,8 +1,10 @@
-import pytest
 import os
+
+import numpy as np
+import pytest
 import scipy.io as sio
 import torch
-import numpy as np
+
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
 
@@ -52,7 +54,7 @@ def test_load_images(paths, as_gray):
         assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
 
-class TestPerceptualMetrics(object):
+class TestPerceptualMetrics:
     @pytest.mark.parametrize("weighted", [True, False])
     def test_ssim_grad(self, einstein_img, curie_img, weighted):
         curie_img.requires_grad_()

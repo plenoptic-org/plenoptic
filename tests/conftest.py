@@ -1,6 +1,7 @@
 import pytest
-import plenoptic as po
 import torch
+
+import plenoptic as po
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 IMG_DIR = po.data.fetch_data("test_images.tar.gz")

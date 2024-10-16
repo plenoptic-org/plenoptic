@@ -1,16 +1,18 @@
+from contextlib import nullcontext as does_not_raise
 from math import pi
-import numpy as np
-import scipy.ndimage
-import plenoptic as po
-import pytest
+
 import einops
+import numpy as np
+import pytest
+import scipy.ndimage
 import torch
 from numpy.random import randint
-from contextlib import nullcontext as does_not_raise
+
+import plenoptic as po
 from conftest import DEVICE, IMG_DIR
 
 
-class TestData(object):
+class TestData:
     def test_load_images_fail(self):
         with pytest.raises(ValueError, match="All images must be the same shape"):
             po.load_images(
@@ -21,7 +23,7 @@ class TestData(object):
             )
 
 
-class TestSignal(object):
+class TestSignal:
     def test_polar_amplitude_zero(self):
         a = torch.rand(10, device=DEVICE) * -1
         b = po.tools.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
@@ -228,7 +230,7 @@ class TestSignal(object):
         np.testing.assert_array_equal(a, a.roll(1, 0))
 
 
-class TestStats(object):
+class TestStats:
     def test_stats(self):
         torch.manual_seed(0)
         B, D = 32, 512
@@ -274,7 +276,7 @@ class TestStats(object):
         np.testing.assert_equal(kurt.shape, batch_channel)
 
 
-class TestDownsampleUpsample(object):
+class TestDownsampleUpsample:
     @pytest.mark.parametrize("odd", [0, 1])
     @pytest.mark.parametrize("size", [9, 10, 11, 12])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
@@ -315,7 +317,7 @@ class TestDownsampleUpsample(object):
         assert img_up.shape == img.shape
 
 
-class TestValidate(object):
+class TestValidate:
     # https://docs.pytest.org/en/4.6.x/example/parametrize.html#parametrizing-conditional-raising
     @pytest.mark.parametrize(
         "shape,expectation",
@@ -557,7 +559,7 @@ class TestValidate(object):
         po.tools.validate.validate_model(model, device=DEVICE)
 
 
-class TestOptim(object):
+class TestOptim:
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2

@@ -5,16 +5,17 @@ import matplotlib as mpl
 # use the html backend, so we don't need to have ffmpeg
 mpl.rcParams["animation.writer"] = "html"
 mpl.use("agg")
-import pytest
 import matplotlib.pyplot as plt
-import plenoptic as po
-import torch
 import numpy as np
 import pyrtools as pt
+import pytest
+import torch
+
+import plenoptic as po
 from conftest import DEVICE, IMG_DIR
 
 
-class TestDisplay(object):
+class TestDisplay:
     def test_update_plot_line(self):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
@@ -645,7 +646,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
     if "-" in fig_creation:
         axes_idx["misc"] = [1, 4]
-    if not fig_creation.split("-")[-1] in ["without"]:
+    if fig_creation.split("-")[-1] not in ["without"]:
         axes_idx.update({"plot_loss": 6, "plot_pixel_values": 7})
     if func == "plot" or fig_creation.endswith("preplot"):
         fig, axes_idx = containing_file.plot_synthesis_status(
@@ -667,7 +668,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
         plt.close("all")
 
 
-class TestMADDisplay(object):
+class TestMADDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_mad(self, request):
         # make the images really small so nothing takes as long
@@ -787,7 +788,7 @@ class TestMADDisplay(object):
             func(synthesized_mad, **kwargs)
 
 
-class TestMetamerDisplay(object):
+class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_met(self, request):
         img = request.param

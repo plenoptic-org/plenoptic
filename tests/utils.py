@@ -1,16 +1,17 @@
 """Helper functions for testing."""
 
-import torch
-import re
-import plenoptic as po
-import pyrtools as pt
-import numpy as np
-from test_models import TestPortillaSimoncelli
-from typing import Optional
 import pathlib
+import re
+
+import numpy as np
+import pyrtools as pt
+import torch
+
+import plenoptic as po
+from test_models import TestPortillaSimoncelli
 
 
-def update_ps_synthesis_test_file(torch_version: Optional[str] = None):
+def update_ps_synthesis_test_file(torch_version: str | None = None):
     """Create new test file for test_models.test_ps_synthesis().
 
     We cannot guarantee perfect reproducibility across pytorch versions, but we

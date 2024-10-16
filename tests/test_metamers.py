@@ -4,10 +4,12 @@ import matplotlib
 
 matplotlib.use("agg")
 import os.path as op
+
 import numpy as np
-import torch
-import plenoptic as po
 import pytest
+import torch
+
+import plenoptic as po
 from conftest import DEVICE
 
 
@@ -17,7 +19,7 @@ def custom_loss(x1, x2):
     return (x1 - x2).sum()
 
 
-class TestMetamers(object):
+class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
