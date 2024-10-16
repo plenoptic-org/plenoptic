@@ -116,8 +116,10 @@ def update_ps_torch_output(save_dir):
                     )
                     np.save(fname, output)
     print(
-        f"All outputs have been saved in directory {save_dir}, now go to {save_dir.parent} "
-        f"and run `tar czf {save_dir.name} --directory={save_dir.with_suffix('.tar.gz').name}/ .`"
+        f"All outputs have been saved in directory {save_dir},"
+        + f"now go to {save_dir.parent} "
+        f"and run `tar czf {save_dir.name}"
+        + f" --directory={save_dir.with_suffix('.tar.gz').name}/ .`"
     )
 
 

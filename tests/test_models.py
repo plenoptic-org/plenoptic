@@ -181,10 +181,11 @@ class TestLaplacianPyramid:
         for x_po, x_pt in zip(y_po, y_pt):
             x_po = x_po.squeeze().detach().cpu().numpy()
             assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
-            # The pyrtools implementation `pt.upConv performs`` padding after upsampling.
-            # Our implementation `po.tools.upsample_convolve`` performs padding before upsampling,
-            # and, depending on the parity of the image, sometimes performs additional zero padding
-            # after upsampling up to one row/column. This causes inconsistency on the right and
+            # The pyrtools implementation `pt.upConv performs`` padding after
+            # upsampling. Our implementation `po.tools.upsample_convolve``
+            # performs padding before upsampling, and, depending on the parity of
+            # the image, sometimes performs additional zero padding after upsampling
+            # up to one row/column. This causes inconsistency on the right and
             # bottom edges, so they are exluded in the comparison.
 
 
@@ -512,7 +513,8 @@ def remove_redundant_and_normalize(
     plen_ps: po.simul.PortillaSimoncelli,
     normalizing_dict: dict,
 ) -> torch.Tensor:
-    """Remove redundant stats from dictionary of representation, and normalize correlations
+    """Remove redundant stats from dictionary of representation, and normalize
+    correlations
 
     Redundant stats fall in two categories: those that are not included at all
     anymore (e.g., magnitude means, extra zero placeholders), and those that
@@ -621,7 +623,8 @@ class TestPortillaSimoncelli:
         ).to(DEVICE)
         ps(einstein_img)
 
-    # tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    # tests for whether output matches the original matlab output.  This implicitly
+    # tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])

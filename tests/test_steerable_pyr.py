@@ -165,7 +165,8 @@ class TestSteerablePyramid:
         pyr.to(DEVICE)
         return pyr
 
-    # can't use one of the spyr fixtures here because we need to instantiate separately for each of these shapes
+    # can't use one of the spyr fixtures here because we need to instantiate separately
+    # for each of these shapes
     @pytest.mark.parametrize("height", ["auto", 1, 3, 4, 5])
     @pytest.mark.parametrize("order", [1, 2, 3])
     @pytest.mark.parametrize("is_complex", [True, False])
