@@ -410,14 +410,14 @@ def matched_light():
             "linewidth": plt.rcParams["lines.linewidth"],
         },
     ]
-    for name, wts, sty in zip(
-        ["Random light", "Matched light"],
-        [random_light_weights, matched_light_weights],
-        styles,
-    ):
-        offset = width * multiplier
+
+    labels = ["Random light", "Matched light"]
+    weights = [random_light_weights, matched_light_weights]
+
+    for i, (name, wts, sty) in enumerate(zip(labels, weights, styles)):
+        offset = width * (multiplier + i)
         axes[1].bar(x + offset, wts, label=name, width=width, **sty)
-        multiplier += 1
+
     axes[1].set(
         xlabel="Cone class",
         ylabel="Cone response (arbitrary units)",
