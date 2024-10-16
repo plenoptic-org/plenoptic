@@ -732,9 +732,12 @@ class TestMADDisplay:
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         img = img[..., :16, :16]
         model1 = po.metric.mse
+
         # MAD requires metrics are *dis*-similarity metrics, so that they
         # return 0 if two images are identical (SSIM normally returns 1)
-        model2 = lambda *args: 1 - po.metric.ssim(*args).mean()
+        def model2(*args):
+            return 1 - po.metric.ssim(*args).mean()
+
         mad = po.synth.MADCompetition(img, model1, model2, "min")
         mad.synthesize(max_iter=2)
         mad2 = po.synth.MADCompetition(img, model1, model2, "max")
