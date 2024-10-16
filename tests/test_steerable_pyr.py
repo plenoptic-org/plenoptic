@@ -22,7 +22,7 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     Both coeffs must obviously have the same number of scales, orientations etc.
     """
 
-    for k in coeff_1.keys():
+    for k in coeff_1:
         if torch.is_tensor(coeff_1[k]):
             coeff_1_np = to_numpy(coeff_1[k].squeeze())
         else:
@@ -273,7 +273,7 @@ class TestSteerablePyramid:
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in torch_spc.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in torch_spc if isinstance(k[0], int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -337,7 +337,7 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -365,7 +365,7 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
