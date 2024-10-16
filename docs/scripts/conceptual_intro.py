@@ -395,7 +395,6 @@ def matched_light():
     matched_light_weights = CONES_MATRIX @ matched_light
     x = np.arange(len(random_light_weights))
     # from https://matplotlib.org/stable/gallery/lines_bars_and_markers/barchart.html
-    multiplier = 0
     width = 0.4
     styles = [
         {
@@ -414,8 +413,8 @@ def matched_light():
     labels = ["Random light", "Matched light"]
     weights = [random_light_weights, matched_light_weights]
 
-    for i, (name, wts, sty) in enumerate(zip(labels, weights, styles)):
-        offset = width * (multiplier + i)
+    for multiplier, (name, wts, sty) in enumerate(zip(labels, weights, styles)):
+        offset = width * multiplier
         axes[1].bar(x + offset, wts, label=name, width=width, **sty)
 
     axes[1].set(
