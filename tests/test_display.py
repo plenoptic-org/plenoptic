@@ -1,10 +1,6 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
 import matplotlib as mpl
-
-# use the html backend, so we don't need to have ffmpeg
-mpl.rcParams["animation.writer"] = "html"
-mpl.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
@@ -13,6 +9,10 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+
+# use the html backend, so we don't need to have ffmpeg
+mpl.rcParams["animation.writer"] = "html"
+mpl.use("agg")
 
 
 class TestDisplay:
@@ -45,20 +45,16 @@ class TestDisplay:
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
-            if how == "tensor":
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
+            y_check = y2[0, i] if how == "tensor" else y2[i]
+
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update line correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
-        if how == "dict-single":
-            n_data = 1
-        else:
-            n_data = 2
+        n_data = 1 if how == "dict-single" else 2
+
         x = np.linspace(0, 100)
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
@@ -114,20 +110,16 @@ class TestDisplay:
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
-            if how == "tensor":
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
+            y_check = y2[0, i] if how == "tensor" else y2[i]
+
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update stem correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_stem_multi_channel(self, how):
-        if how == "dict-single":
-            n_data = 1
-        else:
-            n_data = 2
+        n_data = 1 if how == "dict-single" else 2
+
         x = np.linspace(0, 100)
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
@@ -181,10 +173,9 @@ class TestDisplay:
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
-            if how == "tensor":
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
+
+            y_check = y2[0, i] if how == "tensor" else y2[i]
+
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update image correctly!")
         plt.close("all")
@@ -230,20 +221,15 @@ class TestDisplay:
         for i, ax in enumerate(axes):
             assert len(ax.collections) == 1, "Too many scatter plots created"
             ax_data = ax.collections[0].get_offsets()
-            if how == "tensor":
-                data_check = data[0, i]
-            else:
-                data_check = data[i]
+            data_check = data[0, i] if how == "tensor" else data[i]
+
             if not np.allclose(ax_data, data_check):
                 raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close("all")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_scatter_multi_channel(self, how):
-        if how == "dict-single":
-            n_data = 1
-        else:
-            n_data = 2
+        n_data = 1 if how == "dict-single" else 2
         x1 = np.random.rand(2, 100)
         x2 = np.random.rand(n_data, 100)
         y1 = np.random.rand(*x1.shape)

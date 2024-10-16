@@ -123,7 +123,7 @@ class TestNonLinearities:
         y_hat = po.simul.non_linearities.polar_to_rectangular_dict(
             energy, state, residuals=True
         )
-        for key in y.keys():
+        for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
@@ -149,7 +149,7 @@ class TestNonLinearities:
         y_hat = po.simul.non_linearities.local_gain_release_dict(
             energy, state, residuals=True
         )
-        for key in y.keys():
+        for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
@@ -1060,10 +1060,8 @@ class TestPortillaSimoncelli:
                         # need to change where we index into depending on
                         # whether spatial_corr_width (and thus the shape of
                         # val) is even or odd
-                        if not spatial_corr_width % 2:
-                            offset = 0
-                        else:
-                            offset = 1
+                        offset = 0 if not spatial_corr_width % 2 else 1
+
                         mask_vals.append(val[-(i[0] + offset), -(i[1] + offset)])
                 else:
                     raise ValueError(f"stat {k} unexpectedly has redundant values!")

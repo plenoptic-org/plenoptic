@@ -141,10 +141,8 @@ class TestEigendistortionSynthesis:
     @pytest.mark.parametrize("k", [2, 3])
     def test_display(self, model, einstein_img, color_img, method, k):
         # in this case, we're working with grayscale images
-        if model.__class__ == OnOff:
-            img = einstein_img
-        else:
-            img = color_img
+        img = einstein_img if model.__class__ == OnOff else color_img
+
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = Eigendistortion(img, model)
         eigendist.synthesize(k=k, method=method, max_iter=10)

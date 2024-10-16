@@ -213,7 +213,7 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
         # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
         spyr_not_downsample = po.simul.SteerablePyramidFreq(
@@ -250,10 +250,8 @@ class TestSteerablePyramid:
     )
     def test_pyr_to_tensor(self, img, spyr, scales, rtol=1e-12, atol=1e-12):
         pyr_coeff_dict = spyr.forward(img, scales=scales)
-        if spyr.is_complex:
-            split_complex = [True, False]
-        else:
-            split_complex = [False]
+        split_complex = [True, False] if spyr.is_complex else [False]
+
         for val in split_complex:
             pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
                 pyr_coeff_dict, split_complex=val
