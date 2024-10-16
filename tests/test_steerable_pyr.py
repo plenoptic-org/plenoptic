@@ -1,4 +1,5 @@
 from contextlib import nullcontext as does_not_raise
+from contextlib import suppress
 from itertools import product
 
 import numpy as np
@@ -126,11 +127,9 @@ class TestSteerablePyramid:
     @pytest.fixture(scope="class")
     def spyr(self, img, request):
         height, order, is_complex, downsample, tightframe = request.param.split("-")
-        try:
+
+        with suppress(ValueError):
             height = int(height)
-        except ValueError:
-            # then height = 'auto', and that's fine
-            pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
         pyr = po.simul.SteerablePyramidFreq(
@@ -147,11 +146,9 @@ class TestSteerablePyramid:
     @pytest.fixture(scope="class")
     def spyr_multi(self, multichannel_img, request):
         height, order, is_complex, downsample, tightframe = request.param.split("-")
-        try:
+
+        with suppress(ValueError):
             height = int(height)
-        except ValueError:
-            # then height = 'auto', and that's fine
-            pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
         pyr = po.simul.SteerablePyramidFreq(
