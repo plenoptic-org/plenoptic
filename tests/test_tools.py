@@ -240,7 +240,6 @@ class TestStats:
         assert (
             torch.abs(v - torch.var(x, dim=1, keepdim=True, unbiased=False)) < 1e-5
         ).all()
-        s = po.tools.skew(x, mean=m, var=v, dim=1)
         k = po.tools.kurtosis(x, mean=m, var=v, dim=1)
         assert torch.abs(k.mean() - 3) < 1e-1
 
