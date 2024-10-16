@@ -197,8 +197,8 @@ class TestEigendistortionSynthesis:
             for k in ["image", "_representation_flat"]:
                 if not getattr(ed, k).allclose(getattr(ed_copy, k), rtol=1e-2):
                     raise ValueError(
-                        "Something went wrong with saving and loading! %s not"
-                        " the same" % k
+                        f"Something went wrong with saving and loading! {k} not"
+                        " the same"
                     )
             # check that can resume
             ed_copy.synthesize(max_iter=4, method=method)

@@ -115,8 +115,8 @@ class TestMetamers:
             ]:
                 if not getattr(met, k).allclose(getattr(met_copy, k), rtol=1e-2):
                     raise ValueError(
-                        "Something went wrong with saving and loading! %s not"
-                        " the same" % k
+                        f"Something went wrong with saving and loading! {k} not"
+                        " the same"
                     )
             # check loss functions correctly saved
             met_loss = met.loss_function(
@@ -197,8 +197,7 @@ class TestMetamers:
         ]:
             if not getattr(metamer, k) == (getattr(metamer_copy, k)):
                 raise ValueError(
-                    "Something went wrong with saving and loading! %s not the"
-                    " same" % k
+                    f"Something went wrong with saving and loading! {k} not the" " same"
                 )
         # check we can resume
         metamer.synthesize(
