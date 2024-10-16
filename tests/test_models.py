@@ -15,10 +15,7 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
-from plenoptic.simulate.canonical_computations import (
-    circular_gaussian2d,
-    gaussian1d,
-)
+from plenoptic.simulate.canonical_computations import circular_gaussian2d, gaussian1d
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -211,20 +208,20 @@ class TestFrontEnd:
         assert y.requires_grad
 
     def test_onoff(self):
-        mdl = po.simul.OnOff(7, pretrained=False).to(DEVICE)
+        po.simul.OnOff(7, pretrained=False).to(DEVICE)
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
     @pytest.mark.parametrize("cache_filt", [False, True])
     def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
-            with pytest.raises(AssertionError):
-                mdl = po.simul.OnOff(
-                    kernel_size, pretrained=True, cache_filt=cache_filt
-                ).to(DEVICE)
+            with pytest.raises(ValueError):
+                po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+                    DEVICE
+                )
         else:
-            mdl = po.simul.OnOff(
-                kernel_size, pretrained=True, cache_filt=cache_filt
-            ).to(DEVICE)
+            po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+                DEVICE
+            )
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_frontend_display_filters(self, model):
