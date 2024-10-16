@@ -296,11 +296,12 @@ class TestNaive:
     @pytest.mark.parametrize("mdl", ["naive.Gaussian", "naive.CenterSurround"])
     @pytest.mark.parametrize("cache_filt", [False, True])
     def test_cache_filt(self, cache_filt, mdl):
+        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
             model = po.simul.Gaussian((31, 31), 1.0, cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
             model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
-
+        model(img)  # forward pass should cache filt if True
         if cache_filt:
             assert model._filt is not None
         else:
