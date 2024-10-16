@@ -313,11 +313,11 @@ class TestNaive:
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
         if not isinstance(center_std, float) and len(center_std) != out_channels:
             with pytest.raises(AssertionError):
-                model = po.simul.CenterSurround(
+                po.simul.CenterSurround(
                     (31, 31), center_std=center_std, out_channels=out_channels
                 )
         else:
-            model = po.simul.CenterSurround(  # noqa: F841
+            po.simul.CenterSurround(
                 (31, 31), center_std=center_std, out_channels=out_channels
             )
 
