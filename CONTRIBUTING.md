@@ -168,11 +168,25 @@ In some cases, it may be acceptable to suppress lint errors, for example when to
 You can do this by adding the following to the end of the line:
 
 ```bash
-# noqa: E501
+This line is tooooooo long. # noqa: E501
 ```
-If you want to suppress an error across an entire file, do this:
+If you want to suppress an error across an entire file, do this at the top of the file:
 ```bash
 # ruff: noqa: E501
+Below is my python script
+...
+...
+And any line living in this file can be as long as it wants  ...
+...
+```
+
+
+In some cases, you want to not only suppress the error message a linter throws but actually _disable_ a linting rule. An example might be if the import order matters and running `isort` would mess with this.
+Then you can introduce an [action comment](https://pycqa.github.io/isort/docs/configuration/action_comments.html) like this such that isort does _not_ sort the following packages alphabetically:
+
+```bash
+import numpy as np # isort: skip
+import my_package as mp # isort: skip
 ```
 
 For more details, refer to the [documentation](https://docs.astral.sh/ruff/linter/#error-suppression).
@@ -198,7 +212,7 @@ pip install pre-commit
 pre-commit install
 ```
 
-After installation, should you want to ignore pre-commit hooks for some reason, you can add `--no-verify` to your commit message like this:
+After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting but don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
 ```bash
 git commit -m <my commit message> --no-verify
 ```
@@ -282,6 +296,25 @@ nox
 ```
 
 `nox` will read the configuration from the `noxfile.py` script.
+
+If you only want to run an individual session (e.g., lint or test), you can first check which sessions are available with the following command:
+
+```bash
+nox -l
+```
+or
+```bash
+nox -list
+```
+
+Then you can use
+
+```bash
+nox -s <your_nox_session>
+```
+to run the session of your choice.
+
+Here are some examples:
 
 If you want to run just the tests, add the following option,
 
