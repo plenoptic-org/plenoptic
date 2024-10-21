@@ -1,10 +1,10 @@
 """Synthesize model metamers."""
 
+import contextlib
 import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
-from contextlib import suppress
 from typing import Literal
 
 import matplotlib as mpl
@@ -1031,7 +1031,8 @@ def plot_loss(
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
 
-    with suppress(IndexError):
+    with contextlib.suppress(IndexError):
+        # then there's no loss to plot
         ax.scatter(loss_idx, metamer.losses[loss_idx], c="r")
 
     ax.set(xlabel="Synthesis iteration", ylabel="Loss")
