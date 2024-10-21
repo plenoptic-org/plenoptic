@@ -4,8 +4,10 @@ from torch import Tensor
 import plenoptic as po
 
 
-@pytest.mark.parametrize("item_name", [img for img in dir(po.data)
-                                       if img not in ['fetch_data', 'DOWNLOADABLE_FILES']])
+@pytest.mark.parametrize(
+    "item_name",
+    [img for img in dir(po.data) if img not in ["fetch_data", "DOWNLOADABLE_FILES"]],
+)
 def test_data_module(item_name):
     """Test that data module works."""
     assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
@@ -19,7 +21,7 @@ def test_data_module(item_name):
         ("curie", (1, 1, 256, 256)),
         ("einstein", (1, 1, 256, 256)),
         ("reptile_skin", (1, 1, 256, 256)),
-    ]
+    ],
 )
 def test_data_get_shape(item_name, img_shape):
     """Check if the shape of the retrieved image matches the expected dimensions."""

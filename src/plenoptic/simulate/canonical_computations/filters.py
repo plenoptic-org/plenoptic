@@ -1,12 +1,10 @@
-from typing import Union, Tuple
-
 import torch
 from torch import Tensor
 
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
-def gaussian1d(kernel_size: int = 11, std: Union[int, float, Tensor] = 1.5) -> Tensor:
+def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
     """Normalized 1D Gaussian.
 
     1d Gaussian of size `kernel_size`, centered half-way, with variable std
@@ -40,14 +38,14 @@ def gaussian1d(kernel_size: int = 11, std: Union[int, float, Tensor] = 1.5) -> T
 
     x = torch.arange(kernel_size).to(device)
     mu = kernel_size // 2
-    gauss = torch.exp(-((x - mu) ** 2) / (2 * std ** 2))
+    gauss = torch.exp(-((x - mu) ** 2) / (2 * std**2))
     filt = gauss / gauss.sum()  # normalize
     return filt
 
 
 def circular_gaussian2d(
-    kernel_size: Union[int, Tuple[int, int]],
-    std: Union[float, Tensor],
+    kernel_size: int | tuple[int, int],
+    std: float | Tensor,
     out_channels: int = 1,
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
@@ -67,10 +65,7 @@ def circular_gaussian2d(
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
         `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
     """
-    if isinstance(std, float):
-        device = torch.device("cpu")
-    else:
-        device = std.device
+    device = torch.device("cpu") if isinstance(std, float) else std.device
 
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -88,9 +83,9 @@ def circular_gaussian2d(
 
     (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
 
-    log_filt = ((xramp ** 2) + (yramp ** 2))
+    log_filt = (xramp**2) + (yramp**2)
     log_filt = log_filt.repeat(out_channels, 1, 1, 1)  # 4D
-    log_filt = log_filt / (-2. * std ** 2).view(out_channels, 1, 1, 1)
+    log_filt = log_filt / (-2.0 * std**2).view(out_channels, 1, 1, 1)
 
     filt = torch.exp(log_filt)
     filt = filt / torch.sum(filt, dim=[1, 2, 3], keepdim=True)  # normalize

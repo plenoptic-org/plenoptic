@@ -69,14 +69,14 @@ only use three numbers, often called RGB (red, green, and blue) --- why can we
 get away with throwing away so much information? Trichromacy and color metamers
 can help explain.
 
-Researchers studying color perception arrived at a standard procedure -- the bipartite color-matching experiment -- for 
+Researchers studying color perception arrived at a standard procedure -- the bipartite color-matching experiment -- for
 constraining a model for trichromatic metamers, illustrated in :numref:`trichromacy`. An observer matches a monochromatic test
 color (i.e., a light with energy at only a single wavelength) with the physical
 mixture of three different monochromatic stimuli, called **primaries**. Thus,
-the goal is to create two perceptually-indistinguishable stimuli (**metamers**). 
+the goal is to create two perceptually-indistinguishable stimuli (**metamers**).
 Perhaps surprisingly, not only is this possible for any test
 color, it is also possible for just about any selection of primaries (as long as they're within the
-visible light spectrum and sufficiently different from each other). For most human observers, three 
+visible light spectrum and sufficiently different from each other). For most human observers, three
 primaries are required: there are many colors that cannot be matched with only two primaries, and four yields non-unique responses.
 However, there are some people, for whom two primaries are sufficient.
 
@@ -87,9 +87,9 @@ However, there are some people, for whom two primaries are sufficient.
 
    Color matching experiment
 
-Requiring three primaries for most people, but two for some provided a hint regarding the underlying mechanisms: 
+Requiring three primaries for most people, but two for some provided a hint regarding the underlying mechanisms:
 most people have cone photorecpetors from three distinct classes (generally
-referred to as S, M, and L, for "short", "medium", and "long").  But some forms of color blindness arise from genetic 
+referred to as S, M, and L, for "short", "medium", and "long").  But some forms of color blindness arise from genetic
 deviations in which only two classes are represented. Color metamers are created when cone
 responses have been matched. Human cones transform colors from a
 high-dimensional space (i.e., a vector describing the energy at each wavelength)

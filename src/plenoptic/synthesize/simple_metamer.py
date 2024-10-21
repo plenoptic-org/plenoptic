@@ -1,15 +1,17 @@
-"""Simple Metamer Class
-"""
+"""Simple Metamer Class"""
+
 import torch
-from tqdm.auto import tqdm
-from .synthesis import Synthesis
-from ..tools.validate import validate_input, validate_model
-from ..tools import optim
-from typing import Union
 from deprecated.sphinx import deprecated
+from tqdm.auto import tqdm
+
+from ..tools import optim
+from ..tools.validate import validate_input, validate_model
+from .synthesis import Synthesis
 
 
-@deprecated("Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.1.0")
+@deprecated(
+    "Use :py:class:`plenoptic.synthesize.metamer.Metamer` instead", version="1.1.0"
+)
 class SimpleMetamer(Synthesis):
     r"""Simple version of metamer synthesis.
 
@@ -34,8 +36,12 @@ class SimpleMetamer(Synthesis):
     """
 
     def __init__(self, image: torch.Tensor, model: torch.nn.Module):
-        validate_model(model, image_shape=image.shape, image_dtype=image.dtype,
-                       device=image.device)
+        validate_model(
+            model,
+            image_shape=image.shape,
+            image_dtype=image.dtype,
+            device=image.device,
+        )
         self.model = model
         validate_input(image)
         self.image = image
@@ -44,8 +50,11 @@ class SimpleMetamer(Synthesis):
         self.optimizer = None
         self.losses = []
 
-    def synthesize(self, max_iter: int = 100,
-                   optimizer: Union[None, torch.optim.Optimizer] = None) -> torch.Tensor:
+    def synthesize(
+        self,
+        max_iter: int = 100,
+        optimizer: None | torch.optim.Optimizer = None,
+    ) -> torch.Tensor:
         """Synthesize a simple metamer.
 
         If called multiple times, will continue where we left off.
@@ -67,8 +76,7 @@ class SimpleMetamer(Synthesis):
         """
         if optimizer is None:
             if self.optimizer is None:
-                self.optimizer = torch.optim.Adam([self.metamer],
-                                                  lr=.01, amsgrad=True)
+                self.optimizer = torch.optim.Adam([self.metamer], lr=0.01, amsgrad=True)
         else:
             self.optimizer = optimizer
 
@@ -83,10 +91,8 @@ class SimpleMetamer(Synthesis):
                 # function. You could theoretically also just clamp metamer on
                 # each step of the iteration, but the penalty in the loss seems
                 # to work better in practice
-                loss = optim.mse(metamer_representation,
-                                 self.target_representation)
-                loss = loss + .1 * optim.penalize_range(self.metamer,
-                                                        (0, 1))
+                loss = optim.mse(metamer_representation, self.target_representation)
+                loss = loss + 0.1 * optim.penalize_range(self.metamer, (0, 1))
                 self.losses.append(loss.item())
                 loss.backward(retain_graph=False)
                 pbar.set_postfix(loss=loss.item())
@@ -105,8 +111,7 @@ class SimpleMetamer(Synthesis):
         """
         super().save(file_path, attrs=None)
 
-    def load(self, file_path: str,
-             map_location: Union[str, None] = None):
+    def load(self, file_path: str, map_location: str | None = None):
         r"""Load all relevant attributes from a .pt file.
 
         Note this operates in place and so doesn't return anything.
@@ -116,9 +121,12 @@ class SimpleMetamer(Synthesis):
         file_path
             The path to load the synthesis object from
         """
-        check_attributes = ['target_representation', 'image']
-        super().load(file_path, check_attributes=check_attributes,
-                     map_location=map_location)
+        check_attributes = ["target_representation", "image"]
+        super().load(
+            file_path,
+            check_attributes=check_attributes,
+            map_location=map_location,
+        )
 
     def to(self, *args, **kwargs):
         r"""Move and/or cast the parameters and buffers.
@@ -151,7 +159,6 @@ class SimpleMetamer(Synthesis):
         Returns:
             Module: self
         """
-        attrs = ['model', 'image', 'target_representation',
-                 'metamer']
+        attrs = ["model", "image", "target_representation", "metamer"]
         super().to(*args, attrs=attrs, **kwargs)
         return self

@@ -1,14 +1,16 @@
+import warnings
+from importlib import resources
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from importlib import resources
-import warnings
 
 from ..simulate.canonical_computations import LaplacianPyramid
 from ..simulate.canonical_computations.filters import circular_gaussian2d
 from ..tools.conv import same_padding
 
-DIR = resources.files('plenoptic.metric')
+DIRNAME = resources.files("plenoptic.metric")
 
 
 def _ssim_parts(img1, img2, pad=False):
@@ -37,23 +39,33 @@ def _ssim_parts(img1, img2, pad=False):
     """
     img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
-        warnings.warn("Image range falls outside [0, 1]."
-                       f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-                       "Continuing anyway...")
+        warnings.warn(
+            "Image range falls outside [0, 1]."
+            f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
+            "Continuing anyway..."
+        )
 
     if not img1.ndim == img2.ndim == 4:
-        raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
+        raise Exception(
+            "Input images should have four dimensions: (batch, channel,"
+            " height, width)"
+        )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
     for i in range(2):
         if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
-            raise Exception("Either img1 and img2 should have the same number of "
-                            "elements in each dimension, or one of "
-                            "them should be 1! But got shapes "
-                            f"{img1.shape}, {img2.shape} instead")
+            raise Exception(
+                "Either img1 and img2 should have the same number of "
+                "elements in each dimension, or one of "
+                "them should be 1! But got shapes "
+                f"{img1.shape}, {img2.shape} instead"
+            )
     if img1.shape[1] > 1 or img2.shape[1] > 1:
-        warnings.warn("SSIM was designed for grayscale images and here it will be computed separately for each "
-                      "channel (so channels are treated in the same way as batches).")
+        warnings.warn(
+            "SSIM was designed for grayscale images and here it will be"
+            " computed separately for each channel (so channels are treated in"
+            " the same way as batches)."
+        )
     if img1.dtype != img2.dtype:
         raise ValueError("Input images must have same dtype!")
 
@@ -79,7 +91,9 @@ def _ssim_parts(img1, img2, pad=False):
         (n_batches, n_channels, _, _) = img.shape
         img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
         img_average = F.conv2d(img, window, padding=padd)
-        img_average = img_average.reshape(n_batches, n_channels, img_average.shape[2], img_average.shape[3])
+        img_average = img_average.reshape(
+            n_batches, n_channels, img_average.shape[2], img_average.shape[3]
+        )
         return img_average
 
     mu1 = windowed_average(img1)
@@ -93,8 +107,8 @@ def _ssim_parts(img1, img2, pad=False):
     sigma2_sq = windowed_average(img2 * img2) - mu2_sq
     sigma12 = windowed_average(img1 * img2) - mu1_mu2
 
-    C1 = 0.01 ** 2
-    C2 = 0.03 ** 2
+    C1 = 0.01**2
+    C2 = 0.03**2
 
     # SSIM is the product of a luminance component, a contrast component, and a
     # structure component. The contrast-structure component has to be separated
@@ -104,7 +118,7 @@ def _ssim_parts(img1, img2, pad=False):
     map_ssim = luminance_map * contrast_structure_map
 
     # the weight used for stability
-    weight = torch.log((1 + sigma1_sq/C2) * (1 + sigma2_sq/C2))
+    weight = torch.log((1 + sigma1_sq / C2) * (1 + sigma2_sq / C2))
     return map_ssim, contrast_structure_map, weight
 
 
@@ -188,12 +202,14 @@ def ssim(img1, img2, weighted=False, pad=False):
     if not weighted:
         mssim = map_ssim.mean((-1, -2))
     else:
-        mssim = (map_ssim*weight).sum((-1, -2)) / weight.sum((-1, -2))
+        mssim = (map_ssim * weight).sum((-1, -2)) / weight.sum((-1, -2))
 
     if min(img1.shape[2], img1.shape[3]) < 11:
-        warnings.warn("SSIM uses 11x11 convolutional kernel, but the height and/or "
-                      "the width of the input image is smaller than 11, so the "
-                      "kernel size is set to be the minimum of these two numbers.")
+        warnings.warn(
+            "SSIM uses 11x11 convolutional kernel, but the height and/or "
+            "the width of the input image is smaller than 11, so the "
+            "kernel size is set to be the minimum of these two numbers."
+        )
     return mssim
 
 
@@ -255,9 +271,11 @@ def ssim_map(img1, img2):
 
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
-        warnings.warn("SSIM uses 11x11 convolutional kernel, but the height and/or "
-                      "the width of the input image is smaller than 11, so the "
-                      "kernel size is set to be the minimum of these two numbers.")
+        warnings.warn(
+            "SSIM uses 11x11 convolutional kernel, but the height and/or "
+            "the width of the input image is smaller than 11, so the "
+            "kernel size is set to be the minimum of these two numbers."
+        )
     return _ssim_parts(img1, img2)[0]
 
 
@@ -338,10 +356,12 @@ def ms_ssim(img1, img2, power_factors=None):
     msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
 
     if min(img1.shape[2], img1.shape[3]) < 11:
-        warnings.warn("SSIM uses 11x11 convolutional kernel, but for some scales "
-                      "of the input image, the height and/or the width is smaller "
-                      "than 11, so the kernel size in SSIM is set to be the "
-                      "minimum of these two numbers for these scales.")
+        warnings.warn(
+            "SSIM uses 11x11 convolutional kernel, but for some scales "
+            "of the input image, the height and/or the width is smaller "
+            "than 11, so the kernel size in SSIM is set to be the "
+            "minimum of these two numbers for these scales."
+        )
     return msssim
 
 
@@ -364,8 +384,9 @@ def normalized_laplacian_pyramid(img):
     (_, channel, height, width) = img.size()
 
     N_scales = 6
-    spatialpooling_filters = np.load(DIR / 'DN_filts.npy')
-    sigmas = np.load(DIR / 'DN_sigmas.npy')
+    spatialpooling_filters = np.load(Path(DIRNAME) / "DN_filts.npy")
+
+    sigmas = np.load(Path(DIRNAME) / "DN_sigmas.npy")
 
     L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.forward(img)
@@ -373,10 +394,18 @@ def normalized_laplacian_pyramid(img):
     padd = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
-        filt = torch.as_tensor(spatialpooling_filters[N_b], dtype=img.dtype,
-                            device=img.device).repeat(channel, 1, 1, 1)
-        filtered_activations = F.conv2d(torch.abs(laplacian_activations[N_b]), filt, padding=padd, groups=channel)
-        normalized_laplacian_activations.append(laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations))
+        filt = torch.as_tensor(
+            spatialpooling_filters[N_b], dtype=img.dtype, device=img.device
+        ).repeat(channel, 1, 1, 1)
+        filtered_activations = F.conv2d(
+            torch.abs(laplacian_activations[N_b]),
+            filt,
+            padding=padd,
+            groups=channel,
+        )
+        normalized_laplacian_activations.append(
+            laplacian_activations[N_b] / (sigmas[N_b] + filtered_activations)
+        )
 
     return normalized_laplacian_activations
 
@@ -384,18 +413,19 @@ def normalized_laplacian_pyramid(img):
 def nlpd(img1, img2):
     """Normalized Laplacian Pyramid Distance
 
-    As described in  [1]_, this is an image quality metric based on the transformations associated with the early
-    visual system: local luminance subtraction and local contrast gain control
+    As described in  [1]_, this is an image quality metric based on the transformations
+    associated with the early visual system: local luminance subtraction and local
+    contrast gain control.
 
     A laplacian pyramid subtracts a local estimate of the mean luminance at six scales.
-    Then a local gain control divides these centered coefficients by a weighted sum of absolute values
-    in spatial neighborhood.
+    Then a local gain control divides these centered coefficients by a weighted sum of
+    absolute values in spatial neighborhood.
 
     These weights parameters were optimized for redundancy reduction over an training
     database of (undistorted) natural images.
 
-    Note that we compute root mean squared error for each scale, and then average over these,
-    effectively giving larger weight to the lower frequency coefficients
+    Note that we compute root mean squared error for each scale, and then average over
+    these, effectively giving larger weight to the lower frequency coefficients
     (which are fewer in number, due to subsampling).
 
     Parameters
@@ -418,30 +448,41 @@ def nlpd(img1, img2):
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual image quality
-       assessment using a normalized Laplacian pyramid. Electronic Imaging, 2016(16), pp.1-6.
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+        image quality assessment using a normalized Laplacian pyramid. Electronic
+        Imaging, 2016(16), pp.1-6.
     """
 
     if not img1.ndim == img2.ndim == 4:
-        raise Exception("Input images should have four dimensions: (batch, channel, height, width)")
+        raise Exception(
+            "Input images should have four dimensions: (batch, channel,"
+            " height, width)"
+        )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
     for i in range(2):
         if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
-            raise Exception("Either img1 and img2 should have the same number of "
-                            "elements in each dimension, or one of "
-                            "them should be 1! But got shapes "
-                            f"{img1.shape}, {img2.shape} instead")
+            raise Exception(
+                "Either img1 and img2 should have the same number of "
+                "elements in each dimension, or one of "
+                "them should be 1! But got shapes "
+                f"{img1.shape}, {img2.shape} instead"
+            )
     if img1.shape[1] > 1 or img2.shape[1] > 1:
-        warnings.warn("NLPD was designed for grayscale images and here it will be computed separately for each "
-                      "channel (so channels are treated in the same way as batches).")
-        
+        warnings.warn(
+            "NLPD was designed for grayscale images and here it will be"
+            " computed separately for each channel (so channels are treated in"
+            " the same way as batches)."
+        )
+
     img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
-        warnings.warn("Image range falls outside [0, 1]."
-                       f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-                       "Continuing anyway...")
-    
+        warnings.warn(
+            "Image range falls outside [0, 1]."
+            f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
+            "Continuing anyway..."
+        )
+
     y1 = normalized_laplacian_pyramid(img1)
     y2 = normalized_laplacian_pyramid(img2)
 

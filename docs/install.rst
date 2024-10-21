@@ -121,4 +121,3 @@ In addition to installing plenoptic and its core dependencies, you may also wish
 These optional dependencies can be joined with a comma, e.g., ``pip install -e ".[docs,dev]"``
 
 .. note:: Note that ``conda`` does not support optional dependencies, though you can view our optional dependencies in the `pyproject.toml <https://github.com/plenoptic-org/plenoptic/blob/main/pyproject.toml#L35>`_ file, if you wish to install them yourself.
-

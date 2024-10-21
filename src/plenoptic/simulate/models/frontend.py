@@ -10,22 +10,25 @@ References
 .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
 """
 
-from typing import Tuple, Union, Callable
+from collections import OrderedDict
+from collections.abc import Callable
+from warnings import warn
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .naive import Gaussian, CenterSurround
 from ...tools.display import imshow
 from ...tools.signal import make_disk
-from collections import OrderedDict
-from warnings import warn
+from .naive import CenterSurround, Gaussian
 
-
-__all__ = ["LinearNonlinear", "LuminanceGainControl",
-           "LuminanceContrastGainControl", "OnOff"]
+__all__ = [
+    "LinearNonlinear",
+    "LuminanceGainControl",
+    "LuminanceContrastGainControl",
+    "OnOff",
+]
 
 
 class LinearNonlinear(nn.Module):
@@ -66,8 +69,8 @@ class LinearNonlinear(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-       representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions
+       of hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
@@ -76,7 +79,7 @@ class LinearNonlinear(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
@@ -86,10 +89,13 @@ class LinearNonlinear(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
-                warn("pretrained is True but cache_filt is False. Set cache_filt to "
-                     "True for efficiency unless you are fine-tuning.")
+                warn(
+                    "pretrained is True but cache_filt is False. Set cache_filt to "
+                    "True for efficiency unless you are fine-tuning."
+                )
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -121,9 +127,7 @@ class LinearNonlinear(nn.Module):
 
         weights = self.center_surround.filt.detach()
         title = "linear filt"
-        fig = imshow(
-            weights, title=title, zoom=zoom, vrange="indep0", **kwargs
-        )
+        fig = imshow(weights, title=title, zoom=zoom, vrange="indep0", **kwargs)
 
         return fig
 
@@ -132,12 +136,13 @@ class LinearNonlinear(nn.Module):
         """Copied from Table 2 in Berardino, 2018"""
         state_dict = OrderedDict(
             [
-                ("center_surround.center_std", torch.as_tensor([.5339])),
+                ("center_surround.center_std", torch.as_tensor([0.5339])),
                 ("center_surround.surround_std", torch.as_tensor([6.148])),
                 ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
             ]
         )
         return state_dict
+
 
 class LuminanceGainControl(nn.Module):
     """Linear center-surround followed by luminance gain control and activation.
@@ -181,16 +186,17 @@ class LuminanceGainControl(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+       hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
     """
+
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
@@ -200,10 +206,13 @@ class LuminanceGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
-                warn("pretrained is True but cache_filt is False. Set cache_filt to "
-                     "True for efficiency unless you are fine-tuning.")
+                warn(
+                    "pretrained is True but cache_filt is False. Set cache_filt to "
+                    "True for efficiency unless you are fine-tuning."
+                )
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -250,10 +259,18 @@ class LuminanceGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = ["linear filt", "luminance filt",]
+        title = [
+            "linear filt",
+            "luminance filt",
+        ]
 
         fig = imshow(
-            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=2,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig
@@ -319,8 +336,8 @@ class LuminanceContrastGainControl(nn.Module):
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
-        representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
+    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+       hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
     .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
@@ -329,7 +346,7 @@ class LuminanceContrastGainControl(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         on_center: bool = True,
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
@@ -339,10 +356,13 @@ class LuminanceContrastGainControl(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
-                warn("pretrained is True but cache_filt is False. Set cache_filt to "
-                     "True for efficiency unless you are fine-tuning.")
+                warn(
+                    "pretrained is True but cache_filt is False. Set cache_filt to "
+                    "True for efficiency unless you are fine-tuning."
+                )
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -372,7 +392,7 @@ class LuminanceContrastGainControl(nn.Module):
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar * lum)
 
-        con = self.contrast(lum_normed.pow(2)).sqrt() + 1E-6  # avoid div by zero
+        con = self.contrast(lum_normed.pow(2)).sqrt() + 1e-6  # avoid div by zero
         con_normed = lum_normed / (1 + self.contrast_scalar * con)
         y = self.activation(con_normed)
         return y
@@ -403,7 +423,12 @@ class LuminanceContrastGainControl(nn.Module):
         title = ["linear filt", "luminance filt", "contrast filt"]
 
         fig = imshow(
-            weights, title=title, col_wrap=3, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=3,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig
@@ -415,12 +440,11 @@ class LuminanceContrastGainControl(nn.Module):
             [
                 ("luminance_scalar", torch.as_tensor([2.94])),
                 ("contrast_scalar", torch.as_tensor([34.03])),
-                ("center_surround.center_std", torch.as_tensor([.7363])),
+                ("center_surround.center_std", torch.as_tensor([0.7363])),
                 ("center_surround.surround_std", torch.as_tensor([48.37])),
                 ("center_surround.amplitude_ratio", torch.as_tensor([1.25])),
                 ("luminance.std", torch.as_tensor([170.99])),
                 ("contrast.std", torch.as_tensor([2.658])),
-
             ]
         )
         return state_dict
@@ -471,7 +495,7 @@ class OnOff(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]],
+        kernel_size: int | tuple[int, int],
         amplitude_ratio: float = 1.25,
         pad_mode: str = "reflect",
         pretrained: bool = False,
@@ -481,10 +505,14 @@ class OnOff(nn.Module):
     ):
         super().__init__()
         if pretrained:
-            assert kernel_size in [31, (31, 31)], "pretrained model has kernel_size (31, 31)"
+            if kernel_size not in [31, (31, 31)]:
+                raise ValueError("pretrained model has kernel_size (31, 31)")
             if cache_filt is False:
-                warn("pretrained is True but cache_filt is False. Set cache_filt to "
-                     "True for efficiency unless you are fine-tuning.")
+                warn(
+                    "pretrained is True but cache_filt is False. Set"
+                    " cache_filt to True for efficiency unless you are"
+                    " fine-tuning."
+                )
 
         self.center_surround = CenterSurround(
             kernel_size=kernel_size,
@@ -496,17 +524,17 @@ class OnOff(nn.Module):
         )
 
         self.luminance = Gaussian(
-           kernel_size=kernel_size,
-           out_channels=2,
-           pad_mode=pad_mode,
-           cache_filt=cache_filt,
+            kernel_size=kernel_size,
+            out_channels=2,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
 
         self.contrast = Gaussian(
-           kernel_size=kernel_size,
-           out_channels=2,
-           pad_mode=pad_mode,
-           cache_filt=cache_filt,
+            kernel_size=kernel_size,
+            out_channels=2,
+            pad_mode=pad_mode,
+            cache_filt=cache_filt,
         )
 
         # init scalar values around fitted parameters found in Berardino et al 2017
@@ -525,7 +553,7 @@ class OnOff(nn.Module):
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar.view(1, 2, 1, 1) * lum)
 
-        con = self.contrast(lum_normed.pow(2), groups=2).sqrt() + 1E-6  # avoid div by 0
+        con = self.contrast(lum_normed.pow(2), groups=2).sqrt() + 1e-6  # avoid div by 0
         con_normed = lum_normed / (1 + self.contrast_scalar.view(1, 2, 1, 1) * con)
         y = self.activation(con_normed)
 
@@ -539,7 +567,6 @@ class OnOff(nn.Module):
             y = self._disk * y  # apply the mask
 
         return y
-
 
     def display_filters(self, zoom=5.0, **kwargs):
         """Displays convolutional filters of model
@@ -574,7 +601,12 @@ class OnOff(nn.Module):
         ]
 
         fig = imshow(
-            weights, title=title, col_wrap=2, zoom=zoom, vrange="indep0", **kwargs
+            weights,
+            title=title,
+            col_wrap=2,
+            zoom=zoom,
+            vrange="indep0",
+            **kwargs,
         )
 
         return fig

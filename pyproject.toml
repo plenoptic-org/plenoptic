@@ -57,6 +57,7 @@ dev = [
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
+    "ruff>=0.6.8",
 ]
 
 nb = [
@@ -84,3 +85,42 @@ local_scheme = 'no-local-version'
 addopts = "--cov=plenoptic -n auto"
 testpaths = ["tests"]
 
+[tool.ruff]
+extend-include = ["*.ipynb"]
+src = ["src", "tests", "examples"]
+# Exclude a variety of commonly ignored directories.
+exclude = []
+
+# Set the maximum line length (same as Black)
+line-length = 88
+
+indent-width = 4 # same as Black
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes: basic static analysis for common errors like undefined names
+    # and missing imports.
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = []
