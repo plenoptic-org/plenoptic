@@ -129,6 +129,7 @@ class TestSteerablePyramid:
         height, order, is_complex, downsample, tightframe = request.param.split("-")
 
         with suppress(ValueError):
+            # then height = 'auto' and that's fine
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
@@ -148,6 +149,7 @@ class TestSteerablePyramid:
         height, order, is_complex, downsample, tightframe = request.param.split("-")
 
         with suppress(ValueError):
+            # then height = 'auto' and that's fine
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
