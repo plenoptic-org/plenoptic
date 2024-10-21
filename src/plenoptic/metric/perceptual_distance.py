@@ -450,7 +450,8 @@ def nlpd(img1, img2):
     ----------
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
-        Imaging, 2016(16), pp.1-6."""
+        Imaging, 2016(16), pp.1-6.
+    """
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
