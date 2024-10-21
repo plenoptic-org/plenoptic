@@ -1,4 +1,5 @@
 import json
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -13,14 +14,14 @@ plt.rcParams["savefig.facecolor"] = "white"
 plt.rcParams["savefig.edgecolor"] = "white"
 plt.rcParams["savefig.bbox"] = "tight"
 
-with open('conceptual_intro_data.json') as f:
+with open("conceptual_intro_data.json") as f:
     data = json.load(f)
     # 2-deg fundamentals (energy linear, 5nm stepsize) from Stockman & Sharpe 2000,
     # downloaded from http://www.cvrl.org/cones.htm
-    CONES = data['CONES']
+    CONES = data["CONES"]
     # from math tools homework, interpolated to have same number of entries as
     # CONES
-    PRIMARIES = np.array(data['PRIMARIES'])
+    PRIMARIES = np.array(data["PRIMARIES"])
 
 # for matrix multiplication
 CONES_MATRIX = np.stack([CONES["S"], CONES["M"], CONES["L"]])
