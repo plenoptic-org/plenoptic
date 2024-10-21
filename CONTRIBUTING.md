@@ -182,7 +182,7 @@ And any line living in this file can be as long as it wants  ...
 
 
 In some cases, you want to not only suppress the error message a linter throws but actually _disable_ a linting rule. An example might be if the import order matters and running `isort` would mess with this.
-Then you can introduce an [action comment](https://pycqa.github.io/isort/docs/configuration/action_comments.html) like this such that isort does _not_ sort the following packages alphabetically:
+In these cases, you can introduce an [action comment](https://docs.astral.sh/ruff/linter/#action-comments) like this such that ruff does _not_ sort the following packages alphabetically:
 
 ```bash
 import numpy as np # isort: skip
@@ -212,7 +212,9 @@ pip install pre-commit
 pre-commit install
 ```
 
-After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting but don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
+See [pre-commit docs](https://pre-commit.com/) for more details.
+
+After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
 ```bash
 git commit -m <my commit message> --no-verify
 ```
@@ -302,10 +304,6 @@ If you only want to run an individual session (e.g., lint or test), you can firs
 ```bash
 nox -l
 ```
-or
-```bash
-nox -list
-```
 
 Then you can use
 
@@ -316,7 +314,7 @@ to run the session of your choice.
 
 Here are some examples:
 
-If you want to run just the tests, add the following option,
+If you want to run just the tests:
 
 ```bash
 nox -s tests
