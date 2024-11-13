@@ -159,7 +159,6 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     return images
 
 
-@deprecated("Load images using :py:func:`load_images` instead", "1.1.0")
 def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     r"""Convert image from float to 8 or 16 bit image
 
