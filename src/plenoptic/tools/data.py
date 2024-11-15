@@ -1,6 +1,7 @@
 import contextlib
 import pathlib
 import warnings
+from typing import Literal
 
 import imageio
 import numpy as np
@@ -159,7 +160,6 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     return images
 
 
-@deprecated("Load images using :py:func:`load_images` instead", "1.1.0")
 def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     r"""Convert image from float to 8 or 16 bit image
 
@@ -346,13 +346,18 @@ def polar_angle(
     size: int | tuple[int, int],
     phase: float = 0.0,
     origin: int | tuple[float, float] | None = None,
+    direction: Literal["clockwise", "counter-clockwise"] = "clockwise",
     device: torch.device | None = None,
 ) -> Tensor:
     """Make polar angle matrix (in radians).
 
-    Compute a matrix of given size containing samples of the polar angle (in radians, CW
-    from the X-axis, ranging from -pi to pi), relative to given phase, about the given
-    origin pixel.
+    Compute a matrix of given size containing samples of the polar angle (in radians,
+    increasing in user-defined direction from the X-axis, ranging from -pi to pi),
+    relative to given phase, about the given origin pixel.
+
+    Note that by default, the angle increases in a clockwise direction, which is NOT the
+    standard mathematical convention. Use the ``direction`` argument to change that
+    behavior.
 
     Parameters
     ----------
@@ -366,6 +371,10 @@ def polar_angle(
         `(origin, origin)`. if a tuple, must be a 2-tuple of ints specifying the origin
         (where `(0, 0)` is the upper left). If None, we assume the origin lies at the
         center of the matrix, `(size+1)/2`.
+    direction
+        Whether the angle increases in a clockwise or counter-clockwise direction from
+        the x-axis. The standard mathematical convention is to increase
+        counter-clockwise, so that 90 degrees corresponds to the positive y-axis.
     device
         The device to create this tensor on.
 
@@ -373,7 +382,14 @@ def polar_angle(
     -------
     res
         The polar angle matrix
+
     """
+    if direction not in ["clockwise", "counter-clockwise"]:
+        raise ValueError(
+            "direction must be one of {'clockwise', 'counter-clockwise'}, "
+            f"but received {direction}!"
+        )
+
     if not hasattr(size, "__iter__"):
         size = (size, size)
 
@@ -391,6 +407,8 @@ def polar_angle(
         torch.arange(1, size[0] + 1, device=device) - origin[0],
         torch.arange(1, size[1] + 1, device=device) - origin[1],
     )
+    if direction == "counter-clockwise":
+        yramp = torch.flip(yramp, [0])
 
     res = torch.atan2(yramp, xramp)
 
