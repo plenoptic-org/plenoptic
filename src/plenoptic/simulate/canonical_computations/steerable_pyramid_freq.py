@@ -133,7 +133,7 @@ class SteerablePyramidFreq(nn.Module):
         if height == "auto":
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise ValueError("Cannot build pyramid higher than %d levels." % (max_ht))
+            raise ValueError(f"Cannot build pyramid higher than {max_ht:d} levels.")
         else:
             self.num_scales = int(height)
 
@@ -621,9 +621,9 @@ class SteerablePyramidFreq(nn.Module):
                 )
             levs_nums = np.array([int(i) for i in levels if isinstance(i, int)])
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
-            assert (levs_nums < self.num_scales).all(), (
-                "Level numbers must be in the range [0, %d]" % (self.num_scales - 1)
-            )
+            assert (
+                levs_nums < self.num_scales
+            ).all(), f"Level numbers must be in the range [0, {self.num_scales-1:d}]"
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
@@ -675,10 +675,11 @@ class SteerablePyramidFreq(nn.Module):
                 )
             bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
-            assert (bands < self.num_orientations).all(), (
-                "Error: band numbers must be in the range [0, %d]"
-                % (self.num_orientations - 1)
-            )
+            if any(bands > self.num_orientations):
+                raise ValueError(
+                    "Error: band numbers must be in the range "
+                    f"[0, {self.num_orientations-1:d}]"
+                )
         return list(bands)
 
     def _recon_keys(
@@ -725,9 +726,9 @@ class SteerablePyramidFreq(nn.Module):
             for i in bands:
                 if i >= max_orientations:
                     warnings.warn(
-                        "You wanted band %d in the reconstruction but"
-                        " max_orientation is %d, so we're ignoring that band"
-                        % (i, max_orientations)
+                        f"You wanted band {i:d} in the reconstruction but"
+                        f" max_orientation is {max_orientations:d}, so "
+                        "we're ignoring that band"
                     )
             bands = [i for i in bands if i < max_orientations]
         recon_keys = []
