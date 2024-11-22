@@ -240,6 +240,19 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         check_parseval(img, pyr_coeffs)
 
+    @pytest.mark.parametrize("height", ["auto", 1, 2, 3])
+    @pytest.mark.parametrize("downsample", [True, False])
+    def test_not_tight_frame(self, height, downsample):
+        with pytest.raises(ValueError, match="cannot be tight-frame"):
+            po.simul.SteerablePyramidFreq(
+                (256, 256),
+                height,
+                0,
+                is_complex=True,
+                downsample=downsample,
+                tight_frame=True,
+            )
+
     @pytest.mark.parametrize(
         "spyr",
         [
