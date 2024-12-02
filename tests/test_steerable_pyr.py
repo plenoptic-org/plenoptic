@@ -407,9 +407,9 @@ class TestSteerablePyramid:
 
     @pytest.mark.parametrize("height", range(-1, 8))
     def test_height_values(self, img, height):
-        if height < 1:
+        if height < 0:
             expectation = pytest.raises(
-                ValueError, match="Height must be a positive int"
+                ValueError, match="Height must be a non-negative int"
             )
         elif height > 6:
             expectation = pytest.raises(
