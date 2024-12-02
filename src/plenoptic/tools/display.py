@@ -1042,7 +1042,7 @@ def plot_representation(
                     # need to keep the shape the same because of how we
                     # check for shape below (unbinding removes a dimension,
                     # so we add it back)
-                    data_dict[title + "_%02d" % i] = d.unsqueeze(1)
+                    data_dict[title + f"_{i:02d}"] = d.unsqueeze(1)
             else:
                 data_dict[title] = data
             data = data_dict
