@@ -47,8 +47,10 @@ class SteerablePyramidFreq(nn.Module):
     image_shape : `list or tuple`
         shape of input image
     height : 'auto' or `int`
-        The height of the pyramid. If 'auto', will automatically determine
-        based on the size of `image`.
+        The height of the pyramid. If 'auto', will automatically determine based on the
+        size of `image`. If an int, must be non-negative and less than
+        log2(min(image_shape[1], image_shape[1]))-2. If height=0, this only returns the
+        residuals.
     order : `int`.
         The Gaussian derivative order used for the steerable filters, in [0,
         15]. Note that to achieve steerability the minimum number of
@@ -133,7 +135,9 @@ class SteerablePyramidFreq(nn.Module):
         if height == "auto":
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise ValueError(f"Cannot build pyramid higher than {max_ht:d} levels.")
+            raise ValueError(f"Cannot build pyramid higher than {max_ht:.0f} levels.")
+        elif height < 0:
+            raise ValueError("Height must be a non-negative integer.")
         else:
             self.num_scales = int(height)
 
@@ -623,7 +627,7 @@ class SteerablePyramidFreq(nn.Module):
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
             assert (
                 levs_nums < self.num_scales
-            ).all(), f"Level numbers must be in the range [0, {self.num_scales-1:d}]"
+            ).all(), f"Level numbers must be in the range [0, {self.num_scales - 1:d}]"
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
@@ -678,7 +682,7 @@ class SteerablePyramidFreq(nn.Module):
             if any(bands > self.num_orientations):
                 raise ValueError(
                     "Error: band numbers must be in the range "
-                    f"[0, {self.num_orientations-1:d}]"
+                    f"[0, {self.num_orientations - 1:d}]"
                 )
         return list(bands)
 
