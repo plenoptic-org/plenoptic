@@ -133,7 +133,7 @@ class SteerablePyramidFreq(nn.Module):
         if height == "auto":
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise ValueError(f"Cannot build pyramid higher than {max_ht:d} levels.")
+            raise ValueError(f"Cannot build pyramid higher than {max_ht:.0f} levels.")
         else:
             self.num_scales = int(height)
 
