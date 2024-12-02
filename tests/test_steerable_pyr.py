@@ -405,6 +405,24 @@ class TestSteerablePyramid:
         with pytest.raises(Exception):
             spyr.recon_pyr(scales)
 
+    @pytest.mark.parametrize("height", range(-1, 8))
+    def test_height_values(self, img, height):
+        if height < 0:
+            expectation = pytest.raises(
+                ValueError, match="Height must be a non-negative int"
+            )
+        elif height > np.log2(min(img.shape[-2:])) - 2:
+            expectation = pytest.raises(
+                ValueError, match="Cannot build pyramid higher than"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=height).to(
+                DEVICE
+            )
+            pyr(img)
+
     @pytest.mark.parametrize("order", range(17))
     def test_order_values(self, img, order):
         if order in [0, 16]:
