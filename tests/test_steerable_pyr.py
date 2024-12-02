@@ -411,7 +411,7 @@ class TestSteerablePyramid:
             expectation = pytest.raises(
                 ValueError, match="Height must be a non-negative int"
             )
-        elif height > 6:
+        elif height > np.log2(min(img.shape[-2:])) - 2:
             expectation = pytest.raises(
                 ValueError, match="Cannot build pyramid higher than"
             )
