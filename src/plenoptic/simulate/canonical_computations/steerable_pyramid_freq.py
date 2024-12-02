@@ -47,8 +47,10 @@ class SteerablePyramidFreq(nn.Module):
     image_shape : `list or tuple`
         shape of input image
     height : 'auto' or `int`
-        The height of the pyramid. If 'auto', will automatically determine
-        based on the size of `image`.
+        The height of the pyramid. If 'auto', will automatically determine based on the
+        size of `image`. If an int, must be non-negative and less than
+        log2(min(image_shape[1], image_shape[1]))-2. If height=0, this only returns the
+        residuals.
     order : `int`.
         The Gaussian derivative order used for the steerable filters, in [1,
         15]. Note that to achieve steerability the minimum number of
@@ -133,7 +135,9 @@ class SteerablePyramidFreq(nn.Module):
         if height == "auto":
             self.num_scales = int(max_ht)
         elif height > max_ht:
-            raise ValueError("Cannot build pyramid higher than %d levels." % (max_ht))
+            raise ValueError(f"Cannot build pyramid higher than {max_ht:.0f} levels.")
+        elif height < 0:
+            raise ValueError("Height must be a non-negative integer.")
         else:
             self.num_scales = int(height)
 
@@ -615,9 +619,9 @@ class SteerablePyramidFreq(nn.Module):
                 )
             levs_nums = np.array([int(i) for i in levels if isinstance(i, int)])
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
-            assert (levs_nums < self.num_scales).all(), (
-                "Level numbers must be in the range [0, %d]" % (self.num_scales - 1)
-            )
+            assert (
+                levs_nums < self.num_scales
+            ).all(), f"Level numbers must be in the range [0, {self.num_scales - 1:d}]"
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
@@ -670,8 +674,8 @@ class SteerablePyramidFreq(nn.Module):
             bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
             assert (bands < self.num_orientations).all(), (
-                "Error: band numbers must be in the range [0, %d]"
-                % (self.num_orientations - 1)
+                "Error: band numbers must be in the range [0, "
+                f"{self.num_orientations - 1:d}]"
             )
         return list(bands)
 
@@ -719,9 +723,9 @@ class SteerablePyramidFreq(nn.Module):
             for i in bands:
                 if i >= max_orientations:
                     warnings.warn(
-                        "You wanted band %d in the reconstruction but"
-                        " max_orientation is %d, so we're ignoring that band"
-                        % (i, max_orientations)
+                        f"You wanted band {i:d} in the reconstruction but"
+                        f" max_orientation is {max_orientations:d}, so we"
+                        "'re ignoring that band"
                     )
             bands = [i for i in bands if i < max_orientations]
         recon_keys = []
