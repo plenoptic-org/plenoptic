@@ -48,7 +48,8 @@ class SteerablePyramidFreq(nn.Module):
         shape of input image
     height : 'auto' or `int`
         The height of the pyramid. If 'auto', will automatically determine
-        based on the size of `image`.
+        based on the size of `image`. If an int, must be positive and less than
+        log2(min(image_shape[1], image_shape[1]))-2.
     order : `int`.
         The Gaussian derivative order used for the steerable filters, in [1,
         15]. Note that to achieve steerability the minimum number of
@@ -134,6 +135,8 @@ class SteerablePyramidFreq(nn.Module):
             self.num_scales = int(max_ht)
         elif height > max_ht:
             raise ValueError(f"Cannot build pyramid higher than {max_ht:.0f} levels.")
+        elif height < 1:
+            raise ValueError("Height must be a positive int.")
         else:
             self.num_scales = int(height)
 
