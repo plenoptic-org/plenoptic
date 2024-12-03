@@ -11,62 +11,62 @@ pipeline {
   stages {
     stage('weekly') {
       when {
-	triggeredBy 'TimerTrigger'
-	branch 'main'
+        triggeredBy 'TimerTrigger'
+        branch 'main'
       }
       agent {
         dockerfile {
-	  dir 'jenkins'
-	  args '--gpus 1'
+          dir 'jenkins'
+          args '--gpus 1'
         }
       }
       environment {
         HOME = pwd(tmp:true)
-	OMP_NUM_THREADS = 4
+        OMP_NUM_THREADS = 4
       }
       steps {
-	sh 'python3.11 -m venv --system-site-packages $HOME'
-	sh '''#!/bin/bash -ex
-	  source $HOME/bin/activate
-      pip install -U pip
-	  pip install -U .[dev] --verbose
-      python3.11 -c "import torch; print(torch.cuda.current_device())"
-	  python3.11 -m pytest -n 8
-	'''
+        sh 'python3.11 -m venv --system-site-packages $HOME'
+        sh '''#!/bin/bash -ex
+              source $HOME/bin/activate
+              pip install -U pip
+              pip install -U .[dev] --verbose
+              python3.11 -c "import torch; print(torch.cuda.current_device())"
+              python3.11 -m pytest -n 8
+           '''
       }
     }
     stage('commit') {
       when {
-	not {
-	  triggeredBy 'TimerTrigger'
-	}
+        not {
+          triggeredBy 'TimerTrigger'
+        }
       }
       agent {
         dockerfile {
-	  dir 'jenkins'
-	  args '--gpus 1'
+          dir 'jenkins'
+          args '--gpus 1'
         }
       }
       environment {
         HOME = pwd(tmp:true)
-	OMP_NUM_THREADS = 4
+        OMP_NUM_THREADS = 4
       }
       steps {
-	sh 'python3.11 -m venv --system-site-packages $HOME'
-	sh '''#!/bin/bash -ex
-	  source $HOME/bin/activate
-      pip install -U pip
-	  pip install .[dev]
-      python3.11 -c "import torch; print(torch.cuda.current_device())"
-	  python3.11 -m pytest -n 8
-	'''
+        sh 'python3.11 -m venv --system-site-packages $HOME'
+        sh '''#!/bin/bash -ex
+              source $HOME/bin/activate
+              pip install -U pip
+              pip install .[dev]
+              python3.11 -c "import torch; print(torch.cuda.current_device())"
+              python3.11 -m pytest -n 8
+            '''
       }
     }
   }
   post {
     failure {
       emailext subject: '$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS',
-	       body: '''$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS
+        body: '''$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS
 
 Check console output at $BUILD_URL to view full results.
 
@@ -79,10 +79,10 @@ $CHANGES
 End of build log:
 ${BUILD_LOG,maxLines=200}
 ''',
-	       recipientProviders: [
-		 [$class: 'DevelopersRecipientProvider'],
-	       ],
-	       replyTo: '$DEFAULT_REPLYTO'
+	      recipientProviders: [
+		    [$class: 'DevelopersRecipientProvider'],
+	    ],
+	      replyTo: '$DEFAULT_REPLYTO'
     }
   }
 }
