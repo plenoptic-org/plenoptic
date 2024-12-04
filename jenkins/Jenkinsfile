@@ -9,96 +9,97 @@ pipeline {
     cron '@weekly'
   }
   stages {
-    parallel {
-      stage('weekly') {
-        when {
-          triggeredBy 'TimerTrigger'
-          branch 'main'
-        }
-        agent {
-          dockerfile {
-            dir 'jenkins'
-            args '--gpus 1'
+    stage('parallel-jobs') {
+      parallel {
+        stage('weekly') {
+          when {
+            triggeredBy 'TimerTrigger'
+            branch 'main'
           }
-        }
-        environment {
-          HOME = pwd(tmp:true)
-          OMP_NUM_THREADS = 4
-        }
-        steps {
-          sh 'python3.11 -m venv --system-site-packages $HOME'
-          sh '''#!/bin/bash -ex
+          agent {
+            dockerfile {
+              dir 'jenkins'
+              args '--gpus 1'
+            }
+          }
+          environment {
+            HOME = pwd(tmp:true)
+            OMP_NUM_THREADS = 4
+          }
+          steps {
+            sh 'python3.11 -m venv --system-site-packages $HOME'
+            sh '''#!/bin/bash -ex
               source $HOME/bin/activate
               pip install -U pip
               pip install -U .[dev] --verbose
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
            '''
-        }
-      }
-      stage('commit') {
-        when {
-          not {
-            triggeredBy 'TimerTrigger'
           }
         }
-        agent {
-          dockerfile {
-            dir 'jenkins'
-            args '--gpus 1'
+        stage('commit') {
+          when {
+            not {
+              triggeredBy 'TimerTrigger'
+            }
           }
-        }
-        environment {
-          HOME = pwd(tmp:true)
-          OMP_NUM_THREADS = 4
-        }
-        steps {
-          sh 'python3.11 -m venv --system-site-packages $HOME'
-          sh '''#!/bin/bash -ex
+          agent {
+            dockerfile {
+              dir 'jenkins'
+              args '--gpus 1'
+            }
+          }
+          environment {
+            HOME = pwd(tmp:true)
+            OMP_NUM_THREADS = 4
+          }
+          steps {
+            sh 'python3.11 -m venv --system-site-packages $HOME'
+            sh '''#!/bin/bash -ex
               source $HOME/bin/activate
               pip install -U pip
               pip install .[dev]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
             '''
-        }
-      }
-      stage('docs') {
-        when {
-          not {
-            triggeredBy 'TimerTrigger'
           }
         }
-        agent {
-          dockerfile {
-            dir 'jenkins'
-            args '--gpus 1'
+        stage('docs') {
+          when {
+            not {
+              triggeredBy 'TimerTrigger'
+            }
           }
-        }
-        environment {
-          HOME = pwd(tmp:false)
-          OMP_NUM_THREADS = 4
-          PROJECT_NAME = ""
-          GITHUB_PATH = "plenoptic-org/plenoptic"
-          GITHUB_TOKEN = credentials("plenoptic-docs-gh-pr-write")
-          BRANCH_NAME = "${env.BRANCH_NAME}"
-          ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
-        }
-        steps {
-          sh 'python3.11 -m venv --system-site-packages $HOME'
-          sh '''#!/bin/bash -ex
+          agent {
+            dockerfile {
+              dir 'jenkins'
+              args '--gpus 1'
+            }
+          }
+          environment {
+            HOME = pwd(tmp:false)
+            OMP_NUM_THREADS = 4
+            PROJECT_NAME = ""
+            GITHUB_PATH = "plenoptic-org/plenoptic"
+            GITHUB_TOKEN = credentials("plenoptic-docs-gh-pr-write")
+            BRANCH_NAME = "${env.BRANCH_NAME}"
+            ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
+          }
+          steps {
+            sh 'python3.11 -m venv --system-site-packages $HOME'
+            sh '''#!/bin/bash -ex
               source $HOME/bin/activate
               pip install -U pip
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               make -C docs html O="-T"
            '''
-          lock('plenoptic_docs_publish') {
-            script {
-              def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
-              dir(path: 'docs') {
-                checkout(changelog: false, poll: false, scm: scm)
-                sh """#!/bin/bash -ex
+            lock('plenoptic_docs_publish') {
+              script {
+                def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
+                dir(path: 'docs') {
+                  checkout(changelog: false, poll: false, scm: scm)
+                  sh """#!/bin/bash -ex
                 if [[ "\$BRANCH_NAME" =~ PR ]]; then
                    out_dir="pulls/\$ISSUE_NUM"
                 elif [[ "${env.TAG_NAME}" != null ]]; then
@@ -115,11 +116,11 @@ pipeline {
                 git add -A -f --verbose docs/\$PROJECT_NAME
                 GIT_COMMITTER_EMAIL="jenkins@flatironinstitute.org" GIT_COMMITTER_NAME="Flatiron Jenkins" git commit --author='Flatiron Jenkins <jenkins@flatironinstitute.org>' --allow-empty -m "Generated documentation for \$DOCS_DIR" -m '${env.BUILD_TAG}'
               """
-                gitPush(gitScm: scm, targetBranch: 'main', targetRepo: 'origin')
-                // this being single quotes is VERY IMPORTANT. otherwise the
-                // GITHUB_TOKEN value would be exposed, see
-                // https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#interpolation-of-sensitive-environment-variables
-                sh '''#!/bin/bash -ex
+                  gitPush(gitScm: scm, targetBranch: 'main', targetRepo: 'origin')
+                  // this being single quotes is VERY IMPORTANT. otherwise the
+                  // GITHUB_TOKEN value would be exposed, see
+                  // https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#interpolation-of-sensitive-environment-variables
+                  sh '''#!/bin/bash -ex
                 if [[ "$BRANCH_NAME" =~ PR ]]; then
                    DOCS_DIR=docs/$PROJECT_NAME/pulls/$ISSUE_NUM
 
@@ -141,6 +142,7 @@ pipeline {
                    fi
                 fi
               '''
+                }
               }
             }
           }
