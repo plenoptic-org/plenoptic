@@ -110,7 +110,8 @@ pipeline {
                 rm -rf \$DOCS_DIR
                 mkdir -p \$DOCS_DIR
                 cp -rp \$HOME/docs/_build/html/* \$DOCS_DIR
-                git add -A docs/\$PROJECT_NAME
+                # using -f here makes sure we add the index.html files, which are included in workshops .gitignore (since some are auto-generated)
+                git add -A -f --verbose docs/\$PROJECT_NAME
                 GIT_COMMITTER_EMAIL="jenkins@flatironinstitute.org" GIT_COMMITTER_NAME="Flatiron Jenkins" git commit --author='Flatiron Jenkins <jenkins@flatironinstitute.org>' --allow-empty -m "Generated documentation for \$DOCS_DIR" -m '${env.BUILD_TAG}'
               """
               gitPush(gitScm: scm, targetBranch: 'main', targetRepo: 'origin')
