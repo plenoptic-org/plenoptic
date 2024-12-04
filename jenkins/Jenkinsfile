@@ -79,7 +79,7 @@ pipeline {
         OMP_NUM_THREADS = 4
         PROJECT_NAME = ""
         GITHUB_PATH = "plenoptic-org/plenoptic"
-        GITHUB_TOKEN = credentials("plenoptic-github-pr-write")
+        GITHUB_TOKEN = credentials("plenoptic-docs-gh-pr-write")
         BRANCH_NAME = "${env.BRANCH_NAME}"
         ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
       }
