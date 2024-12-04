@@ -111,6 +111,10 @@ pipeline {
                 DOCS_DIR=docs/\$PROJECT_NAME/\$out_dir
                 rm -rf \$DOCS_DIR
                 mkdir -p \$DOCS_DIR
+                echo \$(ls \$HOME)
+                echo \$(ls \$HOME/docs)
+                echo \$(ls \$HOME/docs/_build)
+                echo \$(ls \$DOCS_DIR)
                 cp -rp \$HOME/docs/_build/html/* \$DOCS_DIR
                 # using -f here makes sure we add the index.html files, which are included in workshops .gitignore (since some are auto-generated)
                 git add -A -f --verbose docs/\$PROJECT_NAME
