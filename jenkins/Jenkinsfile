@@ -92,7 +92,7 @@ pipeline {
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               make -C docs html O="-T"
            '''
-        lock('plenoptic-documentation_publish') {
+        lock('plenoptic_docs_publish') {
           script {
             def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
             dir(path: 'docs') {
