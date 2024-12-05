@@ -5,7 +5,7 @@ their models. We welcome and encourage contributions from everyone!
 
 First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
 before going any further. You may also want to check out the [main page of the
-documentation](https://plenoptic.readthedocs.io/en/latest/) for a longer
+documentation](http://docs.plenoptic.org/) for a longer
 overview of the project and how to get everything installed, as well as pointers
 for further reading, depending on your interests.
 
@@ -54,7 +54,7 @@ versions are supported for 3 years following initial release. This means that we
 support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
 time and that we'll transition between versions during the fourth quarter of
 each year. We run our CPU tests on all three versions, and the GPU tests and
-readthedocs build use the middle version.
+documentation build use the middle version.
 
 ## Contributing to the code
 
@@ -81,10 +81,10 @@ Before we begin: everyone finds `git` confusing the first few (dozen) times they
 You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
 
 1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://docs.plenoptic.org/docs/branch/main/install.html), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
 3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
-You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this page](https://docs.plenoptic.org/docs/branch/main/jupyter.html) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
 #### Creating a new branch
 
@@ -223,8 +223,8 @@ git commit -m <my commit message> --no-verify
 ### Adding models or synthesis methods
 
 In addition to the above, see the documentation for a description of
-[models](https://plenoptic.readthedocs.io/en/latest/models.html) and [synthesis
-objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
+[models](https://docs.plenoptic.org/docs/branch/main/models.html) and [synthesis
+objects](https://docs.plenoptic.org/docs/branch/main/synthesis.html). Any new
 models or synthesis objects will need to meet the requirements outlined in those
 pages.
 
@@ -255,7 +255,7 @@ When doing a new release, the following steps must be taken:
    version tag from the Github release, using
    [setuptools_scm](https://github.com/pypa/setuptools_scm).
 
-Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, like [readthedocs](https://readthedocs.org/) does), so ensure they match!
+Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, so ensure they match!
 
 ## Testing
 
@@ -575,8 +575,8 @@ model or synthesis method), please include a new tutorial notebook that walks
 through how to use them. For enhancements of existing methods, you can probably
 just modify the existing tutorials and add documentation. If unsure, ask!
 
-Documentation in `plenoptic` is built using Sphinx and lives on readthedocs. If
-that means nothing to you, don't worry!
+Documentation in `plenoptic` is built using Sphinx on some of Flatiron's Jenkins
+runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
 Documentation comes in two types: `.rst` files (reST, the markup language used
 by Sphinx, see
@@ -588,7 +588,7 @@ Jupyter notebooks are tutorials and show how to use the various functions and
 classes contained in the package, and they all should be located in the
 `examples/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it. Once you've added a tutorial, see
-[here](#add-tutorials) for how to include it on the readthedocs page.
+[here](#add-tutorials) for how to include it in the Sphinx site.
 
 reST files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -672,8 +672,9 @@ for docstring structure.
 ### Build the documentation
 
 NOTE: If you just want to read the documentation, you do not need to do this;
-documentation is built automatically on
-[readthedocs](https://plenoptic.readthedocs.io/).
+documentation is built automatically, pushed to the
+[plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
+github repo and published at http://docs.plenoptic.org/.
 
 However, it can be built locally as well. You would do this if you've
 made changes locally to the documentation (or the docstrings) that you

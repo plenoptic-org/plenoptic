@@ -1126,7 +1126,7 @@ def animate(
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g.,
-    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
