@@ -93,6 +93,9 @@ pipeline {
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               make -C docs html O="-T"
+              echo \$(ls \$HOME)
+              echo \$(ls \$HOME/docs)
+              echo \$(ls \$HOME/docs/_build)
            '''
             lock('plenoptic_docs_publish') {
               script {
