@@ -88,6 +88,8 @@ pipeline {
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
+              # make sure we have the git tags, since we need that to correctly version plenoptic
+              git fetch --tags
               source $HOME/bin/activate
               pip install -U pip
               pip install .[docs]
