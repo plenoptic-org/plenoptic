@@ -1,18 +1,17 @@
+import contextlib
 import pathlib
-from typing import List, Optional, Union, Tuple
 import warnings
+from typing import Literal
 
 import imageio
 import numpy as np
-import os.path as op
+import torch
+from deprecated.sphinx import deprecated
 from pyrtools import synthetic_images
 from skimage import color
-import torch
 from torch import Tensor
 
 from .signal import rescale
-
-DATA_PATH = op.join(op.dirname(op.realpath(__file__)), "..", "..", "data/256")
 
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in
@@ -31,7 +30,7 @@ NUMPY_TO_TORCH_TYPES = {
 TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
 
-def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
+def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
@@ -47,17 +46,15 @@ def to_numpy(x: Union[Tensor, np.ndarray], squeeze: bool = False) -> np.ndarray:
     Converted tensor as `numpy.ndarray` on CPU.
     """
 
-    try:
-        x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
-    except AttributeError:
+    with contextlib.suppress(AttributeError):
         # in this case, it's already a numpy array
-        pass
+        x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
     if squeeze:
         x = x.squeeze()
     return x
 
 
-def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
+def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     r"""Correctly load in images
 
     Our models and synthesis methods expect their inputs to be 4d
@@ -138,27 +135,27 @@ def load_images(paths: Union[str, List[str]], as_gray: bool = True) -> Tensor:
             im = np.expand_dims(im, 0).repeat(3, 0)
         images.append(im)
     if len(set([i.shape for i in images])) > 1:
-        raise ValueError("All images must be the same shape but got the following: "
-                         f"{[i.shape for i in images]}")
+        raise ValueError(
+            "All images must be the same shape but got the following: "
+            f"{[i.shape for i in images]}"
+        )
     images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
             raise ValueError(
-                "For loading in images as grayscale, this should be a 3d tensor!"
+                "For loading in images as grayscale, this should be a 3d" " tensor!"
             )
         images = images.unsqueeze(1)
     else:
         if images.ndimension() == 3:
-            # either this was a single color image or multiple grayscale ones
-            if len(paths) > 1:
-                # then single color image, so add the batch dimension
-                images = images.unsqueeze(0)
-            else:
-                # then multiple grayscales ones, so add channel dimension
-                images = images.unsqueeze(1)
+            # either this was a single color image:
+            # so add the batch dimension
+            #  or multiple grayscale images:
+            # so add channel dimension
+            images = images.unsqueeze(0) if len(paths) > 1 else images.unsqueeze(1)
     if images.ndimension() != 4:
         raise ValueError(
-            "Somehow ended up with other than 4 dimensions! Not sure how we got here"
+            "Somehow ended up with other than 4 dimensions! Not sure how we" " got here"
         )
     return images
 
@@ -186,6 +183,10 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     -------
     im
         The converted image, now with dtype=dtype
+
+    Notes
+    -----
+
     """
     if im.max() > 1:
         raise Exception(
@@ -194,6 +195,7 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
     return (im * np.iinfo(dtype).max).astype(dtype)
 
 
+@deprecated("Use :py:func:`pyrtools.synthetic_images` instead", "1.1.0")
 def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
     r"""Make a set of basic stimuli, useful for developping and debugging models
 
@@ -210,6 +212,10 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
         Tensor of shape [11, 1, size, size]. The set of basic stiuli:
         [impulse, step_edge, ramp, bar, curv_edge, sine_grating, square_grating,
         polar_angle, angular_sine, zone_plate, fractal]
+
+    Notes
+    -----
+
     """
 
     impulse = np.zeros((size, size))
@@ -223,7 +229,8 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
     bar = np.zeros((size, size))
     bar[
-        size // 2 - size // 10 : size // 2 + size // 10, size // 2 - 1 : size // 2 + 1
+        size // 2 - size // 10 : size // 2 + size // 10,
+        size // 2 - 1 : size // 2 + 1,
     ] = 1
 
     curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
@@ -275,10 +282,10 @@ def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tenso
 
 
 def polar_radius(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     exponent: float = 1.0,
-    origin: Optional[Union[int, Tuple[int, int]]] = None,
-    device: Optional[Union[str, torch.device]] = None,
+    origin: int | tuple[int, int] | None = None,
+    device: str | torch.device | None = None,
 ) -> Tensor:
     """Make distance-from-origin (r) matrix
 
@@ -336,27 +343,38 @@ def polar_radius(
 
 
 def polar_angle(
-    size: Union[int, Tuple[int, int]],
+    size: int | tuple[int, int],
     phase: float = 0.0,
-    origin: Optional[Union[int, Tuple[float, float]]] = None,
-    device: Optional[torch.device] = None,
+    origin: int | tuple[float, float] | None = None,
+    direction: Literal["clockwise", "counter-clockwise"] = "clockwise",
+    device: torch.device | None = None,
 ) -> Tensor:
     """Make polar angle matrix (in radians).
 
-    Compute a matrix of given size containing samples of the polar angle (in radians, CW from the
-    X-axis, ranging from -pi to pi), relative to given phase, about the given origin pixel.
+    Compute a matrix of given size containing samples of the polar angle (in radians,
+    increasing in user-defined direction from the X-axis, ranging from -pi to pi),
+    relative to given phase, about the given origin pixel.
+
+    Note that by default, the angle increases in a clockwise direction, which is NOT the
+    standard mathematical convention. Use the ``direction`` argument to change that
+    behavior.
 
     Parameters
     ----------
     size
-        If an int, we assume the image should be of dimensions `(size, size)`. if a tuple, must be
-        a 2-tuple of ints specifying the dimensions
+        If an int, we assume the image should be of dimensions `(size, size)`. if a
+        tuple, must be a 2-tuple of ints specifying the dimensions
     phase
         The phase of the polar angle function (in radians, clockwise from the X-axis)
     origin
-        The center of the image. if an int, we assume the origin is at `(origin, origin)`. if a
-        tuple, must be a 2-tuple of ints specifying the origin (where `(0, 0)` is the upper left).
-        if None, we assume the origin lies at the center of the matrix, `(size+1)/2`.
+        The center of the image. if an int, we assume the origin is at
+        `(origin, origin)`. if a tuple, must be a 2-tuple of ints specifying the origin
+        (where `(0, 0)` is the upper left). If None, we assume the origin lies at the
+        center of the matrix, `(size+1)/2`.
+    direction
+        Whether the angle increases in a clockwise or counter-clockwise direction from
+        the x-axis. The standard mathematical convention is to increase
+        counter-clockwise, so that 90 degrees corresponds to the positive y-axis.
     device
         The device to create this tensor on.
 
@@ -364,7 +382,14 @@ def polar_angle(
     -------
     res
         The polar angle matrix
+
     """
+    if direction not in ["clockwise", "counter-clockwise"]:
+        raise ValueError(
+            "direction must be one of {'clockwise', 'counter-clockwise'}, "
+            f"but received {direction}!"
+        )
+
     if not hasattr(size, "__iter__"):
         size = (size, size)
 
@@ -382,6 +407,8 @@ def polar_angle(
         torch.arange(1, size[0] + 1, device=device) - origin[0],
         torch.arange(1, size[1] + 1, device=device) - origin[1],
     )
+    if direction == "counter-clockwise":
+        yramp = torch.flip(yramp, [0])
 
     res = torch.atan2(yramp, xramp)
 

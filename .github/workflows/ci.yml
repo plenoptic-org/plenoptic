@@ -113,7 +113,7 @@ jobs:
       # messages and similar, so we don't want to check them.
     - name: strip notebook output
       run: |
-        pip install nbstripout
+        pipx install nbstripout
         nbstripout examples/*ipynb
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
@@ -121,6 +121,40 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
+  ruff_linting:
+    runs-on: ubuntu-latest
+    name: Run Ruff linter
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: setup.py
+      - name: Install dependencies
+        run: |
+          pip install --upgrade --upgrade-strategy eager .[dev]
+      - name: Run ruff linter
+        run: |
+          ruff check --config=pyproject.toml
+  ruff_formatting:
+    runs-on: ubuntu-latest
+    name: Run Ruff code formatting check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: setup.py
+      - name: Install dependencies
+        run: |
+          pip install --upgrade --upgrade-strategy eager .[dev]
+      - name: Run ruff formatter
+        run: |
+          ruff format --check --config=pyproject.toml
 
   check:
     if: always()
@@ -130,6 +164,8 @@ jobs:
     - all_tutorials_in_docs
     - no_extra_nblinks
     - check_urls
+    - ruff_linting
+    - ruff_formatting
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded

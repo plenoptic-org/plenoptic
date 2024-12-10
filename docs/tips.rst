@@ -45,9 +45,6 @@ methods.
   visualize these values. You will likely need to spend time trying out
   different values for the ``metric_tradeoff_lambda`` argument set during
   initialization to achieve this.
-- For geodesics, check that your geodesic's path energy is small enough and that
-  the deviation from a straight line in representational space is minimal (use
-  :func:`plenoptic.synthesize.geodesic.plot_deviation_from_line`)
 
 For all of the above, if synthesis has not found a good solution, you may need
 to run synthesis longer, use a learning-rate scheduler, change the learning
@@ -113,4 +110,4 @@ methods.
 
 If you extend a method successfully or would like help making it work, please
 let us know by posting a `discussion!
-<https://github.com/LabForComputationalVision/plenoptic/discussions>`_
+<https://github.com/plenoptic-org/plenoptic/discussions>`_

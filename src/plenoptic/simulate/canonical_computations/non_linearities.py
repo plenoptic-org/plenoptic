@@ -1,6 +1,7 @@
 import torch
+
 from ...tools.conv import blur_downsample, upsample_blur
-from ...tools.signal import rectangular_to_polar, polar_to_rectangular
+from ...tools.signal import polar_to_rectangular, rectangular_to_polar
 
 
 def rectangular_to_polar_dict(coeff_dict, residuals=False):
@@ -26,14 +27,14 @@ def rectangular_to_polar_dict(coeff_dict, residuals=False):
     """
     energy = {}
     state = {}
-    for key in coeff_dict.keys():
+    for key in coeff_dict:
         # ignore residuals
-        if isinstance(key, tuple) or not key.startswith('residual'):
+        if isinstance(key, tuple) or not key.startswith("residual"):
             energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
 
     if residuals:
-        energy['residual_lowpass'] = coeff_dict['residual_lowpass']
-        energy['residual_highpass'] = coeff_dict['residual_highpass']
+        energy["residual_lowpass"] = coeff_dict["residual_lowpass"]
+        energy["residual_highpass"] = coeff_dict["residual_highpass"]
 
     return energy, state
 
@@ -60,15 +61,15 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
     """
 
     coeff_dict = {}
-    for key in energy.keys():
+    for key in energy:
         # ignore residuals
 
-        if isinstance(key, tuple) or not key.startswith('residual'):
+        if isinstance(key, tuple) or not key.startswith("residual"):
             coeff_dict[key] = polar_to_rectangular(energy[key], state[key])
 
     if residuals:
-        coeff_dict['residual_lowpass'] = energy['residual_lowpass']
-        coeff_dict['residual_highpass'] = energy['residual_highpass']
+        coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
+        coeff_dict["residual_highpass"] = energy["residual_highpass"]
 
     return coeff_dict
 
@@ -111,7 +112,7 @@ def local_gain_control(x, epsilon=1e-8):
     # these could be parameters, but no use case so far
     p = 2.0
 
-    norm = blur_downsample(torch.abs(x ** p)).pow(1 / p)
+    norm = blur_downsample(torch.abs(x**p)).pow(1 / p)
     odd = torch.as_tensor(x.shape)[2:4] % 2
     direction = x / (upsample_blur(norm, odd) + epsilon)
 
@@ -189,13 +190,13 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     energy = {}
     state = {}
 
-    for key in coeff_dict.keys():
-        if isinstance(key, tuple) or not key.startswith('residual'):
+    for key in coeff_dict:
+        if isinstance(key, tuple) or not key.startswith("residual"):
             energy[key], state[key] = local_gain_control(coeff_dict[key])
 
     if residuals:
-        energy['residual_lowpass'] = coeff_dict['residual_lowpass']
-        energy['residual_highpass'] = coeff_dict['residual_highpass']
+        energy["residual_lowpass"] = coeff_dict["residual_lowpass"]
+        energy["residual_highpass"] = coeff_dict["residual_highpass"]
 
     return energy, state
 
@@ -229,12 +230,12 @@ def local_gain_release_dict(energy, state, residuals=True):
     """
     coeff_dict = {}
 
-    for key in energy.keys():
-        if isinstance(key, tuple) or not key.startswith('residual'):
+    for key in energy:
+        if isinstance(key, tuple) or not key.startswith("residual"):
             coeff_dict[key] = local_gain_release(energy[key], state[key])
 
     if residuals:
-        coeff_dict['residual_lowpass'] = energy['residual_lowpass']
-        coeff_dict['residual_highpass'] = energy['residual_highpass']
+        coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
+        coeff_dict["residual_highpass"] = energy["residual_highpass"]
 
     return coeff_dict

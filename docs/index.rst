@@ -5,21 +5,21 @@
                   :target: https://anaconda.org/conda-forge/plenoptic
 
 .. |license-shield| image:: https://img.shields.io/badge/license-MIT-yellow.svg
-                    :target: https://github.com/LabForComputationalVision/plenoptic/blob/main/LICENSE
+                    :target: https://github.com/plenoptic-org/plenoptic/blob/main/LICENSE
 
 .. |python-version-shield| image:: https://img.shields.io/badge/python-3.10%7C3.11%7C3.12-blue.svg
 
-.. |build| image:: https://github.com/LabForComputationalVision/plenoptic/workflows/build/badge.svg
-		     :target: https://github.com/LabForComputationalVision/plenoptic/actions?query=workflow%3Abuild
+.. |build| image:: https://github.com/plenoptic-org/plenoptic/workflows/build/badge.svg
+		     :target: https://github.com/plenoptic-org/plenoptic/actions?query=workflow%3Abuild
 
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg
             :target: https://zenodo.org/doi/10.5281/zenodo.10151130
 
-.. |codecov| image:: https://codecov.io/gh/LabForComputationalVision/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
-             :target: https://codecov.io/gh/LabForComputationalVision/plenoptic
+.. |codecov| image:: https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA
+             :target: https://codecov.io/gh/plenoptic-org/plenoptic
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
-		    :target: https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/1.0.1?filepath=examples
+		    :target: https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples
 
 .. plenoptic documentation master file, created by
    sphinx-quickstart on Thu Jun 20 15:56:27 2019.
@@ -96,14 +96,14 @@ Synthesis methods
 
 - `Metamers <tutorials/intro/06_Metamer.nblink>`_: given a model and a reference image,
   stochastically generate a new image whose model representation is identical to
-  that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). 
+  that of the reference image (a "metamer", as originally defined in the literature on Trichromacy).
   This method makes explicit those features that the model retains/discards.
 
   - Example papers: [Portilla2000]_, [Freeman2011]_, [Deza2019]_,
     [Feather2019]_, [Wallis2019]_, [Ziemba2021]_
 - `Eigendistortions <tutorials/intro/02_Eigendistortions.nblink>`_: given a model and a
-  reference image, compute the image perturbations that produce the smallest/largest 
-  change in the model response space. These are the 
+  reference image, compute the image perturbations that produce the smallest/largest
+  change in the model response space. These are the
   image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: [Berardino2017]_
@@ -117,13 +117,6 @@ Synthesis methods
   their sensitivities most differ.
 
   - Example papers: [Wang2008]_
-- `Geodesics <tutorials/intro/05_Geodesics.nblink>`_: given a model and two images,
-  synthesize a sequence of images that lie on the shortest ("geodesic") path in
-  the model's representation space. This method allows examination of the larger-scale geometric
-  properties of model representation (as opposed to the local properties captured by 
-  the eigendistortions).
-
-  - Example papers: [Henaff2016]_, [Henaff2020]_
 
 Models, Metrics, and Model Components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -157,20 +150,20 @@ Getting help
 We communicate via several channels on Github:
 
 - To report a bug, open an `issue
-  <https://github.com/LabForComputationalVision/plenoptic/issues>`_.
+  <https://github.com/plenoptic-org/plenoptic/issues>`_.
 - To send suggestions for extensions or enhancements, please post in the `ideas
   section
-  <https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas>`_
+  <https://github.com/plenoptic-org/plenoptic/discussions/categories/ideas>`_
   of discussions first. We'll discuss it there and, if we decide to pursue it,
   open an issue to track progress.
 - To ask usage questions, discuss broad issues, or
   show off what you've made with plenoptic, go to `Discussions
-  <https://github.com/LabForComputationalVision/plenoptic/discussions>`_.
+  <https://github.com/plenoptic-org/plenoptic/discussions>`_.
 - To contribute to the project, see the `contributing guide
-  <https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md>`_.
+  <https://github.com/plenoptic-org/plenoptic/blob/main/CONTRIBUTING.md>`_.
 
 In all cases, we request that you respect our `code of conduct
-<https://github.com/LabForComputationalVision/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
+<https://github.com/plenoptic-org/plenoptic/blob/main/CODE_OF_CONDUCT.md>`_.
 
 Citing us
 ---------
@@ -184,6 +177,7 @@ cite us! See the :ref:`citation` for more details.
    :glob:
 
    install
+   jupyter
    conceptual_intro
    models
    tutorials/*
@@ -226,7 +220,7 @@ cite us! See the :ref:`citation` for more details.
        <https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html>`_
        though we haven't yet implemented examples. If you're interested, please
        post in `Discussions
-       <https://github.com/LabForComputationalVision/plenoptic/discussions)>`_!
+       <https://github.com/plenoptic-org/plenoptic/discussions)>`_!
 
 .. [Portilla2000] Portilla, J., & Simoncelli, E. P. (2000). A parametric texture
    model based on joint statistics of complex wavelet coefficients.
@@ -235,7 +229,7 @@ cite us! See the :ref:`citation` for more details.
    https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf
 .. [Freeman2011] Freeman, J., & Simoncelli, E. P. (2011). Metamers of the
    ventral stream. Nature Neuroscience, 14(9), 1195–1201.
-   http://www.cns.nyu.edu/pub/eero/freeman10-reprint.pdf
+   https://www.cns.nyu.edu/pub/eero/freeman10-reprint.pdf
 .. [Deza2019] Deza, A., Jonnalagadda, A., & Eckstein, M. P. (2019). Towards
    metamerism via foveated style transfer. In , International Conference on
    Learning Representations.
@@ -244,55 +238,47 @@ cite us! See the :ref:`citation` for more details.
    In NeurIPS (pp. 10078–10089).
 .. [Wallis2019] Wallis, T. S., Funke, C. M., Ecker, A. S., Gatys, L. A.,
    Wichmann, F. A., & Bethge, M. (2019). Image content is more important than
-   bouma's law for scene metamers. eLife. http://dx.doi.org/10.7554/elife.42512
+   bouma's law for scene metamers. eLife. https://dx.doi.org/10.7554/elife.42512
 .. [Berardino2017] Berardino, A., Laparra, V., J Ball\'e, & Simoncelli, E. P.
    (2017). Eigen-distortions of hierarchical representations. In I. Guyon, U.
    Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, & R. Garnett,
    Adv. Neural Information Processing Systems (NIPS*17) (pp. 1–10). : Curran
    Associates, Inc. https://www.cns.nyu.edu/~lcv/eigendistortions/
-   http://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
+   https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
 .. [Wang2008] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation
    (MAD) competition: A methodology for comparing computational models of
    perceptual discriminability. Journal of Vision, 8(12), 1–13.
    https://ece.uwaterloo.ca/~z70wang/research/mad/
-   http://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf
-.. [Henaff2016] H\'enaff, O.~J., & Simoncelli, E.~P. (2016). Geodesics of
-   learned representations. ICLR.
-   http://www.cns.nyu.edu/pub/lcv/henaff16b-reprint.pdf
-.. [Henaff2020] O Hénaff, Y Bai, J Charlton, I Nauhaus, E P Simoncelli and R L T
-   Goris. Primary visual cortex straightens natural video trajectories Nature
-   Communications, vol.12(5982), Oct 2021.
-   https://www.cns.nyu.edu/pub/lcv/henaff20-reprint.pdf
+   https://www.cns.nyu.edu/pub/lcv/wang08-preprint.pdf
 .. [Simoncelli1992] Simoncelli, E. P., Freeman, W. T., Adelson, E. H., &
    Heeger, D. J. (1992). Shiftable Multi-Scale Transforms. IEEE Trans.
-   Information Theory, 38(2), 587–607. http://dx.doi.org/10.1109/18.119725
+   Information Theory, 38(2), 587–607. https://dx.doi.org/10.1109/18.119725
 .. [Simoncelli1995] Simoncelli, E. P., & Freeman, W. T. (1995). The steerable
    pyramid: A flexible architecture for multi-scale derivative computation. In ,
    Proc 2nd IEEE Int'l Conf on Image Proc (ICIP) (pp. 444–447). Washington, DC:
-   IEEE Sig Proc Society. http://www.cns.nyu.edu/pub/eero/simoncelli95b.pdf
+   IEEE Sig Proc Society. https://www.cns.nyu.edu/pub/eero/simoncelli95b.pdf
 .. [Wang2004] Wang, Z., Bovik, A., Sheikh, H., & Simoncelli, E. (2004). Image
    quality assessment: from error visibility to structural similarity. IEEE
    Transactions on Image Processing, 13(4), 600–612.
    https://www.cns.nyu.edu/~lcv/ssim/.
-   http://www.cns.nyu.edu/pub/lcv/wang03-reprint.pdf
+   https://www.cns.nyu.edu/pub/lcv/wang03-reprint.pdf
 .. [Wang2003] Z Wang, E P Simoncelli and A C Bovik. Multiscale structural
    similarity for image quality assessment Proc 37th Asilomar Conf on Signals,
    Systems and Computers, vol.2 pp. 1398--1402, Nov 2003.
-   http://www.cns.nyu.edu/pub/eero/wang03b.pdf
+   https://www.cns.nyu.edu/pub/eero/wang03b.pdf
 .. [Laparra2017] Laparra, V., Berardino, A., Johannes Ball\'e, &
    Simoncelli, E. P. (2017). Perceptually Optimized Image Rendering. Journal of
    the Optical Society of America A, 34(9), 1511.
-   http://www.cns.nyu.edu/pub/lcv/laparra17a.pdf
+   https://www.cns.nyu.edu/pub/lcv/laparra17a.pdf
 .. [Laparra2016] Laparra, V., Ballé, J., Berardino, A. and Simoncelli,
    E.P., 2016. Perceptual image quality assessment using a normalized Laplacian
    pyramid. Electronic Imaging, 2016(16), pp.1-6.
-   http://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
+   https://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf
 .. [Ziemba2021] Ziemba, C.M., and Simoncelli, E.P. (2021). Opposing effects of selectivity and invariance in peripheral vision.
    Nature Communications, vol.12(4597).
    https://dx.doi.org/10.1038/s41467-021-24880-5
 
-This package is supported by the 'Center for Computational Neuroscience 
-<https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/>'_, 
+This package is supported by the `Center for Computational Neuroscience <https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/>`_,
 in the Flatiron Institute of the Simons Foundation.
 
 .. image:: images/CCN-logo-wText.png

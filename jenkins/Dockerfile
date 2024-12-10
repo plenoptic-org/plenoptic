@@ -4,8 +4,10 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
       'python3.11' \
       'python3.11-venv' \
-      ffmpeg \
       git \
+      curl \
+      jq "ffmpeg" \
+      pandoc \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \

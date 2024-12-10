@@ -1,20 +1,23 @@
 """Synthesize model metamers."""
-import torch
+
+import contextlib
 import re
+import warnings
+from collections import OrderedDict
+from collections.abc import Callable
+from typing import Literal
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import optim, display, signal, data
-from ..tools.validate import validate_input, validate_model, validate_coarse_to_fine
+from ..tools import data, display, optim, signal
 from ..tools.convergence import coarse_to_fine_enough, loss_convergence
-from typing import Union, Tuple, Callable, List, Dict, Optional
-from typing_extensions import Literal
+from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
-import warnings
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from collections import OrderedDict
 
 
 class Metamer(OptimizedSynthesis):
@@ -78,19 +81,28 @@ class Metamer(OptimizedSynthesis):
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model
        based on Joint Statistics of Complex Wavelet Coefficients. Int'l
        Journal of Computer Vision. 40(1):49-71, October, 2000.
-       http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
-       http://www.cns.nyu.edu/~lcv/texture/
+       https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       https://www.cns.nyu.edu/~lcv/texture/
 
     """
-    def __init__(self, image: Tensor, model: torch.nn.Module,
-                 loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-                 range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float, float] = (0, 1),
-                 initial_image: Optional[Tensor] = None):
+
+    def __init__(
+        self,
+        image: Tensor,
+        model: torch.nn.Module,
+        loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
+        range_penalty_lambda: float = 0.1,
+        allowed_range: tuple[float, float] = (0, 1),
+        initial_image: Tensor | None = None,
+    ):
         super().__init__(range_penalty_lambda, allowed_range)
         validate_input(image, allowed_range=allowed_range)
-        validate_model(model, image_shape=image.shape, image_dtype=image.dtype,
-                       device=image.device)
+        validate_model(
+            model,
+            image_shape=image.shape,
+            image_dtype=image.dtype,
+            device=image.device,
+        )
         self._model = model
         self._image = image
         self._image_shape = image.shape
@@ -101,7 +113,7 @@ class Metamer(OptimizedSynthesis):
         self._saved_metamer = []
         self._store_progress = None
 
-    def _initialize(self, initial_image: Optional[Tensor] = None):
+    def _initialize(self, initial_image: Tensor | None = None):
         """Initialize the metamer.
 
         Set the ``self.metamer`` attribute to be an attribute with the
@@ -123,9 +135,11 @@ class Metamer(OptimizedSynthesis):
             metamer.requires_grad_()
         else:
             if initial_image.ndimension() < 4:
-                raise ValueError("initial_image must be torch.Size([n_batch"
-                                 ", n_channels, im_height, im_width]) but got "
-                                 f"{initial_image.size()}")
+                raise ValueError(
+                    "initial_image must be torch.Size([n_batch"
+                    ", n_channels, im_height, im_width]) but got "
+                    f"{initial_image.size()}"
+                )
             if initial_image.size() != self.image.size():
                 raise ValueError("initial_image and image must be same size!")
             metamer = initial_image.clone().detach()
@@ -133,12 +147,15 @@ class Metamer(OptimizedSynthesis):
             metamer.requires_grad_()
         self._metamer = metamer
 
-    def synthesize(self, max_iter: int = 100,
-                   optimizer: Optional[torch.optim.Optimizer] = None,
-                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-                   store_progress: Union[bool, int] = False,
-                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
-                   ):
+    def synthesize(
+        self,
+        max_iter: int = 100,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        store_progress: bool | int = False,
+        stop_criterion: float = 1e-4,
+        stop_iters_to_check: int = 50,
+    ):
         r"""Synthesize a metamer.
 
         Update the pixels of ``initial_image`` until its representation matches
@@ -197,8 +214,11 @@ class Metamer(OptimizedSynthesis):
 
         pbar.close()
 
-    def objective_function(self, metamer_representation: Optional[Tensor] = None,
-                           target_representation: Optional[Tensor] = None) -> Tensor:
+    def objective_function(
+        self,
+        metamer_representation: Tensor | None = None,
+        target_representation: Tensor | None = None,
+    ) -> Tensor:
         """Compute the metamer synthesis loss.
 
         This calls self.loss_function on ``metamer_representation`` and
@@ -222,10 +242,8 @@ class Metamer(OptimizedSynthesis):
             metamer_representation = self.model(self.metamer)
         if target_representation is None:
             target_representation = self.target_representation
-        loss = self.loss_function(metamer_representation,
-                                  target_representation)
-        range_penalty = optim.penalize_range(self.metamer,
-                                             self.allowed_range)
+        loss = self.loss_function(metamer_representation, target_representation)
+        range_penalty = optim.penalize_range(self.metamer, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -249,23 +267,26 @@ class Metamer(OptimizedSynthesis):
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
 
-        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2,
-                                             dim=None)
+        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         # optionally step the scheduler
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change_norm = torch.linalg.vector_norm(self.metamer - last_iter_metamer,
-                                                     ord=2, dim=None)
+        pixel_change_norm = torch.linalg.vector_norm(
+            self.metamer - last_iter_metamer, ord=2, dim=None
+        )
         self._pixel_change_norm.append(pixel_change_norm.item())
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
-            OrderedDict(loss=f"{loss.item():.04e}",
-                        learning_rate=self.optimizer.param_groups[0]['lr'],
-                        gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change_norm=f"{pixel_change_norm.item():.04e}"))
+            OrderedDict(
+                loss=f"{loss.item():.04e}",
+                learning_rate=self.optimizer.param_groups[0]["lr"],
+                gradient_norm=f"{grad_norm.item():.04e}",
+                pixel_change_norm=f"{pixel_change_norm.item():.04e}",
+            )
+        )
         return loss
 
     def _check_convergence(self, stop_criterion, stop_iters_to_check):
@@ -296,21 +317,23 @@ class Metamer(OptimizedSynthesis):
         loss_stabilized :
             Whether the loss has stabilized or not.
 
-        """
+        """  # noqa: E501
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
-    def _initialize_optimizer(self,
-                              optimizer: Optional[torch.optim.Optimizer],
-                              scheduler: Optional[torch.optim.lr_scheduler._LRScheduler]):
+    def _initialize_optimizer(
+        self,
+        optimizer: torch.optim.Optimizer | None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler | None,
+    ):
         """Initialize optimizer and scheduler."""
         # this uses the OptimizedSynthesis setter
-        super()._initialize_optimizer(optimizer, 'metamer')
+        super()._initialize_optimizer(optimizer, "metamer")
         self.scheduler = scheduler
         for pg in self.optimizer.param_groups:
             # initialize initial_lr if it's not here. Scheduler should add it
             # if it's not None.
-            if 'initial_lr' not in pg:
-                pg['initial_lr'] = pg['lr']
+            if "initial_lr" not in pg:
+                pg["initial_lr"] = pg["lr"]
 
     def _store(self, i: int) -> bool:
         """Store metamer, if appropriate.
@@ -330,7 +353,7 @@ class Metamer(OptimizedSynthesis):
         """
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
-            self._saved_metamer.append(self.metamer.clone().to('cpu'))
+            self._saved_metamer.append(self.metamer.clone().to("cpu"))
             stored = True
         else:
             stored = False
@@ -386,13 +409,21 @@ class Metamer(OptimizedSynthesis):
                 dtype and device for all parameters and buffers in this module
 
         """
-        attrs = ['_image', '_target_representation',
-                 '_metamer', '_model', '_saved_metamer']
+        attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
+        # try to call .to() on model. this should work, but it might fail if e.g., this
+        # a custom model that doesn't inherit torch.nn.Module
+        try:
+            self._model = self._model.to(*args, **kwargs)
+        except AttributeError:
+            warnings.warn("Unable to call model.to(), so we leave it as is.")
 
-    def load(self, file_path: str,
-             map_location: Optional[str] = None,
-             **pickle_load_args):
+    def load(
+        self,
+        file_path: str,
+        map_location: str | None = None,
+        **pickle_load_args,
+    ):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Metamer`` object -- we will
@@ -429,33 +460,43 @@ class Metamer(OptimizedSynthesis):
         """
         self._load(file_path, map_location, **pickle_load_args)
 
-    def _load(self, file_path: str,
-              map_location: Optional[str] = None,
-              additional_check_attributes: List[str] = [],
-              additional_check_loss_functions: List[str] = [],
-              **pickle_load_args):
+    def _load(
+        self,
+        file_path: str,
+        map_location: str | None = None,
+        additional_check_attributes: list[str] = [],
+        additional_check_loss_functions: list[str] = [],
+        **pickle_load_args,
+    ):
         r"""Helper function for loading.
 
         Users interact with ``load`` (without the underscore), this is to allow
         subclasses to specify additional attributes or loss functions to check.
 
         """
-        check_attributes = ['_image', '_target_representation',
-                            '_range_penalty_lambda', '_allowed_range']
+        check_attributes = [
+            "_image",
+            "_target_representation",
+            "_range_penalty_lambda",
+            "_allowed_range",
+        ]
         check_attributes += additional_check_attributes
-        check_loss_functions = ['loss_function']
+        check_loss_functions = ["loss_function"]
         check_loss_functions += additional_check_loss_functions
-        super().load(file_path, map_location=map_location,
-                     check_attributes=check_attributes,
-                     check_loss_functions=check_loss_functions,
-                     **pickle_load_args)
+        super().load(
+            file_path,
+            map_location=map_location,
+            check_attributes=check_attributes,
+            check_loss_functions=check_loss_functions,
+            **pickle_load_args,
+        )
         # make this require a grad again
         self.metamer.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
         # gpu on load (which can cause problems when resuming synthesis), so
         # fix that.
-        if len(self._saved_metamer) and self._saved_metamer[0].device.type != 'cpu':
-            self._saved_metamer = [met.to('cpu') for met in self._saved_metamer]
+        if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
+            self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
 
     @property
     def model(self):
@@ -467,7 +508,8 @@ class Metamer(OptimizedSynthesis):
 
     @property
     def target_representation(self):
-        """Model representation of ``image``, the goal of synthesis is for ``model(metamer)`` to match this value."""
+        """Model representation of ``image``, the goal of synthesis is for
+        ``model(metamer)`` to match this value."""
         return self._target_representation
 
     @property
@@ -519,7 +561,7 @@ class MetamerCTF(Metamer):
           scale separately (ignoring the others), then with respect
           to all of them at the end.
         (see ``Metamer`` tutorial for more details).
-    
+
     Attributes
     ----------
     target_representation : torch.Tensor
@@ -549,46 +591,63 @@ class MetamerCTF(Metamer):
     scales_finished : list or None
         List of scales that we've finished optimizing.
     """
-    def __init__(self, image: Tensor, model: torch.nn.Module,
-                 loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-                 range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float, float] = (0, 1),
-                 initial_image: Optional[Tensor] = None,
-                 coarse_to_fine: Literal['together', 'separate'] = 'together'):
-        super().__init__(image, model, loss_function, range_penalty_lambda,
-                         allowed_range, initial_image)
+
+    def __init__(
+        self,
+        image: Tensor,
+        model: torch.nn.Module,
+        loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
+        range_penalty_lambda: float = 0.1,
+        allowed_range: tuple[float, float] = (0, 1),
+        initial_image: Tensor | None = None,
+        coarse_to_fine: Literal["together", "separate"] = "together",
+    ):
+        super().__init__(
+            image,
+            model,
+            loss_function,
+            range_penalty_lambda,
+            allowed_range,
+            initial_image,
+        )
         self._init_ctf(coarse_to_fine)
 
-    def _init_ctf(self, coarse_to_fine: Literal['together', 'separate']):
+    def _init_ctf(self, coarse_to_fine: Literal["together", "separate"]):
         """Initialize stuff related to coarse-to-fine."""
         # this will hold the reduced representation of the target image.
-        if coarse_to_fine not in ['separate', 'together']:
-            raise ValueError(f"Don't know how to handle value {coarse_to_fine}!"
-                             " Must be one of: 'separate', 'together'")
+        if coarse_to_fine not in ["separate", "together"]:
+            raise ValueError(
+                f"Don't know how to handle value {coarse_to_fine}!"
+                " Must be one of: 'separate', 'together'"
+            )
         self._ctf_target_representation = None
-        validate_coarse_to_fine(self.model, image_shape=self.image.shape,
-                                device=self.image.device)
+        validate_coarse_to_fine(
+            self.model, image_shape=self.image.shape, device=self.image.device
+        )
         # if self.scales is not None, we're continuing a previous version
         # and want to continue. this list comprehension creates a new
         # object, so we don't modify model.scales
         self._scales = [i for i in self.model.scales[:-1]]
-        if coarse_to_fine == 'separate':
+        if coarse_to_fine == "separate":
             self._scales += [self.model.scales[-1]]
-        self._scales += ['all']
+        self._scales += ["all"]
         self._scales_timing = dict((k, []) for k in self.scales)
         self._scales_timing[self.scales[0]].append(0)
         self._scales_loss = []
         self._scales_finished = []
         self._coarse_to_fine = coarse_to_fine
 
-    def synthesize(self, max_iter: int = 100,
-                   optimizer: Optional[torch.optim.Optimizer] = None,
-                   scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-                   store_progress: Union[bool, int] = False,
-                   stop_criterion: float = 1e-4, stop_iters_to_check: int = 50,
-                   change_scale_criterion: Optional[float] = 1e-2,
-                   ctf_iters_to_check: int = 50,
-                   ):
+    def synthesize(
+        self,
+        max_iter: int = 100,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        store_progress: bool | int = False,
+        stop_criterion: float = 1e-4,
+        stop_iters_to_check: int = 50,
+        change_scale_criterion: float | None = 1e-2,
+        ctf_iters_to_check: int = 50,
+    ):
         r"""Synthesize a metamer.
 
         Update the pixels of ``initial_image`` until its representation matches
@@ -633,16 +692,19 @@ class MetamerCTF(Metamer):
             switch scales.
 
         """
-        if (change_scale_criterion is not None) and (stop_criterion >= change_scale_criterion):
-            raise ValueError("stop_criterion must be strictly less than "
-                             "change_scale_criterion, or things get weird!")
+        if (change_scale_criterion is not None) and (
+            stop_criterion >= change_scale_criterion
+        ):
+            raise ValueError(
+                "stop_criterion must be strictly less than "
+                "change_scale_criterion, or things get weird!"
+            )
 
         # initialize the optimizer and scheduler
         self._initialize_optimizer(optimizer, scheduler)
 
         # get ready to store progress
         self.store_progress = store_progress
-
 
         pbar = tqdm(range(max_iter))
 
@@ -651,22 +713,27 @@ class MetamerCTF(Metamer):
             # iterations and will be correct across calls to `synthesize`
             self._store(len(self.losses))
 
-            loss = self._optimizer_step(pbar, change_scale_criterion, ctf_iters_to_check)
+            loss = self._optimizer_step(
+                pbar, change_scale_criterion, ctf_iters_to_check
+            )
 
             if not torch.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
 
-            if self._check_convergence(i, stop_criterion, stop_iters_to_check,
-                                       ctf_iters_to_check):
+            if self._check_convergence(
+                i, stop_criterion, stop_iters_to_check, ctf_iters_to_check
+            ):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
 
         pbar.close()
 
-    def _optimizer_step(self, pbar: tqdm,
-                        change_scale_criterion: float,
-                        ctf_iters_to_check: int
-                        ) -> Tensor:
+    def _optimizer_step(
+        self,
+        pbar: tqdm,
+        change_scale_criterion: float,
+        ctf_iters_to_check: int,
+    ) -> Tensor:
         r"""Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
@@ -690,53 +757,69 @@ class MetamerCTF(Metamer):
 
         """
         last_iter_metamer = self.metamer.clone()
-        # The first check here is because the last scale will be 'all', and
-        # we never remove it. Otherwise, check to see if it looks like loss
-        # has stopped declining and, if so, switch to the next scale. Then
-        # we're checking if self.scales_loss is long enough to check
-        # ctf_iters_to_check back.
-        if len(self.scales) > 1 and len(self.scales_loss) >= ctf_iters_to_check:
-            # Now we check whether loss has decreased less than
-            # change_scale_criterion
-            if ((change_scale_criterion is None) or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check]) < change_scale_criterion):
-                # and finally we check whether we've been optimizing this
-                # scale for ctf_iters_to_check
-                if len(self.losses) - self.scales_timing[self.scales[0]][0] >= ctf_iters_to_check:
-                    self._scales_timing[self.scales[0]].append(len(self.losses)-1)
-                    self._scales_finished.append(self._scales.pop(0))
-                    self._scales_timing[self.scales[0]].append(len(self.losses))
-                    # reset optimizer's lr.
-                    for pg in self.optimizer.param_groups:
-                        pg['lr'] = pg['initial_lr']
-                    # reset ctf target representation, so we update it on
-                    # next pass
-                    self._ctf_target_representation = None
+
+        # Check if conditions hold for switching scales:
+        # - Check if loss has decreased below the change_scale_criterion and
+        # - if we've been optimizing this scale for the required number of iterations
+        # - The first check here is because the last scale will be 'all', and
+        #   we never remove it
+
+        if (
+            len(self.scales) > 1
+            and len(self.scales_loss) >= ctf_iters_to_check
+            and (
+                change_scale_criterion is None
+                or abs(self.scales_loss[-1] - self.scales_loss[-ctf_iters_to_check])
+                < change_scale_criterion
+            )
+            and (
+                len(self.losses) - self.scales_timing[self.scales[0]][0]
+                >= ctf_iters_to_check
+            )
+        ):
+            self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
+            self._scales_finished.append(self._scales.pop(0))
+
+            # Only append if scales list is still non-empty after the pop
+            if self.scales:
+                self._scales_timing[self.scales[0]].append(len(self.losses))
+
+            # Reset optimizer's learning rate
+            for pg in self.optimizer.param_groups:
+                pg["lr"] = pg["initial_lr"]
+
+            # Reset ctf target representation for the next update
+            self._ctf_target_representation = None
+
         loss, overall_loss = self.optimizer.step(self._closure)
         self._scales_loss.append(loss.item())
         self._losses.append(overall_loss.item())
 
-        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2,
-                                             dim=None)
+        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
         # optionally step the scheduler
         if self.scheduler is not None:
             self.scheduler.step(loss.item())
 
-        pixel_change_norm = torch.linalg.vector_norm(self.metamer - last_iter_metamer,
-                                                     ord=2, dim=None)
+        pixel_change_norm = torch.linalg.vector_norm(
+            self.metamer - last_iter_metamer, ord=2, dim=None
+        )
         self._pixel_change_norm.append(pixel_change_norm.item())
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
-            OrderedDict(loss=f"{overall_loss.item():.04e}",
-                        learning_rate=self.optimizer.param_groups[0]['lr'],
-                        gradient_norm=f"{grad_norm.item():.04e}",
-                        pixel_change_norm=f"{pixel_change_norm.item():.04e}",
-                        current_scale=self.scales[0],
-                        current_scale_loss=f'{loss.item():.04e}'))
+            OrderedDict(
+                loss=f"{overall_loss.item():.04e}",
+                learning_rate=self.optimizer.param_groups[0]["lr"],
+                gradient_norm=f"{grad_norm.item():.04e}",
+                pixel_change_norm=f"{pixel_change_norm.item():.04e}",
+                current_scale=self.scales[0],
+                current_scale_loss=f"{loss.item():.04e}",
+            )
+        )
         return overall_loss
 
-    def _closure(self) -> Tuple[Tensor, Tensor]:
+    def _closure(self) -> tuple[Tensor, Tensor]:
         r"""An abstraction of the gradient calculation, before the optimization step.
 
         This enables optimization algorithms that perform several evaluations
@@ -763,12 +846,12 @@ class MetamerCTF(Metamer):
         self.optimizer.zero_grad()
         analyze_kwargs = {}
         # if we've reached 'all', we use the full model
-        if self.scales[0] != 'all':
-            analyze_kwargs['scales'] = [self.scales[0]]
+        if self.scales[0] != "all":
+            analyze_kwargs["scales"] = [self.scales[0]]
             # if 'together', then we also want all the coarser
             # scales
-            if self.coarse_to_fine == 'together':
-                analyze_kwargs['scales'] += self.scales_finished
+            if self.coarse_to_fine == "together":
+                analyze_kwargs["scales"] += self.scales_finished
         metamer_representation = self.model(self.metamer, **analyze_kwargs)
         # if analyze_kwargs is empty, we can just compare
         # metamer_representation against our cached target_representation
@@ -792,10 +875,15 @@ class MetamerCTF(Metamer):
 
         return loss, overall_loss
 
-    def _check_convergence(self, i: int, stop_criterion: float,
-                           stop_iters_to_check: int,
-                           ctf_iters_to_check: int) -> bool:
-        r"""Check whether the loss has stabilized and whether we've synthesized all scales.
+    def _check_convergence(
+        self,
+        i: int,
+        stop_criterion: float,
+        stop_iters_to_check: int,
+        ctf_iters_to_check: int,
+    ) -> bool:
+        r"""Check whether the loss has stabilized and whether we've synthesized all
+        scales.
 
          Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
@@ -833,13 +921,16 @@ class MetamerCTF(Metamer):
         loss_stabilized :
             Whether the loss has stabilized and we've synthesized all scales.
 
-        """
+        """  # noqa: E501
         loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
         return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
 
-    def load(self, file_path: str,
-             map_location: Optional[str] = None,
-             **pickle_load_args):
+    def load(
+        self,
+        file_path: str,
+        map_location: str | None = None,
+        **pickle_load_args,
+    ):
         r"""Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Metamer`` object -- we will
@@ -874,8 +965,7 @@ class MetamerCTF(Metamer):
         *then* load.
 
         """
-        super()._load(file_path, map_location, ['_coarse_to_fine'],
-                      **pickle_load_args)
+        super()._load(file_path, map_location, ["_coarse_to_fine"], **pickle_load_args)
 
     @property
     def coarse_to_fine(self):
@@ -898,10 +988,12 @@ class MetamerCTF(Metamer):
         return tuple(self._scales_finished)
 
 
-def plot_loss(metamer: Metamer,
-              iteration: Optional[int] = None,
-              ax: Optional[mpl.axes.Axes] = None,
-              **kwargs) -> mpl.axes.Axes:
+def plot_loss(
+    metamer: Metamer,
+    iteration: int | None = None,
+    ax: mpl.axes.Axes | None = None,
+    **kwargs,
+) -> mpl.axes.Axes:
     """Plot synthesis loss with log-scaled y axis.
 
     Plots ``metamer.losses`` over all iterations. Also plots a red dot at
@@ -928,32 +1020,34 @@ def plot_loss(metamer: Metamer,
     """
     if iteration is None:
         loss_idx = len(metamer.losses) - 1
+    elif iteration < 0:
+        # in order to get the x-value of the dot to line up,
+        # need to use this work-around
+        loss_idx = len(metamer.losses) + iteration
     else:
-        if iteration < 0:
-            # in order to get the x-value of the dot to line up,
-            # need to use this work-around
-            loss_idx = len(metamer.losses) + iteration
-        else:
-            loss_idx = iteration
+        loss_idx = iteration
+
     if ax is None:
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
-    try:
-        ax.scatter(loss_idx, metamer.losses[loss_idx], c='r')
-    except IndexError:
-        # then there's no loss here
-        pass
-    ax.set(xlabel='Synthesis iteration', ylabel='Loss')
+
+    with contextlib.suppress(IndexError):
+        # then there's no loss to plot
+        ax.scatter(loss_idx, metamer.losses[loss_idx], c="r")
+
+    ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
 
 
-def display_metamer(metamer: Metamer,
-                    batch_idx: int = 0,
-                    channel_idx: Optional[int] = None,
-                    zoom: Optional[float] = None,
-                    iteration: Optional[int] = None,
-                    ax: Optional[mpl.axes.Axes] = None,
-                    **kwargs) -> mpl.axes.Axes:
+def display_metamer(
+    metamer: Metamer,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    zoom: float | None = None,
+    iteration: int | None = None,
+    ax: mpl.axes.Axes | None = None,
+    **kwargs,
+) -> mpl.axes.Axes:
     """Display metamer.
 
     You can specify what iteration to view by using the ``iteration`` arg.
@@ -992,31 +1086,32 @@ def display_metamer(metamer: Metamer,
         The matplotlib axes containing the plot.
 
     """
-    if iteration is None:
-        image = metamer.metamer
-    else:
-        image = metamer.saved_metamer[iteration]
+    image = metamer.metamer if iteration is None else metamer.saved_metamer[iteration]
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    if channel_idx is None and image.shape[1] > 1:
-        as_rgb = True
-    else:
-        as_rgb = False
+    as_rgb = bool(channel_idx is None and image.shape[1] > 1)
     if ax is None:
         ax = plt.gca()
-    display.imshow(image, ax=ax, title='Metamer', zoom=zoom,
-                   batch_idx=batch_idx, channel_idx=channel_idx,
-                   as_rgb=as_rgb, **kwargs)
+    display.imshow(
+        image,
+        ax=ax,
+        title="Metamer",
+        zoom=zoom,
+        batch_idx=batch_idx,
+        channel_idx=channel_idx,
+        as_rgb=as_rgb,
+        **kwargs,
+    )
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     return ax
 
 
-def _representation_error(metamer: Metamer,
-                          iteration: Optional[int] = None,
-                          **kwargs) -> Tensor:
+def _representation_error(
+    metamer: Metamer, iteration: int | None = None, **kwargs
+) -> Tensor:
     r"""Get the representation error.
 
     This is ``metamer.model(metamer) - target_representation)``. If
@@ -1039,19 +1134,23 @@ def _representation_error(metamer: Metamer,
 
     """
     if iteration is not None:
-        metamer_rep = metamer.model(metamer.saved_metamer[iteration].to(metamer.target_representation.device))
+        metamer_rep = metamer.model(
+            metamer.saved_metamer[iteration].to(metamer.target_representation.device)
+        )
     else:
         metamer_rep = metamer.model(metamer.metamer, **kwargs)
     return metamer_rep - metamer.target_representation
 
 
-def plot_representation_error(metamer: Metamer,
-                              batch_idx: int = 0,
-                              iteration: Optional[int] = None,
-                              ylim: Union[Tuple[float, float], None, Literal[False]] = None,
-                              ax: Optional[mpl.axes.Axes] = None,
-                              as_rgb: bool = False,
-                              **kwargs) -> List[mpl.axes.Axes]:
+def plot_representation_error(
+    metamer: Metamer,
+    batch_idx: int = 0,
+    iteration: int | None = None,
+    ylim: tuple[float, float] | None | Literal[False] = None,
+    ax: mpl.axes.Axes | None = None,
+    as_rgb: bool = False,
+    **kwargs,
+) -> list[mpl.axes.Axes]:
     r"""Plot distance ratio showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
@@ -1088,22 +1187,31 @@ def plot_representation_error(metamer: Metamer,
         List of created axes
 
     """
-    representation_error = _representation_error(metamer=metamer,
-                                                 iteration=iteration, **kwargs)
+    representation_error = _representation_error(
+        metamer=metamer, iteration=iteration, **kwargs
+    )
     if ax is None:
         ax = plt.gca()
-    return display.plot_representation(metamer.model, representation_error, ax,
-                                       title="Representation error", ylim=ylim,
-                                       batch_idx=batch_idx, as_rgb=as_rgb)
+    return display.plot_representation(
+        metamer.model,
+        representation_error,
+        ax,
+        title="Representation error",
+        ylim=ylim,
+        batch_idx=batch_idx,
+        as_rgb=as_rgb,
+    )
 
 
-def plot_pixel_values(metamer: Metamer,
-                      batch_idx: int = 0,
-                      channel_idx: Optional[int] = None,
-                      iteration: Optional[int] = None,
-                      ylim: Union[Tuple[float, float], Literal[False]] = False,
-                      ax: Optional[mpl.axes.Axes] = None,
-                      **kwargs) -> mpl.axes.Axes:
+def plot_pixel_values(
+    metamer: Metamer,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    iteration: int | None = None,
+    ylim: tuple[float, float] | Literal[False] = False,
+    ax: mpl.axes.Axes | None = None,
+    **kwargs,
+) -> mpl.axes.Axes:
     r"""Plot histogram of pixel values of target image and its metamer.
 
     As a way to check the distributions of pixel intensities and see
@@ -1135,11 +1243,13 @@ def plot_pixel_values(metamer: Metamer,
         Created axes.
 
     """
+
     def _freedman_diaconis_bins(a):
-        """Calculate number of hist bins using Freedman-Diaconis rule. copied from seaborn."""
+        """Calculate number of hist bins using Freedman-Diaconis rule. copied from
+        seaborn."""
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
-        iqr = np.diff(np.percentile(a, [.25, .75]))[0]
+        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
         if len(a) < 2:
             return 1
         h = 2 * iqr / (len(a) ** (1 / 3))
@@ -1149,7 +1259,7 @@ def plot_pixel_values(metamer: Metamer,
         else:
             return int(np.ceil((a.max() - a.min()) / h))
 
-    kwargs.setdefault('alpha', .4)
+    kwargs.setdefault("alpha", 0.4)
     if iteration is None:
         met = metamer.metamer[batch_idx]
     else:
@@ -1162,10 +1272,18 @@ def plot_pixel_values(metamer: Metamer,
         ax = plt.gca()
     image = data.to_numpy(image).flatten()
     met = data.to_numpy(met).flatten()
-    ax.hist(met, bins=min(_freedman_diaconis_bins(image), 50),
-            label='metamer', **kwargs)
-    ax.hist(image, bins=min(_freedman_diaconis_bins(image), 50),
-            label='target image', **kwargs)
+    ax.hist(
+        met,
+        bins=min(_freedman_diaconis_bins(image), 50),
+        label="metamer",
+        **kwargs,
+    )
+    ax.hist(
+        image,
+        bins=min(_freedman_diaconis_bins(image), 50),
+        label="target image",
+        **kwargs,
+    )
     ax.legend()
     if ylim:
         ax.set_ylim(ylim)
@@ -1173,8 +1291,7 @@ def plot_pixel_values(metamer: Metamer,
     return ax
 
 
-def _check_included_plots(to_check: Union[List[str], Dict[str, float]],
-                          to_check_name: str):
+def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name: str):
     """Check whether the user wanted us to create plots that we can't.
 
     Helper function for plot_synthesis_status and animate.
@@ -1191,28 +1308,39 @@ def _check_included_plots(to_check: Union[List[str], Dict[str, float]],
         Name of the `to_check` variable, used in the error message.
 
     """
-    allowed_vals = ['display_metamer', 'plot_loss', 'plot_representation_error',
-                    'plot_pixel_values', 'misc']
+    allowed_vals = [
+        "display_metamer",
+        "plot_loss",
+        "plot_representation_error",
+        "plot_pixel_values",
+        "misc",
+    ]
     try:
         vals = to_check.keys()
     except AttributeError:
         vals = to_check
     not_allowed = [v for v in vals if v not in allowed_vals]
     if not_allowed:
-        raise ValueError(f'{to_check_name} contained value(s) {not_allowed}! '
-                         f'Only {allowed_vals} are permissible!')
+        raise ValueError(
+            f"{to_check_name} contained value(s) {not_allowed}! "
+            f"Only {allowed_vals} are permissible!"
+        )
 
 
-def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
-                         axes_idx: Dict[str, int] = {},
-                         figsize: Optional[Tuple[float, float]] = None,
-                         included_plots: List[str] = ['display_metamer',
-                                                      'plot_loss',
-                                                      'plot_representation_error'],
-                         display_metamer_width: float = 1,
-                         plot_loss_width: float = 1,
-                         plot_representation_error_width: float = 1,
-                         plot_pixel_values_width: float = 1) -> Tuple[mpl.figure.Figure, List[mpl.axes.Axes], Dict[str, int]]:
+def _setup_synthesis_fig(
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float, float] | None = None,
+    included_plots: list[str] = [
+        "display_metamer",
+        "plot_loss",
+        "plot_representation_error",
+    ],
+    display_metamer_width: float = 1,
+    plot_loss_width: float = 1,
+    plot_representation_error_width: float = 1,
+    plot_pixel_values_width: float = 1,
+) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
     """Set up figure for plot_synthesis_status.
 
     Creates figure with enough axes for the all the plots you want. Will
@@ -1269,68 +1397,77 @@ def _setup_synthesis_fig(fig: Optional[mpl.figure.Figure] = None,
     if "display_metamer" in included_plots:
         n_subplots += 1
         width_ratios.append(display_metamer_width)
-        if 'display_metamer' not in axes_idx.keys():
-            axes_idx['display_metamer'] = data._find_min_int(axes_idx.values())
+        if "display_metamer" not in axes_idx:
+            axes_idx["display_metamer"] = data._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
-        if 'plot_loss' not in axes_idx.keys():
-            axes_idx['plot_loss'] = data._find_min_int(axes_idx.values())
+        if "plot_loss" not in axes_idx:
+            axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
     if "plot_representation_error" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_representation_error_width)
-        if 'plot_representation_error' not in axes_idx.keys():
-            axes_idx['plot_representation_error'] = data._find_min_int(axes_idx.values())
+        if "plot_representation_error" not in axes_idx:
+            axes_idx["plot_representation_error"] = data._find_min_int(
+                axes_idx.values()
+            )
     if "plot_pixel_values" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
-        if 'plot_pixel_values' not in axes_idx.keys():
-            axes_idx['plot_pixel_values'] = data._find_min_int(axes_idx.values())
+        if "plot_pixel_values" not in axes_idx:
+            axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
             # we want (5, 5) for each subplot, with a bit of room between
             # each subplot
-            figsize = ((width_ratios*5).sum() + width_ratios.sum()-1, 5)
+            figsize = ((width_ratios * 5).sum() + width_ratios.sum() - 1, 5)
         width_ratios = width_ratios / width_ratios.sum()
-        fig, axes = plt.subplots(1, n_subplots, figsize=figsize,
-                                 gridspec_kw={'width_ratios': width_ratios})
+        fig, axes = plt.subplots(
+            1,
+            n_subplots,
+            figsize=figsize,
+            gridspec_kw={"width_ratios": width_ratios},
+        )
         if n_subplots == 1:
             axes = [axes]
     else:
         axes = fig.axes
     # make sure misc contains all the empty axes
-    misc_axes = axes_idx.get('misc', [])
-    if not hasattr(misc_axes, '__iter__'):
+    misc_axes = axes_idx.get("misc", [])
+    if not hasattr(misc_axes, "__iter__"):
         misc_axes = [misc_axes]
     all_axes = []
     for i in axes_idx.values():
         # so if it's a list of ints
-        if hasattr(i, '__iter__'):
+        if hasattr(i, "__iter__"):
             all_axes.extend(i)
         else:
             all_axes.append(i)
     misc_axes += [i for i, _ in enumerate(fig.axes) if i not in all_axes]
-    axes_idx['misc'] = misc_axes
+    axes_idx["misc"] = misc_axes
     return fig, axes, axes_idx
 
 
-def plot_synthesis_status(metamer: Metamer,
-                          batch_idx: int = 0,
-                          channel_idx: Optional[int] = None,
-                          iteration: Optional[int] = None,
-                          ylim: Union[Tuple[float, float], None, Literal[False]] = None,
-                          vrange: Union[Tuple[float, float], str] = 'indep1',
-                          zoom: Optional[float] = None,
-                          plot_representation_error_as_rgb: bool = False,
-                          fig: Optional[mpl.figure.Figure] = None,
-                          axes_idx: Dict[str, int] = {},
-                          figsize: Optional[Tuple[float, float]] = None,
-                          included_plots: List[str] = ['display_metamer',
-                                                       'plot_loss',
-                                                       'plot_representation_error'],
-                          width_ratios: Dict[str, float] = {},
-                          ) -> Tuple[mpl.figure.Figure, Dict[str, int]]:
+def plot_synthesis_status(
+    metamer: Metamer,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    iteration: int | None = None,
+    ylim: tuple[float, float] | None | Literal[False] = None,
+    vrange: tuple[float, float] | str = "indep1",
+    zoom: float | None = None,
+    plot_representation_error_as_rgb: bool = False,
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float, float] | None = None,
+    included_plots: list[str] = [
+        "display_metamer",
+        "plot_loss",
+        "plot_representation_error",
+    ],
+    width_ratios: dict[str, float] = {},
+) -> tuple[mpl.figure.Figure, dict[str, int]]:
     r"""Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create three
@@ -1410,19 +1547,23 @@ def plot_synthesis_status(metamer: Metamer,
 
     """
     if iteration is not None and not metamer.store_progress:
-        raise ValueError("synthesis() was run with store_progress=False, "
-                         "cannot specify which iteration to plot (only"
-                         " last one, with iteration=None)")
+        raise ValueError(
+            "synthesis() was run with store_progress=False, "
+            "cannot specify which iteration to plot (only"
+            " last one, with iteration=None)"
+        )
     if metamer.metamer.ndim not in [3, 4]:
-        raise ValueError("plot_synthesis_status() expects 3 or 4d data;"
-                         "unexpected behavior will result otherwise!")
-    _check_included_plots(included_plots, 'included_plots')
-    _check_included_plots(width_ratios, 'width_ratios')
-    _check_included_plots(axes_idx, 'axes_idx')
-    width_ratios = {f'{k}_width': v for k, v in width_ratios.items()}
-    fig, axes, axes_idx = _setup_synthesis_fig(fig, axes_idx, figsize,
-                                               included_plots,
-                                               **width_ratios)
+        raise ValueError(
+            "plot_synthesis_status() expects 3 or 4d data;"
+            "unexpected behavior will result otherwise!"
+        )
+    _check_included_plots(included_plots, "included_plots")
+    _check_included_plots(width_ratios, "width_ratios")
+    _check_included_plots(axes_idx, "axes_idx")
+    width_ratios = {f"{k}_width": v for k, v in width_ratios.items()}
+    fig, axes, axes_idx = _setup_synthesis_fig(
+        fig, axes_idx, figsize, included_plots, **width_ratios
+    )
 
     def check_iterables(i, vals):
         for j in vals:
@@ -1436,48 +1577,64 @@ def plot_synthesis_status(metamer: Metamer,
                     return True
 
     if "display_metamer" in included_plots:
-        display_metamer(metamer, batch_idx=batch_idx,
-                        channel_idx=channel_idx,
-                        iteration=iteration,
-                        ax=axes[axes_idx['display_metamer']],
-                        zoom=zoom, vrange=vrange)
+        display_metamer(
+            metamer,
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+            iteration=iteration,
+            ax=axes[axes_idx["display_metamer"]],
+            zoom=zoom,
+            vrange=vrange,
+        )
     if "plot_loss" in included_plots:
-        plot_loss(metamer, iteration=iteration, ax=axes[axes_idx['plot_loss']])
+        plot_loss(metamer, iteration=iteration, ax=axes[axes_idx["plot_loss"]])
     if "plot_representation_error" in included_plots:
-        plot_representation_error(metamer, batch_idx=batch_idx,
-                                  iteration=iteration,
-                                  ax=axes[axes_idx['plot_representation_error']],
-                                  ylim=ylim,
-                                  as_rgb=plot_representation_error_as_rgb)
+        plot_representation_error(
+            metamer,
+            batch_idx=batch_idx,
+            iteration=iteration,
+            ax=axes[axes_idx["plot_representation_error"]],
+            ylim=ylim,
+            as_rgb=plot_representation_error_as_rgb,
+        )
         # this can add a bunch of axes, so this will try and figure
         # them out
-        new_axes = [i for i, _ in enumerate(fig.axes) if not
-                    check_iterables(i, axes_idx.values())] + [axes_idx['plot_representation_error']]
-        axes_idx['plot_representation_error'] = new_axes
+        new_axes = [
+            i
+            for i, _ in enumerate(fig.axes)
+            if not check_iterables(i, axes_idx.values())
+        ] + [axes_idx["plot_representation_error"]]
+        axes_idx["plot_representation_error"] = new_axes
     if "plot_pixel_values" in included_plots:
-        plot_pixel_values(metamer, batch_idx=batch_idx,
-                          channel_idx=channel_idx,
-                          iteration=iteration,
-                          ax=axes[axes_idx['plot_pixel_values']])
+        plot_pixel_values(
+            metamer,
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+            iteration=iteration,
+            ax=axes[axes_idx["plot_pixel_values"]],
+        )
     return fig, axes_idx
 
 
-def animate(metamer: Metamer,
-            framerate: int = 10,
-            batch_idx: int = 0,
-            channel_idx: Optional[int] = None,
-            ylim: Union[str, None, Tuple[float, float], Literal[False]] = None,
-            vrange: Union[Tuple[float, float], str] = (0, 1),
-            zoom: Optional[float] = None,
-            plot_representation_error_as_rgb: bool = False,
-            fig: Optional[mpl.figure.Figure] = None,
-            axes_idx: Dict[str, int] = {},
-            figsize: Optional[Tuple[float, float]] = None,
-            included_plots: List[str] = ['display_metamer',
-                                         'plot_loss',
-                                         'plot_representation_error'],
-            width_ratios: Dict[str, float] = {},
-            ) -> mpl.animation.FuncAnimation:
+def animate(
+    metamer: Metamer,
+    framerate: int = 10,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    ylim: str | None | tuple[float, float] | Literal[False] = None,
+    vrange: tuple[float, float] | str = (0, 1),
+    zoom: float | None = None,
+    plot_representation_error_as_rgb: bool = False,
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float, float] | None = None,
+    included_plots: list[str] = [
+        "display_metamer",
+        "plot_loss",
+        "plot_representation_error",
+    ],
+    width_ratios: dict[str, float] = {},
+) -> mpl.animation.FuncAnimation:
     r"""Animate synthesis progress.
 
     This is essentially the figure produced by
@@ -1486,7 +1643,7 @@ def animate(metamer: Metamer,
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g.,
-    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
@@ -1583,23 +1740,26 @@ def animate(metamer: Metamer,
 
     """
     if not metamer.store_progress:
-        raise ValueError("synthesize() was run with store_progress=False,"
-                         " cannot animate!")
+        raise ValueError(
+            "synthesize() was run with store_progress=False, cannot animate!"
+        )
     if metamer.metamer.ndim not in [3, 4]:
-        raise ValueError("animate() expects 3 or 4d data; unexpected"
-                         " behavior will result otherwise!")
-    _check_included_plots(included_plots, 'included_plots')
-    _check_included_plots(width_ratios, 'width_ratios')
-    _check_included_plots(axes_idx, 'axes_idx')
+        raise ValueError(
+            "animate() expects 3 or 4d data; unexpected"
+            " behavior will result otherwise!"
+        )
+    _check_included_plots(included_plots, "included_plots")
+    _check_included_plots(width_ratios, "width_ratios")
+    _check_included_plots(axes_idx, "axes_idx")
     if metamer.target_representation.ndimension() == 4:
         # we have to do this here so that we set the
         # ylim_rescale_interval such that we never rescale ylim
         # (rescaling ylim messes up an image axis)
         ylim = False
     try:
-        if ylim.startswith('rescale'):
+        if ylim.startswith("rescale"):
             try:
-                ylim_rescale_interval = int(ylim.replace('rescale', ''))
+                ylim_rescale_interval = int(ylim.replace("rescale", ""))
             except ValueError:
                 # then there's nothing we can convert to an int there
                 ylim_rescale_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
@@ -1607,95 +1767,121 @@ def animate(metamer: Metamer,
                     ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
             ylim = None
         else:
-            raise ValueError("Don't know how to handle ylim %s!" % ylim)
+            raise ValueError(f"Don't know how to handle ylim {ylim}!")
     except AttributeError:
         # this way we'll never rescale
-        ylim_rescale_interval = len(metamer.saved_metamer)+1
+        ylim_rescale_interval = len(metamer.saved_metamer) + 1
     # we run plot_synthesis_status to initialize the figure if either fig is
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure
     if fig is None or not any([ax.get_title() for ax in fig.axes]):
-        fig, axes_idx = plot_synthesis_status(metamer=metamer,
-                                              batch_idx=batch_idx,
-                                              channel_idx=channel_idx,
-                                              iteration=0, figsize=figsize,
-                                              ylim=ylim, vrange=vrange,
-                                              zoom=zoom, fig=fig,
-                                              axes_idx=axes_idx,
-                                              included_plots=included_plots,
-                                              plot_representation_error_as_rgb=plot_representation_error_as_rgb,
-                                              width_ratios=width_ratios)
+        fig, axes_idx = plot_synthesis_status(
+            metamer=metamer,
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+            iteration=0,
+            figsize=figsize,
+            ylim=ylim,
+            vrange=vrange,
+            zoom=zoom,
+            fig=fig,
+            axes_idx=axes_idx,
+            included_plots=included_plots,
+            plot_representation_error_as_rgb=plot_representation_error_as_rgb,
+            width_ratios=width_ratios,
+        )
     # grab the artist for the second plot (we don't need to do this for the
     # metamer or representation plot, because we use the update_plot
     # function for that)
-    if 'plot_loss' in included_plots:
-        scat = fig.axes[axes_idx['plot_loss']].collections[0]
+    if "plot_loss" in included_plots:
+        scat = fig.axes[axes_idx["plot_loss"]].collections[0]
     # can have multiple plots
-    if 'plot_representation_error' in included_plots:
+    if "plot_representation_error" in included_plots:
         try:
-            rep_error_axes = [fig.axes[i] for i in axes_idx['plot_representation_error']]
+            rep_error_axes = [
+                fig.axes[i] for i in axes_idx["plot_representation_error"]
+            ]
         except TypeError:
-            # in this case, axes_idx['plot_representation_error'] is not iterable and so is
-            # a single value
-            rep_error_axes = [fig.axes[axes_idx['plot_representation_error']]]
+            # in this case, axes_idx['plot_representation_error'] is not iterable and
+            # so is a single value
+            rep_error_axes = [fig.axes[axes_idx["plot_representation_error"]]]
     else:
         rep_error_axes = []
     # can also have multiple plots
 
     if metamer.target_representation.ndimension() == 4:
-        if 'plot_representation_error' in included_plots:
-            warnings.warn("Looks like representation is image-like, haven't fully thought out how"
-                          " to best handle rescaling color ranges yet!")
+        if "plot_representation_error" in included_plots:
+            warnings.warn(
+                "Looks like representation is image-like, haven't fully"
+                " thought out how to best handle rescaling color ranges yet!"
+            )
         # replace the bit of the title that specifies the range,
         # since we don't make any promises about that. we have to do
         # this here because we need the figure to have been created
         for ax in rep_error_axes:
-            ax.set_title(re.sub(r'\n range: .* \n', '\n\n', ax.get_title()))
+            ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
 
     def movie_plot(i):
         artists = []
-        if 'display_metamer' in included_plots:
-            artists.extend(display.update_plot(fig.axes[axes_idx['display_metamer']],
-                                               data=metamer.saved_metamer[i],
-                                               batch_idx=batch_idx))
-        if 'plot_representation_error' in included_plots:
-            rep_error = _representation_error(metamer,
-                                                     iteration=i)
+        if "display_metamer" in included_plots:
+            artists.extend(
+                display.update_plot(
+                    fig.axes[axes_idx["display_metamer"]],
+                    data=metamer.saved_metamer[i],
+                    batch_idx=batch_idx,
+                )
+            )
+        if "plot_representation_error" in included_plots:
+            rep_error = _representation_error(metamer, iteration=i)
 
             # we pass rep_error_axes to update, and we've grabbed
             # the right things above
-            artists.extend(display.update_plot(rep_error_axes,
-                                               batch_idx=batch_idx,
-                                               model=metamer.model,
-                                               data=rep_error))
+            artists.extend(
+                display.update_plot(
+                    rep_error_axes,
+                    batch_idx=batch_idx,
+                    model=metamer.model,
+                    data=rep_error,
+                )
+            )
             # again, we know that rep_error_axes contains all the axes
             # with the representation ratio info
-            if ((i+1) % ylim_rescale_interval) == 0:
-                if metamer.target_representation.ndimension() == 3:
-                    display.rescale_ylim(rep_error_axes,
-                                         rep_error)
-        if 'plot_pixel_values' in included_plots:
+            if (
+                (i + 1) % ylim_rescale_interval == 0
+                and metamer.target_representation.ndimension() == 3
+            ):
+                display.rescale_ylim(rep_error_axes, rep_error)
+
+        if "plot_pixel_values" in included_plots:
             # this is the dumbest way to do this, but it's simple --
             # clearing the axes can cause problems if the user has, for
             # example, changed the tick locator or formatter. not sure how
             # to handle this best right now
-            fig.axes[axes_idx['plot_pixel_values']].clear()
-            plot_pixel_values(metamer, batch_idx=batch_idx,
-                              channel_idx=channel_idx, iteration=i,
-                              ax=fig.axes[axes_idx['plot_pixel_values']])
-        if 'plot_loss'in included_plots:
+            fig.axes[axes_idx["plot_pixel_values"]].clear()
+            plot_pixel_values(
+                metamer,
+                batch_idx=batch_idx,
+                channel_idx=channel_idx,
+                iteration=i,
+                ax=fig.axes[axes_idx["plot_pixel_values"]],
+            )
+        if "plot_loss" in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
-            x_val = i*metamer.store_progress
+            x_val = i * metamer.store_progress
             scat.set_offsets((x_val, metamer.losses[x_val]))
             artists.append(scat)
         # as long as blitting is True, need to return a sequence of artists
         return artists
 
     # don't need an init_func, since we handle initialization ourselves
-    anim = mpl.animation.FuncAnimation(fig, movie_plot,
-                                       frames=len(metamer.saved_metamer),
-                                       blit=True, interval=1000./framerate,
-                                       repeat=False)
+    anim = mpl.animation.FuncAnimation(
+        fig,
+        movie_plot,
+        frames=len(metamer.saved_metamer),
+        blit=True,
+        interval=1000.0 / framerate,
+        repeat=False,
+    )
     plt.close(fig)
     return anim

@@ -1,8 +1,10 @@
 """abstract synthesis super-class."""
+
 import abc
 import warnings
+
+import numpy as np
 import torch
-from typing import Optional, List, Tuple, Union
 
 
 class Synthesis(abc.ABC):
@@ -20,7 +22,7 @@ class Synthesis(abc.ABC):
         r"""Synthesize something."""
         pass
 
-    def save(self, file_path: str, attrs: Optional[List[str]] = None):
+    def save(self, file_path: str, attrs: list[str] | None = None):
         r"""Save all relevant (non-model) variables in .pt file.
 
         If you leave attrs as None, we grab vars(self) and exclude 'model'.
@@ -40,14 +42,16 @@ class Synthesis(abc.ABC):
             # this copies the attributes dict so we don't actually remove the
             # model attribute in the next line
             attrs = {k: v for k, v in vars(self).items()}
-            attrs.pop('_model', None)
+            attrs.pop("_model", None)
 
         save_dict = {}
         for k in attrs:
-            if k == '_model':
-                warnings.warn("Models can be quite large and they don't change"
-                              " over synthesis. Please be sure that you "
-                              "actually want to save the model.")
+            if k == "_model":
+                warnings.warn(
+                    "Models can be quite large and they don't change"
+                    " over synthesis. Please be sure that you "
+                    "actually want to save the model."
+                )
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
             # tensors having extra hooks or the like
@@ -56,11 +60,14 @@ class Synthesis(abc.ABC):
             save_dict[k] = attr
         torch.save(save_dict, file_path)
 
-    def load(self, file_path: str,
-             map_location: Optional[str] = None,
-             check_attributes: List[str] = [],
-             check_loss_functions: List[str] = [],
-             **pickle_load_args):
+    def load(
+        self,
+        file_path: str,
+        map_location: str | None = None,
+        check_attributes: list[str] = [],
+        check_loss_functions: list[str] = [],
+        **pickle_load_args,
+    ):
         r"""Load all relevant attributes from a .pt file.
 
         This should be called by an initialized ``Synthesis`` object -- we will
@@ -98,9 +105,7 @@ class Synthesis(abc.ABC):
             ``torch.load``, see that function's docstring for details.
 
         """
-        tmp_dict = torch.load(file_path,
-                              map_location=map_location,
-                              **pickle_load_args)
+        tmp_dict = torch.load(file_path, map_location=map_location, **pickle_load_args)
         if map_location is not None:
             device = map_location
         else:
@@ -116,69 +121,85 @@ class Synthesis(abc.ABC):
             # the initial underscore. This is because this function
             # needs to be able to set the attribute, which can only be
             # done with the hidden version.
-            if k.startswith('_'):
-                display_k = k[1:]
-            else:
-                display_k = k
+            display_k = k[1:] if k.startswith("_") else k
             if not hasattr(self, k):
-                raise AttributeError("All values of `check_attributes` should be "
-                                     "attributes set at initialization, but got "
-                                     f"attr {display_k}!")
+                raise AttributeError(
+                    "All values of `check_attributes` should be "
+                    "attributes set at initialization, but got "
+                    f"attr {display_k}!"
+                )
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
                 # the same shape but different values and the second (in the
                 # except block) are if they're different shapes.
                 try:
-                    if not torch.allclose(getattr(self, k).to(tmp_dict[k].device),
-                                          tmp_dict[k], rtol=5e-2):
-                        raise ValueError(f"Saved and initialized {display_k} are "
-                                         f"different! Initialized: {getattr(self, k)}"
-                                         f", Saved: {tmp_dict[k]}, difference: "
-                                         f"{getattr(self, k) - tmp_dict[k]}")
+                    if not torch.allclose(
+                        getattr(self, k).to(tmp_dict[k].device),
+                        tmp_dict[k],
+                        rtol=5e-2,
+                    ):
+                        raise ValueError(
+                            f"Saved and initialized {display_k} are "
+                            f"different! Initialized: {getattr(self, k)}"
+                            f", Saved: {tmp_dict[k]}, difference: "
+                            f"{getattr(self, k) - tmp_dict[k]}"
+                        )
                 except RuntimeError as e:
                     # we end up here if dtype or shape don't match
-                    if 'The size of tensor a' in e.args[0]:
-                        raise RuntimeError(f"Attribute {display_k} have different shapes in"
-                                           " saved and initialized versions! Initialized"
-                                           f": {getattr(self, k).shape}, Saved: "
-                                           f"{tmp_dict[k].shape}")
-                    elif 'did not match' in e.args[0]:
-                        raise RuntimeError(f"Attribute {display_k} has different dtype in "
-                                           "saved and initialized versions! Initialized"
-                                           f": {getattr(self, k).dtype}, Saved: "
-                                           f"{tmp_dict[k].dtype}")
+                    if "The size of tensor a" in e.args[0]:
+                        raise RuntimeError(
+                            f"Attribute {display_k} have different shapes in"
+                            " saved and initialized versions! Initialized"
+                            f": {getattr(self, k).shape}, Saved: "
+                            f"{tmp_dict[k].shape}"
+                        )
+                    elif "did not match" in e.args[0]:
+                        raise RuntimeError(
+                            f"Attribute {display_k} has different dtype in "
+                            "saved and initialized versions! Initialized"
+                            f": {getattr(self, k).dtype}, Saved: "
+                            f"{tmp_dict[k].dtype}"
+                        )
                     else:
                         raise e
+            elif isinstance(getattr(self, k), float):
+                if not np.allclose(getattr(self, k), tmp_dict[k]):
+                    raise ValueError(
+                        f"Saved and initialized {display_k} are different!"
+                        f" Self: {getattr(self, k)}, "
+                        f"Saved: {tmp_dict[k]}"
+                    )
             else:
                 if getattr(self, k) != tmp_dict[k]:
-                    raise ValueError(f"Saved and initialized {display_k} are different!"
-                                     f" Self: {getattr(self, k)}, "
-                                     f"Saved: {tmp_dict[k]}")
+                    raise ValueError(
+                        f"Saved and initialized {display_k} are different!"
+                        f" Self: {getattr(self, k)}, "
+                        f"Saved: {tmp_dict[k]}"
+                    )
         for k in check_loss_functions:
             # same as above
-            if k.startswith('_'):
-                display_k = k[1:]
-            else:
-                display_k = k
+            display_k = k[1:] if k.startswith("_") else k
             # this way, we know it's the right shape
             tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
             saved_loss = tmp_dict[k](tensor_a, tensor_b)
             init_loss = getattr(self, k)(tensor_a, tensor_b)
             if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
-                raise ValueError(f"Saved and initialized {display_k} are "
-                                 "different! On two random tensors: "
-                                 f"Initialized: {init_loss}, Saved: "
-                                 f"{saved_loss}, difference: "
-                                 f"{init_loss-saved_loss}")
+                raise ValueError(
+                    f"Saved and initialized {display_k} are "
+                    "different! On two random tensors: "
+                    f"Initialized: {init_loss}, Saved: "
+                    f"{saved_loss}, difference: "
+                    f"{init_loss-saved_loss}"
+                )
         for k, v in tmp_dict.items():
             setattr(self, k, v)
 
     @abc.abstractmethod
-    def to(self, *args, attrs: List[str] = [], **kwargs):
+    def to(self, *args, attrs: list[str] = [], **kwargs):
         r"""Moves and/or casts the parameters and buffers.
         Similar to ``save``, this is an abstract method only because you
         need to define the attributes to call to on.
-        
+
         This can be called as
         .. function:: to(device=None, dtype=None, non_blocking=False)
         .. function:: to(dtype, non_blocking=False)
@@ -205,18 +226,19 @@ class Synthesis(abc.ABC):
             attrs (:class:`list`): list of strs containing the attributes of
                 this object to move to the specified device/dtype
         """
-        try:
-            self.model = self.model.to(*args, **kwargs)
-        except AttributeError:
-            warnings.warn("model has no `to` method, so we leave it as is...")
-
-        device, dtype, non_blocking, memory_format = torch._C._nn._parse_to(*args, **kwargs)
+        device, dtype, non_blocking, memory_format = torch._C._nn._parse_to(
+            *args, **kwargs
+        )
 
         def move(a, k):
             move_device = None if k.startswith("saved_") else device
             if memory_format is not None and a.dim() == 4:
-                return a.to(move_device, dtype, non_blocking,
-                            memory_format=memory_format)
+                return a.to(
+                    move_device,
+                    dtype,
+                    non_blocking,
+                    memory_format=memory_format,
+                )
             else:
                 return a.to(move_device, dtype, non_blocking)
 
@@ -224,12 +246,16 @@ class Synthesis(abc.ABC):
             if hasattr(self, k):
                 attr = getattr(self, k)
                 if isinstance(attr, torch.Tensor):
-                    attr = move(attr, k)
+                    attr = move(attr.data, k)
                     if isinstance(getattr(self, k), torch.nn.Parameter):
                         attr = torch.nn.Parameter(attr)
+                    if getattr(self, k).requires_grad:
+                        attr = attr.requires_grad_()
                     setattr(self, k, attr)
                 elif isinstance(attr, list):
                     setattr(self, k, [move(a, k) for a in attr])
+                elif attr is not None:
+                    setattr(self, k, move(attr, k))
 
 
 class OptimizedSynthesis(Synthesis):
@@ -239,10 +265,12 @@ class OptimizedSynthesis(Synthesis):
     these will use an optimizer object to iteratively update their output.
 
     """
-    def __init__(self,
-                 range_penalty_lambda: float = .1,
-                 allowed_range: Tuple[float, float] = (0, 1),
-                 ):
+
+    def __init__(
+        self,
+        range_penalty_lambda: float = 0.1,
+        allowed_range: tuple[float, float] = (0, 1),
+    ):
         """Initialize the properties of OptimizedSynthesis."""
         self._losses = []
         self._gradient_norm = []
@@ -296,10 +324,12 @@ class OptimizedSynthesis(Synthesis):
         loss.backward(retain_graph=False)
         return loss
 
-    def _initialize_optimizer(self,
-                              optimizer: Optional[torch.optim.Optimizer],
-                              synth_name: str,
-                              learning_rate: float = .01):
+    def _initialize_optimizer(
+        self,
+        optimizer: torch.optim.Optimizer | None,
+        synth_name: str,
+        learning_rate: float = 0.01,
+    ):
         """Initialize optimizer.
 
         First time this is called, optimizer can be:
@@ -319,15 +349,18 @@ class OptimizedSynthesis(Synthesis):
         synth_attr = getattr(self, synth_name)
         if optimizer is None:
             if self.optimizer is None:
-                self._optimizer = torch.optim.Adam([synth_attr],
-                                                   lr=learning_rate, amsgrad=True)
+                self._optimizer = torch.optim.Adam(
+                    [synth_attr], lr=learning_rate, amsgrad=True
+                )
         else:
             if self.optimizer is not None:
                 raise TypeError("When resuming synthesis, optimizer arg must be None!")
-            params = optimizer.param_groups[0]['params']
+            params = optimizer.param_groups[0]["params"]
             if len(params) != 1 or not torch.equal(params[0], synth_attr):
-                raise ValueError(f"For {synth_name} synthesis, optimizer must have one "
-                                 f"parameter, the {synth_name} we're synthesizing.")
+                raise ValueError(
+                    f"For {synth_name} synthesis, optimizer must have one "
+                    f"parameter, the {synth_name} we're synthesizing."
+                )
             self._optimizer = optimizer
 
     @property
@@ -358,7 +391,7 @@ class OptimizedSynthesis(Synthesis):
         return self._store_progress
 
     @store_progress.setter
-    def store_progress(self, store_progress: Union[bool, int]):
+    def store_progress(self, store_progress: bool | int):
         """Initialize store_progress.
 
         Sets the ``self.store_progress`` attribute, as well as changing the
@@ -375,22 +408,22 @@ class OptimizedSynthesis(Synthesis):
             True or int>0, ``self.saved_metamer`` contains the stored images.
 
         """
-        if store_progress:
-            if store_progress is True:
-                store_progress = 1
+        if store_progress and store_progress is True:
+            store_progress = 1
         if self.store_progress is not None and store_progress != self.store_progress:
             # we require store_progress to be the same because otherwise the
             # subsampling relationship between attrs that are stored every
             # iteration (loss, gradient, etc) and those that are stored every
             # store_progress iteration (e.g., saved_metamer) changes partway
             # through and that's annoying
-            raise Exception("If you've already run synthesize() before, must "
-                            "re-run it with same store_progress arg. You "
-                            f"passed {store_progress} instead of "
-                            f"{self.store_progress} (True is equivalent to 1)")
+            raise Exception(
+                "If you've already run synthesize() before, must "
+                "re-run it with same store_progress arg. You "
+                f"passed {store_progress} instead of "
+                f"{self.store_progress} (True is equivalent to 1)"
+            )
         self._store_progress = store_progress
 
     @property
     def optimizer(self):
         return self._optimizer
-

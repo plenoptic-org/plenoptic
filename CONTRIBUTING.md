@@ -5,15 +5,15 @@ their models. We welcome and encourage contributions from everyone!
 
 First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
 before going any further. You may also want to check out the [main page of the
-documentation](https://plenoptic.readthedocs.io/en/latest/) for a longer
+documentation](http://docs.plenoptic.org/) for a longer
 overview of the project and how to get everything installed, as well as pointers
 for further reading, depending on your interests.
 
 If you encounter any issues with `plenoptic`, first search the existing
-[issues](https://github.com/LabForComputationalVision/plenoptic/issues) and
-[discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+[issues](https://github.com/plenoptic-org/plenoptic/issues) and
+[discussions](https://github.com/plenoptic-org/plenoptic/discussions)
 to see if there's already information to help you. If not, please open a new
-[issue](https://github.com/LabForComputationalVision/plenoptic/issues)! We have
+[issue](https://github.com/plenoptic-org/plenoptic/issues)! We have
 a template for bug reports, and following it (so you provide the necessary
 details) will make solving your problem much easier.
 
@@ -23,26 +23,26 @@ familiar with the project, it can be very helpful for us if you go through the
 tutorials, README, and documentation and let us know if anything is unclear,
 what needs more detail (or clearer writing), etc. For those that want to
 contribute code, we also have many
-[issues](https://github.com/LabForComputationalVision/plenoptic/issues) that we
+[issues](https://github.com/plenoptic-org/plenoptic/issues) that we
 are working through. If you would like to work on one of those, please give it a
 try!
 
 In order to submit changes, create a branch or fork of the project, make your
 changes, add documentation and tests, and submit a [Pull
-Request](https://github.com/LabForComputationalVision/plenoptic/pulls). See
+Request](https://github.com/plenoptic-org/plenoptic/pulls). See
 [contributing to the code below](#contributing-to-the-code) for more details on
 this process.
 
 We try to keep all our communication on Github, and we use several channels:
 
--   [Discussions](https://github.com/LabForComputationalVision/plenoptic/discussions)
+-   [Discussions](https://github.com/plenoptic-org/plenoptic/discussions)
     is the place to ask usage questions, discuss issues too broad for a
     single issue, or show off what you've made with plenoptic.
 -   If you've come across a bug, open an
-    [issue](https://github.com/LabForComputationalVision/plenoptic/issues).
+    [issue](https://github.com/plenoptic-org/plenoptic/issues).
 -   If you have an idea for an extension or enhancement, please post in the
     [ideas
-    section](https://github.com/LabForComputationalVision/plenoptic/discussions/categories/ideas)
+    section](https://github.com/plenoptic-org/plenoptic/discussions/categories/ideas)
     of discussions first. We'll discuss it there and, if we decide to pursue it,
     open an issue to track progress.
 
@@ -54,7 +54,7 @@ versions are supported for 3 years following initial release. This means that we
 support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
 time and that we'll transition between versions during the fourth quarter of
 each year. We run our CPU tests on all three versions, and the GPU tests and
-readthedocs build use the middle version.
+documentation build use the middle version.
 
 ## Contributing to the code
 
@@ -74,17 +74,17 @@ increments the version number, and uploading the new release to PyPI (see
 
 In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that the Caiman uses **git** flow, which involves a separate develop branch in addition to main).
 
-Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/LabForComputationalVision/plenoptic/discussions) to get help.
+Before we begin: everyone finds `git` confusing the first few (dozen) times they encounter it! And even people with a hard-won understanding frequently look up information on how it works. If you find the following difficult, we're happy to help walk you through the process. Please [post on our GitHub discussions page](https://github.com/plenoptic-org/plenoptic/discussions) to get help.
 
 #### Creating a development environment
 
 You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
 
-1. Go to the [plenoptic repo](https://github.com/LabForComputationalVision/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/LabForComputationalVision/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
-3. Add the `upstream` branch: `git remote add upstream https://github.com/LabForComputationalVision/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
+1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
+2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://docs.plenoptic.org/docs/branch/main/install.html), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
-You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e .[docs,dev,nb]` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this page](https://docs.plenoptic.org/docs/branch/main/jupyter.html) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
 #### Creating a new branch
 
@@ -100,7 +100,7 @@ git pull upstream main
 # update your fork's main branch with any changes from upstream
 git push origin main
 # create and switch to the branch
-git checkout -b my_cool_branch 
+git checkout -b my_cool_branch
 ```
 
 Then, create new changes on this branch and, when you're ready, add and commit them:
@@ -109,16 +109,16 @@ Then, create new changes on this branch and, when you're ready, add and commit t
 # stage the changes
 git add src/plenoptic/the_file_you_changed.py
 # commit your changes
-git commit -m "A helpful message explaining my changes" 
+git commit -m "A helpful message explaining my changes"
 # push to the origin remote
-git push origin my_cool_branch 
+git push origin my_cool_branch
 ```
 
 If you aren't comfortable with `git add`, `git commit`, `git push`, I recommend the [Software Carpentry git lesson](https://swcarpentry.github.io/git-novice/).
 
 #### Contributing your change back to plenoptic
 
-You can make any number of changes on your branch. Once you're happy with your changes, [add tests](#adding-tests) to check that they run correctly and [add documentation](#adding-documentation), then make sure the existing [tests](#testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/03-pr/index.html) for a tutorial). 
+You can make any number of changes on your branch. Once you're happy with your changes, [add tests](#adding-tests) to check that they run correctly and [add documentation](#adding-documentation), then make sure the existing [tests](#testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/03-pr/index.html) for a tutorial).
 
 Your pull request should include information on what you changed and why, referencing any relevant issues or discussions, and highlighting any portion of your changes where you have lingering questions (e.g., "was this the right way to implement this?") or want reviewers to pay special attention. You can look at previous closed pull requests to see what this looks like.
 
@@ -126,7 +126,72 @@ At this point, we will be notified of the pull request and will read it over. We
 
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
-### Style guide
+### Code Style and Linting
+We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI and non-compliant code will not be merged!
+
+#### Using Ruff
+
+Ruff is a fast and comprehensive Python formatter and linter that checks for common style and code quality issues. It combines multiple tools, like black, Pyflakes, pycodestyle, isort, and other linting rules into one efficient tool, which are specified in `pyproject.toml`. Before submitting your code, make sure to run Ruff to catch any issues. See other sections of this document for how to use `nox` and `pre-commit` to simplify this process.
+
+Ruff has two components, a [formatter](https://docs.astral.sh/ruff/formatter/) and a [linter](https://docs.astral.sh/ruff/linter/). Formatters and linters are both static analysis tools, but formatters "quickly check and reformat your code for stylistic consistency without changing the runtime behavior of the code", while linters "detect not just stylistic inconsistency but also potential logical bugs, and often suggest code fixes" (per [GitHub's readme project](https://github.com/readme/guides/formatters-linters-compilers)). There are many choices of formatters and linters in python; ruff aims to combine the features of many of them while being very fast.
+
+For both the formatter and the linter, you can run ruff without any additional arguments; our configuration option are stored in the `pyproject.toml` file and so don't need to be specified explicitly.
+
+##### Formatting:
+
+`ruff format` is the primary entrypoint to the formatter. It accepts a list of files or directories, and formats all discovered Python files:
+```bash
+ruff format                   # Format all files in the current directory.
+ruff format path/to/code/     # Format all files in `path/to/code` (and any subdirectories).
+ruff format path/to/file.py   # Format a single file.
+```
+For the full list of supported options, run `ruff format --help`.
+
+##### Using Ruff for Linting:
+
+To run Ruff on your code:
+```bash
+ruff check .
+```
+It'll then tell you which lines are violating linting rules and may suggest that some errors are automatically fixable.
+
+To automatically fix lintint errors, run:
+
+```bash
+ruff --fix .
+```
+
+Be careful with **unsafe fixes**, safe fixes are symbolized with the tools emoji and are listed [here](https://docs.astral.sh/ruff/rules/)!
+
+#### Ignoring Ruff Linting
+In some cases, it may be acceptable to suppress lint errors, for example when too long lines (code `E501`) are desired because otherwise the url might not be readable anymore. These ignores will be evaluated on a case-by-case basis.
+You can do this by adding the following to the end of the line:
+
+```bash
+This line is tooooooo long. # noqa: E501
+```
+If you want to suppress an error across an entire file, do this at the top of the file:
+```bash
+# ruff: noqa: E501
+Below is my python script
+...
+...
+And any line living in this file can be as long as it wants  ...
+...
+```
+
+
+In some cases, you want to not only suppress the error message a linter throws but actually _disable_ a linting rule. An example might be if the import order matters and running `isort` would mess with this.
+In these cases, you can introduce an [action comment](https://docs.astral.sh/ruff/linter/#action-comments) like this such that ruff does _not_ sort the following packages alphabetically:
+
+```bash
+import numpy as np # isort: skip
+import my_package as mp # isort: skip
+```
+
+For more details, refer to the [documentation](https://docs.astral.sh/ruff/linter/#error-suppression).
+
+#### General Style Guide Recommendations:
 
 - Longer, descriptive names are preferred (e.g., `x` is not an appropriate name
   for a variable), especially for anything user-facing, such as methods,
@@ -135,11 +200,31 @@ If your changes are integrated, you will be added as a Github contributor and as
   (see [below](#docstrings) for details). Hidden ones do not *need* to have
   complete docstrings, but they probably should.
 
+#### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
+[Pre-commit](https://pre-commit.com/) hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
+
+Using pre-commit is optional. We use [pre-commit.ci](https://pre-commit.ci/) to run pre-commit as part of PRs (auto-fixing wherever possible), but it may simplify your life to integrate pre-commit into your workflow.
+
+In order to use pre-commit, you must install the `pre-commit` package into your development environment, and then install the hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+See [pre-commit docs](https://pre-commit.com/) for more details.
+
+After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
+```bash
+git commit -m <my commit message> --no-verify
+```
+
+
 ### Adding models or synthesis methods
 
 In addition to the above, see the documentation for a description of
-[models](https://plenoptic.readthedocs.io/en/latest/models.html) and [synthesis
-objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
+[models](https://docs.plenoptic.org/docs/branch/main/models.html) and [synthesis
+objects](https://docs.plenoptic.org/docs/branch/main/synthesis.html). Any new
 models or synthesis objects will need to meet the requirements outlined in those
 pages.
 
@@ -157,7 +242,7 @@ versioning](https://semver.org/):
 When doing a new release, the following steps must be taken:
 1. In a new PR:
   - Update all the [binder](https://mybinder.org) links, which are of the form
-    `https://mybinder.org/v2/gh/LabForComputationalVision/plenoptic/X.Y.Z?filepath=examples`,
+    `https://mybinder.org/v2/gh/plenoptic-org/plenoptic/X.Y.Z?filepath=examples`,
     which are found in `README.md`, `index.rst`, `examples/README.md`, and some
     of the tutorial notebooks found in `examples/`. Note that the version tag
     must match the github tag (specified in the next step) or the link won't
@@ -170,13 +255,13 @@ When doing a new release, the following steps must be taken:
    version tag from the Github release, using
    [setuptools_scm](https://github.com/pypa/setuptools_scm).
 
-Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, like [readthedocs](https://readthedocs.org/) does), so ensure they match!
+Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, so ensure they match!
 
 ## Testing
 
 Before running tests locally, you'll need
 [ffmpeg](https://ffmpeg.org/download.html) installed on your system, as well as
-the `dev` optional dependencies (i.e., you should run `pip install -e .[dev]`
+the `dev` optional dependencies (i.e., you should run `pip install -e ".[dev]"`
 from within your local copy of `plenoptic`).
 
 To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
@@ -196,10 +281,142 @@ several choices for how to run a subset of the tests:
 - Another example specifying a test method in the command line: `pytest
   test_mod.py::TestClass::test_method`
 
-View the [pytest documentation](http://doc.pytest.org/en/latest/usage.html) for
+View the [pytest documentation](https://doc.pytest.org/en/latest/usage.html) for
 more info.
 
-### Adding tests 
+### Using nox to simplify testing and linting
+This section is optional but if you want to easily run tests in an isolated environment
+using the [nox](https://nox.thea.codes/en/stable/) command-line tool.
+
+`nox` is installed automatically as a `[dev]` dependency of plenoptic.
+
+To run all tests and linters through `nox`, from the root folder of the
+plenoptic package, execute the following command,
+
+```bash
+nox
+```
+
+`nox` will read the configuration from the `noxfile.py` script.
+
+If you only want to run an individual session (e.g., lint or test), you can first check which sessions are available with the following command:
+
+```bash
+nox -l
+```
+
+Then you can use
+
+```bash
+nox -s <your_nox_session>
+```
+to run the session of your choice.
+
+Here are some examples:
+
+If you want to run just the tests:
+
+```bash
+nox -s tests
+```
+
+for running only the linters,
+
+```bash
+nox -s linters
+```
+
+and for testing only the coverage, run:
+
+```bash
+nox -s coverage
+```
+
+`nox` offers a variety of configuration options, you can learn more about it from their
+[documentation](https://nox.thea.codes/en/stable/config.html).
+
+Note that nox works particularly well with pyenv, discussed later in this file, which makes it easy to install the multiple python versions used in testing.
+
+#### Multi-python version testing with pyenv
+Sometimes, before opening a pull-request that will trigger the `.github/workflow/ci.yml` continuous
+integration workflow, you may want to test your changes over all the supported python versions locally.
+
+Handling multiple installed python versions on the same machine can be challenging and confusing.
+[`pyenv`](https://github.com/pyenv/pyenv) is a great tool that really comes to the rescue. Note that `pyenv` just handles python versions --- virtual environments have to be handled separately, using [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv)!
+
+This tool doesn't come with the package dependencies and has to be installed separately. Installation instructions
+are system specific but the package readme is very details, see
+[here](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation).
+
+Follow carefully the instructions to configure pyenv after installation.
+
+Once you have tha package installed and configured, you can install multiple python version through it.
+First get a list of the available versions with the command,
+
+```bash
+pyenv install -l
+```
+
+Install the python version you need. For this example, let's assume we want `python 3.10.11` and `python 3.11.8`,
+
+```bash
+pyenv install 3.10.11
+pyenv install 3.11.8
+```
+
+You can check which python version is currently set as default, by typing,
+
+```bash
+pyenv which python
+```
+
+And you can list all available versions of python with,
+
+```bash
+pyenv versions
+```
+If you want to run `nox` on multiple python versions, all you need to do is:
+
+1. Set your desired versions as `global`.
+    ```bash
+    pyenv global 3.11.8 3.10.11
+    ```
+    This will make both version available, and the default python will be set to the first one listed
+    (`3.11.8` in this case).
+2. Run nox specifying the python version as an option.
+    ```bash
+    nox -p 3.10
+    ```
+
+Note that `noxfile.py` lists the available option as keyword arguments in a session specific manner.
+
+As mentioned earlier, if you have multiple python version installed, we recommend you manage your virtual environments through `pyenv` using the [`pyenv-virtualenv`](https://github.com/pyenv/pyenv-virtualenv) extension.
+
+This tool works with most of the environment managers including (`venv` and `conda`).
+Creating an environment with it is as simple as calling,
+
+```bash
+pyenv virtualenv my-python my-enviroment
+```
+
+Here, `my-python` is the python version, one between `pyenv versions`, and `my-environment` is your
+new environment name.
+
+If `my-python` has `conda` installed, it will create a conda environment, if not, it will use `venv`.
+
+You can list the virtual environment only with,
+
+```bash
+pyenv virtualenvs
+```
+
+And you can uninstall an environment with,
+
+```bash
+pyenv uninstall my-environment
+```
+
+### Adding tests
 
 New tests can be added in any of the existing `tests/test_*.py` scripts. Tests
 should be functions, contained within classes. The class contains a bunch of
@@ -261,7 +478,7 @@ metamer instances run for. We do this using
   `vgg16_synth_max_iter 10`; note that you need a `-p` for each parameter and
   you should change nothing else about that line). See the block with `if: ${{
   matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}` for an example.
-  
+
 A similar procedure could be used to reduce the size of an image or other steps
 that could similarly reduce the total time necessary to run a notebook.
 
@@ -358,8 +575,8 @@ model or synthesis method), please include a new tutorial notebook that walks
 through how to use them. For enhancements of existing methods, you can probably
 just modify the existing tutorials and add documentation. If unsure, ask!
 
-Documentation in `plenoptic` is built using Sphinx and lives on readthedocs. If
-that means nothing to you, don't worry!
+Documentation in `plenoptic` is built using Sphinx on some of Flatiron's Jenkins
+runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
 Documentation comes in two types: `.rst` files (reST, the markup language used
 by Sphinx, see
@@ -371,7 +588,7 @@ Jupyter notebooks are tutorials and show how to use the various functions and
 classes contained in the package, and they all should be located in the
 `examples/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it. Once you've added a tutorial, see
-[here](#add-tutorials) for how to include it on the readthedocs page.
+[here](#add-tutorials) for how to include it in the Sphinx site.
 
 reST files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -395,7 +612,7 @@ header (you can have as many sub-headers as you'd like).
 
 You should [build the docs yourself](#build-the-documentation) to ensure it
 looks correct before pushing.
- 
+
 #### Images and plots
 
 You can include images in `.rst` files in the documentation as well. Simply
@@ -405,9 +622,9 @@ place them in the `docs/images/` folder and use the `figure` role, e.g.,:
 .. figure:: images/path_to_my_image.svg
    :figwidth: 100%
    :alt: Alt-text describing my image.
-   
+
    Caption describing my image.
-   
+
 ```
 
 To refer to it directly, you may want to use the [numref
@@ -455,8 +672,9 @@ for docstring structure.
 ### Build the documentation
 
 NOTE: If you just want to read the documentation, you do not need to do this;
-documentation is built automatically on
-[readthedocs](https://plenoptic.readthedocs.io/).
+documentation is built automatically, pushed to the
+[plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
+github repo and published at http://docs.plenoptic.org/.
 
 However, it can be built locally as well. You would do this if you've
 made changes locally to the documentation (or the docstrings) that you
@@ -471,7 +689,7 @@ conda env create -f docs/environment.yml
 # activate the environment
 conda activate plenoptic_docs
 # install plenoptic
-pip install -e .[docs]
+pip install -e ".[docs]"
 # build documentation
 cd docs/
 make html

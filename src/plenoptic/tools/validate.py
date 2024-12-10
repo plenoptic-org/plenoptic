@@ -1,16 +1,17 @@
-"""Functions to validate synthesis inputs. """
-import torch
-import warnings
+"""Functions to validate synthesis inputs."""
+
 import itertools
-from typing import Tuple, Optional, Callable, Union
-from torch import Tensor
 import warnings
+from collections.abc import Callable
+
+import torch
+from torch import Tensor
 
 
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
-    allowed_range: Optional[Tuple[float, float]] = None,
+    allowed_range: tuple[float, float] | None = None,
 ):
     """Determine whether input_tensor tensor can be used for synthesis.
 
@@ -22,7 +23,8 @@ def validate_input(
 
     - If ``no_batch`` is True, check whether ``input_tensor.shape[0] != 1``
 
-    - If ``allowed_range`` is not None, check whether all values of ``input_tensor`` lie
+    - If ``allowed_range`` is not None, check whether all values of
+     ``input_tensor`` lie
       within the specified range.
 
     If any of the above fail, a ``ValueError`` is raised.
@@ -32,22 +34,29 @@ def validate_input(
     input_tensor
         The tensor to validate.
     no_batch
-        If True, raise a ValueError if the batch dimension of ``input_tensor`` is greater
+        If True, raise a ValueError if the batch dimension of ``input_tensor``
+        is greater
         than 1.
     allowed_range
-        If not None, ensure that all values of ``input_tensor`` lie within allowed_range.
+        If not None, ensure that all values of ``input_tensor`` lie within
+        allowed_range.
 
     """
     # validate dtype
-    if input_tensor.dtype not in [torch.float16, torch.complex32,
-                                  torch.float32, torch.complex64,
-                                  torch.float64, torch.complex128]:
-        raise TypeError(f"Only float or complex dtypes are allowed but got type {input_tensor.dtype}")
+    if input_tensor.dtype not in [
+        torch.float16,
+        torch.complex32,
+        torch.float32,
+        torch.complex64,
+        torch.float64,
+        torch.complex128,
+    ]:
+        raise TypeError(
+            "Only float or complex dtypes are"
+            + f" allowed but got type {input_tensor.dtype}"
+        )
     if input_tensor.ndimension() != 4:
-        if no_batch:
-            n_batch = 1
-        else:
-            n_batch = "n_batch"
+        n_batch = 1 if no_batch else "n_batch"
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError(
@@ -57,34 +66,39 @@ def validate_input(
     if no_batch and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
-        raise ValueError(f"input_tensor batch dimension must be 1.")
+        raise ValueError("input_tensor batch dimension must be 1.")
     if allowed_range is not None:
         if allowed_range[0] >= allowed_range[1]:
             raise ValueError(
                 "allowed_range[0] must be strictly less than"
                 f" allowed_range[1], but got {allowed_range}"
             )
-        if input_tensor.min() < allowed_range[0] or input_tensor.max() > allowed_range[1]:
+        if (
+            input_tensor.min() < allowed_range[0]
+            or input_tensor.max() > allowed_range[1]
+        ):
             raise ValueError(
                 f"input_tensor range must lie within {allowed_range}, but got"
                 f" {(input_tensor.min().item(), input_tensor.max().item())}"
             )
 
 
-def validate_model(model: torch.nn.Module,
-                   image_shape: Optional[Tuple[int, int, int, int]] = None,
-                   image_dtype: torch.dtype = torch.float32,
-                   device: Union[str, torch.device] = 'cpu'):
+def validate_model(
+    model: torch.nn.Module,
+    image_shape: tuple[int, int, int, int] | None = None,
+    image_dtype: torch.dtype = torch.float32,
+    device: str | torch.device = "cpu",
+):
     """Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
     errors raised):
 
-    - If ``model`` adds a gradient to an input tensor, which implies that some of
-      it is learnable (``ValueError``).
+    - If ``model`` adds a gradient to an input tensor, which implies that some
+      of it is learnable (``ValueError``).
 
-    - If ``model`` returns a tensor when given a tensor, failure implies that not
-      all computations are done using torch (``ValueError``).
+    - If ``model`` returns a tensor when given a tensor, failure implies that
+      not all computations are done using torch (``ValueError``).
 
     - If ``model`` strips gradient from an input with gradient attached
       (``ValueError``).
@@ -99,10 +113,9 @@ def validate_model(model: torch.nn.Module,
 
     - If ``model`` changes the device of the input (``RuntimeError``).
 
-    Finally, we check if ``model`` is in training mode and raise a warning if so.
-    Note that this is different from having learnable parameters, see ``pytorch
-    docs
-    <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+    Finally, we check if ``model`` is in training mode and raise a warning
+    if so. Note that this is different from having learnable parameters,
+    see ``pytorch docs <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
 
     Parameters
     ----------
@@ -126,13 +139,15 @@ def validate_model(model: torch.nn.Module,
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(image_shape, dtype=image_dtype, requires_grad=False,
-                          device=device)
+    test_img = torch.rand(
+        image_shape, dtype=image_dtype, requires_grad=False, device=device
+    )
     try:
         if model(test_img).requires_grad:
             raise ValueError(
-                "model adds gradient to input, at least one of its parameters is"
-                " learnable. Try calling plenoptic.tools.remove_grad() on it."
+                "model adds gradient to input, at least one of its parameters"
+                " is learnable. Try calling plenoptic.tools.remove_grad()"
+                " on it."
             )
     # in particular, numpy arrays lack requires_grad attribute
     except AttributeError:
@@ -153,8 +168,9 @@ def validate_model(model: torch.nn.Module,
     # and then try to cast it back to a tensor
     except RuntimeError:
         raise ValueError(
-            "model tries to cast the input into something other than torch.Tensor"
-            " object -- are you sure all computations are performed using torch?"
+            "model tries to cast the input into something other than"
+            " torch.Tensor object -- are you sure all computations are"
+            " performed using torch?"
         )
     if image_dtype in [torch.float16, torch.complex32]:
         allowed_dtypes = [torch.float16, torch.complex32]
@@ -163,27 +179,32 @@ def validate_model(model: torch.nn.Module,
     elif image_dtype in [torch.float64, torch.complex128]:
         allowed_dtypes = [torch.float64, torch.complex128]
     else:
-        raise TypeError(f"Only float or complex dtypes are allowed but got type {image_dtype}")
+        raise TypeError(
+            "Only float or complex dtypes are allowed but got type" f" {image_dtype}"
+        )
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
     if model(test_img).ndimension() not in [3, 4]:
         raise ValueError(
-            f"When given a 4d input, model output must be three- or four-"
-            "dimensional but had {model(test_img).ndimension()} dimensions instead!"
+            "When given a 4d input, model output must be three- or"
+            " four-dimensional but had {model(test_img).ndimension()}"
+            " dimensions instead!"
         )
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
         raise RuntimeError("model changes device of input, don't do that!")
-    if model.training:
+    if hasattr(model, "training") and model.training:
         warnings.warn(
             "model is in training mode, you probably want to call eval()"
             " to switch to evaluation mode"
         )
 
 
-def validate_coarse_to_fine(model: torch.nn.Module,
-                            image_shape: Optional[Tuple[int, int, int, int]] = None,
-                            device: Union[str, torch.device] = 'cpu'):
+def validate_coarse_to_fine(
+    model: torch.nn.Module,
+    image_shape: tuple[int, int, int, int] | None = None,
+    device: str | torch.device = "cpu",
+):
     """Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
@@ -208,7 +229,10 @@ def validate_coarse_to_fine(model: torch.nn.Module,
         Which device to place the test image on.
 
     """
-    warnings.warn("Validating whether model can work with coarse-to-fine synthesis -- this can take a while!")
+    warnings.warn(
+        "Validating whether model can work with coarse-to-fine synthesis --"
+        " this can take a while!"
+    )
     msg = "and therefore we cannot do coarse-to-fine synthesis"
     if not hasattr(model, "scales"):
         raise AttributeError(f"model has no scales attribute {msg}")
@@ -221,19 +245,22 @@ def validate_coarse_to_fine(model: torch.nn.Module,
             try:
                 if model_output_shape == model(test_img, scales=sc).shape:
                     raise ValueError(
-                        f"Output of model forward method doesn't change"
+                        "Output of model forward method doesn't change"
                         " shape when scales keyword arg is set to {sc} {msg}"
                     )
             except TypeError:
                 raise TypeError(
-                    f"model forward method does not accept scales argument {sc} {msg}"
+                    "model forward method does not accept scales argument"
+                    f" {sc} {msg}"
                 )
 
 
-def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Tensor]],
-                    image_shape: Optional[Tuple[int, int, int, int]] = None,
-                    image_dtype: torch.dtype = torch.float32,
-                    device: Union[str, torch.device] = 'cpu'):
+def validate_metric(
+    metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
+    image_shape: tuple[int, int, int, int] | None = None,
+    image_dtype: torch.dtype = torch.float32,
+    device: str | torch.device = "cpu",
+):
     """Determines whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
@@ -276,14 +303,21 @@ def validate_metric(metric: Union[torch.nn.Module, Callable[[Tensor, Tensor], Te
     # element tensors can be converted to Python scalars)
     except (ValueError, RuntimeError):
         raise ValueError(
-            f"metric should return a scalar value but output had shape {metric(test_img, test_img).shape}"
+            "metric should return a scalar value but"
+            + f" output had shape {metric(test_img, test_img).shape}"
         )
     # on gpu, 1-SSIM of two identical images is 5e-8, so we use a threshold
     # of 5e-7 to check for zero
     if same_val > 5e-7:
         raise ValueError(
-            f"metric should return <= 5e-7 on two identical images but got {same_val}"
+            "metric should return <= 5e-7 on"
+            + f" two identical images but got {same_val}"
         )
+    # this is hard to test
+    for i in range(20):
+        second_test_img = torch.rand_like(test_img)
+        if metric(test_img, second_test_img).item() < 0:
+            raise ValueError("metric should always return non-negative numbers!")
 
 
 def remove_grad(model: torch.nn.Module):

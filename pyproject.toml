@@ -26,6 +26,7 @@ dependencies = [
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
     "importlib-resources>=6.0",
+    "Deprecated",
 ]
 
 [build-system]
@@ -48,14 +49,15 @@ docs = [
      'sphinx-copybutton',
      'sphinxemoji',
      'sphinx-inline-tabs',
+     'docutils>=0.18.1,<0.21',
 ]
 
 dev = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
-    "requests>=2.21",
     "pooch>=1.2.0",
+    "ruff>=0.6.8",
 ]
 
 nb = [
@@ -67,8 +69,8 @@ nb = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/LabForComputationalVision/plenoptic"
-"Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
+"Homepage" = "https://github.com/plenoptic-org/plenoptic"
+"Documentation" = "https://docs.plenoptic.org"
 "Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
 [tool.setuptools.packages.find]
@@ -83,3 +85,42 @@ local_scheme = 'no-local-version'
 addopts = "--cov=plenoptic -n auto"
 testpaths = ["tests"]
 
+[tool.ruff]
+extend-include = ["*.ipynb"]
+src = ["src", "tests", "examples"]
+# Exclude a variety of commonly ignored directories.
+exclude = []
+
+# Set the maximum line length (same as Black)
+line-length = 88
+
+indent-width = 4 # same as Black
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes: basic static analysis for common errors like undefined names
+    # and missing imports.
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = []

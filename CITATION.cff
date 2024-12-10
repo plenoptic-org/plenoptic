@@ -2,6 +2,9 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it using the preferred-citation metadata."
 title: "Plenoptic: A platform for synthesizing model-optimized visual stimuli"
 authors:
+  - family-names: Balzani
+    given-names: Edoardo
+    orcid: "https://orcid.org/0000-0002-3702-5856"
   - family-names: Bonnen
     given-names: Kathryn
     orcid: "https://orcid.org/0000-0002-9210-8275"
@@ -33,8 +36,8 @@ authors:
     given-names: Xinyuan
     orcid: "https://orcid.org/0000-0003-1770-631X"
 doi: 10.5281/zenodo.10151130
-repository-code: "https://github.com/LabForComputationalVision/plenoptic"
-url: "https://plenoptic.readthedocs.io/"
+repository-code: "https://github.com/plenoptic-org/plenoptic"
+url: "https://docs.plenoptic.org/"
 license: MIT
 keywords:
   - neuroscience

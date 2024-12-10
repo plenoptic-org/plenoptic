@@ -1,20 +1,29 @@
-"""various helpful utilities for plotting or displaying information
-"""
+"""various helpful utilities for plotting or displaying information"""
+
 import warnings
-import torch
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
-import matplotlib.pyplot as plt
+import torch
+
 from .data import to_numpy
-try:
-    from IPython.display import HTML
-except ImportError:
-    warnings.warn("Unable to import IPython.display.HTML")
 
 
-def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
-           cmap=None, plot_complex='rectangular', batch_idx=None,
-           channel_idx=None, as_rgb=False, **kwargs):
+def imshow(
+    image,
+    vrange="indep1",
+    zoom=None,
+    title="",
+    col_wrap=None,
+    ax=None,
+    cmap=None,
+    plot_complex="rectangular",
+    batch_idx=None,
+    channel_idx=None,
+    as_rgb=False,
+    **kwargs,
+):
     """Show image(s) correctly.
 
     This function shows images correctly, making sure that each element in the
@@ -118,22 +127,26 @@ def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
         im = to_numpy(im)
         if im.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
-            im = im[batch_idx:batch_idx+1]
+            im = im[batch_idx : batch_idx + 1]
         if channel_idx is not None:
             # this preserves the number of dimensions
-            im = im[:, channel_idx:channel_idx+1]
+            im = im[:, channel_idx : channel_idx + 1]
         # allow RGB and RGBA
         if as_rgb:
             if im.shape[1] not in [3, 4]:
-                raise Exception("If as_rgb is True, then channel must have 3 "
-                                "or 4 elements!")
+                raise Exception(
+                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
+                )
             im = im.transpose(0, 2, 3, 1)
             # want to insert a fake "channel" dimension here, so our putting it
             # into a list below works as expected
             im = im.reshape((im.shape[0], 1, *im.shape[1:]))
         elif im.shape[1] > 1 and im.shape[0] > 1:
-            raise Exception("Don't know how to plot images with more than one channel and batch!"
-                            " Use batch_idx / channel_idx to choose a subset for plotting")
+            raise Exception(
+                "Don't know how to plot images with more than one channel and"
+                " batch! Use batch_idx / channel_idx to choose a subset for"
+                " plotting"
+            )
         # by iterating through it twice, we make sure to peel apart the batch
         # and channel dimensions so that they each show up as a separate image.
         # because of how we've handled everything above, we know that im will
@@ -152,7 +165,8 @@ def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
         divisors = [i for i in range(2, x) if not x % i]
         # find the largest zoom (equivalently, smallest divisor) such that the
         # zoomed in image is smaller than the limit
-        return 1 / min([i for i in divisors if x/i <= limit])
+        return 1 / min([i for i in divisors if x / i <= limit])
+
     if ax is not None and zoom is None:
         if ax.bbox.height > max(heights):
             zoom = ax.bbox.height // max(heights)
@@ -164,15 +178,35 @@ def imshow(image, vrange='indep1', zoom=None, title='', col_wrap=None, ax=None,
             zoom = find_zoom(max(widths), ax.bbox.width)
     elif zoom is None:
         zoom = 1
-    return pt.imshow(images_to_plot, vrange=vrange, zoom=zoom, title=title,
-                     col_wrap=col_wrap, ax=ax, cmap=cmap, plot_complex=plot_complex,
-                     **kwargs)
+    return pt.imshow(
+        images_to_plot,
+        vrange=vrange,
+        zoom=zoom,
+        title=title,
+        col_wrap=col_wrap,
+        ax=ax,
+        cmap=cmap,
+        plot_complex=plot_complex,
+        **kwargs,
+    )
 
 
-def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
-             title='', col_wrap=None, ax=None, cmap=None,
-             plot_complex='rectangular', batch_idx=None, channel_idx=None,
-             as_rgb=False, **kwargs):
+def animshow(
+    video,
+    framerate=2.0,
+    repeat=False,
+    vrange="indep1",
+    zoom=1,
+    title="",
+    col_wrap=None,
+    ax=None,
+    cmap=None,
+    plot_complex="rectangular",
+    batch_idx=None,
+    channel_idx=None,
+    as_rgb=False,
+    **kwargs,
+):
     """Animate video(s) correctly.
 
     This function animates videos correctly, making sure that each element in
@@ -185,7 +219,7 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g.,
-    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
@@ -301,37 +335,59 @@ def animshow(video, framerate=2., repeat=False, vrange='indep1', zoom=1,
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
-            vid = vid[batch_idx:batch_idx+1]
+            vid = vid[batch_idx : batch_idx + 1]
         if channel_idx is not None:
             # this preserves the number of dimensions
-            vid = vid[:, channel_idx:channel_idx+1]
+            vid = vid[:, channel_idx : channel_idx + 1]
         # allow RGB and RGBA
         if as_rgb:
             if vid.shape[1] not in [3, 4]:
-                raise Exception("If as_rgb is True, then channel must have 3 "
-                                "or 4 elements!")
+                raise Exception(
+                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
+                )
             vid = vid.transpose(0, 2, 3, 4, 1)
             # want to insert a fake "channel" dimension here, so our putting it
             # into a list below works as expected
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
         elif vid.shape[1] > 1 and vid.shape[0] > 1:
-            raise Exception("Don't know how to plot images with more than one channel and batch!"
-                            " Use batch_idx / channel_idx to choose a subset for plotting")
+            raise Exception(
+                "Don't know how to plot images with more than one channel and"
+                " batch! Use batch_idx / channel_idx to choose a subset for"
+                " plotting"
+            )
         # by iterating through it twice, we make sure to peel apart the batch
         # and channel dimensions so that they each show up as a separate video.
         # because of how we've handled everything above, we know that vid will
         # be (b,c,t,h,w) or (b,c,t,h,w,r) where r is the RGB(A) values
         for v in vid:
             videos_to_show.extend([v_.squeeze() for v_ in v])
-    return pt.animshow(videos_to_show, framerate=framerate, as_html5=False,
-                       repeat=repeat, vrange=vrange, zoom=zoom, title=title,
-                       col_wrap=col_wrap, ax=ax, cmap=cmap,
-                       plot_complex=plot_complex, **kwargs)
+    return pt.animshow(
+        videos_to_show,
+        framerate=framerate,
+        as_html5=False,
+        repeat=repeat,
+        vrange=vrange,
+        zoom=zoom,
+        title=title,
+        col_wrap=col_wrap,
+        ax=ax,
+        cmap=cmap,
+        plot_complex=plot_complex,
+        **kwargs,
+    )
 
 
-def pyrshow(pyr_coeffs, vrange='indep1', zoom=1, show_residuals=True,
-            cmap=None, plot_complex='rectangular', batch_idx=0, channel_idx=0,
-            **kwargs):
+def pyrshow(
+    pyr_coeffs,
+    vrange="indep1",
+    zoom=1,
+    show_residuals=True,
+    cmap=None,
+    plot_complex="rectangular",
+    batch_idx=0,
+    channel_idx=0,
+    **kwargs,
+):
     r"""Display steerable pyramid coefficients in orderly fashion.
 
     This function uses ``imshow`` to show the coefficients of the steeable
@@ -378,7 +434,8 @@ def pyrshow(pyr_coeffs, vrange='indep1', zoom=1, show_residuals=True,
         <1, must be 1/d where d is a a divisor of the size of the largest
         image.
     show_residuals : `bool`
-        whether to display the residual bands (lowpass, highpass depending on the pyramid type)
+        whether to display the residual bands (lowpass, highpass depending on the
+        pyramid type)
     cmap : matplotlib colormap, optional
         colormap to use when showing these images
     plot_complex : {'rectangular', 'polar', 'logpolar'}
@@ -408,20 +465,31 @@ def pyrshow(pyr_coeffs, vrange='indep1', zoom=1, show_residuals=True,
         if np.iscomplex(im).any():
             is_complex = True
         # this removes only the first (batch) dimension
-        im = im[batch_idx:batch_idx+1].squeeze(0)
+        im = im[batch_idx : batch_idx + 1].squeeze(0)
         # this removes only the first (now channel) dimension
-        im = im[channel_idx:channel_idx+1].squeeze(0)
+        im = im[channel_idx : channel_idx + 1].squeeze(0)
         # because of how we've handled everything above, we know that im will
         # be (h,w).
         pyr_coeffvis[k] = im
 
-    return pt.pyrshow(pyr_coeffvis, is_complex=is_complex, vrange=vrange,
-                      zoom=zoom, cmap=cmap, plot_complex=plot_complex,
-                      show_residuals=show_residuals, **kwargs)
+    return pt.pyrshow(
+        pyr_coeffvis,
+        is_complex=is_complex,
+        vrange=vrange,
+        zoom=zoom,
+        cmap=cmap,
+        plot_complex=plot_complex,
+        show_residuals=show_residuals,
+        **kwargs,
+    )
 
 
-def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
-                  axes_to_remove=['x']):
+def clean_up_axes(
+    ax,
+    ylim=None,
+    spines_to_remove=["top", "right", "bottom"],
+    axes_to_remove=["x"],
+):
     r"""Clean up an axis, as desired when making a stem plot of the representation
 
     Parameters
@@ -445,18 +513,18 @@ def clean_up_axes(ax, ylim=None, spines_to_remove=['top', 'right', 'bottom'],
 
     """
     if spines_to_remove is None:
-        spines_to_remove = ['top', 'right', 'bottom']
+        spines_to_remove = ["top", "right", "bottom"]
     if axes_to_remove is None:
-        axes_to_remove = ['x']
+        axes_to_remove = ["x"]
 
     if ylim is not None:
         if ylim:
             ax.set_ylim(ylim)
     else:
         ax.set_ylim((0, ax.get_ylim()[1]))
-    if 'x' in axes_to_remove:
+    if "x" in axes_to_remove:
         ax.xaxis.set_visible(False)
-    if 'y' in axes_to_remove:
+    if "y" in axes_to_remove:
         ax.yaxis.set_visible(False)
     for s in spines_to_remove:
         ax.spines[s].set_visible(False)
@@ -517,6 +585,7 @@ def rescale_ylim(axes, data):
         values)
     """
     data = data.cpu()
+
     def find_ymax(data):
         try:
             return np.abs(data).max()
@@ -524,6 +593,7 @@ def rescale_ylim(axes, data):
             # then we need to call to_numpy on it because it needs to be
             # detached and converted to an array
             return np.abs(to_numpy(data)).max()
+
     try:
         y_max = find_ymax(data)
     except TypeError:
@@ -533,7 +603,7 @@ def rescale_ylim(axes, data):
         ax.set_ylim((-y_max, y_max))
 
 
-def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
+def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
     r"""convenience wrapper for plotting stem plots
 
     This plots the data, baseline, cleans up the axis, and sets the
@@ -617,14 +687,13 @@ def clean_stem_plot(data, ax=None, title='', ylim=None, xvals=None, **kwargs):
     if ax is None:
         ax = plt.gca()
     if xvals is not None:
-        basefmt = ' '
-        ax.hlines(len(xvals[0])*[0], xvals[0], xvals[1], colors='C3',
-                  zorder=10)
+        basefmt = " "
+        ax.hlines(len(xvals[0]) * [0], xvals[0], xvals[1], colors="C3", zorder=10)
     else:
         # this is the default basefmt value
         basefmt = None
     ax.stem(data, basefmt=basefmt, **kwargs)
-    ax = clean_up_axes(ax, ylim, ['top', 'right', 'bottom'])
+    ax = clean_up_axes(ax, ylim, ["top", "right", "bottom"])
     if title is not None:
         ax.set_title(title)
     return ax
@@ -652,7 +721,7 @@ def _get_artists_from_axes(axes, data):
         use, keys are the corresponding keys for data
 
     """
-    if not hasattr(axes, '__iter__'):
+    if not hasattr(axes, "__iter__"):
         # then we only have one axis, so we may be able to update more than one
         # data element.
         if len(axes.containers) > 0:
@@ -672,17 +741,21 @@ def _get_artists_from_axes(axes, data):
             artists = {ax.get_label(): ax for ax in artists}
         else:
             if data_check == 1 and data.shape[1] != len(artists):
-                raise Exception(f"data has {data.shape[1]} things to plot, but "
-                                f"your axis contains {len(artists)} plotting artists, "
-                                "so unsure how to continue! Pass data as a dictionary"
-                                " with keys corresponding to the labels of the artists"
-                                " to update to resolve this.")
+                raise Exception(
+                    f"data has {data.shape[1]} things to plot, but "
+                    f"your axis contains {len(artists)} plotting artists, "
+                    "so unsure how to continue! Pass data as a dictionary"
+                    " with keys corresponding to the labels of the artists"
+                    " to update to resolve this."
+                )
             elif data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
-                raise Exception(f"data has {data.shape[-3]} things to plot, but "
-                                f"your axis contains {len(artists)} plotting artists, "
-                                "so unsure how to continue! Pass data as a dictionary"
-                                " with keys corresponding to the labels of the artists"
-                                " to update to resolve this.")
+                raise Exception(
+                    f"data has {data.shape[-3]} things to plot, but "
+                    f"your axis contains {len(artists)} plotting artists, "
+                    "so unsure how to continue! Pass data as a dictionary"
+                    " with keys corresponding to the labels of the artists"
+                    " to update to resolve this."
+                )
     else:
         # then we have multiple axes, so we are only updating one data element
         # per plot
@@ -703,19 +776,25 @@ def _get_artists_from_axes(axes, data):
                 data_check = 2
         if isinstance(data, dict):
             if len(data.keys()) != len(artists):
-                raise Exception(f"data has {len(data.keys())} things to plot, but "
-                                f"you passed {len(axes)} axes , so unsure how "
-                                "to continue!")
+                raise Exception(
+                    f"data has {len(data.keys())} things to plot, but "
+                    f"you passed {len(axes)} axes , so unsure how "
+                    "to continue!"
+                )
             artists = {k: a for k, a in zip(data.keys(), artists)}
         else:
             if data_check == 1 and data.shape[1] != len(artists):
-                raise Exception(f"data has {data.shape[1]} things to plot, but "
-                                f"you passed {len(axes)} axes , so unsure how "
-                                "to continue!")
+                raise Exception(
+                    f"data has {data.shape[1]} things to plot, but "
+                    f"you passed {len(axes)} axes , so unsure how "
+                    "to continue!"
+                )
             if data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
-                raise Exception(f"data has {data.shape[-3]} things to plot, but "
-                                f"you passed {len(axes)} axes , so unsure how "
-                                "to continue!")
+                raise Exception(
+                    f"data has {data.shape[-3]} things to plot, but "
+                    f"you passed {len(axes)} axes , so unsure how "
+                    "to continue!"
+                )
     if not isinstance(artists, dict):
         artists = {f"{i:02d}": a for i, a in enumerate(artists)}
     return artists
@@ -787,14 +866,18 @@ def update_plot(axes, data, model=None, batch_idx=0):
     if isinstance(data, dict):
         for v in data.values():
             if v.ndim not in [3, 4]:
-                raise ValueError("update_plot expects 3 or 4 dimensional data"
-                                 "; unexpected behavior will result otherwise!"
-                                 f" Got data of shape {v.shape}")
+                raise ValueError(
+                    "update_plot expects 3 or 4 dimensional data"
+                    "; unexpected behavior will result otherwise!"
+                    f" Got data of shape {v.shape}"
+                )
     else:
         if data.ndim not in [3, 4]:
-            raise ValueError("update_plot expects 3 or 4 dimensional data"
-                             "; unexpected behavior will result otherwise!"
-                             f" Got data of shape {data.shape}")
+            raise ValueError(
+                "update_plot expects 3 or 4 dimensional data"
+                "; unexpected behavior will result otherwise!"
+                f" Got data of shape {data.shape}"
+            )
     try:
         artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
     except AttributeError:
@@ -810,17 +893,19 @@ def update_plot(axes, data, model=None, batch_idx=0):
                 try:
                     if next(iter(ax_artists.values())).get_array().data.ndim > 1:
                         # then this is an RGBA image
-                        data_dict = {'00': data}
+                        data_dict = {"00": data}
                 except Exception as e:
-                    raise Exception("Thought this was an RGB(A) image based on the number of "
-                                    "artists and data shape, but something is off! "
-                                    f"Original exception: {e}")
+                    raise Exception(
+                        "Thought this was an RGB(A) image based on the number"
+                        " of artists and data shape, but something is off!"
+                        f" Original exception: {e}"
+                    )
             else:
                 for i, d in enumerate(data.unbind(1)):
                     # need to keep the shape the same because of how we
                     # check for shape below (unbinding removes a dimension,
                     # so we add it back)
-                    data_dict[f'{i:02d}'] = d.unsqueeze(1)
+                    data_dict[f"{i:02d}"] = d.unsqueeze(1)
             data = data_dict
         for k, d in data.items():
             try:
@@ -861,8 +946,16 @@ def update_plot(axes, data, model=None, batch_idx=0):
     return artists
 
 
-def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
-                        ylim=False, batch_idx=0, title='', as_rgb=False):
+def plot_representation(
+    model=None,
+    data=None,
+    ax=None,
+    figsize=(5, 5),
+    ylim=False,
+    batch_idx=0,
+    title="",
+    as_rgb=False,
+):
     r"""Helper function for plotting model representation
 
     We are trying to plot ``data`` on ``ax``, using
@@ -933,15 +1026,15 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
     try:
         # no point in passing figsize, because we've already created
         # and are passing an axis or are passing the user-specified one
-        fig, axes = model.plot_representation(ylim=ylim, ax=ax, title=title,
-                                              batch_idx=batch_idx,
-                                              data=data)
+        fig, axes = model.plot_representation(
+            ylim=ylim, ax=ax, title=title, batch_idx=batch_idx, data=data
+        )
     except AttributeError:
         if data is None:
             data = model.representation
         if not isinstance(data, dict):
             if title is None:
-                title = 'Representation'
+                title = "Representation"
             data_dict = {}
             if not as_rgb:
                 # then we peel apart the channels
@@ -949,20 +1042,20 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
                     # need to keep the shape the same because of how we
                     # check for shape below (unbinding removes a dimension,
                     # so we add it back)
-                    data_dict[title+'_%02d' % i] = d.unsqueeze(1)
+                    data_dict[title + f"_{i:02d}"] = d.unsqueeze(1)
             else:
                 data_dict[title] = data
             data = data_dict
         else:
             warnings.warn("data has keys, so we're ignoring title!")
         # want to make sure the axis we're taking over is basically invisible.
-        ax = clean_up_axes(ax, False,
-                           ['top', 'right', 'bottom', 'left'], ['x', 'y'])
+        ax = clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
         axes = []
         if len(list(data.values())[0].shape) == 3:
             # then this is 'vector-like'
-            gs = ax.get_subplotspec().subgridspec(min(4, len(data)),
-                                                  int(np.ceil(len(data) / 4)))
+            gs = ax.get_subplotspec().subgridspec(
+                min(4, len(data)), int(np.ceil(len(data) / 4))
+            )
             for i, (k, v) in enumerate(data.items()):
                 ax = fig.add_subplot(gs[i % 4, i // 4])
                 # only plot the specified batch, but plot each channel
@@ -974,23 +1067,29 @@ def plot_representation(model=None, data=None, ax=None, figsize=(5, 5),
                 axes.append(ax)
         elif len(list(data.values())[0].shape) == 4:
             # then this is 'image-like'
-            gs = ax.get_subplotspec().subgridspec(int(np.ceil(len(data) / 4)),
-                                                  min(4, len(data)))
+            gs = ax.get_subplotspec().subgridspec(
+                int(np.ceil(len(data) / 4)), min(4, len(data))
+            )
             for i, (k, v) in enumerate(data.items()):
                 ax = fig.add_subplot(gs[i // 4, i % 4])
-                ax = clean_up_axes(ax,
-                                   False, ['top', 'right', 'bottom', 'left'],
-                                   ['x', 'y'])
+                ax = clean_up_axes(
+                    ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
+                )
                 # only plot the specified batch
-                imshow(v, batch_idx=batch_idx, title=k, ax=ax,
-                       vrange='indep0', as_rgb=as_rgb)
+                imshow(
+                    v,
+                    batch_idx=batch_idx,
+                    title=k,
+                    ax=ax,
+                    vrange="indep0",
+                    as_rgb=as_rgb,
+                )
                 axes.append(ax)
             # because we're plotting image data, don't want to change
             # ylim at all
             ylim = False
         else:
-            raise Exception("Don't know what to do with data of shape"
-                            f" {data.shape}")
+            raise Exception(f"Don't know what to do with data of shape {data.shape}")
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)

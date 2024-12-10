@@ -12,8 +12,12 @@ way to check whether your model meets the following requirements, and see
 * should inherit ``torch.nn.Module`` (this is not strictly necessary, but will
   make meeting the other requirements easier).
 * must be callable, be able to accept a 4d ``torch.Tensor`` as input, and return
-  a 3d or 4d ``torch.Tensor`` as output. If you inherit ``torch.nn.Module``,
-  implementing the ``forward()`` method will make your model callable.
+  a 3d or 4d ``torch.Tensor`` as output.
+
+  * If you inherit ``torch.nn.Module``, implementing the ``forward()`` method
+    will make your model callable.
+  * Otherwise, implement the ``__call__()`` method.
+
 * the above transformation must be differentiable by ``torch``. In practice,
   this generally means you perform all computations using ``torch`` functions
   (unless you want to write a custom ``.backward()`` method).
@@ -42,9 +46,10 @@ metric meets the following requirements and see :class:`plenoptic.metric` for
 some examples):
 
 * a metric must be callable, accept two 4d ``torch.Tensor`` objects as inputs,
-  and return a scalar as output. This can be a ``torch.nn.Module`` object, like
-  models, but the examples metrics are all functions.
+  and return a scalar as output. It can be a ``torch.nn.Module`` object or other
+  callable object, like models, as well as a function.
 * when called on two identical inputs, the metric must return a value of 0.
+* it must always return a non-negative number.
 
 Finally, :class:`plenoptic.synthesize.metamer.Metamer` supports coarse-to-fine
 synthesis, as described in [PS]_. To make use of coarse-to-fine synthesis, your
@@ -64,5 +69,5 @@ for an example):
 .. [PS] J Portilla and E P Simoncelli. A Parametric Texture Model based on Joint
         Statistics of Complex Wavelet Coefficients. Int'l Journal of Computer
         Vision. 40(1):49-71, October, 2000. `abstract
-        <http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html>`_,
-        `paper <http://www.cns.nyu.edu/~lcv/texture/>`_.
+        <https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html>`_,
+        `paper <https://www.cns.nyu.edu/~lcv/texture/>`_.
