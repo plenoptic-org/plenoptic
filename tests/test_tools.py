@@ -555,6 +555,8 @@ class TestValidate:
             po.tools.validate.validate_metric(mean_metric, device=DEVICE)
 
     def test_validate_metric_nonnegative(self):
+        po.tools.set_seed(0)
+
         def sum_metric(x, y):
             return (x - y).sum()
 
