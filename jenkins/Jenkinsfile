@@ -98,8 +98,8 @@ pipeline {
               echo \$(ls \$HOME)
               echo \$(ls \$HOME/docs)
               echo \$(ls \$HOME/docs/_build)
-              mv docs/_build/ $HOME/build/
-              echo \$(ls \$HOME/build)
+              mv docs/_build/ $HOME/built-docs/
+              echo \$(ls \$HOME/built-docs)
            '''
             lock('plenoptic_docs_publish') {
               script {
@@ -120,9 +120,9 @@ pipeline {
                 mkdir -p \$DOCS_DIR
                 echo \$(ls \$HOME)
                 echo \$(ls \$HOME/docs)
-                echo \$(ls \$HOME/build)
+                echo \$(ls \$HOME/built-docs)
                 echo \$(ls \$DOCS_DIR)
-                cp -rp \$HOME/build/html/* \$DOCS_DIR
+                cp -rp \$HOME/built-docs/html/* \$DOCS_DIR
                 # using -f here makes sure we add the index.html files, which are included in workshops .gitignore (since some are auto-generated)
                 git add -A -f --verbose docs/\$PROJECT_NAME
                 GIT_COMMITTER_EMAIL="jenkins@flatironinstitute.org" GIT_COMMITTER_NAME="Flatiron Jenkins" git commit --author='Flatiron Jenkins <jenkins@flatironinstitute.org>' --allow-empty -m "Generated documentation for \$DOCS_DIR" -m '${env.BUILD_TAG}'
