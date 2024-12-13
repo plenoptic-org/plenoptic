@@ -74,8 +74,8 @@ class PortillaSimoncelliMasked(nn.Module):
     .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
        Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
        Computer Vision. 40(1):49-71, October, 2000.
-       http://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
-       http://www.cns.nyu.edu/~lcv/texture/
+       https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       https://www.cns.nyu.edu/~lcv/texture/
     .. [2] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
@@ -196,6 +196,10 @@ class PortillaSimoncelliMasked(nn.Module):
         # In both cases, adding a small epsilon avoids a NaN or (for division) an
         # unreasonably large number.
         self._stability_epsilon = 1e-6
+        # this (much larger) epsilon is used when computing the pixel stats skew and
+        # kurtosis, which involve a division by the variance to the 1.5 and 2 powers,
+        # respectively, and have much greater problems with very small values.
+        self._pixel_epsilon = 1e-1
 
     @property
     def mask(self):
@@ -832,13 +836,13 @@ class PortillaSimoncelliMasked(nn.Module):
         # for var and skew here can be found on their respective wikipedia pages, and
         # the one for kurtosis comes from Eero working through the algebra
         var = moment_2 - mean.pow(2)
-        skew = (moment_3 - 3 * mean * var - mean.pow(3)) / (var.pow(1.5))
+        skew = (moment_3 - 3 * mean * var - mean.pow(3)) / (var.pow(1.5) + self._pixel_epsilon)
         kurtosis = (
             moment_4
             - 4 * mean * moment_3
             + 6 * mean.pow(2) * moment_2
             - 3 * mean.pow(4)
-        ) / (var.pow(2))
+        ) / (var.pow(2) + self._pixel_epsilon)
         return einops.rearrange(
             [mean, var, skew, kurtosis],
             f"stats b c {self._mask_output_idx} -> b c ({self._mask_output_idx}) stats",
