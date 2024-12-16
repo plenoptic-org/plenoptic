@@ -24,14 +24,14 @@ class WeightedAverage(torch.nn.Module):
     """Module to take a weighted average over last two dimensions of tensors.
 
     - Weights are set at initialization, must be non-negative, and 3d Tensors (different
-      masks indexed on first dimension, height and width on last two).
+      weighting regions indexed on first dimension, height and width on last two).
 
     - If two weights are set, they are multiplied together when taking the average
       (e.g., separable polar angle and eccentricity weights).
 
     - Weights are normalized at initialization so that they sum to 1 (as best as
-      possible). If any mask sums to near-zero, an exception is raised. If there's
-      variation across mask sums, a warning is raised.
+      possible). If any weighting region sums to near-zero, an exception is raised. If
+      there's variation across weighting region sums, a warning is raised.
 
     Parameters
     ----------
@@ -68,7 +68,19 @@ class WeightedAverage(torch.nn.Module):
         self._normalize_weights()
 
     def _normalize_weights(self):
-        """Normalize
+        """Normalize weights.
+
+        Call sum_weights() to multiply and sum all weights, then:
+
+        - Check whether any weighting region sum is near-zero. If so, raise ValueError
+
+        - Check variance of weighting region sums and raise warning if that variance is
+          not near-zero. (Ideally, all weighting region sums would be the same value.)
+
+        - Take the modal weighting region sum value and divide all weighting regions by
+          that value to normalize them. If we have two weight tensors, divide each by
+          the sqrt of the mode instead.
+
         """
         weight_sums = self.sum_weights()
         if torch.isclose(weight_sums, torch.zeros_like(weight_sums)).any():
@@ -148,14 +160,14 @@ class WeightedAveragePyramid(torch.nn.Module):
     As with ``WeightedAverage``:
 
     - Weights are set at initialization, must be non-negative, and 3d Tensors (different
-      masks indexed on first dimension, height and width on last two).
+      weighting regions indexed on first dimension, height and width on last two).
 
     - If two weights are set, they are multiplied together when taking the average
       (e.g., separable polar angle and eccentricity weights).
 
     - Weights are normalized at initialization so that they sum to 1 (as best as
-      possible). If any mask sums to near-zero, an exception is raised. If there's
-      variation across mask sums, a warning is raised.
+      possible). If any weighting region sums to near-zero, an exception is raised. If
+      there's variation across weighting region sums, a warning is raised.
 
     Parameters
     ----------
@@ -176,6 +188,7 @@ class WeightedAveragePyramid(torch.nn.Module):
         super().__init__()
         self._n_weights = 1 if weights_2 is None else 2
         self.n_scales = n_scales
+        weights = []
         for i in range(n_scales):
             if i != 0:
                 weights_1 = blur_downsample(weights_1.unsqueeze(0), 1, scale_filter=True)
@@ -185,12 +198,8 @@ class WeightedAveragePyramid(torch.nn.Module):
                     weights_2 = weights_2.squeeze(0).clip(min=0)
             # it's possible negative values will get introduced by the downsampling
             # above, in which case we remove them
-            weights = WeightedAverage(weights_1, weights_2)
-            setattr(self, f"_weights_scale_{i}", weights)
-
-    @property
-    def weights(self):
-        return torch.nn.ModuleList([getattr(self, f"_weights_scale_{i}") for i in range(self.n_scales)])
+            weights.append(WeightedAverage(weights_1, weights_2))
+        self.weights = torch.nn.ModuleList(weights)
 
     def forward(self, image: list[Tensor]) -> list[Tensor]:
         """Take the weighted average over last two dimensions of each input in list.
@@ -225,6 +234,6 @@ class WeightedAveragePyramid(torch.nn.Module):
 
         """
         sums = []
-        for i in range(self.n_scales):
-            sums.append(getattr(self, f"_weights_scale_{i}").sum_weights())
-        return einops.pack(sums, f"* {self._weights_scale_0.output_einsum}")[0]
+        for w in self.weights:
+            sums.append(w.sum_weights())
+        return einops.pack(sums, f"* {self.weights[0]._output_einsum}")[0]
