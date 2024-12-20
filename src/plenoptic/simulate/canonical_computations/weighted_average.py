@@ -14,10 +14,10 @@ class SimpleAverage(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, x: Tensor, keepdim: bool = False):
+    def forward(self, x: Tensor):
         """Average over the last two dimensions of input.
         """
-        return torch.mean(x, dim=(-2, -1), keepdim=keepdim)
+        return torch.mean(x, dim=(-2, -1))
 
 
 class WeightedAverage(torch.nn.Module):
@@ -37,6 +37,8 @@ class WeightedAverage(torch.nn.Module):
     ----------
     weights_1, weights_2 :
         3d Tensors defining the weights for the average.
+    image_shape :
+        Last two dimensions of weights tensors
 
     Attributes
     ----------
@@ -50,22 +52,30 @@ class WeightedAverage(torch.nn.Module):
         self._validate_weights(weights_1, "_1")
         self.register_buffer("_weights_1", weights_1)
         self._n_weights = 1
-        input_einsum = "m1 h w"
-        output_einsum = "m1"
+        input_einsum = "w1 h w"
+        output_einsum = "w1"
         if weights_2 is not None:
             self._validate_weights(weights_2, "_2")
             if weights_1.shape[-2:] != weights_2.shape[-2:]:
                 raise ValueError("weights_1 and weights_2 must have same height and width!")
             self._n_weights += 1
-            input_einsum += ", m2 h w"
-            output_einsum += " m2"
+            input_einsum += ", w2 h w"
+            output_einsum += " w2"
             self.register_buffer("_weights_2", weights_2)
-        self._image_shape = weights_1.shape[-2:]
+        self.image_shape = weights_1.shape[-2:]
+        self._input_einsum = input_einsum
         self._output_einsum = output_einsum
         self._weight_einsum = f"{input_einsum} -> {output_einsum}"
-        self._forward_einsum = f"{input_einsum}, b c {{extra_dims}} h w -> b c {{extra_dims}} {output_einsum} {{extra_out}}"
+        self._forward_einsum = f"{input_einsum}, b c {{extra_dims}} h w -> b c {output_einsum} {{extra_dims}}"
         self._extra_dims = ["", "i1", "i1 i2"]
         self._normalize_weights()
+
+    @property
+    def weights(self):
+        weights = [self._weights_1]
+        if self._n_weights > 1:
+            weights.append(self._weights_2)
+        return weights
 
     def _normalize_weights(self):
         """Normalize weights.
@@ -98,12 +108,6 @@ class WeightedAverage(torch.nn.Module):
                 self._weights_1 = self._weights_1 / mode.sqrt()
                 self._weights_2 = self._weights_2 / mode.sqrt()
 
-    @property
-    def weights(self):
-        # inspired by
-        # https://discuss.pytorch.org/t/why-no-nn-bufferlist-like-function-for-registered-buffer-tensor/18884/10
-        return [getattr(self, f"_weights_{j}") for j in range(1, self._n_weights+1)]
-
     @staticmethod
     def _validate_weights(weights: Tensor, idx: 'str' = '_1'):
         if weights.ndim != 3:
@@ -111,7 +115,7 @@ class WeightedAverage(torch.nn.Module):
         if weights.min() < 0:
             raise ValueError(f"weights{idx} must be non-negative!")
 
-    def forward(self, image: Tensor, keepdim: bool = False) -> Tensor:
+    def forward(self, image: Tensor) -> Tensor:
         """Take the weighted average over last two dimensions of input.
 
         All other dimensions are preserved.
@@ -120,9 +124,6 @@ class WeightedAverage(torch.nn.Module):
         ----------
         image :
             4d to 6d Tensor.
-        keepdim :
-            Whether to take the weighted average (False) or just apply the weights
-            (True).
 
         Returns
         -------
@@ -131,12 +132,42 @@ class WeightedAverage(torch.nn.Module):
             and ``len(weights)``
 
         """
-        extra_out = ""
-        if keepdim:
-            extra_out = " h w"
-        extra_dims = self._extra_dims[image.ndim - 4]
-        einsum_str = self._forward_einsum.format(extra_dims=extra_dims, extra_out=extra_out)
-        return einops.einsum(*self.weights, image, einsum_str)
+        if image.ndim < 4:
+            raise ValueError(
+                "image must be a tensor of 4 to 6 dimensions!"
+            )
+        try:
+            extra_dims = self._extra_dims[image.ndim - 4]
+        except IndexError:
+            raise ValueError(
+                "image must be a tensor of 4 to 6 dimensions!"
+            )
+        einsum_str = self._forward_einsum.format(extra_dims=extra_dims)
+        return einops.einsum(*self.weights, image, einsum_str).flatten(2, 3)
+
+    def einsum(self, einsum_str: str, *tensors: Tensor) -> Tensor:
+        """More general version of forward.
+
+        This takes the input einsum_str and prepends self.weights to it and inserts the
+        weight dimensions into the output after "b c" (for batch, channel). Thus this
+        will be weird if there's no "b c" dimensions.
+
+        Parameters
+        ----------
+        einsum_str :
+            String of einsum notation, which must contain "b c" in the output. Intended
+            use is that this string produces a single output tensor.
+        tensors :
+            Any number of tensors
+
+        Returns
+        -------
+        output :
+            The result of this einsum
+
+        """
+        einsum_str = f"{self._input_einsum}, {einsum_str.split('->')[0]} -> b c {self._output_einsum} {einsum_str.split('->')[1].replace('b c', '')}"
+        return einops.einsum(*self.weights, *tensors, einsum_str).flatten(2, 3)
 
     def sum_weights(self) -> Tensor:
         """Sum weights, largely used for diagnostic purposes.
@@ -201,6 +232,9 @@ class WeightedAveragePyramid(torch.nn.Module):
             weights.append(WeightedAverage(weights_1, weights_2))
         self.weights = torch.nn.ModuleList(weights)
 
+    def __getitem__(self, idx: int):
+        return self.weights[idx]
+
     def forward(self, image: list[Tensor]) -> list[Tensor]:
         """Take the weighted average over last two dimensions of each input in list.
 
@@ -210,18 +244,40 @@ class WeightedAveragePyramid(torch.nn.Module):
         ----------
         image :
             List of 4d to 6d Tensor, each of which has been downsampled by a factor of 2.
-        keepdim :
-            Whether to take the weighted average (False) or just apply the weights
-            (True).
 
         Returns
         -------
         weighted_avg :
             Weighted average. Dimensionality depends on both the input's dimensionality
-            and whether ``weights_2`` was set at initialization.
+            and whether ``weights_2`` was set at initialization. Scales are stacked
+            along last dimension.
 
         """
-        return torch.stack([w(x) for x, w in zip(image, self.weights)], dim=2)
+        return torch.stack([w(x) for x, w in zip(image, self.weights)], dim=-1)
+
+    def einsum(self, einsum_str: str, *tensors: list[Tensor]) -> list[Tensor]:
+        """More general version of forward, operates on each
+
+        This takes the input einsum_str and prepends self.weights to it and inserts the
+        weight dimensions into the output after "b c" (for batch, channel). Thus this
+        will be weird if there's no "b c" dimensions.
+
+        Parameters
+        ----------
+        einsum_str :
+            String of einsum notation, which must contain "b c" in the output. Intended
+            use is that this string produces a single output tensor.
+        tensors :
+            Any number of lists of tensors (should all have same number of elements,
+            each corresponding to a different scale and thus downsampled by factor of 2).
+
+        Returns
+        -------
+        output :
+            The result of this einsum. Scales are stacked along last dimension.
+
+        """
+        return torch.stack([w.einsum(einsum_str, *x) for *x, w in zip(*tensors, self.weights)], dim=-1)
 
     def sum_weights(self) -> Tensor:
         """Sum weights, largely used for diagnostic purposes.
