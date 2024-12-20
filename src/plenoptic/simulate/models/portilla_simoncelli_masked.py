@@ -836,7 +836,9 @@ class PortillaSimoncelliMasked(nn.Module):
         # for var and skew here can be found on their respective wikipedia pages, and
         # the one for kurtosis comes from Eero working through the algebra
         var = moment_2 - mean.pow(2)
-        skew = (moment_3 - 3 * mean * var - mean.pow(3)) / (var.pow(1.5) + self._pixel_epsilon)
+        skew = (moment_3 - 3 * mean * var - mean.pow(3)) / (
+            var.pow(1.5) + self._pixel_epsilon
+        )
         kurtosis = (
             moment_4
             - 4 * mean * moment_3
