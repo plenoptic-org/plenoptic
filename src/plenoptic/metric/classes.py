@@ -15,6 +15,16 @@ class NLP(torch.nn.Module):
     because the ``nlpd`` function uses the root-mean square of the L2 distance (i.e.,
     ``torch.sqrt(torch.mean(x-y)**2))`` as the distance metric between representations.
 
+    Model parameters are those used in [1]_, copied from the matlab code used in the
+    paper, found at [2]_.
+
+    References
+    ----------
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+        image quality assessment using a normalized Laplacian pyramid. Electronic
+        Imaging, 2016(16), pp.1-6.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
     """
 
     def __init__(self):
