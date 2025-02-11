@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from torch import Tensor
 
+OPTIM_FUNCS = ["mse", "l2_norm", "relative_MSE", "penalize_range"]
+
 
 def set_seed(seed: int | None = None) -> None:
     """Set the seed.
