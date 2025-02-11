@@ -189,7 +189,7 @@ class MADCompetition(OptimizedSynthesis):
         self,
         max_iter: int = 100,
         optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
