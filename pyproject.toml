@@ -77,7 +77,6 @@ nb = [
 where = ["src"]
 
 [tool.setuptools_scm]
-write_to = "src/plenoptic/version.py"
 version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 
