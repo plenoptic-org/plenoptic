@@ -204,3 +204,13 @@ class TestPerceptualMetrics:
     def test_msssim_dtype_exception(self, einstein_img, curie_img):
         with pytest.raises(ValueError, match="must have same dtype"):
             po.metric.ms_ssim(einstein_img.to(torch.float64), curie_img)
+
+
+def test_safe_optim_funcs_list(self):
+    # all functions in metric should be marked as safe for loading or excluded in this
+    # list.
+    exclude_funcs = []
+    all_funcs = dir(po.metric)
+    from plenoptic.metric import _SAFE_FUNCS
+
+    assert sorted(all_funcs) == sorted(_SAFE_FUNCS + exclude_funcs)

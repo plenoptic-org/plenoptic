@@ -1,6 +1,7 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
 import os.path as op
+import pickle
 
 import matplotlib as mpl
 import numpy as np
@@ -69,14 +70,17 @@ class TestMAD:
     )
     @pytest.mark.parametrize("rgb", [False, True])
     def test_save_load(self, curie_img, fail, rgb, tmp_path):
-        # this works with either rgb or grayscale images
-        metric = rgb_mse
         if rgb:
+            metric = rgb_mse
             curie_img = curie_img.repeat(1, 3, 1, 1)
             metric2 = rgb_l2_norm
         else:
+            metric = po.metric.mse
             metric2 = dis_ssim
         target = "min"
+        torch_load_ctxt = torch.serialization.safe_globals(
+            [rgb_mse, dis_ssim, rgb_l2_norm]
+        )
         tradeoff = 1
         mad = po.synth.MADCompetition(
             curie_img, metric, metric2, target, metric_tradeoff_lambda=tradeoff
@@ -127,7 +131,7 @@ class TestMAD:
                 target,
                 metric_tradeoff_lambda=tradeoff,
             )
-            with expectation:
+            with expectation, torch_load_ctxt:
                 mad_copy.load(
                     op.join(tmp_path, "test_mad_save_load.pt"),
                     map_location=DEVICE,
@@ -140,14 +144,35 @@ class TestMAD:
                 target,
                 metric_tradeoff_lambda=tradeoff,
             )
-            mad_copy.load(
-                op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
-            )
+            with torch_load_ctxt:
+                mad_copy.load(
+                    op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
+                )
             # check that can resume
             mad_copy.synthesize(max_iter=5, store_progress=True)
         if rgb:
             # since this is a fixture, get this back to a grayscale image
             curie_img = curie_img.mean(1, True)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_load_safe_globals(self, curie_img, model, tmp_path):
+        # rgb_mse has not been marked as safe, and so this will fail
+        metric = rgb_mse
+        metric2 = po.metric.mse
+        expectation = pytest.raises(
+            pickle.UnpicklingError, match="Weights only load failed"
+        )
+        mad = po.synth.MADCompetition(
+            curie_img, metric, metric2, "min", metric_tradeoff_lambda=1
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_load_safe_globals.pt"))
+        with expectation:
+            mad.load(
+                op.join(tmp_path, "test_mad_load_safe_globals.pt"), map_location=DEVICE
+            )
 
     @pytest.mark.parametrize("optimizer", ["Adam", None, "Scheduler"])
     def test_optimizer_opts(self, curie_img, optimizer):

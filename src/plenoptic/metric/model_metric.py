@@ -1,5 +1,14 @@
 import torch
 
+# the list of functions that are safe for torch loader. these are the functions here
+# that can be used as metrics for synthesis
+_SAFE_FUNCS = ["model_metric"]
+__all__ = _SAFE_FUNCS
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def model_metric(x, y, model):
     """
