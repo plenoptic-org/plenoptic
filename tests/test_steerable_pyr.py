@@ -453,3 +453,10 @@ class TestSteerablePyramid:
             names
         ), "pyramid doesn't have the right number of buffers!"
         assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"
+
+    def test_img_shape_error(self, img):
+        pyr = po.simul.SteerablePyramidFreq((255, 255))
+        with pytest.raises(
+            ValueError, match="Input tensor height/width.*does not match"
+        ):
+            pyr(img)
