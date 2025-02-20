@@ -4,8 +4,6 @@ import matplotlib
 
 matplotlib.use("agg")
 import os.path as op
-import pickle
-from contextlib import nullcontext as does_not_raise
 
 import numpy as np
 import pytest
@@ -33,14 +31,12 @@ class TestMetamers:
     def test_save_load(
         self, einstein_img, model, loss_func, fail, range_penalty, tmp_path
     ):
-        torch_load_ctxt = does_not_raise()
         if loss_func == "mse":
             loss = po.tools.optim.mse
         elif loss_func == "l2":
             loss = po.tools.optim.l2_norm
         elif loss_func == "custom":
             loss = custom_loss
-            torch_load_ctxt = torch.serialization.safe_globals([loss])
         met = po.synth.Metamer(
             einstein_img,
             model,
@@ -61,7 +57,9 @@ class TestMetamers:
                 po.tools.remove_grad(model)
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized target_representation are different"),
+                    match=(
+                        "Saved and initialized target_representation are" " different"
+                    ),
                 )
             elif fail == "loss":
                 loss = po.metric.ssim
@@ -73,7 +71,9 @@ class TestMetamers:
                 range_penalty = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized range_penalty_lambda are different"),
+                    match=(
+                        "Saved and initialized range_penalty_lambda are" " different"
+                    ),
                 )
             elif fail == "dtype":
                 einstein_img = einstein_img.to(torch.float64)
@@ -91,7 +91,7 @@ class TestMetamers:
                 loss_function=loss,
                 range_penalty_lambda=range_penalty,
             )
-            with expectation, torch_load_ctxt:
+            with expectation:
                 met_copy.load(
                     op.join(tmp_path, "test_metamer_save_load.pt"),
                     map_location=DEVICE,
@@ -103,11 +103,10 @@ class TestMetamers:
                 loss_function=loss,
                 range_penalty_lambda=range_penalty,
             )
-            with torch_load_ctxt:
-                met_copy.load(
-                    op.join(tmp_path, "test_metamer_save_load.pt"),
-                    map_location=DEVICE,
-                )
+            met_copy.load(
+                op.join(tmp_path, "test_metamer_save_load.pt"),
+                map_location=DEVICE,
+            )
             for k in [
                 "image",
                 "saved_metamer",
@@ -135,28 +134,6 @@ class TestMetamers:
             met_copy.synthesize(
                 max_iter=4,
                 store_progress=True,
-            )
-
-    @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
-    )
-    def test_load_safe_globals(self, einstein_img, model, tmp_path):
-        # custom_loss has not been marked as safe, and so this will fail
-        loss = custom_loss
-        expectation = pytest.raises(
-            pickle.UnpicklingError, match="Weights only load failed"
-        )
-        met = po.synth.Metamer(
-            einstein_img,
-            model,
-            loss_function=loss,
-        )
-        met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_load_safe_globals.pt"))
-        with expectation:
-            met.load(
-                op.join(tmp_path, "test_metamer_load_safe_globals.pt"),
-                map_location=DEVICE,
             )
 
     @pytest.mark.parametrize(

@@ -12,15 +12,6 @@ from ..tools.conv import same_padding
 
 DIRNAME = resources.files("plenoptic.metric")
 
-# the list of functions that are safe for torch loader. these are the functions here
-# that can be used as metrics for synthesis
-_SAFE_FUNCS = ["ssim", "ms_ssim", "nlpd"]
-__all__ = ["ssim_map", "normalized_laplacian_pyramid", *_SAFE_FUNCS]
-
-
-def __dir__() -> list[str]:
-    return __all__
-
 
 def _ssim_parts(img1, img2, pad=False):
     """Calcluates the various components used to compute SSIM

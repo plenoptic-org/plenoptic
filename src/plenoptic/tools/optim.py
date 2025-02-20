@@ -4,14 +4,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-# the list of functions that are safe for torch loader. these are the functions here
-# that can be used as loss functions
-_SAFE_FUNCS = ["mse", "l2_norm", "relative_MSE", "penalize_range"]
-__all__ = ["set_seed", *_SAFE_FUNCS]
-
-
-def __dir__() -> list[str]:
-    return __all__
+OPTIM_FUNCS = ["mse", "l2_norm", "relative_MSE", "penalize_range"]
 
 
 def set_seed(seed: int | None = None) -> None:

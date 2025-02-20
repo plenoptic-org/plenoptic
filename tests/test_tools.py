@@ -581,15 +581,6 @@ class TestOptim:
         img[..., 0, :] = -1
         assert po.tools.optim.penalize_range(img).item() == 4
 
-    def test_safe_optim_funcs_list(self):
-        # all functions in metric should be marked as safe for loading or excluded in
-        # this list.
-        exclude_funcs = ["set_seed"]
-        all_funcs = dir(po.tools.optim)
-        from plenoptic.tools.optim import _SAFE_FUNCS
-
-        assert sorted(all_funcs) == sorted(_SAFE_FUNCS + exclude_funcs)
-
 
 class TestPolarImages:
     def test_polar_angle_clockwise(self):
