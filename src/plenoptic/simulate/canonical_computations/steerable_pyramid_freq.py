@@ -310,7 +310,7 @@ class SteerablePyramidFreq(nn.Module):
             raise ValueError(
                 f"Input tensor height/width {tuple(x.shape[-2:])} does not match "
                 f"image_shape set at initialization {tuple(self.image_shape)}. "
-                "Either resize the input or re-initialize this pyramid."
+                "Either resize the input or re-initialize this model."
             )
         pyr_coeffs = OrderedDict()
         if scales is None:
