@@ -127,7 +127,8 @@ At this point, we will be notified of the pull request and will read it over. We
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
 ### Code Style and Linting
-We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI and non-compliant code will not be merged!
+
+We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI (using pre-commit, see below) and non-compliant code will not be merged! You can see the version of `ruff` that we are currently using in the `.pre-commit-config.yaml` file in the project root .
 
 #### Using Ruff
 
@@ -201,6 +202,7 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   complete docstrings, but they probably should.
 
 #### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
+
 [Pre-commit](https://pre-commit.com/) hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
 
 Using pre-commit is optional. We use [pre-commit.ci](https://pre-commit.ci/) to run pre-commit as part of PRs (auto-fixing wherever possible), but it may simplify your life to integrate pre-commit into your workflow.
@@ -214,7 +216,7 @@ pre-commit install
 
 See [pre-commit docs](https://pre-commit.com/) for more details.
 
-After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
+After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be committed), you can add `--no-verify` to your commit message like this:
 ```bash
 git commit -m <my commit message> --no-verify
 ```
@@ -288,8 +290,6 @@ more info.
 This section is optional but if you want to easily run tests in an isolated environment
 using the [nox](https://nox.thea.codes/en/stable/) command-line tool.
 
-`nox` is installed automatically as a `[dev]` dependency of plenoptic.
-
 To run all tests and linters through `nox`, from the root folder of the
 plenoptic package, execute the following command,
 
@@ -323,13 +323,7 @@ nox -s tests
 for running only the linters,
 
 ```bash
-nox -s linters
-```
-
-and for testing only the coverage, run:
-
-```bash
-nox -s coverage
+nox -s lint
 ```
 
 `nox` offers a variety of configuration options, you can learn more about it from their
