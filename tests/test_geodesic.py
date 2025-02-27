@@ -227,7 +227,7 @@ class TestGeodesic:
                 po.tools.remove_grad(model)
                 expectation = pytest.raises(
                     ValueError,
-                    match="objective_function on pixelfade of saved",
+                    match="Saved and initialized model behavior is different",
                 )
             elif fail == "n_steps":
                 n_steps = 5
@@ -245,9 +245,7 @@ class TestGeodesic:
                 range_penalty = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=(
-                        "Saved and initialized range_penalty_lambda are" " different"
-                    ),
+                    match=("Saved and initialized range_penalty_lambda are different"),
                 )
             moog_copy = po.synth.Geodesic(
                 img_a,
