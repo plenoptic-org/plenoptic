@@ -97,14 +97,18 @@ class TestMAD:
                 metric = dis_ssim
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized optimized_metric are different"),
+                    match=(
+                        "Saved and initialized optimized_metric behavior is different"
+                    ),
                 )
             elif fail == "metric2":
                 # this works with either rgb or grayscale images
                 metric2 = rgb_mse
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized reference_metric are different"),
+                    match=(
+                        "Saved and initialized reference_metric behavior is different"
+                    ),
                 )
             elif fail == "target":
                 target = "max"
@@ -117,7 +121,7 @@ class TestMAD:
                 expectation = pytest.raises(
                     ValueError,
                     match=(
-                        "Saved and initialized metric_tradeoff_lambda are" " different"
+                        "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
             mad_copy = po.synth.MADCompetition(

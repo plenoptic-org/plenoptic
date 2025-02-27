@@ -420,7 +420,7 @@ class MADCompetition(OptimizedSynthesis):
             stored = False
         return stored
 
-    def save(self, file_path: str):
+    def save(self, file_path: str, save_objects: bool = False):
         r"""Save all relevant variables in .pt file.
 
         Note that if store_progress is True, this will probably be very
@@ -432,18 +432,37 @@ class MADCompetition(OptimizedSynthesis):
         ----------
         file_path : str
             The path to save the MADCompetition object to
+        save_objects :
+            If True, we use pickle to save all non-Module objects (optimizer, scheduler,
+            the two metrics if they are functions). To load the resulting file, you will
+            need to call ``load`` with ``weights_only=False``. See :ref:`saveload` for
+            more details.
 
         """
-        # this copies the attributes dict so we don't actually remove the
-        # model attribute in the next line
-        attrs = {k: v for k, v in vars(self).items()}
-        # if the metrics are Modules, then we don't want to save them. If
-        # they're functions then saving them is fine.
-        if isinstance(self.optimized_metric, torch.nn.Module):
-            attrs.pop("_optimized_metric")
-        if isinstance(self.reference_metric, torch.nn.Module):
-            attrs.pop("_reference_metric")
-        super().save(file_path, attrs=attrs)
+        if not save_objects:
+            save_io_attrs = [
+                ("_optimized_metric", torch.rand(2, *self._image_shape)),
+                ("_reference_metric", torch.rand(2, *self._image_shape)),
+            ]
+            save_state_dict_attrs = ["_optimizer", "scheduler"]
+        else:
+            save_io_attrs = []
+            # if the metrics are Modules, then we don't want to save directly.
+            if isinstance(self.optimized_metric, torch.nn.Module):
+                save_io_attrs.append(
+                    ("_optimized_metric", torch.rand(2, *self._image_shape))
+                )
+            if isinstance(self.reference_metric, torch.nn.Module):
+                save_io_attrs.append(
+                    ("_reference_metric", torch.rand(2, *self._image_shape))
+                )
+            save_state_dict_attrs = []
+        save_attrs = [
+            k
+            for k in vars(self)
+            if k not in [k[0] for k in save_io_attrs] + save_state_dict_attrs
+        ]
+        super().save(file_path, save_attrs, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -492,6 +511,7 @@ class MADCompetition(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        weights_only: bool = True,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -514,6 +534,11 @@ class MADCompetition(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        weights_only :
+            Indicates whether unpickler should be restricted to loading only tensors,
+            primitive types, dictionaries and any types added via
+            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
+            details.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -537,12 +562,14 @@ class MADCompetition(OptimizedSynthesis):
             "_allowed_range",
             "_minmax",
         ]
-        check_loss_functions = ["_reference_metric", "_optimized_metric"]
+        check_io_attrs = ["_reference_metric", "_optimized_metric"]
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer", "scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again

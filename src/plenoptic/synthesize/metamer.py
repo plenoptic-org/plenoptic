@@ -446,9 +446,7 @@ class Metamer(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Metamer`` object -- we will
-        ensure that ``image``, ``target_representation`` (and thus
-        ``model``), and ``loss_function`` are all identical.
+        This should be called by an initialized ``Metamer`` object.
 
         Note this operates in place and so doesn't return anything.
 
