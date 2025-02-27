@@ -328,10 +328,11 @@ class Metamer(OptimizedSynthesis):
         """Initialize optimizer and scheduler."""
         # this uses the OptimizedSynthesis setter
         super()._initialize_optimizer(optimizer, "metamer")
-        self.scheduler = scheduler
+        super()._initialize_scheduler(scheduler)
         for pg in self.optimizer.param_groups:
-            # initialize initial_lr if it's not here. Scheduler should add it
-            # if it's not None.
+            # initialize initial_lr if it's not here. Scheduler should add it if it's
+            # not None. This is used by coarse-to-fine optimization so we know how to
+            # reset across scales.
             if "initial_lr" not in pg:
                 pg["initial_lr"] = pg["lr"]
 
@@ -359,7 +360,7 @@ class Metamer(OptimizedSynthesis):
             stored = False
         return stored
 
-    def save(self, file_path: str):
+    def save(self, file_path: str, save_objects: bool = False):
         r"""Save all relevant variables in .pt file.
 
         Note that if store_progress is True, this will probably be very
@@ -369,11 +370,29 @@ class Metamer(OptimizedSynthesis):
 
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to save the metamer object to
+        save_objects :
+            If True, we use pickle to save all non-model objects. To load the resulting
+            file, you will need to call ``load`` with ``weights_only=False``. See
+            :ref:`saveload` for more details.
 
         """
-        super().save(file_path, attrs=None)
+        if not save_objects:
+            save_io_attrs = [
+                ("loss_function", torch.rand(2, *self._image_shape)),
+                ("_model", (torch.rand(*self._image_shape),)),
+            ]
+            save_state_dict_attrs = ["_optimizer", "scheduler"]
+        else:
+            save_io_attrs = [("_model", (torch.rand(*self._image_shape),))]
+            save_state_dict_attrs = []
+        save_attrs = [
+            k
+            for k in vars(self)
+            if k not in [k[0] for k in save_io_attrs] + save_state_dict_attrs
+        ]
+        super().save(file_path, save_attrs, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -422,6 +441,7 @@ class Metamer(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        weights_only: bool = True,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -434,17 +454,23 @@ class Metamer(OptimizedSynthesis):
 
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to load the synthesis object from
-        map_location : str, optional
+        map_location :
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        weights_only :
+            Indicates whether unpickler should be restricted to loading only tensors,
+            primitive types, dictionaries and any types added via
+            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
+            details.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
+
 
         Examples
         --------
@@ -458,14 +484,15 @@ class Metamer(OptimizedSynthesis):
         *then* load.
 
         """
-        self._load(file_path, map_location, **pickle_load_args)
+        self._load(file_path, map_location, weights_only, **pickle_load_args)
 
     def _load(
         self,
         file_path: str,
         map_location: str | None = None,
+        weights_only: bool = True,
         additional_check_attributes: list[str] = [],
-        additional_check_loss_functions: list[str] = [],
+        additional_check_io_attributes: list[str] = [],
         **pickle_load_args,
     ):
         r"""Helper function for loading.
@@ -481,13 +508,16 @@ class Metamer(OptimizedSynthesis):
             "_allowed_range",
         ]
         check_attributes += additional_check_attributes
-        check_loss_functions = ["loss_function"]
-        check_loss_functions += additional_check_loss_functions
+        check_io_attrs = ["loss_function", "_model"]
+        check_io_attrs += additional_check_io_attributes
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
+            weights_only=weights_only,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer", "scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again
@@ -929,6 +959,7 @@ class MetamerCTF(Metamer):
         self,
         file_path: str,
         map_location: str | None = None,
+        weights_only: bool = True,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -949,6 +980,11 @@ class MetamerCTF(Metamer):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        weights_only :
+            Indicates whether unpickler should be restricted to loading only tensors,
+            primitive types, dictionaries and any types added via
+            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
+            details.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -965,7 +1001,13 @@ class MetamerCTF(Metamer):
         *then* load.
 
         """
-        super()._load(file_path, map_location, ["_coarse_to_fine"], **pickle_load_args)
+        super()._load(
+            file_path,
+            map_location,
+            weights_only,
+            ["_coarse_to_fine"],
+            **pickle_load_args,
+        )
 
     @property
     def coarse_to_fine(self):

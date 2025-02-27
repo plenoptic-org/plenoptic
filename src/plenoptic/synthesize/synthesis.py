@@ -7,6 +7,20 @@ import numpy as np
 import torch
 
 
+def _get_name(x):
+    """Get the name of an object, for saving/loading purposes"""
+    if x is None:
+        return None
+    try:
+        # if this passes, attr is a function
+        name = f"{x.__module__}.{x.__name__}"
+    except AttributeError:
+        # if we're here, then it's an object
+        cls = x.__class__
+        name = f"{cls.__module__}.{cls.__name__}"
+    return name
+
+
 class Synthesis(abc.ABC):
     r"""Abstract super-class for synthesis objects.
 
@@ -22,31 +36,42 @@ class Synthesis(abc.ABC):
         r"""Synthesize something."""
         pass
 
-    def save(self, file_path: str, attrs: list[str] | None = None):
-        r"""Save all relevant (non-model) variables in .pt file.
+    def save(
+        self,
+        file_path: str,
+        save_attrs: list[str],
+        save_io_attrs: list[str] = [],
+        save_state_dict_attrs: list[str] = [],
+    ):
+        r"""Save all relevant variables in .pt file.
 
-        If you leave attrs as None, we grab vars(self) and exclude 'model'.
+        If you leave attrs as None, we grab vars(self) and exclude '_model'.
         This is probably correct, but the option is provided to override it
-        just in case
+        just in case.
 
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to save the synthesis object to
-        attrs : list or None, optional
-            List of strs containing the names of the attributes of this
-            object to save. See above for behavior if attrs is None.
+        save_attrs :
+            Names of the attributes to save directly.
+        save_io_attrs :
+            Names of attributes that we save as tuples of (name, inputs, outputs). On
+            load, we check that the initialized object's name hasn't changed, and that
+            when called on the same inputs, we get the same outputs. Intended for
+            models, metrics, loss functions. Used to avoid saving callable, which is
+            brittle and unsafe.
+        save_state_dict_attrs :
+            Names of attributes that we save as tuples of (name, state_dict).
+            Corresponding attribute can be None, in which case we save an empty
+            dictionary as state_dict. On load, we check that the initialized object's
+            name hasn't changed, and load the state_dict. Intended for optimizers,
+            schedulers. Used to avoid saving callables, which is brittle and unsafe.
 
         """
-        if attrs is None:
-            # this copies the attributes dict so we don't actually remove the
-            # model attribute in the next line
-            attrs = {k: v for k, v in vars(self).items()}
-            attrs.pop("_model", None)
-
         save_dict = {}
-        for k in attrs:
-            if k == "_model":
+        for k in save_attrs:
+            if k in ["_model", "model"]:
                 warnings.warn(
                     "Models can be quite large and they don't change"
                     " over synthesis. Please be sure that you "
@@ -58,21 +83,35 @@ class Synthesis(abc.ABC):
             if isinstance(attr, torch.Tensor):
                 attr = attr.detach()
             save_dict[k] = attr
+        for k, tensors in save_io_attrs:
+            attr = getattr(self, k)
+            name = _get_name(attr)
+            save_dict[k] = (name, tensors, attr(*tensors))
+        for k in save_state_dict_attrs:
+            attr = getattr(self, k)
+            name = _get_name(attr)
+            try:
+                state_dict = attr.state_dict()
+            except AttributeError:
+                # then we assume that attr is None
+                state_dict = {}
+            save_dict[k] = (name, state_dict)
         torch.save(save_dict, file_path)
 
     def load(
         self,
         file_path: str,
+        check_attr_for_new: str,
         map_location: str | None = None,
+        weights_only: bool = True,
         check_attributes: list[str] = [],
-        check_loss_functions: list[str] = [],
+        check_io_attributes: list[str] = [],
+        state_dict_attributes: list[str] = [],
         **pickle_load_args,
     ):
         r"""Load all relevant attributes from a .pt file.
 
-        This should be called by an initialized ``Synthesis`` object -- we will
-        ensure that the attributes in the ``check_attributes`` arg all match in
-        the current and loaded object.
+        This should be called by ``Synthesis`` object that has just been initialized.
 
         Note this operates in place and so doesn't return anything.
 
@@ -80,32 +119,56 @@ class Synthesis(abc.ABC):
         ----------
         file_path :
             The path to load the synthesis object from
+        check_attr_for_new :
+            The name of an attribute that will either be None or have length 0 if the
+            Synthesis object has just been initialized.
         map_location :
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        weights_only :
+            Indicates whether unpickler should be restricted to loading only tensors,
+            primitive types, dictionaries and any types added via
+            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
+            details.
         check_attributes :
             List of strings we ensure are identical in the current
             ``Synthesis`` object and the loaded one. Checking the model is
             generally not recommended, since it can be hard to do (checking
-            callable objects is hard in Python) -- instead, checking the
-            ``base_representation`` should ensure the model hasn't functinoally
+            callable objects is hard in Python) -- instead, checking the e.g.,
+            ``target_representation`` should ensure the model hasn't functinoally
             changed.
-        check_loss_functions :
-            Names of attributes that are loss functions and so must be checked
-            specially -- loss functions are callables, and it's very difficult
-            to check python callables for equality so, to get around that, we
-            instead call the two versions on the same pair of tensors,
-            and compare the outputs.
-
+        check_io_attributes :
+            Names of attributes whose input/output behavior we should check (i.e., if we
+            call them on identical inputs, do we get identical outputs). In the loaded
+            dictionary, these can either be callables that have been saved (if ``save``
+            was called with ``save_objects=True``) or a tuple of three values: the name
+            of the callable, the input to check, and the output we expect.
+        state_dict_attributes :
+            Names of attributes that were callables, saved as a tuple with the name of
+            the callable and their state_dict. We will ensure the name of the attributes
+            are identical and then load the state_dict. If the attribute is None on the
+            initialized Synthesis object, then we set the tuple, and count on the
+            Synthesis object to properly handle it when needed.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
 
         """
-        tmp_dict = torch.load(file_path, map_location=map_location, **pickle_load_args)
+        check_attr_for_new = getattr(self, check_attr_for_new)
+        if check_attr_for_new is not None and len(check_attr_for_new) > 0:
+            raise ValueError(
+                "load can only be called with a just-initialized"
+                f" {self.__class__.__name__} object"
+            )
+        tmp_dict = torch.load(
+            file_path,
+            map_location=map_location,
+            weights_only=weights_only,
+            **pickle_load_args,
+        )
         if map_location is not None:
             device = map_location
         else:
@@ -113,6 +176,29 @@ class Synthesis(abc.ABC):
                 if isinstance(v, torch.Tensor):
                     device = v.device
                     break
+        for k in check_io_attributes:
+            # same as above
+            display_k = k[1:] if k.startswith("_") else k
+            try:
+                saved_loss = tmp_dict[k][-1]
+                error_str = "saved test"
+                init_loss = getattr(self, k)(*tmp_dict[k][1])
+            except TypeError:
+                # then we saved the actual object, not its behavior, and need to do the
+                # check live.
+                # this way, we know it's the right shape
+                tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
+                saved_loss = tmp_dict[k](tensor_a, tensor_b)
+                init_loss = getattr(self, k)(tensor_a, tensor_b)
+                error_str = "two random"
+            if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
+                raise ValueError(
+                    f"Saved and initialized {display_k} are "
+                    f"different! On {error_str} tensors: "
+                    f"Initialized: {init_loss}, Saved: "
+                    f"{saved_loss}, difference: "
+                    f"{init_loss-saved_loss}"
+                )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # range_penalty_lambda, where this function is checking the
@@ -176,22 +262,29 @@ class Synthesis(abc.ABC):
                         f" Self: {getattr(self, k)}, "
                         f"Saved: {tmp_dict[k]}"
                     )
-        for k in check_loss_functions:
-            # same as above
-            display_k = k[1:] if k.startswith("_") else k
-            # this way, we know it's the right shape
-            tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
-            saved_loss = tmp_dict[k](tensor_a, tensor_b)
-            init_loss = getattr(self, k)(tensor_a, tensor_b)
-            if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
-                raise ValueError(
-                    f"Saved and initialized {display_k} are "
-                    "different! On two random tensors: "
-                    f"Initialized: {init_loss}, Saved: "
-                    f"{saved_loss}, difference: "
-                    f"{init_loss-saved_loss}"
-                )
         for k, v in tmp_dict.items():
+            if k in check_io_attributes + state_dict_attributes:
+                display_k = k[1:] if k.startswith("_") else k
+                init_attr = getattr(self, k, None)
+                if init_attr is not None:
+                    init_name = _get_name(init_attr)
+                    try:
+                        saved_name = v[0]
+                        if init_name != saved_name:
+                            raise ValueError(
+                                f"Saved and initialized {display_k} "
+                                "have different names! Initialized: "
+                                f"{init_name}, saved: {saved_name}"
+                            )
+                    except TypeError:
+                        # then we don't have a name to check because we had saved the
+                        # actual object
+                        pass
+                    if k in state_dict_attributes:
+                        getattr(self, k).load_state_dict(v[1])
+                    continue
+                # if init_attr is None, then we haven't set it yet, so we set the saved
+                # tuple as the attribute, and handle this later
             setattr(self, k, v)
 
     @abc.abstractmethod
@@ -345,6 +438,16 @@ class OptimizedSynthesis(Synthesis):
         Every subsequent time (so, when resuming synthesis), optimizer must be
         None (and we use the original optimizer object).
 
+        If we have loaded from a save state, self.optimizer will be a tuple with the
+        name of the optimizer class (e.g., torch.optim.adam.Adam) and the
+        optimizer's state_dict. In that case:
+
+        - If optimizer is None, the saved optimizer must be Adam, and we load the
+          state_dict.
+
+        - else, the saved and user-specified optimizers must have the same class name
+          and we load the state_dict.
+
         """
         synth_attr = getattr(self, synth_name)
         if optimizer is None:
@@ -352,16 +455,106 @@ class OptimizedSynthesis(Synthesis):
                 self._optimizer = torch.optim.Adam(
                     [synth_attr], lr=learning_rate, amsgrad=True
                 )
+            elif isinstance(self.optimizer, tuple):
+                # then this comes from loading
+                if self._optimizer[0] != _get_name(torch.optim.Adam):
+                    raise TypeError(
+                        "Don't know how to initialize saved optimizer "
+                        f"'{self._optimizer[0]}'! Pass an initialized version of "
+                        "this optimizer to `synthesize`, and we will update its "
+                        "state_dict."
+                    )
+                state_dict = self.optimizer[1]
+                self._optimizer = torch.optim.Adam([synth_attr])
+                self._optimizer.load_state_dict(state_dict)
         else:
-            if self.optimizer is not None:
+            if self.optimizer is not None and not isinstance(self.optimizer, tuple):
                 raise TypeError("When resuming synthesis, optimizer arg must be None!")
             params = optimizer.param_groups[0]["params"]
             if len(params) != 1 or not torch.equal(params[0], synth_attr):
-                raise ValueError(
-                    f"For {synth_name} synthesis, optimizer must have one "
-                    f"parameter, the {synth_name} we're synthesizing."
-                )
+                # then the optimizer is not updating the right target, which means they
+                # initialized it wrong.
+                if not isinstance(self.optimizer, tuple):
+                    raise ValueError(
+                        f"For {synth_name} synthesis, optimizer must have one "
+                        f"parameter, the {synth_name} we're synthesizing."
+                    )
+                else:
+                    # a totally possible way this could happen is they initialized the
+                    # synthesis object, initialized the optimizer, then called load. if
+                    # you do it in that order, the optimizer target is incorrect
+                    raise ValueError(
+                        f"Optimizer parameter does not match self.{synth_name}. Did "
+                        "you initialize this optimizer object before load? Optimizer "
+                        "objects must be initialized after calling load()"
+                    )
+            if isinstance(self.optimizer, tuple):
+                if self._optimizer[0] != _get_name(optimizer):
+                    raise ValueError(
+                        "User-specified optimizer must have same type as saved "
+                        f"optimizer, but got: Saved: {self.optimizer[0]}, "
+                        f"User-specified: {_get_name(optimizer)}."
+                    )
+                state_dict = self.optimizer[1]
+                self._optimizer = optimizer
+                self._optimizer.load_state_dict(state_dict)
             self._optimizer = optimizer
+
+    def _initialize_scheduler(
+        self,
+        scheduler: torch.optim.lr_scheduler.LRScheduler,
+    ):
+        """Initialize scheduler.
+
+        First time this is called, scheduler can be:
+
+        - None, in which case we do nothing.
+
+        - torch.optim.lr_scheduler.LRScheduler in which case its optimizer must match
+          self.optimizer.
+
+        Every subsequent time (so, when resuming synthesis), scheduler must be None (and
+        we use the original scheduler object).
+
+        If we have loaded from a save state, self.scheduler will be a tuple with the
+        name of the scheduler class (e.g., torch.optim.lr_scheduler.ConstantLR) and the
+        scheduler's state_dict. In that case:
+
+        - If scheduler is None, we raise a ValueError.
+
+        - else, the saved and user-specified schedulers must have the same class name
+          and we load the state_dict.
+
+        """
+        if scheduler is None:
+            if isinstance(self.scheduler, tuple):
+                # then this comes from loading, and we don't know how to initialize the
+                # scheduler
+                raise TypeError(
+                    "Don't know how to initialize saved scheduler "
+                    f"'{self.scheduler[0]}'! Pass an initialized version of this "
+                    "scheduler to `synthesize`, and we will update its state_dict."
+                )
+        else:
+            if isinstance(self.scheduler, tuple):
+                if self.scheduler[0] != _get_name(scheduler):
+                    raise ValueError(
+                        "User-specified scheduler must have same type as saved "
+                        f"scheduler, but got:\nSaved: {self.scheduler[0]}, "
+                        f"User-specified: {_get_name(scheduler)}."
+                    )
+                state_dict = self.scheduler[1]
+                self.scheduler = scheduler
+                self.scheduler.load_state_dict(state_dict)
+            elif self.scheduler is not None:
+                raise TypeError("When resuming synthesis, scheduler arg must be None!")
+            if self.optimizer is not scheduler.optimizer:
+                raise ValueError(
+                    "Scheduler's optimizer must match that of this "
+                    f"{self.__class__.__name__} but got two different optimizers! Did "
+                    "you call initialize scheduler before calling load()?"
+                )
+            self._scheduler = scheduler
 
     @property
     def range_penalty_lambda(self):
