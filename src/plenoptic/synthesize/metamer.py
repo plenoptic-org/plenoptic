@@ -373,9 +373,9 @@ class Metamer(OptimizedSynthesis):
         file_path :
             The path to save the metamer object to
         save_objects :
-            If True, we use pickle to save all non-model objects. To load the resulting
-            file, you will need to call ``load`` with ``weights_only=False``. See
-            :ref:`saveload` for more details.
+            If True, we use pickle to save all non-model objects (loss_function,
+            optimizer, scheduler). To load the resulting file, you will need to call
+            ``load`` with ``weights_only=False``. See :ref:`saveload` for more details.
 
         """
         if not save_objects:

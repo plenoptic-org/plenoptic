@@ -180,7 +180,7 @@ class TestEigendistortionSynthesis:
                 remove_grad(model)
                 expectation = pytest.raises(
                     RuntimeError,
-                    match=("Attribute representation_flat have different shapes"),
+                    match=("Saved and initialized model behavior is different"),
                 )
             ed_copy = Eigendistortion(img, model)
             with expectation:

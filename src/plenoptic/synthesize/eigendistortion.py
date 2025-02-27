@@ -505,7 +505,9 @@ class Eigendistortion(Synthesis):
             The path to save the Eigendistortion object to
 
         """
-        super().save(file_path, attrs=None)
+        save_io_attrs = [("_model", (torch.rand(*self._image.shape),))]
+        save_attrs = [k for k in vars(self) if k not in [k[0] for k in save_io_attrs]]
+        super().save(file_path, save_attrs, save_io_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -601,13 +603,14 @@ class Eigendistortion(Synthesis):
         *then* load.
 
         """
-        check_attributes = ["_image", "_representation_flat"]
-        check_loss_functions = []
+        check_attributes = ["_image"]
+        check_io_attrs = ["_model"]
         super().load(
             file_path,
+            "eigenindex",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
             **pickle_load_args,
         )
         # make these require a grad again
