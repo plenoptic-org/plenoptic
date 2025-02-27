@@ -134,12 +134,8 @@ class Synthesis(abc.ABC):
             torch.serialization.add_safe_globals(). See :ref:`saveload` for more
             details.
         check_attributes :
-            List of strings we ensure are identical in the current
-            ``Synthesis`` object and the loaded one. Checking the model is
-            generally not recommended, since it can be hard to do (checking
-            callable objects is hard in Python) -- instead, checking the e.g.,
-            ``target_representation`` should ensure the model hasn't functinoally
-            changed.
+            List of strings we ensure are identical in the current ``Synthesis`` object
+            and the loaded one.
         check_io_attributes :
             Names of attributes whose input/output behavior we should check (i.e., if we
             call them on identical inputs, do we get identical outputs). In the loaded
@@ -176,29 +172,6 @@ class Synthesis(abc.ABC):
                 if isinstance(v, torch.Tensor):
                     device = v.device
                     break
-        for k in check_io_attributes:
-            # same as above
-            display_k = k[1:] if k.startswith("_") else k
-            try:
-                saved_loss = tmp_dict[k][-1]
-                error_str = "saved test"
-                init_loss = getattr(self, k)(*tmp_dict[k][1])
-            except TypeError:
-                # then we saved the actual object, not its behavior, and need to do the
-                # check live.
-                # this way, we know it's the right shape
-                tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
-                saved_loss = tmp_dict[k](tensor_a, tensor_b)
-                init_loss = getattr(self, k)(tensor_a, tensor_b)
-                error_str = "two random"
-            if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
-                raise ValueError(
-                    f"Saved and initialized {display_k} are "
-                    f"different! On {error_str} tensors: "
-                    f"Initialized: {init_loss}, Saved: "
-                    f"{saved_loss}, difference: "
-                    f"{init_loss-saved_loss}"
-                )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # range_penalty_lambda, where this function is checking the
@@ -217,7 +190,7 @@ class Synthesis(abc.ABC):
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
                 # the same shape but different values and the second (in the
-                # except block) are if they're different shapes.
+                # except block) are if they're different shapes/dtypes.
                 try:
                     if not torch.allclose(
                         getattr(self, k).to(tmp_dict[k].device),
@@ -225,26 +198,26 @@ class Synthesis(abc.ABC):
                         rtol=5e-2,
                     ):
                         raise ValueError(
-                            f"Saved and initialized {display_k} are "
-                            f"different! Initialized: {getattr(self, k)}"
-                            f", Saved: {tmp_dict[k]}, difference: "
-                            f"{getattr(self, k) - tmp_dict[k]}"
+                            f"Saved and initialized {display_k} are different!"
+                            f"\nSaved: {tmp_dict[k]}"
+                            f"\nInitialized: {getattr(self, k)}"
+                            f"\ndifference: {getattr(self, k) - tmp_dict[k]}"
                         )
                 except RuntimeError as e:
                     # we end up here if dtype or shape don't match
                     if "The size of tensor a" in e.args[0]:
                         raise RuntimeError(
                             f"Attribute {display_k} have different shapes in"
-                            " saved and initialized versions! Initialized"
-                            f": {getattr(self, k).shape}, Saved: "
-                            f"{tmp_dict[k].shape}"
+                            " saved and initialized versions!"
+                            f"\nSaved: {tmp_dict[k].shape}"
+                            f"\nInitialized: {getattr(self, k).shape}"
                         )
                     elif "did not match" in e.args[0]:
                         raise RuntimeError(
                             f"Attribute {display_k} has different dtype in "
-                            "saved and initialized versions! Initialized"
-                            f": {getattr(self, k).dtype}, Saved: "
-                            f"{tmp_dict[k].dtype}"
+                            "saved and initialized versions!"
+                            f"\nSaved: {tmp_dict[k].dtype}"
+                            f"\nInitialized: {getattr(self, k).dtype}"
                         )
                     else:
                         raise e
@@ -252,16 +225,66 @@ class Synthesis(abc.ABC):
                 if not np.allclose(getattr(self, k), tmp_dict[k]):
                     raise ValueError(
                         f"Saved and initialized {display_k} are different!"
-                        f" Self: {getattr(self, k)}, "
-                        f"Saved: {tmp_dict[k]}"
+                        f"\nSaved: {tmp_dict[k]}"
+                        f"\nInitialized: {getattr(self, k)}"
                     )
             else:
                 if getattr(self, k) != tmp_dict[k]:
                     raise ValueError(
                         f"Saved and initialized {display_k} are different!"
-                        f" Self: {getattr(self, k)}, "
-                        f"Saved: {tmp_dict[k]}"
+                        f"\nSaved: {tmp_dict[k]}"
+                        f"\nInitialized: {getattr(self, k)}"
                     )
+        for k in check_io_attributes:
+            # same as above
+            display_k = k[1:] if k.startswith("_") else k
+            init_name = _get_name(getattr(self, k))
+            try:
+                saved_loss = tmp_dict[k][-1]
+                error_str = "saved test"
+                init_loss = getattr(self, k)(*tmp_dict[k][1])
+                saved_name = tmp_dict[k][0]
+            except TypeError:
+                # then we saved the actual object, not its behavior, and need to do the
+                # check live.
+                # this way, we know it's the right shape
+                tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
+                saved_loss = tmp_dict[k](tensor_a, tensor_b)
+                init_loss = getattr(self, k)(tensor_a, tensor_b)
+                error_str = "two random"
+                saved_name = _get_name(tmp_dict[k])
+            try:
+                # there are two ways this can fail -- the first is if they're
+                # the same shape but different values and the second (in the
+                # except block) are if they're different shapes/dtypes.
+                if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
+                    raise ValueError(
+                        f"Saved and initialized {display_k} behavior is "
+                        f"different!"
+                        f"\nSaved ({saved_name}) output on {error_str} tensors: "
+                        f"{saved_loss}"
+                        f"\nInitialized ({init_name}) output on "
+                        f"{error_str} tensors: {init_loss}"
+                        f"\nDifference: {init_loss-saved_loss}"
+                    )
+            except RuntimeError as e:
+                # we end up here if dtype or shape don't match
+                if "The size of tensor a" in e.args[0]:
+                    raise RuntimeError(
+                        f"Saved and initialized {display_k} output shape is "
+                        f"different!"
+                        f"\nSaved ({saved_name}) shape: {saved_loss.shape}"
+                        f"\nInitialized ({init_name}) shape: {init_loss.shape}"
+                    )
+                elif "did not match" in e.args[0]:
+                    raise RuntimeError(
+                        f"Saved and initialized {display_k} output dtype is "
+                        f"different!"
+                        f"\nSaved ({saved_name}) dtype: {saved_loss.dtype}"
+                        f"\nInitialized ({init_name}) dtype: {init_loss.dtype}"
+                    )
+                else:
+                    raise e
         for k, v in tmp_dict.items():
             if k in check_io_attributes + state_dict_attributes:
                 display_k = k[1:] if k.startswith("_") else k
@@ -528,13 +551,16 @@ class OptimizedSynthesis(Synthesis):
         """
         if scheduler is None:
             if isinstance(self.scheduler, tuple):
-                # then this comes from loading, and we don't know how to initialize the
-                # scheduler
-                raise TypeError(
-                    "Don't know how to initialize saved scheduler "
-                    f"'{self.scheduler[0]}'! Pass an initialized version of this "
-                    "scheduler to `synthesize`, and we will update its state_dict."
-                )
+                if self.scheduler[0] is not None:
+                    # then this comes from loading, and we don't know how to initialize
+                    # the scheduler
+                    raise TypeError(
+                        "Don't know how to initialize saved scheduler "
+                        f"'{self.scheduler[0]}'! Pass an initialized version of this "
+                        "scheduler to `synthesize`, and we will update its state_dict."
+                    )
+                else:
+                    self.scheduler = None
         else:
             if isinstance(self.scheduler, tuple):
                 if self.scheduler[0] != _get_name(scheduler):

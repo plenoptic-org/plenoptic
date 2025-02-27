@@ -57,15 +57,13 @@ class TestMetamers:
                 po.tools.remove_grad(model)
                 expectation = pytest.raises(
                     ValueError,
-                    match=(
-                        "Saved and initialized target_representation are" " different"
-                    ),
+                    match=("Saved and initialized model behavior is different"),
                 )
             elif fail == "loss":
                 loss = po.metric.ssim
                 expectation = pytest.raises(
                     ValueError,
-                    match="Saved and initialized loss_function are different",
+                    match="Saved and initialized loss_function behavior is different",
                 )
             elif fail == "range_penalty":
                 range_penalty = 0.5

@@ -503,7 +503,6 @@ class Metamer(OptimizedSynthesis):
         """
         check_attributes = [
             "_image",
-            "_target_representation",
             "_range_penalty_lambda",
             "_allowed_range",
         ]
