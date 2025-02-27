@@ -88,7 +88,7 @@ class Synthesis(abc.ABC):
         for k, input_names in save_io_attrs:
             attr = getattr(self, k)
             name = _get_name(attr)
-            tensors = (getattr(self, t) for t in input_names)
+            tensors = [getattr(self, t) for t in input_names]
             save_dict[k] = (name, input_names, attr(*tensors))
             if any([n not in save_dict for n in input_names]):
                 raise ValueError(
@@ -243,14 +243,14 @@ class Synthesis(abc.ABC):
             try:
                 saved_loss = tmp_dict[k][-1]
                 error_str = "saved test"
-                tensors = (tmp_dict[t] for t in tmp_dict[k][1])
+                tensors = [tmp_dict[t] for t in tmp_dict[k][1]]
                 init_loss = getattr(self, k)(*tensors)
                 saved_name = tmp_dict[k][0]
             except TypeError:
                 # then we saved the actual object, not its behavior, and need to do the
                 # check live.
                 # this way, we know it's the right shape
-                tensors = (getattr(self, t) for t in input_names)
+                tensors = [getattr(self, t) for t in input_names]
                 saved_loss = tmp_dict[k](*tensors)
                 init_loss = getattr(self, k)(*tensors)
                 error_str = "two random"
