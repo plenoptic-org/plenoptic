@@ -441,11 +441,11 @@ class Geodesic(OptimizedSynthesis):
         """
         if not save_objects:
             save_io_attrs = [
-                ("_model", (torch.rand(*self._geodesic.shape),)),
+                ("_model", ("_geodesic",)),
             ]
             save_state_dict_attrs = ["_optimizer"]
         else:
-            save_io_attrs = [("_model", (torch.rand(*self._geodesic.shape),))]
+            save_io_attrs = [("_model", ("_geodesic",))]
             save_state_dict_attrs = []
         save_attrs = [
             k
@@ -552,7 +552,7 @@ class Geodesic(OptimizedSynthesis):
             "_allowed_range",
             "pixelfade",
         ]
-        check_io_attrs = ["_model"]
+        check_io_attrs = [("_model", ("_geodesic",))]
         super().load(
             file_path,
             "losses",

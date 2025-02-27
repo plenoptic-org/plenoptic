@@ -441,8 +441,8 @@ class MADCompetition(OptimizedSynthesis):
         """
         if not save_objects:
             save_io_attrs = [
-                ("_optimized_metric", torch.rand(2, *self._image_shape)),
-                ("_reference_metric", torch.rand(2, *self._image_shape)),
+                ("_optimized_metric", ("_image", "_mad_image")),
+                ("_reference_metric", ("_image", "_mad_image")),
             ]
             save_state_dict_attrs = ["_optimizer", "scheduler"]
         else:
@@ -450,11 +450,11 @@ class MADCompetition(OptimizedSynthesis):
             # if the metrics are Modules, then we don't want to save directly.
             if isinstance(self.optimized_metric, torch.nn.Module):
                 save_io_attrs.append(
-                    ("_optimized_metric", torch.rand(2, *self._image_shape))
+                    ("_optimized_metric", ("_image", "_mad_image")),
                 )
             if isinstance(self.reference_metric, torch.nn.Module):
                 save_io_attrs.append(
-                    ("_reference_metric", torch.rand(2, *self._image_shape))
+                    ("_reference_metric", ("_image", "_mad_image")),
                 )
             save_state_dict_attrs = []
         save_attrs = [
@@ -562,7 +562,10 @@ class MADCompetition(OptimizedSynthesis):
             "_allowed_range",
             "_minmax",
         ]
-        check_io_attrs = ["_reference_metric", "_optimized_metric"]
+        check_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
         super().load(
             file_path,
             "losses",

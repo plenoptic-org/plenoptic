@@ -40,7 +40,7 @@ class Synthesis(abc.ABC):
         self,
         file_path: str,
         save_attrs: list[str],
-        save_io_attrs: list[str] = [],
+        save_io_attrs: list[tuple[str]] = [],
         save_state_dict_attrs: list[str] = [],
     ):
         r"""Save all relevant variables in .pt file.
@@ -56,11 +56,13 @@ class Synthesis(abc.ABC):
         save_attrs :
             Names of the attributes to save directly.
         save_io_attrs :
-            Names of attributes that we save as tuples of (name, inputs, outputs). On
-            load, we check that the initialized object's name hasn't changed, and that
-            when called on the same inputs, we get the same outputs. Intended for
-            models, metrics, loss functions. Used to avoid saving callable, which is
-            brittle and unsafe.
+            List with tuples of form (str, (str, ...)). The first element is the name of
+            the attribute to we save, and the second element is a tuple of attributes of
+            the Synthesis object, which we can pass as inputs to the attribute. We save
+            them as tuples of (name, input_names, outputs). On load, we check that the
+            initialized object's name hasn't changed, and that when called on the same
+            inputs, we get the same outputs. Intended for models, metrics, loss
+            functions. Used to avoid saving callable, which is brittle and unsafe.
         save_state_dict_attrs :
             Names of attributes that we save as tuples of (name, state_dict).
             Corresponding attribute can be None, in which case we save an empty
@@ -83,10 +85,16 @@ class Synthesis(abc.ABC):
             if isinstance(attr, torch.Tensor):
                 attr = attr.detach()
             save_dict[k] = attr
-        for k, tensors in save_io_attrs:
+        for k, input_names in save_io_attrs:
             attr = getattr(self, k)
             name = _get_name(attr)
-            save_dict[k] = (name, tensors, attr(*tensors))
+            tensors = (getattr(self, t) for t in input_names)
+            save_dict[k] = (name, input_names, attr(*tensors))
+            if any([n not in save_dict for n in input_names]):
+                raise ValueError(
+                    "input_name must be included in save dictionary, "
+                    f"but got {input_names}!"
+                )
         for k in save_state_dict_attrs:
             attr = getattr(self, k)
             name = _get_name(attr)
@@ -165,13 +173,6 @@ class Synthesis(abc.ABC):
             weights_only=weights_only,
             **pickle_load_args,
         )
-        if map_location is not None:
-            device = map_location
-        else:
-            for v in tmp_dict.values():
-                if isinstance(v, torch.Tensor):
-                    device = v.device
-                    break
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # range_penalty_lambda, where this function is checking the
@@ -235,22 +236,23 @@ class Synthesis(abc.ABC):
                         f"\nSaved: {tmp_dict[k]}"
                         f"\nInitialized: {getattr(self, k)}"
                     )
-        for k in check_io_attributes:
+        for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
             init_name = _get_name(getattr(self, k))
             try:
                 saved_loss = tmp_dict[k][-1]
                 error_str = "saved test"
-                init_loss = getattr(self, k)(*tmp_dict[k][1])
+                tensors = (tmp_dict[t] for t in tmp_dict[k][1])
+                init_loss = getattr(self, k)(*tensors)
                 saved_name = tmp_dict[k][0]
             except TypeError:
                 # then we saved the actual object, not its behavior, and need to do the
                 # check live.
                 # this way, we know it's the right shape
-                tensor_a, tensor_b = torch.rand(2, *self._image_shape).to(device)
-                saved_loss = tmp_dict[k](tensor_a, tensor_b)
-                init_loss = getattr(self, k)(tensor_a, tensor_b)
+                tensors = (getattr(self, t) for t in input_names)
+                saved_loss = tmp_dict[k](*tensors)
+                init_loss = getattr(self, k)(*tensors)
                 error_str = "two random"
                 saved_name = _get_name(tmp_dict[k])
             try:
@@ -286,9 +288,12 @@ class Synthesis(abc.ABC):
                 else:
                     raise e
         for k, v in tmp_dict.items():
-            if k in check_io_attributes + state_dict_attributes:
+            # check_io_attributes is a tuple
+            if k in [a[0] for a in check_io_attributes] + state_dict_attributes:
                 display_k = k[1:] if k.startswith("_") else k
                 init_attr = getattr(self, k, None)
+                # then check they have the same name and, since we've already checked
+                # the behavior, keep going (don't update the object's attribute)
                 if init_attr is not None:
                     init_name = _get_name(init_attr)
                     try:
@@ -296,8 +301,9 @@ class Synthesis(abc.ABC):
                         if init_name != saved_name:
                             raise ValueError(
                                 f"Saved and initialized {display_k} "
-                                "have different names! Initialized: "
-                                f"{init_name}, saved: {saved_name}"
+                                "have different names!"
+                                f"\nSaved: {saved_name}"
+                                f"\nInitialized: {init_name}"
                             )
                     except TypeError:
                         # then we don't have a name to check because we had saved the

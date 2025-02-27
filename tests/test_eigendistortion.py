@@ -179,7 +179,7 @@ class TestEigendistortionSynthesis:
                 model = Gaussian(30).to(DEVICE)
                 remove_grad(model)
                 expectation = pytest.raises(
-                    RuntimeError,
+                    ValueError,
                     match=("Saved and initialized model behavior is different"),
                 )
             ed_copy = Eigendistortion(img, model)

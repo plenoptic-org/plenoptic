@@ -380,12 +380,12 @@ class Metamer(OptimizedSynthesis):
         """
         if not save_objects:
             save_io_attrs = [
-                ("loss_function", torch.rand(2, *self._image_shape)),
-                ("_model", (torch.rand(*self._image_shape),)),
+                ("loss_function", ("_image", "_metamer")),
+                ("_model", ("_image",)),
             ]
             save_state_dict_attrs = ["_optimizer", "scheduler"]
         else:
-            save_io_attrs = [("_model", (torch.rand(*self._image_shape),))]
+            save_io_attrs = [("_model", ("image",))]
             save_state_dict_attrs = []
         save_attrs = [
             k
@@ -505,7 +505,10 @@ class Metamer(OptimizedSynthesis):
             "_allowed_range",
         ]
         check_attributes += additional_check_attributes
-        check_io_attrs = ["loss_function", "_model"]
+        check_io_attrs = [
+            ("loss_function", ("_image", "_metamer")),
+            ("_model", ("_image",)),
+        ]
         check_io_attrs += additional_check_io_attributes
         super().load(
             file_path,

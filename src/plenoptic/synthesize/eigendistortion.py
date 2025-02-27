@@ -505,7 +505,7 @@ class Eigendistortion(Synthesis):
             The path to save the Eigendistortion object to
 
         """
-        save_io_attrs = [("_model", (torch.rand(*self._image.shape),))]
+        save_io_attrs = [("_model", ("_image",))]
         save_attrs = [k for k in vars(self) if k not in [k[0] for k in save_io_attrs]]
         super().save(file_path, save_attrs, save_io_attrs)
 
@@ -604,7 +604,7 @@ class Eigendistortion(Synthesis):
 
         """
         check_attributes = ["_image"]
-        check_io_attrs = ["_model"]
+        check_io_attrs = [("_model", ("_image",))]
         super().load(
             file_path,
             "eigenindex",
