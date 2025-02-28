@@ -111,7 +111,6 @@ class Synthesis(abc.ABC):
         file_path: str,
         check_attr_for_new: str,
         map_location: str | None = None,
-        weights_only: bool = True,
         check_attributes: list[str] = [],
         check_io_attributes: list[str] = [],
         state_dict_attributes: list[str] = [],
@@ -136,20 +135,14 @@ class Synthesis(abc.ABC):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        weights_only :
-            Indicates whether unpickler should be restricted to loading only tensors,
-            primitive types, dictionaries and any types added via
-            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
-            details.
         check_attributes :
             List of strings we ensure are identical in the current ``Synthesis`` object
             and the loaded one.
         check_io_attributes :
             Names of attributes whose input/output behavior we should check (i.e., if we
             call them on identical inputs, do we get identical outputs). In the loaded
-            dictionary, these can either be callables that have been saved (if ``save``
-            was called with ``save_objects=True``) or a tuple of three values: the name
-            of the callable, the input to check, and the output we expect.
+            dictionary, these are a tuple of three values: the name of the callable, the
+            name of the attribute to use as input, and the output we expect.
         state_dict_attributes :
             Names of attributes that were callables, saved as a tuple with the name of
             the callable and their state_dict. We will ensure the name of the attributes
@@ -170,7 +163,6 @@ class Synthesis(abc.ABC):
         tmp_dict = torch.load(
             file_path,
             map_location=map_location,
-            weights_only=weights_only,
             **pickle_load_args,
         )
         for k in check_attributes:

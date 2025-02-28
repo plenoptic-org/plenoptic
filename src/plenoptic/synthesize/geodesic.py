@@ -424,7 +424,7 @@ class Geodesic(OptimizedSynthesis):
             stored = False
         return stored
 
-    def save(self, file_path: str, save_objects: bool = False):
+    def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
 
         See ``load`` docstring for an example of use.
@@ -433,20 +433,12 @@ class Geodesic(OptimizedSynthesis):
         ----------
         file_path : str
             The path to save the Geodesic object to
-        save_objects :
-            If True, we use pickle to save all non-model objects (optimizer). To load
-            the resulting file, you will need to call ``load`` with
-            ``weights_only=False``. See :ref:`saveload` for more details.
 
         """
-        if not save_objects:
-            save_io_attrs = [
-                ("_model", ("_geodesic",)),
-            ]
-            save_state_dict_attrs = ["_optimizer"]
-        else:
-            save_io_attrs = [("_model", ("_geodesic",))]
-            save_state_dict_attrs = []
+        save_io_attrs = [
+            ("_model", ("_geodesic",)),
+        ]
+        save_state_dict_attrs = ["_optimizer"]
         save_attrs = [
             k
             for k in vars(self)
@@ -503,7 +495,6 @@ class Geodesic(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
-        weights_only: bool = True,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -522,11 +513,6 @@ class Geodesic(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        weights_only :
-            Indicates whether unpickler should be restricted to loading only tensors,
-            primitive types, dictionaries and any types added via
-            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
-            details.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -557,7 +543,6 @@ class Geodesic(OptimizedSynthesis):
             file_path,
             "losses",
             map_location=map_location,
-            weights_only=weights_only,
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer"],

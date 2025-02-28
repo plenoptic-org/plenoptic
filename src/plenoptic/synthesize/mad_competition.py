@@ -420,7 +420,7 @@ class MADCompetition(OptimizedSynthesis):
             stored = False
         return stored
 
-    def save(self, file_path: str, save_objects: bool = False):
+    def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
 
         Note that if store_progress is True, this will probably be very
@@ -432,31 +432,13 @@ class MADCompetition(OptimizedSynthesis):
         ----------
         file_path : str
             The path to save the MADCompetition object to
-        save_objects :
-            If True, we use pickle to save all non-Module objects (optimizer, scheduler,
-            the two metrics if they are functions). To load the resulting file, you will
-            need to call ``load`` with ``weights_only=False``. See :ref:`saveload` for
-            more details.
 
         """
-        if not save_objects:
-            save_io_attrs = [
-                ("_optimized_metric", ("_image", "_mad_image")),
-                ("_reference_metric", ("_image", "_mad_image")),
-            ]
-            save_state_dict_attrs = ["_optimizer", "scheduler"]
-        else:
-            save_io_attrs = []
-            # if the metrics are Modules, then we don't want to save directly.
-            if isinstance(self.optimized_metric, torch.nn.Module):
-                save_io_attrs.append(
-                    ("_optimized_metric", ("_image", "_mad_image")),
-                )
-            if isinstance(self.reference_metric, torch.nn.Module):
-                save_io_attrs.append(
-                    ("_reference_metric", ("_image", "_mad_image")),
-                )
-            save_state_dict_attrs = []
+        save_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
+        save_state_dict_attrs = ["_optimizer", "scheduler"]
         save_attrs = [
             k
             for k in vars(self)
@@ -511,7 +493,6 @@ class MADCompetition(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
-        weights_only: bool = True,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -534,11 +515,6 @@ class MADCompetition(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
-        weights_only :
-            Indicates whether unpickler should be restricted to loading only tensors,
-            primitive types, dictionaries and any types added via
-            torch.serialization.add_safe_globals(). See :ref:`saveload` for more
-            details.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
