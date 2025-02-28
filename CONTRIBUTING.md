@@ -290,7 +290,11 @@ more info.
 This section is optional but if you want to easily run tests in an isolated environment
 using the [nox](https://nox.thea.codes/en/stable/) command-line tool.
 
-To run all tests and linters through `nox`, from the root folder of the
+Before proceeding, you'll need to install `nox`. You can do this in your plenoptic environment, but it is more common to install it system-wide using `pipx`: `pipx install nox`. This installs `nox` into a globally-available isolated environment, see [pipx docs](https://pipx.pypa.io/stable/) for more details.
+
+You will also need to install `pyyaml` in the same environment as `nox`. If you used `pipx`, then run `pipx inject nox pyyaml`.
+
+To run all tests, formatters, and linters through `nox`, from the root folder of the
 plenoptic package, execute the following command,
 
 ```bash
