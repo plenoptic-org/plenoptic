@@ -519,6 +519,12 @@ class MADCompetition(OptimizedSynthesis):
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
 
+        See Also
+        --------
+        examine_saved_synthesis :
+            Examine metadata from saved object: pytorch and plenoptic versions, name of
+            the synthesis object, shapes of tensors, etc.
+
         Examples
         --------
         >>> mad = po.synth.MADCompetition(img, model)

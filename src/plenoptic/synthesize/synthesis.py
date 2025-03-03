@@ -1,10 +1,13 @@
 """abstract synthesis super-class."""
 
 import abc
+import importlib
 import warnings
 
 import numpy as np
 import torch
+
+from ..tools import examine_saved_synthesis
 
 
 def _get_name(x):
@@ -72,6 +75,11 @@ class Synthesis(abc.ABC):
 
         """
         save_dict = {}
+        save_dict["save_metadata"] = {
+            "plenoptic_version": importlib.metadata.version("plenoptic"),
+            "torch_version": importlib.metadata.version("torch"),
+            "synthesis_object": _get_name(self),
+        }
         for k in save_attrs:
             if k in ["_model", "model"]:
                 warnings.warn(
@@ -155,6 +163,11 @@ class Synthesis(abc.ABC):
 
         """
         check_attr_for_new = getattr(self, check_attr_for_new)
+        check_str = (
+            "\n\nIf this is confusing, try calling "
+            f"{_get_name(examine_saved_synthesis)}('{file_path}'),"
+            " to examine saved object"
+        )
         if check_attr_for_new is not None and len(check_attr_for_new) > 0:
             raise ValueError(
                 "load can only be called with a just-initialized"
@@ -165,6 +178,13 @@ class Synthesis(abc.ABC):
             map_location=map_location,
             **pickle_load_args,
         )
+        metadata = tmp_dict.pop("save_metadata")
+        if metadata["synthesis_object"] != _get_name(self):
+            raise ValueError(
+                f"Saved object was a {metadata['synthesis_object']}"
+                f", but initialized object is {_get_name(self)}! "
+                f"{check_str}"
+            )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # range_penalty_lambda, where this function is checking the
@@ -178,7 +198,7 @@ class Synthesis(abc.ABC):
                 raise AttributeError(
                     "All values of `check_attributes` should be "
                     "attributes set at initialization, but got "
-                    f"attr {display_k}!"
+                    f"attr {display_k}!{check_str}"
                 )
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
@@ -195,6 +215,7 @@ class Synthesis(abc.ABC):
                             f"\nSaved: {tmp_dict[k]}"
                             f"\nInitialized: {getattr(self, k)}"
                             f"\ndifference: {getattr(self, k) - tmp_dict[k]}"
+                            f"{check_str}"
                         )
                 except RuntimeError as e:
                     # we end up here if dtype or shape don't match
@@ -204,6 +225,7 @@ class Synthesis(abc.ABC):
                             " saved and initialized versions!"
                             f"\nSaved: {tmp_dict[k].shape}"
                             f"\nInitialized: {getattr(self, k).shape}"
+                            f"{check_str}"
                         )
                     elif "did not match" in e.args[0]:
                         raise RuntimeError(
@@ -211,6 +233,7 @@ class Synthesis(abc.ABC):
                             "saved and initialized versions!"
                             f"\nSaved: {tmp_dict[k].dtype}"
                             f"\nInitialized: {getattr(self, k).dtype}"
+                            f"{check_str}"
                         )
                     else:
                         raise e
@@ -220,6 +243,7 @@ class Synthesis(abc.ABC):
                         f"Saved and initialized {display_k} are different!"
                         f"\nSaved: {tmp_dict[k]}"
                         f"\nInitialized: {getattr(self, k)}"
+                        f"{check_str}"
                     )
             else:
                 if getattr(self, k) != tmp_dict[k]:
@@ -227,6 +251,7 @@ class Synthesis(abc.ABC):
                         f"Saved and initialized {display_k} are different!"
                         f"\nSaved: {tmp_dict[k]}"
                         f"\nInitialized: {getattr(self, k)}"
+                        f"{check_str}"
                     )
         for k, input_names in check_io_attributes:
             # same as above
@@ -260,6 +285,7 @@ class Synthesis(abc.ABC):
                         f"\nInitialized ({init_name}) output on "
                         f"{error_str} tensors: {init_loss}"
                         f"\nDifference: {init_loss-saved_loss}"
+                        f"{check_str}"
                     )
             except RuntimeError as e:
                 # we end up here if dtype or shape don't match
@@ -269,6 +295,7 @@ class Synthesis(abc.ABC):
                         f"different!"
                         f"\nSaved ({saved_name}) shape: {saved_loss.shape}"
                         f"\nInitialized ({init_name}) shape: {init_loss.shape}"
+                        f"{check_str}"
                     )
                 elif "did not match" in e.args[0]:
                     raise RuntimeError(
@@ -276,6 +303,7 @@ class Synthesis(abc.ABC):
                         f"different!"
                         f"\nSaved ({saved_name}) dtype: {saved_loss.dtype}"
                         f"\nInitialized ({init_name}) dtype: {init_loss.dtype}"
+                        f"{check_str}"
                     )
                 else:
                     raise e
@@ -296,6 +324,7 @@ class Synthesis(abc.ABC):
                                 "have different names!"
                                 f"\nSaved: {saved_name}"
                                 f"\nInitialized: {init_name}"
+                                f"{check_str}"
                             )
                     except TypeError:
                         # then we don't have a name to check because we had saved the
