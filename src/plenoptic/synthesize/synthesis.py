@@ -185,6 +185,27 @@ class Synthesis(abc.ABC):
                 f", but initialized object is {_get_name(self)}! "
                 f"{check_str}"
             )
+        # all attributes set at initialization should be present in the saved dictionary
+        init_not_save = set(vars(self)) - set(tmp_dict)
+        if len(init_not_save):
+            init_not_save_str = "\n ".join(
+                [f"{k}: {getattr(self,k)}" for k in init_not_save]
+            )
+            raise ValueError(
+                f"Initialized object has {len(init_not_save)} attribute(s) "
+                f"not present in the saved object!\n {init_not_save_str}"
+            )
+        # there shouldn't be any extra keys in the saved dictionary (we removed
+        # save_metadata abov)
+        save_not_init = set(tmp_dict) - set(vars(self))
+        if len(save_not_init):
+            save_not_init_str = "\n ".join(
+                [f"{k}: {tmp_dict[k]}" for k in save_not_init]
+            )
+            raise ValueError(
+                f"Saved object has {len(save_not_init)} attribute(s) "
+                f"not present in the initialized object!\n {save_not_init_str}"
+            )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # range_penalty_lambda, where this function is checking the

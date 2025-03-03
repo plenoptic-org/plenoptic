@@ -64,7 +64,7 @@ def examine_saved_synthesis(file_path: str, map_location: str | None = None):
     pad_len = max([len(k[1:] if k.startswith("_") else k) for k in load_dict]) + 1
     for k, v in load_dict.items():
         display_k = k[1:] if k.startswith("_") else k
-        if hasattr(v, "__len__"):
+        if hasattr(v, "__len__") and not isinstance(v, str):
             print(f"{display_k:<{pad_len}}: {type(v)} with length {len(v)}")
         else:
             print(f"{display_k:<{pad_len}}: {v}")
