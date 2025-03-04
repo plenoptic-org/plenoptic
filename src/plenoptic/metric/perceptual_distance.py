@@ -195,6 +195,15 @@ def ssim(img1, img2, weighted=False, pad=False):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> curie_img = po.data.curie()
+    >>> ssim_dist = po.metric.ssim(einstein_img, curie_img)
+    >>> ssim_dist
+    tensor([[0.1820]])
+
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
