@@ -359,10 +359,10 @@ def ms_ssim(img1, img2, power_factors=None):
     --------
     >>> import plenoptic as po
     >>> einstein_img = po.data.einstein()
-    >>> curie_img = po.data.curie()
-    >>> dist_ms_ssim = po.metric.ms_ssim(einstein_img, curie_img)
+    >>> reptile_img = po.data.reptile_skin()
+    >>> dist_ms_ssim = po.metric.ms_ssim(einstein_img, reptile_img)
     >>> dist_ms_ssim
-    tensor([[0.]])
+    tensor([[0.0316]])
 
     """
     if power_factors is None:
