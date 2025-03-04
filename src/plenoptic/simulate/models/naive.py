@@ -95,7 +95,7 @@ class Gaussian(nn.Module):
     kernel_size:
         Size of convolutional kernel.
     std:
-        Standard deviation of circularly symmtric Gaussian kernel.
+        Standard deviation of circularly symmetric Gaussian kernel.
     pad_mode:
         Padding mode argument to pass to `torch.nn.functional.pad`.
     out_channels:
