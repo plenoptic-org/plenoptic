@@ -278,6 +278,15 @@ def ssim_map(img1, img2):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> curie_img = po.data.curie()
+    >>> ssim_map = po.metric.ssim_map(einstein_img, curie_img)
+    >>> ssim_map.shape
+    torch.Size([1, 1, 246, 246])
+
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
         warnings.warn(
@@ -345,6 +354,15 @@ def ms_ssim(img1, img2, power_factors=None):
     .. [1] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
        structural similarity for image quality assessment." The Thrity-Seventh
        Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> reptile_img = po.data.reptile_skin()
+    >>> dist_ms_ssim = po.metric.ms_ssim(einstein_img, reptile_img)
+    >>> dist_ms_ssim
+    tensor([[0.0316]])
 
     """
     if power_factors is None:
@@ -460,6 +478,16 @@ def nlpd(img1, img2):
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> curie_img = po.data.curie()
+    >>> dist_nlpd = po.metric.nlpd(einstein_img, curie_img)
+    >>> dist_nlpd
+    tensor([[1.3507]])
+
     """
 
     if not img1.ndim == img2.ndim == 4:
