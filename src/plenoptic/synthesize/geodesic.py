@@ -517,8 +517,14 @@ class Geodesic(OptimizedSynthesis):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img_a = po.data.einstein()
+        >>> img_b = po.data.curie()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> geo = po.synth.Geodesic(img_a, img_b, model)
-        >>> geo.synthesize(max_iter=10, store_progress=True)
+        >>> geo.synthesize(max_iter=5, store_progress=True)
+        ...
         >>> geo.save('geo.pt')
         >>> geo_copy = po.synth.Geodesic(img_a, img_b, model)
         >>> geo_copy.load('geo.pt')

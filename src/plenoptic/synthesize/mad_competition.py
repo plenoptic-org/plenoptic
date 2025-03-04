@@ -520,10 +520,14 @@ class MADCompetition(OptimizedSynthesis):
 
         Examples
         --------
-        >>> mad = po.synth.MADCompetition(img, model)
-        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> def ds_ssim(x, y):
+        ...    return 1 - po.metric.ssim(x, y)
+        >>> mad = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min")
+        >>> mad.synthesize(max_iter=5, store_progress=True)
         >>> mad.save('mad.pt')
-        >>> mad_copy = po.synth.MADCompetition(img, model)
+        >>> mad_copy = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min")
         >>> mad_copy.load('mad.pt')
 
         Note that you must create a new instance of the Synthesis object and

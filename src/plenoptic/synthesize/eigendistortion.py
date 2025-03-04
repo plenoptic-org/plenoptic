@@ -591,8 +591,12 @@ class Eigendistortion(Synthesis):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> eig = po.synth.Eigendistortion(img, model)
-        >>> eig.synthesize(max_iter=10)
+        >>> eig.synthesize(max_iter=5)
         >>> eig.save('eig.pt')
         >>> eig_copy = po.synth.Eigendistortion(img, model)
         >>> eig_copy.load('eig.pt')

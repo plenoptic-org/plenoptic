@@ -448,8 +448,12 @@ class Metamer(OptimizedSynthesis):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.synthesize(max_iter=5, store_progress=True)
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer(img, model)
         >>> metamer_copy.load('metamers.pt')
@@ -955,8 +959,12 @@ class MetamerCTF(Metamer):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.synthesize(max_iter=5, store_progress=True)
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer(img, model)
         >>> metamer_copy.load('metamers.pt')
