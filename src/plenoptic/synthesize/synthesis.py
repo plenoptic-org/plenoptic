@@ -215,12 +215,6 @@ class Synthesis(abc.ABC):
             # needs to be able to set the attribute, which can only be
             # done with the hidden version.
             display_k = k[1:] if k.startswith("_") else k
-            if not hasattr(self, k):
-                raise AttributeError(
-                    "All values of `check_attributes` should be "
-                    "attributes set at initialization, but got "
-                    f"attr {display_k}!{check_str}"
-                )
             if isinstance(getattr(self, k), torch.Tensor):
                 # there are two ways this can fail -- the first is if they're
                 # the same shape but different values and the second (in the
