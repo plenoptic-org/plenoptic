@@ -100,6 +100,27 @@ def circular_gaussian2d(
     filt:
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
         `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
+
+    >>> import plenoptic as po
+    >>> from plenoptic.simulate import circular_gaussian2d
+    >>> from torch.nn.functional import conv2d
+    >>> import torch
+    >>> import matplotlib.pyplot as plt
+    >>> # define a 2d Gaussian filter, odd size for improve convolution performance
+    >>> kernel_size = 32 + 1
+    >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=2.)
+    >>> # filter an image
+    >>> einstein_img = po.data.einstein()
+    >>> blurred_einstain = conv2d(einstein_img, filt_2d, padding="same")
+    >>> # plot filter, original image and blurred image
+    >>> # remove one sample from the filter so that po.imshow can re-size for plotting
+    >>> po.imshow(
+    ...     [filt_2d[...,:-1,:-1], einstein_img, blurred_einstain],
+    ...     title=["2D Gaussian Filter", "Einstein", "Blurred Einstein"]
+    ... )
+    <PyrFigure ...
+    >>> plt.show()
+
     """
     device = torch.device("cpu") if isinstance(std, float) else std.device
 
