@@ -24,6 +24,42 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     -------
     filt:
         1d Gaussian with `Size([kernel_size])`.
+
+    Examples
+    --------
+    >>> from plenoptic.simulate import gaussian1d
+    >>> from torch.nn.functional import conv1d
+    >>> import torch
+    >>> import matplotlib.pyplot as plt
+    >>> # define a filter
+    >>> kernel_size = 21
+    >>> filt = gaussian1d(kernel_size=kernel_size, std=2).reshape(1, 1, kernel_size)
+    >>> # define a sinusoid + noise
+    >>> sin_plus_noise = (
+    ... torch.sin(torch.linspace(0, 5 * torch.pi, 500)) +
+    ... 0.5 * torch.randn(500)
+    ... )
+    >>> sin_plus_noise = sin_plus_noise.reshape(1, 1, 500)
+    >>> # convolve signal with the Gaussian filter
+    >>> smooth_sin = conv1d(sin_plus_noise, filt, padding="same")
+    >>> # plot filter, signal and convolved signal
+    >>> f, axs = plt.subplots(3, 1)
+    >>> # plot filter and convolution results
+    >>> axs[0].plot(filt.flatten())
+    [...
+    >>> axs[0].set_title("1D Gaussian filter")
+    Text(0.5, 1.0, '1D Gaussian filter')
+    >>> axs[1].plot(sin_plus_noise.flatten())
+    [...
+    >>> axs[1].set_title("Sin + Noise")
+    Text(0.5, 1.0, 'Sin + Noise')
+    >>> axs[2].plot(smooth_sin.flatten())
+    [...
+    >>> axs[2].set_title("Convolved Sin + Noise")
+    Text(0.5, 1.0, 'Convolved Sin + Noise')
+    >>> plt.tight_layout()
+    >>> plt.show()
+
     """
     try:
         dtype = std.dtype
