@@ -2,12 +2,14 @@
 
 import abc
 import importlib
+import inspect
 import warnings
 
 import numpy as np
 import torch
 
 from ..tools import examine_saved_synthesis
+from ..tools.data import _check_tensor_equality
 
 
 def _get_name(x):
@@ -196,7 +198,7 @@ class Synthesis(abc.ABC):
                 f"not present in the saved object!\n {init_not_save_str}"
             )
         # there shouldn't be any extra keys in the saved dictionary (we removed
-        # save_metadata abov)
+        # save_metadata above)
         save_not_init = set(tmp_dict) - set(vars(self))
         if len(save_not_init):
             save_not_init_str = "\n ".join(
@@ -216,42 +218,18 @@ class Synthesis(abc.ABC):
             # done with the hidden version.
             display_k = k[1:] if k.startswith("_") else k
             if isinstance(getattr(self, k), torch.Tensor):
-                # there are two ways this can fail -- the first is if they're
-                # the same shape but different values and the second (in the
-                # except block) are if they're different shapes/dtypes.
-                try:
-                    if not torch.allclose(
-                        getattr(self, k).to(tmp_dict[k].device),
-                        tmp_dict[k],
-                        rtol=5e-2,
-                    ):
-                        raise ValueError(
-                            f"Saved and initialized {display_k} are different!"
-                            f"\nSaved: {tmp_dict[k]}"
-                            f"\nInitialized: {getattr(self, k)}"
-                            f"\ndifference: {getattr(self, k) - tmp_dict[k]}"
-                            f"{check_str}"
-                        )
-                except RuntimeError as e:
-                    # we end up here if dtype or shape don't match
-                    if "The size of tensor a" in e.args[0]:
-                        raise RuntimeError(
-                            f"Attribute {display_k} have different shapes in"
-                            " saved and initialized versions!"
-                            f"\nSaved: {tmp_dict[k].shape}"
-                            f"\nInitialized: {getattr(self, k).shape}"
-                            f"{check_str}"
-                        )
-                    elif "did not match" in e.args[0]:
-                        raise RuntimeError(
-                            f"Attribute {display_k} has different dtype in "
-                            "saved and initialized versions!"
-                            f"\nSaved: {tmp_dict[k].dtype}"
-                            f"\nInitialized: {getattr(self, k).dtype}"
-                            f"{check_str}"
-                        )
-                    else:
-                        raise e
+                _check_tensor_equality(
+                    getattr(self, k),
+                    tmp_dict[k],
+                    "Saved",
+                    "Initialized",
+                    rtol=5e-2,
+                    error_prepend_str=(
+                        f"Saved and initialized {display_k} output have "
+                        f"different {{error_type}}!"
+                    ),
+                    error_append_str=check_str,
+                )
             elif isinstance(getattr(self, k), float):
                 if not np.allclose(getattr(self, k), tmp_dict[k]):
                     raise ValueError(
@@ -271,57 +249,23 @@ class Synthesis(abc.ABC):
         for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
+            tensors = [tmp_dict[t] for t in tmp_dict[k][1]]
             init_name = _get_name(getattr(self, k))
-            try:
-                saved_loss = tmp_dict[k][-1]
-                error_str = "saved test"
-                tensors = [tmp_dict[t] for t in tmp_dict[k][1]]
-                init_loss = getattr(self, k)(*tensors)
-                saved_name = tmp_dict[k][0]
-            except TypeError:
-                # then we saved the actual object, not its behavior, and need to do the
-                # check live.
-                # this way, we know it's the right shape
-                tensors = [getattr(self, t) for t in input_names]
-                saved_loss = tmp_dict[k](*tensors)
-                init_loss = getattr(self, k)(*tensors)
-                error_str = "two random"
-                saved_name = _get_name(tmp_dict[k])
-            try:
-                # there are two ways this can fail -- the first is if they're
-                # the same shape but different values and the second (in the
-                # except block) are if they're different shapes/dtypes.
-                if not torch.allclose(saved_loss, init_loss, rtol=1e-2):
-                    raise ValueError(
-                        f"Saved and initialized {display_k} behavior is "
-                        f"different!"
-                        f"\nSaved ({saved_name}) output on {error_str} tensors: "
-                        f"{saved_loss}"
-                        f"\nInitialized ({init_name}) output on "
-                        f"{error_str} tensors: {init_loss}"
-                        f"\nDifference: {init_loss-saved_loss}"
-                        f"{check_str}"
-                    )
-            except RuntimeError as e:
-                # we end up here if dtype or shape don't match
-                if "The size of tensor a" in e.args[0]:
-                    raise RuntimeError(
-                        f"Saved and initialized {display_k} output shape is "
-                        f"different!"
-                        f"\nSaved ({saved_name}) shape: {saved_loss.shape}"
-                        f"\nInitialized ({init_name}) shape: {init_loss.shape}"
-                        f"{check_str}"
-                    )
-                elif "did not match" in e.args[0]:
-                    raise RuntimeError(
-                        f"Saved and initialized {display_k} output dtype is "
-                        f"different!"
-                        f"\nSaved ({saved_name}) dtype: {saved_loss.dtype}"
-                        f"\nInitialized ({init_name}) dtype: {init_loss.dtype}"
-                        f"{check_str}"
-                    )
-                else:
-                    raise e
+            saved_name = tmp_dict[k][0]
+            init_loss = getattr(self, k)(*tensors)
+            saved_loss = tmp_dict[k][-1]
+            _check_tensor_equality(
+                saved_loss,
+                init_loss,
+                f"Saved ({saved_name})",
+                f"Initialized ({init_name})",
+                rtol=1e-2,
+                error_prepend_str=(
+                    f"Saved and initialized {display_k} output have "
+                    f"different {{error_type}}!"
+                ),
+                error_append_str=check_str,
+            )
         for k, v in tmp_dict.items():
             # check_io_attributes is a tuple
             if k in [a[0] for a in check_io_attributes] + state_dict_attributes:
@@ -550,15 +494,16 @@ class OptimizedSynthesis(Synthesis):
                     # you do it in that order, the optimizer target is incorrect
                     raise ValueError(
                         f"Optimizer parameter does not match self.{synth_name}. Did "
-                        "you initialize this optimizer object before load? Optimizer "
-                        "objects must be initialized after calling load()"
+                        "you initialize this optimizer object before calling load? "
+                        "Optimizer objects must be initialized after calling load"
                     )
             if isinstance(self.optimizer, tuple):
                 if self._optimizer[0] != _get_name(optimizer):
                     raise ValueError(
                         "User-specified optimizer must have same type as saved "
-                        f"optimizer, but got: Saved: {self.optimizer[0]}, "
-                        f"User-specified: {_get_name(optimizer)}."
+                        "optimizer, but got:"
+                        f"\nSaved: {self.optimizer[0]}, "
+                        f"\nUser-specified: {_get_name(optimizer)}."
                     )
                 state_dict = self.optimizer[1]
                 self._optimizer = optimizer
@@ -590,6 +535,10 @@ class OptimizedSynthesis(Synthesis):
         - else, the saved and user-specified schedulers must have the same class name
           and we load the state_dict.
 
+        We also check if scheduler.step takes any arguments beyond self and epoch. If
+        so, we set the `_scheduler_step_arg` flag to True (it was set to False at object
+        initialization). Then, we will pass the loss to scheduler.step when we call it.
+
         """
         if scheduler is None:
             if isinstance(self.scheduler, tuple):
@@ -602,27 +551,32 @@ class OptimizedSynthesis(Synthesis):
                         "scheduler to `synthesize`, and we will update its state_dict."
                     )
                 else:
-                    self.scheduler = None
+                    self._scheduler = None
         else:
             if isinstance(self.scheduler, tuple):
                 if self.scheduler[0] != _get_name(scheduler):
                     raise ValueError(
                         "User-specified scheduler must have same type as saved "
                         f"scheduler, but got:\nSaved: {self.scheduler[0]}, "
-                        f"User-specified: {_get_name(scheduler)}."
+                        f"\nUser-specified: {_get_name(scheduler)}."
                     )
                 state_dict = self.scheduler[1]
-                self.scheduler = scheduler
-                self.scheduler.load_state_dict(state_dict)
+                self._scheduler = scheduler
+                self._scheduler.load_state_dict(state_dict)
             elif self.scheduler is not None:
                 raise TypeError("When resuming synthesis, scheduler arg must be None!")
             if self.optimizer is not scheduler.optimizer:
                 raise ValueError(
                     "Scheduler's optimizer must match that of this "
                     f"{self.__class__.__name__} but got two different optimizers! Did "
-                    "you call initialize scheduler before calling load()?"
+                    "you initialize this scheduler object before calling load? "
+                    "Schedulers and optimizers must be optimized after calling load"
                 )
             self._scheduler = scheduler
+            step_args = set(inspect.getfullargspec(self.scheduler.step).args)
+            if len(step_args - {"self", "epoch"}):
+                # then we do want to pass the loss to scheduler.step
+                self._scheduler_step_arg = True
 
     @property
     def range_penalty_lambda(self):
@@ -688,3 +642,7 @@ class OptimizedSynthesis(Synthesis):
     @property
     def optimizer(self):
         return self._optimizer
+
+    @property
+    def scheduler(self):
+        return self._scheduler

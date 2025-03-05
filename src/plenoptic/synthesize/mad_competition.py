@@ -131,7 +131,8 @@ class MADCompetition(OptimizedSynthesis):
         self._reference_metric = reference_metric
         self._image = image.detach()
         self._image_shape = image.shape
-        self.scheduler = None
+        self._scheduler = None
+        self._scheduler_step_arg = False
         self._optimized_metric_loss = []
         self._reference_metric_loss = []
         if minmax not in ["min", "max"]:
@@ -338,9 +339,12 @@ class MADCompetition(OptimizedSynthesis):
         sm = self.optimized_metric(self.image, self.mad_image)
         self._optimized_metric_loss.append(sm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.mad_image - last_iter_mad_image, ord=2, dim=None
@@ -394,7 +398,7 @@ class MADCompetition(OptimizedSynthesis):
     def _initialize_optimizer(self, optimizer, scheduler):
         """Initialize optimizer and scheduler."""
         super()._initialize_optimizer(optimizer, "mad_image")
-        self.scheduler = scheduler
+        super()._initialize_scheduler(scheduler)
 
     def _store(self, i: int) -> bool:
         """Store mad_image anbd model response, if appropriate.
@@ -438,7 +442,7 @@ class MADCompetition(OptimizedSynthesis):
             ("_optimized_metric", ("_image", "_mad_image")),
             ("_reference_metric", ("_image", "_mad_image")),
         ]
-        save_state_dict_attrs = ["_optimizer", "scheduler"]
+        save_state_dict_attrs = ["_optimizer", "_scheduler"]
         save_attrs = [
             k
             for k in vars(self)
@@ -554,7 +558,7 @@ class MADCompetition(OptimizedSynthesis):
             map_location=map_location,
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
-            state_dict_attributes=["_optimizer", "scheduler"],
+            state_dict_attributes=["_optimizer", "_scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again

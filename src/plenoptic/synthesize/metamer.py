@@ -107,7 +107,8 @@ class Metamer(OptimizedSynthesis):
         self._image = image
         self._image_shape = image.shape
         self._target_representation = self.model(self.image)
-        self.scheduler = None
+        self._scheduler = None
+        self._scheduler_step_arg = False
         self.loss_function = loss_function
         self._initialize(initial_image)
         self._saved_metamer = []
@@ -270,9 +271,12 @@ class Metamer(OptimizedSynthesis):
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.metamer - last_iter_metamer, ord=2, dim=None
@@ -378,7 +382,7 @@ class Metamer(OptimizedSynthesis):
             ("loss_function", ("_image", "_metamer")),
             ("_model", ("_image",)),
         ]
-        save_state_dict_attrs = ["_optimizer", "scheduler"]
+        save_state_dict_attrs = ["_optimizer", "_scheduler"]
         save_attrs = [
             k
             for k in vars(self)
@@ -506,7 +510,7 @@ class Metamer(OptimizedSynthesis):
             map_location=map_location,
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
-            state_dict_attributes=["_optimizer", "scheduler"],
+            state_dict_attributes=["_optimizer", "_scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again
@@ -817,9 +821,12 @@ class MetamerCTF(Metamer):
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.metamer - last_iter_metamer, ord=2, dim=None
