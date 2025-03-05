@@ -10,6 +10,7 @@ from numpy.random import randint
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.tools.data import _check_tensor_equality
 
 
 class TestData:
@@ -608,3 +609,25 @@ class TestPolarImages:
     def test_polar_angle_direction(self):
         with pytest.raises(ValueError, match="direction must be one of"):
             po.tools.polar_angle(100, direction="-clockwise")
+
+
+class TestEqualityChecks:
+    def test_equal(self, einstein_img):
+        _check_tensor_equality(einstein_img, einstein_img)
+
+    def test_values(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, "Different values"):
+            _check_tensor_equality(einstein_img, curie_img)
+
+    def test_dtype(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, "Different dtype"):
+            _check_tensor_equality(einstein_img, curie_img.to(torch.float64))
+
+    def test_size(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, "Different dtype"):
+            _check_tensor_equality(einstein_img, curie_img[..., :64, :64])
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    def test_device(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, "Different dtype"):
+            _check_tensor_equality(einstein_img.to("cuda"), curie_img.to("cpu"))
