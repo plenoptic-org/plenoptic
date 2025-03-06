@@ -275,22 +275,15 @@ class Synthesis(abc.ABC):
                 # the behavior, keep going (don't update the object's attribute)
                 if init_attr is not None:
                     init_name = _get_name(init_attr)
-                    try:
-                        saved_name = v[0]
-                        if init_name != saved_name:
-                            raise ValueError(
-                                f"Saved and initialized {display_k} "
-                                "have different names!"
-                                f"\nSaved: {saved_name}"
-                                f"\nInitialized: {init_name}"
-                                f"{check_str}"
-                            )
-                    except TypeError:
-                        # then we don't have a name to check because we had saved the
-                        # actual object
-                        pass
-                    if k in state_dict_attributes:
-                        getattr(self, k).load_state_dict(v[1])
+                    saved_name = v[0]
+                    if init_name != saved_name:
+                        raise ValueError(
+                            f"Saved and initialized {display_k} "
+                            "have different names!"
+                            f"\nSaved: {saved_name}"
+                            f"\nInitialized: {init_name}"
+                            f"{check_str}"
+                        )
                     continue
                 # if init_attr is None, then we haven't set it yet, so we set the saved
                 # tuple as the attribute, and handle this later
