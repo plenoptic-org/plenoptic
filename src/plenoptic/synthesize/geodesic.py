@@ -512,6 +512,10 @@ class Geodesic(OptimizedSynthesis):
 
         Note this operates in place and so doesn't return anything.
 
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
+
         Parameters
         ----------
         file_path : str
