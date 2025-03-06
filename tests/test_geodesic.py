@@ -453,6 +453,16 @@ class TestGeodesic:
         if not torch.equal(geod.geodesic, geod_copy.geodesic):
             raise ValueError("Resuming synthesis different than just continuing!")
 
+    # test that we support models with 3d and 4d outputs
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
+        indirect=True,
+    )
+    def test_model_dimensionality(self, einstein_img, model):
+        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
+        geod.synthesize(5)
+
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, einstein_small_seq, model, tmp_path):

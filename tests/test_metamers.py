@@ -349,6 +349,16 @@ class TestMetamers:
         if not torch.equal(met.metamer, met_copy.metamer):
             raise ValueError("Resuming synthesis different than just continuing!")
 
+    # test that we support models with 3d and 4d outputs
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
+        indirect=True,
+    )
+    def test_model_dimensionality(self, einstein_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(5)
+
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )

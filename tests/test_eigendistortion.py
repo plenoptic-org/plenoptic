@@ -315,6 +315,16 @@ class TestEigendistortionSynthesis:
         ed.eigendistortions - ed.image
         ed.synthesize(max_iter=5, method="power")
 
+    # test that we support models with 3d and 4d outputs
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
+        indirect=True,
+    )
+    def test_model_dimensionality(self, einstein_img, model):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=5, method="power")
+
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
