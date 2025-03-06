@@ -616,18 +616,18 @@ class TestEqualityChecks:
         _check_tensor_equality(einstein_img, einstein_img)
 
     def test_values(self, einstein_img, curie_img):
-        with pytest.raises(ValueError, "Different values"):
+        with pytest.raises(ValueError, match="Different values"):
             _check_tensor_equality(einstein_img, curie_img)
 
-    def test_dtype(self, einstein_img, curie_img):
-        with pytest.raises(ValueError, "Different dtype"):
-            _check_tensor_equality(einstein_img, curie_img.to(torch.float64))
+    def test_dtype(self, einstein_img):
+        with pytest.raises(ValueError, match="Different dtype"):
+            _check_tensor_equality(einstein_img, einstein_img.to(torch.float64))
 
-    def test_size(self, einstein_img, curie_img):
-        with pytest.raises(ValueError, "Different dtype"):
-            _check_tensor_equality(einstein_img, curie_img[..., :64, :64])
+    def test_shape(self, einstein_img):
+        with pytest.raises(ValueError, match="Different shape"):
+            _check_tensor_equality(einstein_img, einstein_img[..., :64, :64])
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    def test_device(self, einstein_img, curie_img):
-        with pytest.raises(ValueError, "Different dtype"):
-            _check_tensor_equality(einstein_img.to("cuda"), curie_img.to("cpu"))
+    def test_device(self, einstein_img):
+        with pytest.raises(ValueError, match="Different device"):
+            _check_tensor_equality(einstein_img.to("cuda"), einstein_img.to("cpu"))
