@@ -225,7 +225,7 @@ class Synthesis(abc.ABC):
                     "Initialized",
                     rtol=5e-2,
                     error_prepend_str=(
-                        f"Saved and initialized {display_k} output have "
+                        f"Saved and initialized attribute {display_k} have "
                         f"different {{error_type}}!"
                     ),
                     error_append_str=check_str,
