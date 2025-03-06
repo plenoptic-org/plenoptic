@@ -133,6 +133,9 @@ class Geodesic(OptimizedSynthesis):
         self._initialize(initial_sequence, image_a, image_b, n_steps)
         self._dev_from_line = []
         self._step_energy = []
+        self._step_energy_dims = None
+        # call this to cache some initial calculations
+        self.objective_function()
 
     def _initialize(self, initial_sequence, start, stop, n_steps):
         """initialize the geodesic
@@ -260,7 +263,13 @@ class Geodesic(OptimizedSynthesis):
     def _calculate_step_energy(self, z):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`."""
         velocity = torch.diff(z, dim=0)
-        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
+        # the first time we call calculate_step_energy, we cache this info for later
+        # use. this allows us to work with representations of 3 or 4 dims
+        if self._step_energy_dims is None:
+            self._step_energy_dims = list(range(1, z.ndim))
+        step_energy = (
+            torch.linalg.vector_norm(velocity, ord=2, dim=self._step_energy_dims) ** 2
+        )
         return step_energy
 
     def _optimizer_step(self, pbar):
@@ -557,6 +566,10 @@ class Geodesic(OptimizedSynthesis):
             self._dev_from_line = [dev.to("cpu") for dev in self._dev_from_line]
         if len(self._step_energy) and self._step_energy[0].device.type != "cpu":
             self._step_energy = [step.to("cpu") for step in self._step_energy]
+
+    @property
+    def initial_sequence(self):
+        return self._initial_sequence
 
     @property
     def model(self):
