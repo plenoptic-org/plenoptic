@@ -219,8 +219,8 @@ class Synthesis(abc.ABC):
             display_k = k[1:] if k.startswith("_") else k
             if isinstance(getattr(self, k), torch.Tensor):
                 _check_tensor_equality(
-                    getattr(self, k),
                     tmp_dict[k],
+                    getattr(self, k),
                     "Saved",
                     "Initialized",
                     rtol=5e-2,
