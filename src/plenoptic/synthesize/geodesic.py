@@ -567,10 +567,6 @@ class Geodesic(OptimizedSynthesis):
             self._step_energy = [step.to("cpu") for step in self._step_energy]
 
     @property
-    def initial_sequence(self):
-        return self._initial_sequence
-
-    @property
     def model(self):
         return self._model
 
