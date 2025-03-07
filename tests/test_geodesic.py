@@ -442,15 +442,23 @@ class TestGeodesic:
     @pytest.mark.parametrize("load", [True, False])
     def test_resume_synthesis(self, einstein_img, model, load, tmp_path):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
-        geod.synthesize(10)
+        # Adam has some stochasticity in its initialization(?), so this test doesn't
+        # quite work with it (it does if you do po.tools.set_seed(2) at the top of the
+        # function)
+        optim = torch.optim.SGD([geod._geodesic])
+        geod.synthesize(10, optimizer=optim)
         geod_copy = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
-        geod_copy.synthesize(5)
+        optim = torch.optim.SGD([geod_copy._geodesic])
+        geod_copy.synthesize(5, optimizer=optim)
         if load:
             geod_copy.save(op.join(tmp_path, "test_geodesic_resume_synthesis.pt"))
             geod_copy = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
             geod_copy.load(op.join(tmp_path, "test_geodesic_resume_synthesis.pt"))
-        geod_copy.synthesize(5)
-        if not torch.allclose(geod.geodesic, geod_copy.geodesic, atol=1e-5, rtol=1e-4):
+            optim = torch.optim.SGD([geod_copy._geodesic])
+            geod_copy.synthesize(5, optimizer=optim)
+        else:
+            geod_copy.synthesize(5)
+        if not torch.allclose(geod.geodesic, geod_copy.geodesic):
             raise ValueError("Resuming synthesis different than just continuing!")
 
     # test that we support models with 3d and 4d outputs

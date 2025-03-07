@@ -338,15 +338,23 @@ class TestMetamers:
     @pytest.mark.parametrize("load", [True, False])
     def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
         met = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
-        met.synthesize(10)
+        # Adam has some stochasticity in its initialization(?), so this test doesn't
+        # quite work with it (it does if you do po.tools.set_seed(2) at the top of the
+        # function)
+        optim = torch.optim.SGD([met.metamer])
+        met.synthesize(10, optimizer=optim)
         met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
-        met_copy.synthesize(5)
+        optim = torch.optim.SGD([met_copy.metamer])
+        met_copy.synthesize(5, optimizer=optim)
         if load:
             met_copy.save(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
             met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
             met_copy.load(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
-        met_copy.synthesize(5)
-        if not torch.allclose(met.metamer, met_copy.metamer, atol=1e-7, rtol=1e-4):
+            optim = torch.optim.SGD([met_copy.metamer])
+            met_copy.synthesize(5, optimizer=optim)
+        else:
+            met_copy.synthesize(5)
+        if not torch.allclose(met.metamer, met_copy.metamer):
             raise ValueError("Resuming synthesis different than just continuing!")
 
     # test that we support models with 3d and 4d outputs
