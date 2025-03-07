@@ -119,7 +119,7 @@ class Synthesis(abc.ABC):
     def load(
         self,
         file_path: str,
-        check_attr_for_new: str,
+        empty_on_init_attr: str,
         map_location: str | None = None,
         check_attributes: list[str] = [],
         check_io_attributes: list[str] = [],
@@ -136,7 +136,7 @@ class Synthesis(abc.ABC):
         ----------
         file_path :
             The path to load the synthesis object from
-        check_attr_for_new :
+        empty_on_init_attr :
             The name of an attribute that will either be None or have length 0 if the
             Synthesis object has just been initialized.
         map_location :
@@ -164,13 +164,13 @@ class Synthesis(abc.ABC):
             ``torch.load``, see that function's docstring for details.
 
         """
-        check_attr_for_new = getattr(self, check_attr_for_new)
+        empty_on_init_attr = getattr(self, empty_on_init_attr)
         check_str = (
             "\n\nIf this is confusing, try calling "
             f"{_get_name(examine_saved_synthesis)}('{file_path}'),"
             " to examine saved object"
         )
-        if check_attr_for_new is not None and len(check_attr_for_new) > 0:
+        if empty_on_init_attr is not None and len(empty_on_init_attr) > 0:
             raise ValueError(
                 "load can only be called with a just-initialized"
                 f" {self.__class__.__name__} object"
