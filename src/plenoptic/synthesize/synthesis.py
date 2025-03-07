@@ -79,10 +79,9 @@ class Synthesis(abc.ABC):
             "torch_version": importlib.metadata.version("torch"),
             "synthesis_object": _get_name(self),
         }
+        save_io_attr_names = [k[0] for k in save_io_attrs]
         save_attrs = [
-            k
-            for k in vars(self)
-            if k not in [k[0] for k in save_io_attrs] + save_state_dict_attrs
+            k for k in vars(self) if k not in save_io_attr_names + save_state_dict_attrs
         ]
         for k in save_attrs:
             attr = getattr(self, k)
