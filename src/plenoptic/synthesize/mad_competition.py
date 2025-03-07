@@ -443,12 +443,7 @@ class MADCompetition(OptimizedSynthesis):
             ("_reference_metric", ("_image", "_mad_image")),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
-        save_attrs = [
-            k
-            for k in vars(self)
-            if k not in [k[0] for k in save_io_attrs] + save_state_dict_attrs
-        ]
-        super().save(file_path, save_attrs, save_io_attrs, save_state_dict_attrs)
+        super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.

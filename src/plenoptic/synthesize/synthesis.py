@@ -3,7 +3,6 @@
 import abc
 import importlib
 import inspect
-import warnings
 
 import numpy as np
 import torch
@@ -44,22 +43,20 @@ class Synthesis(abc.ABC):
     def save(
         self,
         file_path: str,
-        save_attrs: list[str],
         save_io_attrs: list[tuple[str]] = [],
         save_state_dict_attrs: list[str] = [],
     ):
-        r"""Save all relevant variables in .pt file.
+        r"""Save all attributes in .pt file.
 
-        If you leave attrs as None, we grab vars(self) and exclude '_model'.
-        This is probably correct, but the option is provided to override it
-        just in case.
+        Note that there are two special categories of attributes, as described below.
+        All other attributes will be pickled directly and so should be either tensors or
+        primitives (e.g., not a function or callable torch object). We do not check this
+        explicitly, but load will fail if that's not the case.
 
         Parameters
         ----------
         file_path :
             The path to save the synthesis object to
-        save_attrs :
-            Names of the attributes to save directly.
         save_io_attrs :
             List with tuples of form (str, (str, ...)). The first element is the name of
             the attribute to we save, and the second element is a tuple of attributes of
@@ -82,13 +79,12 @@ class Synthesis(abc.ABC):
             "torch_version": importlib.metadata.version("torch"),
             "synthesis_object": _get_name(self),
         }
+        save_attrs = [
+            k
+            for k in vars(self)
+            if k not in [k[0] for k in save_io_attrs] + save_state_dict_attrs
+        ]
         for k in save_attrs:
-            if k in ["_model", "model"]:
-                warnings.warn(
-                    "Models can be quite large and they don't change"
-                    " over synthesis. Please be sure that you "
-                    "actually want to save the model."
-                )
             attr = getattr(self, k)
             # detaching the tensors avoids some headaches like the
             # tensors having extra hooks or the like
