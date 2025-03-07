@@ -17,7 +17,7 @@ from plenoptic.synthesize.eigendistortion import (
     Eigendistortion,
     display_eigendistortion,
 )
-from plenoptic.tools import remove_grad, set_seed
+from plenoptic.tools import examine_saved_synthesis, remove_grad, set_seed
 
 # to be used for default model instantiation
 SMALL_DIM = 20
@@ -221,6 +221,15 @@ class TestEigendistortionSynthesis:
             ValueError, match="load can only be called with a just-initialized"
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_examine_saved_object(self, einstein_img, model, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, "test_eigendistortion_examine.pt"))
+        examine_saved_synthesis(op.join(tmp_path, "test_eigendistortion_examine.pt"))
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

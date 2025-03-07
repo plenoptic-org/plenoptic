@@ -153,6 +153,15 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_examine_saved_object(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_examine.pt"))
+        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_metamer_examine.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("synth_type", ["eig", "mad"])
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
         met = po.synth.Metamer(einstein_img, model)

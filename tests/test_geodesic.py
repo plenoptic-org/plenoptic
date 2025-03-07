@@ -305,6 +305,15 @@ class TestGeodesic:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_examine_saved_object(self, einstein_img, model, tmp_path):
+        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
+        geod.synthesize(max_iter=4, store_progress=True)
+        geod.save(op.join(tmp_path, "test_geodesic_examine .pt"))
+        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_geodesic_examine .pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("synth_type", ["eig", "mad"])
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)

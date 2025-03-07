@@ -167,6 +167,14 @@ class TestMAD:
         ):
             mad.load(op.join(tmp_path, "test_mad_load_init_fail.pt"))
 
+    def test_examine_saved_object(self, einstein_img, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_examine.pt"))
+        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_mad_examine.pt"))
+
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
