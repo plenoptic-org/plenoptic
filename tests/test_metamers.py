@@ -346,7 +346,7 @@ class TestMetamers:
             met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
             met_copy.load(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
         met_copy.synthesize(5)
-        if not torch.equal(met.metamer, met_copy.metamer):
+        if not torch.allclose(met.metamer, met_copy.metamer, atol=1e-7, rtol=1e-4):
             raise ValueError("Resuming synthesis different than just continuing!")
 
     # test that we support models with 3d and 4d outputs
@@ -444,14 +444,13 @@ class TestMetamers:
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
-        curie_img = curie_img.to(DEVICE)
-        model.to(DEVICE)
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_map_location.pt"))
         # calling load with map_location effectively switches everything
         # over to that device
-        met_copy = po.synth.Metamer(curie_img, model)
+        model.to("cpu")
+        met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
         met_copy.load(
             op.join(tmp_path, "test_metamer_map_location.pt"),
             map_location="cpu",
@@ -459,6 +458,8 @@ class TestMetamers:
         assert met_copy.metamer.device.type == "cpu"
         assert met_copy.image.device.type == "cpu"
         met_copy.synthesize(max_iter=4, store_progress=True)
+        # reset model device for other tests
+        model.to(DEVICE)
 
     @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])

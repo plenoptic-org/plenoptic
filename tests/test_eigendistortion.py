@@ -328,18 +328,19 @@ class TestEigendistortionSynthesis:
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
-        curie_img = curie_img.to(DEVICE)
-        model.to(DEVICE)
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=4, method="power")
         ed.save(op.join(tmp_path, "test_eig_map_location.pt"))
         # calling load with map_location effectively switches everything
         # over to that device
-        ed_copy = Eigendistortion(curie_img, model)
+        model.to("cpu")
+        ed_copy = Eigendistortion(curie_img.to("cpu"), model)
         ed_copy.load(op.join(tmp_path, "test_eig_map_location.pt"), map_location="cpu")
         assert ed_copy.eigendistortions.device.type == "cpu"
         assert ed_copy.image.device.type == "cpu"
         ed_copy.synthesize(max_iter=4, method="power")
+        # reset model device for other tests
+        model.to(DEVICE)
 
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_change_precision_save_load(self, einstein_img, model, tmp_path):

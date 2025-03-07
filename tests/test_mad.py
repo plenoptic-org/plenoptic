@@ -387,15 +387,13 @@ class TestMAD:
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
-        curie_img = curie_img
         mad = po.synth.MADCompetition(
             curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_map_location.pt"))
-        curie_img = curie_img.to("cpu")
         mad_copy = po.synth.MADCompetition(
-            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+            curie_img.to("cpu"), po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         assert mad_copy.image.device.type == "cpu"
         mad_copy.load(op.join(tmp_path, "test_mad_map_location.pt"), map_location="cpu")

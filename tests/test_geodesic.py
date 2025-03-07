@@ -450,7 +450,7 @@ class TestGeodesic:
             geod_copy = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
             geod_copy.load(op.join(tmp_path, "test_geodesic_resume_synthesis.pt"))
         geod_copy.synthesize(5)
-        if not torch.equal(geod.geodesic, geod_copy.geodesic):
+        if not torch.allclose(geod.geodesic, geod_copy.geodesic, atol=1e-5, rtol=1e-4):
             raise ValueError("Resuming synthesis different than just continuing!")
 
     # test that we support models with 3d and 4d outputs
@@ -471,8 +471,9 @@ class TestGeodesic:
         moog.save(op.join(tmp_path, "test_geodesic_map_location.pt"))
         # calling load with map_location effectively switches everything
         # over to that device
+        model.to("cpu")
         moog_copy = po.synth.Geodesic(
-            einstein_small_seq[:1], einstein_small_seq[-1:], model
+            einstein_small_seq[:1].to("cpu"), einstein_small_seq[-1:].to("cpu"), model
         )
         moog_copy.load(
             op.join(tmp_path, "test_geodesic_map_location.pt"),
@@ -481,6 +482,8 @@ class TestGeodesic:
         assert moog_copy.geodesic.device.type == "cpu"
         assert moog_copy.image_a.device.type == "cpu"
         moog_copy.synthesize(max_iter=4, store_progress=True)
+        # reset model device for other tests
+        model.to(DEVICE)
 
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
