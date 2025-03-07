@@ -218,7 +218,6 @@ class Synthesis(abc.ABC):
                     getattr(self, k),
                     "Saved",
                     "Initialized",
-                    rtol=5e-2,
                     error_prepend_str=(
                         f"Saved and initialized attribute {display_k} have "
                         f"different {{error_type}}!"
@@ -254,7 +253,6 @@ class Synthesis(abc.ABC):
                 init_loss,
                 f"Saved ({saved_name})",
                 f"Initialized ({init_name})",
-                rtol=1e-2,
                 error_prepend_str=(
                     f"Saved and initialized {display_k} output have "
                     f"different {{error_type}}!"
