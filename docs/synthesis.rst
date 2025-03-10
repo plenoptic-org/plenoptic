@@ -84,7 +84,7 @@ Furthermore:
   returning it, as that's how the user will most often want to interact with it.
 * All attributes should be initialized at object initialization, though they can
   be "False-y" (e.g., an empty list, ``None``). At least one attribute should be
-  ``None`` or an empty list at initialization. which we use when loading to
+  ``None`` or an empty list at initialization, which we use when loading to
   check if the object has just been initialized. All attributes will be saved
   using the ``save()`` method, inherited from the ``Synthesis`` superclass.
 
