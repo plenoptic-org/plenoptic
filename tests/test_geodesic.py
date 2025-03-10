@@ -193,14 +193,26 @@ class TestGeodesic:
     )
     @pytest.mark.parametrize(
         "fail",
-        [False, "img_a", "img_b", "model", "n_steps", "init", "range_penalty"],
+        [
+            False,
+            "img_a",
+            "img_b",
+            "model",
+            "n_steps",
+            "init",
+            "range_penalty",
+            "allowed_range",
+        ],
     )
-    def test_save_load(self, einstein_small_seq, model, fail, tmp_path):
+    @pytest.mark.parametrize("range_penalty", [0.1, 0])
+    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
+    def test_save_load(
+        self, einstein_small_seq, model, fail, range_penalty, allowed_range, tmp_path
+    ):
         img_a = einstein_small_seq[:1]
         img_b = einstein_small_seq[-1:]
         n_steps = 3
         init = "straight"
-        range_penalty = 0
         moog = po.synth.Geodesic(
             img_a,
             img_b,
@@ -208,6 +220,7 @@ class TestGeodesic:
             n_steps,
             init,
             range_penalty_lambda=range_penalty,
+            allowed_range=allowed_range,
         )
         moog.synthesize(max_iter=4)
         moog.save(op.join(tmp_path, "test_geodesic_save_load.pt"))
@@ -249,6 +262,12 @@ class TestGeodesic:
                     ValueError,
                     match=("Saved and initialized initial_sequence are different"),
                 )
+            elif fail == "allowed_range":
+                allowed_range = (0, 5)
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized allowed_range are different"),
+                )
             elif fail == "range_penalty":
                 range_penalty = 0.5
                 expectation = pytest.raises(
@@ -262,6 +281,7 @@ class TestGeodesic:
                 n_steps,
                 init,
                 range_penalty_lambda=range_penalty,
+                allowed_range=allowed_range,
             )
             with expectation:
                 moog_copy.load(
@@ -276,6 +296,7 @@ class TestGeodesic:
                 n_steps,
                 init,
                 range_penalty_lambda=range_penalty,
+                allowed_range=allowed_range,
             )
             moog_copy.load(
                 op.join(tmp_path, "test_geodesic_save_load.pt"),
@@ -289,6 +310,25 @@ class TestGeodesic:
                     )
             # check that can resume
             moog_copy.synthesize(max_iter=4)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_load_pixelfade(self, einstein_img, model, tmp_path):
+        # the only way this can change, really, is if I change the make_straight_line
+        # function, but might as well make sure
+        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
+        geod.synthesize(max_iter=4, store_progress=True)
+        geod.save(op.join(tmp_path, "test_geodesic_load_pixelfade.pt"))
+        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
+        geod.pixelfade = torch.rand_like(geod.pixelfade)
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Saved and initialized attribute pixelfade have " "different values"
+            ),
+        ):
+            geod.load(op.join(tmp_path, "test_geodesic_load_pixelfade.pt"))
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

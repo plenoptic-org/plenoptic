@@ -66,10 +66,24 @@ class TestMAD:
             mad.synthesize(max_iter=5, store_progress=store_progress)
 
     @pytest.mark.parametrize(
-        "fail", [False, "img", "metric1", "metric2", "target", "tradeoff"]
+        "fail",
+        [
+            False,
+            "img",
+            "metric1",
+            "metric2",
+            "target",
+            "tradeoff",
+            "range_penalty",
+            "allowed_range",
+        ],
     )
+    @pytest.mark.parametrize("range_penalty", [0.1, 0])
+    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
     @pytest.mark.parametrize("rgb", [False, True])
-    def test_save_load(self, curie_img, fail, rgb, tmp_path):
+    def test_save_load(
+        self, curie_img, fail, range_penalty, allowed_range, rgb, tmp_path
+    ):
         # this works with either rgb or grayscale images
         metric = rgb_mse
         if rgb:
@@ -80,7 +94,13 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         mad = po.synth.MADCompetition(
-            curie_img, metric, metric2, target, metric_tradeoff_lambda=tradeoff
+            curie_img,
+            metric,
+            metric2,
+            target,
+            metric_tradeoff_lambda=tradeoff,
+            allowed_range=allowed_range,
+            range_penalty_lambda=range_penalty,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_save_load.pt"))
@@ -127,12 +147,26 @@ class TestMAD:
                         "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
+            elif fail == "allowed_range":
+                allowed_range = (0, 5)
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized allowed_range are different"),
+                )
+            elif fail == "range_penalty":
+                range_penalty = 0.5
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized range_penalty_lambda are different"),
+                )
             mad_copy = po.synth.MADCompetition(
                 curie_img,
                 metric,
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
+                allowed_range=allowed_range,
+                range_penalty_lambda=range_penalty,
             )
             with expectation:
                 mad_copy.load(
@@ -146,6 +180,8 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
+                allowed_range=allowed_range,
+                range_penalty_lambda=range_penalty,
             )
             mad_copy.load(
                 op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE

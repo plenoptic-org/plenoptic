@@ -27,11 +27,20 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("loss_func", ["mse", "l2", "custom"])
     @pytest.mark.parametrize(
-        "fail", [False, "img", "model", "loss", "range_penalty", "dtype"]
+        "fail",
+        [False, "img", "model", "loss", "range_penalty", "dtype", "allowed_range"],
     )
     @pytest.mark.parametrize("range_penalty", [0.1, 0])
+    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
     def test_save_load(
-        self, einstein_img, model, loss_func, fail, range_penalty, tmp_path
+        self,
+        einstein_img,
+        model,
+        loss_func,
+        fail,
+        range_penalty,
+        allowed_range,
+        tmp_path,
     ):
         if loss_func == "mse":
             loss = po.tools.optim.mse
@@ -43,6 +52,7 @@ class TestMetamers:
             einstein_img,
             model,
             loss_function=loss,
+            allowed_range=allowed_range,
             range_penalty_lambda=range_penalty,
         )
         met.synthesize(max_iter=4, store_progress=True)
@@ -70,6 +80,12 @@ class TestMetamers:
                         "values"
                     ),
                 )
+            elif fail == "allowed_range":
+                allowed_range = (0, 5)
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized allowed_range are different"),
+                )
             elif fail == "range_penalty":
                 range_penalty = 0.5
                 expectation = pytest.raises(
@@ -91,6 +107,7 @@ class TestMetamers:
                 einstein_img,
                 model,
                 loss_function=loss,
+                allowed_range=allowed_range,
                 range_penalty_lambda=range_penalty,
             )
             with expectation:
@@ -104,6 +121,7 @@ class TestMetamers:
                 model,
                 loss_function=loss,
                 range_penalty_lambda=range_penalty,
+                allowed_range=allowed_range,
             )
             met_copy.load(
                 op.join(tmp_path, "test_metamer_save_load.pt"),
