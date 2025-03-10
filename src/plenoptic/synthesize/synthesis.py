@@ -64,7 +64,7 @@ class Synthesis(abc.ABC):
             them as tuples of (name, input_names, outputs). On load, we check that the
             initialized object's name hasn't changed, and that when called on the same
             inputs, we get the same outputs. Intended for models, metrics, loss
-            functions. Used to avoid saving callable, which is brittle and unsafe.
+            functions. Used to avoid saving callables, which is brittle and unsafe.
         save_state_dict_attrs :
             Names of attributes that we save as tuples of (name, state_dict).
             Corresponding attribute can be None, in which case we save an empty
