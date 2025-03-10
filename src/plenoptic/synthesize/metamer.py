@@ -436,7 +436,8 @@ class Metamer(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Metamer`` object.
+        This must be called by a ``Metamer`` object initialized just like the saved
+        object.
 
         Note this operates in place and so doesn't return anything.
 

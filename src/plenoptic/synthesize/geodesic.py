@@ -503,7 +503,8 @@ class Geodesic(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Geodesic`` object.
+        This must be called by a ``Geodesic`` object initialized just like the saved
+        object.
 
         Note this operates in place and so doesn't return anything.
 

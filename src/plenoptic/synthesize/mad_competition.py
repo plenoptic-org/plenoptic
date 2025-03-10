@@ -496,11 +496,8 @@ class MADCompetition(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``MADCompetition`` object -- we
-        will ensure that ``image``, ``metric_tradeoff_lambda``,
-        ``range_penalty_lambda``, ``allowed_range``, ``minmax`` are all
-        identical, and that ``reference_metric`` and ``optimize_metric`` return
-        identical values.
+        This must be called by a ``MADCompetition`` object initialized just like the
+        saved object.
 
         Note this operates in place and so doesn't return anything.
 

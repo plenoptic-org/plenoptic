@@ -571,8 +571,8 @@ class Eigendistortion(Synthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Eigendistortion`` object --
-        we will ensure that ``image`` and ``model`` are identical.
+        This must be called by a ``Eigendistortion`` object initialized just like the
+        saved object.
 
         Note this operates in place and so doesn't return anything.
 
