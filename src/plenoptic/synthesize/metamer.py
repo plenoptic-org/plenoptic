@@ -107,7 +107,8 @@ class Metamer(OptimizedSynthesis):
         self._image = image
         self._image_shape = image.shape
         self._target_representation = self.model(self.image)
-        self.scheduler = None
+        self._scheduler = None
+        self._scheduler_step_arg = False
         self.loss_function = loss_function
         self._initialize(initial_image)
         self._saved_metamer = []
@@ -151,7 +152,7 @@ class Metamer(OptimizedSynthesis):
         self,
         max_iter: int = 100,
         optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
@@ -270,9 +271,12 @@ class Metamer(OptimizedSynthesis):
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.metamer - last_iter_metamer, ord=2, dim=None
@@ -323,15 +327,16 @@ class Metamer(OptimizedSynthesis):
     def _initialize_optimizer(
         self,
         optimizer: torch.optim.Optimizer | None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None,
     ):
         """Initialize optimizer and scheduler."""
         # this uses the OptimizedSynthesis setter
         super()._initialize_optimizer(optimizer, "metamer")
-        self.scheduler = scheduler
+        super()._initialize_scheduler(scheduler)
         for pg in self.optimizer.param_groups:
-            # initialize initial_lr if it's not here. Scheduler should add it
-            # if it's not None.
+            # initialize initial_lr if it's not here. Scheduler should add it if it's
+            # not None. This is used by coarse-to-fine optimization so we know how to
+            # reset across scales.
             if "initial_lr" not in pg:
                 pg["initial_lr"] = pg["lr"]
 
@@ -369,11 +374,16 @@ class Metamer(OptimizedSynthesis):
 
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to save the metamer object to
 
         """
-        super().save(file_path, attrs=None)
+        save_io_attrs = [
+            ("loss_function", ("_image", "_metamer")),
+            ("_model", ("_image",)),
+        ]
+        save_state_dict_attrs = ["_optimizer", "_scheduler"]
+        super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -426,17 +436,20 @@ class Metamer(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Metamer`` object -- we will
-        ensure that ``image``, ``target_representation`` (and thus
-        ``model``), and ``loss_function`` are all identical.
+        This must be called by a ``Metamer`` object initialized just like the saved
+        object.
 
         Note this operates in place and so doesn't return anything.
 
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
+
         Parameters
         ----------
-        file_path : str
+        file_path :
             The path to load the synthesis object from
-        map_location : str, optional
+        map_location :
             map_location argument to pass to ``torch.load``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
@@ -445,6 +458,12 @@ class Metamer(OptimizedSynthesis):
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
+
+        See Also
+        --------
+        examine_saved_synthesis :
+            Examine metadata from saved object: pytorch and plenoptic versions, name of
+            the synthesis object, shapes of tensors, etc.
 
         Examples
         --------
@@ -465,7 +484,7 @@ class Metamer(OptimizedSynthesis):
         file_path: str,
         map_location: str | None = None,
         additional_check_attributes: list[str] = [],
-        additional_check_loss_functions: list[str] = [],
+        additional_check_io_attributes: list[str] = [],
         **pickle_load_args,
     ):
         r"""Helper function for loading.
@@ -476,18 +495,22 @@ class Metamer(OptimizedSynthesis):
         """
         check_attributes = [
             "_image",
-            "_target_representation",
             "_range_penalty_lambda",
             "_allowed_range",
         ]
         check_attributes += additional_check_attributes
-        check_loss_functions = ["loss_function"]
-        check_loss_functions += additional_check_loss_functions
+        check_io_attrs = [
+            ("loss_function", ("_image", "_metamer")),
+            ("_model", ("_image",)),
+        ]
+        check_io_attrs += additional_check_io_attributes
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer", "_scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again
@@ -641,7 +664,7 @@ class MetamerCTF(Metamer):
         self,
         max_iter: int = 100,
         optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
@@ -798,9 +821,12 @@ class MetamerCTF(Metamer):
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.metamer - last_iter_metamer, ord=2, dim=None
@@ -965,7 +991,12 @@ class MetamerCTF(Metamer):
         *then* load.
 
         """
-        super()._load(file_path, map_location, ["_coarse_to_fine"], **pickle_load_args)
+        super()._load(
+            file_path,
+            map_location,
+            ["_coarse_to_fine"],
+            **pickle_load_args,
+        )
 
     @property
     def coarse_to_fine(self):

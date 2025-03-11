@@ -133,6 +133,9 @@ class Geodesic(OptimizedSynthesis):
         self._initialize(initial_sequence, image_a, image_b, n_steps)
         self._dev_from_line = []
         self._step_energy = []
+        self._step_energy_dims = None
+        # call this to cache some initial calculations
+        self.objective_function()
 
     def _initialize(self, initial_sequence, start, stop, n_steps):
         """initialize the geodesic
@@ -260,7 +263,13 @@ class Geodesic(OptimizedSynthesis):
     def _calculate_step_energy(self, z):
         """calculate the energy (i.e. squared l2 norm) of each step in `z`."""
         velocity = torch.diff(z, dim=0)
-        step_energy = torch.linalg.vector_norm(velocity, ord=2, dim=[1, 2, 3]) ** 2
+        # the first time we call calculate_step_energy, we cache this info for later
+        # use. this allows us to work with representations of 3 or 4 dims
+        if self._step_energy_dims is None:
+            self._step_energy_dims = list(range(1, z.ndim))
+        step_energy = (
+            torch.linalg.vector_norm(velocity, ord=2, dim=self._step_energy_dims) ** 2
+        )
         return step_energy
 
     def _optimizer_step(self, pbar):
@@ -435,11 +444,11 @@ class Geodesic(OptimizedSynthesis):
             The path to save the Geodesic object to
 
         """
-        # I don't think any of our existing attributes can be used to check
-        # whether model has changed (unlike Metamer, which stores
-        # target_representation), so we use the following as a proxy
-        self._save_check = self.objective_function(self.pixelfade)
-        super().save(file_path, attrs=None)
+        save_io_attrs = [
+            ("_model", ("_geodesic",)),
+        ]
+        save_state_dict_attrs = ["_optimizer"]
+        super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -494,12 +503,14 @@ class Geodesic(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Geodesic`` object -- we will
-        ensure that ``image_a``, ``image_b``, ``model``, ``n_steps``,
-        ``initial_sequence``, ``range_penalty_lambda``, ``allowed_range``, and
-        ``pixelfade`` are all identical.
+        This must be called by a ``Geodesic`` object initialized just like the saved
+        object.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
 
         Parameters
         ----------
@@ -536,22 +547,16 @@ class Geodesic(OptimizedSynthesis):
             "_allowed_range",
             "pixelfade",
         ]
-        check_loss_functions = []
-        new_loss = self.objective_function(self.pixelfade)
+        check_io_attrs = [("_model", ("_geodesic",))]
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer"],
             **pickle_load_args,
         )
-        old_loss = self.__dict__.pop("_save_check")
-        if not torch.allclose(new_loss, old_loss, rtol=1e-2):
-            raise ValueError(
-                "objective_function on pixelfade of saved and initialized"
-                " Geodesic object are different! Do they use the same model?"
-                f" Self: {new_loss}, Saved: {old_loss}"
-            )
         # make this require a grad again
         self._geodesic.requires_grad_()
         # these are always supposed to be on cpu, but may get copied over to
@@ -561,6 +566,10 @@ class Geodesic(OptimizedSynthesis):
             self._dev_from_line = [dev.to("cpu") for dev in self._dev_from_line]
         if len(self._step_energy) and self._step_energy[0].device.type != "cpu":
             self._step_energy = [step.to("cpu") for step in self._step_energy]
+
+    @property
+    def initial_sequence(self):
+        return self._initial_sequence
 
     @property
     def model(self):

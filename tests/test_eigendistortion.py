@@ -7,12 +7,17 @@ from torch import nn
 
 import plenoptic.synthesize.autodiff as autodiff
 from conftest import DEVICE, get_model
+from plenoptic.metric import mse
 from plenoptic.simulate import Gaussian, OnOff
+from plenoptic.synthesize import (
+    MADCompetition,
+    Metamer,
+)
 from plenoptic.synthesize.eigendistortion import (
     Eigendistortion,
     display_eigendistortion,
 )
-from plenoptic.tools import remove_grad, set_seed
+from plenoptic.tools import examine_saved_synthesis, remove_grad, set_seed
 
 # to be used for default model instantiation
 SMALL_DIM = 20
@@ -157,7 +162,9 @@ class TestEigendistortionSynthesis:
                 display_eigendistortion(eigendist, eigenindex=-1)
         plt.close("all")
 
-    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("fail", [False, "img", "model"])
     @pytest.mark.parametrize("method", ["exact", "power", "randomized_svd"])
     def test_save_load(self, einstein_img, model, fail, method, tmp_path):
@@ -173,14 +180,14 @@ class TestEigendistortionSynthesis:
                 img = torch.rand_like(img)
                 expectation = pytest.raises(
                     ValueError,
-                    match="Saved and initialized image are different",
+                    match="Saved and initialized attribute image have different values",
                 )
             elif fail == "model":
                 model = Gaussian(30).to(DEVICE)
                 remove_grad(model)
                 expectation = pytest.raises(
-                    RuntimeError,
-                    match=("Attribute representation_flat have different shapes"),
+                    ValueError,
+                    match=("Saved and initialized model output have different values"),
                 )
             ed_copy = Eigendistortion(img, model)
             with expectation:
@@ -203,6 +210,103 @@ class TestEigendistortionSynthesis:
             # check that can resume
             ed_copy.synthesize(max_iter=4, method=method)
 
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_load_init_fail(self, einstein_img, model, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+        with pytest.raises(
+            ValueError, match="load can only be called with a just-initialized"
+        ):
+            eig.load(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_examine_saved_object(self, einstein_img, model, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, "test_eigendistortion_examine.pt"))
+        examine_saved_synthesis(op.join(tmp_path, "test_eigendistortion_examine.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("synth_type", ["met", "mad"])
+    def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, "test_eigendistortion_load_object_type.pt"))
+        if synth_type == "met":
+            eig = Metamer(einstein_img, model)
+        elif synth_type == "mad":
+            eig = MADCompetition(einstein_img, mse, mse, "min")
+        with pytest.raises(
+            ValueError, match="Saved object was a.* but initialized object is"
+        ):
+            eig.load(op.join(tmp_path, "test_eigendistortion_load_object_type.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("model_behav", ["dtype", "shape", "name"])
+    def test_load_model_change(self, einstein_img, model, model_behav, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
+        if model_behav == "dtype":
+            # this actually gets raised in the model validation step (during init), not
+            # load.
+            expectation = pytest.raises(TypeError, match="model changes precision")
+        elif model_behav == "shape":
+            expectation = pytest.raises(
+                ValueError,
+                match="Saved and initialized model output have different shape",
+            )
+        elif model_behav == "name":
+            expectation = pytest.raises(
+                ValueError, match="Saved and initialized model have different names"
+            )
+
+        class NewModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = model
+
+            def forward(self, x):
+                if model_behav == "dtype":
+                    return self.model(x).to(torch.float64)
+                elif model_behav == "shape":
+                    return self.model(x).flatten(-2)
+                elif model_behav == "name":
+                    return self.model(x)
+
+        with expectation:
+            eig = Eigendistortion(einstein_img, NewModel())
+            eig.load(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("attribute", ["saved", "init"])
+    def test_load_attributes(self, einstein_img, model, attribute, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        if attribute == "saved":
+            eig.test = "BAD"
+            err_str = "Saved"
+        eig.save(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
+        eig = Eigendistortion(einstein_img, model)
+        if attribute == "init":
+            eig.test = "BAD"
+            err_str = "Initialized"
+        with pytest.raises(
+            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+        ):
+            eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
+
     @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, model, to_type):
@@ -220,21 +324,32 @@ class TestEigendistortionSynthesis:
         ed.eigendistortions - ed.image
         ed.synthesize(max_iter=5, method="power")
 
+    # test that we support models with 3d and 4d outputs
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
+        indirect=True,
+    )
+    def test_model_dimensionality(self, einstein_img, model):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=5, method="power")
+
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
-        curie_img = curie_img.to(DEVICE)
-        model.to(DEVICE)
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=4, method="power")
         ed.save(op.join(tmp_path, "test_eig_map_location.pt"))
         # calling load with map_location effectively switches everything
         # over to that device
-        ed_copy = Eigendistortion(curie_img, model)
+        model.to("cpu")
+        ed_copy = Eigendistortion(curie_img.to("cpu"), model)
         ed_copy.load(op.join(tmp_path, "test_eig_map_location.pt"), map_location="cpu")
         assert ed_copy.eigendistortions.device.type == "cpu"
         assert ed_copy.image.device.type == "cpu"
         ed_copy.synthesize(max_iter=4, method="power")
+        # reset model device for other tests
+        model.to(DEVICE)
 
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_change_precision_save_load(self, einstein_img, model, tmp_path):

@@ -35,9 +35,6 @@ docs/tutorials/assets
 
 *.mypy_cache
 
-# created automatically by setuptools.scm, don't track
-src/plenoptic/version.py
-
 # gets created during install
 build/
 

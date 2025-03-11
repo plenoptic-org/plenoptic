@@ -5,6 +5,7 @@ from .conv import *
 from .data import *
 from .display import *
 from .external import *
+from .io import *
 from .optim import *
 from .signal import *
 from .stats import *
