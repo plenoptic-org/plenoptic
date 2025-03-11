@@ -368,6 +368,9 @@ def ms_ssim(img1, img2, power_factors=None):
 def normalized_laplacian_pyramid(img):
     """Compute the normalized Laplacian Pyramid using pre-optimized parameters
 
+    Model parameters are those used in [1]_, copied from the matlab code used in the
+    paper, found at [2]_.
+
     Parameters
     ----------
     img: torch.Tensor of shape (batch, channel, height, width)
@@ -379,6 +382,14 @@ def normalized_laplacian_pyramid(img):
     -------
     normalized_laplacian_activations: list of torch.Tensor
         The normalized Laplacian Pyramid with six scales
+
+    References
+    ----------
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+        image quality assessment using a normalized Laplacian pyramid. Electronic
+        Imaging, 2016(16), pp.1-6.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
     """
 
     (_, channel, height, width) = img.size()
@@ -422,7 +433,8 @@ def nlpd(img1, img2):
     absolute values in spatial neighborhood.
 
     These weights parameters were optimized for redundancy reduction over an training
-    database of (undistorted) natural images.
+    database of (undistorted) natural images, as described in the paper. Parameters were
+    copied from matlab code used for the paper, found at  [2]_.
 
     Note that we compute root mean squared error for each scale, and then average over
     these, effectively giving larger weight to the lower frequency coefficients
@@ -451,6 +463,8 @@ def nlpd(img1, img2):
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
     """
 
     if not img1.ndim == img2.ndim == 4:
