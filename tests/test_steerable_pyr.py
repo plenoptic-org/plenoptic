@@ -454,9 +454,43 @@ class TestSteerablePyramid:
         ), "pyramid doesn't have the right number of buffers!"
         assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"
 
-    def test_img_shape_error(self, img):
+    def test_img_shape_error(self, curie_img):
         pyr = po.simul.SteerablePyramidFreq((255, 255))
         with pytest.raises(
             ValueError, match="Input tensor height/width.*does not match"
         ):
-            pyr(img)
+            pyr(curie_img)
+
+    @pytest.mark.parametrize("shape_type", ["tuple", "list", "torch.Size", "floats"])
+    def test_img_shape_cast(self, curie_img, shape_type):
+        # image shape will most likely be passed as tuple, list, or torch.Size objects,
+        # all of those should work. also, if they're floats that can be parsed as ints.
+        if shape_type == "tuple":
+            shape = (256, 256)
+        elif shape_type == "list":
+            shape = [256, 256]
+        elif shape_type == "torch.Size":
+            shape = curie_img.shape[-2:]
+        elif shape_type == "floats":
+            shape = (256.0, 256.0)
+        pyr = po.simul.SteerablePyramidFreq(shape)
+        pyr(curie_img)
+
+    @pytest.mark.parametrize(
+        "error_type", ["length", "length_tensor", "floats", "other_dtype"]
+    )
+    def test_img_shape_error_init(self, curie_img, error_type):
+        if error_type == "length":
+            shape = (1, 1, 256, 256)
+            expect_str = "image_shape must be a tuple of length 2"
+        elif error_type == "length_tensor":
+            shape = curie_img.shape
+            expect_str = "image_shape must be a tuple of length 2"
+        elif error_type == "floats":
+            shape = (256.5, 256.6)
+            expect_str = "image_shape must be castable to ints"
+        elif error_type == "other_dtype":
+            shape = ("hi", "there")
+            expect_str = "image_shape must be castable to ints"
+        with pytest.raises(ValueError, match=expect_str):
+            po.simul.SteerablePyramidFreq(shape)
