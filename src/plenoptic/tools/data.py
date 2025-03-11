@@ -447,3 +447,65 @@ def _find_min_int(vals):
     except ValueError:
         min_int = max(flat_vals) + 1
     return min_int
+
+
+def _check_tensor_equality(
+    x: Tensor,
+    y: Tensor,
+    xname: str = "x",
+    yname: str = "y",
+    rtol: float = 1e-5,
+    atol: float = 1e-8,
+    error_prepend_str: str = "Different {error_type}",
+    error_append_str: str = "",
+):
+    """Check two tensors for equality: device, size, dtype, and values.
+
+    Raises a ValueError (with informative error messages) if any of the above are not
+    equal.
+
+    Parameters
+    ----------
+    x, y :
+        The tensors to compare
+    xname, yname :
+        Names of the tensors, used in error messages.
+    rtol, atol :
+        Relative and absolute tolerance for value comparison, passed to
+        ``torch.allclose``
+    error_prepend_str :
+        String to start error message with, should contain the string-formatting field
+        "{error_type}"
+    error_append_str :
+        String to finish error message with
+
+    """
+    error_str = (
+        f"{error_prepend_str}"
+        f"\n{xname}: {{xvalue}}"
+        f"\n{yname}: {{yvalue}}"
+        f"{{difference}}"
+        f"{error_append_str}"
+    )
+    if x.device != y.device:
+        error_str = error_str.format(
+            error_type="device", xvalue=x.device, yvalue=y.device, difference=""
+        )
+        raise ValueError(error_str)
+    # they're allowed to be different shapes if they both have 1 element (e.g., a scalar
+    # and a 1-element tensor)
+    if x.shape != y.shape and not (x.nelement() == y.nelement() == 1):
+        error_str = error_str.format(
+            error_type="shape", xvalue=x.shape, yvalue=y.shape, difference=""
+        )
+        raise ValueError(error_str)
+    elif x.dtype != y.dtype:
+        error_str = error_str.format(
+            error_type="dtype", xvalue=x.dtype, yvalue=y.dtype, difference=""
+        )
+        raise ValueError(error_str)
+    elif not torch.allclose(x, y, rtol=rtol, atol=atol):
+        error_str = error_str.format(
+            error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x - y}"
+        )
+        raise ValueError(error_str)

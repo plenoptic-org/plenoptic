@@ -110,7 +110,20 @@ class SteerablePyramidFreq(nn.Module):
 
         self.pyr_size = OrderedDict()
         self.order = order
-        self.image_shape = image_shape
+        try:
+            self.image_shape = tuple([int(i) for i in image_shape])
+        except ValueError:
+            raise ValueError(
+                f"image_shape must be castable to ints, but got {image_shape}!"
+            )
+        if self.image_shape != tuple(image_shape):
+            raise ValueError(
+                f"image_shape must be castable to ints, but got {image_shape}!"
+            )
+        if len(self.image_shape) != 2:
+            raise ValueError(
+                f"image_shape must be a tuple of length 2, but got {self.image_shape}!"
+            )
 
         if (self.image_shape[0] % 2 != 0) or (self.image_shape[1] % 2 != 0):
             warnings.warn("Reconstruction will not be perfect with odd-sized images")
@@ -306,6 +319,12 @@ class SteerablePyramidFreq(nn.Module):
             Pyramid coefficients
 
         """
+        if self.image_shape != x.shape[-2:]:
+            raise ValueError(
+                f"Input tensor height/width {tuple(x.shape[-2:])} does not match "
+                f"image_shape set at initialization {tuple(self.image_shape)}. "
+                "Either resize the input or re-initialize this model."
+            )
         pyr_coeffs = OrderedDict()
         if scales is None:
             scales = self.scales

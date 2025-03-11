@@ -1,5 +1,7 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
+from contextlib import nullcontext as does_not_raise
+
 import matplotlib
 
 matplotlib.use("agg")
@@ -25,11 +27,20 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("loss_func", ["mse", "l2", "custom"])
     @pytest.mark.parametrize(
-        "fail", [False, "img", "model", "loss", "range_penalty", "dtype"]
+        "fail",
+        [False, "img", "model", "loss", "range_penalty", "dtype", "allowed_range"],
     )
     @pytest.mark.parametrize("range_penalty", [0.1, 0])
+    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
     def test_save_load(
-        self, einstein_img, model, loss_func, fail, range_penalty, tmp_path
+        self,
+        einstein_img,
+        model,
+        loss_func,
+        fail,
+        range_penalty,
+        allowed_range,
+        tmp_path,
     ):
         if loss_func == "mse":
             loss = po.tools.optim.mse
@@ -41,6 +52,7 @@ class TestMetamers:
             einstein_img,
             model,
             loss_function=loss,
+            allowed_range=allowed_range,
             range_penalty_lambda=range_penalty,
         )
         met.synthesize(max_iter=4, store_progress=True)
@@ -50,20 +62,29 @@ class TestMetamers:
                 einstein_img = torch.rand_like(einstein_img)
                 expectation = pytest.raises(
                     ValueError,
-                    match="Saved and initialized image are different",
+                    match="Saved and initialized attribute image have different values",
                 )
             elif fail == "model":
                 model = po.simul.Gaussian(30).to(DEVICE)
                 po.tools.remove_grad(model)
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized target_representation are different"),
+                    match=("Saved and initialized model output have different values"),
                 )
             elif fail == "loss":
                 loss = po.metric.ssim
                 expectation = pytest.raises(
                     ValueError,
-                    match="Saved and initialized loss_function are different",
+                    match=(
+                        "Saved and initialized loss_function output have different "
+                        "values"
+                    ),
+                )
+            elif fail == "allowed_range":
+                allowed_range = (0, 5)
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized allowed_range are different"),
                 )
             elif fail == "range_penalty":
                 range_penalty = 0.5
@@ -79,12 +100,14 @@ class TestMetamers:
                 po.tools.remove_grad(model)
                 model.to(torch.float64)
                 expectation = pytest.raises(
-                    RuntimeError, match="Attribute image has different dtype"
+                    ValueError,
+                    match="Saved and initialized attribute image have different dtype",
                 )
             met_copy = po.synth.Metamer(
                 einstein_img,
                 model,
                 loss_function=loss,
+                allowed_range=allowed_range,
                 range_penalty_lambda=range_penalty,
             )
             with expectation:
@@ -98,6 +121,7 @@ class TestMetamers:
                 model,
                 loss_function=loss,
                 range_penalty_lambda=range_penalty,
+                allowed_range=allowed_range,
             )
             met_copy.load(
                 op.join(tmp_path, "test_metamer_save_load.pt"),
@@ -131,6 +155,244 @@ class TestMetamers:
                 max_iter=4,
                 store_progress=True,
             )
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_load_init_fail(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_load_init_fail.pt"))
+        with pytest.raises(
+            ValueError, match="load can only be called with a just-initialized"
+        ):
+            met.load(op.join(tmp_path, "test_metamer_load_init_fail.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_examine_saved_object(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_examine.pt"))
+        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_metamer_examine.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("synth_type", ["eig", "mad"])
+    def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_load_object_type.pt"))
+        if synth_type == "eig":
+            met = po.synth.Eigendistortion(einstein_img, model)
+        elif synth_type == "mad":
+            met = po.synth.MADCompetition(
+                einstein_img, po.metric.mse, po.metric.mse, "min"
+            )
+        with pytest.raises(
+            ValueError, match="Saved object was a.* but initialized object is"
+        ):
+            met.load(op.join(tmp_path, "test_metamer_load_object_type.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("model_behav", ["dtype", "shape", "name"])
+    def test_load_model_change(self, einstein_img, model, model_behav, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_load_model_change.pt"))
+        if model_behav == "dtype":
+            # this actually gets raised in the model validation step (during init), not
+            # load.
+            expectation = pytest.raises(TypeError, match="model changes precision")
+        elif model_behav == "shape":
+            expectation = pytest.raises(
+                ValueError,
+                match="Saved and initialized model output have different shape",
+            )
+        elif model_behav == "name":
+            expectation = pytest.raises(
+                ValueError, match="Saved and initialized model have different names"
+            )
+
+        class NewModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = model
+
+            def forward(self, x):
+                if model_behav == "dtype":
+                    return self.model(x).to(torch.float64)
+                elif model_behav == "shape":
+                    return self.model(x).flatten(-2)
+                elif model_behav == "name":
+                    return self.model(x)
+
+        with expectation:
+            met = po.synth.Metamer(einstein_img, NewModel())
+            met.load(op.join(tmp_path, "test_metamer_load_model_change.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("loss_behav", ["dtype", "shape", "name"])
+    def test_load_loss_change(self, einstein_img, model, loss_behav, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+
+        def new_loss(x, y):
+            if loss_behav == "dtype":
+                return po.tools.optim.mse(x, y).to(torch.float64)
+            elif loss_behav == "shape":
+                return torch.stack(
+                    [po.tools.optim.mse(x, y) for _ in range(2)]
+                ).unsqueeze(0)
+            elif loss_behav == "name":
+                return po.tools.optim.mse(x, y)
+
+        met = po.synth.Metamer(einstein_img, model, loss_function=new_loss)
+        if loss_behav == "name":
+            expectation_str = "Saved and initialized loss_function have different names"
+        else:
+            expectation_str = (
+                "Saved and initialized loss_function output have different"
+                f" {loss_behav}"
+            )
+        with pytest.raises(ValueError, match=expectation_str):
+            met.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("attribute", ["saved", "init"])
+    def test_load_attributes(self, einstein_img, model, attribute, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        if attribute == "saved":
+            met.test = "BAD"
+            err_str = "Saved"
+        met.save(op.join(tmp_path, "test_metamer_load_attributes.pt"))
+        met = po.synth.Metamer(einstein_img, model)
+        if attribute == "init":
+            met.test = "BAD"
+            err_str = "Initialized"
+        with pytest.raises(
+            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+        ):
+            met.load(op.join(tmp_path, "test_metamer_load_attributes.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("optim_opts", [None, "SGD", "Adam", "Scheduler"])
+    @pytest.mark.parametrize("fail", [True, False])
+    def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
+        met = po.synth.Metamer(curie_img, model)
+        scheduler = None
+        optimizer = None
+        if optim_opts is not None:
+            if optim_opts in ["Adam", "Scheduler"]:
+                optimizer = torch.optim.Adam([met.metamer])
+            elif optim_opts == "SGD":
+                optimizer = torch.optim.SGD([met.metamer])
+            if optim_opts == "Scheduler":
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        met.save(op.join(tmp_path, "test_metamer_optimizer.pt"))
+        met = po.synth.Metamer(curie_img, model)
+        met.load(op.join(tmp_path, "test_metamer_optimizer.pt"))
+        if not fail:
+            if optim_opts is not None:
+                if optim_opts in ["Adam", "Scheduler"]:
+                    optimizer = torch.optim.Adam([met.metamer])
+                elif optim_opts == "SGD":
+                    optimizer = torch.optim.SGD([met.metamer])
+                if optim_opts == "Scheduler":
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+            expectation = does_not_raise()
+        else:
+            expect_str = "User-specified optimizer must have same type"
+            err = ValueError
+            if optim_opts is None:
+                optimizer = torch.optim.SGD([met.metamer])
+            else:
+                if optim_opts == "Adam":
+                    optimizer = torch.optim.SGD([met.metamer])
+                elif optim_opts == "SGD":
+                    optimizer = None
+                    err = TypeError
+                    expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "Scheduler":
+                    optimizer = torch.optim.Adam([met.metamer])
+                    scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
+                    expect_str = "User-specified scheduler must have same type"
+            expectation = pytest.raises(err, match=expect_str)
+        # these don't fail until we call synthesize
+        with expectation:
+            met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("fail", ["optim", "sched"])
+    def test_load_optim_wrong_time(self, curie_img, model, fail, tmp_path):
+        met = po.synth.Metamer(curie_img, model)
+        optimizer = torch.optim.Adam([met.metamer])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        met.save(op.join(tmp_path, "test_metamer_optim_wrong_time.pt"))
+        met = po.synth.Metamer(curie_img, model)
+        if fail == "optim":
+            optimizer = torch.optim.Adam([met.metamer])
+            expect_str = "Did you initialize this optimizer object before calling load"
+        elif fail == "sched":
+            # use old optimizer object
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+            expect_str = "Did you initialize this scheduler object before calling load"
+        met.load(op.join(tmp_path, "test_metamer_optim_wrong_time.pt"))
+        if fail != "optim":
+            optimizer = torch.optim.Adam([met.metamer])
+        with pytest.raises(ValueError, match=expect_str):
+            met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("load", [True, False])
+    def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
+        met = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
+        # Adam has some stochasticity in its initialization(?), so this test doesn't
+        # quite work with it (it does if you do po.tools.set_seed(2) at the top of the
+        # function)
+        optim = torch.optim.SGD([met.metamer])
+        met.synthesize(10, optimizer=optim)
+        met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
+        optim = torch.optim.SGD([met_copy.metamer])
+        met_copy.synthesize(5, optimizer=optim)
+        if load:
+            met_copy.save(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
+            met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
+            met_copy.load(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
+            optim = torch.optim.SGD([met_copy.metamer])
+            met_copy.synthesize(5, optimizer=optim)
+        else:
+            met_copy.synthesize(5)
+        if not torch.allclose(met.metamer, met_copy.metamer):
+            raise ValueError("Resuming synthesis different than just continuing!")
+
+    # test that we support models with 3d and 4d outputs
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
+        indirect=True,
+    )
+    def test_model_dimensionality(self, einstein_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(5)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -217,14 +479,13 @@ class TestMetamers:
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
-        curie_img = curie_img.to(DEVICE)
-        model.to(DEVICE)
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_map_location.pt"))
         # calling load with map_location effectively switches everything
         # over to that device
-        met_copy = po.synth.Metamer(curie_img, model)
+        model.to("cpu")
+        met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
         met_copy.load(
             op.join(tmp_path, "test_metamer_map_location.pt"),
             map_location="cpu",
@@ -232,6 +493,8 @@ class TestMetamers:
         assert met_copy.metamer.device.type == "cpu"
         assert met_copy.image.device.type == "cpu"
         met_copy.synthesize(max_iter=4, store_progress=True)
+        # reset model device for other tests
+        model.to(DEVICE)
 
     @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])

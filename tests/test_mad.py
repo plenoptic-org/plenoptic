@@ -1,6 +1,7 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
 import os.path as op
+from contextlib import nullcontext as does_not_raise
 
 import matplotlib as mpl
 import numpy as np
@@ -65,10 +66,24 @@ class TestMAD:
             mad.synthesize(max_iter=5, store_progress=store_progress)
 
     @pytest.mark.parametrize(
-        "fail", [False, "img", "metric1", "metric2", "target", "tradeoff"]
+        "fail",
+        [
+            False,
+            "img",
+            "metric1",
+            "metric2",
+            "target",
+            "tradeoff",
+            "range_penalty",
+            "allowed_range",
+        ],
     )
+    @pytest.mark.parametrize("range_penalty", [0.1, 0])
+    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
     @pytest.mark.parametrize("rgb", [False, True])
-    def test_save_load(self, curie_img, fail, rgb, tmp_path):
+    def test_save_load(
+        self, curie_img, fail, range_penalty, allowed_range, rgb, tmp_path
+    ):
         # this works with either rgb or grayscale images
         metric = rgb_mse
         if rgb:
@@ -79,7 +94,13 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         mad = po.synth.MADCompetition(
-            curie_img, metric, metric2, target, metric_tradeoff_lambda=tradeoff
+            curie_img,
+            metric,
+            metric2,
+            target,
+            metric_tradeoff_lambda=tradeoff,
+            allowed_range=allowed_range,
+            range_penalty_lambda=range_penalty,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_save_load.pt"))
@@ -88,7 +109,7 @@ class TestMAD:
                 curie_img = torch.rand_like(curie_img)
                 expectation = pytest.raises(
                     ValueError,
-                    match="Saved and initialized image are different",
+                    match="Saved and initialized attribute image have different values",
                 )
             elif fail == "metric1":
                 # this works with either rgb or grayscale images (though note
@@ -97,14 +118,20 @@ class TestMAD:
                 metric = dis_ssim
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized optimized_metric are different"),
+                    match=(
+                        "Saved and initialized optimized_metric output have different"
+                        " values"
+                    ),
                 )
             elif fail == "metric2":
                 # this works with either rgb or grayscale images
                 metric2 = rgb_mse
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized reference_metric are different"),
+                    match=(
+                        "Saved and initialized reference_metric output have different"
+                        " values"
+                    ),
                 )
             elif fail == "target":
                 target = "max"
@@ -120,12 +147,26 @@ class TestMAD:
                         "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
+            elif fail == "allowed_range":
+                allowed_range = (0, 5)
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized allowed_range are different"),
+                )
+            elif fail == "range_penalty":
+                range_penalty = 0.5
+                expectation = pytest.raises(
+                    ValueError,
+                    match=("Saved and initialized range_penalty_lambda are different"),
+                )
             mad_copy = po.synth.MADCompetition(
                 curie_img,
                 metric,
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
+                allowed_range=allowed_range,
+                range_penalty_lambda=range_penalty,
             )
             with expectation:
                 mad_copy.load(
@@ -139,6 +180,8 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
+                allowed_range=allowed_range,
+                range_penalty_lambda=range_penalty,
             )
             mad_copy.load(
                 op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
@@ -148,6 +191,207 @@ class TestMAD:
         if rgb:
             # since this is a fixture, get this back to a grayscale image
             curie_img = curie_img.mean(1, True)
+
+    def test_load_init_fail(self, einstein_img, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_load_init_fail.pt"))
+        with pytest.raises(
+            ValueError, match="load can only be called with a just-initialized"
+        ):
+            mad.load(op.join(tmp_path, "test_mad_load_init_fail.pt"))
+
+    def test_examine_saved_object(self, einstein_img, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_examine.pt"))
+        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_mad_examine.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("synth_type", ["eig", "mad"])
+    def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_load_object_type.pt"))
+        if synth_type == "eig":
+            mad = po.synth.Eigendistortion(einstein_img, model)
+        elif synth_type == "mad":
+            mad = po.synth.Metamer(einstein_img, model)
+        with pytest.raises(
+            ValueError, match="Saved object was a.* but initialized object is"
+        ):
+            mad.load(op.join(tmp_path, "test_mad_load_object_type.pt"))
+
+    @pytest.mark.parametrize("metric_behav", ["dtype", "shape", "name"])
+    @pytest.mark.parametrize("metric", ["optimized", "reference"])
+    def test_load_metric_change(self, einstein_img, metric, metric_behav, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_load_metric_change.pt"))
+
+        def new_metric(x, y):
+            if metric_behav == "dtype":
+                return po.tools.optim.mse(x, y).to(torch.float64)
+            elif metric_behav == "shape":
+                return torch.stack(
+                    [po.tools.optim.mse(x, y) for _ in range(2)]
+                ).unsqueeze(0)
+            elif metric_behav == "name":
+                if metric == "optimized":
+                    return po.tools.optim.mse(x, y)
+                elif metric == "reference":
+                    return po.tools.optim.l2_norm(x, y)
+
+        if metric_behav == "name":
+            expectation_str = (
+                f"Saved and initialized {metric}_metric have different names"
+            )
+        elif metric_behav == "shape":
+            # this gets raised during the metric validation step
+            expectation_str = "metric should return a scalar value but output had shape"
+        else:
+            expectation_str = (
+                f"Saved and initialized {metric}_metric output have different"
+                f" {metric_behav}"
+            )
+        with pytest.raises(ValueError, match=expectation_str):
+            if metric == "optimized":
+                mad = po.synth.MADCompetition(
+                    einstein_img,
+                    new_metric,
+                    po.tools.optim.l2_norm,
+                    "min",
+                    metric_tradeoff_lambda=1,
+                )
+            elif metric == "reference":
+                mad = po.synth.MADCompetition(
+                    einstein_img,
+                    po.metric.mse,
+                    new_metric,
+                    "min",
+                    metric_tradeoff_lambda=1,
+                )
+            mad.load(op.join(tmp_path, "test_mad_load_metric_change.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("attribute", ["saved", "init"])
+    def test_load_attributes(self, einstein_img, model, attribute, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        if attribute == "saved":
+            mad.test = "BAD"
+            err_str = "Saved"
+        mad.save(op.join(tmp_path, "test_mad_load_attributes.pt"))
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        if attribute == "init":
+            mad.test = "BAD"
+            err_str = "Initialized"
+        with pytest.raises(
+            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+        ):
+            mad.load(op.join(tmp_path, "test_mad_load_attributes.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("optim_opts", [None, "SGD", "Adam", "Scheduler"])
+    @pytest.mark.parametrize("fail", [True, False])
+    def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
+        mad = po.synth.MADCompetition(
+            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        scheduler = None
+        optimizer = None
+        if optim_opts is not None:
+            if optim_opts in ["Adam", "Scheduler"]:
+                optimizer = torch.optim.Adam([mad.mad_image])
+            elif optim_opts == "SGD":
+                optimizer = torch.optim.SGD([mad.mad_image])
+            if optim_opts == "Scheduler":
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        mad.save(op.join(tmp_path, "test_mad_optimizer.pt"))
+        mad = po.synth.MADCompetition(
+            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.load(op.join(tmp_path, "test_mad_optimizer.pt"))
+        if not fail:
+            if optim_opts is not None:
+                if optim_opts in ["Adam", "Scheduler"]:
+                    optimizer = torch.optim.Adam([mad.mad_image])
+                elif optim_opts == "SGD":
+                    optimizer = torch.optim.SGD([mad.mad_image])
+                if optim_opts == "Scheduler":
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+            expectation = does_not_raise()
+        else:
+            expect_str = "User-specified optimizer must have same type"
+            err = ValueError
+            if optim_opts is None:
+                optimizer = torch.optim.SGD([mad.mad_image])
+            else:
+                if optim_opts == "Adam":
+                    optimizer = torch.optim.SGD([mad.mad_image])
+                elif optim_opts == "SGD":
+                    optimizer = None
+                    err = TypeError
+                    expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "Scheduler":
+                    optimizer = torch.optim.Adam([mad.mad_image])
+                    scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
+                    expect_str = "User-specified scheduler must have same type"
+            expectation = pytest.raises(err, match=expect_str)
+        # these don't fail until we call synthesize
+        with expectation:
+            mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("fail", ["optim", "sched"])
+    def test_load_optim_wrong_time(self, curie_img, model, fail, tmp_path):
+        mad = po.synth.MADCompetition(
+            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        optimizer = torch.optim.Adam([mad.mad_image])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        mad.save(op.join(tmp_path, "test_mad_optim_wrong_time.pt"))
+        mad = po.synth.MADCompetition(
+            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        if fail == "optim":
+            optimizer = torch.optim.Adam([mad.mad_image])
+            expect_str = "Did you initialize this optimizer object before calling load"
+        elif fail == "sched":
+            # use old optimizer object
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+            expect_str = "Did you initialize this scheduler object before calling load"
+        mad.load(op.join(tmp_path, "test_mad_optim_wrong_time.pt"))
+        if fail != "optim":
+            optimizer = torch.optim.Adam([mad.mad_image])
+        with pytest.raises(ValueError, match=expect_str):
+            mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
 
     @pytest.mark.parametrize("optimizer", ["Adam", None, "Scheduler"])
     def test_optimizer_opts(self, curie_img, optimizer):
@@ -187,15 +431,13 @@ class TestMAD:
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
-        curie_img = curie_img
         mad = po.synth.MADCompetition(
             curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_map_location.pt"))
-        curie_img = curie_img.to("cpu")
         mad_copy = po.synth.MADCompetition(
-            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+            curie_img.to("cpu"), po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         assert mad_copy.image.device.type == "cpu"
         mad_copy.load(op.join(tmp_path, "test_mad_map_location.pt"), map_location="cpu")

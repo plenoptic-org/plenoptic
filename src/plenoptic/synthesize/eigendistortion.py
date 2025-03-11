@@ -505,7 +505,8 @@ class Eigendistortion(Synthesis):
             The path to save the Eigendistortion object to
 
         """
-        super().save(file_path, attrs=None)
+        save_io_attrs = [("_model", ("_image",))]
+        super().save(file_path, save_io_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -570,10 +571,14 @@ class Eigendistortion(Synthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Eigendistortion`` object --
-        we will ensure that ``image`` and ``model`` are identical.
+        This must be called by a ``Eigendistortion`` object initialized just like the
+        saved object.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
 
         Parameters
         ----------
@@ -589,6 +594,12 @@ class Eigendistortion(Synthesis):
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
 
+        See Also
+        --------
+        examine_saved_synthesis :
+            Examine metadata from saved object: pytorch and plenoptic versions, name of
+            the synthesis object, shapes of tensors, etc.
+
         Examples
         --------
         >>> eig = po.synth.Eigendistortion(img, model)
@@ -601,13 +612,14 @@ class Eigendistortion(Synthesis):
         *then* load.
 
         """
-        check_attributes = ["_image", "_representation_flat"]
-        check_loss_functions = []
+        check_attributes = ["_image"]
+        check_io_attrs = [("_model", ("_image",))]
         super().load(
             file_path,
+            "eigenindex",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
             **pickle_load_args,
         )
         # make these require a grad again
