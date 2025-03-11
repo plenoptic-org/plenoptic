@@ -12,8 +12,7 @@
 #
 import os
 import sys
-
-import plenoptic
+from importlib.metadata import version
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
@@ -25,12 +24,10 @@ project = "plenoptic"
 copyright = "2019, Plenoptic authors"
 author = "Plenoptic authors"
 
-# The short X.Y version
-version = ""
-# The full version, including alpha/beta/rc tags
-
-
-release = plenoptic.__version__
+release: str = version("plenoptic")
+# this will grab major.minor.patch (excluding any .devN afterwards, which should only
+# show up when building locally during development)
+version: str = ".".join(release.split(".")[:3])
 
 # -- General configuration ---------------------------------------------------
 

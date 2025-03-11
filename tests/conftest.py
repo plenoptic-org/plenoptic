@@ -30,7 +30,7 @@ def curie_img():
 
 @pytest.fixture(scope="package")
 def einstein_img():
-    return po.load_images(IMG_DIR / "256" / "curie.pgm").to(DEVICE)
+    return po.load_images(IMG_DIR / "256" / "einstein.pgm").to(DEVICE)
 
 
 @pytest.fixture(scope="package")
@@ -141,7 +141,7 @@ def get_model(name):
         po.tools.remove_grad(model)
         return model
     elif name == "PortillaSimoncelli":
-        return po.simul.PortillaSimoncelli((256, 256))
+        return po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
     elif name == "NonModule":
 
         class NonModule:
