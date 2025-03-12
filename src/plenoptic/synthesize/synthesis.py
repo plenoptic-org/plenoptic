@@ -186,7 +186,7 @@ class Synthesis(abc.ABC):
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
             init_not_save_str = "\n ".join(
-                [f"{k}: {getattr(self,k)}" for k in init_not_save]
+                [f"{k}: {getattr(self, k)}" for k in init_not_save]
             )
             raise ValueError(
                 f"Initialized object has {len(init_not_save)} attribute(s) "

@@ -449,9 +449,9 @@ class TestSteerablePyramid:
                     f"_anglemasks_recon_scale_{s}",
                 ]
             )
-        assert len(buffers) == len(
-            names
-        ), "pyramid doesn't have the right number of buffers!"
+        assert len(buffers) == len(names), (
+            "pyramid doesn't have the right number of buffers!"
+        )
         assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"
 
     def test_img_shape_error(self, curie_img):
