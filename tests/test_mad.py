@@ -222,6 +222,22 @@ class TestMAD:
         ):
             mad.setup(0.5)
 
+    def test_synth_then_setup(self, einstein_img, model, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.setup(optimizer=torch.optim.SGD)
+        mad.synthesize(max_iter=4)
+        mad.save(op.join(tmp_path, "test_mad_synth_then_setup.pt"))
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.load(op.join(tmp_path, "test_mad_synth_then_setup.pt"))
+        with pytest.raises(ValueError, match="Don't know how to initialize"):
+            mad.synthesize(5)
+        mad.setup(optimizer=torch.optim.SGD)
+        mad.synthesize(5)
+
     def test_load_init_fail(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"

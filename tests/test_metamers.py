@@ -176,6 +176,21 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_synth_then_setup(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup(optimizer=torch.optim.SGD)
+        met.synthesize(max_iter=4)
+        met.save(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        met = po.synth.Metamer(einstein_img, model)
+        met.load(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        with pytest.raises(ValueError, match="Don't know how to initialize"):
+            met.synthesize(5)
+        met.setup(optimizer=torch.optim.SGD)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     def test_setup_load_fail(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4)
