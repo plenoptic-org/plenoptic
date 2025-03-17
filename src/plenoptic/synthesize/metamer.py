@@ -166,7 +166,6 @@ class Metamer(OptimizedSynthesis):
             if self._loaded:
                 if initial_image is not None:
                     raise ValueError("Cannot set initial_image after calling load()!")
-                self._loaded = False
             else:
                 raise ValueError(
                     "setup() can only be called once and must be called"
