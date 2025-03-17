@@ -159,6 +159,27 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_setup_fail(self, einstein_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup()
+        with pytest.raises(ValueError, "setup\(\) can only be called once"):
+            met.setup()
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_setup_load_fail(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4)
+        met.save(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        met = po.synth.Metamer(einstein_img, model)
+        met.load(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        with pytest.raises(ValueError, "Cannot set initial_image after calling load"):
+            met.setup(po.data.curie())
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("fail", ["synth", "setup", "continue"])
     def test_load_init_fail(self, einstein_img, model, fail, tmp_path):
         met = po.synth.Metamer(einstein_img, model)

@@ -119,6 +119,9 @@ class Metamer(OptimizedSynthesis):
     ):
         """Initialize the metamer, optimizer, and scheduler.
 
+        Can only be called once. If ``load()`` has been called, ``initial_image`` must
+        be None.
+
         Parameters
         ----------
         initial_image :
@@ -160,14 +163,15 @@ class Metamer(OptimizedSynthesis):
             metamer.requires_grad_()
             self._metamer = metamer
         else:
-            if initial_image is not None:
-                if self._loaded:
+            if self._loaded:
+                if initial_image is not None:
                     raise ValueError("Cannot set initial_image after calling load()!")
-                else:
-                    raise ValueError(
-                        "setup() can only be called once and must be called"
-                        " before synthesize()!"
-                    )
+                self._loaded = False
+            else:
+                raise ValueError(
+                    "setup() can only be called once and must be called"
+                    " before synthesize()!"
+                )
 
         # initialize the optimizer
         self._initialize_optimizer(optimizer, self.metamer, optimizer_kwargs)
