@@ -159,7 +159,7 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    def test_setup_initial_noise(self, einstein_img, curie_img, model):
+    def test_setup_initial_image(self, einstein_img, curie_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup(curie_img)
         met.synthesize(5)
