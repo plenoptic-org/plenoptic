@@ -170,7 +170,7 @@ class TestMetamers:
     def test_setup_fail(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup()
-        with pytest.raises(ValueError, "setup\(\) can only be called once"):
+        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
             met.setup()
 
     @pytest.mark.parametrize(
@@ -182,7 +182,9 @@ class TestMetamers:
         met.save(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
         met = po.synth.Metamer(einstein_img, model)
         met.load(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
-        with pytest.raises(ValueError, "Cannot set initial_image after calling load"):
+        with pytest.raises(
+            ValueError, match="Cannot set initial_image after calling load"
+        ):
             met.setup(po.data.curie())
 
     @pytest.mark.parametrize(
