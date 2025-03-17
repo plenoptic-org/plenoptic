@@ -3,6 +3,7 @@
 import abc
 import importlib
 import inspect
+import warnings
 
 import numpy as np
 import torch
@@ -34,6 +35,10 @@ class Synthesis(abc.ABC):
     sub-class and thus are marked as abstract methods here
 
     """
+
+    def __init__(self):
+        # flag to raise more informative error message if setup and load are both called
+        self._loaded = False
 
     @abc.abstractmethod
     def synthesize(self):
@@ -159,12 +164,12 @@ class Synthesis(abc.ABC):
             ``torch.load``, see that function's docstring for details.
 
         """
-        empty_on_init_attr = getattr(self, empty_on_init_attr)
         check_str = (
             "\n\nIf this is confusing, try calling "
             f"{_get_name(examine_saved_synthesis)}('{file_path}'),"
             " to examine saved object"
         )
+        empty_on_init_attr = getattr(self, empty_on_init_attr)
         if empty_on_init_attr is not None and len(empty_on_init_attr) > 0:
             raise ValueError(
                 "load can only be called with a just-initialized"
@@ -281,6 +286,19 @@ class Synthesis(abc.ABC):
                 # if init_attr is None, then we haven't set it yet, so we set the saved
                 # tuple as the attribute, and handle this later
             setattr(self, k, v)
+        setup_attrs = []
+        optim = tmp_dict.get("_optimizer", None)
+        if isinstance(optim, tuple) and optim[0] != _get_name(torch.optim.Adam):
+            setup_attrs.append("optimizer")
+        sched = tmp_dict.get("_scheduler", None)
+        if isinstance(sched, tuple) and sched[0] is not None:
+            setup_attrs.append("scheduler")
+        if setup_attrs:
+            warnings.warn(
+                f"You will need to call setup() to instantiate {', '.join(setup_attrs)}"
+            )
+        # Make sure we specify that we have loaded and setup has not been called
+        self._loaded = True
 
     @abc.abstractmethod
     def to(self, *args, attrs: list[str] = [], **kwargs):
@@ -360,6 +378,7 @@ class OptimizedSynthesis(Synthesis):
         allowed_range: tuple[float, float] = (0, 1),
     ):
         """Initialize the properties of OptimizedSynthesis."""
+        super().__init__()
         self._losses = []
         self._gradient_norm = []
         self._pixel_change_norm = []
@@ -371,7 +390,7 @@ class OptimizedSynthesis(Synthesis):
         self._allowed_range = allowed_range
 
     @abc.abstractmethod
-    def _initialize(self):
+    def setup(self):
         r"""What to start synthesis with."""
         pass
 
@@ -415,7 +434,8 @@ class OptimizedSynthesis(Synthesis):
     def _initialize_optimizer(
         self,
         optimizer: torch.optim.Optimizer | None,
-        synth_name: str,
+        synth_attr: torch.Tensor,
+        optimizer_kwargs: dict | None = None,
         learning_rate: float = 0.01,
     ):
         """Initialize optimizer.
@@ -444,61 +464,50 @@ class OptimizedSynthesis(Synthesis):
           and we load the state_dict.
 
         """
-        synth_attr = getattr(self, synth_name)
-        if optimizer is None:
-            if self.optimizer is None:
-                self._optimizer = torch.optim.Adam(
-                    [synth_attr], lr=learning_rate, amsgrad=True
+        if isinstance(self.optimizer, tuple):
+            # then we're calling this after load()
+            if optimizer_kwargs is not None:
+                raise ValueError(
+                    "When initializing optimizer after load, optimizer_kwargs"
+                    " must be None!"
                 )
-            elif isinstance(self.optimizer, tuple):
-                # then this comes from loading
-                if self._optimizer[0] != _get_name(torch.optim.Adam):
-                    raise TypeError(
-                        "Don't know how to initialize saved optimizer "
-                        f"'{self._optimizer[0]}'! Pass an initialized version of "
-                        "this optimizer to `synthesize`, and we will update its "
-                        "state_dict."
-                    )
-                state_dict = self.optimizer[1]
-                self._optimizer = torch.optim.Adam([synth_attr])
-                self._optimizer.load_state_dict(state_dict)
+            if optimizer is None:
+                optimizer = torch.optim.Adam
+                err_str = (
+                    "Don't know how to initialize saved optimizer "
+                    f"'{self._optimizer[0]}'! Pass an un-initialized version of "
+                    "this optimizer to `setup`, and we will update its "
+                    "state_dict."
+                )
+            else:
+                err_str = (
+                    "User-specified optimizer must have same type as saved "
+                    "optimizer, but got:"
+                    f"\nSaved: {self.optimizer[0]}, "
+                    f"\nUser-specified: {_get_name(optimizer)}."
+                )
+
+            if self._optimizer[0] != _get_name(optimizer):
+                raise ValueError(err_str)
+            state_dict = self.optimizer[1]
+            self._optimizer = optimizer([synth_attr])
+            self._optimizer.load_state_dict(state_dict)
         else:
-            if self.optimizer is not None and not isinstance(self.optimizer, tuple):
-                raise TypeError("When resuming synthesis, optimizer arg must be None!")
-            params = optimizer.param_groups[0]["params"]
-            if len(params) != 1 or not torch.equal(params[0], synth_attr):
-                # then the optimizer is not updating the right target, which means they
-                # initialized it wrong.
-                if not isinstance(self.optimizer, tuple):
-                    raise ValueError(
-                        f"For {synth_name} synthesis, optimizer must have one "
-                        f"parameter, the {synth_name} we're synthesizing."
-                    )
-                else:
-                    # a totally possible way this could happen is they initialized the
-                    # synthesis object, initialized the optimizer, then called load. if
-                    # you do it in that order, the optimizer target is incorrect
-                    raise ValueError(
-                        f"Optimizer parameter does not match self.{synth_name}. Did "
-                        "you initialize this optimizer object before calling load? "
-                        "Optimizer objects must be initialized after calling load"
-                    )
-            if isinstance(self.optimizer, tuple):
-                if self._optimizer[0] != _get_name(optimizer):
-                    raise ValueError(
-                        "User-specified optimizer must have same type as saved "
-                        "optimizer, but got:"
-                        f"\nSaved: {self.optimizer[0]}, "
-                        f"\nUser-specified: {_get_name(optimizer)}."
-                    )
-                state_dict = self.optimizer[1]
-                self._optimizer = optimizer
-                self._optimizer.load_state_dict(state_dict)
-            self._optimizer = optimizer
+            if optimizer_kwargs is None:
+                optimizer_kwargs = {"lr": learning_rate}
+            else:
+                optimizer_kwargs.setdefault("lr", learning_rate)
+            if optimizer is None:
+                optimizer_kwargs.setdefault("amsgrad", True)
+                self._optimizer = torch.optim.Adam([synth_attr], **optimizer_kwargs)
+            else:
+                self._optimizer = optimizer([synth_attr], **optimizer_kwargs)
 
     def _initialize_scheduler(
         self,
-        scheduler: torch.optim.lr_scheduler.LRScheduler,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None,
+        optimizer: torch.optim.Optimizer,
+        scheduler_kwargs: dict | None = None,
     ):
         """Initialize scheduler.
 
@@ -526,8 +535,14 @@ class OptimizedSynthesis(Synthesis):
         initialization). Then, we will pass the loss to scheduler.step when we call it.
 
         """
-        if scheduler is None:
-            if isinstance(self.scheduler, tuple):
+        if isinstance(self.scheduler, tuple):
+            # then we're calling this after load()
+            if scheduler_kwargs is not None:
+                raise ValueError(
+                    "When initializing scheduler after load, scheduler_kwargs"
+                    " must be None!"
+                )
+            if scheduler is None:
                 if self.scheduler[0] is not None:
                     # then this comes from loading, and we don't know how to initialize
                     # the scheduler
@@ -536,10 +551,8 @@ class OptimizedSynthesis(Synthesis):
                         f"'{self.scheduler[0]}'! Pass an initialized version of this "
                         "scheduler to `synthesize`, and we will update its state_dict."
                     )
-                else:
-                    self._scheduler = None
-        else:
-            if isinstance(self.scheduler, tuple):
+                self._scheduler = None
+            else:
                 if self.scheduler[0] != _get_name(scheduler):
                     raise ValueError(
                         "User-specified scheduler must have same type as saved "
@@ -547,22 +560,17 @@ class OptimizedSynthesis(Synthesis):
                         f"\nUser-specified: {_get_name(scheduler)}."
                     )
                 state_dict = self.scheduler[1]
-                self._scheduler = scheduler
+                self._scheduler = scheduler(optimizer)
                 self._scheduler.load_state_dict(state_dict)
-            elif self.scheduler is not None:
-                raise TypeError("When resuming synthesis, scheduler arg must be None!")
-            if self.optimizer is not scheduler.optimizer:
-                raise ValueError(
-                    "Scheduler's optimizer must match that of this "
-                    f"{self.__class__.__name__} but got two different optimizers! Did "
-                    "you initialize this scheduler object before calling load? "
-                    "Schedulers and optimizers must be optimized after calling load"
-                )
-            self._scheduler = scheduler
-            step_args = set(inspect.getfullargspec(self.scheduler.step).args)
-            if len(step_args - {"self", "epoch"}):
-                # then we do want to pass the loss to scheduler.step
-                self._scheduler_step_arg = True
+        else:
+            if scheduler_kwargs is None:
+                scheduler_kwargs = {}
+            if scheduler is not None:
+                self._scheduler = scheduler(optimizer, **scheduler_kwargs)
+                step_args = set(inspect.getfullargspec(self.scheduler.step).args)
+                if len(step_args - {"self", "epoch"}):
+                    # then we do want to pass the loss to scheduler.step
+                    self._scheduler_step_arg = True
 
     @property
     def range_penalty_lambda(self):
