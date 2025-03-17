@@ -177,6 +177,8 @@ class Metamer(OptimizedSynthesis):
         self._initialize_optimizer(optimizer, self.metamer, optimizer_kwargs)
         # and scheduler
         self._initialize_scheduler(scheduler, self.optimizer, scheduler_kwargs)
+        # reset _loaded, if everything ran successfully
+        self._loaded = False
 
     def synthesize(
         self,

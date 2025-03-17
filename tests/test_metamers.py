@@ -159,6 +159,14 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_setup_initial_noise(self, einstein_img, curie_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup(curie_img)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     def test_setup_fail(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup()
@@ -469,16 +477,31 @@ class TestMetamers:
         )
 
     @pytest.mark.parametrize("model", ["NLP"], indirect=True)
-    @pytest.mark.parametrize("optimizer", ["Adam", None, "Scheduler"])
+    @pytest.mark.parametrize(
+        "optimizer", ["Adam", "Adam-args", None, "Scheduler-args", "Scheduler"]
+    )
     def test_optimizer(self, curie_img, model, optimizer):
         met = po.synth.Metamer(curie_img, model)
         optimizer = None
         scheduler = None
+        optimizer_kwargs = None
+        scheduler_kwargs = None
         if optimizer == "Adam":
             optimizer = torch.optim.Adam
+        if optimizer == "Adam-args":
+            optimizer = torch.optim.Adam
+            optimizer_kwargs = {"eps": 1e-5}
         if optimizer == "Scheduler":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
-        met.setup(optimizer=optimizer, scheduler=scheduler)
+        if optimizer == "Scheduler-args":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+            scheduler_kwargs = {"factor": 1e-3}
+        met.setup(
+            optimizer=optimizer,
+            scheduler=scheduler,
+            optimizer_kwargs=optimizer_kwargs,
+            scheduler_kwargs=scheduler_kwargs,
+        )
         met.synthesize(max_iter=5)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")

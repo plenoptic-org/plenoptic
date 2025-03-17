@@ -192,6 +192,36 @@ class TestMAD:
             # since this is a fixture, get this back to a grayscale image
             curie_img = curie_img.mean(1, True)
 
+    def test_setup_initial_noise(self, einstein_img):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.setup(0.5)
+        mad.synthesize(5)
+
+    def test_setup_fail(self, einstein_img):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.setup()
+        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
+            mad.setup()
+
+    def test_setup_load_fail(self, einstein_img, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.synthesize(max_iter=4)
+        mad.save(op.join(tmp_path, "test_mad_setup_load_fail.pt"))
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
+        )
+        mad.load(op.join(tmp_path, "test_mad_setup_load_fail.pt"))
+        with pytest.raises(
+            ValueError, match="Cannot set initial_noise after calling load"
+        ):
+            mad.setup(0.5)
+
     def test_load_init_fail(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
@@ -323,13 +353,14 @@ class TestMAD:
         scheduler = None
         optimizer = None
         if optim_opts is not None:
-            if optim_opts in ["Adam", "Scheduler"]:
-                optimizer = torch.optim.Adam([mad.mad_image])
+            if optim_opts == "Adam":
+                optimizer = torch.optim.Adam
             elif optim_opts == "SGD":
-                optimizer = torch.optim.SGD([mad.mad_image])
+                optimizer = torch.optim.SGD
             if optim_opts == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+        mad.setup(optimizer=optimizer, scheduler=scheduler)
+        mad.synthesize(max_iter=5)
         mad.save(op.join(tmp_path, "test_mad_optimizer.pt"))
         mad = po.synth.MADCompetition(
             curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
@@ -337,76 +368,63 @@ class TestMAD:
         mad.load(op.join(tmp_path, "test_mad_optimizer.pt"))
         if not fail:
             if optim_opts is not None:
-                if optim_opts in ["Adam", "Scheduler"]:
-                    optimizer = torch.optim.Adam([mad.mad_image])
+                if optim_opts == "Adam":
+                    optimizer = torch.optim.Adam
                 elif optim_opts == "SGD":
-                    optimizer = torch.optim.SGD([mad.mad_image])
+                    optimizer = torch.optim.SGD
                 if optim_opts == "Scheduler":
-                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             expectation = does_not_raise()
         else:
             expect_str = "User-specified optimizer must have same type"
-            err = ValueError
             if optim_opts is None:
-                optimizer = torch.optim.SGD([mad.mad_image])
+                optimizer = torch.optim.SGD
             else:
                 if optim_opts == "Adam":
-                    optimizer = torch.optim.SGD([mad.mad_image])
+                    optimizer = torch.optim.SGD
                 elif optim_opts == "SGD":
                     optimizer = None
-                    err = TypeError
                     expect_str = "Don't know how to initialize saved optimizer"
                 elif optim_opts == "Scheduler":
-                    optimizer = torch.optim.Adam([mad.mad_image])
-                    scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
+                    scheduler = torch.optim.lr_scheduler.ConstantLR
                     expect_str = "User-specified scheduler must have same type"
-            expectation = pytest.raises(err, match=expect_str)
+            expectation = pytest.raises(ValueError, match=expect_str)
         # these don't fail until we call synthesize
         with expectation:
-            mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+            mad.setup(optimizer=optimizer, scheduler=scheduler)
+            mad.synthesize(max_iter=5)
 
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+        "optimizer", ["Adam", "Adam-args", None, "Scheduler-args", "Scheduler"]
     )
-    @pytest.mark.parametrize("fail", ["optim", "sched"])
-    def test_load_optim_wrong_time(self, curie_img, model, fail, tmp_path):
-        mad = po.synth.MADCompetition(
-            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
-        )
-        optimizer = torch.optim.Adam([mad.mad_image])
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
-        mad.save(op.join(tmp_path, "test_mad_optim_wrong_time.pt"))
-        mad = po.synth.MADCompetition(
-            curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
-        )
-        if fail == "optim":
-            optimizer = torch.optim.Adam([mad.mad_image])
-            expect_str = "Did you initialize this optimizer object before calling load"
-        elif fail == "sched":
-            # use old optimizer object
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-            expect_str = "Did you initialize this scheduler object before calling load"
-        mad.load(op.join(tmp_path, "test_mad_optim_wrong_time.pt"))
-        if fail != "optim":
-            optimizer = torch.optim.Adam([mad.mad_image])
-        with pytest.raises(ValueError, match=expect_str):
-            mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
-
-    @pytest.mark.parametrize("optimizer", ["Adam", None, "Scheduler"])
-    def test_optimizer_opts(self, curie_img, optimizer):
+    def test_optimizer(self, curie_img, optimizer):
         mad = po.synth.MADCompetition(
             curie_img,
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
         )
+        optimizer = None
         scheduler = None
-        if optimizer == "Adam" or optimizer == "Scheduler":
-            optimizer = torch.optim.Adam([mad.mad_image])
-            if optimizer == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        mad.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        optimizer_kwargs = None
+        scheduler_kwargs = None
+        if optimizer == "Adam":
+            optimizer = torch.optim.Adam
+        if optimizer == "Adam-args":
+            optimizer = torch.optim.Adam
+            optimizer_kwargs = {"eps": 1e-5}
+        if optimizer == "Scheduler":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+        if optimizer == "Scheduler-args":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+            scheduler_kwargs = {"factor": 1e-3}
+        mad.setup(
+            optimizer=optimizer,
+            scheduler=scheduler,
+            optimizer_kwargs=optimizer_kwargs,
+            scheduler_kwargs=scheduler_kwargs,
+        )
+        mad.synthesize(max_iter=5)
 
     @pytest.mark.parametrize(
         "metric", [po.metric.mse, ModuleMetric(), NonModuleMetric()]
