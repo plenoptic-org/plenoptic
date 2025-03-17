@@ -550,6 +550,23 @@ class TestGeodesic:
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         geod.synthesize(5)
 
+    @pytest.mark.parametrize("model", ["NLP"], indirect=True)
+    @pytest.mark.parametrize("optimizer", ["Adam", "Adam-args", None])
+    def test_optimizer(self, einstein_img, model, optimizer):
+        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
+        optimizer = None
+        optimizer_kwargs = None
+        if optimizer == "Adam":
+            optimizer = torch.optim.Adam
+        elif optimizer == "Adam-args":
+            optimizer = torch.optim.Adam
+            optimizer_kwargs = {"eps": 1e-5}
+        geod.setup(
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs,
+        )
+        geod.synthesize(max_iter=5)
+
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
     def test_map_location(self, einstein_small_seq, model, tmp_path):

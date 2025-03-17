@@ -426,12 +426,12 @@ class TestMAD:
         scheduler_kwargs = None
         if optimizer == "Adam":
             optimizer = torch.optim.Adam
-        if optimizer == "Adam-args":
+        elif optimizer == "Adam-args":
             optimizer = torch.optim.Adam
             optimizer_kwargs = {"eps": 1e-5}
-        if optimizer == "Scheduler":
+        elif optimizer == "Scheduler":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
-        if optimizer == "Scheduler-args":
+        elif optimizer == "Scheduler-args":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             scheduler_kwargs = {"factor": 1e-3}
         mad.setup(
