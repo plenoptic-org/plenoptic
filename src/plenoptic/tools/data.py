@@ -111,8 +111,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
             im = imageio.imread(p)
         except ValueError:
             warnings.warn(
-                f"Unable to load in file {p}, it's probably not "
-                "an image, skipping..."
+                f"Unable to load in file {p}, it's probably not an image, skipping..."
             )
             continue
         # make it a float32 array with values between 0 and 1
@@ -143,7 +142,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     if as_gray:
         if images.ndimension() != 3:
             raise ValueError(
-                "For loading in images as grayscale, this should be a 3d" " tensor!"
+                "For loading in images as grayscale, this should be a 3d tensor!"
             )
         images = images.unsqueeze(1)
     else:
@@ -155,7 +154,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
             images = images.unsqueeze(0) if len(paths) > 1 else images.unsqueeze(1)
     if images.ndimension() != 4:
         raise ValueError(
-            "Somehow ended up with other than 4 dimensions! Not sure how we" " got here"
+            "Somehow ended up with other than 4 dimensions! Not sure how we got here"
         )
     return images
 
@@ -507,6 +506,6 @@ def _check_tensor_equality(
         raise ValueError(error_str)
     elif not torch.allclose(x, y, rtol=rtol, atol=atol):
         error_str = error_str.format(
-            error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x-y}"
+            error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x - y}"
         )
         raise ValueError(error_str)
