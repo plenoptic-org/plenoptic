@@ -139,14 +139,17 @@ class Geodesic(OptimizedSynthesis):
         optimizer: torch.optim.Optimizer | None = None,
         optimizer_kwargs: dict | None = None,
     ):
-        """initialize the geodesic
+        """Initialize the geodesic and optimizer.
+
+        Can only be called once. If ``load()`` has been called, ``initial_sequence``
+        must be None.
 
         Parameters
         ----------
         initial_sequence
             initialize the geodesic with pixel linear interpolation
             (``'straight'``), or with a brownian bridge between the two anchors
-            (``'bridge'``).
+            (``'bridge'``). If None, use ``'straight'``.
         n_steps
             the number of steps (i.e., transitions) in the trajectory between the
             two anchor points.
@@ -155,6 +158,7 @@ class Geodesic(OptimizedSynthesis):
             amsgrad=True).
         optimizer_kwargs :
             The keyword arguments to pass to the optimizer on initialization.
+
         """
         if self._geodesic is None:
             if initial_sequence is None:

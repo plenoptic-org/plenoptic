@@ -165,16 +165,17 @@ class MADCompetition(OptimizedSynthesis):
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         scheduler_kwargs: dict | None = None,
     ):
-        """Initialize the synthesized image.
+        """Initialize the MAD image, optimizer, and scheduler.
 
-        Initialize ``self.mad_image`` attribute to be ``image`` plus
-        Gaussian noise with user-specified standard deviation.
+        Can only be called once. If ``load()`` has been called, ``initial_noise`` must
+        be None.
 
         Parameters
         ----------
         initial_noise :
-            Standard deviation of the Gaussian noise used to initialize
-            ``mad_image`` from ``image``. If None, we use a value of 0.1.
+            ``mad_image`` is initialized to ``self.image + initial_noise *
+            torch.randn_like(self.image)``, so this gives the standard deviation of the
+            Gaussian noise. If None, we use a value of 0.1.
         optimizer :
             The un-initialized optimizer object to use. If None, we use Adam(lr=.01,
             amsgrad=True).
