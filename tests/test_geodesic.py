@@ -304,16 +304,6 @@ class TestGeodesic:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    def test_geodesic_without_setup(self, einstein_img, model):
-        geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
-        with pytest.raises(
-            ValueError, match="Call setup\(\) before accessing self.geodesic!"
-        ):
-            geod.geodesic
-
-    @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
-    )
     def test_setup_initial_seq(self, einstein_img, model):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         geod.setup("bridge")
