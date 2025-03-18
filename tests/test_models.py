@@ -782,18 +782,20 @@ class TestPortillaSimoncelli:
         met = po.synth.MetamerCTF(
             im0,
             model,
-            initial_image=im_init,
             loss_function=po.tools.optim.l2_norm,
             range_penalty_lambda=0,
             coarse_to_fine="together",
         )
-
         # this is the same as the default optimizer, but we explicitly
         # instantiate it anyway, in case we change the defaults at some point
-        optim = torch.optim.Adam([met.metamer], lr=0.01, amsgrad=True)
+        met.setup(
+            initial_image=im_init,
+            optimizer=torch.optim.Adam,
+            optimizer_kwargs={"lr": 0.01, "amsgrad": True},
+        )
+
         met.synthesize(
             max_iter=200,
-            optimizer=optim,
             change_scale_criterion=None,
             ctf_iters_to_check=15,
         )

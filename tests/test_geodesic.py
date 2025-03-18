@@ -550,7 +550,9 @@ class TestGeodesic:
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         geod.synthesize(5)
 
-    @pytest.mark.parametrize("model", ["NLP"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("optimizer", ["Adam", "Adam-args", None])
     def test_optimizer(self, einstein_img, model, optimizer):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)

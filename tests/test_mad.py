@@ -222,7 +222,7 @@ class TestMAD:
         ):
             mad.setup(0.5)
 
-    def test_synth_then_setup(self, einstein_img, model, tmp_path):
+    def test_synth_then_setup(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
         )
