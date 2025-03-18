@@ -159,6 +159,42 @@ class Geodesic(OptimizedSynthesis):
         optimizer_kwargs :
             The keyword arguments to pass to the optimizer on initialization.
 
+        Examples
+        --------
+        Set initial sequence:
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> geod = po.synth.Geodesic(img, img/2, model)
+        >>> geod.setup("bridge")
+        >>> geod.synthesize(10)
+
+        Set optimizer:
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> geod = po.synth.Geodesic(img, img/2, model)
+        >>> geod.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> geod.synthesize(10)
+
+        Use with save/load. Only the optimizer object is necessary, its kwargs and the
+        initial sequence are handled by load.
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> geod = po.synth.Geodesic(img, img/2, model)
+        >>> geod.setup("bridge", optimizer=torch.optim.SGD,
+        ...            optimizer_kwargs={"lr": 0.01})
+        >>> geod.synthesize(10)
+        >>> geod.save("test.pt")
+        >>> geod = po.synth.Geodesic(img, img/2, model)
+        >>> geod.load("test.pt")
+        >>> geod.setup(optimizer=torch.optim.SGD)
+        >>> geod.synthesize(10)
+
         """
         if self._geodesic is None:
             if initial_sequence is None:

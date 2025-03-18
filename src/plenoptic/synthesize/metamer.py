@@ -142,6 +142,42 @@ class Metamer(OptimizedSynthesis):
         ValueError :
             If ``initial_image`` is the wrong shape.
 
+        Examples
+        --------
+        Set initial image:
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.setup(po.data.curie())
+        >>> met.synthesize(10)
+
+        Set optimizer:
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> met.synthesize(10)
+
+        Use with save/load. Only the optimizer object is necessary, its kwargs and the
+        initial image are handled by load.
+
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.setup(po.data.curie(), optimizer=torch.optim.SGD,
+        ...           optimizer_kwargs={"lr": 0.01})
+        >>> met.synthesize(10)
+        >>> met.save("test.pt")
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.load("test.pt")
+        >>> met.setup(optimizer=torch.optim.SGD)
+        >>> met.synthesize(10)
+
         """
         if self._metamer is None:
             if initial_image is None:

@@ -186,6 +186,34 @@ class MADCompetition(OptimizedSynthesis):
         scheduler_kwargs :
             The keyword arguments to pass to the scheduler on initialization.
 
+        Examples
+        --------
+        Set initial noise:
+
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad.setup(1)
+        >>> mad.synthesize(10)
+
+        Set optimizer:
+
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> mad.synthesize(10)
+
+        Use with save/load. Only the optimizer object is necessary, its kwargs and the
+        initial noise are handled by load.
+
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> mad.synthesize(10)
+        >>> mad.save("test.pt")
+        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad.load("test.pt")
+        >>> mad.setup(optimizer=torch.optim.SGD)
+        >>> mad.synthesize(10)
         """
         if self._mad_image is None:
             if initial_noise is None:
