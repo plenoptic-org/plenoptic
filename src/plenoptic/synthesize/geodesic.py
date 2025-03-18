@@ -611,7 +611,9 @@ class Geodesic(OptimizedSynthesis):
     @property
     def geodesic(self):
         if self._geodesic is None:
-            raise ValueError("Call setup() before accessing self.geodesic!")
+            # in this case, setup() hasn't been called yet. returning None matches the
+            # behavior of other synthesis objects
+            return None
         return torch.cat([self.image_a, self._geodesic, self.image_b])
 
     @property
