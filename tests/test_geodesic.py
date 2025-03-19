@@ -302,10 +302,16 @@ class TestGeodesic:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    def test_setup_initial_seq(self, einstein_img, model):
+    @pytest.mark.parametrize("seq", ["straight", "bridge", "FAIL"])
+    def test_setup_initial_seq(self, einstein_img, model, seq):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
-        geod.setup("bridge")
-        geod.synthesize(5)
+        if seq == "FAIL":
+            expectation = pytest.raises(match="Don't know how to handle initial_")
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            geod.setup(seq)
+            geod.synthesize(5)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

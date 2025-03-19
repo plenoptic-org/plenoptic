@@ -167,6 +167,23 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    @pytest.mark.parametrize("fail", ["shape", "ndim"])
+    def test_setup_initial_image_fail(self, einstein_img, curie_img, model, fail):
+        met = po.synth.Metamer(einstein_img, model)
+        if fail == "shape":
+            img = curie_img[..., :255, :255]
+            expectation = pytest.raises(
+                match="initial_image and image must be same size"
+            )
+        else:
+            img = curie_img[0]
+            expectation = pytest.raises(match="initial_image must be torch.Size")
+        with expectation:
+            met.setup(img)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     def test_setup_fail(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup()
