@@ -260,7 +260,7 @@ class TestMAD:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("synth_type", ["eig", "mad"])
+    @pytest.mark.parametrize("synth_type", ["eig", "met"])
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, po.tools.optim.l2_norm, "min"
@@ -269,7 +269,7 @@ class TestMAD:
         mad.save(op.join(tmp_path, "test_mad_load_object_type.pt"))
         if synth_type == "eig":
             mad = po.synth.Eigendistortion(einstein_img, model)
-        elif synth_type == "mad":
+        elif synth_type == "met":
             mad = po.synth.Metamer(einstein_img, model)
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
@@ -360,7 +360,10 @@ class TestMAD:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("optim_opts", [None, "SGD", "Adam", "Scheduler"])
+    @pytest.mark.parametrize(
+        "optim_opts",
+        [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
+    )
     @pytest.mark.parametrize("fail", [True, False])
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         mad = po.synth.MADCompetition(
@@ -368,27 +371,51 @@ class TestMAD:
         )
         scheduler = None
         optimizer = None
+        optimizer_kwargs = None
+        scheduler_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.01}]
+        check_scheduler = None
         if optim_opts is not None:
-            if optim_opts == "Adam":
-                optimizer = torch.optim.Adam
-            elif optim_opts == "SGD":
-                optimizer = torch.optim.SGD
-            if optim_opts == "Scheduler":
+            if "Scheduler" in optim_opts:
                 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
-        mad.setup(optimizer=optimizer, scheduler=scheduler)
+                check_scheduler = [
+                    torch.optim.lr_scheduler.ReduceLROnPlateau,
+                    {"factor": 0.1},
+                ]
+                if "args" in optim_opts:
+                    scheduler_kwargs = {"factor": 1e-3}
+                    check_scheduler[1] = {"factor": 1e-3}
+            else:
+                if "Adam" in optim_opts:
+                    optimizer = torch.optim.Adam
+                elif "SGD" in optim_opts:
+                    optimizer = torch.optim.SGD
+                    check_optimizer[0] = torch.optim.SGD
+                    check_optimizer[1] = {"lr": 0.01}
+                if "args" in optim_opts:
+                    optimizer_kwargs = {"lr": 1}
+                    check_optimizer[1] = {"lr": 1}
+        mad.setup(
+            optimizer=optimizer,
+            scheduler=scheduler,
+            optimizer_kwargs=optimizer_kwargs,
+            scheduler_kwargs=scheduler_kwargs,
+        )
         mad.synthesize(max_iter=5)
         mad.save(op.join(tmp_path, "test_mad_optimizer.pt"))
         mad = po.synth.MADCompetition(
             curie_img, po.metric.mse, po.tools.optim.l2_norm, "min"
         )
         mad.load(op.join(tmp_path, "test_mad_optimizer.pt"))
+        optimizer_kwargs = None
+        scheduler_kwargs = None
         if not fail:
             if optim_opts is not None:
-                if optim_opts == "Adam":
+                if "Adam" in optim_opts:
                     optimizer = torch.optim.Adam
-                elif optim_opts == "SGD":
+                elif "SGD" in optim_opts:
                     optimizer = torch.optim.SGD
-                if optim_opts == "Scheduler":
+                if "Scheduler" in optim_opts:
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             expectation = does_not_raise()
         else:
@@ -398,20 +425,62 @@ class TestMAD:
             else:
                 if optim_opts == "Adam":
                     optimizer = torch.optim.SGD
+                elif optim_opts == "Adam-args":
+                    optimizer = torch.optim.Adam
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
                 elif optim_opts == "SGD":
                     optimizer = None
                     expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "SGD-args":
+                    optimizer = torch.optim.SGD
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
                 elif optim_opts == "Scheduler":
                     scheduler = torch.optim.lr_scheduler.ConstantLR
                     expect_str = "User-specified scheduler must have same type"
+                elif optim_opts == "Scheduler-args":
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+                    scheduler_kwargs = {"factor": 1e-3}
+                    expect_str = (
+                        "When initializing scheduler after load, scheduler_kwargs"
+                    )
             expectation = pytest.raises(ValueError, match=expect_str)
-        # these don't fail until we call synthesize
+        # these fail during setup
         with expectation:
-            mad.setup(optimizer=optimizer, scheduler=scheduler)
+            mad.setup(
+                optimizer=optimizer,
+                scheduler=scheduler,
+                optimizer_kwargs=optimizer_kwargs,
+                scheduler_kwargs=scheduler_kwargs,
+            )
             mad.synthesize(max_iter=5)
+            if not isinstance(mad.optimizer, check_optimizer[0]):
+                raise ValueError("Didn't properly set optimizer!")
+            state_dict = mad.optimizer.state_dict()["param_groups"][0]
+            for k, v in check_optimizer[1].items():
+                if state_dict[k] != v:
+                    raise ValueError(
+                        "Didn't properly set optimizer kwargs! "
+                        f"Expected {v} but got {state_dict[k]}!"
+                    )
+            if check_scheduler is not None:
+                if not isinstance(mad.scheduler, check_scheduler[0]):
+                    raise ValueError("Didn't properly set scheduler!")
+                state_dict = mad.scheduler.state_dict()
+                for k, v in check_scheduler[1].items():
+                    if mad.scheduler.state_dict()[k] != v:
+                        raise ValueError("Didn't properly set scheduler kwargs!")
+            elif mad.scheduler is not None:
+                raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.parametrize(
-        "optimizer", ["Adam", "Adam-args", None, "Scheduler-args", "Scheduler"]
+        "optimizer",
+        ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
     )
     def test_optimizer(self, curie_img, optimizer):
         mad = po.synth.MADCompetition(
@@ -424,16 +493,34 @@ class TestMAD:
         scheduler = None
         optimizer_kwargs = None
         scheduler_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.01}]
+        check_scheduler = None
         if optimizer == "Adam":
             optimizer = torch.optim.Adam
         elif optimizer == "Adam-args":
             optimizer = torch.optim.Adam
             optimizer_kwargs = {"eps": 1e-5}
+            check_optimizer[1] = {"eps": 1e-5}
+        elif optimizer == "SGD":
+            optimizer = torch.optim.SGD
+            check_optimizer = [torch.optim.SGD, {"lr": 0.01}]
+        elif optimizer == "SGD-args":
+            optimizer = torch.optim.SGD
+            optimizer_kwargs = {"lr": 1}
+            check_optimizer = [torch.optim.SGD, {"lr": 1}]
         elif optimizer == "Scheduler":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+            check_scheduler = [
+                torch.optim.lr_scheduler.ReduceLROnPlateau,
+                {"factor": 0.1},
+            ]
         elif optimizer == "Scheduler-args":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             scheduler_kwargs = {"factor": 1e-3}
+            check_scheduler = [
+                torch.optim.lr_scheduler.ReduceLROnPlateau,
+                {"factor": 1e-3},
+            ]
         mad.setup(
             optimizer=optimizer,
             scheduler=scheduler,
@@ -441,6 +528,24 @@ class TestMAD:
             scheduler_kwargs=scheduler_kwargs,
         )
         mad.synthesize(max_iter=5)
+        if not isinstance(mad.optimizer, check_optimizer[0]):
+            raise ValueError("Didn't properly set optimizer!")
+        state_dict = mad.optimizer.state_dict()["param_groups"][0]
+        for k, v in check_optimizer[1].items():
+            if state_dict[k] != v:
+                raise ValueError(
+                    "Didn't properly set optimizer kwargs! "
+                    f"Expected {v} but got {state_dict[k]}!"
+                )
+        if check_scheduler is not None:
+            if not isinstance(mad.scheduler, check_scheduler[0]):
+                raise ValueError("Didn't properly set scheduler!")
+            state_dict = mad.scheduler.state_dict()
+            for k, v in check_scheduler[1].items():
+                if mad.scheduler.state_dict()[k] != v:
+                    raise ValueError("Didn't properly set scheduler kwargs!")
+        elif mad.scheduler is not None:
+            raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.parametrize(
         "metric", [po.metric.mse, ModuleMetric(), NonModuleMetric()]

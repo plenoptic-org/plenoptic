@@ -470,26 +470,36 @@ class TestGeodesic:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("optim_opts", [None, "SGD", "Adam"])
+    @pytest.mark.parametrize(
+        "optim_opts", [None, "SGD", "SGD-args", "Adam", "Adam-args"]
+    )
     @pytest.mark.parametrize("fail", [True, False])
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         geod = po.synth.Geodesic(curie_img, curie_img / 2, model)
         optimizer = None
+        optimizer_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.001}]
         if optim_opts is not None:
-            if optim_opts == "Adam":
+            if "Adam" in optim_opts:
                 optimizer = torch.optim.Adam
-            elif optim_opts == "SGD":
+            elif "SGD" in optim_opts:
                 optimizer = torch.optim.SGD
-        geod.setup(optimizer=optimizer)
+                check_optimizer[0] = torch.optim.SGD
+                check_optimizer[1] = {"lr": 0.001}
+            if "args" in optim_opts:
+                optimizer_kwargs = {"lr": 1}
+                check_optimizer[1] = {"lr": 1}
+        geod.setup(optimizer=optimizer, optimizer_kwargs=optimizer_kwargs)
         geod.synthesize(max_iter=5)
         geod.save(op.join(tmp_path, "test_geodesic_optimizer.pt"))
         geod = po.synth.Geodesic(curie_img, curie_img / 2, model)
         geod.load(op.join(tmp_path, "test_geodesic_optimizer.pt"))
+        optimizer_kwargs = None
         if not fail:
             if optim_opts is not None:
-                if optim_opts == "Adam":
+                if "Adam" in optim_opts:
                     optimizer = torch.optim.Adam
-                elif optim_opts == "SGD":
+                elif "SGD" in optim_opts:
                     optimizer = torch.optim.SGD
             expectation = does_not_raise()
         else:
@@ -499,13 +509,34 @@ class TestGeodesic:
             else:
                 if optim_opts == "Adam":
                     optimizer = torch.optim.SGD
+                elif optim_opts == "Adam-args":
+                    optimizer = torch.optim.Adam
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
                 elif optim_opts == "SGD":
                     optimizer = None
                     expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "SGD-args":
+                    optimizer = torch.optim.SGD
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
             expectation = pytest.raises(ValueError, match=expect_str)
         with expectation:
-            geod.setup(optimizer=optimizer)
+            geod.setup(optimizer=optimizer, optimizer_kwargs=optimizer_kwargs)
             geod.synthesize(max_iter=5)
+            if not isinstance(geod.optimizer, check_optimizer[0]):
+                raise ValueError("Didn't properly set optimizer!")
+            state_dict = geod.optimizer.state_dict()["param_groups"][0]
+            for k, v in check_optimizer[1].items():
+                if state_dict[k] != v:
+                    raise ValueError(
+                        "Didn't properly set optimizer kwargs! "
+                        f"Expected {v} but got {state_dict[k]}!"
+                    )
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -545,21 +576,41 @@ class TestGeodesic:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("optimizer", ["Adam", "Adam-args", None])
+    @pytest.mark.parametrize(
+        "optimizer", ["SGD", "SGD-args", "Adam", "Adam-args", None]
+    )
     def test_optimizer(self, einstein_img, model, optimizer):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         optimizer = None
         optimizer_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.001}]
         if optimizer == "Adam":
             optimizer = torch.optim.Adam
         elif optimizer == "Adam-args":
             optimizer = torch.optim.Adam
             optimizer_kwargs = {"eps": 1e-5}
+            check_optimizer[1]["eps"] = 1e-5
+        elif optimizer == "SGD":
+            optimizer = torch.optim.SGD
+            check_optimizer = [torch.optim.SGD, {"lr": 0.001}]
+        elif optimizer == "SGD-args":
+            optimizer = torch.optim.SGD
+            optimizer_kwargs = {"lr": 1}
+            check_optimizer = [torch.optim.SGD, {"lr": 1}]
         geod.setup(
             optimizer=optimizer,
             optimizer_kwargs=optimizer_kwargs,
         )
         geod.synthesize(max_iter=5)
+        if not isinstance(geod.optimizer, check_optimizer[0]):
+            raise ValueError("Didn't properly set optimizer!")
+        state_dict = geod.optimizer.state_dict()["param_groups"][0]
+        for k, v in check_optimizer[1].items():
+            if state_dict[k] != v:
+                raise ValueError(
+                    "Didn't properly set optimizer kwargs! "
+                    f"Expected {v} but got {state_dict[k]}!"
+                )
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)
