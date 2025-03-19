@@ -322,7 +322,17 @@ class SteerablePyramidFreq(nn.Module):
         Returns
         -------
         representation:
-            Pyramid coefficients
+            Pyramid coefficients. These will be stored in an ordered dictionary with
+            keys that are "residual_highpass", "residual_lowpass", or tuples of form
+            ``(scale, orientation)``, where ``scale`` runs from 0 to
+            ``self.num_scales-1`` and ``orientation`` runs from 0 to ``self.order``.
+            Coefficients have shape ``(*x.shape[:2], x.shape[2] / 2**scale, x.shape[3] /
+            2**scale)``, with the residual_highpass height and width matching that of
+            ``x``, and residual_lowpass having height and width ``(x.shape[2] /
+            2**self.num_scales, x.shape[3] / 2**self.num_scales)``. They are ordered
+            from fine to coarse: residual_highpass, (scale 0, orientation 0), (scale 0,
+            orientation 1), ..., (scale num_scales-1, orientation order-1),
+            residual_lowpass.
 
         """
         if self.image_shape != x.shape[-2:]:
@@ -475,7 +485,8 @@ class SteerablePyramidFreq(nn.Module):
             shape (batch, channel, height, width). pyramid coefficients
             reshaped into tensor. The first channel will be the residual
             highpass and the last will be the residual lowpass. Each band is
-            then a separate channel.
+            then a separate channel, going from fine to coarse (i.e., starting with all
+            of scale 0's orientations, then scale 1's, etc.).
         pyr_info:
             Information required to recreate the dictionary, containing the
             number of channels, if split_complex was used in this function
