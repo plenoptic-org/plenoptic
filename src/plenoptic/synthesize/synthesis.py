@@ -440,18 +440,16 @@ class OptimizedSynthesis(Synthesis):
     ):
         """Initialize optimizer.
 
-        First time this is called, optimizer can be:
+        optimizer can be:
 
         - None, in which case we create an Adam optimizer with amsgrad=True and
-          ``lr=learning_rate`` with a single parameter, the synthesis attribute
+          ``lr=learning_rate``
 
-        - torch.optim.Optimizer, in which case it must already have the
+        - uninitialized torch.optim.Optimizer, in which case it must already have the
           synthesis attribute (e.g., metamer) as its only parameter.
 
-        The synthesis attribute is the one with the name ``synth_name``
-
-        Every subsequent time (so, when resuming synthesis), optimizer must be
-        None (and we use the original optimizer object).
+        In either case, we then initialize the optimizer with a single parameter, the
+        synthesis attribute, ``synth_attr``
 
         If we have loaded from a save state, self.optimizer will be a tuple with the
         name of the optimizer class (e.g., torch.optim.adam.Adam) and the
@@ -461,7 +459,7 @@ class OptimizedSynthesis(Synthesis):
           state_dict.
 
         - else, the saved and user-specified optimizers must have the same class name
-          and we load the state_dict.
+          and we load the state_dict. in this case, ``optimizer_kwargs`` must be None
 
         """
         if isinstance(self.optimizer, tuple):
@@ -511,15 +509,12 @@ class OptimizedSynthesis(Synthesis):
     ):
         """Initialize scheduler.
 
-        First time this is called, scheduler can be:
+        scheduler can be:
 
         - None, in which case we do nothing.
 
-        - torch.optim.lr_scheduler.LRScheduler in which case its optimizer must match
-          self.optimizer.
-
-        Every subsequent time (so, when resuming synthesis), scheduler must be None (and
-        we use the original scheduler object).
+        - uninitialized torch.optim.lr_scheduler.LRScheduler in which case we initialize
+          it using self.optimizer.
 
         If we have loaded from a save state, self.scheduler will be a tuple with the
         name of the scheduler class (e.g., torch.optim.lr_scheduler.ConstantLR) and the
@@ -528,11 +523,12 @@ class OptimizedSynthesis(Synthesis):
         - If scheduler is None, we raise a ValueError.
 
         - else, the saved and user-specified schedulers must have the same class name
-          and we load the state_dict.
+          and we load the state_dict. In this case, ``scheduler_kwargs`` must be None
 
         We also check if scheduler.step takes any arguments beyond self and epoch. If
-        so, we set the `_scheduler_step_arg` flag to True (it was set to False at object
-        initialization). Then, we will pass the loss to scheduler.step when we call it.
+        so, we set the `self._scheduler_step_arg` flag to True (it was set to False at
+        object initialization). Then, we will pass the loss to scheduler.step when we
+        call it.
 
         """
         if isinstance(self.scheduler, tuple):
