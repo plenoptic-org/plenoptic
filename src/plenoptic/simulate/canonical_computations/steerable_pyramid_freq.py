@@ -31,7 +31,7 @@ class SteerablePyramidFreq(nn.Module):
     Construct a steerable pyramid on matrix two dimensional signals, in the Fourier
     domain. Boundary-handling is circular. Reconstruction is exact (within floating
     point errors). However, if the image has an odd-shape, the reconstruction will not
-    be exact due to boundary-handling issues that have not been resolved. Similarly, if
+    be exact due to boundary-handling issues that have not been resolved. Similarly,
     a complex pyramid of order=0 has non-exact reconstruction and cannot be tight-frame.
 
     The squared radial functions tile the Fourier plane with a raised-cosine
@@ -157,11 +157,11 @@ class SteerablePyramidFreq(nn.Module):
         if self.order > 15 or self.order < 0:
             raise ValueError("order must be an integer in the range [0, 15].")
         if self.order == 0 and self.is_complex:
-            warnings.warn(
-                "Reconstruction will not be perfect for a complex pyramid with order=0"
+            raise ValueError(
+                "Complex pyramid cannot have order=0! See "
+                "https://github.com/plenoptic-org/plenoptic/issues/326 "
+                "for an explanation."
             )
-            if self.tight_frame:
-                raise ValueError("Complex pyramid with order=0 cannot be tight-frame!")
         self.num_orientations = int(self.order + 1)
 
         if twidth <= 0:
