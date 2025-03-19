@@ -718,7 +718,6 @@ class SteerablePyramidFreq(nn.Module):
         self,
         levels: Literal["all"] | list[SCALES_TYPE],
         bands: Literal["all"] | list[int],
-        max_orientations: int | None = None,
     ) -> list[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid
         reconstruction
@@ -740,10 +739,6 @@ class SteerablePyramidFreq(nn.Module):
             If list, should contain some subset of integers from `0` to
             `self.num_orientations-1`. If `'all'`, returned value will contain
             all valid orientations.
-        max_orientations:
-            The maximum number of orientations we allow in the reconstruction.
-            when we determine which ints are allowed for bands, we ignore all
-            those greater than max_orientations.
 
         Returns
         -------
@@ -754,15 +749,6 @@ class SteerablePyramidFreq(nn.Module):
         """
         levels = self._recon_levels_check(levels)
         bands = self._recon_bands_check(bands)
-        if max_orientations is not None:
-            for i in bands:
-                if i >= max_orientations:
-                    warnings.warn(
-                        f"You wanted band {i:d} in the reconstruction but"
-                        f" max_orientation is {max_orientations:d}, so "
-                        "we're ignoring that band"
-                    )
-            bands = [i for i in bands if i < max_orientations]
         recon_keys = []
         for level in levels:
             # residual highpass and lowpass
