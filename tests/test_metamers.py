@@ -173,11 +173,13 @@ class TestMetamers:
         if fail == "shape":
             img = curie_img[..., :255, :255]
             expectation = pytest.raises(
-                match="initial_image and image must be same size"
+                ValueError, match="initial_image and image must be same size"
             )
         else:
             img = curie_img[0]
-            expectation = pytest.raises(match="initial_image must be torch.Size")
+            expectation = pytest.raises(
+                ValueError, match="initial_image must be torch.Size"
+            )
         with expectation:
             met.setup(img)
 

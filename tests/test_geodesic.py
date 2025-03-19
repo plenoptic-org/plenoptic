@@ -306,7 +306,9 @@ class TestGeodesic:
     def test_setup_initial_seq(self, einstein_img, model, seq):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         if seq == "FAIL":
-            expectation = pytest.raises(match="Don't know how to handle initial_")
+            expectation = pytest.raises(
+                ValueError, match="Don't know how to handle initial_"
+            )
         else:
             expectation = does_not_raise()
         with expectation:
