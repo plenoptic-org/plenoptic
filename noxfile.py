@@ -1,22 +1,29 @@
 import nox
+import yaml
+
+with open(".pre-commit-config.yaml") as f:
+    precommit_config = yaml.safe_load(f)
+ruff_version = [r for r in precommit_config["repos"] if "ruff-pre-commit" in r["repo"]]
+ruff_version = ruff_version[0]["rev"].replace("v", "")
 
 
-@nox.session(name="lint")
+@nox.session
+def format(session):
+    # run linters
+    session.install(f"ruff=={ruff_version}")
+    session.run("ruff", "check", "--fix", "--config=pyproject.toml")
+    session.run("ruff", "format", "--config=pyproject.toml")
+
+
+@nox.session
 def lint(session):
     # run linters
-    session.install("ruff")
-    session.run("ruff", "check")
+    session.install(f"ruff=={ruff_version}")
+    session.run("ruff", "check", "--config=pyproject.toml")
+    session.run("ruff", "format", "--check", "--config=pyproject.toml")
 
 
 @nox.session(name="tests", python=["3.10", "3.11", "3.12"])
 def tests(session):
     session.install(".[dev]")
     session.run("pytest")
-    # queue up coverage session to run next
-    session.notify("coverage")
-
-
-@nox.session
-def coverage(session):
-    session.install("coverage")
-    session.run("coverage")

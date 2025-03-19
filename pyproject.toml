@@ -35,7 +35,7 @@ build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
 docs = [
-     'sphinx',
+     'sphinx<8.2',
      # fix sphinx 7 incompatibility issue
      'sphinx_rtd_theme>=1.3.0rc1',
      'numpydoc',
@@ -70,14 +70,13 @@ nb = [
 
 [project.urls]
 "Homepage" = "https://github.com/plenoptic-org/plenoptic"
-"Documentation" = "https://plenoptic.readthedocs.io/en/latest/"
+"Documentation" = "https://docs.plenoptic.org"
 "Download" = "https://zenodo.org/doi/10.5281/zenodo.10151130"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools_scm]
-write_to = "src/plenoptic/version.py"
 version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 

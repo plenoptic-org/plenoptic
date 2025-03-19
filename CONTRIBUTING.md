@@ -5,7 +5,7 @@ their models. We welcome and encourage contributions from everyone!
 
 First, please check out the [Code of Conduct](CODE_OF_CONDUCT.md) and read it
 before going any further. You may also want to check out the [main page of the
-documentation](https://plenoptic.readthedocs.io/en/latest/) for a longer
+documentation](http://docs.plenoptic.org/) for a longer
 overview of the project and how to get everything installed, as well as pointers
 for further reading, depending on your interests.
 
@@ -54,7 +54,7 @@ versions are supported for 3 years following initial release. This means that we
 support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
 time and that we'll transition between versions during the fourth quarter of
 each year. We run our CPU tests on all three versions, and the GPU tests and
-readthedocs build use the middle version.
+documentation build use the middle version.
 
 ## Contributing to the code
 
@@ -81,10 +81,10 @@ Before we begin: everyone finds `git` confusing the first few (dozen) times they
 You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
 
 1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://plenoptic.readthedocs.io/en/latest/install.html#installation), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
+2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](https://docs.plenoptic.org/docs/branch/main/install.html), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
 3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
 
-You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this section](https://plenoptic.readthedocs.io/en/latest/install.html#jupyter) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [this page](https://docs.plenoptic.org/docs/branch/main/jupyter.html) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
 
 #### Creating a new branch
 
@@ -127,7 +127,8 @@ At this point, we will be notified of the pull request and will read it over. We
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
 ### Code Style and Linting
-We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI and non-compliant code will not be merged!
+
+We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI (using pre-commit, see below) and non-compliant code will not be merged! You can see the version of `ruff` that we are currently using in the `.pre-commit-config.yaml` file in the project root .
 
 #### Using Ruff
 
@@ -201,6 +202,7 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   complete docstrings, but they probably should.
 
 #### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
+
 [Pre-commit](https://pre-commit.com/) hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
 
 Using pre-commit is optional. We use [pre-commit.ci](https://pre-commit.ci/) to run pre-commit as part of PRs (auto-fixing wherever possible), but it may simplify your life to integrate pre-commit into your workflow.
@@ -214,7 +216,7 @@ pre-commit install
 
 See [pre-commit docs](https://pre-commit.com/) for more details.
 
-After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be commited), you can add `--no-verify` to your commit message like this:
+After installation, should you want to ignore pre-commit hooks for some reason (e.g., because you have to run to a meeting and so don't have time to fix all the linting errors but still want your changes to be committed), you can add `--no-verify` to your commit message like this:
 ```bash
 git commit -m <my commit message> --no-verify
 ```
@@ -223,8 +225,8 @@ git commit -m <my commit message> --no-verify
 ### Adding models or synthesis methods
 
 In addition to the above, see the documentation for a description of
-[models](https://plenoptic.readthedocs.io/en/latest/models.html) and [synthesis
-objects](https://plenoptic.readthedocs.io/en/latest/synthesis.html). Any new
+[models](https://docs.plenoptic.org/docs/branch/main/models.html) and [synthesis
+objects](https://docs.plenoptic.org/docs/branch/main/synthesis.html). Any new
 models or synthesis objects will need to meet the requirements outlined in those
 pages.
 
@@ -255,7 +257,7 @@ When doing a new release, the following steps must be taken:
    version tag from the Github release, using
    [setuptools_scm](https://github.com/pypa/setuptools_scm).
 
-Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, like [readthedocs](https://readthedocs.org/) does), so ensure they match!
+Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, so ensure they match!
 
 ## Testing
 
@@ -288,9 +290,11 @@ more info.
 This section is optional but if you want to easily run tests in an isolated environment
 using the [nox](https://nox.thea.codes/en/stable/) command-line tool.
 
-`nox` is installed automatically as a `[dev]` dependency of plenoptic.
+Before proceeding, you'll need to install `nox`. You can do this in your plenoptic environment, but it is more common to install it system-wide using `pipx`: `pipx install nox`. This installs `nox` into a globally-available isolated environment, see [pipx docs](https://pipx.pypa.io/stable/) for more details.
 
-To run all tests and linters through `nox`, from the root folder of the
+You will also need to install `pyyaml` in the same environment as `nox`. If you used `pipx`, then run `pipx inject nox pyyaml`.
+
+To run all tests, formatters, and linters through `nox`, from the root folder of the
 plenoptic package, execute the following command,
 
 ```bash
@@ -323,13 +327,7 @@ nox -s tests
 for running only the linters,
 
 ```bash
-nox -s linters
-```
-
-and for testing only the coverage, run:
-
-```bash
-nox -s coverage
+nox -s lint
 ```
 
 `nox` offers a variety of configuration options, you can learn more about it from their
@@ -575,8 +573,8 @@ model or synthesis method), please include a new tutorial notebook that walks
 through how to use them. For enhancements of existing methods, you can probably
 just modify the existing tutorials and add documentation. If unsure, ask!
 
-Documentation in `plenoptic` is built using Sphinx and lives on readthedocs. If
-that means nothing to you, don't worry!
+Documentation in `plenoptic` is built using Sphinx on some of Flatiron's Jenkins
+runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
 Documentation comes in two types: `.rst` files (reST, the markup language used
 by Sphinx, see
@@ -588,7 +586,7 @@ Jupyter notebooks are tutorials and show how to use the various functions and
 classes contained in the package, and they all should be located in the
 `examples/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it. Once you've added a tutorial, see
-[here](#add-tutorials) for how to include it on the readthedocs page.
+[here](#add-tutorials) for how to include it in the Sphinx site.
 
 reST files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -672,8 +670,9 @@ for docstring structure.
 ### Build the documentation
 
 NOTE: If you just want to read the documentation, you do not need to do this;
-documentation is built automatically on
-[readthedocs](https://plenoptic.readthedocs.io/).
+documentation is built automatically, pushed to the
+[plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
+github repo and published at http://docs.plenoptic.org/.
 
 However, it can be built locally as well. You would do this if you've
 made changes locally to the documentation (or the docstrings) that you

@@ -135,7 +135,7 @@ def imshow(
         if as_rgb:
             if im.shape[1] not in [3, 4]:
                 raise Exception(
-                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
+                    "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
             im = im.transpose(0, 2, 3, 1)
             # want to insert a fake "channel" dimension here, so our putting it
@@ -219,7 +219,7 @@ def animshow(
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g.,
-    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
@@ -343,7 +343,7 @@ def animshow(
         if as_rgb:
             if vid.shape[1] not in [3, 4]:
                 raise Exception(
-                    "If as_rgb is True, then channel must have 3 " "or 4 elements!"
+                    "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
             vid = vid.transpose(0, 2, 3, 4, 1)
             # want to insert a fake "channel" dimension here, so our putting it

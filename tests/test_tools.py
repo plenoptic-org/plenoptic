@@ -10,6 +10,7 @@ from numpy.random import randint
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.tools.data import _check_tensor_equality
 
 
 class TestData:
@@ -522,8 +523,12 @@ class TestValidate:
         ):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
-    def test_validate_ctf_pass(self):
-        model = po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    def test_validate_ctf_pass(self, model):
         po.tools.validate.validate_coarse_to_fine(
             model, image_shape=(1, 1, *model.image_shape), device=DEVICE
         )
@@ -555,6 +560,8 @@ class TestValidate:
             po.tools.validate.validate_metric(mean_metric, device=DEVICE)
 
     def test_validate_metric_nonnegative(self):
+        po.tools.set_seed(0)
+
         def sum_metric(x, y):
             return (x - y).sum()
 
@@ -584,25 +591,47 @@ class TestPolarImages:
     def test_polar_angle_clockwise(self):
         ang = po.tools.polar_angle(100, direction="clockwise")
         idx = np.argmin((ang - np.pi / 2) ** 2)
-        assert (
-            np.unravel_index(idx, (100, 100))[0] > 50
-        ), "pi/2 should be in bottom half of image!"
+        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+            "pi/2 should be in bottom half of image!"
+        )
         idx = np.argmin((ang + np.pi / 2) ** 2)
-        assert (
-            np.unravel_index(idx, (100, 100))[0] < 50
-        ), "pi/2 should be in top half of image!"
+        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+            "pi/2 should be in top half of image!"
+        )
 
     def test_polar_angle_counterclockwise(self):
         ang = po.tools.polar_angle(100, direction="counter-clockwise")
         idx = np.argmin((ang - np.pi / 2) ** 2)
-        assert (
-            np.unravel_index(idx, (100, 100))[0] < 50
-        ), "pi/2 should be in top half of image!"
+        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+            "pi/2 should be in top half of image!"
+        )
         idx = np.argmin((ang + np.pi / 2) ** 2)
-        assert (
-            np.unravel_index(idx, (100, 100))[0] > 50
-        ), "pi/2 should be in bottom half of image!"
+        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+            "pi/2 should be in bottom half of image!"
+        )
 
     def test_polar_angle_direction(self):
         with pytest.raises(ValueError, match="direction must be one of"):
             po.tools.polar_angle(100, direction="-clockwise")
+
+
+class TestEqualityChecks:
+    def test_equal(self, einstein_img):
+        _check_tensor_equality(einstein_img, einstein_img)
+
+    def test_values(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match="Different values"):
+            _check_tensor_equality(einstein_img, curie_img)
+
+    def test_dtype(self, einstein_img):
+        with pytest.raises(ValueError, match="Different dtype"):
+            _check_tensor_equality(einstein_img, einstein_img.to(torch.float64))
+
+    def test_shape(self, einstein_img):
+        with pytest.raises(ValueError, match="Different shape"):
+            _check_tensor_equality(einstein_img, einstein_img[..., :64, :64])
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    def test_device(self, einstein_img):
+        with pytest.raises(ValueError, match="Different device"):
+            _check_tensor_equality(einstein_img.to("cuda"), einstein_img.to("cpu"))

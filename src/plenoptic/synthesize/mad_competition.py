@@ -131,7 +131,8 @@ class MADCompetition(OptimizedSynthesis):
         self._reference_metric = reference_metric
         self._image = image.detach()
         self._image_shape = image.shape
-        self.scheduler = None
+        self._scheduler = None
+        self._scheduler_step_arg = False
         self._optimized_metric_loss = []
         self._reference_metric_loss = []
         if minmax not in ["min", "max"]:
@@ -189,7 +190,7 @@ class MADCompetition(OptimizedSynthesis):
         self,
         max_iter: int = 100,
         optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
@@ -338,9 +339,12 @@ class MADCompetition(OptimizedSynthesis):
         sm = self.optimized_metric(self.image, self.mad_image)
         self._optimized_metric_loss.append(sm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.mad_image - last_iter_mad_image, ord=2, dim=None
@@ -394,7 +398,7 @@ class MADCompetition(OptimizedSynthesis):
     def _initialize_optimizer(self, optimizer, scheduler):
         """Initialize optimizer and scheduler."""
         super()._initialize_optimizer(optimizer, "mad_image")
-        self.scheduler = scheduler
+        super()._initialize_scheduler(scheduler)
 
     def _store(self, i: int) -> bool:
         """Store mad_image anbd model response, if appropriate.
@@ -434,16 +438,12 @@ class MADCompetition(OptimizedSynthesis):
             The path to save the MADCompetition object to
 
         """
-        # this copies the attributes dict so we don't actually remove the
-        # model attribute in the next line
-        attrs = {k: v for k, v in vars(self).items()}
-        # if the metrics are Modules, then we don't want to save them. If
-        # they're functions then saving them is fine.
-        if isinstance(self.optimized_metric, torch.nn.Module):
-            attrs.pop("_optimized_metric")
-        if isinstance(self.reference_metric, torch.nn.Module):
-            attrs.pop("_reference_metric")
-        super().save(file_path, attrs=attrs)
+        save_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
+        save_state_dict_attrs = ["_optimizer", "_scheduler"]
+        super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -496,13 +496,14 @@ class MADCompetition(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``MADCompetition`` object -- we
-        will ensure that ``image``, ``metric_tradeoff_lambda``,
-        ``range_penalty_lambda``, ``allowed_range``, ``minmax`` are all
-        identical, and that ``reference_metric`` and ``optimize_metric`` return
-        identical values.
+        This must be called by a ``MADCompetition`` object initialized just like the
+        saved object.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
 
         Parameters
         ----------
@@ -517,6 +518,12 @@ class MADCompetition(OptimizedSynthesis):
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
+
+        See Also
+        --------
+        examine_saved_synthesis :
+            Examine metadata from saved object: pytorch and plenoptic versions, name of
+            the synthesis object, shapes of tensors, etc.
 
         Examples
         --------
@@ -537,12 +544,17 @@ class MADCompetition(OptimizedSynthesis):
             "_allowed_range",
             "_minmax",
         ]
-        check_loss_functions = ["_reference_metric", "_optimized_metric"]
+        check_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer", "_scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again
@@ -1126,7 +1138,7 @@ def animate(
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g.,
-    [Quickstart](https://plenoptic.readthedocs.io/en/latest/tutorials/00_quickstart.html))
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
@@ -1195,8 +1207,7 @@ def animate(
         )
     if mad.mad_image.ndim not in [3, 4]:
         raise ValueError(
-            "animate() expects 3 or 4d data; unexpected"
-            " behavior will result otherwise!"
+            "animate() expects 3 or 4d data; unexpected behavior will result otherwise!"
         )
     _check_included_plots(included_plots, "included_plots")
     _check_included_plots(width_ratios, "width_ratios")
