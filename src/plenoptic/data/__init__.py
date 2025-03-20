@@ -28,12 +28,12 @@ def einstein(as_gray: bool = True) -> torch.Tensor:
 
     Parameters
     ----------
-    as_gray : bool
+    as_gray :
         Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
-    image : torch.Tensor
+    image :
         4d tensor of the image
 
     Examples
@@ -61,12 +61,12 @@ def curie(as_gray: bool = True) -> torch.Tensor:
 
     Parameters
     ----------
-    as_gray : bool
+    as_gray :
         Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
-    image : torch.Tensor
+    image :
         4d tensor of the image
 
     Examples
@@ -94,12 +94,12 @@ def parrot(as_gray: bool = True) -> torch.Tensor:
 
     Parameters
     ----------
-    as_gray : bool
+    as_gray :
         Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
-    image : torch.Tensor
+    image :
         4d tensor of the image
 
     Examples
@@ -127,12 +127,12 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
 
     Parameters
     ----------
-    as_gray : bool
+    as_gray :
         Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
-    image : torch.Tensor
+    image :
         4d tensor of the image
 
     Examples
@@ -160,12 +160,12 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
 
     Parameters
     ----------
-    as_gray : bool
+    as_gray :
         Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
-    image : torch.Tensor
+    image :
         4d tensor of the image
 
     Examples
