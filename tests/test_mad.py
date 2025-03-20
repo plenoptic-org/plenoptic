@@ -547,12 +547,13 @@ class TestMAD:
         elif mad.scheduler is not None:
             raise ValueError("Didn't set scheduler to None!")
 
-    @pytest.mark.parametrize(
-        "metric", [po.metric.mse, ModuleMetric(), NonModuleMetric()]
-    )
+    @pytest.mark.parametrize("metric", [po.metric.mse, ModuleMetric, NonModuleMetric])
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, metric, to_type):
-        mad = po.synth.MADCompetition(curie_img, metric, po.tools.optim.l2_norm, "min")
+        # initialize the metric here, otherwise we can get a weird state-dependence
+        mad = po.synth.MADCompetition(
+            curie_img, metric(), po.tools.optim.l2_norm, "min"
+        )
         mad.synthesize(max_iter=5)
         if to_type == "dtype":
             mad.to(torch.float64)
