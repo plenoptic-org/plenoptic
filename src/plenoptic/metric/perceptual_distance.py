@@ -194,6 +194,15 @@ def ssim(img1, img2, weighted=False, pad=False):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ssim(img, img + torch.rand_like(img))
+    tensor([[0.0519]])
+
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
@@ -268,6 +277,16 @@ def ssim_map(img1, img2):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> ssim_map = po.metric.ssim_map(img, img + torch.rand_like(img))
+    >>> ssim_map.shape
+    torch.Size([1, 1, 246, 246])
+
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
         warnings.warn(
@@ -335,6 +354,15 @@ def ms_ssim(img1, img2, power_factors=None):
     .. [1] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
        structural similarity for image quality assessment." The Thrity-Seventh
        Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ms_ssim(img, img + torch.rand_like(img))
+    tensor([[0.4684]])
 
     """
     if power_factors is None:
@@ -463,6 +491,14 @@ def nlpd(img1, img2):
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
     .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> curie_img = po.data.curie()
+    >>> po.metric.nlpd(einstein_img, curie_img)
+    tensor([[1.3507]])
 
     """
 

@@ -146,6 +146,7 @@ class Metamer(OptimizedSynthesis):
         --------
         Set initial image:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -155,6 +156,7 @@ class Metamer(OptimizedSynthesis):
 
         Set optimizer:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -165,6 +167,7 @@ class Metamer(OptimizedSynthesis):
         Use with save/load. Only the optimizer object is necessary, its kwargs and the
         initial image are handled by load.
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -510,14 +513,15 @@ class Metamer(OptimizedSynthesis):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> metamer.synthesize(max_iter=5, store_progress=True)
         >>> metamer.save('metamers.pt')
         >>> metamer_copy = po.synth.Metamer(img, model)
         >>> metamer_copy.load('metamers.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         self._load(file_path, map_location, **pickle_load_args)
@@ -1022,14 +1026,14 @@ class MetamerCTF(Metamer):
 
         Examples
         --------
-        >>> metamer = po.synth.Metamer(img, model)
-        >>> metamer.synthesize(max_iter=10, store_progress=True)
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+        >>> metamer = po.synth.MetamerCTF(img, model)
+        >>> metamer.synthesize(max_iter=5, store_progress=True)
         >>> metamer.save('metamers.pt')
-        >>> metamer_copy = po.synth.Metamer(img, model)
+        >>> metamer_copy = po.synth.MetamerCTF(img, model)
         >>> metamer_copy.load('metamers.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         super()._load(
