@@ -33,7 +33,6 @@ ALL_MODELS = [
     "naive.CenterSurround",
     "PortillaSimoncelli",
     "Identity",
-    "NLP",
 ]
 
 

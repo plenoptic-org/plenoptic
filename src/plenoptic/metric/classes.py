@@ -1,8 +1,13 @@
 import torch
+from deprecated.sphinx import deprecated
 
 from .perceptual_distance import normalized_laplacian_pyramid
 
 
+@deprecated(
+    "NLP will be removed soon, use perceptual_distance.normalized_laplacian_pyramid directly",  # noqa: E501
+    "1.2.0",
+)
 class NLP(torch.nn.Module):
     r"""simple class for implementing normalized laplacian pyramid
 

@@ -87,8 +87,6 @@ def get_model(name):
         return lpyr().to(DEVICE)
     elif name == "Identity":
         return po.simul.models.naive.Identity().to(DEVICE)
-    elif name == "NLP":
-        return po.metric.NLP().to(DEVICE)
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":

@@ -35,7 +35,7 @@ def dis_ssim(*args):
 class ModuleMetric(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.mdl = po.metric.NLP()
+        self.mdl = po.simul.Gaussian((31, 31)).to(DEVICE)
 
     def forward(self, x, y):
         return (self.mdl(x) - self.mdl(y)).abs().mean()
