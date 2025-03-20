@@ -71,7 +71,7 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[dev]
     - name: Run tests with pytest
       run: |
-        pytest --doctest-modules src/
+        pytest --doctest-modules --doctest-continue-on-failure src/
   tests:
     runs-on: ubuntu-latest
     strategy:

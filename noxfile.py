@@ -27,3 +27,9 @@ def lint(session):
 def tests(session):
     session.install(".[dev]")
     session.run("pytest")
+
+
+@nox.session(name="doctests", python=["3.10", "3.11", "3.12"])
+def doctests(session):
+    session.install(".[dev]")
+    session.run("pytest --doctest-modules --doctest-continue-on-failure src/")
