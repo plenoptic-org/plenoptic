@@ -1,9 +1,14 @@
 import torch
+from deprecated.sphinx import deprecated
 from torch import Tensor
 
-__all__ = ["gaussian1d", "circular_gaussian2d"]
+__all__ = ["circular_gaussian2d"]
 
 
+@deprecated(
+    "gaussian1d will be removed soon.",  # noqa: E501
+    "1.2.0",
+)
 def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
     """Normalized 1D Gaussian.
 

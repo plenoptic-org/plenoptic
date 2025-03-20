@@ -15,7 +15,7 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
-from plenoptic.simulate.canonical_computations import circular_gaussian2d, gaussian1d
+from plenoptic.simulate.canonical_computations import circular_gaussian2d
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -1195,26 +1195,3 @@ class TestFilters:
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)
-
-    @pytest.mark.parametrize("kernel_size", [5, 11, 20])
-    @pytest.mark.parametrize(
-        "std,expectation",
-        [
-            (1.0, does_not_raise()),
-            (20.0, does_not_raise()),
-            (0.0, pytest.raises(ValueError, match="must be positive")),
-            (1, does_not_raise()),
-            ([1, 1], pytest.raises(ValueError, match="must have only one element")),
-            (torch.tensor(1), does_not_raise()),
-            (torch.tensor([1]), does_not_raise()),
-            (
-                torch.tensor([1, 1]),
-                pytest.raises(ValueError, match="must have only one element"),
-            ),
-        ],
-    )
-    def test_gaussian1d(self, kernel_size, std, expectation):
-        with expectation:
-            filt = gaussian1d(kernel_size, std)
-            assert filt.sum().isclose(torch.ones(1))
-            assert filt.shape == torch.Size([kernel_size])
