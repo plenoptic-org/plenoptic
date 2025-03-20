@@ -190,27 +190,34 @@ class MADCompetition(OptimizedSynthesis):
         --------
         Set initial noise:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
         >>> mad.setup(1)
         >>> mad.synthesize(10)
 
         Set optimizer:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
         >>> mad.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
 
         Use with save/load. Only the optimizer object is necessary, its kwargs and the
         initial noise are handled by load.
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
         >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
         >>> mad.save("test.pt")
-        >>> mad = po.synth.MADCompetition(img, po.metric.l2_norm, po.metric.mse, "min")
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
         >>> mad.load("test.pt")
         >>> mad.setup(optimizer=torch.optim.SGD)
         >>> mad.synthesize(10)
@@ -584,9 +591,6 @@ class MADCompetition(OptimizedSynthesis):
         >>> mad.save('mad.pt')
         >>> mad_copy = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min")
         >>> mad_copy.load('mad.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         check_attributes = [

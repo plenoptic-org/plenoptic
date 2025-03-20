@@ -163,6 +163,7 @@ class Geodesic(OptimizedSynthesis):
         --------
         Set initial sequence:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -172,6 +173,7 @@ class Geodesic(OptimizedSynthesis):
 
         Set optimizer:
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -182,6 +184,7 @@ class Geodesic(OptimizedSynthesis):
         Use with save/load. Only the optimizer object is necessary, its kwargs and the
         initial sequence are handled by load.
 
+        >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30)
         >>> po.tools.remove_grad(model)
@@ -268,7 +271,10 @@ class Geodesic(OptimizedSynthesis):
             stop_criterion = (
                 torch.linalg.vector_norm(self.pixelfade, ord=2) / 1e4 * (1 + 5**0.5) / 2
             )
-        print(f"\n Stop criterion for pixel_change_norm = {stop_criterion:.5e}")
+            warnings.warn(
+                "Since stop_criterion was None, automatically set to "
+                f"{stop_criterion:.5e}"
+            )
 
         # if setup hasn't been called manually, call it now.
         if self._geodesic is None or isinstance(self._optimizer, tuple):
@@ -603,13 +609,9 @@ class Geodesic(OptimizedSynthesis):
         >>> po.tools.remove_grad(model)
         >>> geo = po.synth.Geodesic(img_a, img_b, model)
         >>> geo.synthesize(max_iter=5, store_progress=True)
-        ...
         >>> geo.save('geo.pt')
         >>> geo_copy = po.synth.Geodesic(img_a, img_b, model)
         >>> geo_copy.load('geo.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         check_attributes = [
