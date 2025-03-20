@@ -1,5 +1,6 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
+import inspect
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
@@ -550,10 +551,11 @@ class TestMAD:
     @pytest.mark.parametrize("metric", [po.metric.mse, ModuleMetric, NonModuleMetric])
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, metric, to_type):
-        # initialize the metric here, otherwise we can get a weird state-dependence
-        mad = po.synth.MADCompetition(
-            curie_img, metric(), po.tools.optim.l2_norm, "min"
-        )
+        # if metric is not the po.metric.mse function above, initialize it here,
+        # otherwise we can get a weird state-dependence
+        if not inspect.isfunction(metric):
+            metric = metric()
+        mad = po.synth.MADCompetition(curie_img, metric, po.tools.optim.l2_norm, "min")
         mad.synthesize(max_iter=5)
         if to_type == "dtype":
             mad.to(torch.float64)
