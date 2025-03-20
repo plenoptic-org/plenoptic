@@ -129,6 +129,7 @@ class Eigendistortion(Synthesis):
     """
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
+        super().__init__()
         validate_input(image, no_batch=True)
         validate_model(
             model,
