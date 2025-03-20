@@ -7,4 +7,12 @@ from . import synthesize as synth
 from . import data, metric, tools
 from .tools.data import load_images, to_numpy
 from .tools.display import animshow, imshow, pyrshow
-from .version import version as __version__
+
+# preface with underscore so they're not exposed to __all__
+from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
+from importlib.metadata import version as _get_version
+import contextlib as _contextlib
+
+
+with _contextlib.suppress(_PackageNotFoundError):
+    __version__ = _get_version("plenoptic")
