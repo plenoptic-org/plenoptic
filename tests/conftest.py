@@ -2,9 +2,10 @@ import pytest
 import torch
 
 import plenoptic as po
+from plenoptic.data.fetch import fetch_data
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-IMG_DIR = po.data.fetch_data("test_images.tar.gz")
+IMG_DIR = fetch_data("test_images.tar.gz")
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)

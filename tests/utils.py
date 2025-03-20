@@ -8,6 +8,7 @@ import pyrtools as pt
 import torch
 
 import plenoptic as po
+from plenoptic.data.fetch import fetch_data
 from test_models import TestPortillaSimoncelli
 
 
@@ -37,7 +38,7 @@ def update_ps_synthesis_test_file(torch_version: str | None = None):
         Metamer object for inspection
 
     """
-    ps_synth_file = po.data.fetch_data(
+    ps_synth_file = fetch_data(
         "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
     )
     print(f"Loading from {ps_synth_file}")
@@ -96,7 +97,7 @@ def update_ps_torch_output(save_dir):
     n_scales = [1, 2, 3, 4]
     n_orientations = [2, 3, 4]
     spatial_corr_width = range(3, 10)
-    IMG_DIR = po.data.fetch_data("test_images.tar.gz")
+    IMG_DIR = fetch_data("test_images.tar.gz")
     im_names = ["curie", "einstein", "metal", "nuts"]
     ims = po.load_images([IMG_DIR / "256" / f"{im}.pgm" for im in im_names])
     for scale in n_scales:

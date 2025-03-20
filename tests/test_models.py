@@ -15,6 +15,7 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.data.fetch import fetch_data
 from plenoptic.simulate.canonical_computations import circular_gaussian2d
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
@@ -38,19 +39,17 @@ ALL_MODELS = [
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return po.data.fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
+    return fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return po.data.fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
+    return fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize():
-    return po.data.fetch_data(
-        "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
-    )
+    return fetch_data("portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz")
 
 
 @pytest.fixture()
@@ -58,7 +57,7 @@ def portilla_simoncelli_scales():
     # During PS refactor, we changed the structure of the
     # _representation_scales attribute, so have a different file to test
     # against
-    return po.data.fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
+    return fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
 
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
