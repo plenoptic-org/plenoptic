@@ -73,15 +73,15 @@ class Linear(nn.Module):
     >>> linear_model = po.simulate.Linear()
     >>> linear_model
     Linear(
-        (conv): Conv2d(1, 2, kernel_size=(3, 3), stride=(1, 1), bias=False)
+      (conv): Conv2d(1, 2, kernel_size=(3, 3), stride=(1, 1), bias=False)
     )
 
-    You can specify the kernel size :
+    To specify the kernel size :
 
     >>> linear_model = po.simulate.Linear(kernel_size=(5,5))
     >>> linear_model
     Linear(
-        (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
+      (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
     )
     """
 
@@ -126,11 +126,15 @@ class Linear(nn.Module):
 
         Examples
         --------
-        >>> import plenoptic as po
-        >>> linear_model = po.simulate.Linear()
-        >>> img = po.data.curie()
-        >>> y = linear_model.forward(img)
-        >>> po.imshow(y)
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> linear_model = po.simulate.Linear()
+          >>> img = po.data.curie()
+          >>> y = linear_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output channel 0",
+          ...                            "Output channel 1"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
 
         """
         y = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
@@ -213,11 +217,14 @@ class Gaussian(nn.Module):
 
         Examples
         --------
-        >>> import plenoptic as po
-        >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
-        >>> img = po.data.curie()
-        >>> y = gaussian_model.forward(img)
-        >>> po.imshow(y)
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
+          >>> img = po.data.curie()
+          >>> y = gaussian_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
 
         """
         self.std.data = self.std.data.abs()  # ensure stdev is positive
@@ -358,11 +365,14 @@ class CenterSurround(nn.Module):
 
         Examples
         --------
-        >>> import plenoptic as po
-        >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
-        >>> img = po.data.curie()
-        >>> y = cs_model.forward(img)
-        >>> po.imshow(y)
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
+          >>> img = po.data.curie()
+          >>> y = cs_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
 
         """
 
