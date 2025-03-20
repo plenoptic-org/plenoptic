@@ -101,6 +101,9 @@ random light shown on the left below using the primaries shown on the right.
 
 .. _primaries:
 .. plot:: scripts/conceptual_intro.py primaries
+   :include-source: false
+   :show-source-link: true
+
 
    Left: Random light whose appearance we will match. Right: primaries.
 
@@ -112,6 +115,8 @@ match the cone activation levels, which we get by matrix multiplying our light
 by the cone fundamentals, shown below.
 
 .. plot:: scripts/conceptual_intro.py cones
+   :include-source: false
+   :show-source-link: true
 
    Left: the cone sensitivity curves. Right: the response of each cone class to
    the random light shown in :ref:`the previous figure <primaries>`.
@@ -120,6 +125,8 @@ With some linear algebra, we can compute another light that has very different
 amounts of energy at each wavelength but identical cone responses, shown below.
 
 .. plot:: scripts/conceptual_intro.py matched_light
+   :include-source: false
+   :show-source-link: true
 
 If we look at the plot on the left, we can see that the two lights are very
 different physically, but we can see on the right that they generate the same
