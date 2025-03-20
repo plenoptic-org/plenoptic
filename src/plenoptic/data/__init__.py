@@ -24,13 +24,12 @@ FILES = resources.files(__name__)
 
 
 def einstein(as_gray: bool = True) -> torch.Tensor:
-    """
-    An example grayscale image of Albert Einstein.
+    """An example grayscale image of Albert Einstein.
 
     Parameters
     ----------
     as_gray : bool
-        Whether to load a single grayscale channel or a 3 RGB channels
+        Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
@@ -56,13 +55,12 @@ def einstein(as_gray: bool = True) -> torch.Tensor:
 
 
 def curie(as_gray: bool = True) -> torch.Tensor:
-    """
-    An example grayscale image of Marie Curie.
+    """An example grayscale image of Marie Curie.
 
     Parameters
     ----------
     as_gray : bool
-        Whether to load a single grayscale channel or a 3 RGB channels
+        Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
@@ -88,13 +86,12 @@ def curie(as_gray: bool = True) -> torch.Tensor:
 
 
 def parrot(as_gray: bool = True) -> torch.Tensor:
-    """
-    An example grayscale image of a parrot.
+    """An example grayscale image of a parrot.
 
     Parameters
     ----------
     as_gray : bool
-        Whether to load a single grayscale channel or a 3 RGB channels
+        Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
@@ -120,13 +117,12 @@ def parrot(as_gray: bool = True) -> torch.Tensor:
 
 
 def reptile_skin(as_gray: bool = True) -> torch.Tensor:
-    """
-    An example grayscale image of reptile skin.
+    """An example grayscale image of reptile skin.
 
     Parameters
     ----------
     as_gray : bool
-        Whether to load a single grayscale channel or a 3 RGB channels
+        Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
@@ -152,13 +148,12 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
 
 
 def color_wheel(as_gray: bool = False) -> torch.Tensor:
-    """
-    An example image of a color wheel.
+    """An example image of a color wheel.
 
     Parameters
     ----------
     as_gray : bool
-        Whether to load a single grayscale channel or a 3 RGB channels
+        Whether to load a single grayscale channel or 3 RGB channels
 
     Returns
     -------
