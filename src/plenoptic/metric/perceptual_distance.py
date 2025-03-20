@@ -197,11 +197,11 @@ def ssim(img1, img2, weighted=False, pad=False):
     Examples
     --------
     >>> import plenoptic as po
-    >>> einstein_img = po.data.einstein()
-    >>> curie_img = po.data.curie()
-    >>> ssim_dist = po.metric.ssim(einstein_img, curie_img)
-    >>> ssim_dist
-    tensor([[0.1820]])
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ssim(img, img + torch.rand_like(img))
+    tensor([[0.0519]])
 
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
@@ -280,9 +280,10 @@ def ssim_map(img1, img2):
     Examples
     --------
     >>> import plenoptic as po
-    >>> einstein_img = po.data.einstein()
-    >>> curie_img = po.data.curie()
-    >>> ssim_map = po.metric.ssim_map(einstein_img, curie_img)
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> ssim_map = po.metric.ssim_map(img, img + torch.rand_like(img))
     >>> ssim_map.shape
     torch.Size([1, 1, 246, 246])
 
@@ -357,11 +358,11 @@ def ms_ssim(img1, img2, power_factors=None):
     Examples
     --------
     >>> import plenoptic as po
-    >>> einstein_img = po.data.einstein()
-    >>> reptile_img = po.data.reptile_skin()
-    >>> dist_ms_ssim = po.metric.ms_ssim(einstein_img, reptile_img)
-    >>> dist_ms_ssim
-    tensor([[0.0316]])
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ms_ssim(img, img + torch.rand_like(img))
+    tensor([[0.4684]])
 
     """
     if power_factors is None:
@@ -496,8 +497,7 @@ def nlpd(img1, img2):
     >>> import plenoptic as po
     >>> einstein_img = po.data.einstein()
     >>> curie_img = po.data.curie()
-    >>> dist_nlpd = po.metric.nlpd(einstein_img, curie_img)
-    >>> dist_nlpd
+    >>> po.metric.nlpd(einstein_img, curie_img)
     tensor([[1.3507]])
 
     """
