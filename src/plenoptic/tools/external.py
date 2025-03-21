@@ -12,7 +12,7 @@ import numpy as np
 import pyrtools as pt
 import scipy.io as sio
 
-from ..data import fetch_data
+from ..data.fetch import fetch_data
 
 
 def plot_MAD_results(
@@ -49,12 +49,10 @@ def plot_MAD_results(
         elements must be 2**i where i is in [1, 10]
     results_dir : None or str, optional
         path to the results directory containing the results.mat files. If
-        None, we call `po.data.fetch_data` to download (requires optional
-        dependency pooch).
+        None, we download them (requires optional dependency pooch).
     ssim_images_dir : None or str, optional
         path to the directory containing the .tif images used in SSIM paper. If
-        None, we call `po.data.fetch_data` to download (requires optional
-        dependency pooch).
+        None, we download them (requires optional dependency pooch).
     zoom : int, optional
         amount to zoom each image, passed to pyrtools.imshow
     vrange : str, optional

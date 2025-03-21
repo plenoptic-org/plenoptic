@@ -15,7 +15,8 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
-from plenoptic.simulate.canonical_computations import circular_gaussian2d, gaussian1d
+from plenoptic.data.fetch import fetch_data
+from plenoptic.simulate.canonical_computations import circular_gaussian2d
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -33,25 +34,22 @@ ALL_MODELS = [
     "naive.CenterSurround",
     "PortillaSimoncelli",
     "Identity",
-    "NLP",
 ]
 
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return po.data.fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
+    return fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return po.data.fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
+    return fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize():
-    return po.data.fetch_data(
-        "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
-    )
+    return fetch_data("portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz")
 
 
 @pytest.fixture()
@@ -59,7 +57,7 @@ def portilla_simoncelli_scales():
     # During PS refactor, we changed the structure of the
     # _representation_scales attribute, so have a different file to test
     # against
-    return po.data.fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
+    return fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
 
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
@@ -1196,26 +1194,3 @@ class TestFilters:
         out_channels = 3
         with pytest.raises(AssertionError):
             circular_gaussian2d((7, 7), std, out_channels)
-
-    @pytest.mark.parametrize("kernel_size", [5, 11, 20])
-    @pytest.mark.parametrize(
-        "std,expectation",
-        [
-            (1.0, does_not_raise()),
-            (20.0, does_not_raise()),
-            (0.0, pytest.raises(ValueError, match="must be positive")),
-            (1, does_not_raise()),
-            ([1, 1], pytest.raises(ValueError, match="must have only one element")),
-            (torch.tensor(1), does_not_raise()),
-            (torch.tensor([1]), does_not_raise()),
-            (
-                torch.tensor([1, 1]),
-                pytest.raises(ValueError, match="must have only one element"),
-            ),
-        ],
-    )
-    def test_gaussian1d(self, kernel_size, std, expectation):
-        with expectation:
-            filt = gaussian1d(kernel_size, std)
-            assert filt.sum().isclose(torch.ones(1))
-            assert filt.shape == torch.Size([kernel_size])

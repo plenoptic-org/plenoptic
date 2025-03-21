@@ -2,9 +2,10 @@ import pytest
 import torch
 
 import plenoptic as po
+from plenoptic.data.fetch import fetch_data
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-IMG_DIR = po.data.fetch_data("test_images.tar.gz")
+IMG_DIR = fetch_data("test_images.tar.gz")
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)
@@ -87,8 +88,6 @@ def get_model(name):
         return lpyr().to(DEVICE)
     elif name == "Identity":
         return po.simul.models.naive.Identity().to(DEVICE)
-    elif name == "NLP":
-        return po.metric.NLP().to(DEVICE)
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":

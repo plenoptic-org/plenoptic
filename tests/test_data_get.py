@@ -6,7 +6,7 @@ import plenoptic as po
 
 @pytest.mark.parametrize(
     "item_name",
-    [img for img in dir(po.data) if img not in ["fetch_data", "DOWNLOADABLE_FILES"]],
+    dir(po.data),
 )
 def test_data_module(item_name):
     """Test that data module works."""

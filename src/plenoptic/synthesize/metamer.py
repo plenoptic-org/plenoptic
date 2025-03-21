@@ -175,9 +175,9 @@ class Metamer(OptimizedSynthesis):
         >>> met.setup(po.data.curie(), optimizer=torch.optim.SGD,
         ...           optimizer_kwargs={"lr": 0.01})
         >>> met.synthesize(10)
-        >>> met.save("test.pt")
+        >>> met.save("metamer_setup.pt")
         >>> met = po.synth.Metamer(img, model)
-        >>> met.load("test.pt")
+        >>> met.load("metamer_setup.pt")
         >>> met.setup(optimizer=torch.optim.SGD)
         >>> met.synthesize(10)
 

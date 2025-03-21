@@ -580,7 +580,9 @@ class TestMetamers:
             ctf_iters_to_check=1,
         )
 
-    @pytest.mark.parametrize("model", ["NLP"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize(
         "optimizer",
         ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
