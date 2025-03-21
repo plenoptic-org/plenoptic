@@ -3,7 +3,7 @@ import pathlib
 import warnings
 from typing import Literal
 
-import imageio
+import imageio.v3 as iio
 import numpy as np
 import torch
 from deprecated.sphinx import deprecated
@@ -108,7 +108,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
             raise FileNotFoundError(f"File {p} not found!")
 
         try:
-            im = imageio.imread(p)
+            im = iio.imread(p)
         except ValueError:
             warnings.warn(
                 f"Unable to load in file {p}, it's probably not an image, skipping..."
