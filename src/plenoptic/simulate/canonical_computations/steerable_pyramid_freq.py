@@ -28,11 +28,11 @@ KEYS_TYPE = tuple[int, int] | Literal["residual_lowpass", "residual_highpass"]
 class SteerablePyramidFreq(nn.Module):
     r"""Steerable frequency pyramid in Torch
 
-    Construct a steerable pyramid on matrix two dimensional signals, in the
-    Fourier domain. Boundary-handling is circular. Reconstruction is exact
-    (within floating point errors). However, if the image has an odd-shape,
-    the reconstruction will not be exact due to boundary-handling issues
-    that have not been resolved.
+    Construct a steerable pyramid on matrix two dimensional signals, in the Fourier
+    domain. Boundary-handling is circular. Reconstruction is exact (within floating
+    point errors). However, if the image has an odd-shape, the reconstruction will not
+    be exact due to boundary-handling issues that have not been resolved. Similarly,
+    a complex pyramid of order=0 has non-exact reconstruction and cannot be tight-frame.
 
     The squared radial functions tile the Fourier plane with a raised-cosine
     falloff. Angular functions are cos(theta-k*pi/order+1)^(order).
@@ -52,7 +52,7 @@ class SteerablePyramidFreq(nn.Module):
         log2(min(image_shape[1], image_shape[1]))-2. If height=0, this only returns the
         residuals.
     order : `int`.
-        The Gaussian derivative order used for the steerable filters, in [1,
+        The Gaussian derivative order used for the steerable filters, in [0,
         15]. Note that to achieve steerability the minimum number of
         orientation is `order` + 1, and is used here. To get more orientations
         at the same order, use the method `steer_coeffs`
@@ -154,8 +154,14 @@ class SteerablePyramidFreq(nn.Module):
         else:
             self.num_scales = int(height)
 
-        if self.order > 15 or self.order <= 0:
-            raise ValueError("order must be an integer in the range [1,15].")
+        if self.order > 15 or self.order < 0:
+            raise ValueError("order must be an integer in the range [0, 15].")
+        if self.order == 0 and self.is_complex:
+            raise ValueError(
+                "Complex pyramid cannot have order=0! See "
+                "https://github.com/plenoptic-org/plenoptic/issues/326 "
+                "for an explanation."
+            )
         self.num_orientations = int(self.order + 1)
 
         if twidth <= 0:
@@ -316,7 +322,17 @@ class SteerablePyramidFreq(nn.Module):
         Returns
         -------
         representation:
-            Pyramid coefficients
+            Pyramid coefficients. These will be stored in an ordered dictionary with
+            keys that are "residual_highpass", "residual_lowpass", or tuples of form
+            ``(scale, orientation)``, where ``scale`` runs from 0 to
+            ``self.num_scales-1`` and ``orientation`` runs from 0 to ``self.order``.
+            Coefficients have shape ``(*x.shape[:2], x.shape[2] / 2**scale, x.shape[3] /
+            2**scale)``, with the residual_highpass height and width matching that of
+            ``x``, and residual_lowpass having height and width ``(x.shape[2] /
+            2**self.num_scales, x.shape[3] / 2**self.num_scales)``. They are ordered
+            from fine to coarse: residual_highpass, (scale 0, orientation 0), (scale 0,
+            orientation 1), ..., (scale num_scales-1, orientation order-1),
+            residual_lowpass.
 
         """
         if self.image_shape != x.shape[-2:]:
@@ -469,7 +485,8 @@ class SteerablePyramidFreq(nn.Module):
             shape (batch, channel, height, width). pyramid coefficients
             reshaped into tensor. The first channel will be the residual
             highpass and the last will be the residual lowpass. Each band is
-            then a separate channel.
+            then a separate channel, going from fine to coarse (i.e., starting with all
+            of scale 0's orientations, then scale 1's, etc.).
         pyr_info:
             Information required to recreate the dictionary, containing the
             number of channels, if split_complex was used in this function
@@ -690,17 +707,17 @@ class SteerablePyramidFreq(nn.Module):
                 )
             bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
-            assert (bands < self.num_orientations).all(), (
-                "Error: band numbers must be in the range [0, "
-                f"{self.num_orientations - 1:d}]"
-            )
+            if any(bands > self.num_orientations):
+                raise ValueError(
+                    "Error: band numbers must be in the range "
+                    f"[0, {self.num_orientations - 1:d}]"
+                )
         return list(bands)
 
     def _recon_keys(
         self,
         levels: Literal["all"] | list[SCALES_TYPE],
         bands: Literal["all"] | list[int],
-        max_orientations: int | None = None,
     ) -> list[KEYS_TYPE]:
         """Make a list of all the relevant keys from `pyr_coeffs` to use in pyramid
         reconstruction
@@ -722,10 +739,6 @@ class SteerablePyramidFreq(nn.Module):
             If list, should contain some subset of integers from `0` to
             `self.num_orientations-1`. If `'all'`, returned value will contain
             all valid orientations.
-        max_orientations:
-            The maximum number of orientations we allow in the reconstruction.
-            when we determine which ints are allowed for bands, we ignore all
-            those greater than max_orientations.
 
         Returns
         -------
@@ -736,15 +749,6 @@ class SteerablePyramidFreq(nn.Module):
         """
         levels = self._recon_levels_check(levels)
         bands = self._recon_bands_check(bands)
-        if max_orientations is not None:
-            for i in bands:
-                if i >= max_orientations:
-                    warnings.warn(
-                        f"You wanted band {i:d} in the reconstruction but"
-                        f" max_orientation is {max_orientations:d}, so we"
-                        "'re ignoring that band"
-                    )
-            bands = [i for i in bands if i < max_orientations]
         recon_keys = []
         for level in levels:
             # residual highpass and lowpass
