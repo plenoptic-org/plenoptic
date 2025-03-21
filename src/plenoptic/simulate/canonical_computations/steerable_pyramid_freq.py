@@ -110,7 +110,20 @@ class SteerablePyramidFreq(nn.Module):
 
         self.pyr_size = OrderedDict()
         self.order = order
-        self.image_shape = image_shape
+        try:
+            self.image_shape = tuple([int(i) for i in image_shape])
+        except ValueError:
+            raise ValueError(
+                f"image_shape must be castable to ints, but got {image_shape}!"
+            )
+        if self.image_shape != tuple(image_shape):
+            raise ValueError(
+                f"image_shape must be castable to ints, but got {image_shape}!"
+            )
+        if len(self.image_shape) != 2:
+            raise ValueError(
+                f"image_shape must be a tuple of length 2, but got {self.image_shape}!"
+            )
 
         if (self.image_shape[0] % 2 != 0) or (self.image_shape[1] % 2 != 0):
             warnings.warn("Reconstruction will not be perfect with odd-sized images")
@@ -306,14 +319,20 @@ class SteerablePyramidFreq(nn.Module):
             Pyramid coefficients
 
         """
+        if self.image_shape != x.shape[-2:]:
+            raise ValueError(
+                f"Input tensor height/width {tuple(x.shape[-2:])} does not match "
+                f"image_shape set at initialization {tuple(self.image_shape)}. "
+                "Either resize the input or re-initialize this model."
+            )
         pyr_coeffs = OrderedDict()
         if scales is None:
             scales = self.scales
         scale_ints = [s for s in scales if isinstance(s, int)]
         if len(scale_ints) != 0:
-            assert (max(scale_ints) < self.num_scales) and (
-                min(scale_ints) >= 0
-            ), "Scales must be within 0 and num_scales-1"
+            assert (max(scale_ints) < self.num_scales) and (min(scale_ints) >= 0), (
+                "Scales must be within 0 and num_scales-1"
+            )
         angle = self.angle.copy()
         log_rad = self.log_rad.copy()
         lo0mask = self.lo0mask.clone()
@@ -619,9 +638,9 @@ class SteerablePyramidFreq(nn.Module):
                 )
             levs_nums = np.array([int(i) for i in levels if isinstance(i, int)])
             assert (levs_nums >= 0).all(), "Level numbers must be non-negative."
-            assert (
-                levs_nums < self.num_scales
-            ).all(), f"Level numbers must be in the range [0, {self.num_scales - 1:d}]"
+            assert (levs_nums < self.num_scales).all(), (
+                f"Level numbers must be in the range [0, {self.num_scales - 1:d}]"
+            )
             levs_tmp = list(np.sort(levs_nums))  # we want smallest first
             if "residual_highpass" in levels:
                 levs_tmp = ["residual_highpass"] + levs_tmp
@@ -661,15 +680,13 @@ class SteerablePyramidFreq(nn.Module):
         if isinstance(bands, str):
             if bands != "all":
                 raise TypeError(
-                    "bands must be a list of ints or the string 'all' but got"
-                    f" {bands}"
+                    f"bands must be a list of ints or the string 'all' but got {bands}"
                 )
             bands = np.arange(self.num_orientations)
         else:
             if not hasattr(bands, "__iter__"):
                 raise TypeError(
-                    "bands must be a list of ints or the string 'all' but got"
-                    f" {bands}"
+                    f"bands must be a list of ints or the string 'all' but got {bands}"
                 )
             bands: NDArray = np.array(bands, ndmin=1)
             assert (bands >= 0).all(), "Error: band numbers must be larger than 0."
@@ -949,9 +966,9 @@ class SteerablePyramidFreq(nn.Module):
             will have the same keys as `resteered_coeffs`.
 
         """
-        assert (
-            pyr_coeffs[(0, 0)].dtype not in complex_types
-        ), "steering only implemented for real coefficients"
+        assert pyr_coeffs[(0, 0)].dtype not in complex_types, (
+            "steering only implemented for real coefficients"
+        )
         resteered_coeffs = {}
         resteering_weights = {}
         num_scales = self.num_scales

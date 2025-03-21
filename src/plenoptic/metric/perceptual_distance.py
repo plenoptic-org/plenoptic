@@ -47,8 +47,7 @@ def _ssim_parts(img1, img2, pad=False):
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
-            "Input images should have four dimensions: (batch, channel,"
-            " height, width)"
+            "Input images should have four dimensions: (batch, channel, height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")
@@ -195,6 +194,15 @@ def ssim(img1, img2, weighted=False, pad=False):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ssim(img, img + torch.rand_like(img))
+    tensor([[0.0519]])
+
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
@@ -269,6 +277,16 @@ def ssim_map(img1, img2):
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> ssim_map = po.metric.ssim_map(img, img + torch.rand_like(img))
+    >>> ssim_map.shape
+    torch.Size([1, 1, 246, 246])
+
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
         warnings.warn(
@@ -337,6 +355,15 @@ def ms_ssim(img1, img2, power_factors=None):
        structural similarity for image quality assessment." The Thrity-Seventh
        Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> po.metric.ms_ssim(img, img + torch.rand_like(img))
+    tensor([[0.4684]])
+
     """
     if power_factors is None:
         power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
@@ -368,6 +395,9 @@ def ms_ssim(img1, img2, power_factors=None):
 def normalized_laplacian_pyramid(img):
     """Compute the normalized Laplacian Pyramid using pre-optimized parameters
 
+    Model parameters are those used in [1]_, copied from the matlab code used in the
+    paper, found at [2]_.
+
     Parameters
     ----------
     img: torch.Tensor of shape (batch, channel, height, width)
@@ -379,6 +409,14 @@ def normalized_laplacian_pyramid(img):
     -------
     normalized_laplacian_activations: list of torch.Tensor
         The normalized Laplacian Pyramid with six scales
+
+    References
+    ----------
+    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+        image quality assessment using a normalized Laplacian pyramid. Electronic
+        Imaging, 2016(16), pp.1-6.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
     """
 
     (_, channel, height, width) = img.size()
@@ -422,7 +460,8 @@ def nlpd(img1, img2):
     absolute values in spatial neighborhood.
 
     These weights parameters were optimized for redundancy reduction over an training
-    database of (undistorted) natural images.
+    database of (undistorted) natural images, as described in the paper. Parameters were
+    copied from matlab code used for the paper, found at  [2]_.
 
     Note that we compute root mean squared error for each scale, and then average over
     these, effectively giving larger weight to the lower frequency coefficients
@@ -451,12 +490,21 @@ def nlpd(img1, img2):
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
+    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> einstein_img = po.data.einstein()
+    >>> curie_img = po.data.curie()
+    >>> po.metric.nlpd(einstein_img, curie_img)
+    tensor([[1.3507]])
+
     """
 
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
-            "Input images should have four dimensions: (batch, channel,"
-            " height, width)"
+            "Input images should have four dimensions: (batch, channel, height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
         raise Exception("img1 and img2 must have the same height and width!")

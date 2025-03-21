@@ -57,9 +57,6 @@ class MADCompetition(OptimizedSynthesis):
         `def` statement)
     minmax :
         Whether you wish to minimize or maximize ``optimized_metric``.
-    initial_noise :
-        Standard deviation of the Gaussian noise used to initialize
-        ``mad_image`` from ``image``.
     metric_tradeoff_lambda :
         Lambda to multiply by ``reference_metric`` loss and add to
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
@@ -108,7 +105,6 @@ class MADCompetition(OptimizedSynthesis):
         optimized_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
-        initial_noise: float = 0.1,
         metric_tradeoff_lambda: float | None = None,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
@@ -131,7 +127,8 @@ class MADCompetition(OptimizedSynthesis):
         self._reference_metric = reference_metric
         self._image = image.detach()
         self._image_shape = image.shape
-        self.scheduler = None
+        self._scheduler = None
+        self._scheduler_step_arg = False
         self._optimized_metric_loss = []
         self._reference_metric_loss = []
         if minmax not in ["min", "max"]:
@@ -139,15 +136,15 @@ class MADCompetition(OptimizedSynthesis):
                 "synthesis_target must be one of {'min', 'max'}, but got "
                 f"value {minmax} instead!"
             )
-        self._minmax = minmax
-        self._initialize(initial_noise)
+        self._mad_image = None
+        self._initial_image = None
+        self._reference_metric_target = None
         # If no metric_tradeoff_lambda is specified, pick one that gets them to
         # approximately the same magnitude
         if metric_tradeoff_lambda is None:
-            loss_ratio = torch.as_tensor(
-                self.optimized_metric_loss[-1] / self.reference_metric_loss[-1],
-                dtype=image.dtype,
-            )
+            other_image = torch.rand_like(image)
+            optim_loss = optimized_metric(image, other_image)
+            loss_ratio = optim_loss / reference_metric(image, other_image)
             metric_tradeoff_lambda = torch.pow(
                 torch.as_tensor(10), torch.round(torch.log10(loss_ratio))
             ).item()
@@ -156,40 +153,110 @@ class MADCompetition(OptimizedSynthesis):
                 f" to {metric_tradeoff_lambda} to roughly balance metrics."
             )
         self._metric_tradeoff_lambda = metric_tradeoff_lambda
+        self._minmax = minmax
         self._store_progress = None
         self._saved_mad_image = []
 
-    def _initialize(self, initial_noise: float = 0.1):
-        """Initialize the synthesized image.
+    def setup(
+        self,
+        initial_noise: float | None = None,
+        optimizer: torch.optim.Optimizer | None = None,
+        optimizer_kwargs: dict | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        scheduler_kwargs: dict | None = None,
+    ):
+        """Initialize the MAD image, optimizer, and scheduler.
 
-        Initialize ``self.mad_image`` attribute to be ``image`` plus
-        Gaussian noise with user-specified standard deviation.
+        Can only be called once. If ``load()`` has been called, ``initial_noise`` must
+        be None.
 
         Parameters
         ----------
         initial_noise :
-            Standard deviation of the Gaussian noise used to initialize
-            ``mad_image`` from ``image``.
+            ``mad_image`` is initialized to ``self.image + initial_noise *
+            torch.randn_like(self.image)``, so this gives the standard deviation of the
+            Gaussian noise. If None, we use a value of 0.1.
+        optimizer :
+            The un-initialized optimizer object to use. If None, we use Adam(lr=.01,
+            amsgrad=True).
+        optimizer_kwargs :
+            The keyword arguments to pass to the optimizer on initialization.
+        scheduler :
+            The learning rate scheduler to use. If None, we don't use one.
+        scheduler_kwargs :
+            The keyword arguments to pass to the scheduler on initialization.
 
+        Examples
+        --------
+        Set initial noise:
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
+        >>> mad.setup(1)
+        >>> mad.synthesize(10)
+
+        Set optimizer:
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
+        >>> mad.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> mad.synthesize(10)
+
+        Use with save/load. Only the optimizer object is necessary, its kwargs and the
+        initial noise are handled by load.
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
+        >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
+        >>> mad.synthesize(10)
+        >>> mad.save("test.pt")
+        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
+        ...                               po.metric.mse, "min")
+        >>> mad.load("test.pt")
+        >>> mad.setup(optimizer=torch.optim.SGD)
+        >>> mad.synthesize(10)
         """
-        mad_image = self.image + initial_noise * torch.randn_like(self.image)
-        mad_image = mad_image.clamp(*self.allowed_range)
-        self._initial_image = mad_image.clone()
-        mad_image.requires_grad_()
-        self._mad_image = mad_image
-        self._reference_metric_target = self.reference_metric(
-            self.image, self.mad_image
-        ).item()
-        self._reference_metric_loss.append(self._reference_metric_target)
-        self._optimized_metric_loss.append(
-            self.optimized_metric(self.image, self.mad_image).item()
-        )
+        if self._mad_image is None:
+            if initial_noise is None:
+                initial_noise = 0.1
+            mad_image = self.image + initial_noise * torch.randn_like(self.image)
+            mad_image = mad_image.clamp(*self.allowed_range)
+            self._initial_image = mad_image.clone()
+            mad_image.requires_grad_()
+            self._mad_image = mad_image
+            self._reference_metric_target = self.reference_metric(
+                self.image, self.mad_image
+            ).item()
+            self._reference_metric_loss.append(self._reference_metric_target)
+            self._optimized_metric_loss.append(
+                self.optimized_metric(self.image, self.mad_image).item()
+            )
+        else:
+            if self._loaded:
+                if initial_noise is not None:
+                    raise ValueError("Cannot set initial_noise after calling load()!")
+            else:
+                raise ValueError(
+                    "setup() can only be called once and must be called"
+                    " before synthesize()!"
+                )
+
+        # initialize the optimizer
+        self._initialize_optimizer(optimizer, self.mad_image, optimizer_kwargs)
+        # and scheduler
+        self._initialize_scheduler(scheduler, self.optimizer, scheduler_kwargs)
+        # reset _loaded, if everything ran successfully
+        self._loaded = False
 
     def synthesize(
         self,
         max_iter: int = 100,
-        optimizer: torch.optim.Optimizer | None = None,
-        scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
         store_progress: bool | int = False,
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
@@ -210,13 +277,6 @@ class MADCompetition(OptimizedSynthesis):
         max_iter :
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
-        optimizer :
-            The optimizer to use. If None and this is the first time calling
-            synthesize, we use Adam(lr=.01, amsgrad=True); if synthesize has
-            been called before, this must be None and we reuse the previous
-            optimizer.
-        scheduler :
-            The learning rate scheduler to use. If None, we don't use one.
         store_progress :
             Whether we should store the representation of the MAD image in
             progress on every iteration. If False, we don't save anything. If
@@ -231,8 +291,9 @@ class MADCompetition(OptimizedSynthesis):
             loss has stopped decreasing (for ``stop_criterion``).
 
         """
-        # initialize the optimizer and scheduler
-        self._initialize_optimizer(optimizer, scheduler)
+        # if setup hasn't been called manually, call it now.
+        if self._mad_image is None or isinstance(self._scheduler, tuple):
+            self.setup()
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -338,9 +399,12 @@ class MADCompetition(OptimizedSynthesis):
         sm = self.optimized_metric(self.image, self.mad_image)
         self._optimized_metric_loss.append(sm.item())
 
-        # optionally step the scheduler
+        # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
-            self.scheduler.step(loss.item())
+            if self._scheduler_step_arg:
+                self.scheduler.step(loss.item())
+            else:
+                self.scheduler.step()
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.mad_image - last_iter_mad_image, ord=2, dim=None
@@ -391,11 +455,6 @@ class MADCompetition(OptimizedSynthesis):
         """  # noqa: E501
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
-    def _initialize_optimizer(self, optimizer, scheduler):
-        """Initialize optimizer and scheduler."""
-        super()._initialize_optimizer(optimizer, "mad_image")
-        self.scheduler = scheduler
-
     def _store(self, i: int) -> bool:
         """Store mad_image anbd model response, if appropriate.
 
@@ -434,16 +493,12 @@ class MADCompetition(OptimizedSynthesis):
             The path to save the MADCompetition object to
 
         """
-        # this copies the attributes dict so we don't actually remove the
-        # model attribute in the next line
-        attrs = {k: v for k, v in vars(self).items()}
-        # if the metrics are Modules, then we don't want to save them. If
-        # they're functions then saving them is fine.
-        if isinstance(self.optimized_metric, torch.nn.Module):
-            attrs.pop("_optimized_metric")
-        if isinstance(self.reference_metric, torch.nn.Module):
-            attrs.pop("_reference_metric")
-        super().save(file_path, attrs=attrs)
+        save_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
+        save_state_dict_attrs = ["_optimizer", "_scheduler"]
+        super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
     def to(self, *args, **kwargs):
         r"""Moves and/or casts the parameters and buffers.
@@ -496,13 +551,14 @@ class MADCompetition(OptimizedSynthesis):
     ):
         r"""Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``MADCompetition`` object -- we
-        will ensure that ``image``, ``metric_tradeoff_lambda``,
-        ``range_penalty_lambda``, ``allowed_range``, ``minmax`` are all
-        identical, and that ``reference_metric`` and ``optimize_metric`` return
-        identical values.
+        This must be called by a ``MADCompetition`` object initialized just like the
+        saved object.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
 
         Parameters
         ----------
@@ -518,16 +574,23 @@ class MADCompetition(OptimizedSynthesis):
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
 
+        See Also
+        --------
+        examine_saved_synthesis :
+            Examine metadata from saved object: pytorch and plenoptic versions, name of
+            the synthesis object, shapes of tensors, etc.
+
         Examples
         --------
-        >>> mad = po.synth.MADCompetition(img, model)
-        >>> mad.synthesize(max_iter=10, store_progress=True)
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> def ds_ssim(x, y):
+        ...    return 1 - po.metric.ssim(x, y)
+        >>> mad = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min")
+        >>> mad.synthesize(max_iter=5, store_progress=True)
         >>> mad.save('mad.pt')
-        >>> mad_copy = po.synth.MADCompetition(img, model)
+        >>> mad_copy = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min")
         >>> mad_copy.load('mad.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         check_attributes = [
@@ -537,12 +600,17 @@ class MADCompetition(OptimizedSynthesis):
             "_allowed_range",
             "_minmax",
         ]
-        check_loss_functions = ["_reference_metric", "_optimized_metric"]
+        check_io_attrs = [
+            ("_optimized_metric", ("_image", "_mad_image")),
+            ("_reference_metric", ("_image", "_mad_image")),
+        ]
         super().load(
             file_path,
+            "losses",
             map_location=map_location,
             check_attributes=check_attributes,
-            check_loss_functions=check_loss_functions,
+            check_io_attributes=check_io_attrs,
+            state_dict_attributes=["_optimizer", "_scheduler"],
             **pickle_load_args,
         )
         # make this require a grad again
@@ -1195,8 +1263,7 @@ def animate(
         )
     if mad.mad_image.ndim not in [3, 4]:
         raise ValueError(
-            "animate() expects 3 or 4d data; unexpected"
-            " behavior will result otherwise!"
+            "animate() expects 3 or 4d data; unexpected behavior will result otherwise!"
         )
     _check_included_plots(included_plots, "included_plots")
     _check_included_plots(width_ratios, "width_ratios")

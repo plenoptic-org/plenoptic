@@ -15,6 +15,13 @@ class Identity(torch.nn.Module):
     We use this as a "dummy model" for metrics that we don't have the
     representation for. We use this as the model and then just change
     the objective function.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> identity_model = po.simulate.Identity("my_model")
+    >>> identity_model
+    Identity()
     """
 
     def __init__(self, name=None):
@@ -35,6 +42,13 @@ class Identity(torch.nn.Module):
         img : torch.Tensor
             a clone of the input image
 
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> identity_model = po.simulate.Identity("my_model")
+        >>> img = po.data.curie()
+        >>> y = identity_model.forward(img)
+
         """
         y = 1 * img
         return y
@@ -52,6 +66,23 @@ class Linear(nn.Module):
         Mode with which to pad image using `nn.functional.pad()`.
     default_filters:
         Initialize the filters to a low-pass and a band-pass.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> linear_model = po.simulate.Linear()
+    >>> linear_model
+    Linear(
+      (conv): Conv2d(1, 2, kernel_size=(3, 3), stride=(1, 1), bias=False)
+    )
+
+    To specify the kernel size :
+
+    >>> linear_model = po.simulate.Linear(kernel_size=(5,5))
+    >>> linear_model
+    Linear(
+      (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
+    )
     """
 
     def __init__(
@@ -81,6 +112,31 @@ class Linear(nn.Module):
             self.conv.weight.data = torch.cat([f1, f2], dim=0)
 
     def forward(self, x: Tensor) -> Tensor:
+        """Return a linear convolution of the image
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The image to return (4D tensor)
+
+        Returns
+        -------
+        img : torch.Tensor
+            a linear convolution of the input image
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> linear_model = po.simulate.Linear()
+          >>> img = po.data.curie()
+          >>> y = linear_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output channel 0",
+          ...                            "Output channel 1"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
         y = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
         h = self.conv(y)
         return h
@@ -103,6 +159,14 @@ class Gaussian(nn.Module):
     cache_filt:
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
+    >>> gaussian_model
+    Gaussian()
+
     """
 
     def __init__(
@@ -140,6 +204,29 @@ class Gaussian(nn.Module):
             return filt
 
     def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
+        """Return an isotropic gaussian convolutional filter of the image
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The image to return (4D tensor)
+
+        Returns
+        -------
+        img : torch.Tensor
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
+          >>> img = po.data.curie()
+          >>> y = gaussian_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
         self.std.data = self.std.data.abs()  # ensure stdev is positive
 
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
@@ -182,6 +269,14 @@ class CenterSurround(nn.Module):
     cache_filt:
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
+    >>> cs_model
+    CenterSurround()
+
     """
 
     def __init__(
@@ -207,9 +302,9 @@ class CenterSurround(nn.Module):
             center_std = torch.ones(out_channels) * center_std
         if isinstance(surround_std, float) or surround_std.shape == torch.Size([]):
             surround_std = torch.ones(out_channels) * surround_std
-        assert (
-            len(center_std) == out_channels and len(surround_std) == out_channels
-        ), "stds must correspond to each out_channel"
+        assert len(center_std) == out_channels and len(surround_std) == out_channels, (
+            "stds must correspond to each out_channel"
+        )
         assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
 
         self.on_center = on_center
@@ -257,6 +352,30 @@ class CenterSurround(nn.Module):
         return filt
 
     def forward(self, x: Tensor) -> Tensor:
+        """Return a difference of Gaussians (DoG) filter model of the image
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The image to return (4D tensor)
+
+        Returns
+        -------
+        img : torch.Tensor
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
+          >>> img = po.data.curie()
+          >>> y = cs_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
+
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
 
         y = F.conv2d(x, self.filt, bias=None)
