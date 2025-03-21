@@ -191,3 +191,8 @@ epub_exclude_files = ["search.html"]
 
 # -- Extension configuration -------------------------------------------------
 apidoc_module_dir = "../src/plenoptic"
+
+# because of the examples in the docstrings, want to default to showing source and not
+# showing link. in actual doc pages, this needs to be reversed.
+plot_include_source = True
+plot_html_show_source_link = False

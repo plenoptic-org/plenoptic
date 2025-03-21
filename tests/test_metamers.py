@@ -159,10 +159,82 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    def test_load_init_fail(self, einstein_img, model, tmp_path):
+    def test_setup_initial_image(self, einstein_img, curie_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup(curie_img)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("fail", ["shape", "ndim"])
+    def test_setup_initial_image_fail(self, einstein_img, curie_img, model, fail):
+        met = po.synth.Metamer(einstein_img, model)
+        if fail == "shape":
+            img = curie_img[..., :255, :255]
+            expectation = pytest.raises(
+                ValueError, match="initial_image and image must be same size"
+            )
+        else:
+            img = curie_img[0]
+            expectation = pytest.raises(
+                ValueError, match="initial_image must be torch.Size"
+            )
+        with expectation:
+            met.setup(img)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_setup_fail(self, einstein_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup()
+        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
+            met.setup()
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_synth_then_setup(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.setup(optimizer=torch.optim.SGD)
+        met.synthesize(max_iter=4)
+        met.save(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        met = po.synth.Metamer(einstein_img, model)
+        met.load(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        with pytest.raises(ValueError, match="Don't know how to initialize"):
+            met.synthesize(5)
+        met.setup(optimizer=torch.optim.SGD)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_setup_load_fail(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4)
+        met.save(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        met = po.synth.Metamer(einstein_img, model)
+        met.load(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        with pytest.raises(
+            ValueError, match="Cannot set initial_image after calling load"
+        ):
+            met.setup(po.data.curie())
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("fail", ["synth", "setup", "continue"])
+    def test_load_init_fail(self, einstein_img, model, fail, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_load_init_fail.pt"))
+        if fail != "continue":
+            met = po.synth.Metamer(einstein_img, model)
+            if fail == "setup":
+                met.setup()
+            elif fail == "synth":
+                met.synthesize(max_iter=4, store_progress=True)
         with pytest.raises(
             ValueError, match="load can only be called with a just-initialized"
         ):
@@ -288,97 +360,140 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("optim_opts", [None, "SGD", "Adam", "Scheduler"])
+    @pytest.mark.parametrize(
+        "optim_opts",
+        [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
+    )
     @pytest.mark.parametrize("fail", [True, False])
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         met = po.synth.Metamer(curie_img, model)
         scheduler = None
         optimizer = None
+        optimizer_kwargs = None
+        scheduler_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.01}]
+        check_scheduler = None
         if optim_opts is not None:
-            if optim_opts in ["Adam", "Scheduler"]:
-                optimizer = torch.optim.Adam([met.metamer])
-            elif optim_opts == "SGD":
-                optimizer = torch.optim.SGD([met.metamer])
-            if optim_opts == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+            if "Scheduler" in optim_opts:
+                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+                check_scheduler = [
+                    torch.optim.lr_scheduler.ReduceLROnPlateau,
+                    {"factor": 0.1},
+                ]
+                if "args" in optim_opts:
+                    scheduler_kwargs = {"factor": 1e-3}
+                    check_scheduler[1] = {"factor": 1e-3}
+            else:
+                if "Adam" in optim_opts:
+                    optimizer = torch.optim.Adam
+                elif "SGD" in optim_opts:
+                    optimizer = torch.optim.SGD
+                    check_optimizer[0] = torch.optim.SGD
+                    check_optimizer[1] = {"lr": 0.01}
+                if "args" in optim_opts:
+                    optimizer_kwargs = {"lr": 1}
+                    check_optimizer[1] = {"lr": 1}
+        met.setup(
+            optimizer=optimizer,
+            scheduler=scheduler,
+            optimizer_kwargs=optimizer_kwargs,
+            scheduler_kwargs=scheduler_kwargs,
+        )
+        met.synthesize(max_iter=5)
         met.save(op.join(tmp_path, "test_metamer_optimizer.pt"))
         met = po.synth.Metamer(curie_img, model)
         met.load(op.join(tmp_path, "test_metamer_optimizer.pt"))
+        optimizer_kwargs = None
+        scheduler_kwargs = None
         if not fail:
             if optim_opts is not None:
-                if optim_opts in ["Adam", "Scheduler"]:
-                    optimizer = torch.optim.Adam([met.metamer])
-                elif optim_opts == "SGD":
-                    optimizer = torch.optim.SGD([met.metamer])
-                if optim_opts == "Scheduler":
-                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+                if "Adam" in optim_opts:
+                    optimizer = torch.optim.Adam
+                elif "SGD" in optim_opts:
+                    optimizer = torch.optim.SGD
+                if "Scheduler" in optim_opts:
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             expectation = does_not_raise()
         else:
             expect_str = "User-specified optimizer must have same type"
-            err = ValueError
             if optim_opts is None:
-                optimizer = torch.optim.SGD([met.metamer])
+                optimizer = torch.optim.SGD
             else:
                 if optim_opts == "Adam":
-                    optimizer = torch.optim.SGD([met.metamer])
+                    optimizer = torch.optim.SGD
+                elif optim_opts == "Adam-args":
+                    optimizer = torch.optim.Adam
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
                 elif optim_opts == "SGD":
                     optimizer = None
-                    err = TypeError
                     expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "SGD-args":
+                    optimizer = torch.optim.SGD
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
                 elif optim_opts == "Scheduler":
-                    optimizer = torch.optim.Adam([met.metamer])
-                    scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
+                    scheduler = torch.optim.lr_scheduler.ConstantLR
                     expect_str = "User-specified scheduler must have same type"
-            expectation = pytest.raises(err, match=expect_str)
-        # these don't fail until we call synthesize
+                elif optim_opts == "Scheduler-args":
+                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+                    scheduler_kwargs = {"factor": 1e-3}
+                    expect_str = (
+                        "When initializing scheduler after load, scheduler_kwargs"
+                    )
+            expectation = pytest.raises(ValueError, match=expect_str)
+        # these fail during setup
         with expectation:
-            met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
-
-    @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
-    )
-    @pytest.mark.parametrize("fail", ["optim", "sched"])
-    def test_load_optim_wrong_time(self, curie_img, model, fail, tmp_path):
-        met = po.synth.Metamer(curie_img, model)
-        optimizer = torch.optim.Adam([met.metamer])
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
-        met.save(op.join(tmp_path, "test_metamer_optim_wrong_time.pt"))
-        met = po.synth.Metamer(curie_img, model)
-        if fail == "optim":
-            optimizer = torch.optim.Adam([met.metamer])
-            expect_str = "Did you initialize this optimizer object before calling load"
-        elif fail == "sched":
-            # use old optimizer object
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-            expect_str = "Did you initialize this scheduler object before calling load"
-        met.load(op.join(tmp_path, "test_metamer_optim_wrong_time.pt"))
-        if fail != "optim":
-            optimizer = torch.optim.Adam([met.metamer])
-        with pytest.raises(ValueError, match=expect_str):
-            met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+            met.setup(
+                optimizer=optimizer,
+                scheduler=scheduler,
+                optimizer_kwargs=optimizer_kwargs,
+                scheduler_kwargs=scheduler_kwargs,
+            )
+            met.synthesize(max_iter=5)
+            if not isinstance(met.optimizer, check_optimizer[0]):
+                raise ValueError("Didn't properly set optimizer!")
+            state_dict = met.optimizer.state_dict()["param_groups"][0]
+            for k, v in check_optimizer[1].items():
+                if state_dict[k] != v:
+                    raise ValueError(
+                        "Didn't properly set optimizer kwargs! "
+                        f"Expected {v} but got {state_dict[k]}!"
+                    )
+            if check_scheduler is not None:
+                if not isinstance(met.scheduler, check_scheduler[0]):
+                    raise ValueError("Didn't properly set scheduler!")
+                state_dict = met.scheduler.state_dict()
+                for k, v in check_scheduler[1].items():
+                    if met.scheduler.state_dict()[k] != v:
+                        raise ValueError("Didn't properly set scheduler kwargs!")
+            elif met.scheduler is not None:
+                raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("load", [True, False])
     def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
-        met = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
+        met = po.synth.Metamer(einstein_img, model)
         # Adam has some stochasticity in its initialization(?), so this test doesn't
         # quite work with it (it does if you do po.tools.set_seed(2) at the top of the
         # function)
-        optim = torch.optim.SGD([met.metamer])
-        met.synthesize(10, optimizer=optim)
-        met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
-        optim = torch.optim.SGD([met_copy.metamer])
-        met_copy.synthesize(5, optimizer=optim)
+        met.setup(curie_img, optimizer=torch.optim.SGD)
+        met.synthesize(10)
+        met_copy = po.synth.Metamer(einstein_img, model)
+        met_copy.setup(curie_img, optimizer=torch.optim.SGD)
+        met_copy.synthesize(5)
         if load:
             met_copy.save(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
-            met_copy = po.synth.Metamer(einstein_img, model, initial_image=curie_img)
+            met_copy = po.synth.Metamer(einstein_img, model)
             met_copy.load(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
-            optim = torch.optim.SGD([met_copy.metamer])
-            met_copy.synthesize(5, optimizer=optim)
+            met_copy.setup(optimizer=torch.optim.SGD)
+            met_copy.synthesize(5)
         else:
             met_copy.synthesize(5)
         if not torch.allclose(met.metamer, met_copy.metamer):
@@ -466,15 +581,69 @@ class TestMetamers:
         )
 
     @pytest.mark.parametrize("model", ["NLP"], indirect=True)
-    @pytest.mark.parametrize("optimizer", ["Adam", None, "Scheduler"])
+    @pytest.mark.parametrize(
+        "optimizer",
+        ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
+    )
     def test_optimizer(self, curie_img, model, optimizer):
         met = po.synth.Metamer(curie_img, model)
+        optimizer = None
         scheduler = None
-        if optimizer == "Adam" or optimizer == "Scheduler":
-            optimizer = torch.optim.Adam([met.metamer])
-            if optimizer == "Scheduler":
-                scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        met.synthesize(max_iter=5, optimizer=optimizer, scheduler=scheduler)
+        optimizer_kwargs = None
+        scheduler_kwargs = None
+        check_optimizer = [torch.optim.Adam, {"eps": 1e-8, "lr": 0.01}]
+        check_scheduler = None
+        if optimizer == "Adam":
+            optimizer = torch.optim.Adam
+        elif optimizer == "Adam-args":
+            optimizer = torch.optim.Adam
+            optimizer_kwargs = {"eps": 1e-5}
+            check_optimizer[1]["eps"] = 1e-5
+        elif optimizer == "SGD":
+            optimizer = torch.optim.SGD
+            check_optimizer = [torch.optim.SGD, {"lr": 0.01}]
+        elif optimizer == "SGD-args":
+            optimizer = torch.optim.SGD
+            optimizer_kwargs = {"lr": 1}
+            check_optimizer = [torch.optim.SGD, {"lr": 1}]
+        elif optimizer == "Scheduler":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+            check_scheduler = [
+                torch.optim.lr_scheduler.ReduceLROnPlateau,
+                {"factor": 0.1},
+            ]
+        elif optimizer == "Scheduler-args":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
+            scheduler_kwargs = {"factor": 1e-3}
+            check_scheduler = [
+                torch.optim.lr_scheduler.ReduceLROnPlateau,
+                {"factor": 1e-3},
+            ]
+        met.setup(
+            optimizer=optimizer,
+            scheduler=scheduler,
+            optimizer_kwargs=optimizer_kwargs,
+            scheduler_kwargs=scheduler_kwargs,
+        )
+        met.synthesize(max_iter=5)
+        if not isinstance(met.optimizer, check_optimizer[0]):
+            raise ValueError("Didn't properly set optimizer!")
+        state_dict = met.optimizer.state_dict()["param_groups"][0]
+        for k, v in check_optimizer[1].items():
+            if state_dict[k] != v:
+                raise ValueError(
+                    "Didn't properly set optimizer kwargs! "
+                    f"Expected {v} but got {state_dict[k]}!"
+                )
+        if check_scheduler is not None:
+            if not isinstance(met.scheduler, check_scheduler[0]):
+                raise ValueError("Didn't properly set scheduler!")
+            state_dict = met.scheduler.state_dict()
+            for k, v in check_scheduler[1].items():
+                if met.scheduler.state_dict()[k] != v:
+                    raise ValueError("Didn't properly set scheduler kwargs!")
+        elif met.scheduler is not None:
+            raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["Identity"], indirect=True)

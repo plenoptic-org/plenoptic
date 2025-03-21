@@ -129,6 +129,7 @@ class Eigendistortion(Synthesis):
     """
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
+        super().__init__()
         validate_input(image, no_batch=True)
         validate_model(
             model,
@@ -148,12 +149,6 @@ class Eigendistortion(Synthesis):
         # flatten and attach gradient and reshape to image
         self._image_flat = image.flatten().unsqueeze(1).requires_grad_(True)
         self._init_representation(image)
-
-        print(
-            "\nInitializing Eigendistortion -- Input dim:"
-            f" {len(self._image_flat.squeeze())} | Output dim:"
-            f" {len(self._representation_flat.squeeze())}"
-        )
 
         self._jacobian = None
         self._eigendistortions = None
@@ -227,13 +222,11 @@ class Eigendistortion(Synthesis):
             )
 
         if method == "exact":  # compute exact Jacobian
-            print("Computing all eigendistortions")
             eig_vals, eig_vecs = self._synthesize_exact()
             eig_vecs = self._vector_to_image(eig_vecs.detach())
             eig_vecs_ind = torch.arange(len(eig_vecs))
 
         elif method == "randomized_svd":
-            print(f"Estimating top k={k} eigendistortions using randomized SVD")
             lmbda_new, v_new, error_approx = self._synthesize_randomized_svd(
                 k=k, p=p, q=q
             )
@@ -242,7 +235,7 @@ class Eigendistortion(Synthesis):
             eig_vecs_ind = torch.arange(k)
 
             # display the approximate estimation error of the range space
-            print(
+            warnings.warn(
                 "Randomized SVD complete! Estimated spectral approximation"
                 f" error = {error_approx:.2f}"
             )
@@ -304,7 +297,7 @@ class Eigendistortion(Synthesis):
             J = jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
         else:
-            print("Jacobian already computed, returning self.jacobian")
+            warnings.warn("Jacobian already computed, returning self.jacobian")
             J = self.jacobian
 
         return J
@@ -602,14 +595,15 @@ class Eigendistortion(Synthesis):
 
         Examples
         --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.simul.Gaussian(30)
+        >>> po.tools.remove_grad(model)
         >>> eig = po.synth.Eigendistortion(img, model)
-        >>> eig.synthesize(max_iter=10)
+        >>> eig.synthesize(max_iter=5)
         >>> eig.save('eig.pt')
         >>> eig_copy = po.synth.Eigendistortion(img, model)
         >>> eig_copy.load('eig.pt')
-
-        Note that you must create a new instance of the Synthesis object and
-        *then* load.
 
         """
         check_attributes = ["_image"]
