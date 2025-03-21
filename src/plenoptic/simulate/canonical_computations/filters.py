@@ -2,7 +2,7 @@ import torch
 from deprecated.sphinx import deprecated
 from torch import Tensor
 
-__all__ = ["circular_gaussian2d"]
+__all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
 @deprecated(
