@@ -15,7 +15,6 @@ Please provide a short, reproducible example of the error, for example:
 ```
 import plenoptic as po
 import torch
-import imageio
 
 img = po.data.einstein()
 model = SomeModel()
