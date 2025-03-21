@@ -17,7 +17,7 @@ import plenoptic as po
 import torch
 import imageio
 
-img = torch.tensor(imageio.imread('data/einstein.pgm'), dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+img = po.data.einstein()
 model = SomeModel()
 met = po.synth.Metamer(img, model)
 # this raises an error
