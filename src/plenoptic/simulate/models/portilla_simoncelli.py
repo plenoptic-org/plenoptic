@@ -338,6 +338,10 @@ class PortillaSimoncelli(nn.Module):
 
         Note that separate batches and channels are analyzed in parallel.
 
+        For any representation that contains info across scales, the scales always run
+        from fine to coarse, representing all orientations at a given scale before
+        moving on.
+
         Parameters
         ----------
         image :

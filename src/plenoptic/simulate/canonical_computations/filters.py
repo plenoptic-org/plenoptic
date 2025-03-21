@@ -29,6 +29,43 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     -------
     filt:
         1d Gaussian with `Size([kernel_size])`.
+
+    Examples
+    --------
+    .. plot::
+
+      >>> from plenoptic.simulate import gaussian1d
+      >>> from torch.nn.functional import conv1d
+      >>> import torch
+      >>> import matplotlib.pyplot as plt
+      >>> # define a filter
+      >>> kernel_size = 21
+      >>> filt = gaussian1d(kernel_size=kernel_size, std=2).reshape(1, 1, kernel_size)
+      >>> # define a sinusoid + noise
+      >>> sin_plus_noise = (
+      ... torch.sin(torch.linspace(0, 5 * torch.pi, 500)) +
+      ... 0.5 * torch.randn(500)
+      ... )
+      >>> sin_plus_noise = sin_plus_noise.reshape(1, 1, 500)
+      >>> # convolve signal with the Gaussian filter
+      >>> smooth_sin = conv1d(sin_plus_noise, filt, padding="same")
+      >>> # plot filter, signal and convolved signal
+      >>> f, axs = plt.subplots(3, 1)
+      >>> # plot filter and convolution results
+      >>> axs[0].plot(filt.flatten())  #doctest: +ELLIPSIS
+      [...
+      >>> axs[0].set_title("1D Gaussian filter") #doctest: +ELLIPSIS
+      Text(0.5, 1.0, '1D Gaussian filter')
+      >>> axs[1].plot(sin_plus_noise.flatten()) #doctest: +ELLIPSIS
+      [...
+      >>> axs[1].set_title("Sin + Noise") #doctest: +ELLIPSIS
+      Text(0.5, 1.0, 'Sin + Noise')
+      >>> axs[2].plot(smooth_sin.flatten()) #doctest: +ELLIPSIS
+      [...
+      >>> axs[2].set_title("Convolved Sin + Noise") #doctest: +ELLIPSIS
+      Text(0.5, 1.0, 'Convolved Sin + Noise')
+      >>> plt.tight_layout()
+
     """
     try:
         dtype = std.dtype
@@ -59,6 +96,9 @@ def circular_gaussian2d(
     ----------
     kernel_size:
         Filter kernel size. Recommended to be odd so that kernel is properly centered.
+        If you use same-padding, convolution with an odd-length kernel will also be
+        faster, see
+        https://pytorch.org/docs/stable/generated/torch.nn.functional.conv2d.html
     std:
         Standard deviation of 2D circular Gaussian.
     out_channels:
@@ -68,7 +108,27 @@ def circular_gaussian2d(
     -------
     filt:
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
-        `filt` has `Size([out_channels=n_channels, in_channels=1, height, width])`.
+        ``filt`` has shape ``(out_channels=n_channels, in_channels=1, height, width)``
+
+    Examples
+    --------
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> from plenoptic.simulate import circular_gaussian2d
+      >>> from torch.nn.functional import conv2d
+      >>> import torch
+      >>> import matplotlib.pyplot as plt
+      >>> kernel_size = 32
+      >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=2.)
+      >>> einstein_img = po.data.einstein()
+      >>> blurred_einstein = conv2d(einstein_img, filt_2d, padding="same")
+      >>> po.imshow(
+      ...     [filt_2d, einstein_img, blurred_einstein],
+      ...     title=["2D Gaussian Filter", "Einstein", "Blurred Einstein"]
+      ... )  #doctest: +ELLIPSIS
+      <PyrFigure ...>
+
     """
     device = torch.device("cpu") if isinstance(std, float) else std.device
 

@@ -17,8 +17,6 @@ mpl.rcParams["animation.writer"] = "html"
 mpl.use("agg")
 
 
-# in order for pickling to work with functions, they must be defined at top of
-# module: https://stackoverflow.com/a/36995008
 def rgb_mse(*args):
     return po.metric.mse(*args).mean()
 

@@ -11,6 +11,25 @@ import plenoptic as po
 from conftest import DEVICE, IMG_DIR
 from plenoptic.tools.data import to_numpy
 
+ALL_SPYRS = [
+    f"{h}-{o}-{c}-{d}-{tf}"
+    for h, o, c, d, tf in product(
+        ["auto", 1, 3, 4, 5],
+        [1, 2, 3],
+        [True, False],
+        [True, False],
+        [True, False],
+    )
+] + [
+    # pyramid with order=0 can only be non-complex
+    f"{h}-0-False-{d}-{tf}"
+    for h, d, tf in product(
+        ["auto", 1, 3, 4, 5],
+        [True, False],
+        [True, False],
+    )
+]
+
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     """
@@ -167,7 +186,7 @@ class TestSteerablePyramid:
     # can't use one of the spyr fixtures here because we need to instantiate separately
     # for each of these shapes
     @pytest.mark.parametrize("height", ["auto", 1, 3, 4, 5])
-    @pytest.mark.parametrize("order", [1, 2, 3])
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("is_complex", [True, False])
     @pytest.mark.parametrize(
         "im_shape",
@@ -176,13 +195,23 @@ class TestSteerablePyramid:
     def test_pyramid(self, basic_stim, height, order, is_complex, im_shape):
         if im_shape is not None:
             basic_stim = basic_stim[..., : im_shape[0], : im_shape[1]]
-        spc = po.simul.SteerablePyramidFreq(
-            basic_stim.shape[-2:],
-            height=height,
-            order=order,
-            is_complex=is_complex,
-        ).to(DEVICE)
-        spc(basic_stim)
+        expectation = does_not_raise()
+        if order == 0 and is_complex:
+            expectation = pytest.raises(
+                ValueError, match="Complex pyramid cannot have order=0"
+            )
+        elif im_shape is not None and any([im_shape[0] % 2, im_shape[1] % 2]):
+            expectation = pytest.warns(
+                Warning, match="Reconstruction will not be perfect"
+            )
+        with expectation:
+            spc = po.simul.SteerablePyramidFreq(
+                basic_stim.shape[-2:],
+                height=height,
+                order=order,
+                is_complex=is_complex,
+            ).to(DEVICE)
+            spc(basic_stim)
 
     @pytest.mark.parametrize(
         "spyr",
@@ -191,6 +220,11 @@ class TestSteerablePyramid:
             for h, o, c, d in product(
                 ["auto", 1, 2, 3], [1, 2, 3], [True, False], [True, False]
             )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-{d}-True"
+            for h, d in product(["auto", 1, 2, 3], [True, False])
         ],
         indirect=True,
     )
@@ -205,6 +239,11 @@ class TestSteerablePyramid:
             for h, o, c, t in product(
                 [3, 4, 5], [1, 2, 3], [True, False], [True, False]
             )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-{t}"
+            for h, t in product([3, 4, 5], [True, False])
         ],
         indirect=True,
     )
@@ -244,6 +283,11 @@ class TestSteerablePyramid:
         [
             f"{h}-{o}-{c}-False-False"
             for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-False-False"
+            for h in [3, 4, 5]
         ],
         indirect=True,
     )
@@ -263,6 +307,11 @@ class TestSteerablePyramid:
         [
             f"{h}-{o}-{c}-True-False"
             for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-False"
+            for h in [3, 4, 5]
         ],
         indirect=True,
     )
@@ -282,16 +331,7 @@ class TestSteerablePyramid:
 
     @pytest.mark.parametrize(
         "spyr",
-        [
-            f"{h}-{o}-{c}-{d}-{tf}"
-            for h, o, c, d, tf in product(
-                ["auto", 1, 3, 4, 5],
-                [1, 2, 3],
-                [True, False],
-                [True, False],
-                [True, False],
-            )
-        ],
+        ALL_SPYRS,
         indirect=True,
     )
     def test_complete_recon(self, img, spyr):
@@ -301,16 +341,7 @@ class TestSteerablePyramid:
 
     @pytest.mark.parametrize(
         "spyr_multi",
-        [
-            f"{h}-{o}-{c}-{d}-{tf}"
-            for h, o, c, d, tf in product(
-                ["auto", 1, 3, 4, 5],
-                [1, 2, 3],
-                [True, False],
-                [True, False],
-                [True, False],
-            )
-        ],
+        ALL_SPYRS,
         indirect=True,
     )
     def test_complete_recon_multi(self, multichannel_img, spyr_multi):
@@ -353,6 +384,11 @@ class TestSteerablePyramid:
         [
             f"{h}-{o}-{c}-True-False"
             for h, o, c in product(["auto", 1, 3, 4], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-False"
+            for h in [3, 4, 5]
         ],
         indirect=True,
     )
@@ -423,9 +459,9 @@ class TestSteerablePyramid:
             )
             pyr(img)
 
-    @pytest.mark.parametrize("order", range(17))
+    @pytest.mark.parametrize("order", range(-1, 17))
     def test_order_values(self, img, order):
-        if order in [0, 16]:
+        if order in [-1, 16]:
             expectation = pytest.raises(
                 ValueError, match="order must be an integer in the range"
             )
@@ -435,7 +471,7 @@ class TestSteerablePyramid:
             pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
             pyr(img)
 
-    @pytest.mark.parametrize("order", range(1, 16))
+    @pytest.mark.parametrize("order", range(0, 16))
     def test_buffers(self, order):
         pyr = po.simul.SteerablePyramidFreq((256, 256), order=order)
         buffers = [k for k, _ in pyr.named_buffers()]
