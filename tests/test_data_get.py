@@ -17,7 +17,7 @@ def test_data_module(item_name):
     "item_name, img_shape",
     [
         ("color_wheel", (1, 3, 600, 600)),
-        ("parrot", (1, 3, 254, 266)),
+        ("parrot", (1, 1, 254, 266)),
         ("curie", (1, 1, 256, 256)),
         ("einstein", (1, 1, 256, 256)),
         ("reptile_skin", (1, 1, 256, 256)),
