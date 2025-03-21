@@ -73,7 +73,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
         A str or list of strs. If a list, must contain paths of image
         files. If a str, can either be the path of a single image file
         or of a single directory. If a directory, we try to load every
-        file it contains (using imageio.imwrite) and skip those we
+        file it contains (using imageio.imread) and skip those we
         cannot (thus, for efficiency you should not point this to a
         directory with lots of non-image files). This is NOT recursive.
     as_gray
