@@ -321,14 +321,10 @@ def polar_radius(
     elif not hasattr(origin, "__iter__"):
         origin = (origin, origin)
 
-    # for some reason, torch.meshgrid returns them in the opposite order
-    # that np.meshgrid does. So, in order to get the same output, we
-    # grab them as (yramp, xramp) instead of (xramp, yramp). similarly,
-    # we have to reverse the order from (size[1], size[0]) to (size[0],
-    # size[1])
-    yramp, xramp = torch.meshgrid(
-        torch.arange(1, size[0] + 1, device=device) - origin[0],
+    xramp, yramp = torch.meshgrid(
         torch.arange(1, size[1] + 1, device=device) - origin[1],
+        torch.arange(1, size[0] + 1, device=device) - origin[0],
+        indexing="xy",
     )
 
     if exponent <= 0:
@@ -397,14 +393,10 @@ def polar_angle(
     elif not hasattr(origin, "__iter__"):
         origin = (origin, origin)
 
-    # for some reason, torch.meshgrid returns them in the opposite order
-    # that np.meshgrid does. So, in order to get the same output, we
-    # grab them as (yramp, xramp) instead of (xramp, yramp). similarly,
-    # we have to reverse the order from (size[1], size[0]) to (size[0],
-    # size[1])
-    yramp, xramp = torch.meshgrid(
-        torch.arange(1, size[0] + 1, device=device) - origin[0],
+    xramp, yramp = torch.meshgrid(
         torch.arange(1, size[1] + 1, device=device) - origin[1],
+        torch.arange(1, size[0] + 1, device=device) - origin[0],
+        indexing="xy",
     )
     if direction == "counter-clockwise":
         yramp = torch.flip(yramp, [0])
