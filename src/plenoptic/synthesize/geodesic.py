@@ -192,9 +192,9 @@ class Geodesic(OptimizedSynthesis):
         >>> geod.setup("bridge", optimizer=torch.optim.SGD,
         ...            optimizer_kwargs={"lr": 0.01})
         >>> geod.synthesize(10)
-        >>> geod.save("test.pt")
+        >>> geod.save("geod_setup.pt")
         >>> geod = po.synth.Geodesic(img, img/2, model)
-        >>> geod.load("test.pt")
+        >>> geod.load("geod_setup.pt")
         >>> geod.setup(optimizer=torch.optim.SGD)
         >>> geod.synthesize(10)
 

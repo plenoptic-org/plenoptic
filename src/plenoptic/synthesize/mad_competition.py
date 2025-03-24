@@ -215,10 +215,10 @@ class MADCompetition(OptimizedSynthesis):
         ...                               po.metric.mse, "min")
         >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
-        >>> mad.save("test.pt")
+        >>> mad.save("mad_setup.pt")
         >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
         ...                               po.metric.mse, "min")
-        >>> mad.load("test.pt")
+        >>> mad.load("mad_setup.pt")
         >>> mad.setup(optimizer=torch.optim.SGD)
         >>> mad.synthesize(10)
         """
