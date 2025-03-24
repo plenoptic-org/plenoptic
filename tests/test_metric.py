@@ -7,11 +7,12 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.data.fetch import fetch_data
 
 
 @pytest.fixture()
 def test_files_dir():
-    return po.data.fetch_data("plenoptic-test-files.tar.gz")
+    return fetch_data("plenoptic-test-files.tar.gz")
 
 
 def test_find_files(test_files_dir):
@@ -20,17 +21,17 @@ def test_find_files(test_files_dir):
 
 @pytest.fixture()
 def ssim_images():
-    return po.data.fetch_data("ssim_images.tar.gz")
+    return fetch_data("ssim_images.tar.gz")
 
 
 @pytest.fixture()
 def msssim_images():
-    return po.data.fetch_data("msssim_images.tar.gz")
+    return fetch_data("msssim_images.tar.gz")
 
 
 @pytest.fixture()
 def ssim_analysis():
-    ssim_analysis = po.data.fetch_data("ssim_analysis.mat")
+    ssim_analysis = fetch_data("ssim_analysis.mat")
     return sio.loadmat(ssim_analysis, squeeze_me=True)
 
 
