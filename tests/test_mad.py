@@ -1,5 +1,6 @@
 # necessary to avoid issues with animate:
 # https://github.com/matplotlib/matplotlib/issues/10287/
+import inspect
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
@@ -33,7 +34,7 @@ def dis_ssim(*args):
 class ModuleMetric(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.mdl = po.metric.NLP()
+        self.mdl = po.simul.Gaussian((31, 31)).to(DEVICE)
 
     def forward(self, x, y):
         return (self.mdl(x) - self.mdl(y)).abs().mean()
@@ -545,11 +546,13 @@ class TestMAD:
         elif mad.scheduler is not None:
             raise ValueError("Didn't set scheduler to None!")
 
-    @pytest.mark.parametrize(
-        "metric", [po.metric.mse, ModuleMetric(), NonModuleMetric()]
-    )
+    @pytest.mark.parametrize("metric", [po.metric.mse, ModuleMetric, NonModuleMetric])
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, metric, to_type):
+        # if metric is not the po.metric.mse function above, initialize it here,
+        # otherwise we can get a weird state-dependence
+        if not inspect.isfunction(metric):
+            metric = metric()
         mad = po.synth.MADCompetition(curie_img, metric, po.tools.optim.l2_norm, "min")
         mad.synthesize(max_iter=5)
         if to_type == "dtype":

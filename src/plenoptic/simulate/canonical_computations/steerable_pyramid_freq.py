@@ -176,6 +176,7 @@ class SteerablePyramidFreq(nn.Module):
         (xramp, yramp) = np.meshgrid(
             np.linspace(-1, 1, dims[1] + 1)[:-1],
             np.linspace(-1, 1, dims[0] + 1)[:-1],
+            indexing="xy",
         )
 
         self.angle = np.arctan2(yramp, xramp)

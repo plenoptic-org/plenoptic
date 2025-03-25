@@ -1,9 +1,14 @@
 import torch
+from deprecated.sphinx import deprecated
 from torch import Tensor
 
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
+@deprecated(
+    "gaussian1d will be removed soon.",  # noqa: E501
+    "1.2.0",
+)
 def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
     """Normalized 1D Gaussian.
 
@@ -141,7 +146,7 @@ def circular_gaussian2d(
     shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]  # height
     shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]  # width
 
-    (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
+    (xramp, yramp) = torch.meshgrid(shift_x, shift_y, indexing="xy")
 
     log_filt = (xramp**2) + (yramp**2)
     log_filt = log_filt.repeat(out_channels, 1, 1, 1)  # 4D
