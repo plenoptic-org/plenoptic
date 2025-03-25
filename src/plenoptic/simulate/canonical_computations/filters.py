@@ -146,7 +146,7 @@ def circular_gaussian2d(
     shift_y = torch.arange(1, kernel_size[0] + 1, device=device) - origin[0]  # height
     shift_x = torch.arange(1, kernel_size[1] + 1, device=device) - origin[1]  # width
 
-    (xramp, yramp) = torch.meshgrid(shift_y, shift_x)
+    (xramp, yramp) = torch.meshgrid(shift_x, shift_y, indexing="xy")
 
     log_filt = (xramp**2) + (yramp**2)
     log_filt = log_filt.repeat(out_channels, 1, 1, 1)  # 4D

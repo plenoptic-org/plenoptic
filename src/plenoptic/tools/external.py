@@ -6,7 +6,7 @@ For example, pre-existing synthesized images
 
 import os.path as op
 
-import imageio
+import imageio.v3 as iio
 import matplotlib.lines as lines
 import numpy as np
 import pyrtools as pt
@@ -80,7 +80,7 @@ def plot_MAD_results(
     if ssim_images_dir is None:
         ssim_images_dir = str(fetch_data("ssim_images.tar.gz"))
     img_path = op.join(op.expanduser(ssim_images_dir), f"{original_image}.tif")
-    orig_img = imageio.imread(img_path)
+    orig_img = iio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:
         noise_levels = [2**i for i in range(1, 11)]
