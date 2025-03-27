@@ -135,7 +135,6 @@ class Geodesic(OptimizedSynthesis):
     def setup(
         self,
         initial_sequence: Literal["straight", "bridge"] | None = None,
-        n_steps: int = 10,
         optimizer: torch.optim.Optimizer | None = None,
         optimizer_kwargs: dict | None = None,
     ):
@@ -150,9 +149,6 @@ class Geodesic(OptimizedSynthesis):
             initialize the geodesic with pixel linear interpolation
             (``'straight'``), or with a brownian bridge between the two anchors
             (``'bridge'``). If None, use ``'straight'``.
-        n_steps
-            the number of steps (i.e., transitions) in the trajectory between the
-            two anchor points.
         optimizer :
             The un-initialized optimizer object to use. If None, we use Adam(lr=.001,
             amsgrad=True).
@@ -203,14 +199,18 @@ class Geodesic(OptimizedSynthesis):
             if initial_sequence is None:
                 initial_sequence = "straight"
             if initial_sequence == "bridge":
-                geodesic = sample_brownian_bridge(self._image_a, self._image_b, n_steps)
+                geodesic = sample_brownian_bridge(
+                    self._image_a, self._image_b, self.n_steps
+                )
             elif initial_sequence == "straight":
-                geodesic = make_straight_line(self._image_a, self._image_b, n_steps)
+                geodesic = make_straight_line(
+                    self._image_a, self._image_b, self.n_steps
+                )
             else:
                 raise ValueError(
                     f"Don't know how to handle initial_sequence={initial_sequence}"
                 )
-            _, geodesic, _ = torch.split(geodesic, [1, n_steps - 1, 1])
+            _, geodesic, _ = torch.split(geodesic, [1, self.n_steps - 1, 1])
             geodesic.requires_grad_()
             self._geodesic = geodesic
         else:
@@ -232,7 +232,6 @@ class Geodesic(OptimizedSynthesis):
     def synthesize(
         self,
         max_iter: int = 1000,
-        optimizer: torch.optim.Optimizer | None = None,
         store_progress: bool | int = False,
         stop_criterion: float | None = None,
         stop_iters_to_check: int = 50,
@@ -244,11 +243,6 @@ class Geodesic(OptimizedSynthesis):
         max_iter
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
-        optimizer
-            The optimizer to use. If None and this is the first time calling
-            synthesize, we use Adam(lr=.001, amsgrad=True); if synthesize has
-            been called before, this must be None and we reuse the previous
-            optimizer.
         store_progress
             Whether we should store the step energy and deviation of the
             representation from a straight line. If False, we don't save
@@ -270,7 +264,7 @@ class Geodesic(OptimizedSynthesis):
             # semi arbitrary default choice of tolerance
             stop_criterion = (
                 torch.linalg.vector_norm(self.pixelfade, ord=2) / 1e4 * (1 + 5**0.5) / 2
-            )
+            ).item()
             warnings.warn(
                 "Since stop_criterion was None, automatically set to "
                 f"{stop_criterion:.5e}"
@@ -340,7 +334,7 @@ class Geodesic(OptimizedSynthesis):
         # the first time we call calculate_step_energy, we cache this info for later
         # use. this allows us to work with representations of 3 or 4 dims
         if self._step_energy_dims is None:
-            self._step_energy_dims = list(range(1, z.ndim))
+            self._step_energy_dims = list(range(2, z.ndim))
         step_energy = (
             torch.linalg.vector_norm(velocity, ord=2, dim=self._step_energy_dims) ** 2
         )
