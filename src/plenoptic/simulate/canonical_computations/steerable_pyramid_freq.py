@@ -297,6 +297,8 @@ class SteerablePyramidFreq(nn.Module):
 
         # reasonable default dtype
         self.to(torch.float32)
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def forward(
         self,

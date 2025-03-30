@@ -146,6 +146,8 @@ class PortillaSimoncelli(nn.Module):
         self._representation_scales = self._representation_scales[
             self._necessary_stats_mask
         ]
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def _create_scales_shape_dict(self) -> OrderedDict:
         """Create dictionary defining scales and shape of each stat.
