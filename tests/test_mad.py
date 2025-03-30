@@ -398,7 +398,7 @@ class TestMAD:
             mad.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             mad.load(op.join(tmp_path, "test_mad_load_attributes.pt"))
 

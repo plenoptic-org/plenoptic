@@ -303,7 +303,7 @@ class TestEigendistortionSynthesis:
             eig.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
 

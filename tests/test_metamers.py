@@ -189,7 +189,7 @@ class TestMetamers:
     def test_setup_fail(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup()
-        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
+        with pytest.raises(ValueError, match=r"setup\(\) can only be called once"):
             met.setup()
 
     @pytest.mark.parametrize(
@@ -353,7 +353,7 @@ class TestMetamers:
             met.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             met.load(op.join(tmp_path, "test_metamer_load_attributes.pt"))
 

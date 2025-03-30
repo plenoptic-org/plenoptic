@@ -321,7 +321,7 @@ class TestGeodesic:
     def test_setup_fail(self, einstein_img, model):
         geod = po.synth.Geodesic(einstein_img, einstein_img / 2, model)
         geod.setup()
-        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
+        with pytest.raises(ValueError, match=r"setup\(\) can only be called once"):
             geod.setup()
 
     @pytest.mark.parametrize(
@@ -465,7 +465,7 @@ class TestGeodesic:
             geod.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             geod.load(op.join(tmp_path, "test_geodesic_load_attributes.pt"))
 
