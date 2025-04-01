@@ -1,20 +1,13 @@
-# necessary to avoid issues with animate:
-# https://github.com/matplotlib/matplotlib/issues/10287/
 import inspect
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
-import matplotlib as mpl
 import numpy as np
 import pytest
 import torch
 
 import plenoptic as po
 from conftest import DEVICE
-
-# use the html backend, so we don't need to have ffmpeg
-mpl.rcParams["animation.writer"] = "html"
-mpl.use("agg")
 
 
 def rgb_mse(*args):

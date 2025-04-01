@@ -1,11 +1,5 @@
-# necessary to avoid issues with animate:
-# https://github.com/matplotlib/matplotlib/issues/10287/
-from contextlib import nullcontext as does_not_raise
-
-import matplotlib
-
-matplotlib.use("agg")
 import os.path as op
+from contextlib import nullcontext as does_not_raise
 
 import numpy as np
 import pytest
