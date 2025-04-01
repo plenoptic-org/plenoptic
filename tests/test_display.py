@@ -533,6 +533,7 @@ class TestDisplay:
                 return super().forward(*args, **kwargs)
 
         model = TestModel().to(DEVICE)
+        model.eval()
         po.tools.remove_grad(model)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
@@ -674,7 +675,9 @@ class TestMADDisplay:
         def rgb_mse(*args, **kwargs):
             return po.metric.mse(*args, **kwargs).mean()
 
-        mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, "min")
+        mad = po.synth.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
         mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
@@ -737,13 +740,21 @@ class TestMADDisplay:
         def model2(*args):
             return 1 - po.metric.ssim(*args).mean()
 
-        mad = po.synth.MADCompetition(img, model1, model2, "min")
+        mad = po.synth.MADCompetition(
+            img, model1, model2, "min", metric_tradeoff_lambda=1
+        )
         mad.synthesize(max_iter=2)
-        mad2 = po.synth.MADCompetition(img, model1, model2, "max")
+        mad2 = po.synth.MADCompetition(
+            img, model1, model2, "max", metric_tradeoff_lambda=1
+        )
         mad2.synthesize(max_iter=2)
-        mad3 = po.synth.MADCompetition(img, model2, model1, "min")
+        mad3 = po.synth.MADCompetition(
+            img, model2, model1, "min", metric_tradeoff_lambda=1
+        )
         mad3.synthesize(max_iter=2)
-        mad4 = po.synth.MADCompetition(img, model2, model1, "max")
+        mad4 = po.synth.MADCompetition(
+            img, model2, model1, "max", metric_tradeoff_lambda=1
+        )
         mad4.synthesize(max_iter=2)
         return mad, mad2, mad3, mad4
 
