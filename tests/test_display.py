@@ -642,17 +642,17 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             axes_idx=axes_idx,
             **plot_kwargs,
         )
+        plt.close(fig)
     if func == "animate":
+        # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
-        anim = containing_file.animate(
+        containing_file.animate(
             synthesis_object,
             fig=fig,
             axes_idx=axes_idx,
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
-        fig = anim._fig
-    plt.close(fig)
 
 
 class TestMADDisplay:
