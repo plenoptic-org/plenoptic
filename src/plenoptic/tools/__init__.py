@@ -9,5 +9,4 @@ from .io import *
 from .optim import *
 from .signal import *
 from .stats import *
-from .straightness import *
 from .validate import remove_grad

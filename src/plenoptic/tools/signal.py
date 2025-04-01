@@ -1,76 +1,7 @@
 import numpy as np
 import torch
-from deprecated.sphinx import deprecated
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torch import Tensor
-
-
-@deprecated(
-    "Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce",
-    version="1.1.0",
-)
-def minimum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
-    r"""Compute minimum in torch over any axis or combination of axes in tensor.
-
-    Parameters
-    ----------
-    x
-        Input tensor.
-    dim
-        Dimensions over which you would like to compute the minimum.
-    keepdim
-        Keep original dimensions of tensor when returning result.
-
-    Returns
-    -------
-    min_x
-        Minimum value of x.
-
-    Notes
-    -----
-
-    """
-    if dim is None:
-        dim = tuple(range(x.ndim))
-    dim = reversed(sorted(dim))
-    min_x = x
-    for i in dim:
-        min_x, _ = min_x.min(i, keepdim)
-    return min_x
-
-
-@deprecated(
-    "Use :py:func:`einops.reduce` instead: https://einops.rocks/1-einops-basics/#meet-einopsreduce",
-    version="1.1.0",
-)  # noqa: E501
-def maximum(x: Tensor, dim: list[int] | None = None, keepdim: bool = False) -> Tensor:
-    r"""Compute maximum in torch over any dim or combination of axes in tensor.
-
-    Parameters
-    ----------
-    x
-        Input tensor
-    dim
-        Dimensions over which you would like to compute the minimum
-    keepdim
-        Keep original dimensions of tensor when returning result
-
-    Returns
-    -------
-    max_x
-        Maximum value of x.
-
-    Notes
-    -----
-
-    """
-    if dim is None:
-        dim = tuple(range(x.ndim))
-    dim = reversed(sorted(dim))
-    max_x = x
-    for i in dim:
-        max_x, _ = max_x.max(i, keepdim)
-    return max_x
 
 
 def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
