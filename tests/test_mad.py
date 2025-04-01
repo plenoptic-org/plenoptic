@@ -748,7 +748,7 @@ class TestMAD:
         # for reproducibility
         po.tools.set_seed(0)
         mad = po.synth.MADCompetition(
-            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=0.1
         )
         mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
         assert abs(mad.losses[-5] - mad.losses[-1]) < 1e-3, (
