@@ -297,7 +297,6 @@ class Eigendistortion(Synthesis):
             J = jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
         else:
-            warnings.warn("Jacobian already computed, returning self.jacobian")
             J = self.jacobian
 
         return J
