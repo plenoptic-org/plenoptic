@@ -596,7 +596,7 @@ def template_test_synthesis_all_plot(
         )
         if fig_creation.endswith("without"):
             axes_idx = {}
-    fig = containing_file.plot_synthesis_status(
+    fig, _ = containing_file.plot_synthesis_status(
         synthesis_object,
         iteration=iteration,
         included_plots=included_plots,

@@ -919,7 +919,7 @@ class TestPortillaSimoncelli:
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE)
-        fig = model.plot_representation(
+        fig, _ = model.plot_representation(
             model(einstein_img.repeat((*batch_channel, 1, 1))),
             title="Representation",
         )
