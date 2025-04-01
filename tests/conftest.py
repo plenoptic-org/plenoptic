@@ -52,7 +52,7 @@ def color_img():
 
 @pytest.fixture(scope="package")
 def basic_stim():
-    return po.load_images(IMG_DIR / "256")
+    return po.load_images(IMG_DIR / "256").to(DEVICE)
 
 
 def get_model(name):
