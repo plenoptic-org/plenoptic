@@ -58,8 +58,8 @@ class TestSignal:
         assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
 
     @pytest.mark.parametrize("n", range(1, 15))
-    def test_autocorrelation(self, n):
-        x = po.tools.make_synthetic_stimuli().to(DEVICE)
+    def test_autocorrelation(self, n, basic_stim):
+        x = basic_stim
         x_centered = x - x.mean((2, 3), keepdim=True)
         a = po.tools.autocorrelation(x_centered)
         a = po.tools.center_crop(a, n)

@@ -524,7 +524,7 @@ the object multiple times. Look at `conftest.py` to see those fixtures available
 for all tests, or you can write your own (though pay attention to the
 [scope](https://docs.pytest.org/en/stable/fixture.html#scope-sharing-fixtures-across-classes-modules-packages-or-session)).
 For example, `conftest.py` contains several images that you can use for your
-tests, such as `basic_stimuli`, `curie_img`, or `color_img`. To use them, simply
+tests, such as `basic_stim`, `curie_img`, or `color_img`. To use them, simply
 add them as arguments to your function:
 
 ```python

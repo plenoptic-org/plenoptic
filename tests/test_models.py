@@ -153,9 +153,10 @@ class TestNonLinearities:
 
 
 class TestLaplacianPyramid:
-    def test_grad(self, basic_stim):
+    def test_gradient_flow(self):
         lpyr = po.simul.LaplacianPyramid().to(DEVICE)
-        y = lpyr.forward(basic_stim)
+        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
+        y = lpyr.forward(img)
         assert y[0].requires_grad
 
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
