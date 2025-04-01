@@ -397,6 +397,7 @@ class TestValidate:
                 return np.fft.fft(img)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError, match="model does not return a torch.Tensor object"
         ):
@@ -413,6 +414,7 @@ class TestValidate:
                 return img.detach()
 
         model = TestModel()
+        model.eval()
         with pytest.raises(ValueError, match="model strips gradient from input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -425,6 +427,7 @@ class TestValidate:
                 return torch.from_numpy(np.fft.fft(img))
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError,
             match="model tries to cast the input into something other",
@@ -442,6 +445,7 @@ class TestValidate:
                 return img.to(torch.float16)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(TypeError, match="model changes precision of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -458,6 +462,7 @@ class TestValidate:
                     return img.unsqueeze(0)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(ValueError, match="When given a 4d input, model output"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -471,6 +476,7 @@ class TestValidate:
                 return img.to("cpu")
 
         model = TestModel()
+        model.eval()
         with pytest.raises(RuntimeError, match="model changes device of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -488,6 +494,7 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(AttributeError, match="model has no scales attribute"):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
@@ -501,6 +508,7 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             TypeError,
             match="model forward method does not accept scales argument",
@@ -517,6 +525,7 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError,
             match="Output of model forward method doesn't change shape",

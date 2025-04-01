@@ -95,6 +95,7 @@ def get_model(name):
     elif name == "ColorModel":
         model = ColorModel().to(DEVICE)
         po.tools.remove_grad(model)
+        model.eval()
         return model
 
     # naive models
@@ -136,10 +137,10 @@ def get_model(name):
         model.eval()
         return model
     elif name == "frontend.OnOff.nograd":
-        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(mdl)
+        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.tools.remove_grad(model)
         model.eval()
-        return mdl
+        return model
     elif name == "VideoModel":
         # super simple model that combines across the batch dimension, as a
         # model with a temporal component would do
