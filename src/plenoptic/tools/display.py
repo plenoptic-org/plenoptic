@@ -950,7 +950,7 @@ def plot_representation(
     model=None,
     data=None,
     ax=None,
-    figsize=(5, 5),
+    figsize=None,
     ylim=False,
     batch_idx=0,
     title="",
@@ -994,8 +994,7 @@ def plot_representation(
     ax : matplotlib.pyplot.axis or None, optional
         The axis to plot on. See above for behavior if ``None``.
     figsize : `tuple`, optional
-        The size of the figure to create. Ignored if ``ax`` is not
-        ``None``.
+        The size of the figure to create. Must be ``None`` if ax is not ``None``
     ylim : `tuple`, `None`, or `False`, optional
         If not None, the y-limits to use for this plot. See above for
         behavior if ``None``. If False, we do nothing.
@@ -1019,9 +1018,12 @@ def plot_representation(
 
     """
     if ax is None:
+        if figsize is None:
+            figsize = (5, 5)
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     else:
-        warnings.warn("ax is not None, so we're ignoring figsize...")
+        if figsize is not None:
+            raise ValueError("figsize can't be set if ax is not None")
         fig = ax.figure
     try:
         # no point in passing figsize, because we've already created
