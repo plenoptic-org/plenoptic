@@ -126,15 +126,23 @@ def imshow(
     for im in image:
         im = to_numpy(im)
         if im.shape[0] > 1 and batch_idx is not None:
-            # this preserves the number of dimensions
-            im = im[batch_idx : batch_idx + 1]
+            try:
+                # this preserves the number of dimensions
+                im = im[batch_idx : batch_idx + 1]
+            except TypeError:
+                raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
         if channel_idx is not None:
-            # this preserves the number of dimensions
-            im = im[:, channel_idx : channel_idx + 1]
+            try:
+                # this preserves the number of dimensions
+                im = im[:, channel_idx : channel_idx + 1]
+            except TypeError:
+                raise TypeError(
+                    f"channel_idx must be an int or None but got {channel_idx}"
+                )
         # allow RGB and RGBA
         if as_rgb:
             if im.shape[1] not in [3, 4]:
-                raise Exception(
+                raise ValueError(
                     "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
             im = im.transpose(0, 2, 3, 1)
@@ -142,7 +150,7 @@ def imshow(
             # into a list below works as expected
             im = im.reshape((im.shape[0], 1, *im.shape[1:]))
         elif im.shape[1] > 1 and im.shape[0] > 1:
-            raise Exception(
+            raise ValueError(
                 "Don't know how to plot images with more than one channel and"
                 " batch! Use batch_idx / channel_idx to choose a subset for"
                 " plotting"
@@ -335,14 +343,22 @@ def animshow(
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
-            vid = vid[batch_idx : batch_idx + 1]
+            try:
+                vid = vid[batch_idx : batch_idx + 1]
+            except TypeError:
+                raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
         if channel_idx is not None:
-            # this preserves the number of dimensions
-            vid = vid[:, channel_idx : channel_idx + 1]
+            try:
+                # this preserves the number of dimensions
+                vid = vid[:, channel_idx : channel_idx + 1]
+            except TypeError:
+                raise TypeError(
+                    f"channel_idx must be an int or None but got {channel_idx}"
+                )
         # allow RGB and RGBA
         if as_rgb:
             if vid.shape[1] not in [3, 4]:
-                raise Exception(
+                raise ValueError(
                     "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
             vid = vid.transpose(0, 2, 3, 4, 1)
@@ -350,7 +366,7 @@ def animshow(
             # into a list below works as expected
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
         elif vid.shape[1] > 1 and vid.shape[0] > 1:
-            raise Exception(
+            raise ValueError(
                 "Don't know how to plot images with more than one channel and"
                 " batch! Use batch_idx / channel_idx to choose a subset for"
                 " plotting"
@@ -464,10 +480,16 @@ def pyrshow(
         im = to_numpy(v)
         if np.iscomplex(im).any():
             is_complex = True
-        # this removes only the first (batch) dimension
-        im = im[batch_idx : batch_idx + 1].squeeze(0)
-        # this removes only the first (now channel) dimension
-        im = im[channel_idx : channel_idx + 1].squeeze(0)
+        try:
+            # this removes only the first (batch) dimension
+            im = im[batch_idx : batch_idx + 1].squeeze(0)
+        except TypeError:
+            raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
+        try:
+            # this removes only the first (now channel) dimension
+            im = im[channel_idx : channel_idx + 1].squeeze(0)
+        except TypeError:
+            raise TypeError(f"channel_idx must be an int or None but got {channel_idx}")
         # because of how we've handled everything above, we know that im will
         # be (h,w).
         pyr_coeffvis[k] = im
@@ -741,7 +763,7 @@ def _get_artists_from_axes(axes, data):
             artists = {ax.get_label(): ax for ax in artists}
         else:
             if data_check == 1 and data.shape[1] != len(artists):
-                raise Exception(
+                raise ValueError(
                     f"data has {data.shape[1]} things to plot, but "
                     f"your axis contains {len(artists)} plotting artists, "
                     "so unsure how to continue! Pass data as a dictionary"
@@ -749,7 +771,7 @@ def _get_artists_from_axes(axes, data):
                     " to update to resolve this."
                 )
             elif data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
-                raise Exception(
+                raise ValueError(
                     f"data has {data.shape[-3]} things to plot, but "
                     f"your axis contains {len(artists)} plotting artists, "
                     "so unsure how to continue! Pass data as a dictionary"
@@ -776,7 +798,7 @@ def _get_artists_from_axes(axes, data):
                 data_check = 2
         if isinstance(data, dict):
             if len(data.keys()) != len(artists):
-                raise Exception(
+                raise ValueError(
                     f"data has {len(data.keys())} things to plot, but "
                     f"you passed {len(axes)} axes , so unsure how "
                     "to continue!"
@@ -784,13 +806,13 @@ def _get_artists_from_axes(axes, data):
             artists = {k: a for k, a in zip(data.keys(), artists)}
         else:
             if data_check == 1 and data.shape[1] != len(artists):
-                raise Exception(
+                raise ValueError(
                     f"data has {data.shape[1]} things to plot, but "
                     f"you passed {len(axes)} axes , so unsure how "
                     "to continue!"
                 )
             if data_check == 2 and data.ndim > 2 and data.shape[-3] != len(artists):
-                raise Exception(
+                raise ValueError(
                     f"data has {data.shape[-3]} things to plot, but "
                     f"you passed {len(axes)} axes , so unsure how "
                     "to continue!"
@@ -895,7 +917,7 @@ def update_plot(axes, data, model=None, batch_idx=0):
                         # then this is an RGBA image
                         data_dict = {"00": data}
                 except Exception as e:
-                    raise Exception(
+                    raise ValueError(
                         "Thought this was an RGB(A) image based on the number"
                         " of artists and data shape, but something is off!"
                         f" Original exception: {e}"
@@ -1091,7 +1113,7 @@ def plot_representation(
             # ylim at all
             ylim = False
         else:
-            raise Exception(f"Don't know what to do with data of shape {data.shape}")
+            raise ValueError(f"Don't know what to do with data of shape {data.shape}")
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
