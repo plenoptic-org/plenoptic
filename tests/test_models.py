@@ -231,29 +231,31 @@ class TestFrontEnd:
     def test_kernel_size(self, mdl, einstein_img):
         kernel_size = 31
         if mdl == "frontend.LinearNonlinear":
-            model = po.simul.LinearNonlinear(kernel_size, pretrained=True).to(DEVICE)
+            model = po.simul.LinearNonlinear(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
             model2 = po.simul.LinearNonlinear(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceGainControl":
-            model = po.simul.LuminanceGainControl(kernel_size, pretrained=True).to(
-                DEVICE
-            )
+            model = po.simul.LuminanceGainControl(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
             model2 = po.simul.LuminanceGainControl(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceContrastGainControl":
             model = po.simul.LuminanceContrastGainControl(
-                kernel_size, pretrained=True
+                kernel_size, pretrained=True, cache_filt=True
             ).to(DEVICE)
             model2 = po.simul.LuminanceContrastGainControl(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.OnOff":
             model = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
-            model2 = po.simul.OnOff((kernel_size, kernel_size), pretrained=True).to(
-                DEVICE
-            )
+            model2 = po.simul.OnOff(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
         assert torch.allclose(model(einstein_img), model2(einstein_img)), (
             "Kernels somehow different!"
         )
