@@ -84,6 +84,10 @@ local_scheme = 'no-local-version'
 addopts = "--cov=src -n auto"
 testpaths = ["tests"]
 doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
+filterwarnings = [
+    "ignore:Loss has converged:UserWarning",
+    "ignore:Image range falls outside:UserWarning",
+]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
