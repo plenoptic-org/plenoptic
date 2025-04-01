@@ -19,7 +19,7 @@
              :target: https://codecov.io/gh/plenoptic-org/plenoptic
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
-		    :target: https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples
+		    :target: https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples
 
 .. plenoptic documentation master file, created by
    sphinx-quickstart on Thu Jun 20 15:56:27 2019.
