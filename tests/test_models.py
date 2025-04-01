@@ -919,22 +919,24 @@ class TestPortillaSimoncelli:
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE)
-        model.plot_representation(
+        fig = model.plot_representation(
             model(einstein_img.repeat((*batch_channel, 1, 1))),
             title="Representation",
         )
+        plt.close(fig)
 
     def test_update_plot(self, einstein_img):
         model = po.simul.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
-        _, axes = model.plot_representation(model(einstein_img))
+        fig, axes = model.plot_representation(model(einstein_img))
         orig_y = axes[0].containers[0].markerline.get_ydata()
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         artists = model.update_plot(axes, model(img).cpu())
         updated_y = artists[0].get_ydata()
         if np.equal(orig_y, updated_y).all():
             raise ValueError("Update plot didn't run successfully!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])

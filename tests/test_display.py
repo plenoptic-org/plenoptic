@@ -596,7 +596,7 @@ def template_test_synthesis_all_plot(
         )
         if fig_creation.endswith("without"):
             axes_idx = {}
-    containing_file.plot_synthesis_status(
+    fig = containing_file.plot_synthesis_status(
         synthesis_object,
         iteration=iteration,
         included_plots=included_plots,
@@ -644,13 +644,14 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
         )
     if func == "animate":
         path = tmp_path / "test_anim.html"
-        containing_file.animate(
+        anim = containing_file.animate(
             synthesis_object,
             fig=fig,
             axes_idx=axes_idx,
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
+        fig = anim._fig
     plt.close(fig)
 
 
