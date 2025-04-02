@@ -595,7 +595,7 @@ class Eigendistortion(Synthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> eig = po.synth.Eigendistortion(img, model)
         >>> eig.synthesize(max_iter=5)

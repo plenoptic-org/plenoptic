@@ -71,7 +71,10 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[dev]
     - name: Run tests with pytest
       run: |
-        pytest --doctest-modules --doctest-continue-on-failure src/
+        # Ignore the deprecation warning for gaussian1d, which we'll remove
+        # soon, and a warning from pytorch about how padding may make things
+        # slower
+        pytest --doctest-modules src/ -W "ignore:Call to deprecated function (or staticmethod) gaussian1d:DeprecationWarning" -W "ignore:Using padding=:UserWarning"
   tests:
     runs-on: ubuntu-latest
     strategy:
