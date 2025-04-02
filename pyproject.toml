@@ -99,6 +99,10 @@ filterwarnings = [
     "ignore:Randomized SVD complete!:UserWarning",
     "ignore:You will need to call setup:UserWarning",
     "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+    # pooch issue with python>=3.12, fixed in
+    # https://github.com/fatiando/pooch/pull/458 but not in release as of April
+    # 2025.
+    "ignore:Python 3.14 will, by default, filter extracted tar archives:DeprecationWarning",
 ]
 
 [tool.ruff]
