@@ -599,23 +599,23 @@ class TestOptim:
 class TestPolarImages:
     def test_polar_angle_clockwise(self):
         ang = po.tools.polar_angle(100, direction="clockwise")
-        idx = po.to_numpy(np.argmin((ang - np.pi / 2) ** 2))
-        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+        idx = torch.argmin((ang - np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] > 50, (
             "pi/2 should be in bottom half of image!"
         )
-        idx = po.to_numpy(np.argmin((ang + np.pi / 2) ** 2))
-        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+        idx = torch.argmin((ang + np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] < 50, (
             "pi/2 should be in top half of image!"
         )
 
     def test_polar_angle_counterclockwise(self):
         ang = po.tools.polar_angle(100, direction="counter-clockwise")
-        idx = po.to_numpy(np.argmin((ang - np.pi / 2) ** 2))
-        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+        idx = torch.argmin((ang - np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] < 50, (
             "pi/2 should be in top half of image!"
         )
-        idx = po.to_numpy(np.argmin((ang + np.pi / 2) ** 2))
-        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+        idx = torch.argmin((ang + np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] > 50, (
             "pi/2 should be in bottom half of image!"
         )
 
