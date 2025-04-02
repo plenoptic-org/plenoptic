@@ -428,6 +428,25 @@ existing ones, you can create a new test script. Its name must begin with
 `tests` directory. Assuming you do that, our github actions will automatically
 find it and add it to the tests-to-run.
 
+Note that we also require that tests raise no warnings (see [PR
+#335](https://github.com/plenoptic-org/plenoptic/pull/335)). This allows to stay
+on top of deprecation warnings from our dependencies. There are several ways to
+avoid warnings in tests, in order from most-to-least preferred:
+
+- Write tests such that they avoid warnings. For example, all synthesis methods
+  call `validate_model`, which will raise a warning if the model is in "training
+  mode" (e.g., `model.training` exists and is True). The default behavior of
+  `torch.nn.Module` objects is to be in training mode after initialization.
+  Thus, we call `model.eval()` before passing a model to a synthesis method in a
+  test.
+- Selectively ignore the warning on a given test using
+  `@pytest.mark.filterwarnings`. See our tests for an example or the [pytest
+  documentation](https://docs.pytest.org/en/stable/how-to/capture-warnings.html#pytest-mark-filterwarnings) for an explanation.
+- Configure pytest to ignore the warning for all tests by updating
+  `filterwarnings` in `pyproject.toml`. This will only be considered for
+  warnings that are raised in a variety of contexts; in general, the first two
+  are preferred.
+
 ### Testing notebooks
 
 We use [jupyter
