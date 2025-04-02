@@ -192,6 +192,9 @@ class TestSteerablePyramid:
         "im_shape",
         [None, (255, 255), (256, 128), (128, 256), (255, 256), (256, 255)],
     )
+    @pytest.mark.filterwarnings(
+        "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
+    )
     def test_pyramid(self, basic_stim, height, order, is_complex, im_shape):
         if im_shape is not None:
             basic_stim = basic_stim[..., : im_shape[0], : im_shape[1]]
@@ -301,6 +304,40 @@ class TestSteerablePyramid:
             )
             pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
             check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
+
+    @pytest.mark.parametrize(
+        "spyr",
+        ALL_SPYRS,
+        indirect=True,
+    )
+    def test_residuals_real_valued(self, img, spyr):
+        pyr_coeff_dict = spyr.forward(img)
+        if pyr_coeff_dict["residual_highpass"].dtype.is_complex:
+            raise ValueError("Somehow residual_highpass is complex!")
+        if pyr_coeff_dict["residual_lowpass"].dtype.is_complex:
+            raise ValueError("Somehow residual_lowpass is complex!")
+        if (not spyr.downsample) and spyr.is_complex:
+            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
+                pyr_coeff_dict,
+                split_complex=False,
+            )
+            # residuals get cast to complex as part of the conversion to tensor (if the
+            # pyramid is complex and we set split_complex=False), but still should have
+            # no imaginary component
+            if not torch.equal(
+                pyr_tensor[:, 0].imag, torch.zeros_like(pyr_tensor[:, 0])
+            ):
+                raise ValueError(
+                    "Somehow residual_highpass has non-zero imaginary values after"
+                    " pyr_to_tensor!"
+                )
+            if not torch.equal(
+                pyr_tensor[:, -1].imag, torch.zeros_like(pyr_tensor[:, -1])
+            ):
+                raise ValueError(
+                    "Somehow residual_lowpass has non-zero imaginary values after "
+                    "pyr_to_tensor!"
+                )
 
     @pytest.mark.parametrize(
         "spyr",
@@ -490,6 +527,9 @@ class TestSteerablePyramid:
         )
         assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"
 
+    @pytest.mark.filterwarnings(
+        "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
+    )
     def test_img_shape_error(self, curie_img):
         pyr = po.simul.SteerablePyramidFreq((255, 255)).to(DEVICE)
         with pytest.raises(
