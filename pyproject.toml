@@ -91,6 +91,7 @@ filterwarnings = [
     "ignore:Looks like representation is image-like, haven't:UserWarning",
     "ignore:Randomized SVD complete!:UserWarning",
     "ignore:You will need to call setup:UserWarning",
+    "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
 ]
 
 [tool.ruff]
