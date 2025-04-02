@@ -58,7 +58,8 @@ pipeline {
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
               source $HOME/bin/activate
-              pip install -U pip
+              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+              pip install -U pip setuptools
               pip install .[dev]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
@@ -92,7 +93,8 @@ pipeline {
               # make sure we have the git tags, since we need that to correctly version plenoptic
               git fetch --tags
               source $HOME/bin/activate
-              pip install -U pip
+              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+              pip install -U pip setuptools
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               make -C docs html O="-T"
