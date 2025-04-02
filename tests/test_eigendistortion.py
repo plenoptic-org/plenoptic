@@ -35,6 +35,9 @@ class TestEigendistortionSynthesis:
     @pytest.mark.parametrize(
         "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
     )
+    @pytest.mark.filterwarnings(
+        "ignore:1e6 elements and may cause out-of-memory:UserWarning"
+    )
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
         if model.__class__ == OnOff:
@@ -242,7 +245,9 @@ class TestEigendistortionSynthesis:
         if synth_type == "met":
             eig = Metamer(einstein_img, model)
         elif synth_type == "mad":
-            eig = MADCompetition(einstein_img, mse, mse, "min")
+            eig = MADCompetition(
+                einstein_img, mse, mse, "min", metric_tradeoff_lambda=1
+            )
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
@@ -283,8 +288,10 @@ class TestEigendistortionSynthesis:
                 elif model_behav == "name":
                     return self.model(x)
 
+        model = NewModel()
+        model.eval()
         with expectation:
-            eig = Eigendistortion(einstein_img, NewModel())
+            eig = Eigendistortion(einstein_img, model)
             eig.load(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
 
     @pytest.mark.parametrize(
@@ -449,6 +456,7 @@ class TestAutodiffFunctions:
         x0 = x0 / torch.linalg.vector_norm(x0, ord=2)
         mdl = LM().to(DEVICE)
         remove_grad(mdl)
+        mdl.eval()
 
         k = 10
         x_dim = x0.numel()

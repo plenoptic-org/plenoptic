@@ -255,7 +255,11 @@ class TestMetamers:
             met = po.synth.Eigendistortion(einstein_img, model)
         elif synth_type == "mad":
             met = po.synth.MADCompetition(
-                einstein_img, po.metric.mse, po.metric.mse, "min"
+                einstein_img,
+                po.metric.mse,
+                po.metric.mse,
+                "min",
+                metric_tradeoff_lambda=1,
             )
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
@@ -663,6 +667,7 @@ class TestMetamers:
 
     @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=5)
