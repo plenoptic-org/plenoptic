@@ -86,8 +86,6 @@ def get_model(name):
                 return torch.cat([c.flatten(-2) for c in coeffs], -1)
 
         return lpyr().to(DEVICE)
-    elif name == "Identity":
-        return po.simul.models.naive.Identity().to(DEVICE)
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":
@@ -99,8 +97,10 @@ def get_model(name):
         return model
 
     # naive models
-    elif name in ["Identity", "naive.Identity"]:
-        return po.simul.Identity().to(DEVICE)
+    elif name == "naive.Identity":
+        model = po.simul.Identity().to(DEVICE)
+        model.eval()
+        return model
     elif name == "naive.CenterSurround":
         model = po.simul.CenterSurround((31, 31)).to(DEVICE)
         model.eval()

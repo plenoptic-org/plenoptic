@@ -33,7 +33,6 @@ ALL_MODELS = [
     "naive.Gaussian",
     "naive.CenterSurround",
     "PortillaSimoncelli",
-    "Identity",
 ]
 
 

@@ -642,7 +642,7 @@ class TestMetamers:
             raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
@@ -661,7 +661,7 @@ class TestMetamers:
         # reset model device for other tests
         model.to(DEVICE)
 
-    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, model, to_type):
         met = po.synth.Metamer(curie_img, model)
@@ -678,7 +678,7 @@ class TestMetamers:
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
-    @pytest.mark.parametrize("model", ["ColorModel", "Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["ColorModel", "naive.Identity"], indirect=True)
     def test_multichannel(self, model, color_img):
         met = po.synth.Metamer(color_img, model)
         met.synthesize(max_iter=5)
@@ -688,7 +688,7 @@ class TestMetamers:
 
     # this determines whether we mix across batches (e.g., a video model) or
     # treat them separately, both of which are supported
-    @pytest.mark.parametrize("model", ["VideoModel", "Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["VideoModel", "naive.Identity"], indirect=True)
     def test_multibatch(self, model, einstein_img, curie_img):
         img = torch.cat([curie_img, einstein_img], dim=0)
         met = po.synth.Metamer(img, model)
@@ -720,7 +720,7 @@ class TestMetamers:
         with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             met.synthesize(max_iter=1)
 
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_change_precision_save_load(self, model, einstein_img, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here

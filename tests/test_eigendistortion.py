@@ -307,7 +307,7 @@ class TestEigendistortionSynthesis:
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
 
-    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
@@ -335,7 +335,7 @@ class TestEigendistortionSynthesis:
         eig.synthesize(max_iter=5, method="power")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=4, method="power")
@@ -351,7 +351,7 @@ class TestEigendistortionSynthesis:
         # reset model device for other tests
         model.to(DEVICE)
 
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_change_precision_save_load(self, einstein_img, model, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
