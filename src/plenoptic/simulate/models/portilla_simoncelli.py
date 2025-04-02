@@ -997,7 +997,7 @@ class PortillaSimoncelli(nn.Module):
         self,
         data: Tensor,
         ax: plt.Axes | None = None,
-        figsize: tuple[float, float] = (15, 15),
+        figsize: tuple[float, float] | None = None,
         ylim: tuple[float, float] | Literal[False] | None = None,
         batch_idx: int = 0,
         title: str | None = None,
@@ -1055,7 +1055,8 @@ class PortillaSimoncelli(nn.Module):
             subdivide into 6 or 8 new axes (depending on self.n_scales). If
             None, we create a new figure.
         figsize :
-            The size of the figure. Ignored if ax is not None.
+            The size of the figure to create. Must be ``None`` if ax is not ``None``. If
+            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``
         ylim :
             If not None, the y-limits to use for this plot. If None, we use the
             default, slightly adjusted so that the minimum is 0. If False, do not
@@ -1073,6 +1074,10 @@ class PortillaSimoncelli(nn.Module):
             List of 6 or 8 axes containing the plot (depending on self.n_scales)
 
         """
+        if ax is None and figsize is None:
+            figsize = (15, 15)
+        elif ax is not None and figsize is not None:
+            raise ValueError("figsize can't be set if ax is not None")
         # pick the batch_idx we want (but keep the data 3d), and average over
         # channels (but keep the data 3d). We keep data 3d because
         # convert_to_dict relies on it.

@@ -53,6 +53,26 @@ class TestDisplay:
                 raise Exception("Didn't update line correctly!")
         plt.close(fig)
 
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(self, model, figsize, ax, einstein_img):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
+        else:
+            ax = None
+        with expectation:
+            axes = po.tools.plot_representation(
+                data=model(einstein_img), ax=ax, figsize=figsize
+            )
+            fig = axes[0].figure
+        plt.close(fig)
+
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
         n_data = 1 if how == "dict-single" else 2

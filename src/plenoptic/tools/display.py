@@ -1016,7 +1016,8 @@ def plot_representation(
     ax : matplotlib.pyplot.axis or None, optional
         The axis to plot on. See above for behavior if ``None``.
     figsize : `tuple`, optional
-        The size of the figure to create. Must be ``None`` if ax is not ``None``
+        The size of the figure to create. Must be ``None`` if ax is not ``None``. If
+        both figsize and ax are ``None``, then we set ``figsize=(5, 5)``
     ylim : `tuple`, `None`, or `False`, optional
         If not None, the y-limits to use for this plot. See above for
         behavior if ``None``. If False, we do nothing.

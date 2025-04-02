@@ -929,6 +929,28 @@ class TestPortillaSimoncelli:
         )
         plt.close(fig)
 
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(self, figsize, ax, einstein_img):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
+        else:
+            ax = None
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        with expectation:
+            fig, _ = model.plot_representation(
+                model(einstein_img),
+                title="Representation",
+                figsize=figsize,
+                ax=ax,
+            )
+        plt.close(fig)
+
     def test_update_plot(self, einstein_img):
         model = po.simul.PortillaSimoncelli(
             einstein_img.shape[-2:],
