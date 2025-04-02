@@ -137,7 +137,7 @@ class PortillaSimoncelli(nn.Module):
         # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
         # self.n_scales-1. It is the same size as the representation tensor
         # returned by this object's forward method. It must be a numpy array so
-        # we can have a mixture of ints and strs (and so we can use np.in1d
+        # we can have a mixture of ints and strs (and so we can use np.isin
         # later)
         self._representation_scales = einops.pack(
             list(scales_shape_dict.values()), "*"
@@ -529,11 +529,11 @@ class PortillaSimoncelli(nn.Module):
         # this is necessary because object is the dtype of
         # self._representation_scales
         scales_to_keep = np.array(scales_to_keep, dtype=object)
-        # np.in1d returns a 1d boolean array of the same shape as
+        # np.isin returns a 1d boolean array of the same shape as
         # self._representation_scales with True at each location where that
         # value appears in scales_to_keep. where then converts this boolean
         # array into indices
-        ind = np.where(np.in1d(self._representation_scales, scales_to_keep))[0]
+        ind = np.where(np.isin(self._representation_scales, scales_to_keep))[0]
         ind = torch.from_numpy(ind).to(representation_tensor.device)
         return representation_tensor.index_select(-1, ind)
 
