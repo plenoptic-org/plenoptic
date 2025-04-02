@@ -483,7 +483,6 @@ class Eigendistortion(Synthesis):
         assert all_idx is not None and len(all_idx) != 0, (
             "No eigendistortions synthesized"
         )
-        print(all_idx, i)
         return torch.where(all_idx == i)[0].item()
 
     def save(self, file_path: str):
