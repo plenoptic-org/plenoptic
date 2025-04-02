@@ -212,6 +212,9 @@ class TestFrontEnd:
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
     @pytest.mark.parametrize("cache_filt", [False, True])
+    @pytest.mark.filterwarnings(
+        "ignore:pretrained is True but cache_filt is False:UserWarning"
+    )
     def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
             with pytest.raises(ValueError):
@@ -253,7 +256,9 @@ class TestFrontEnd:
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.OnOff":
-            model = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
+            model = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=True).to(
+                DEVICE
+            )
             model2 = po.simul.OnOff(
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
