@@ -84,7 +84,14 @@ local_scheme = 'no-local-version'
 addopts = "--cov=src -n auto"
 testpaths = ["tests"]
 doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
+
+# ignore a bunch of common plenoptic-generated warnings, and raise errors
+# otherwise. this way we can actually stay on top of deprecations etc. Per docs
+# (https://docs.pytest.org/en/stable/how-to/capture-warnings.html#controlling-warnings):
+# "When a warning matches more than one option in the list, the action for the
+# last matching option is performed."
 filterwarnings = [
+    "error",
     "ignore:Loss has converged:UserWarning",
     "ignore:Image range falls outside:UserWarning",
     "ignore:SSIM was designed for grayscale images:UserWarning",

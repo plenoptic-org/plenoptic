@@ -3,7 +3,6 @@ from collections.abc import Callable
 from typing import Literal
 
 import matplotlib.pyplot
-import numpy as np
 import torch
 from matplotlib.figure import Figure
 from torch import Tensor
@@ -484,7 +483,8 @@ class Eigendistortion(Synthesis):
         assert all_idx is not None and len(all_idx) != 0, (
             "No eigendistortions synthesized"
         )
-        return int(np.where(all_idx == i)[0])
+        print(all_idx, i)
+        return torch.where(all_idx == i)[0].item()
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.

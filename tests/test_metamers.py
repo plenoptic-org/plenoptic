@@ -61,6 +61,7 @@ class TestMetamers:
             elif fail == "model":
                 model = po.simul.Gaussian(30).to(DEVICE)
                 po.tools.remove_grad(model)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match=("Saved and initialized model output have different values"),
@@ -93,6 +94,7 @@ class TestMetamers:
                 model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
                 po.tools.remove_grad(model)
                 model.to(torch.float64)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match="Saved and initialized attribute image have different dtype",
@@ -301,8 +303,10 @@ class TestMetamers:
                 elif model_behav == "name":
                     return self.model(x)
 
+        model = NewModel()
+        model.eval()
         with expectation:
-            met = po.synth.Metamer(einstein_img, NewModel())
+            met = po.synth.Metamer(einstein_img, model)
             met.load(op.join(tmp_path, "test_metamer_load_model_change.pt"))
 
     @pytest.mark.parametrize(

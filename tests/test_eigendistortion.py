@@ -36,7 +36,7 @@ class TestEigendistortionSynthesis:
         "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
     )
     @pytest.mark.filterwarnings(
-        "ignore:1e6 elements and may cause out-of-memory:UserWarning"
+        "ignore:Jacobian > 1e6 elements and may cause out-of-memory:UserWarning"
     )
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
@@ -188,6 +188,7 @@ class TestEigendistortionSynthesis:
             elif fail == "model":
                 model = Gaussian(30).to(DEVICE)
                 remove_grad(model)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match=("Saved and initialized model output have different values"),
@@ -316,6 +317,7 @@ class TestEigendistortionSynthesis:
 
     @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=5, method="power")
