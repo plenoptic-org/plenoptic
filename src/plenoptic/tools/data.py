@@ -6,12 +6,8 @@ from typing import Literal
 import imageio.v3 as iio
 import numpy as np
 import torch
-from deprecated.sphinx import deprecated
-from pyrtools import synthetic_images
 from skimage import color
 from torch import Tensor
-
-from .signal import rescale
 
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in
@@ -192,92 +188,6 @@ def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
             f"all values of im must lie between 0 and 1, but max is {im.max()}"
         )
     return (im * np.iinfo(dtype).max).astype(dtype)
-
-
-@deprecated("Use :py:func:`pyrtools.synthetic_images` instead", "1.1.0")
-def make_synthetic_stimuli(size: int = 256, requires_grad: bool = True) -> Tensor:
-    r"""Make a set of basic stimuli, useful for developping and debugging models
-
-    Parameters
-    ----------
-    size
-        The stimuli will have `torch.Size([size, size])`.
-    requires_grad
-        Whether to initialize the simuli with gradients.
-
-    Returns
-    -------
-    stimuli
-        Tensor of shape [11, 1, size, size]. The set of basic stiuli:
-        [impulse, step_edge, ramp, bar, curv_edge, sine_grating, square_grating,
-        polar_angle, angular_sine, zone_plate, fractal]
-
-    Notes
-    -----
-
-    """
-
-    impulse = np.zeros((size, size))
-    impulse[size // 2, size // 2] = 1
-
-    step_edge = synthetic_images.square_wave(
-        size=size, period=size + 1, direction=0, amplitude=1, phase=0
-    )
-
-    ramp = synthetic_images.ramp(size=size, direction=np.pi / 2, slope=1)
-
-    bar = np.zeros((size, size))
-    bar[
-        size // 2 - size // 10 : size // 2 + size // 10,
-        size // 2 - 1 : size // 2 + 1,
-    ] = 1
-
-    curv_edge = synthetic_images.disk(size=size, radius=size / 1.2, origin=(size, size))
-
-    sine_grating = synthetic_images.sine(size) * synthetic_images.gaussian(
-        size, covariance=size
-    )
-
-    square_grating = synthetic_images.square_wave(
-        size, frequency=(0.5, 0.5), phase=2 * np.pi / 3.0
-    )
-    square_grating *= synthetic_images.gaussian(size, covariance=size)
-
-    polar_angle = synthetic_images.polar_angle(size)
-
-    angular_sine = synthetic_images.angular_sine(size, 6)
-
-    zone_plate = synthetic_images.zone_plate(size)
-
-    fract = synthetic_images.pink_noise(size, fract_dim=0.8)
-
-    stim = [
-        impulse,
-        step_edge,
-        ramp,
-        bar,
-        curv_edge,
-        sine_grating,
-        square_grating,
-        polar_angle,
-        angular_sine,
-        zone_plate,
-        fract,
-    ]
-    stim = [rescale(s) for s in stim]
-
-    stimuli = torch.cat(
-        [
-            torch.as_tensor(s, dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
-            .requires_grad_(requires_grad)
-            for s in stim
-        ],
-        dim=0,
-    )
-
-    return stimuli
 
 
 def polar_radius(
