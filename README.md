@@ -11,7 +11,12 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-![](docs/images/plenoptic_logo_wide.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg">
+  <source media="(prefers-color-scheme: light)" srcset="Plenoptic_Logo_CMYK_Full_Wide.svg">
+  <img alt="plenoptic logo" src="Plenoptic_Logo_CMYK_Full_Wide.svg">
+</picture>
+
 
 `plenoptic` is a python library for model-based synthesis of perceptual stimuli.
 For `plenoptic`, models are those of visual[^1] information processing: they
@@ -23,6 +28,8 @@ interpretation of model properties through examination of features that are
 enhanced, suppressed, or discarded. More importantly, they can facilitate the
 scientific process, through use in further perceptual or neural experiments
 aimed at validating or falsifying model predictions.
+
+See our [documentation site](https://docs.plenoptic.org) for more details!
 
 ## Getting started
 
@@ -84,49 +91,19 @@ with a random string, `matplotlib` will tell you the available choices.
 
 ![](docs/images/example_synth.svg)
 
--   [Metamers](examples/06_Metamer.ipynb): given a model and a
-    reference image, stochastically generate a new image whose model
-    representation is identical to that of the reference image. This
-    method investigates what image features the model disregards
-    entirely.
--   [Eigendistortions](examples/02_Eigendistortions.ipynb): given a
-    model and a reference image, compute the image perturbation that
-    produces the smallest and largest changes in the model response
-    space. This method investigates the image features the model
-    considers the least and most important.
--   [Maximal differentiation (MAD)
-    competition](examples/07_MAD_Competition.ipynb): given two metrics
-    that measure distance between images and a reference image, generate
-    pairs of images that optimally differentiate the models.
-    Specifically, synthesize a pair of images that the first model says
-    are equi-distant from the reference while the second model says they
-    are maximally/minimally distant from the reference. Then synthesize
-    a second pair with the roles of the two models reversed. This method
-    allows for efficient comparison of two metrics, highlighting the
-    aspects in which their sensitivities differ.
+-   [Metamers](examples/06_Metamer.ipynb): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method investigates what image features the model disregards entirely.
+-   [Eigendistortions](examples/02_Eigendistortions.ipynb): given a model and a reference image, compute the image perturbation that produces the smallest and largest changes in the model response space. This method investigates the image features the model considers the least and most important.
+-   [Maximal differentiation (MAD) competition](examples/07_MAD_Competition.ipynb): given two metrics that measure distance between images and a reference image, generate pairs of images that optimally differentiate the models. Specifically, synthesize a pair of images that the first model says are equi-distant from the reference while the second model says they are maximally/minimally distant from the reference. Then synthesize a second pair with the roles of the two models reversed. This method allows for efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
+
 
 ### Models, Metrics, and Model Components
 
--   Portilla-Simoncelli texture model, which measures the statistical properties
-    of visual textures, here defined as "repeating visual patterns."
--   Steerable pyramid, a multi-scale oriented image decomposition. The basis are
-    oriented (steerable) filters, localized in space and frequency. Among other
-    uses, the steerable pyramid serves as a good representation from which to
-    build a primary visual cortex model. See the [pyrtools
-    documentation](https://pyrtools.readthedocs.io/en/latest/index.html) for
-    more details on image pyramids in general and the steerable pyramid in
-    particular.
--   Structural Similarity Index (SSIM), is a perceptual similarity metric,
-    returning a number between -1 (totally different) and 1 (identical)
-    reflecting how similar two images are. This is based on the images'
-    luminance, contrast, and structure, which are computed convolutionally
-    across the images.
--   Multiscale Structrual Similarity Index (MS-SSIM), is a perceptual similarity
-    metric similar to SSIM, except it operates at multiple scales (i.e.,
-    spatial frequencies).
--   Normalized Laplacian distance, is a perceptual distance metric based on
-    transformations associated with the early visual system: local luminance
-    subtraction and local contrast gain control, at six scales.
+-   Portilla-Simoncelli texture model, which measures the statistical properties of visual textures, here defined as "repeating visual patterns."
+-   Steerable pyramid, a multi-scale oriented image decomposition. The basis are oriented (steerable) filters, localized in space and frequency. Among other uses, the steerable pyramid serves as a good representation from which to build a primary visual cortex model. See the [pyrtools documentation](https://pyrtools.readthedocs.io/en/latest/index.html) for more details on image pyramids in general and the steerable pyramid in particular.
+-   Structural Similarity Index (SSIM), is a perceptual similarity metric, returning a number between -1 (totally different) and 1 (identical) reflecting how similar two images are. This is based on the images' luminance, contrast, and structure, which are computed convolutionally across the images.
+-   Multiscale Structrual Similarity Index (MS-SSIM), is a perceptual similarity metric similar to SSIM, except it operates at multiple scales (i.e., spatial frequencies).
+-   Normalized Laplacian distance, is a perceptual distance metric based on transformations associated with the early visual system: local luminance subtraction and local contrast gain control, at six scales.
+
 
 ## Getting help
 
