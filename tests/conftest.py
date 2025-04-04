@@ -86,8 +86,6 @@ def get_model(name):
                 return torch.cat([c.flatten(-2) for c in coeffs], -1)
 
         return lpyr().to(DEVICE)
-    elif name == "Identity":
-        return po.simul.models.naive.Identity().to(DEVICE)
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":
@@ -95,35 +93,54 @@ def get_model(name):
     elif name == "ColorModel":
         model = ColorModel().to(DEVICE)
         po.tools.remove_grad(model)
+        model.eval()
         return model
 
     # naive models
-    elif name in ["Identity", "naive.Identity"]:
-        return po.simul.Identity().to(DEVICE)
+    elif name == "naive.Identity":
+        model = po.simul.Identity().to(DEVICE)
+        model.eval()
+        return model
     elif name == "naive.CenterSurround":
-        return po.simul.CenterSurround((31, 31)).to(DEVICE)
+        model = po.simul.CenterSurround((31, 31)).to(DEVICE)
+        model.eval()
+        return model
     elif name == "naive.Gaussian":
-        return po.simul.Gaussian((31, 31)).to(DEVICE)
+        model = po.simul.Gaussian((31, 31)).to(DEVICE)
+        model.eval()
+        return model
     elif name == "naive.Linear":
-        return po.simul.Linear((31, 31)).to(DEVICE)
+        model = po.simul.Linear((31, 31)).to(DEVICE)
+        model.eval()
+        return model
 
     # FrontEnd models:
     elif name == "frontend.LinearNonlinear":
-        return po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        model.eval()
+        return model
     elif name == "frontend.LinearNonlinear.nograd":
         model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
         po.tools.remove_grad(model)
+        model.eval()
         return model
     elif name == "frontend.LuminanceGainControl":
-        return po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+        model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+        model.eval()
+        return model
     elif name == "frontend.LuminanceContrastGainControl":
-        return po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        model.eval()
+        return model
     elif name == "frontend.OnOff":
-        return po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        model.eval()
+        return model
     elif name == "frontend.OnOff.nograd":
-        mdl = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(mdl)
-        return mdl
+        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.tools.remove_grad(model)
+        model.eval()
+        return model
     elif name == "VideoModel":
         # super simple model that combines across the batch dimension, as a
         # model with a temporal component would do
@@ -138,6 +155,7 @@ def get_model(name):
 
         model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         po.tools.remove_grad(model)
+        model.eval()
         return model
     elif name == "PortillaSimoncelli":
         return po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)

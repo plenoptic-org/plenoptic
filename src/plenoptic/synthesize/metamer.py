@@ -148,7 +148,7 @@ class Metamer(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(po.data.curie())
@@ -158,7 +158,7 @@ class Metamer(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
@@ -169,7 +169,7 @@ class Metamer(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(po.data.curie(), optimizer=torch.optim.SGD,
@@ -515,7 +515,7 @@ class Metamer(OptimizedSynthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=5, store_progress=True)

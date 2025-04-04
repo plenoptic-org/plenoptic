@@ -137,7 +137,7 @@ class PortillaSimoncelli(nn.Module):
         # 'residual_lowpass', 'residual_highpass' and integer values from 0 to
         # self.n_scales-1. It is the same size as the representation tensor
         # returned by this object's forward method. It must be a numpy array so
-        # we can have a mixture of ints and strs (and so we can use np.in1d
+        # we can have a mixture of ints and strs (and so we can use np.isin
         # later)
         self._representation_scales = einops.pack(
             list(scales_shape_dict.values()), "*"
@@ -146,6 +146,8 @@ class PortillaSimoncelli(nn.Module):
         self._representation_scales = self._representation_scales[
             self._necessary_stats_mask
         ]
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def _create_scales_shape_dict(self) -> OrderedDict:
         """Create dictionary defining scales and shape of each stat.
@@ -527,11 +529,11 @@ class PortillaSimoncelli(nn.Module):
         # this is necessary because object is the dtype of
         # self._representation_scales
         scales_to_keep = np.array(scales_to_keep, dtype=object)
-        # np.in1d returns a 1d boolean array of the same shape as
+        # np.isin returns a 1d boolean array of the same shape as
         # self._representation_scales with True at each location where that
         # value appears in scales_to_keep. where then converts this boolean
         # array into indices
-        ind = np.where(np.in1d(self._representation_scales, scales_to_keep))[0]
+        ind = np.where(np.isin(self._representation_scales, scales_to_keep))[0]
         ind = torch.from_numpy(ind).to(representation_tensor.device)
         return representation_tensor.index_select(-1, ind)
 
@@ -995,7 +997,7 @@ class PortillaSimoncelli(nn.Module):
         self,
         data: Tensor,
         ax: plt.Axes | None = None,
-        figsize: tuple[float, float] = (15, 15),
+        figsize: tuple[float, float] | None = None,
         ylim: tuple[float, float] | Literal[False] | None = None,
         batch_idx: int = 0,
         title: str | None = None,
@@ -1053,7 +1055,8 @@ class PortillaSimoncelli(nn.Module):
             subdivide into 6 or 8 new axes (depending on self.n_scales). If
             None, we create a new figure.
         figsize :
-            The size of the figure. Ignored if ax is not None.
+            The size of the figure to create. Must be ``None`` if ax is not ``None``. If
+            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``
         ylim :
             If not None, the y-limits to use for this plot. If None, we use the
             default, slightly adjusted so that the minimum is 0. If False, do not
@@ -1071,6 +1074,10 @@ class PortillaSimoncelli(nn.Module):
             List of 6 or 8 axes containing the plot (depending on self.n_scales)
 
         """
+        if ax is None and figsize is None:
+            figsize = (15, 15)
+        elif ax is not None and figsize is not None:
+            raise ValueError("figsize can't be set if ax is not None")
         # pick the batch_idx we want (but keep the data 3d), and average over
         # channels (but keep the data 3d). We keep data 3d because
         # convert_to_dict relies on it.

@@ -34,6 +34,8 @@ class LaplacianPyramid(nn.Module):
         super().__init__()
         self.n_scales = n_scales
         self.scale_filter = scale_filter
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def forward(self, x):
         """Build the Laplacian pyramid of an image.
