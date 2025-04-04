@@ -77,7 +77,7 @@ can do this in a principled or empirical manner:
   for an example of this).
 - Empirical: measure your model's representation on a dataset of relevant
   natural images and then use this output to z-score your model's representation
-  on each pass (see [Ziemba2021]_ for an example; this is what the Van Hateren
+  on each pass (see :cite:alp:`Ziemba2021-oppos-effec` for an example; this is what the Van Hateren
   database is used for).
 - In the middle: normalize statistics based on their value in the original image
   (note: not the image the model is taking as input! this will likely make

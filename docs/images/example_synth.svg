@@ -5,7 +5,7 @@
    viewBox="0 0 758.20874 715.82062"
    version="1.1"
    id="svg8"
-   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25)"
    sodipodi:docname="example_synth.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -61,8 +61,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.7675161"
-     inkscape:cx="387.83239"
-     inkscape:cy="384.72068"
+     inkscape:cx="393.20717"
+     inkscape:cy="375.38555"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -92,6 +92,16 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(-72.89562,-82.421714)">
+    <rect
+       style="fill:#ffffff;stroke:none;stroke-width:2;stroke-linejoin:round;stroke-miterlimit:11.5"
+       id="rect1"
+       width="766.25"
+       height="718.79254"
+       x="-5.7395668"
+       y="-4.8440175"
+       transform="translate(72.89562,82.421714)"
+       rx="0"
+       ry="0" />
     <g
        id="g378"
        transform="translate(-197.17984)">

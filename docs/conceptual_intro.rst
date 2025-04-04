@@ -52,7 +52,7 @@ focuses on what humans cannot see, that is, the information they are insensitive
 to. Perceptual metamers --- images that are physically distinct but perceptually
 indistinguishable --- provide direct evidence of such information loss in visual
 representations. Color metamers were instrumental in the development of the
-Young-Helmholtz theory of trichromacy [Helmholtz1852]_. In this context,
+Young-Helmholtz theory of trichromacy :cite:alp:`Helmholtz1852-lxxxi`. In this context,
 metamers demonstrate that the human visual system projects the infinite
 dimensionality of the physical signal to three dimensions.
 
@@ -242,9 +242,6 @@ predictions to test.
   99.02%. Furthermore, the state of the art top 5 accuracy has been at or above
   95% since 2016, with an improvement of only 4% in the past six years.
 
-.. [Helmholtz1852] Helmholtz, H. (1852). LXXXI. on the theory of compound
-   colours. The London, Edinburgh, and Dublin Philosophical Magazine and Journal
-   of Science, 4(28), 519–534. https://dx.doi.org/10.1080/14786445208647175
 .. [Lettvin1976] Lettvin, J. Y. (1976). On Seeing Sidelong. The Sciences, 16(4),
    10–20.
    https://web.archive.org/web/20221016220044/https://jerome.lettvin.com/jerome/OnSeeingSidelong.pdf
