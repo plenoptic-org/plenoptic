@@ -24,7 +24,7 @@
 
 ## Getting started
 
-- If you are unfamiliar with stimulus synthesis, see the {ref}`conceptual-intro` for an in-depth introduction.
+- If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
 - Otherwise, see the [Quickstart](tutorials/00_quickstart.nblink) tutorial.
 
 ### Installation
@@ -45,7 +45,7 @@ $ conda install plenoptic -c conda-forge
 We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. See [here](https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32) for the status of that issue.
 :::
 
-See the {ref}`install` page for more details, including how to set up an isolated virtual environment (recommended).
+See the [](install) page for more details, including how to set up an isolated virtual environment (recommended).
 
 (package-contents)=
 
@@ -93,7 +93,7 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 
 ## Citing us
 
-If you use `plenoptic` in a published academic article or presentation, please cite us! See the {ref}`citation` for more details.
+If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation) for more details.
 
 :::{toctree}
 :caption: Basic concepts
