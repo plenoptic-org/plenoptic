@@ -19,10 +19,6 @@ Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https:
 Installing with conda
 ---------------------
 
-.. warning::
-
-   We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. Therefore, if you are installing on Windows, you must use :ref:`pip <pip>`. See `this issue <https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32>`__ for the status of the conda-forge Windows pytorch build.
-
 If you wish to follow these instructions and do not have ``conda`` installed on your machine, we recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.
 
 Once you have ``conda`` correctly installed and on your path, run the following to create a new virtual environment and install plenoptic::
