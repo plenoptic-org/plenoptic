@@ -47,10 +47,6 @@ We do not currently support conda installs on Windows, due to the lack of a Wind
 
 See the {ref}`install` page for more details, including how to set up an isolated virtual environment (recommended).
 
-### ffmpeg and videos
-
-Some methods in this package generate videos. There are several backends available for saving the animations to file (see [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html#writer-classes) ). To convert them to HTML5 for viewing (for example, in a jupyter notebook), you'll need [ffmpeg](https://ffmpeg.org/download.html) installed. Depending on your system, this might already be installed, but if not, the easiest way is probably through [conda-forge](https://anaconda.org/conda-forge/ffmpeg): `conda install -c conda-forge ffmpeg`. To change the backend, run `matplotlib.rcParams['animation.writer'] = writer` before calling any of the animate functions. If you try to set that `rcParam` with a random string, `matplotlib` will list the available choices.
-
 (package-contents)=
 
 ## Contents

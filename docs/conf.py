@@ -52,10 +52,9 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
-    "sphinxemoji.sphinxemoji",
-    "sphinx_inline_tabs",
     "myst_parser",
     "sphinxcontrib.bibtex",
+    "sphinx_design",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -208,3 +207,6 @@ myst_enable_extensions = [
 # sphinxcontrib-bibtex
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
+
+# sphinx copybutton
+copybutton_exclude = ".linenos, .gp"
