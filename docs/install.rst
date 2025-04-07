@@ -19,10 +19,6 @@ Our dependencies include `pytorch <https://pytorch.org/>`_ and `pyrtools <https:
 Installing with conda
 ---------------------
 
-.. warning::
-
-   We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. Therefore, if you are installing on Windows, you must use :ref:`pip <pip>`. See `this issue <https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32>`__ for the status of the conda-forge Windows pytorch build.
-
 If you wish to follow these instructions and do not have ``conda`` installed on your machine, we recommend starting with `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_.
 
 Once you have ``conda`` correctly installed and on your path, run the following to create a new virtual environment and install plenoptic::
@@ -114,7 +110,7 @@ Optional dependencies
 
 In addition to installing plenoptic and its core dependencies, you may also wish to install some of our optional dependencies. These dependencies are specified using square brackets during the ``pip install`` command and can be installed for either a local, editable install or one directly from PyPI:
 
-* If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See :ref:`jupyter` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples>`_, no installation required!
+* If you would like to run the jupyter notebooks locally: ``pip install "plenoptic[nb]"`` or ``pip install -e ".[nb]"``. This includes ``pooch`` (for downloading some extra data) ``torchvision`` (which has some models we'd like to use), ``jupyter``, and related libraries. See :ref:`jupyter` for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples>`_, no installation required!
 * If you would like to run the tests: ``pip install -e ".[dev]"``. This includes ``pytest`` and related libraries. (This probably only makes sense if you have a local installation.)
 * If you would like to locally build the documentation: ``pip install -e ".[docs]"``. This includes ``sphinx`` and related libraries. (This probably only makes sense if you have a local installation.)
 

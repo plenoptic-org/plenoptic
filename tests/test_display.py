@@ -433,9 +433,8 @@ class TestDisplay:
             with pytest.raises(TypeError):
                 po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
 
-    def test_display_test_signals(self):
-        po.imshow(po.tools.make_synthetic_stimuli(128))
-        po.imshow(po.load_images(IMG_DIR / "256"))
+    def test_display_test_signals(self, basic_stim):
+        po.imshow(basic_stim)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])

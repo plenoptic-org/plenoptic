@@ -3,7 +3,7 @@
 Using Jupyter to Run Example Notebooks
 **************************************
 
-.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples>`_, no installation required!
+.. tip:: You can run the notebooks in the cloud using `Binder <https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples>`_, no installation required!
 
 Installing jupyter and setting up the kernel
 --------------------------------------------
@@ -64,9 +64,9 @@ plenoptic).
          $ conda activate plenoptic
          $ python -m ipykernel install --prefix=/path/to/jupyter/env --name 'plenoptic'
 
-      ``/path/to/jupyter/env`` is the path to your base conda environment, and depends on the options set during your initial installation. It's probably something like ``~/conda`` or ``~/miniconda``. See the `ipython docs <https://ipython.readthedocs.io/en/stable/install/kernel_install.html>`_ for more details.
+      ``/path/to/jupyter/env`` is the path to your base conda environment, and depends on the options set during your initial installation. It's probably something like ``~/conda`` or ``~/miniconda`` on Linux or MacOS and ``C:\Users\username\miniconda\`` on Windows. See the `ipython docs <https://ipython.readthedocs.io/en/stable/install/kernel_install.html>`_ for more details.
 
-      With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from **any* virtual environment (not just conda!) and have fewer packages installed in your ``base`` environment, but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
+      With this setup, similar to option 2, you have a single jupyter install that can run kernels from any virtual environment. The main difference is that it can run kernels from **any** virtual environment (not just conda!) and have fewer packages installed in your ``base`` environment, but that you have to run an additional line after installing ``ipykernel``  into the environment (``python -m ipykernel install ...``).
 
 .. tab:: pip and venv
 
