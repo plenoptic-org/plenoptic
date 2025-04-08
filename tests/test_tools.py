@@ -57,6 +57,35 @@ class TestSignal:
         assert torch.linalg.vector_norm((a - A).flatten(), ord=2) < 1e-3
         assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
 
+    @pytest.mark.parametrize(
+        "size, expectation",
+        [
+            (500, pytest.raises(ValueError, match="output_size is bigger than")),
+            (256, does_not_raise()),
+            (128, does_not_raise()),
+            (0, pytest.raises(ValueError, match="output_size must be positive")),
+            (-10, pytest.raises(ValueError, match="output_size must be positive")),
+            (10.0, pytest.raises(TypeError, match="slice indices must be integers")),
+            (torch.as_tensor(128), does_not_raise()),
+            (np.asarray(128), does_not_raise()),
+            (
+                torch.as_tensor(128.0),
+                pytest.raises(TypeError, match="only integer tensors"),
+            ),
+            (
+                [10, 10],
+                pytest.raises(TypeError, match="output_size must be a single number"),
+            ),
+            (
+                torch.as_tensor([10, 10]),
+                pytest.raises(TypeError, match="output_size must be a single number"),
+            ),
+        ],
+    )
+    def test_center_crop(self, einstein_img, size, expectation):
+        with expectation:
+            po.tools.center_crop(einstein_img, size)
+
     @pytest.mark.parametrize("n", range(1, 15))
     def test_autocorrelation(self, n, basic_stim):
         x = basic_stim

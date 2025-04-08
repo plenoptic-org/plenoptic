@@ -402,8 +402,8 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
         N-dimensional tensor, we assume the last two dimensions are height and
         width.
     output_size :
-        The size of the output. Note that we only support a single number, so
-        both dimensions are cropped identically
+        The size of the output. Must be a positive int. Note that we only support a
+        single number, so both dimensions are cropped identically
 
     Returns
     -------
@@ -411,8 +411,26 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
         Tensor whose last two dimensions have each been cropped to
         ``output_size``
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> img.shape
+    torch.Size([1, 1, 256, 256])
+    >>> img = po.tools.center_crop(img, 128)
+    >>> img.shape
+    torch.Size([1, 1, 128, 128])
+
     """
     h, w = x.shape[-2:]
+    if hasattr(output_size, "__len__") and (
+        not hasattr(output_size, "ndim") or output_size.ndim > 0
+    ):
+        raise TypeError("output_size must be a single number!")
+    if output_size > h or output_size > w:
+        raise ValueError("output_size is bigger than image height/width!")
+    if output_size <= 0:
+        raise ValueError("output_size must be positive!")
     return x[
         ...,
         (h // 2 - output_size // 2) : (h // 2 + (output_size + 1) // 2),
