@@ -67,7 +67,7 @@ class TestMetamers:
                     match=("Saved and initialized model output have different values"),
                 )
             elif fail == "loss":
-                loss = po.metric.ssim
+                loss = po.tools.optim.relative_MSE
                 expectation = pytest.raises(
                     ValueError,
                     match=(
@@ -191,6 +191,7 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_synth_then_setup(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.setup(optimizer=torch.optim.SGD)
@@ -367,6 +368,7 @@ class TestMetamers:
         [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
     )
     @pytest.mark.parametrize("fail", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         met = po.synth.Metamer(curie_img, model)
         scheduler = None
@@ -480,6 +482,7 @@ class TestMetamers:
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("load", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         # Adam has some stochasticity in its initialization(?), so this test doesn't
@@ -545,6 +548,10 @@ class TestMetamers:
 
     @pytest.mark.parametrize("model", ["SPyr"], indirect=True)
     @pytest.mark.parametrize("coarse_to_fine", ["separate", "together"])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
         metamer = po.synth.MetamerCTF(
             einstein_img, model, coarse_to_fine=coarse_to_fine
@@ -744,6 +751,7 @@ class TestMetamers:
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     def test_stop_criterion(self, einstein_img, model):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility

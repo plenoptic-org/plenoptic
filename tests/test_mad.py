@@ -45,6 +45,7 @@ class TestMAD:
     @pytest.mark.parametrize("target", ["min", "max"])
     @pytest.mark.parametrize("model_order", ["mse-ssim", "ssim-mse"])
     @pytest.mark.parametrize("store_progress", [False, True, 2])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_basic(self, curie_img, target, model_order, store_progress):
         if model_order == "mse-ssim":
             model = po.metric.mse
@@ -75,6 +76,10 @@ class TestMAD:
     @pytest.mark.parametrize("range_penalty", [0.1, 0])
     @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
     @pytest.mark.parametrize("rgb", [False, True])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_save_load(
         self, curie_img, fail, range_penalty, allowed_range, rgb, tmp_path
     ):
@@ -232,6 +237,7 @@ class TestMAD:
         ):
             mad.setup(0.5)
 
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_synth_then_setup(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img,
@@ -403,6 +409,7 @@ class TestMAD:
         [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
     )
     @pytest.mark.parametrize("fail", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         mad = po.synth.MADCompetition(
             curie_img,
@@ -528,6 +535,7 @@ class TestMAD:
         "optimizer",
         ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
     )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_optimizer(self, curie_img, optimizer):
         mad = po.synth.MADCompetition(
             curie_img,
@@ -660,6 +668,7 @@ class TestMAD:
             "MAD image should have the same shape as input!"
         )
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     def test_store_rep(self, einstein_img, store_progress):
         mad = po.synth.MADCompetition(
@@ -697,6 +706,7 @@ class TestMAD:
             "Didn't end up with enough reference metric losses after second synth!"
         )
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
@@ -704,6 +714,7 @@ class TestMAD:
         mad.synthesize(max_iter=3, store_progress=True)
         mad.synthesize(max_iter=3, store_progress=True)
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_nan_loss(self, einstein_img):
         # clone to prevent NaN from showing up in other tests
         img = einstein_img.clone()
@@ -715,6 +726,7 @@ class TestMAD:
         with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             mad.synthesize(max_iter=1)
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_change_precision_save_load(self, einstein_img, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
@@ -736,6 +748,8 @@ class TestMAD:
         mad_copy.synthesize(max_iter=5)
         assert mad_copy.mad_image.dtype == torch.float64, "dtype incorrect!"
 
+    @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_stop_criterion(self, einstein_img):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility

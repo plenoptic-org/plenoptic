@@ -739,6 +739,9 @@ class TestPortillaSimoncelli:
             "Convert to tensor or dict is broken!"
         )
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_ps_synthesis(self, portilla_simoncelli_synthesize, run_test=True):
         """Test PS texture metamer synthesis.
 

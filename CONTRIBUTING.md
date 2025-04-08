@@ -443,9 +443,9 @@ avoid warnings in tests, in order from most-to-least preferred:
   `@pytest.mark.filterwarnings`. See our tests for an example or the [pytest
   documentation](https://docs.pytest.org/en/stable/how-to/capture-warnings.html#pytest-mark-filterwarnings) for an explanation.
 - Configure pytest to ignore the warning for all tests by updating
-  `filterwarnings` in `pyproject.toml`. This will only be considered for
-  warnings that are raised in a variety of contexts; in general, the first two
-  are preferred.
+  `filterwarnings` in `pyproject.toml` (they must come after `"error"`). These
+  should only include warnings that are temporary, such as deprecation warnings
+  that we raise or warnings that have been fixed upstream but not released yet.
 
 ### Testing notebooks
 

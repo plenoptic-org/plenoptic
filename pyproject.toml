@@ -92,13 +92,6 @@ doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
 # last matching option is performed."
 filterwarnings = [
     "error",
-    "ignore:Loss has converged:UserWarning",
-    "ignore:Image range falls outside:UserWarning",
-    "ignore:SSIM was designed for grayscale images:UserWarning",
-    "ignore:Looks like representation is image-like, haven't:UserWarning",
-    "ignore:Randomized SVD complete!:UserWarning",
-    "ignore:You will need to call setup:UserWarning",
-    "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
     # pooch issue with python>=3.12, fixed in
     # https://github.com/fatiando/pooch/pull/458 but not in release as of April
     # 2025.
