@@ -65,12 +65,12 @@ class TestSignal:
             (128, does_not_raise()),
             (0, pytest.raises(ValueError, match="output_size must be positive")),
             (-10, pytest.raises(ValueError, match="output_size must be positive")),
-            (10.0, pytest.raises(TypeError, match="slice indices must be integers")),
+            (10.0, pytest.raises(TypeError, match="output_size must be an int")),
             (torch.as_tensor(128), does_not_raise()),
             (np.asarray(128), does_not_raise()),
             (
                 torch.as_tensor(128.0),
-                pytest.raises(TypeError, match="only integer tensors"),
+                pytest.raises(TypeError, match="output_size must be an int"),
             ),
             (
                 [10, 10],

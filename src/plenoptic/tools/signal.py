@@ -423,10 +423,11 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
 
     """
     h, w = x.shape[-2:]
-    if hasattr(output_size, "__len__") and (
-        not hasattr(output_size, "ndim") or output_size.ndim > 0
-    ):
+    output_size = torch.as_tensor(output_size)
+    if output_size.ndim > 0:
         raise TypeError("output_size must be a single number!")
+    if torch.is_floating_point(output_size):
+        raise TypeError("output_size must be an int!")
     if output_size > h or output_size > w:
         raise ValueError("output_size is bigger than image height/width!")
     if output_size <= 0:
