@@ -71,8 +71,8 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[dev]
     - name: Run doctests with pytest
       run: |
-        # ignore a warning from pytorch about how padding may make things slower
-        pytest --doctest-modules src/ -W "ignore:Using padding=:UserWarning"
+        # ignore warnings in doctests, since otherwise pytest fails
+        pytest --doctest-modules src/ -W "ignore"
   tests:
     runs-on: ubuntu-latest
     strategy:

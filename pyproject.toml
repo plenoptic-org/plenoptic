@@ -93,8 +93,6 @@ doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
 # last matching option is performed."
 filterwarnings = [
     "error",
-    # we raise this warning, remove when gaussian1d is removed
-    "ignore:Call to deprecated function .* gaussian1d:DeprecationWarning",
     # pooch issue with python>=3.12, fixed in
     # https://github.com/fatiando/pooch/pull/458 but not in release as of April
     # 2025.
