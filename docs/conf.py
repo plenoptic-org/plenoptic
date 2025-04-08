@@ -52,9 +52,12 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
-    "sphinxemoji.sphinxemoji",
-    "sphinx_inline_tabs",
+    "myst_parser",
+    "sphinxcontrib.bibtex",
+    "sphinx_design",
 ]
+
+intersphinx_mapping = {"torch": ("https://pytorch.org/docs/stable/", None)}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -62,8 +65,7 @@ templates_path = ["_templates"]
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+source_suffix = [".rst", ".md"]
 
 # The master toctree document.
 master_doc = "index"
@@ -196,3 +198,17 @@ apidoc_module_dir = "../src/plenoptic"
 # showing link. in actual doc pages, this needs to be reversed.
 plot_include_source = True
 plot_html_show_source_link = False
+
+# MYST
+
+myst_enable_extensions = [
+    "colon_fence",
+    "dollarmath",
+]
+
+# sphinxcontrib-bibtex
+bibtex_bibfiles = ["references.bib"]
+bibtex_reference_style = "author_year"
+
+# sphinx copybutton
+copybutton_exclude = ".linenos, .gp"
