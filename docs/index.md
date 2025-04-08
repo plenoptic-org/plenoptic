@@ -31,13 +31,13 @@
 
 The best way to install `plenoptic` is via `pip`:
 
-```
+```{code-block} console
 $ pip install plenoptic
 ```
 
 or `conda`:
 
-```
+```{code-block} console
 $ conda install plenoptic -c conda-forge
 ```
 
