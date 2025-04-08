@@ -41,10 +41,6 @@ or `conda`:
 $ conda install plenoptic -c conda-forge
 ```
 
-:::{warning}
-We do not currently support conda installs on Windows, due to the lack of a Windows pytorch package on conda-forge. See [here](https://github.com/conda-forge/pytorch-cpu-feedstock/issues/32) for the status of that issue.
-:::
-
 See the [](install) page for more details, including how to set up an isolated virtual environment (recommended).
 
 (package-contents)=
