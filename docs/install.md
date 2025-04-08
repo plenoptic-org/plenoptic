@@ -48,12 +48,12 @@ $ pip install plenoptic
 :::{tab-item} Windows
 :sync: windows
 
-```{code-block} powershell
-$ # create the environment
-$ python -m venv path\to\environments\plenoptic-venv
-$ # activate the environment
-$ path\to\environment\plenoptic-venv\Scripts\activate
-$ pip install plenoptic
+```{code-block} pwsh-session
+PS> # create the environment
+PS> python -m venv path\to\environments\plenoptic-venv
+PS> # activate the environment
+PS> path\to\environment\plenoptic-venv\Scripts\activate
+PS> pip install plenoptic
 ```
 :::
 ::::
@@ -89,15 +89,15 @@ $ pip install -e ".[dev]"
 :::{tab-item} Windows
 :sync: windows
 
-```{code-block} powershell
-$ git clone https://github.com/plenoptic-org/plenoptic.git
-$ cd plenoptic
-$ # create the environment (this is typically placed in the package's root folder)
-$ python -m venv .venv
-$ # activate the environment
-$ .venv\Scripts\activate
-$ # install in editable mode with `-e` or, equivalently, `--editable`
-$ pip install -e ".[dev]"
+```{code-block} pwsh-session
+PS> git clone https://github.com/plenoptic-org/plenoptic.git
+PS> cd plenoptic
+PS> # create the environment (this is typically placed in the package's root folder)
+PS> python -m venv .venv
+PS> # activate the environment
+PS> .venv\Scripts\activate
+PS> # install in editable mode with `-e` or, equivalently, `--editable`
+PS> pip install -e ".[dev]"
 ```
 :::
 ::::
