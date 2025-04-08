@@ -69,7 +69,7 @@ jobs:
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
         pip install --upgrade --upgrade-strategy eager .[dev]
-    - name: Run tests with pytest
+    - name: Run doctests with pytest
       run: |
         # Ignore the deprecation warning for gaussian1d, which we'll remove
         # soon, and a warning from pytorch about how padding may make things
