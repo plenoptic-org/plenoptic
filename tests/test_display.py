@@ -1,5 +1,5 @@
-# necessary to avoid issues with animate:
-# https://github.com/matplotlib/matplotlib/issues/10287/
+from contextlib import nullcontext as does_not_raise
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,6 +12,8 @@ from conftest import DEVICE, IMG_DIR
 
 # use the html backend, so we don't need to have ffmpeg
 mpl.rcParams["animation.writer"] = "html"
+# necessary to avoid issues with animate:
+# https://github.com/matplotlib/matplotlib/issues/10287/
 mpl.use("agg")
 
 
@@ -27,7 +29,7 @@ class TestDisplay:
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update line correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_line_multi_axes(self, how):
@@ -49,7 +51,27 @@ class TestDisplay:
 
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update line correctly!")
-        plt.close("all")
+        plt.close(fig)
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(self, model, figsize, ax, einstein_img):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
+        else:
+            ax = None
+        with expectation:
+            axes = po.tools.plot_representation(
+                data=model(einstein_img), ax=ax, figsize=figsize
+            )
+            fig = axes[0].figure
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
@@ -79,7 +101,7 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update line correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     def test_update_plot_stem(self):
         x = np.linspace(0, 100)
@@ -92,7 +114,7 @@ class TestDisplay:
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update stems correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_stem_multi_axes(self, how):
@@ -114,7 +136,7 @@ class TestDisplay:
 
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update stem correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_stem_multi_channel(self, how):
@@ -144,7 +166,7 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update stem correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     def test_update_plot_image(self):
         y1 = np.random.rand(1, 1, 100, 100)
@@ -156,7 +178,7 @@ class TestDisplay:
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update image correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_image_multi_axes(self, how):
@@ -178,7 +200,7 @@ class TestDisplay:
 
             if not np.allclose(ax_y, y_check):
                 raise Exception("Didn't update image correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     def test_update_plot_scatter(self):
         x1 = np.random.rand(100)
@@ -195,7 +217,7 @@ class TestDisplay:
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, data):
             raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_scatter_multi_axes(self, how):
@@ -225,7 +247,7 @@ class TestDisplay:
 
             if not np.allclose(ax_data, data_check):
                 raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_scatter_multi_channel(self, how):
@@ -297,7 +319,7 @@ class TestDisplay:
                 _, ax_data = ax.lines[0].get_data()
             if not np.allclose(ax_data, data[i]):
                 raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close("all")
+        plt.close(fig)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -308,7 +330,7 @@ class TestDisplay:
     # (b, c, h, 1)
     @pytest.mark.parametrize("one_dim", [False, "h", "w"])
     def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im, one_dim):
-        fails = False
+        expectation = does_not_raise()
         if one_dim == "h":
             im_shape = [2, 4, 1, 5]
         elif one_dim == "w":
@@ -341,7 +363,12 @@ class TestDisplay:
         if batch_idx is None and channel_idx is None and not as_rgb:
             # then we'd have a 4d array we want to plot in grayscale -- don't
             # know how to do that
-            fails = True
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Don't know how to plot images with more than one channel and batch"
+                ),
+            )
         else:
             if batch_idx is not None:
                 # then we're only plotting one of the two batches
@@ -352,7 +379,9 @@ class TestDisplay:
                 # if channel_idx is not None, then we don't have all the
                 # channels necessary for plotting RGB, so this will fail
                 if as_rgb:
-                    fails = True
+                    expectation = pytest.raises(
+                        ValueError, match="If as_rgb is True, then channel"
+                    )
             # when channel_idx=0, as_rgb does nothing, so don't want to
             # double-count
             elif as_rgb:
@@ -361,8 +390,10 @@ class TestDisplay:
                 n_axes /= 4
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
-            fails = True
-        if not fails:
+            expectation = pytest.raises(
+                TypeError, match="must be an int or None but got"
+            )
+        with expectation:
             fig = po.imshow(
                 im,
                 as_rgb=as_rgb,
@@ -374,34 +405,31 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
-            plt.close("all")
-        if fails:
-            with pytest.raises(Exception):
-                po.imshow(
-                    im,
-                    as_rgb=as_rgb,
-                    channel_idx=channel_idx,
-                    batch_idx=batch_idx,
-                    plot_complex=is_complex,
-                )
-
-    @pytest.fixture(scope="class", params=["complex", "not-complex"])
-    def steerpyr(self, request):
-        if request.param == "complex":
-            is_complex = True
-        elif request.param == "not-complex":
-            is_complex = False
-        return po.simul.SteerablePyramidFreq(
-            (32, 32), height=2, order=1, is_complex=is_complex
-        ).to(DEVICE)
+            plt.close(fig)
 
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("show_residuals", [True, False])
-    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals, curie_img):
-        fails = False
+    @pytest.mark.parametrize(
+        "plot_complex", [False, "rectangular", "polar", "logpolar"]
+    )
+    def test_pyrshow(
+        self, channel_idx, batch_idx, show_residuals, plot_complex, curie_img
+    ):
+        if not plot_complex:
+            is_complex = False
+            # the default value to plot_complex
+            plot_complex = "rectangular"
+        else:
+            is_complex = True
+        steerpyr = po.simul.SteerablePyramidFreq(
+            (32, 32), height=2, order=1, is_complex=is_complex
+        ).to(DEVICE)
+        expectation = does_not_raise()
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
-            fails = True
+            expectation = pytest.raises(
+                TypeError, match="must be an int or None but got"
+            )
         n_axes = 4
         if steerpyr.is_complex:
             n_axes *= 2
@@ -410,28 +438,20 @@ class TestDisplay:
         img = curie_img.clone()
         img = img[..., : steerpyr.lo0mask.shape[-2], : steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
-        if not fails:
-            # unfortunately, can't figure out how to properly parametrize this
-            # and use the steerpyr fixture
-            for comp in ["rectangular", "polar", "logpolar"]:
-                fig = po.pyrshow(
-                    coeffs,
-                    show_residuals=show_residuals,
-                    plot_complex=comp,
-                    batch_idx=batch_idx,
-                    channel_idx=channel_idx,
-                )
-                # get all the axes that have an image (so, get all non-empty
-                # axes)
-                axes = [ax for ax in fig.axes if ax.images]
-                if len(axes) != n_axes:
-                    raise Exception(
-                        f"Created {len(fig.axes)} axes, but expected {n_axes}!"
-                    )
-                plt.close("all")
-        else:
-            with pytest.raises(TypeError):
-                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
+        with expectation:
+            fig = po.pyrshow(
+                coeffs,
+                show_residuals=show_residuals,
+                plot_complex=plot_complex,
+                batch_idx=batch_idx,
+                channel_idx=channel_idx,
+            )
+            # get all the axes that have an image (so, get all non-empty
+            # axes)
+            axes = [ax for ax in fig.axes if ax.images]
+            if len(axes) != n_axes:
+                raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
+            plt.close(fig)
 
     def test_display_test_signals(self, basic_stim):
         po.imshow(basic_stim)
@@ -442,7 +462,7 @@ class TestDisplay:
     @pytest.mark.parametrize("is_complex", [False, "logpolar", "rectangular", "polar"])
     @pytest.mark.parametrize("mini_vid", [True, False])
     def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
-        fails = False
+        expectation = does_not_raise()
         if is_complex:
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
@@ -469,7 +489,12 @@ class TestDisplay:
         if batch_idx is None and channel_idx is None and not as_rgb:
             # then we'd have a 4d array we want to plot in grayscale -- don't
             # know how to do that
-            fails = True
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Don't know how to plot images with more than one channel and batch"
+                ),
+            )
         else:
             if batch_idx is not None:
                 # then we're only plotting one of the two batches
@@ -480,7 +505,9 @@ class TestDisplay:
                 # if channel_idx is not None, then we don't have all the
                 # channels necessary for plotting RGB, so this will fail
                 if as_rgb:
-                    fails = True
+                    expectation = pytest.raises(
+                        ValueError, match="If as_rgb is True, then channel"
+                    )
             # when channel_idx=0, as_rgb does nothing, so don't want to
             # double-count
             elif as_rgb:
@@ -489,8 +516,10 @@ class TestDisplay:
                 n_axes /= 4
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
-            fails = True
-        if not fails:
+            expectation = pytest.raises(
+                TypeError, match="must be an int or None but got"
+            )
+        with expectation:
             anim = po.animshow(
                 vid,
                 as_rgb=as_rgb,
@@ -503,16 +532,7 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
-            plt.close("all")
-        if fails:
-            with pytest.raises(Exception):
-                po.animshow(
-                    vid,
-                    as_rgb=as_rgb,
-                    channel_idx=channel_idx,
-                    batch_idx=batch_idx,
-                    plot_complex=is_complex,
-                )
+            plt.close(fig)
 
     def test_update_plot_shape_fail(self, einstein_img):
         # update_plot expects 3 or 4d data -- this checks that update_plot
@@ -533,6 +553,7 @@ class TestDisplay:
                 return super().forward(*args, **kwargs)
 
         model = TestModel().to(DEVICE)
+        model.eval()
         po.tools.remove_grad(model)
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=3, store_progress=True)
@@ -595,7 +616,7 @@ def template_test_synthesis_all_plot(
         )
         if fig_creation.endswith("without"):
             axes_idx = {}
-    containing_file.plot_synthesis_status(
+    fig, _ = containing_file.plot_synthesis_status(
         synthesis_object,
         iteration=iteration,
         included_plots=included_plots,
@@ -604,7 +625,7 @@ def template_test_synthesis_all_plot(
         **plot_kwargs,
         width_ratios=width_ratios,
     )
-    plt.close("all")
+    plt.close(fig)
 
 
 def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
@@ -641,7 +662,9 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             axes_idx=axes_idx,
             **plot_kwargs,
         )
+        plt.close(fig)
     if func == "animate":
+        # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
         containing_file.animate(
             synthesis_object,
@@ -650,7 +673,6 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
-        plt.close("all")
 
 
 class TestMADDisplay:
@@ -674,7 +696,9 @@ class TestMADDisplay:
         def rgb_mse(*args, **kwargs):
             return po.metric.mse(*args, **kwargs).mean()
 
-        mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, "min")
+        mad = po.synth.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
         mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
@@ -685,6 +709,10 @@ class TestMADDisplay:
     @pytest.mark.parametrize(
         "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
     )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_all_plot(
         self,
         synthesized_mad,
@@ -717,6 +745,10 @@ class TestMADDisplay:
             "custom-preplot",
         ],
     )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
@@ -737,17 +769,26 @@ class TestMADDisplay:
         def model2(*args):
             return 1 - po.metric.ssim(*args).mean()
 
-        mad = po.synth.MADCompetition(img, model1, model2, "min")
+        mad = po.synth.MADCompetition(
+            img, model1, model2, "min", metric_tradeoff_lambda=1
+        )
         mad.synthesize(max_iter=2)
-        mad2 = po.synth.MADCompetition(img, model1, model2, "max")
+        mad2 = po.synth.MADCompetition(
+            img, model1, model2, "max", metric_tradeoff_lambda=1
+        )
         mad2.synthesize(max_iter=2)
-        mad3 = po.synth.MADCompetition(img, model2, model1, "min")
+        mad3 = po.synth.MADCompetition(
+            img, model2, model1, "min", metric_tradeoff_lambda=1
+        )
         mad3.synthesize(max_iter=2)
-        mad4 = po.synth.MADCompetition(img, model2, model1, "max")
+        mad4 = po.synth.MADCompetition(
+            img, model2, model1, "max", metric_tradeoff_lambda=1
+        )
         mad4.synthesize(max_iter=2)
         return mad, mad2, mad3, mad4
 
     @pytest.mark.parametrize("func", ["loss", "image"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_helper_funcs(self, all_mad, func):
         if func == "loss":
             func = po.synth.mad_competition.plot_loss_all
@@ -760,6 +801,10 @@ class TestMADDisplay:
     # the second is just a typo
     @pytest.mark.parametrize("val", ["plot_representation_error", "plot_mad_image"])
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
             func = po.synth.mad_competition.plot_synthesis_status
@@ -848,6 +893,9 @@ class TestMetamerDisplay:
             "custom-extra",
             "custom-preplot",
         ],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Looks like representation is image-like, haven't:UserWarning"
     )
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's

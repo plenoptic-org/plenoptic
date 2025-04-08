@@ -13,7 +13,7 @@ from ..tools.conv import same_padding
 DIRNAME = resources.files("plenoptic.metric")
 
 
-def _ssim_parts(img1, img2, pad=False):
+def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
     """Calcluates the various components used to compute SSIM
 
     This should not be called by users directly, but is meant to assist for
@@ -40,9 +40,7 @@ def _ssim_parts(img1, img2, pad=False):
     img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
-            "Image range falls outside [0, 1]."
-            f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-            "Continuing anyway..."
+            f"Image range falls outside [0, 1]. {func_name} output may not make sense."
         )
 
     if not img1.ndim == img2.ndim == 4:
@@ -375,11 +373,11 @@ def ms_ssim(img1, img2, power_factors=None):
 
     msssim = 1
     for i in range(len(power_factors) - 1):
-        _, contrast_structure_map, _ = _ssim_parts(img1, img2)
+        _, contrast_structure_map, _ = _ssim_parts(img1, img2, func_name="MS-SSIM")
         msssim *= F.relu(contrast_structure_map.mean((-1, -2))).pow(power_factors[i])
         img1 = downsample(img1)
         img2 = downsample(img2)
-    map_ssim, _, _ = _ssim_parts(img1, img2)
+    map_ssim, _, _ = _ssim_parts(img1, img2, func_name="MS-SSIM")
     msssim *= F.relu(map_ssim.mean((-1, -2))).pow(power_factors[-1])
 
     if min(img1.shape[2], img1.shape[3]) < 11:
@@ -526,9 +524,7 @@ def nlpd(img1, img2):
     img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
-            "Image range falls outside [0, 1]."
-            f" img1: {img_ranges[0]}, img2: {img_ranges[1]}. "
-            "Continuing anyway..."
+            "Image range falls outside [0, 1]. NLPD output may not make sense."
         )
 
     y1 = normalized_laplacian_pyramid(img1)

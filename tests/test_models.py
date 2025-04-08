@@ -33,7 +33,6 @@ ALL_MODELS = [
     "naive.Gaussian",
     "naive.CenterSurround",
     "PortillaSimoncelli",
-    "Identity",
 ]
 
 
@@ -212,6 +211,9 @@ class TestFrontEnd:
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
     @pytest.mark.parametrize("cache_filt", [False, True])
+    @pytest.mark.filterwarnings(
+        "ignore:pretrained is True but cache_filt is False:UserWarning"
+    )
     def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
             with pytest.raises(ValueError):
@@ -232,29 +234,33 @@ class TestFrontEnd:
     def test_kernel_size(self, mdl, einstein_img):
         kernel_size = 31
         if mdl == "frontend.LinearNonlinear":
-            model = po.simul.LinearNonlinear(kernel_size, pretrained=True).to(DEVICE)
+            model = po.simul.LinearNonlinear(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
             model2 = po.simul.LinearNonlinear(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceGainControl":
-            model = po.simul.LuminanceGainControl(kernel_size, pretrained=True).to(
-                DEVICE
-            )
+            model = po.simul.LuminanceGainControl(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
             model2 = po.simul.LuminanceGainControl(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceContrastGainControl":
             model = po.simul.LuminanceContrastGainControl(
-                kernel_size, pretrained=True
+                kernel_size, pretrained=True, cache_filt=True
             ).to(DEVICE)
             model2 = po.simul.LuminanceContrastGainControl(
-                (kernel_size, kernel_size), pretrained=True
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.OnOff":
-            model = po.simul.OnOff(kernel_size, pretrained=True).to(DEVICE)
-            model2 = po.simul.OnOff((kernel_size, kernel_size), pretrained=True).to(
+            model = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=True).to(
                 DEVICE
             )
+            model2 = po.simul.OnOff(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
         assert torch.allclose(model(einstein_img), model2(einstein_img)), (
             "Kernels somehow different!"
         )
@@ -733,6 +739,9 @@ class TestPortillaSimoncelli:
             "Convert to tensor or dict is broken!"
         )
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_ps_synthesis(self, portilla_simoncelli_synthesize, run_test=True):
         """Test PS texture metamer synthesis.
 
@@ -917,22 +926,46 @@ class TestPortillaSimoncelli:
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE)
-        model.plot_representation(
+        fig, _ = model.plot_representation(
             model(einstein_img.repeat((*batch_channel, 1, 1))),
             title="Representation",
         )
+        plt.close(fig)
+
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(self, figsize, ax, einstein_img):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
+        else:
+            ax = None
+        model = po.simul.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        with expectation:
+            fig, _ = model.plot_representation(
+                model(einstein_img),
+                title="Representation",
+                figsize=figsize,
+                ax=ax,
+            )
+        plt.close(fig)
 
     def test_update_plot(self, einstein_img):
         model = po.simul.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
-        _, axes = model.plot_representation(model(einstein_img))
+        fig, axes = model.plot_representation(model(einstein_img))
         orig_y = axes[0].containers[0].markerline.get_ydata()
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         artists = model.update_plot(axes, model(img).cpu())
         updated_y = artists[0].get_ydata()
         if np.equal(orig_y, updated_y).all():
             raise ValueError("Update plot didn't run successfully!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])

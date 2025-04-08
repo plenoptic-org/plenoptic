@@ -35,6 +35,9 @@ class TestEigendistortionSynthesis:
     @pytest.mark.parametrize(
         "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
     )
+    @pytest.mark.filterwarnings(
+        "ignore:Jacobian > 1e6 elements and may cause out-of-memory:UserWarning"
+    )
     def test_method_exact(self, model, einstein_img, color_img):
         # in this case, we're working with grayscale images
         if model.__class__ == OnOff:
@@ -100,6 +103,9 @@ class TestEigendistortionSynthesis:
         assert len(ed.eigenvalues) == 2 * k
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_method_randomized_svd(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -111,6 +117,9 @@ class TestEigendistortionSynthesis:
         assert len(ed.eigenvalues) == k
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., 125 : 125 + 25, 125 : 125 + 25]
@@ -144,6 +153,9 @@ class TestEigendistortionSynthesis:
     )
     @pytest.mark.parametrize("method", ["power", "randomized_svd"])
     @pytest.mark.parametrize("k", [2, 3])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_display(self, model, einstein_img, color_img, method, k):
         # in this case, we're working with grayscale images
         img = einstein_img if model.__class__ == OnOff else color_img
@@ -167,6 +179,9 @@ class TestEigendistortionSynthesis:
     )
     @pytest.mark.parametrize("fail", [False, "img", "model"])
     @pytest.mark.parametrize("method", ["exact", "power", "randomized_svd"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_save_load(self, einstein_img, model, fail, method, tmp_path):
         if method in ["exact", "randomized_svd"]:
             img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
@@ -185,6 +200,7 @@ class TestEigendistortionSynthesis:
             elif fail == "model":
                 model = Gaussian(30).to(DEVICE)
                 remove_grad(model)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match=("Saved and initialized model output have different values"),
@@ -242,7 +258,9 @@ class TestEigendistortionSynthesis:
         if synth_type == "met":
             eig = Metamer(einstein_img, model)
         elif synth_type == "mad":
-            eig = MADCompetition(einstein_img, mse, mse, "min")
+            eig = MADCompetition(
+                einstein_img, mse, mse, "min", metric_tradeoff_lambda=1
+            )
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
@@ -283,8 +301,10 @@ class TestEigendistortionSynthesis:
                 elif model_behav == "name":
                     return self.model(x)
 
+        model = NewModel()
+        model.eval()
         with expectation:
-            eig = Eigendistortion(einstein_img, NewModel())
+            eig = Eigendistortion(einstein_img, model)
             eig.load(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
 
     @pytest.mark.parametrize(
@@ -303,12 +323,13 @@ class TestEigendistortionSynthesis:
             eig.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
 
-    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=5, method="power")
@@ -335,7 +356,7 @@ class TestEigendistortionSynthesis:
         eig.synthesize(max_iter=5, method="power")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=4, method="power")
@@ -351,7 +372,7 @@ class TestEigendistortionSynthesis:
         # reset model device for other tests
         model.to(DEVICE)
 
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_change_precision_save_load(self, einstein_img, model, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
@@ -449,6 +470,7 @@ class TestAutodiffFunctions:
         x0 = x0 / torch.linalg.vector_norm(x0, ord=2)
         mdl = LM().to(DEVICE)
         remove_grad(mdl)
+        mdl.eval()
 
         k = 10
         x_dim = x0.numel()

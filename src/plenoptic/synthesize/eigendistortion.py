@@ -3,7 +3,6 @@ from collections.abc import Callable
 from typing import Literal
 
 import matplotlib.pyplot
-import numpy as np
 import torch
 from matplotlib.figure import Figure
 from torch import Tensor
@@ -297,7 +296,6 @@ class Eigendistortion(Synthesis):
             J = jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
         else:
-            warnings.warn("Jacobian already computed, returning self.jacobian")
             J = self.jacobian
 
         return J
@@ -485,7 +483,7 @@ class Eigendistortion(Synthesis):
         assert all_idx is not None and len(all_idx) != 0, (
             "No eigendistortions synthesized"
         )
-        return int(np.where(all_idx == i)[0])
+        return torch.where(all_idx == i)[0].item()
 
     def save(self, file_path: str):
         r"""Save all relevant variables in .pt file.
@@ -597,7 +595,7 @@ class Eigendistortion(Synthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30)
+        >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> eig = po.synth.Eigendistortion(img, model)
         >>> eig.synthesize(max_iter=5)

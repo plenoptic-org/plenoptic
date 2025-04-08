@@ -297,6 +297,8 @@ class SteerablePyramidFreq(nn.Module):
 
         # reasonable default dtype
         self.to(torch.float32)
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def forward(
         self,
@@ -588,7 +590,8 @@ class SteerablePyramidFreq(nn.Module):
         for ch in range(num_channels):
             for k in pyr_keys:
                 if "residual" in k:
-                    band = pyr_tensor[:, i, ...].unsqueeze(1).type(torch.float)
+                    # residuals are real-valued, the complex part is all 0
+                    band = pyr_tensor[:, i, ...].unsqueeze(1).real
                     i += 1
                 else:
                     if split_complex:

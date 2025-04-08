@@ -1,11 +1,5 @@
-# necessary to avoid issues with animate:
-# https://github.com/matplotlib/matplotlib/issues/10287/
-from contextlib import nullcontext as does_not_raise
-
-import matplotlib
-
-matplotlib.use("agg")
 import os.path as op
+from contextlib import nullcontext as does_not_raise
 
 import numpy as np
 import pytest
@@ -67,12 +61,13 @@ class TestMetamers:
             elif fail == "model":
                 model = po.simul.Gaussian(30).to(DEVICE)
                 po.tools.remove_grad(model)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match=("Saved and initialized model output have different values"),
                 )
             elif fail == "loss":
-                loss = po.metric.ssim
+                loss = po.tools.optim.relative_MSE
                 expectation = pytest.raises(
                     ValueError,
                     match=(
@@ -99,6 +94,7 @@ class TestMetamers:
                 model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
                 po.tools.remove_grad(model)
                 model.to(torch.float64)
+                model.eval()
                 expectation = pytest.raises(
                     ValueError,
                     match="Saved and initialized attribute image have different dtype",
@@ -189,12 +185,13 @@ class TestMetamers:
     def test_setup_fail(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.setup()
-        with pytest.raises(ValueError, match="setup\(\) can only be called once"):
+        with pytest.raises(ValueError, match=r"setup\(\) can only be called once"):
             met.setup()
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_synth_then_setup(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.setup(optimizer=torch.optim.SGD)
@@ -261,7 +258,11 @@ class TestMetamers:
             met = po.synth.Eigendistortion(einstein_img, model)
         elif synth_type == "mad":
             met = po.synth.MADCompetition(
-                einstein_img, po.metric.mse, po.metric.mse, "min"
+                einstein_img,
+                po.metric.mse,
+                po.metric.mse,
+                "min",
+                metric_tradeoff_lambda=1,
             )
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
@@ -303,8 +304,10 @@ class TestMetamers:
                 elif model_behav == "name":
                     return self.model(x)
 
+        model = NewModel()
+        model.eval()
         with expectation:
-            met = po.synth.Metamer(einstein_img, NewModel())
+            met = po.synth.Metamer(einstein_img, model)
             met.load(op.join(tmp_path, "test_metamer_load_model_change.pt"))
 
     @pytest.mark.parametrize(
@@ -353,7 +356,7 @@ class TestMetamers:
             met.test = "BAD"
             err_str = "Initialized"
         with pytest.raises(
-            ValueError, match=f"{err_str} object has 1 attribute\(s\) not present"
+            ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
             met.load(op.join(tmp_path, "test_metamer_load_attributes.pt"))
 
@@ -365,6 +368,7 @@ class TestMetamers:
         [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
     )
     @pytest.mark.parametrize("fail", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
         met = po.synth.Metamer(curie_img, model)
         scheduler = None
@@ -478,6 +482,7 @@ class TestMetamers:
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("load", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         # Adam has some stochasticity in its initialization(?), so this test doesn't
@@ -543,6 +548,10 @@ class TestMetamers:
 
     @pytest.mark.parametrize("model", ["SPyr"], indirect=True)
     @pytest.mark.parametrize("coarse_to_fine", ["separate", "together"])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     def test_coarse_to_fine(self, einstein_img, model, coarse_to_fine, tmp_path):
         metamer = po.synth.MetamerCTF(
             einstein_img, model, coarse_to_fine=coarse_to_fine
@@ -648,7 +657,7 @@ class TestMetamers:
             raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
@@ -667,8 +676,9 @@ class TestMetamers:
         # reset model device for other tests
         model.to(DEVICE)
 
-    @pytest.mark.parametrize("model", ["Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
         met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=5)
@@ -684,7 +694,7 @@ class TestMetamers:
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
-    @pytest.mark.parametrize("model", ["ColorModel", "Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["ColorModel", "naive.Identity"], indirect=True)
     def test_multichannel(self, model, color_img):
         met = po.synth.Metamer(color_img, model)
         met.synthesize(max_iter=5)
@@ -694,7 +704,7 @@ class TestMetamers:
 
     # this determines whether we mix across batches (e.g., a video model) or
     # treat them separately, both of which are supported
-    @pytest.mark.parametrize("model", ["VideoModel", "Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["VideoModel", "naive.Identity"], indirect=True)
     def test_multibatch(self, model, einstein_img, curie_img):
         img = torch.cat([curie_img, einstein_img], dim=0)
         met = po.synth.Metamer(img, model)
@@ -726,7 +736,7 @@ class TestMetamers:
         with pytest.raises(ValueError, match="Found a NaN in loss during optimization"):
             met.synthesize(max_iter=1)
 
-    @pytest.mark.parametrize("model", ["Identity"], indirect=True)
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_change_precision_save_load(self, model, einstein_img, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
@@ -741,6 +751,7 @@ class TestMetamers:
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     def test_stop_criterion(self, einstein_img, model):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility

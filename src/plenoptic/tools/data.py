@@ -43,7 +43,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     """
 
     with contextlib.suppress(AttributeError):
-        # in this case, it's already a numpy array
+        # if this fails, it's already a numpy array
         x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
     if squeeze:
         x = x.squeeze()

@@ -108,11 +108,11 @@ class TestSignal:
         einstein_img = einstein_img.clone()[..., :img_size]
         if int(factor * img_size) != factor * img_size:
             expectation = pytest.raises(
-                ValueError, match="factor \* x.shape\[-1\] must be"
+                ValueError, match=r"factor \* x.shape\[-1\] must be"
             )
         elif int(factor * einstein_img.shape[-2]) != factor * einstein_img.shape[-2]:
             expectation = pytest.raises(
-                ValueError, match="factor \* x.shape\[-2\] must be"
+                ValueError, match=r"factor \* x.shape\[-2\] must be"
             )
         elif factor <= 1:
             expectation = pytest.raises(
@@ -133,11 +133,11 @@ class TestSignal:
         einstein_img = einstein_img.clone()[..., :img_size]
         if int(img_size / factor) != img_size / factor:
             expectation = pytest.raises(
-                ValueError, match="x.shape\[-1\]/factor must be"
+                ValueError, match=r"x.shape\[-1\]/factor must be"
             )
         elif int(einstein_img.shape[-2] / factor) != einstein_img.shape[-2] / factor:
             expectation = pytest.raises(
-                ValueError, match="x.shape\[-2\]/factor must be"
+                ValueError, match=r"x.shape\[-2\]/factor must be"
             )
         elif factor <= 1:
             expectation = pytest.raises(
@@ -397,6 +397,7 @@ class TestValidate:
                 return np.fft.fft(img)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError, match="model does not return a torch.Tensor object"
         ):
@@ -413,6 +414,7 @@ class TestValidate:
                 return img.detach()
 
         model = TestModel()
+        model.eval()
         with pytest.raises(ValueError, match="model strips gradient from input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -425,6 +427,7 @@ class TestValidate:
                 return torch.from_numpy(np.fft.fft(img))
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError,
             match="model tries to cast the input into something other",
@@ -442,6 +445,7 @@ class TestValidate:
                 return img.to(torch.float16)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(TypeError, match="model changes precision of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -458,6 +462,7 @@ class TestValidate:
                     return img.unsqueeze(0)
 
         model = TestModel()
+        model.eval()
         with pytest.raises(ValueError, match="When given a 4d input, model output"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -471,6 +476,7 @@ class TestValidate:
                 return img.to("cpu")
 
         model = TestModel()
+        model.eval()
         with pytest.raises(RuntimeError, match="model changes device of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
@@ -479,6 +485,9 @@ class TestValidate:
         img_shape = (1, 3, 16, 16)
         po.tools.validate.validate_model(model, image_shape=img_shape, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_scales(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -488,9 +497,13 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(AttributeError, match="model has no scales attribute"):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_arg(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -501,12 +514,16 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             TypeError,
             match="model forward method does not accept scales argument",
         ):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_shape(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -517,6 +534,7 @@ class TestValidate:
                 return img
 
         model = TestModel()
+        model.eval()
         with pytest.raises(
             ValueError,
             match="Output of model forward method doesn't change shape",
@@ -527,6 +545,9 @@ class TestValidate:
         "model",
         ["PortillaSimoncelli"],
         indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_validate_ctf_pass(self, model):
         po.tools.validate.validate_coarse_to_fine(
@@ -590,23 +611,23 @@ class TestOptim:
 class TestPolarImages:
     def test_polar_angle_clockwise(self):
         ang = po.tools.polar_angle(100, direction="clockwise")
-        idx = np.argmin((ang - np.pi / 2) ** 2)
-        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+        idx = torch.argmin((ang - np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] > 50, (
             "pi/2 should be in bottom half of image!"
         )
-        idx = np.argmin((ang + np.pi / 2) ** 2)
-        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+        idx = torch.argmin((ang + np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] < 50, (
             "pi/2 should be in top half of image!"
         )
 
     def test_polar_angle_counterclockwise(self):
         ang = po.tools.polar_angle(100, direction="counter-clockwise")
-        idx = np.argmin((ang - np.pi / 2) ** 2)
-        assert np.unravel_index(idx, (100, 100))[0] < 50, (
+        idx = torch.argmin((ang - np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] < 50, (
             "pi/2 should be in top half of image!"
         )
-        idx = np.argmin((ang + np.pi / 2) ** 2)
-        assert np.unravel_index(idx, (100, 100))[0] > 50, (
+        idx = torch.argmin((ang + np.pi / 2) ** 2)
+        assert torch.unravel_index(idx, (100, 100))[0] > 50, (
             "pi/2 should be in bottom half of image!"
         )
 

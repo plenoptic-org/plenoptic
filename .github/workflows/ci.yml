@@ -69,9 +69,10 @@ jobs:
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
         pip install --upgrade --upgrade-strategy eager .[dev]
-    - name: Run tests with pytest
+    - name: Run doctests with pytest
       run: |
-        pytest --doctest-modules --doctest-continue-on-failure src/
+        # ignore warnings in doctests, since otherwise pytest fails
+        pytest --doctest-modules src/ -W "ignore"
   tests:
     runs-on: ubuntu-latest
     strategy:
@@ -97,7 +98,7 @@ jobs:
       run: |
         pytest --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@7598e39340e1dff4d6ebf7cf07a5e8184bde67e7 # v4.0.1
+      uses: codecov/codecov-action@v5.4.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   all_tutorials_in_docs:
