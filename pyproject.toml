@@ -92,6 +92,7 @@ doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
 # last matching option is performed."
 filterwarnings = [
     "error",
+    "ignore:Call to deprecated function (or staticmethod) gaussian1d:DeprecationWarning",
     "ignore:Loss has converged:UserWarning",
     "ignore:Image range falls outside:UserWarning",
     "ignore:SSIM was designed for grayscale images:UserWarning",
