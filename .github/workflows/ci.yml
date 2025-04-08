@@ -96,7 +96,7 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[dev]
     - name: Run tests with pytest
       run: |
-        pytest --cov-report xml
+        COV_CORE_SOURCE=src/ pytest --cov-report xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5.4.0
       with:
