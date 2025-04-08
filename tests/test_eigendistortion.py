@@ -103,6 +103,9 @@ class TestEigendistortionSynthesis:
         assert len(ed.eigenvalues) == 2 * k
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_method_randomized_svd(self, model, einstein_img):
         n, k = 30, 10
         n_chans = 1  # TODO color
@@ -114,6 +117,9 @@ class TestEigendistortionSynthesis:
         assert len(ed.eigenvalues) == k
 
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_method_accuracy(self, model, einstein_img):
         # test pow and svd against ground-truth jacobian (exact) method
         einstein_img = einstein_img[..., 125 : 125 + 25, 125 : 125 + 25]
@@ -147,6 +153,9 @@ class TestEigendistortionSynthesis:
     )
     @pytest.mark.parametrize("method", ["power", "randomized_svd"])
     @pytest.mark.parametrize("k", [2, 3])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_display(self, model, einstein_img, color_img, method, k):
         # in this case, we're working with grayscale images
         img = einstein_img if model.__class__ == OnOff else color_img
@@ -170,6 +179,9 @@ class TestEigendistortionSynthesis:
     )
     @pytest.mark.parametrize("fail", [False, "img", "model"])
     @pytest.mark.parametrize("method", ["exact", "power", "randomized_svd"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
     def test_save_load(self, einstein_img, model, fail, method, tmp_path):
         if method in ["exact", "randomized_svd"]:
             img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]

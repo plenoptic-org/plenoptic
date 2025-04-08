@@ -485,6 +485,9 @@ class TestValidate:
         img_shape = (1, 3, 16, 16)
         po.tools.validate.validate_model(model, image_shape=img_shape, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_scales(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -498,6 +501,9 @@ class TestValidate:
         with pytest.raises(AttributeError, match="model has no scales attribute"):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_arg(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -515,6 +521,9 @@ class TestValidate:
         ):
             po.tools.validate.validate_coarse_to_fine(model, device=DEVICE)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_validate_ctf_shape(self):
         class TestModel(torch.nn.Module):
             def __init__(self):
@@ -536,6 +545,9 @@ class TestValidate:
         "model",
         ["PortillaSimoncelli"],
         indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_validate_ctf_pass(self, model):
         po.tools.validate.validate_coarse_to_fine(

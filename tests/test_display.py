@@ -709,6 +709,10 @@ class TestMADDisplay:
     @pytest.mark.parametrize(
         "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
     )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_all_plot(
         self,
         synthesized_mad,
@@ -741,6 +745,10 @@ class TestMADDisplay:
             "custom-preplot",
         ],
     )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
@@ -780,6 +788,7 @@ class TestMADDisplay:
         return mad, mad2, mad3, mad4
 
     @pytest.mark.parametrize("func", ["loss", "image"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_helper_funcs(self, all_mad, func):
         if func == "loss":
             func = po.synth.mad_competition.plot_loss_all
@@ -792,6 +801,10 @@ class TestMADDisplay:
     # the second is just a typo
     @pytest.mark.parametrize("val", ["plot_representation_error", "plot_mad_image"])
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
             func = po.synth.mad_competition.plot_synthesis_status
@@ -880,6 +893,9 @@ class TestMetamerDisplay:
             "custom-extra",
             "custom-preplot",
         ],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Looks like representation is image-like, haven't:UserWarning"
     )
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
