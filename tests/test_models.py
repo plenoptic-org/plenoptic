@@ -1214,7 +1214,7 @@ class TestFilters:
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
         if std <= 0.0:
-            with pytest.raises(AssertionError):
+            with pytest.raises(ValueError, match="std must be positive"):
                 circular_gaussian2d((7, 7), std)
         else:
             filt = circular_gaussian2d(kernel_size, std, out_channels)
@@ -1226,5 +1226,113 @@ class TestFilters:
     def test_circular_gaussian2d_wrong_std_length(self):
         std = torch.as_tensor([1.0, 2.0], device=DEVICE)
         out_channels = 3
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError, match="Number of stds must equal"):
             circular_gaussian2d((7, 7), std, out_channels)
+
+    @pytest.mark.parametrize(
+        "std,expectation",
+        [
+            (1.0, does_not_raise()),
+            (20.0, does_not_raise()),
+            (0.0, pytest.raises(ValueError, match="std must be positive")),
+            (1, does_not_raise()),
+            (
+                [1, 1],
+                pytest.raises(
+                    ValueError, match="Number of stds must equal out_channels"
+                ),
+            ),
+            (torch.tensor(1), does_not_raise()),
+            (torch.tensor([1]), does_not_raise()),
+            (
+                torch.tensor([1, 1]),
+                pytest.raises(
+                    ValueError, match="Number of stds must equal out_channels"
+                ),
+            ),
+        ],
+    )
+    def test_circluar_gaussian2d_std(self, std, expectation):
+        with expectation:
+            filt = circular_gaussian2d((31, 31), std)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE))
+            assert filt.shape[-2:] == torch.Size((31, 31))
+
+    def test_circluar_gaussian2d_std_out_channel(self):
+        filt = circular_gaussian2d((31, 31), [2, 3, 4], out_channels=3)
+        assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
+        assert filt.shape[-2:] == torch.Size((31, 31))
+
+    @pytest.mark.parametrize(
+        "kernel_size,expectation",
+        [
+            (
+                31.0,
+                pytest.raises(ValueError, match="kernel_size must be integer-valued"),
+            ),
+            (31, does_not_raise()),
+            (0, pytest.raises(ValueError, match="kernel_size must be positive")),
+            ([31, 31], does_not_raise()),
+            ((31, 31), does_not_raise()),
+            (torch.tensor(31), does_not_raise()),
+            (torch.tensor([31, 31]), does_not_raise()),
+            (
+                torch.tensor([31.0, 31.0]),
+                pytest.raises(ValueError, match="kernel_size must be integer-valued"),
+            ),
+        ],
+    )
+    def test_circluar_gaussian2d_kernel_size(self, kernel_size, expectation):
+        with expectation:
+            filt = circular_gaussian2d(kernel_size, 2)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE))
+            if isinstance(kernel_size, int):
+                kernel_size = (kernel_size, kernel_size)
+            elif torch.is_tensor(kernel_size) and kernel_size.numel() == 1:
+                kernel_size = kernel_size.repeat(2)
+            assert filt.shape[-2:] == torch.Size(kernel_size)
+
+    @pytest.mark.parametrize(
+        "out_channels,expectation",
+        [
+            (
+                0,
+                pytest.raises(
+                    ValueError, match="out_channels must be positive integer"
+                ),
+            ),
+            (
+                1.0,
+                pytest.raises(
+                    ValueError, match="out_channels must be positive integer"
+                ),
+            ),
+            (1, does_not_raise()),
+            (2, does_not_raise()),
+            (
+                [2, 2],
+                pytest.raises(TypeError, match=".*not supported between instances"),
+            ),
+            (
+                torch.tensor([2, 2]),
+                pytest.raises(RuntimeError, match="Boolean value of Tensor"),
+            ),
+        ],
+    )
+    def test_circluar_gaussian2d_out_channels(self, out_channels, expectation):
+        with expectation:
+            circular_gaussian2d((31, 31), 2, out_channels)
+
+    def test_circular_gaussian2d_multichannel_indep(self, color_img):
+        # check that the following is equivalent to independently convolving each
+        # channel with each filter
+        filt = po.simul.circular_gaussian2d(31, [2, 10], 2)
+        img = po.data.color_wheel(as_gray=False)
+        output = torch.nn.functional.conv2d(img, filt.repeat(3, 1, 1, 1), groups=3)
+        test = []
+        for ch, f in zip(range(3), range(2)):
+            test.append(
+                torch.nn.functional.conv2d(img[:, ch : ch + 1], filt[f : f + 1])
+            )
+        test = torch.concat(test, dim=1)
+        assert torch.allclose(test, output)
