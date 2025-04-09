@@ -317,7 +317,7 @@ class TestNaive:
     @pytest.mark.parametrize("on_center", [True, [True, False]])
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
         if not isinstance(center_std, float) and len(center_std) != out_channels:
-            with pytest.raises(AssertionError):
+            with pytest.raises(ValueError, match="Number of stds must equal"):
                 po.simul.CenterSurround(
                     (31, 31), center_std=center_std, out_channels=out_channels
                 )
@@ -1330,9 +1330,10 @@ class TestFilters:
         img = po.data.color_wheel(as_gray=False)
         output = torch.nn.functional.conv2d(img, filt.repeat(3, 1, 1, 1), groups=3)
         test = []
-        for ch, f in zip(range(3), range(2)):
-            test.append(
-                torch.nn.functional.conv2d(img[:, ch : ch + 1], filt[f : f + 1])
-            )
+        for ch in range(3):
+            for f in range(2):
+                test.append(
+                    torch.nn.functional.conv2d(img[:, ch : ch + 1], filt[f : f + 1])
+                )
         test = torch.concat(test, dim=1)
         assert torch.allclose(test, output)

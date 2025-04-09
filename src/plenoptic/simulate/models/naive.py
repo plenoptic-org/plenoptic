@@ -4,7 +4,7 @@ from torch import nn as nn
 from torch.nn import functional as F
 
 from ...tools.conv import same_padding
-from ..canonical_computations.filters import circular_gaussian2d
+from ..canonical_computations.filters import _validate_filter_args, circular_gaussian2d
 
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 
@@ -19,15 +19,13 @@ class Identity(torch.nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> identity_model = po.simulate.Identity("my_model")
+    >>> identity_model = po.simul.Identity()
     >>> identity_model
     Identity()
     """
 
-    def __init__(self, name=None):
+    def __init__(self):
         super().__init__()
-        if name is not None:
-            self.name = name
 
     def forward(self, img):
         """Return a copy of the image
@@ -44,10 +42,15 @@ class Identity(torch.nn.Module):
 
         Examples
         --------
-        >>> import plenoptic as po
-        >>> identity_model = po.simulate.Identity("my_model")
-        >>> img = po.data.curie()
-        >>> y = identity_model.forward(img)
+        .. plot::
+
+           >>> import plenoptic as po
+           >>> identity_model = po.simul.Identity()
+           >>> img = po.data.curie()
+           >>> y = identity_model.forward(img)
+           >>> titles = ["Input", "Output (identical)"]
+           >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+           <PyrFigure ...>
 
         """
         y = 1 * img
@@ -55,8 +58,10 @@ class Identity(torch.nn.Module):
 
 
 class Linear(nn.Module):
-    r"""Simplistic linear convolutional model:
-    It splits the input greyscale image into low and high frequencies.
+    r"""Simplistic linear convolutional model.
+
+    If ``default_filters=True``, this model splits the input image into low
+    and high frequencies.
 
     Parameters
     ----------
@@ -65,12 +70,18 @@ class Linear(nn.Module):
     pad_mode:
         Mode with which to pad image using `nn.functional.pad()`.
     default_filters:
-        Initialize the filters to a low-pass and a band-pass.
+        Initialize the filters to a low-pass and a band-pass. If False, filters are
+        randomly initialized.
+
+    Raises
+    ------
+    ValueError:
+        If kernel_size is not one or two positive integers.
 
     Examples
     --------
     >>> import plenoptic as po
-    >>> linear_model = po.simulate.Linear()
+    >>> linear_model = po.simul.Linear()
     >>> linear_model
     Linear(
       (conv): Conv2d(1, 2, kernel_size=(3, 3), stride=(1, 1), bias=False)
@@ -78,11 +89,12 @@ class Linear(nn.Module):
 
     To specify the kernel size :
 
-    >>> linear_model = po.simulate.Linear(kernel_size=(5,5))
+    >>> linear_model = po.simul.Linear(kernel_size=(5, 5))
     >>> linear_model
     Linear(
       (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
     )
+
     """
 
     def __init__(
@@ -93,10 +105,10 @@ class Linear(nn.Module):
     ):
         super().__init__()
 
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
-        self.kernel_size = kernel_size
         self.pad_mode = pad_mode
+        # std and out_channels are not used by Linear, so set to values we know will
+        # pass
+        self.kernel_size, _ = _validate_filter_args(kernel_size, 1, 1)
 
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
@@ -129,11 +141,11 @@ class Linear(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> linear_model = po.simulate.Linear()
+          >>> linear_model = po.simul.Linear()
           >>> img = po.data.curie()
           >>> y = linear_model.forward(img)
-          >>> po.imshow([img, y], title=["Input image", "Output channel 0",
-          ...                            "Output channel 1"]) #doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=["Input image", "Lowpass channel output",
+          ...                            "Bandpass channel output"]) #doctest: +ELLIPSIS
           <PyrFigure size...>
 
         """
@@ -160,10 +172,21 @@ class Gaussian(nn.Module):
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`.
 
+    Raises
+    ------
+    ValueError:
+        If out_channels is not a positive integer.
+    ValueError:
+        If kernel_size is not a positive integer.
+    ValueError:
+        If std is not positive.
+    ValueError:
+        If std has more than one value and ``len(std) != out_channels``
+
     Examples
     --------
     >>> import plenoptic as po
-    >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
+    >>> gaussian_model = po.simul.Gaussian(kernel_size=10)
     >>> gaussian_model
     Gaussian()
 
@@ -172,20 +195,15 @@ class Gaussian(nn.Module):
     def __init__(
         self,
         kernel_size: int | tuple[int, int],
-        std: float | Tensor = 3.0,
+        std: int | list[int] | float | list[float] | Tensor = 3.0,
         pad_mode: str = "reflect",
         out_channels: int = 1,
         cache_filt: bool = False,
     ):
         super().__init__()
-        assert std > 0, "Gaussian standard deviation must be positive"
-        if isinstance(std, float) or std.shape == torch.Size([]):
-            std = torch.ones(out_channels) * std
-        self.std = nn.Parameter(torch.as_tensor(std))
+        self.kernel_size, std = _validate_filter_args(kernel_size, std, out_channels)
+        self.std = nn.Parameter(std)
 
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
-        self.kernel_size = kernel_size
         self.pad_mode = pad_mode
         self.out_channels = out_channels
 
@@ -220,11 +238,24 @@ class Gaussian(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> gaussian_model = po.simulate.Gaussian(kernel_size=10)
+          >>> gaussian_model = po.simul.Gaussian(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = gaussian_model.forward(img)
           >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
           <PyrFigure size...>
+
+        Multiple output channels with different standard deviations.
+
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> gaussian_model = po.simul.Gaussian(kernel_size=10, std=[2, 5],
+          ...                                    out_channels=2)
+          >>> img = po.data.curie()
+          >>> y = gaussian_model.forward(img)
+          >>> po.imshow([img, y], title=["Input image", "Output Channel 0",
+          ...                            "Output Channel 1"]) #doctest: +ELLIPSIS
+          <PyrFigure ...>
 
         """
         self.std.data = self.std.data.abs()  # ensure stdev is positive
@@ -256,12 +287,12 @@ class CenterSurround(nn.Module):
         `out_channels`, if just a single bool, then all `out_channels` will be assumed
         to be all on-off or off-on.
     amplitude_ratio:
-        Ratio of center/surround amplitude. Applied before filter normalization.
+        Ratio of center/surround amplitude. Applied before filter normalization. Must be
+        greater than or equal to 1.
     center_std:
         Standard deviation of circular Gaussian for center.
     surround_std:
-        Standard deviation of circular Gaussian for surround. Must be at least
-        `ratio_limit` times `center_std`.
+        Standard deviation of circular Gaussian for surround.
     out_channels:
         Number of filters.
     pad_mode:
@@ -270,10 +301,22 @@ class CenterSurround(nn.Module):
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`
 
+    Raises
+    ------
+    ValueError:
+        If out_channels is not a positive integer.
+    ValueError:
+        If kernel_size is not a positive integer.
+    ValueError:
+        If center_std or surround_std are not positive.
+    ValueError:
+        If center_std or surround_std have more than one value and their lengths do not
+        equal ``out_channels``
+
     Examples
     --------
     >>> import plenoptic as po
-    >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
+    >>> cs_model = po.simul.CenterSurround(kernel_size=10)
     >>> cs_model
     CenterSurround()
 
@@ -284,38 +327,34 @@ class CenterSurround(nn.Module):
         kernel_size: int | tuple[int, int],
         on_center: bool | list[bool] = True,
         amplitude_ratio: float = 1.25,
-        center_std: float | Tensor = 1.0,
-        surround_std: float | Tensor = 4.0,
+        center_std: int | list[int] | float | list[float] | Tensor = 1.0,
+        surround_std: int | list[int] | float | list[float] | Tensor = 4.0,
         out_channels: int = 1,
         pad_mode: str = "reflect",
         cache_filt: bool = False,
     ):
         super().__init__()
 
-        # make sure each channel is on-off or off-on
-        if isinstance(on_center, bool):
-            on_center = [on_center] * out_channels
-        assert len(on_center) == out_channels, "len(on_center) must match out_channels"
-
-        # make sure each channel has a center and surround std
-        if isinstance(center_std, float) or center_std.shape == torch.Size([]):
-            center_std = torch.ones(out_channels) * center_std
-        if isinstance(surround_std, float) or surround_std.shape == torch.Size([]):
-            surround_std = torch.ones(out_channels) * surround_std
-        assert len(center_std) == out_channels and len(surround_std) == out_channels, (
-            "stds must correspond to each out_channel"
+        self.kernel_size, center_std = _validate_filter_args(
+            kernel_size, center_std, out_channels
         )
-        assert amplitude_ratio >= 1.0, "ratio of amplitudes must at least be 1."
+        _, surround_std = _validate_filter_args(kernel_size, surround_std, out_channels)
 
+        self.center_std = nn.Parameter(center_std)
+        self.surround_std = nn.Parameter(surround_std)
+
+        # make sure each channel is on-off or off-on
+
+        on_center = torch.as_tensor(on_center)
+        if on_center.numel() == 1:
+            on_center = on_center.repeat(out_channels)
+        if len(on_center) != out_channels:
+            raise ValueError("len(on_center) must equal out_channels")
         self.on_center = on_center
 
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
-        self.kernel_size = kernel_size
+        if amplitude_ratio < 1.0:
+            raise ValueError("amplitude_ratio must at least be 1.")
         self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
-
-        self.center_std = nn.Parameter(torch.ones(out_channels) * center_std)
-        self.surround_std = nn.Parameter(torch.ones(out_channels) * surround_std)
 
         self.out_channels = out_channels
         self.pad_mode = pad_mode
@@ -326,11 +365,11 @@ class CenterSurround(nn.Module):
     @property
     def filt(self) -> Tensor:
         """Creates an on center/off surround, or off center/on surround conv filter"""
-        if self._filt is not None:  # use cached filt
+        if self._filt is not None:
+            # use cached filt
             return self._filt
-        else:  # generate new filt and optionally cache
-            on_amp = self.amplitude_ratio
-            device = on_amp.device
+        else:
+            # generate new filt and optionally cache
 
             filt_center = circular_gaussian2d(
                 self.kernel_size, self.center_std, self.out_channels
@@ -340,12 +379,12 @@ class CenterSurround(nn.Module):
             )
 
             # sign is + or - depending on center is on or off
-            sign = torch.as_tensor([1.0 if x else -1.0 for x in self.on_center]).to(
-                device
+            sign = torch.as_tensor(
+                [1.0 if x else -1.0 for x in self.on_center],
+                device=self.amplitude_ratio.device,
             )
             sign = sign.view(self.out_channels, 1, 1, 1)
-
-            filt = on_amp * (sign * (filt_center - filt_surround))
+            filt = self.amplitude_ratio * (sign * (filt_center - filt_surround))
 
             if self.cache_filt:
                 self.register_buffer("_filt", filt)
@@ -368,15 +407,26 @@ class CenterSurround(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> cs_model = po.simulate.CenterSurround(kernel_size=10)
+          >>> cs_model = po.simul.CenterSurround(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = cs_model.forward(img)
           >>> po.imshow([img, y], title=["Input image", "Output"]) #doctest: +ELLIPSIS
           <PyrFigure size...>
 
+        Model with both on-center/off-surround and off-center/on-surround:
+
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> cs_model = po.simul.CenterSurround(10, [True, False], out_channels=2)
+          >>> img = po.data.curie()
+          >>> y = cs_model.forward(img)
+          >>> titles = ["Input image", "On-center/off-surround",
+          ...           "Off-center/on-surround"]
+          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
         """
-
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
-
         y = F.conv2d(x, self.filt, bias=None)
         return y

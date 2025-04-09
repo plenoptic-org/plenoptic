@@ -111,6 +111,22 @@ def circular_gaussian2d(
         Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
         ``filt`` has shape ``(out_channels=n_channels, in_channels=1, height, width)``
 
+    Raises
+    ------
+    ValueError:
+        If out_channels is not a positive integer.
+    ValueError:
+        If kernel_size is not one or two positive integers.
+    ValueError:
+        If std is not positive.
+    ValueError:
+        If std has more than one value and ``len(std) != out_channels``
+
+    See also
+    --------
+    Gaussian
+        Torch Module to perform this convolution.
+
     Examples
     --------
 
@@ -181,17 +197,6 @@ def circular_gaussian2d(
       ... )  #doctest: +ELLIPSIS
       <PyrFigure ...>
 
-    Raises
-    ------
-    ValueError:
-        If out_channels is not a positive integer.
-    ValueError:
-        If kernel_size is not a positive integer.
-    ValueError:
-        If std is not positive.
-    ValueError:
-        If std has more than one value and ``len(std) != out_channels``
-
     """
     kernel_size, std = _validate_filter_args(kernel_size, std, out_channels)
 
@@ -252,7 +257,7 @@ def _validate_filter_args(
     ValueError:
         If out_channels is not a positive integer.
     ValueError:
-        If kernel_size is not a positive integer.
+        If kernel_size is not one or two positive integers.
     ValueError:
         If std is not positive.
     ValueError:
