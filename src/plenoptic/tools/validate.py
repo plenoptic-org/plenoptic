@@ -187,7 +187,7 @@ def validate_model(
     if model(test_img).ndimension() not in [3, 4]:
         raise ValueError(
             "When given a 4d input, model output must be three- or"
-            " four-dimensional but had {model(test_img).ndimension()}"
+            f" four-dimensional but had {model(test_img).ndimension()}"
             " dimensions instead!"
         )
     if model(test_img).device != test_img.device:
@@ -246,7 +246,7 @@ def validate_coarse_to_fine(
                 if model_output_shape == model(test_img, scales=sc).shape:
                     raise ValueError(
                         "Output of model forward method doesn't change"
-                        " shape when scales keyword arg is set to {sc} {msg}"
+                        f" shape when scales keyword arg is set to {sc} {msg}"
                     )
             except TypeError:
                 raise TypeError(
