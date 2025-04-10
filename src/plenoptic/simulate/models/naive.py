@@ -108,7 +108,7 @@ class Linear(nn.Module):
         self.pad_mode = pad_mode
         # std and out_channels are not used by Linear, so set to values we know will
         # pass
-        self.kernel_size, _ = _validate_filter_args(kernel_size, 1, 1)
+        self.kernel_size, _, _ = _validate_filter_args(kernel_size, 1, 1)
 
         self.conv = nn.Conv2d(1, 2, kernel_size, bias=False)
 
@@ -167,7 +167,7 @@ class Gaussian(nn.Module):
     pad_mode:
         Padding mode argument to pass to `torch.nn.functional.pad`.
     out_channels:
-        Number of filters with which to convolve.
+        Number of filters. If None, inferred from shape of ``std``.
     cache_filt:
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass. Cached to `self._filt`.
@@ -181,7 +181,7 @@ class Gaussian(nn.Module):
     ValueError:
         If std is not positive.
     ValueError:
-        If std has more than one value and ``len(std) != out_channels``
+        If std is non-scalar and ``len(std) != out_channels``
 
     Examples
     --------
@@ -197,11 +197,13 @@ class Gaussian(nn.Module):
         kernel_size: int | tuple[int, int],
         std: int | list[int] | float | list[float] | Tensor = 3.0,
         pad_mode: str = "reflect",
-        out_channels: int = 1,
+        out_channels: int | None = None,
         cache_filt: bool = False,
     ):
         super().__init__()
-        self.kernel_size, std = _validate_filter_args(kernel_size, std, out_channels)
+        self.kernel_size, std, out_channels = _validate_filter_args(
+            kernel_size, std, out_channels
+        )
         self.std = nn.Parameter(std)
 
         self.pad_mode = pad_mode
@@ -294,7 +296,7 @@ class CenterSurround(nn.Module):
     surround_std:
         Standard deviation of circular Gaussian for surround.
     out_channels:
-        Number of filters.
+        Number of filters. If None, inferred from shape of ``center_std``.
     pad_mode:
         Padding for convolution, defaults to "circular".
     cache_filt:
@@ -310,13 +312,22 @@ class CenterSurround(nn.Module):
     ValueError:
         If center_std or surround_std are not positive.
     ValueError:
-        If center_std or surround_std have more than one value and their lengths do not
+        If center_std and surround_std do not have the same number of values.
+    ValueError:
+        If center_std or surround_std are non-scalar and their lengths do not
         equal ``out_channels``
 
     Examples
     --------
     >>> import plenoptic as po
     >>> cs_model = po.simul.CenterSurround(kernel_size=10)
+    >>> cs_model
+    CenterSurround()
+
+    Model with both on-center/off-surround and off-center/on-surround:
+
+    >>> import plenoptic as po
+    >>> cs_model = po.simul.CenterSurround(10, [True, False])
     >>> cs_model
     CenterSurround()
 
@@ -329,23 +340,30 @@ class CenterSurround(nn.Module):
         amplitude_ratio: float = 1.25,
         center_std: int | list[int] | float | list[float] | Tensor = 1.0,
         surround_std: int | list[int] | float | list[float] | Tensor = 4.0,
-        out_channels: int = 1,
+        out_channels: int | None = None,
         pad_mode: str = "reflect",
         cache_filt: bool = False,
     ):
         super().__init__()
 
-        self.kernel_size, center_std = _validate_filter_args(
-            kernel_size, center_std, out_channels
+        on_center = torch.as_tensor(on_center)
+        if out_channels is None and on_center.numel() != 1:
+            out_channels = len(on_center)
+
+        self.kernel_size, center_std, out_channels = _validate_filter_args(
+            kernel_size,
+            center_std,
+            out_channels,
+            "center_std",
         )
-        _, surround_std = _validate_filter_args(kernel_size, surround_std, out_channels)
+        _, surround_std, _ = _validate_filter_args(
+            kernel_size, surround_std, out_channels, "surround_std", "len(center_std)"
+        )
 
         self.center_std = nn.Parameter(center_std)
         self.surround_std = nn.Parameter(surround_std)
 
         # make sure each channel is on-off or off-on
-
-        on_center = torch.as_tensor(on_center)
         if on_center.numel() == 1:
             on_center = on_center.repeat(out_channels)
         if len(on_center) != out_channels:
@@ -418,7 +436,7 @@ class CenterSurround(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> cs_model = po.simul.CenterSurround(10, [True, False], out_channels=2)
+          >>> cs_model = po.simul.CenterSurround(10, [True, False])
           >>> img = po.data.curie()
           >>> y = cs_model.forward(img)
           >>> titles = ["Input image", "On-center/off-surround",

@@ -88,7 +88,7 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
 def circular_gaussian2d(
     kernel_size: int | tuple[int, int],
     std: int | list[int] | float | list[float] | Tensor,
-    out_channels: int = 1,
+    out_channels: int | None = None,
 ) -> Tensor:
     """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
 
@@ -100,10 +100,11 @@ def circular_gaussian2d(
         faster, see
         https://pytorch.org/docs/stable/generated/torch.nn.functional.conv2d.html
     std:
-        Standard deviation of 2D circular Gaussian. If more than one value, ``len(std)``
-        must equal ``out_channels``.
+        Standard deviation of 2D circular Gaussian. If a scalar and ``out_channels`` is
+        not ``None``, all out channels will have the same value. If not a scalar and
+        ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
     out_channels:
-        Number of output channels.
+        Number of output channels. If None, inferred from shape of ``std``.
 
     Returns
     -------
@@ -120,7 +121,7 @@ def circular_gaussian2d(
     ValueError:
         If std is not positive.
     ValueError:
-        If std has more than one value and ``len(std) != out_channels``
+        If std is non-scalar and ``len(std) != out_channels``
 
     See also
     --------
@@ -198,7 +199,9 @@ def circular_gaussian2d(
       <PyrFigure ...>
 
     """
-    kernel_size, std = _validate_filter_args(kernel_size, std, out_channels)
+    kernel_size, std, out_channels = _validate_filter_args(
+        kernel_size, std, out_channels
+    )
 
     origin = (kernel_size + 1) / 2
 
@@ -221,8 +224,10 @@ def circular_gaussian2d(
 def _validate_filter_args(
     kernel_size: int | tuple[int, int],
     std: int | list[int] | float | list[float] | Tensor,
-    out_channels: int,
-) -> tuple[Tensor, Tensor]:
+    out_channels: int | None,
+    std_name: str = "std",
+    out_channels_name: str = "out_channels",
+) -> tuple[Tensor, Tensor, Tensor]:
     """Validate common filter args
 
     Checks that:
@@ -234,23 +239,29 @@ def _validate_filter_args(
 
     - out_channels must be a positive integer.
 
-    Also converts both kernel_size and std to tensors and:
-    - makes kernel_size a 1d tensor of size 2
-    - makes std a float32 1d tensor of size ``out_channels``
+    Does the following and then returns the three values
+    - if ``out_channels`` is ``None``, then infer from shape of ``std``.
+    - makes ``kernel_size`` a 1d tensor of size 2
+    - makes ``std`` a float32 1d tensor of size ``out_channels``
 
     Parameters
     ----------
     kernel_size:
         Filter kernel size.
     std:
-        Standard deviation of 2D circular Gaussian. If more than one value, ``len(std)``
-        must equal ``out_channels``.
+        Standard deviation of 2D circular Gaussian. If a scalar and ``out_channels`` is
+        not ``None``, all out channels will have the same value. If not a scalar and
+        ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
     out_channels:
-        Number of output channels.
+        Number of output channels. If None, inferred from ``len(std)``.
+    std_name, out_channels_name:
+        Names of these variables to raise more informative error messages (when e.g.,
+        calling from ``CenterSurround``, which uses this function to validate different
+        std arguments.)
 
     Returns
     -------
-    kernel_size, std
+    kernel_size, std, out_channels
 
     Raises
     ------
@@ -261,15 +272,19 @@ def _validate_filter_args(
     ValueError:
         If std is not positive.
     ValueError:
-        If std has more than one value and ``len(std) != out_channels``
+        If std is non-scalar and ``len(std) != out_channels``
 
     """
-    if out_channels < 1 or isinstance(out_channels, float):
-        raise ValueError("out_channels must be positive integer")
-
     std = torch.as_tensor(std)
     if not torch.is_floating_point(std):
         std = std.to(torch.float32)
+
+    if out_channels is None:
+        out_channels = len(std) if std.ndim != 0 else 1
+
+    if out_channels < 1 or isinstance(out_channels, float):
+        raise ValueError(f"{out_channels_name} must be positive integer")
+
     if std.ndim == 0:
         std = std.repeat(out_channels)
 
@@ -282,8 +297,10 @@ def _validate_filter_args(
         raise ValueError("kernel_size must be positive")
 
     if torch.any(std <= 0):
-        raise ValueError("std must be positive")
+        raise ValueError(f"{std_name} must be positive")
     if len(std) != out_channels:
-        raise ValueError("Number of stds must equal out_channels")
+        raise ValueError(
+            f"If non-scalar, len({std_name}) must equal {out_channels_name}"
+        )
 
-    return kernel_size, std
+    return kernel_size, std, out_channels

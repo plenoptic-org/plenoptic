@@ -317,7 +317,9 @@ class TestNaive:
     @pytest.mark.parametrize("on_center", [True, [True, False]])
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
         if not isinstance(center_std, float) and len(center_std) != out_channels:
-            with pytest.raises(ValueError, match="Number of stds must equal"):
+            with pytest.raises(
+                ValueError, match=r"If non-scalar, len\(center_std\) must equal"
+            ):
                 po.simul.CenterSurround(
                     (31, 31), center_std=center_std, out_channels=out_channels
                 )
@@ -329,6 +331,28 @@ class TestNaive:
     def test_linear(self, basic_stim):
         model = po.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
+
+    @pytest.mark.parametrize("how", ["out_channels", "center_std"])
+    def test_CenterSurround_on_center_size(self, how):
+        if how == "out_channels":
+            out_channels = 1
+            std = 1
+            txt = r"len\(on_center\) must equal out_channels"
+        elif how == "center_std":
+            out_channels = None
+            std = [1, 2, 3]
+            txt = r"If non-scalar, len\(center_std\) must equal out_channels"
+        with pytest.raises(ValueError, match=txt):
+            po.simul.CenterSurround(
+                31, on_center=[True, False], center_std=std, out_channels=out_channels
+            )
+
+    def test_CenterSurround_std_size(self):
+        with pytest.raises(
+            ValueError,
+            match=r"If non-scalar, len\(surround_std\) must equal len\(center_std\)",
+        ):
+            po.simul.CenterSurround(31, center_std=[1, 2], surround_std=[1, 2, 3])
 
 
 def convert_matlab_ps_rep_to_dict(
@@ -1226,7 +1250,7 @@ class TestFilters:
     def test_circular_gaussian2d_wrong_std_length(self):
         std = torch.as_tensor([1.0, 2.0], device=DEVICE)
         out_channels = 3
-        with pytest.raises(ValueError, match="Number of stds must equal"):
+        with pytest.raises(ValueError, match=r"If non-scalar, len\(std\) must equal"):
             circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize(
@@ -1239,7 +1263,8 @@ class TestFilters:
             (
                 [1, 1],
                 pytest.raises(
-                    ValueError, match="Number of stds must equal out_channels"
+                    ValueError,
+                    match=r"If non-scalar, len\(std\) must equal out_channels",
                 ),
             ),
             (torch.tensor(1), does_not_raise()),
@@ -1247,19 +1272,20 @@ class TestFilters:
             (
                 torch.tensor([1, 1]),
                 pytest.raises(
-                    ValueError, match="Number of stds must equal out_channels"
+                    ValueError,
+                    match=r"If non-scalar, len\(std\) must equal out_channels",
                 ),
             ),
         ],
     )
     def test_circluar_gaussian2d_std(self, std, expectation):
         with expectation:
-            filt = circular_gaussian2d((31, 31), std)
+            filt = circular_gaussian2d((31, 31), std, out_channels=1)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             assert filt.shape[-2:] == torch.Size((31, 31))
 
     def test_circluar_gaussian2d_std_out_channel(self):
-        filt = circular_gaussian2d((31, 31), [2, 3, 4], out_channels=3)
+        filt = circular_gaussian2d((31, 31), [2, 3, 4])
         assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
         assert filt.shape[-2:] == torch.Size((31, 31))
 
