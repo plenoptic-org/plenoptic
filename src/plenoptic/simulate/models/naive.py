@@ -27,18 +27,18 @@ class Identity(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, img):
-        """Return a copy of the image
+    def forward(self, x: Tensor) -> Tensor:
+        """Return a copy of the tensor
 
         Parameters
         ----------
-        img : torch.Tensor
-            The image to return
+        x : torch.Tensor
+            The tensor to return
 
         Returns
         -------
-        img : torch.Tensor
-            a clone of the input image
+        x : torch.Tensor
+            a clone of the input tensor
 
         Examples
         --------
@@ -53,7 +53,7 @@ class Identity(torch.nn.Module):
            <PyrFigure ...>
 
         """
-        y = 1 * img
+        y = 1 * x
         return y
 
 
@@ -124,17 +124,19 @@ class Linear(nn.Module):
             self.conv.weight.data = torch.cat([f1, f2], dim=0)
 
     def forward(self, x: Tensor) -> Tensor:
-        """Return a linear convolution of the image
+        """Convolve filter with input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x : torch.Tensor
-            The image to return (4D tensor)
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
 
         Returns
         -------
-        img : torch.Tensor
-            a linear convolution of the input image
+        y :
+            a linear convolution of the input image, of same shape as the input.
 
         Examples
         --------
@@ -224,16 +226,21 @@ class Gaussian(nn.Module):
             return filt
 
     def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
-        """Return an isotropic gaussian convolutional filter of the image
+        """Convolve Gaussian filter with input tensor
+
+        We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x : torch.Tensor
-            The image to return (4D tensor)
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
+        conv2d_kwargs :
+            Passed to [](torch.nn.functional.conv2d).
 
         Returns
         -------
-        img : torch.Tensor
+        y :
+            a linear convolution of the input image, of same shape as the input.
 
         Examples
         --------
@@ -409,16 +416,19 @@ class CenterSurround(nn.Module):
         return filt
 
     def forward(self, x: Tensor) -> Tensor:
-        """Return a difference of Gaussians (DoG) filter model of the image
+        """Convolve center-surround filter with input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x : torch.Tensor
-            The image to return (4D tensor)
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
 
         Returns
         -------
-        img : torch.Tensor
+        y :
+            a linear convolution of the input image, of same shape as the input.
 
         Examples
         --------

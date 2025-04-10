@@ -1,13 +1,16 @@
 """
-Model architectures in this file are found in [1]_, [2]_. `frontend.OnOff()` has
-optional pretrained filters that were reverse-engineered from a previously-trained model
-and should be used at your own discretion.
+Model architectures in this file are found in [1]_, [2]_, pretrained parameters from
+[3]_.
 
 References
 ----------
 .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of hierarchical
     representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
 .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+.. [3] A Berardino, Hierarchically normalized models of visual distortion
+   sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+   2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
 """
 
 from collections import OrderedDict
@@ -17,6 +20,7 @@ from warnings import warn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pyrtools.tools.display import PyrFigure
 from torch import Tensor
 
 from ...tools.display import imshow
@@ -67,6 +71,11 @@ class LinearNonlinear(nn.Module):
     from [3]_ and are the values used [1]_. Please use these pretrained weights
     at your own discretion.
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions
@@ -96,6 +105,12 @@ class LinearNonlinear(nn.Module):
                     "pretrained is True but cache_filt is False. Set cache_filt to "
                     "True for efficiency unless you are fine-tuning."
                 )
+            if not on_center:
+                warn(
+                    "pretrained model had on_center=True, so on_center=False might "
+                    "not make sense"
+                )
+
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -108,26 +123,70 @@ class LinearNonlinear(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
+        """Compute model response on input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
+
+        Parameters
+        ----------
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
+
+        Returns
+        -------
+        y :
+            model response to input.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+          >>> img = po.data.einstein()
+          >>> y = ln_model.forward(img)
+          >>> titles = ["Input image", "Output"]
+          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
         y = self.activation(self.center_surround(x))
         return y
 
-    def display_filters(self, zoom=5.0, **kwargs):
+    def display_filters(
+        self,
+        vrange: tuple[float, float] | str = "indep0",
+        zoom: float | None = 5.0,
+        title: str | list[str] | None = "linear filter",
+        **kwargs,
+    ) -> PyrFigure:
         """Displays convolutional filters of model
 
         Parameters
         ----------
-        zoom: float
-            Magnification factor for po.imshow()
+        zoom, vrange, title
+            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
+            details.
         **kwargs:
-            Keyword args for po.imshow
+            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+
         Returns
         -------
-        fig: PyrFigure
-        """
+        fig:
+            The figure containing the image.
 
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+          >>> ln_model.display_filters() #doctest: +ELLIPSIS
+          <PyrFigure ...>
+
+        """
         weights = self.center_surround.filt.detach()
-        title = "linear filt"
-        fig = imshow(weights, title=title, zoom=zoom, vrange="indep0", **kwargs)
+        fig = imshow(weights, title=title, zoom=zoom, vrange=vrange, **kwargs)
 
         return fig
 
@@ -184,6 +243,11 @@ class LuminanceGainControl(nn.Module):
     from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
     these pretrained weights at your own discretion.
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True, cache_filt=True)
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
@@ -213,6 +277,12 @@ class LuminanceGainControl(nn.Module):
                     "pretrained is True but cache_filt is False. Set cache_filt to "
                     "True for efficiency unless you are fine-tuning."
                 )
+            if not on_center:
+                warn(
+                    "pretrained model had on_center=True, so on_center=False might "
+                    "not make sense"
+                )
+
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -231,24 +301,73 @@ class LuminanceGainControl(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
+        """Compute model response on input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
+
+        Parameters
+        ----------
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
+
+        Returns
+        -------
+        y :
+            model response to input.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True,
+          ...                                          cache_filt=True)
+          >>> img = po.data.einstein()
+          >>> y = lg_model.forward(img)
+          >>> titles = ["Input image", "Output"]
+          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
         linear = self.center_surround(x)
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar * lum)
         y = self.activation(lum_normed)
         return y
 
-    def display_filters(self, zoom=5.0, **kwargs):
+    def display_filters(
+        self,
+        vrange: tuple[float, float] | str = "indep0",
+        zoom: float | None = 5.0,
+        title: str | list[str] | None = ["linear filt", "luminance filt"],
+        col_wrap: int | None = 2,
+        **kwargs,
+    ) -> PyrFigure:
         """Displays convolutional filters of model
 
         Parameters
         ----------
-        zoom: float
-            Magnification factor for po.imshow()
+        zoom, vrange, title
+            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
+            details.
         **kwargs:
-            Keyword args for po.imshow
+            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+
         Returns
         -------
-        fig: PyrFigure
+        fig:
+            The figure containing the displayed filters.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True,
+          ...                                          cache_filt=True)
+          >>> lg_model.display_filters() #doctest: +ELLIPSIS
+          <PyrFigure ...>
+
         """
 
         weights = torch.cat(
@@ -259,17 +378,12 @@ class LuminanceGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = [
-            "linear filt",
-            "luminance filt",
-        ]
-
         fig = imshow(
             weights,
             title=title,
-            col_wrap=2,
+            col_wrap=col_wrap,
             zoom=zoom,
-            vrange="indep0",
+            vrange=vrange,
             **kwargs,
         )
 
@@ -334,6 +448,12 @@ class LuminanceContrastGainControl(nn.Module):
     Table 2, page 149 from [3]_ and are the values used [1]_. Please use these
     pretrained weights at your own discretion.
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
+    ...                                                   cache_filt=True)
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
@@ -363,6 +483,12 @@ class LuminanceContrastGainControl(nn.Module):
                     "pretrained is True but cache_filt is False. Set cache_filt to "
                     "True for efficiency unless you are fine-tuning."
                 )
+            if not on_center:
+                warn(
+                    "pretrained model had on_center=True, so on_center=False might "
+                    "not make sense"
+                )
+
         self.center_surround = CenterSurround(
             kernel_size,
             on_center,
@@ -388,6 +514,34 @@ class LuminanceContrastGainControl(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
+        """Compute model response on input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
+
+        Parameters
+        ----------
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
+
+        Returns
+        -------
+        y :
+            model response to input.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
+          ...                                                   cache_filt=True)
+          >>> img = po.data.einstein()
+          >>> y = lgg_model.forward(img)
+          >>> titles = ["Input image", "Output"]
+          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
         linear = self.center_surround(x)
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar * lum)
@@ -397,18 +551,43 @@ class LuminanceContrastGainControl(nn.Module):
         y = self.activation(con_normed)
         return y
 
-    def display_filters(self, zoom=5.0, **kwargs):
+    def display_filters(
+        self,
+        vrange: tuple[float, float] | str = "indep0",
+        zoom: float | None = 5.0,
+        title: str | list[str] | None = [
+            "linear filt",
+            "luminance filt",
+            "contrast filt",
+        ],
+        col_wrap: int | None = 3,
+        **kwargs,
+    ) -> PyrFigure:
         """Displays convolutional filters of model
 
         Parameters
         ----------
-        zoom: float
-            Magnification factor for po.imshow()
+        zoom, vrange, title
+            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
+            details.
         **kwargs:
-            Keyword args for po.imshow
+            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+
         Returns
         -------
-        fig: PyrFigure
+        fig:
+            The figure containing the displayed filters.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
+          ...                                                   cache_filt=True)
+          >>> lgg_model.display_filters() #doctest: +ELLIPSIS
+          <PyrFigure ...>
+
         """
 
         weights = torch.cat(
@@ -420,14 +599,12 @@ class LuminanceContrastGainControl(nn.Module):
             dim=0,
         ).detach()
 
-        title = ["linear filt", "luminance filt", "contrast filt"]
-
         fig = imshow(
             weights,
             title=title,
-            col_wrap=3,
+            col_wrap=col_wrap,
             zoom=zoom,
-            vrange="indep0",
+            vrange=vrange,
             **kwargs,
         )
 
@@ -483,6 +660,11 @@ class OnOff(nn.Module):
     from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
     these pretrained weights at your own discretion.
 
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+
     References
     ----------
     .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
@@ -518,7 +700,6 @@ class OnOff(nn.Module):
             kernel_size=kernel_size,
             on_center=[True, False],
             amplitude_ratio=amplitude_ratio,
-            out_channels=2,
             pad_mode=pad_mode,
             cache_filt=cache_filt,
         )
@@ -549,6 +730,34 @@ class OnOff(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
+        """Compute model response on input tensor.
+
+        We use same-padding to ensure that the output and input shapes are matched.
+
+        Parameters
+        ----------
+        x :
+            The input tensor, should be 4d (batch, channel, height, width)
+
+        Returns
+        -------
+        y :
+            model response to input.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+          >>> img = po.data.einstein()
+          >>> y = onoff_model.forward(img)
+          >>> titles = ["Input image", "Output channel 0", "Output channel 1"]
+          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          <PyrFigure size...>
+
+        """
+
         linear = self.center_surround(x)
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar.view(1, 2, 1, 1) * lum)
@@ -568,18 +777,45 @@ class OnOff(nn.Module):
 
         return y
 
-    def display_filters(self, zoom=5.0, **kwargs):
+    def display_filters(
+        self,
+        vrange: tuple[float, float] | str = "indep0",
+        zoom: float | None = 5.0,
+        title: str | list[str] | None = [
+            "linear filt on",
+            "linear filt off",
+            "luminance filt on",
+            "luminance filt off",
+            "contrast filt on",
+            "contrast filt off",
+        ],
+        col_wrap: int | None = 2,
+        **kwargs,
+    ) -> PyrFigure:
         """Displays convolutional filters of model
 
         Parameters
         ----------
-        zoom: float
-            Magnification factor for po.imshow()
+        zoom, vrange, title
+            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
+            details.
         **kwargs:
-            Keyword args for po.imshow
+            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+
         Returns
         -------
-        fig: PyrFigure
+        fig:
+            The figure containing the displayed filters.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+          >>> onoff_model.display_filters() #doctest: +ELLIPSIS
+          <PyrFigure ...>
+
         """
 
         weights = torch.cat(
@@ -591,21 +827,12 @@ class OnOff(nn.Module):
             dim=0,
         ).detach()
 
-        title = [
-            "linear filt on",
-            "linear filt off",
-            "luminance filt on",
-            "luminance filt off",
-            "contrast filt on",
-            "contrast filt off",
-        ]
-
         fig = imshow(
             weights,
             title=title,
-            col_wrap=2,
+            col_wrap=col_wrap,
             zoom=zoom,
-            vrange="indep0",
+            vrange=vrange,
             **kwargs,
         )
 
