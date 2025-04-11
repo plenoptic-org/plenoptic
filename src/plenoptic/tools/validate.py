@@ -19,8 +19,6 @@ def validate_input(
 
     - Checks if input_tensor has a float or complex dtype
 
-    - Checks if input_tensor is 4d.
-
     - If ``no_batch`` is True, check whether ``input_tensor.shape[0] != 1``
 
     - If ``allowed_range`` is not None, check whether all values of
@@ -28,6 +26,8 @@ def validate_input(
       within the specified range.
 
     If any of the above fail, a ``ValueError`` is raised.
+
+    If input_tensor is not 4d, raises a ``UserWarning``.
 
     Parameters
     ----------
@@ -108,14 +108,16 @@ def validate_model(
 
     - If ``model`` changes the precision of the input tensor (``TypeError``).
 
-    - If ``model`` returns a 3d or 4d output when given a 4d input
-      (``ValueError``).
-
     - If ``model`` changes the device of the input (``RuntimeError``).
 
-    Finally, we check if ``model`` is in training mode and raise a warning
-    if so. Note that this is different from having learnable parameters,
-    see ``pytorch docs <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+    Finally, we raise a ``UserWarning``:
+
+    - If ``model`` is in training mode. Note that this is different from having
+      learnable parameters, see ``pytorch docs
+      <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+
+    - If ``model`` returns a 3d or 4d output when given a tensor with shape
+      ``image_shape``
 
     Parameters
     ----------
@@ -267,15 +269,15 @@ def validate_metric(
     In particular, this functions checks the following (with associated
     exceptions):
 
-    - Whether ``metric`` is callable and accepts two 4d tensors as input
-      (``TypeError``).
+    - Whether ``metric`` is callable and accepts two tensors of shape ``image_shape`` as
+      input (``TypeError``).
 
-    - Whether ``metric`` returns a scalar when called with two 4d tensors as
-      input (``ValueError``).
+    - Whether ``metric`` returns a scalar when called with two tensors of shape
+      ``image_shape`` as input (``ValueError``).
 
-    - Whether ``metric`` returns a value less than 5e-7 when with two identical
-      4d tensors as input (``ValueError``). (This threshold was chosen because
-      1-SSIM of two identical images is 5e-8 on GPU).
+    - Whether ``metric`` returns a value less than 5e-7 when with two identical tensors
+      of shape ``image_shape`` as input (``ValueError``). (This threshold was chosen
+      because 1-SSIM of two identical images is 5e-8 on GPU).
 
     Parameters
     ----------
@@ -298,7 +300,7 @@ def validate_metric(
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:
-        raise TypeError("metric should be callable and accept two 4d tensors as input")
+        raise TypeError("metric should be callable and accept two tensors as input")
     # as of torch 2.0.0, this is a RuntimeError (a Tensor with X elements
     # cannot be converted to Scalar); previously it was a ValueError (only one
     # element tensors can be converted to Python scalars)

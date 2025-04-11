@@ -53,8 +53,8 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     r"""Correctly load in images
 
-    Our models and synthesis methods expect their inputs to be 4d
-    float32 images: (batch, channel, height, width), where the batch
+    Our models and synthesis methods generally expect their inputs to
+    be 4d float32 images: (batch, channel, height, width), where the batch
     dimension contains multiple images and channel contains something
     like RGB or color channel. This function helps you get your inputs
     into that format. It accepts either a single file, a list of files,

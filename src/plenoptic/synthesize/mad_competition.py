@@ -34,27 +34,20 @@ class MADCompetition(OptimizedSynthesis):
     0 if and only if the two images are identical (thus, the larger the number,
     the more different the two images).
 
-    Note that a full set of images MAD Competition images consists of two
-    pairs: a maximal and a minimal image for each metric. A single
-    instantiation of ``MADCompetition`` will generate one of these four images.
+    Note that a full set of MAD Competition images consists of two pairs: a maximal and
+    a minimal image for each metric. A single instantiation of ``MADCompetition`` will
+    generate one of these four images.
 
     Parameters
     ----------
     image :
-        A 4d tensor, this is the image whose representation we wish to
-        match. If this is not a tensor, we try to cast it as one.
+        A tensor, this is the image we use as the reference point.
     optimized_metric :
         The metric whose value you wish to minimize or maximize, which takes
-        two tensors and returns a scalar. Because of the limitations of pickle,
-        you cannot use a lambda function for this if you wish to save the
-        MADCompetition object (i.e., it must be one of our built-in functions or
-        defined using a `def` statement)
+        two tensors and returns a scalar.
     reference_metric :
         The metric whose value you wish to keep fixed, which takes two tensors
-        and returns a scalar. Because of the limitations of pickle, you cannot
-        use a lambda function for this if you wish to save the MADCompetition object
-        (i.e., it must be one of our built-in functions or defined using a
-        `def` statement)
+        and returns a scalar.
     minmax :
         Whether you wish to minimize or maximize ``optimized_metric``.
     metric_tradeoff_lambda :
@@ -177,10 +170,10 @@ class MADCompetition(OptimizedSynthesis):
             torch.randn_like(self.image)``, so this gives the standard deviation of the
             Gaussian noise. If None, we use a value of 0.1.
         optimizer :
-            The un-initialized optimizer object to use. If None, we use Adam(lr=.01,
-            amsgrad=True).
+            The un-initialized optimizer object to use. If None, we use Adam.
         optimizer_kwargs :
-            The keyword arguments to pass to the optimizer on initialization.
+            The keyword arguments to pass to the optimizer on initialization. If None,
+            we use {"lr": .01} and, if optimizer is None, {"amsgrad": True}
         scheduler :
             The learning rate scheduler to use. If None, we don't use one.
         scheduler_kwargs :
@@ -225,6 +218,7 @@ class MADCompetition(OptimizedSynthesis):
         >>> mad.load("mad_setup.pt")
         >>> mad.setup(optimizer=torch.optim.SGD)
         >>> mad.synthesize(10)
+
         """
         if self._mad_image is None:
             if initial_noise is None:
@@ -282,10 +276,9 @@ class MADCompetition(OptimizedSynthesis):
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
         store_progress :
-            Whether we should store the representation of the MAD image in
-            progress on every iteration. If False, we don't save anything. If
-            True, we save every iteration. If an int, we save every
-            ``store_progress`` iterations (note then that 0 is the same as
+            Whether we should store the MAD image in progress during synthesis. If
+            False, we don't save anything. If True, we save every iteration. If an int,
+            we save every ``store_progress`` iterations (note then that 0 is the same as
             False and 1 the same as True).
         stop_criterion :
             If the loss over the past ``stop_iters_to_check`` has changed
