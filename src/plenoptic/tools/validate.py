@@ -41,6 +41,27 @@ def validate_input(
         If not None, ensure that all values of ``input_tensor`` lie within
         allowed_range.
 
+    Raises
+    ------
+    ValueError, UserWarning :
+        See above
+
+    Examples
+    --------
+
+    Check that our built-in images work.
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_input(po.data.einstein())
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> po.tools.validate.validate_input(img, allowed_range=(0, .5)) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: input_tensor range ...
+
     """
     # validate dtype
     if input_tensor.dtype not in [
@@ -138,6 +159,34 @@ def validate_model(
     remove_grad
         Helper function for detaching all parameters (in place).
 
+    Raises
+    ------
+    ValueError, UserWarning :
+        See above
+
+    Examples
+    --------
+
+    Check that one of our built-in models work:
+
+    >>> import plenoptic as po
+    >>> model = po.simul.PortillaSimoncelli((256, 256))
+    >>> po.tools.validate.validate_model(model, image_shape=(1, 1, 256, 256))
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> class FailureModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...     def forward(self, x):
+    ...         x = x.detach().numpy()
+    ...         return torch.as_tensor(x)
+    >>> po.tools.validate.validate_model(FailureModel()) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: model strips gradient from input, ...
+
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -232,6 +281,36 @@ def validate_coarse_to_fine(
     device
         Which device to place the test image on.
 
+    Raises
+    ------
+    AttributeError, TypeError, ValueError
+        See above
+
+    Examples
+    --------
+    Check that one of our built-in models work:
+
+    >>> import plenoptic as po
+    >>> model = po.simul.PortillaSimoncelli((256, 256))
+    >>> po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, 256, 256))
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> # this fails because it's missing the scales attribute
+    >>> class FailureModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.model = po.simul.PortillaSimoncelli((256, 256))
+    ...     def forward(self, x):
+    ...         return self.model(x)
+    >>> shape = (1, 1, 256, 256)
+    >>> model = FailureModel()
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: model has no scales attribute ...
+
     """
     warnings.warn(
         "Validating whether model can work with coarse-to-fine synthesis --"
@@ -293,6 +372,26 @@ def validate_metric(
     device
         What device to place the test images on.
 
+    Raises
+    ------
+    TypeError, ValueError
+        See above
+
+    Examples
+    --------
+    Check that 1-SSIM works:
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_metric(lambda x, y: 1-po.metric.ssim(x, y))
+
+    Check that SSIM doesn't work (because SSIM=0 means that images are *different*,
+    whereas we need metric=0 to mean *identical*):
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_metric(po.metric.ssim) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: metric should return ...
+
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -324,7 +423,24 @@ def validate_metric(
 
 
 def remove_grad(model: torch.nn.Module):
-    """Detach all parameters and buffers of model (in place)."""
+    """Detach all parameters and buffers of model (in place).
+
+    Parameters
+    ----------
+    model
+        torch Module with learnable parameters
+
+    Examples
+    --------
+
+    >>> import plenoptic as po
+    >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
+    >>> po.tools.validate.validate_model(model) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: model adds gradient to input, ...
+    >>> po.tools.remove_grad(model)
+    >>> po.tools.validate.validate_model(model)
+    """
     for p in model.parameters():
         if p.requires_grad:
             p.detach_()
