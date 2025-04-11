@@ -56,12 +56,12 @@ def validate_input(
             + f" allowed but got type {input_tensor.dtype}"
         )
     if input_tensor.ndimension() != 4:
-        n_batch = 1 if no_batch else "n_batch"
-        # numpy raises ValueError when operands cannot be broadcast together,
-        # so it seems reasonable here
-        raise ValueError(
-            f"input_tensor must be torch.Size([{n_batch}, n_channels, "
-            f"im_height, im_width]) but got shape {input_tensor.size()}"
+        warnings.warn(
+            "plenoptic's methods have mostly been tested on 4d inputs with shape "
+            "torch.Size([n_batch, n_channels, im_height, im_width]). They should "
+            "theoretically work with different dimensionality; if you have any "
+            "problems, please open an issue at https://github.com/plenoptic-org/"
+            "plenoptic/issues/new?template=bug_report.md"
         )
     if no_batch and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
@@ -185,10 +185,12 @@ def validate_model(
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
     if model(test_img).ndimension() not in [3, 4]:
-        raise ValueError(
-            "When given a 4d input, model output must be three- or"
-            " four-dimensional but had {model(test_img).ndimension()}"
-            " dimensions instead!"
+        warnings.warn(
+            "plenoptic's methods have mostly been tested on models which produce 3d"
+            " or 4d outputs. They should theoretically work with different "
+            "dimensionality; if you have any problems, please open an issue at "
+            "https://github.com/plenoptic-org/plenoptic/issues/new?"
+            "template=bug_report.md"
         )
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
