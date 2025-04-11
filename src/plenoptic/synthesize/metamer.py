@@ -187,6 +187,13 @@ class Metamer(OptimizedSynthesis):
                 metamer = signal.rescale(metamer, *self.allowed_range)
             else:
                 validate_input(initial_image, allowed_range=self.allowed_range)
+                if initial_image.size() != self.image.size():
+                    warnings.warn(
+                        "initial_image and image are different sizes! This "
+                        "has not been tested as much, open an issue if you "
+                        "problems! https://github.com/plenoptic-org/plenoptic/"
+                        "issues/new?template=bug_report.md"
+                    )
                 metamer = initial_image.clone().detach()
                 metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
             metamer.requires_grad_()
