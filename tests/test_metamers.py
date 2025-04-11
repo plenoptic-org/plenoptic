@@ -163,20 +163,16 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    @pytest.mark.parametrize("fail", ["shape", "ndim"])
-    def test_setup_initial_image_fail(self, einstein_img, curie_img, model, fail):
+    @pytest.mark.parametrize("warn", ["shape", "ndim"])
+    @pytest.mark.filterwarnings("ignore:.*mostly been tested on 4d inputs:UserWarning")
+    def test_setup_initial_image_warn(self, einstein_img, curie_img, model, warn):
         met = po.synth.Metamer(einstein_img, model)
-        if fail == "shape":
+        if warn == "shape":
             img = curie_img[..., :255, :255]
-            expectation = pytest.raises(
-                ValueError, match="initial_image and image must be same size"
-            )
-        else:
+        elif warn == "ndim":
             img = curie_img[0]
-            expectation = pytest.raises(
-                ValueError, match="initial_image must be torch.Size"
-            )
-        with expectation:
+        txt = "initial_image and image are different sizes"
+        with pytest.warns(UserWarning, match=txt):
             met.setup(img)
 
     @pytest.mark.parametrize(
@@ -510,8 +506,25 @@ class TestMetamers:
         ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
         indirect=True,
     )
-    def test_model_dimensionality(self, einstein_img, model):
+    def test_model_dimensionality_real(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model",
+        [f"diff_dims-{i}" for i in range(1, 6)],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_dim", [2, 3, 4, 5])
+    @pytest.mark.filterwarnings("ignore:.*mostly been tested on 4d inputs:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:.*mostly been tested on models which:UserWarning"
+    )
+    def test_dimensionality(self, einstein_img, input_dim, model):
+        img = einstein_img.squeeze()
+        while img.ndimension() < input_dim:
+            img = img.unsqueeze(0)
+        met = po.synth.Metamer(img, model)
         met.synthesize(5)
 
     @pytest.mark.parametrize(
