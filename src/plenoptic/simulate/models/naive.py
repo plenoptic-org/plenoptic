@@ -377,9 +377,12 @@ class CenterSurround(nn.Module):
             raise ValueError("len(on_center) must equal out_channels")
         self.on_center = on_center
 
+        amplitude_ratio = torch.as_tensor(amplitude_ratio)
+        if amplitude_ratio.nelement() > 1:
+            raise ValueError("amplitude_ratio must be a scalar")
         if amplitude_ratio < 1.0:
             raise ValueError("amplitude_ratio must at least be 1.")
-        self.register_buffer("amplitude_ratio", torch.as_tensor(amplitude_ratio))
+        self.register_buffer("amplitude_ratio", amplitude_ratio)
 
         self.out_channels = out_channels
         self.pad_mode = pad_mode

@@ -328,6 +328,27 @@ class TestNaive:
                 (31, 31), center_std=center_std, out_channels=out_channels
             )
 
+    @pytest.mark.parametrize(
+        "amplitude_ratio,expectation",
+        [
+            (0, pytest.raises(ValueError, match=".*must at least be 1")),
+            (1, does_not_raise()),
+            (1.0, does_not_raise()),
+            (torch.as_tensor(1, dtype=int), does_not_raise()),
+            (torch.as_tensor(1.0), does_not_raise()),
+            (torch.as_tensor(1.0), does_not_raise()),
+            (torch.as_tensor([1.0]), does_not_raise()),
+            (
+                torch.as_tensor([1, 2]),
+                pytest.raises(ValueError, match=".*must be a scalar"),
+            ),
+            ([1, 2], pytest.raises(ValueError, match=".*must be a scalar")),
+        ],
+    )
+    def test_CenterSurround_amplitude_ratio(self, amplitude_ratio, expectation):
+        with expectation:
+            po.simul.CenterSurround(31, amplitude_ratio=amplitude_ratio)
+
     def test_linear(self, basic_stim):
         model = po.simul.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
@@ -1278,13 +1299,13 @@ class TestFilters:
             ),
         ],
     )
-    def test_circluar_gaussian2d_std(self, std, expectation):
+    def test_circular_gaussian2d_std(self, std, expectation):
         with expectation:
             filt = circular_gaussian2d((31, 31), std, out_channels=1)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             assert filt.shape[-2:] == torch.Size((31, 31))
 
-    def test_circluar_gaussian2d_std_out_channel(self):
+    def test_circular_gaussian2d_std_out_channel(self):
         filt = circular_gaussian2d((31, 31), [2, 3, 4])
         assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
         assert filt.shape[-2:] == torch.Size((31, 31))
@@ -1308,7 +1329,7 @@ class TestFilters:
             ),
         ],
     )
-    def test_circluar_gaussian2d_kernel_size(self, kernel_size, expectation):
+    def test_circular_gaussian2d_kernel_size(self, kernel_size, expectation):
         with expectation:
             filt = circular_gaussian2d(kernel_size, 2)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
@@ -1345,7 +1366,7 @@ class TestFilters:
             ),
         ],
     )
-    def test_circluar_gaussian2d_out_channels(self, out_channels, expectation):
+    def test_circular_gaussian2d_out_channels(self, out_channels, expectation):
         with expectation:
             circular_gaussian2d((31, 31), 2, out_channels)
 
