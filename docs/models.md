@@ -6,7 +6,7 @@
 
 - should inherit [](torch.nn.Module) (this is not strictly necessary, but will make meeting the other requirements easier).
 
-- must be callable, be able to accept a 4d [](torch.Tensor) as input, and return a 3d or 4d [](torch.Tensor) as output.
+- must be callable, be able to accept a [](torch.Tensor) as input, and return a [](torch.Tensor) as output.
 
   - If you inherit [](torch.nn.Module), implementing the `forward()` method will make your model callable.
   - Otherwise, implement the `__call__()` method.
@@ -19,8 +19,8 @@ Additionally, your model inputs and outputs should be real- or complex-valued an
 
 [`MADCompetition`](plenoptic.synthesize.mad_competition.MADCompetition) uses metrics, rather than models, which have the following requirements (use the [`validate_metric`](plenoptic.tools.validate.validate_metric) function to check whether your metric meets the following requirements and see [](plenoptic.metric) for some examples):
 
-- a metric must be callable, accept two 4d [](torch.Tensor) objects as inputs, and return a scalar as output. It can be a [](torch.nn.Module) object or other callable object, like models, as well as a function.
-- when called on two identical inputs, the metric must return a value of 0.
+- a metric must be callable, accept two [](torch.Tensor) objects as inputs, and return a scalar as output. It can be a [](torch.nn.Module) object or other callable object, like models, as well as a function.
+- when called on two identical inputs, the metric must return a value less than `5e-7` (effectively, zero).
 - it must always return a non-negative number.
 
 Finally, [`MetamerCTF`](plenoptic.synthesize.metamer.MetamerCTF) implements
