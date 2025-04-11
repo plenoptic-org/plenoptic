@@ -329,15 +329,21 @@ class TestValidate:
             ((2, 3, 16, 16), does_not_raise()),
             (
                 (1, 1, 1, 16, 16),
-                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
+                pytest.warns(
+                    UserWarning, match="methods have mostly been tested on 4d"
+                ),
             ),
             (
                 (1, 16, 16),
-                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
+                pytest.warns(
+                    UserWarning, match="methods have mostly been tested on 4d"
+                ),
             ),
             (
                 (16, 16),
-                pytest.raises(ValueError, match="input_tensor must be torch.Size"),
+                pytest.warns(
+                    UserWarning, match="methods have mostly been tested on 4d"
+                ),
             ),
         ],
     )
@@ -463,7 +469,9 @@ class TestValidate:
 
         model = TestModel()
         model.eval()
-        with pytest.raises(ValueError, match="When given a 4d input, model output"):
+        with pytest.warns(
+            UserWarning, match="mostly been tested on models which produce 3d"
+        ):
             po.tools.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
