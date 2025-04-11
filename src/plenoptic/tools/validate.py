@@ -19,11 +19,11 @@ def validate_input(
 
     - Checks if input_tensor has a float or complex dtype
 
-    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] != 1``
+    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] == 1`` or
+      ``input_tensor.ndimension()==1``
 
     - If ``allowed_range`` is not None, check whether all values of
-     ``input_tensor`` lie
-      within the specified range.
+     ``input_tensor`` lie within the specified range.
 
     If any of the above fail, a ``ValueError`` is raised.
 
@@ -84,7 +84,8 @@ def validate_input(
             "problems, please open an issue at https://github.com/plenoptic-org/"
             "plenoptic/issues/new?template=bug_report.md"
         )
-    if no_batch and input_tensor.shape[0] != 1:
+    # if input is 1d, then it satisfies no_batch
+    if no_batch and input_tensor.ndimension() > 1 and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
