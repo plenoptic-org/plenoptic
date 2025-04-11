@@ -189,7 +189,7 @@ class Metamer(OptimizedSynthesis):
                 # self.allowed_range
                 metamer = signal.rescale(metamer, *self.allowed_range)
             else:
-                validate_input(initial_image, allowd_range=self.allowed_range)
+                validate_input(initial_image, allowed_range=self.allowed_range)
                 metamer = initial_image.clone().detach()
                 metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
             metamer.requires_grad_()
