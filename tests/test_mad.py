@@ -668,6 +668,15 @@ class TestMAD:
             "MAD image should have the same shape as input!"
         )
 
+    @pytest.mark.parametrize("input_dim", [2, 3, 4, 5])
+    @pytest.mark.filterwarnings("ignore:.*mostly been tested on 4d inputs:UserWarning")
+    def test_dimensionality(self, einstein_img, input_dim):
+        img = einstein_img.squeeze()
+        while img.ndimension() < input_dim:
+            img = img.unsqueeze(0)
+        mad = po.synth.MADCompetition(img, rgb_mse, rgb_l2_norm, "min", 1)
+        mad.synthesize(5)
+
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     def test_store_rep(self, einstein_img, store_progress):

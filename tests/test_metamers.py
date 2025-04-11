@@ -510,8 +510,25 @@ class TestMetamers:
         ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
         indirect=True,
     )
-    def test_model_dimensionality(self, einstein_img, model):
+    def test_model_dimensionality_real(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(5)
+
+    @pytest.mark.parametrize(
+        "model",
+        [f"diff_dims-{i}" for i in range(1, 6)],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_dim", [2, 3, 4, 5])
+    @pytest.mark.filterwarnings("ignore:.*mostly been tested on 4d inputs:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:.*mostly been tested on models which:UserWarning"
+    )
+    def test_dimensionality(self, einstein_img, input_dim, model):
+        img = einstein_img.squeeze()
+        while img.ndimension() < input_dim:
+            img = img.unsqueeze(0)
+        met = po.synth.Metamer(img, model)
         met.synthesize(5)
 
     @pytest.mark.parametrize(

@@ -355,6 +355,23 @@ class TestEigendistortionSynthesis:
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=5, method="power")
 
+    @pytest.mark.parametrize(
+        "model",
+        [f"diff_dims-{i}" for i in range(1, 6)],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_dim", [3, 4, 5])
+    @pytest.mark.filterwarnings("ignore:.*mostly been tested on 4d inputs:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:.*mostly been tested on models which:UserWarning"
+    )
+    def test_dimensionality(self, einstein_img, input_dim, model):
+        img = einstein_img.squeeze()[..., :SMALL_DIM, :SMALL_DIM]
+        while img.ndimension() < input_dim:
+            img = img.unsqueeze(0)
+        met = Eigendistortion(img, model)
+        met.synthesize(max_iter=5, method="power")
+
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_map_location(self, curie_img, model, tmp_path):

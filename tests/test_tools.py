@@ -455,19 +455,8 @@ class TestValidate:
         with pytest.raises(TypeError, match="model changes precision of input"):
             po.tools.validate.validate_model(model, device=DEVICE)
 
-    @pytest.mark.parametrize("direction", ["squeeze", "unsqueeze"])
-    def test_model_output_dim(self, direction):
-        class TestModel(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-
-            def forward(self, img):
-                if direction == "squeeze":
-                    return img.squeeze()
-                elif direction == "unsqueeze":
-                    return img.unsqueeze(0)
-
-        model = TestModel()
+    @pytest.mark.parametrize("model", ["diff_dims-2", "diff_dims-5"], indirect=True)
+    def test_model_output_dim(self, model):
         model.eval()
         with pytest.warns(
             UserWarning, match="mostly been tested on models which produce 3d"
