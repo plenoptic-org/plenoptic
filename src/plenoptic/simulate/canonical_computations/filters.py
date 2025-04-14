@@ -105,14 +105,14 @@ def circular_gaussian2d(
     The filter is normalized by total pixel-sum (*not* by ``2*pi*std``) and has shape
     ``(out_channels, 1, height, width)``. For 2d convolutions in torch, the first
     dimensions of the filter tensor corresponds to ``out_channels`` and the second to
-    ``in_channels``, see `torch.nn.Conv2d`_ for more details.
+    ``in_channels``, see :py:class:`torch.nn.Conv2d` for more details.
 
     Parameters
     ----------
     kernel_size
         Filter kernel size. Recommended to be odd so that kernel is properly centered.
         If you use same-padding, convolution with an odd-length kernel will be faster,
-        see :func:`torch.nn.functional.conv2d`_.
+        see :py:func:`torch.nn.functional.conv2d`.
     std
         Standard deviation of 2D circular Gaussian. If a scalar and ``out_channels`` is
         not ``None``, all out channels will have the same value. If not a scalar and

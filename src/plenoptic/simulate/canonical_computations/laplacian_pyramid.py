@@ -1,3 +1,9 @@
+"""
+Laplacian pyramid.
+
+Simple class for handling the Laplacian Pyramid.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -5,7 +11,8 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 
 class LaplacianPyramid(nn.Module):
-    """Laplacian Pyramid in Torch.
+    """
+    Laplacian Pyramid in Torch.
 
     The Laplacian pyramid [1]_ is a multiscale image representation. It
     decomposes the image by computing the local mean using Gaussian blurring
@@ -15,42 +22,66 @@ class LaplacianPyramid(nn.Module):
 
     Parameters
     ----------
-    n_scales: int
-        number of scales to compute
-    scale_filter: bool, optional
-        If true, the norm of the downsampling/upsampling filter is 1. If false
-        (default), it is 2.
-        If the norm is 1, the image is multiplied by 4 during the upsampling operation;
-        the net effect is that the `n`th scale of the pyramid is divided by `2^n`.
+    n_scales
+        Number of scales to compute.
+    scale_filter
+        If ``True``, the norm of the downsampling/upsampling filter is 1. If ``False``,
+        it is 2. If the norm is 1, the image is multiplied by 4 during the upsampling
+        operation; the net effect is that the :math:`n` -th scale of the pyramid is
+        divided by :math:`2^n`.
+
+    Attributes
+    ----------
+    n_scales : int
+        Number of computed scales.
+    scale_filter : bool
+        Whether the filter is scaled or not.
 
     References
     ----------
     .. [1] Burt, P. and Adelson, E., 1983. The Laplacian pyramid as a compact
        image code. IEEE Transactions on communications, 31(4), pp.532-540.
-
     """
 
-    def __init__(self, n_scales=5, scale_filter=False):
+    def __init__(self, n_scales: int = 5, scale_filter: bool = False):
+        # numpydoc ignore=GL08
         super().__init__()
         self.n_scales = n_scales
         self.scale_filter = scale_filter
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
 
-    def forward(self, x):
-        """Build the Laplacian pyramid of an image.
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
+        """
+        Build the Laplacian pyramid of an image.
+
+        Builds a Laplacian pyramid of height ``self.n_scales``. Because the tensor at
+        each scale will have a different height and width, we return a list of tensors
+        instead of a single tensor.
 
         Parameters
         ----------
-        x: torch.Tensor of shape (batch, channel, height, width)
-            Image, or batch of images. If there are multiple channels,
-            the Laplacian is computed separately for each of them
+        x
+            Image, or batch of images of shape (batch, channel, height, width). If there
+            are multiple batches or channels, the Laplacian is computed separately for
+            each of them.
 
         Returns
         -------
-        y: list of torch.Tensor
-            Laplacian pyramid representation, each element of the list
-            corresponds to a scale, from fine to coarse
+        y
+            Laplacian pyramid representation, each element of the list corresponds to a
+            scale, from fine to coarse.
+
+        Examples
+        --------
+        .. plot::
+          :context: reset
+
+          >>> import plenoptic as po
+          >>> img = po.data.einstein()
+          >>> lpyr = po.simul.LaplacianPyramid()
+          >>> po.imshow(lpyr(img))  # doctest: +ELLIPSIS
+          <PyrFigure ...>
         """
         y = []
         for scale in range(self.n_scales - 1):
@@ -63,19 +94,41 @@ class LaplacianPyramid(nn.Module):
 
         return y
 
-    def recon_pyr(self, y):
-        """Reconstruct the image from its Laplacian pyramid.
+    def recon_pyr(self, y: list[torch.Tensor]) -> torch.Tensor:
+        """
+        Reconstruct the image from its Laplacian pyramid coefficients.
+
+        The input to ``recon_pyr`` should be list of tensors similar to those returned
+        by ``self.forward``.
 
         Parameters
         ----------
-        y: list of torch.Tensor
+        y
             Laplacian pyramid representation, each element of the list
-            corresponds to a scale, from fine to coarse
+            corresponds to a scale, from fine to coarse. ``len(y)`` should be
+            ``self.n_scales``.
 
         Returns
         -------
-        x: torch.Tensor of shape (batch, channel, height, width)
-            Image, or batch of images
+        x
+            Image, or batch of images.
+
+        Examples
+        --------
+        .. plot::
+          :context: reset
+
+          >>> import plenoptic as po
+          >>> import torch
+          >>> img = po.data.einstein()
+          >>> lpyr = po.simul.LaplacianPyramid()
+          >>> coeffs = lpyr(img)
+          >>> recon = lpyr.recon_pyr(coeffs)
+          >>> torch.allclose(img, recon)
+          True
+          >>> titles = ["Original", "Reconstructed", "Difference"]
+          >>> po.imshow([img, recon, img - recon], title=titles)  # doctest: +ELLIPSIS
+          <PyrFigure ...>
         """
         x = y[self.n_scales - 1]
         for scale in range(self.n_scales - 1, 0, -1):
