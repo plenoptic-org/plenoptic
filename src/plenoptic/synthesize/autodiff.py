@@ -6,7 +6,8 @@ from torch import Tensor
 
 def jacobian(y: Tensor, x: Tensor) -> Tensor:
     """Explicitly compute the full Jacobian matrix.
-    N.B. This is only recommended for small input sizes (e.g. <100x100 image)
+
+    N.B. This is only recommended for small input sizes (e.g. <100x100 image).
 
     Parameters
     ----------
@@ -20,7 +21,6 @@ def jacobian(y: Tensor, x: Tensor) -> Tensor:
     J
         Jacobian matrix with ``torch.Size([len(y), len(x)])``
     """
-
     if x.numel() > 1e4:
         warnings.warn(
             "Calculation of Jacobian with input dimensionality greater than"
@@ -56,7 +56,7 @@ def vector_jacobian_product(
     create_graph: bool = True,
     detach: bool = False,
 ):
-    r"""Compute vector Jacobian product: :math:`\text{vjp} = u^T(\partial y/\partial x)`
+    r"""Compute vector Jacobian product :math:`\text{vjp} = u^T(\partial y/\partial x)`.
 
     Backward Mode Auto-Differentiation (`Lop` in Theano)
 
@@ -92,7 +92,6 @@ def vector_jacobian_product(
     vJ
         vector-Jacobian product, ``torch.Size([m, k])``.
     """
-
     assert y.shape[-1] == 1
     assert U.shape[0] == y.shape[0]
 
@@ -121,7 +120,7 @@ def vector_jacobian_product(
 def jacobian_vector_product(
     y: Tensor, x: Tensor, V: Tensor, dummy_vec: Tensor = None
 ) -> Tensor:
-    r"""Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`
+    r"""Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`.
 
     Forward Mode Auto-Differentiation (``Rop`` in Theano). PyTorch does not natively
     support this operation; this function essentially calls backward mode autodiff

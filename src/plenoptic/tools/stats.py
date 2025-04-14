@@ -44,7 +44,7 @@ def skew(
     dim: int | list[int] | None = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""Sample estimate of `x` *asymmetry* about its mean
+    r"""Sample estimate of `x` *asymmetry* about its mean.
 
     Parameters
     ----------
@@ -80,7 +80,7 @@ def kurtosis(
     dim: int | list[int] | None = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""sample estimate of `x` *tailedness* (presence of outliers)
+    r"""Sample estimate of `x` *tailedness* (presence of outliers).
 
     kurtosis of univariate noral is 3.
 

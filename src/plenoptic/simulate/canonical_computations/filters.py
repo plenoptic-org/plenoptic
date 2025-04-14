@@ -123,14 +123,13 @@ def circular_gaussian2d(
     ValueError:
         If std is non-scalar and ``len(std) != out_channels``
 
-    See also
+    See Also
     --------
     Gaussian
         Torch Module to perform this convolution.
 
     Examples
     --------
-
     Single output channel.
 
     .. plot::
@@ -228,7 +227,7 @@ def _validate_filter_args(
     std_name: str = "std",
     out_channels_name: str = "out_channels",
 ) -> tuple[Tensor, Tensor, Tensor]:
-    """Validate common filter args
+    """Validate common filter args.
 
     Checks that:
 

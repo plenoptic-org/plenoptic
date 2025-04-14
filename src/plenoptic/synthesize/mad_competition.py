@@ -841,7 +841,8 @@ def plot_pixel_values(
 
     def _freedman_diaconis_bins(a):
         """Calculate number of hist bins using Freedman-Diaconis rule. copied from
-        seaborn."""
+        seaborn.
+        """
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
         iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]

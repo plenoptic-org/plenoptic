@@ -21,7 +21,7 @@ from .synthesis import Synthesis
 def fisher_info_matrix_vector_product(
     y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
 ) -> Tensor:
-    r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
+    r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`.
 
     Parameters
     ----------
@@ -56,7 +56,7 @@ def fisher_info_matrix_eigenvalue(
     y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
 ) -> Tensor:
     r"""Compute the eigenvalues of the Fisher Information Matrix corresponding to
-    eigenvectors in v:math:`\lambda= v^T F v`
+    eigenvectors in v:math:`\lambda= v^T F v`.
     """
     if dummy_vec is None:
         dummy_vec = torch.ones_like(y, requires_grad=True)
@@ -147,7 +147,7 @@ class Eigendistortion(Synthesis):
         self._eigenindex = None
 
     def _init_representation(self, image):
-        """Set self._representation_flat, based on model and image"""
+        """Set self._representation_flat, based on model and image."""
         self._image = self._image_flat.view(*image.shape)
         image_representation = self.model(self.image)
 
@@ -267,7 +267,6 @@ class Eigendistortion(Synthesis):
             Eigenvectors in 2D tensor, whose cols are eigenvectors
             (i.e. eigendistortions) corresponding to eigenvalues.
         """
-
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.linalg.eigh(F, UPLO="U")
@@ -333,7 +332,6 @@ class Eigendistortion(Synthesis):
         [1] Orthogonal iteration; Algorithm 8.2.8 Golub and Van Loan, Matrix
         Computations, 3rd Ed.
         """
-
         x, y = self._image_flat, self._representation_flat
 
         # note: v is an n x k matrix where k is number of eigendists to be synthesized!
@@ -405,13 +403,12 @@ class Eigendistortion(Synthesis):
             between the true subspace and approximated subspace.
 
         References
-        -----
+        ----------
         [1] Halko, Martinsson, Tropp, Finding structure with randomness:
         Probabilistic algorithms for constructing approximate matrix decompositions,
         SIAM Rev. 53:2, pp. 217-288 https://arxiv.org/abs/0909.4061 (2011)
 
         """
-
         x, y = self._image_flat, self._representation_flat
         n = len(x)
 
@@ -457,12 +454,11 @@ class Eigendistortion(Synthesis):
         imgs
             List of Tensor images
         """
-
         imgs = [vecs[:, i].reshape(self._image_shape) for i in range(vecs.shape[1])]
         return imgs
 
     def _indexer(self, idx: int) -> int:
-        """Maps eigenindex to arg index (0-indexed)"""
+        """Maps eigenindex to arg index (0-indexed)."""
         n = len(self._image_flat)
         idx_range = range(n)
         i = idx_range[idx]
@@ -621,19 +617,22 @@ class Eigendistortion(Synthesis):
     @property
     def jacobian(self):
         """Is only set when :func:`synthesize` is run with ``method='exact'``.
-        Default to ``None``."""
+        Default to ``None``.
+        """
         return self._jacobian
 
     @property
     def eigendistortions(self):
         """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by
-        eigenvalue."""
+        eigenvalue.
+        """
         return self._eigendistortions
 
     @property
     def eigenvalues(self):
         """Tensor of eigenvalues corresponding to each eigendistortion, listed in
-        decreasing order."""
+        decreasing order.
+        """
         return self._eigenvalues
 
     @property

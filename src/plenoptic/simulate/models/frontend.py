@@ -160,7 +160,7 @@ class LinearNonlinear(nn.Module):
         title: str | list[str] | None = "linear filter",
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model
+        """Displays convolutional filters of model.
 
         Parameters
         ----------
@@ -192,7 +192,7 @@ class LinearNonlinear(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018"""
+        """Copied from Table 2 in Berardino, 2018."""
         state_dict = OrderedDict(
             [
                 ("center_surround.center_std", torch.as_tensor([0.5339])),
@@ -343,7 +343,7 @@ class LuminanceGainControl(nn.Module):
         col_wrap: int | None = 2,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model
+        """Displays convolutional filters of model.
 
         Parameters
         ----------
@@ -369,7 +369,6 @@ class LuminanceGainControl(nn.Module):
           <PyrFigure ...>
 
         """
-
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -391,7 +390,7 @@ class LuminanceGainControl(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018"""
+        """Copied from Table 2 in Berardino, 2018."""
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([14.95])),
@@ -563,7 +562,7 @@ class LuminanceContrastGainControl(nn.Module):
         col_wrap: int | None = 3,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model
+        """Displays convolutional filters of model.
 
         Parameters
         ----------
@@ -589,7 +588,6 @@ class LuminanceContrastGainControl(nn.Module):
           <PyrFigure ...>
 
         """
-
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -612,7 +610,7 @@ class LuminanceContrastGainControl(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018"""
+        """Copied from Table 2 in Berardino, 2018."""
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([2.94])),
@@ -757,7 +755,6 @@ class OnOff(nn.Module):
           <PyrFigure size...>
 
         """
-
         linear = self.center_surround(x)
         lum = self.luminance(x)
         lum_normed = linear / (1 + self.luminance_scalar.view(1, 2, 1, 1) * lum)
@@ -792,7 +789,7 @@ class OnOff(nn.Module):
         col_wrap: int | None = 2,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model
+        """Displays convolutional filters of model.
 
         Parameters
         ----------
@@ -817,7 +814,6 @@ class OnOff(nn.Module):
           <PyrFigure ...>
 
         """
-
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -840,7 +836,7 @@ class OnOff(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018"""
+        """Copied from Table 2 in Berardino, 2018."""
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),

@@ -9,7 +9,7 @@ from .perceptual_distance import normalized_laplacian_pyramid
     "1.2.0",
 )
 class NLP(torch.nn.Module):
-    r"""simple class for implementing normalized laplacian pyramid
+    r"""Simple class for implementing normalized laplacian pyramid.
 
     This class just calls
     ``plenoptic.metric.normalized_laplacian_pyramid`` on the image and
@@ -36,7 +36,7 @@ class NLP(torch.nn.Module):
         super().__init__()
 
     def forward(self, image):
-        """returns flattened NLP activations
+        """Returns flattened NLP activations.
 
         WARNING: For now this only supports images with batch and
         channel size 1

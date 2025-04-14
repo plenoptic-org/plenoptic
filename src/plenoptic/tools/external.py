@@ -1,4 +1,4 @@
-"""tools to deal with data from outside plenoptic
+"""tools to deal with data from outside plenoptic.
 
 For example, pre-existing synthesized images
 
@@ -24,7 +24,7 @@ def plot_MAD_results(
     vrange="indep1",
     **kwargs,
 ):
-    r"""plot original MAD results, provided by Zhou Wang
+    r"""Plot original MAD results, provided by Zhou Wang.
 
     Plot the results of original MAD Competition, as provided in .mat
     files. The figure created shows the results for one reference image

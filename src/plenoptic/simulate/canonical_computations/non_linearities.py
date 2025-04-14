@@ -15,6 +15,7 @@ def rectangular_to_polar_dict(coeff_dict, residuals=False):
        The dimension that contains the real and imaginary components.
     residuals: bool, optional
         An option to carry around residuals in the energy branch.
+
     Returns
     -------
     energy : dict
@@ -59,7 +60,6 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
     coeff_dict : dict
        A dictionary containing complex tensors of coefficients.
     """
-
     coeff_dict = {}
     for key in energy:
         # ignore residuals
@@ -108,7 +108,6 @@ def local_gain_control(x, epsilon=1e-8):
     component. This is a normalization operation (local unit vector),
     hence the connection to local gain control.
     """
-
     # these could be parameters, but no use case so far
     p = 2.0
 
@@ -132,6 +131,7 @@ def local_gain_release(norm, direction, epsilon=1e-8):
         state)
     epsilon: float, optional
         Small constant to avoid division by zero.
+
     Returns
     -------
     x : torch.Tensor
@@ -152,7 +152,6 @@ def local_gain_release(norm, direction, epsilon=1e-8):
     component. This is a normalization operation (local unit vector),
     hence the connection to local gain control.
     """
-
     odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
     return x

@@ -14,7 +14,7 @@ DIRNAME = resources.files("plenoptic.metric")
 
 
 def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
-    """Calcluates the various components used to compute SSIM
+    """Calcluates the various components used to compute SSIM.
 
     This should not be called by users directly, but is meant to assist for
     calculating SSIM and MS-SSIM.
@@ -120,7 +120,7 @@ def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
 
 
 def ssim(img1, img2, weighted=False, pad=False):
-    r"""Structural similarity index
+    r"""Structural similarity index.
 
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
@@ -220,7 +220,7 @@ def ssim(img1, img2, weighted=False, pad=False):
 
 
 def ssim_map(img1, img2):
-    """Structural similarity index map
+    """Structural similarity index map.
 
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
@@ -296,7 +296,7 @@ def ssim_map(img1, img2):
 
 
 def ms_ssim(img1, img2, power_factors=None):
-    r"""Multiscale structural similarity index (MS-SSIM)
+    r"""Multiscale structural similarity index (MS-SSIM).
 
     As described in [1]_, multiscale structural similarity index (MS-SSIM) is
     an improvement upon structural similarity index (SSIM) that takes into
@@ -391,7 +391,7 @@ def ms_ssim(img1, img2, power_factors=None):
 
 
 def normalized_laplacian_pyramid(img):
-    """Compute the normalized Laplacian Pyramid using pre-optimized parameters
+    """Compute the normalized Laplacian Pyramid using pre-optimized parameters.
 
     Model parameters are those used in [1]_, copied from the matlab code used in the
     paper, found at [2]_.
@@ -416,7 +416,6 @@ def normalized_laplacian_pyramid(img):
     .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
 
     """
-
     (_, channel, height, width) = img.size()
 
     N_scales = 6
@@ -447,7 +446,7 @@ def normalized_laplacian_pyramid(img):
 
 
 def nlpd(img1, img2):
-    """Normalized Laplacian Pyramid Distance
+    """Normalized Laplacian Pyramid Distance.
 
     As described in  [1]_, this is an image quality metric based on the transformations
     associated with the early visual system: local luminance subtraction and local
@@ -499,7 +498,6 @@ def nlpd(img1, img2):
     tensor([[1.3507]])
 
     """
-
     if not img1.ndim == img2.ndim == 4:
         raise Exception(
             "Input images should have four dimensions: (batch, channel, height, width)"

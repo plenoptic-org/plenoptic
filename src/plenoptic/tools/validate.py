@@ -48,7 +48,6 @@ def validate_input(
 
     Examples
     --------
-
     Check that our built-in images work.
 
     >>> import plenoptic as po
@@ -155,7 +154,7 @@ def validate_model(
     device
         What device to place test image on.
 
-    See also
+    See Also
     --------
     remove_grad
         Helper function for detaching all parameters (in place).
@@ -167,7 +166,6 @@ def validate_model(
 
     Examples
     --------
-
     Check that one of our built-in models work:
 
     >>> import plenoptic as po
@@ -433,7 +431,6 @@ def remove_grad(model: torch.nn.Module):
 
     Examples
     --------
-
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
     >>> po.tools.validate.validate_model(model) #doctest: +ELLIPSIS

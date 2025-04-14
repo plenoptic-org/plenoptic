@@ -52,7 +52,6 @@ class LaplacianPyramid(nn.Module):
             Laplacian pyramid representation, each element of the list
             corresponds to a scale, from fine to coarse
         """
-
         y = []
         for scale in range(self.n_scales - 1):
             odd = torch.as_tensor(x.shape)[2:4] % 2
@@ -78,7 +77,6 @@ class LaplacianPyramid(nn.Module):
         x: torch.Tensor of shape (batch, channel, height, width)
             Image, or batch of images
         """
-
         x = y[self.n_scales - 1]
         for scale in range(self.n_scales - 1, 0, -1):
             odd = torch.as_tensor(y[scale - 1].shape)[2:4] % 2

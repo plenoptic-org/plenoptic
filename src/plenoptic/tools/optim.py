@@ -22,7 +22,7 @@ def set_seed(seed: int | None = None) -> None:
 
 
 def mse(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
-    r"""return the MSE between synth_rep and ref_rep
+    r"""Return the MSE between synth_rep and ref_rep.
 
     For two tensors, :math:`x` and :math:`y`, with :math:`n` values
     each:
@@ -53,7 +53,7 @@ def mse(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
 
 
 def l2_norm(synth_rep: Tensor, ref_rep: Tensor, **kwargs) -> Tensor:
-    r"""l2-norm of the difference between ref_rep and synth_rep
+    r"""l2-norm of the difference between ref_rep and synth_rep.
 
     Parameters
     ----------
@@ -109,7 +109,7 @@ def penalize_range(
     allowed_range: tuple[float, float] = (0.0, 1.0),
     **kwargs,
 ) -> Tensor:
-    r"""penalize values outside of allowed_range
+    r"""Penalize values outside of allowed_range.
 
     instead of clamping values to exactly fall in a range, this provides
     a 'softer' way of doing it, by imposing a quadratic penalty on any

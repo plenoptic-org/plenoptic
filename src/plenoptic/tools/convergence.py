@@ -71,7 +71,7 @@ def loss_convergence(
 
 
 def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> bool:
-    r"""Check whether we've synthesized all scales and done so for at least ctf_iters_to_check iterations
+    r"""Check whether we've synthesized all scales and done so for at least ctf_iters_to_check iterations.
 
     This is meant to be paired with another convergence check, such as ``loss_convergence``.
 

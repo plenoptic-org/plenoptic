@@ -10,7 +10,7 @@ __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 
 
 class Identity(torch.nn.Module):
-    r"""simple class that just returns a copy of the image
+    r"""simple class that just returns a copy of the image.
 
     We use this as a "dummy model" for metrics that we don't have the
     representation for. We use this as the model and then just change
@@ -28,7 +28,7 @@ class Identity(torch.nn.Module):
         super().__init__()
 
     def forward(self, x: Tensor) -> Tensor:
-        """Return a copy of the tensor
+        """Return a copy of the tensor.
 
         Parameters
         ----------
@@ -226,7 +226,7 @@ class Gaussian(nn.Module):
             return filt
 
     def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
-        """Convolve Gaussian filter with input tensor
+        """Convolve Gaussian filter with input tensor.
 
         We use same-padding to ensure that the output and input shapes are matched.
 
@@ -276,7 +276,7 @@ class Gaussian(nn.Module):
 
 
 class CenterSurround(nn.Module):
-    """Center-Surround, Difference of Gaussians (DoG) filter model. Can be either
+    r"""Center-Surround, Difference of Gaussians (DoG) filter model. Can be either
     on-center/off-surround, or vice versa.
 
     Filter is constructed as:
@@ -392,7 +392,7 @@ class CenterSurround(nn.Module):
 
     @property
     def filt(self) -> Tensor:
-        """Creates an on center/off surround, or off center/on surround conv filter"""
+        """Creates an on center/off surround, or off center/on surround conv filter."""
         if self._filt is not None:
             # use cached filt
             return self._filt

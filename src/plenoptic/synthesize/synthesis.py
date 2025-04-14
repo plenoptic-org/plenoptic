@@ -13,7 +13,7 @@ from ..tools.data import _check_tensor_equality
 
 
 def _get_name(x):
-    """Get the name of an object, for saving/loading purposes"""
+    """Get the name of an object, for saving/loading purposes."""
     if x is None:
         return None
     try:

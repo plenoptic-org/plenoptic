@@ -2,7 +2,7 @@ import torch
 
 
 def mse(img1, img2):
-    r"""return the MSE between img1 and img2
+    r"""Return the MSE between img1 and img2.
 
     Our baseline metric to compare two images is often mean-squared
     error, MSE. This is not a good approximation of the human visual

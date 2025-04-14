@@ -40,7 +40,6 @@ def raised_cosine(
     Y
         The y values of this raised cosine.
     """
-
     sz = 256  # arbitrary!
 
     X = np.pi * np.arange(-sz - 1, 2) / (2 * sz)
@@ -80,14 +79,13 @@ def interpolate1d(
     Interpolated values of shape identical to `x_new`.
 
     """
-
     out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
 
     return np.reshape(out, x_new.shape)
 
 
 def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
-    r"""Rectangular to polar coordinate transform
+    r"""Rectangular to polar coordinate transform.
 
     Parameters
     ----------
@@ -101,14 +99,13 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
     phase
         Tensor containing the phase.
     """
-
     amplitude = torch.abs(x)
     phase = torch.angle(x)
     return amplitude, phase
 
 
 def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
-    r"""Polar to rectangular coordinate transform
+    r"""Polar to rectangular coordinate transform.
 
     Parameters
     ----------
@@ -170,7 +167,6 @@ def steer(
         The weights used to resteer the basis. only returned if
         ``return_weights`` is True.
     """
-
     num = basis.shape[-1]
     device = basis.device
 
@@ -252,7 +248,6 @@ def make_disk(
     mask
         Tensor mask with torch.Size(img_size).
     """
-
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
     assert len(img_size) == 2
@@ -282,7 +277,7 @@ def make_disk(
 
 
 def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
-    """Add normally distributed noise to an image
+    """Add normally distributed noise to an image.
 
     This adds normally-distributed noise to an image so that the resulting
     noisy version has the specified mean-squared error.

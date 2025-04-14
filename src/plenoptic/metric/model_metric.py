@@ -3,7 +3,7 @@ import torch
 
 def model_metric(x, y, model):
     """
-    Calculate distance between x and y in model space root mean squared error
+    Calculate distance between x and y in model space root mean squared error.
 
     Parameters
     ----------
@@ -25,7 +25,6 @@ def model_metric(x, y, model):
     >>> torch.mean((model(einstein_img) - model(curie_img)).pow(2)).sqrt()
     tensor(0.3128, grad_fn=<SqrtBackward0>)
     """
-
     repx = model(x)
     repy = model(y)
 
