@@ -1,11 +1,17 @@
-#!/usr/bin/env python3
-
-import pathlib
-
-"""Fetch data using pooch.
+"""
+Fetch data using pooch.
 
 This is inspired by scipy's datasets module.
 """
+
+import pathlib
+
+__all__ = ["DOWNLOADABLE_FILES", "fetch_data"]
+
+
+def __dir__():
+    return __all__
+
 
 REGISTRY = {
     "plenoptic-test-files.tar.gz": "a6b8e03ecc8d7e40c505c88e6c767af5da670478d3bebb4e13a9d08ee4f39ae8",  # noqa: E501
@@ -58,8 +64,9 @@ REGISTRY_URLS = {
         "en8du"
     ),
 }
-DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
+#: List of files that can be downloaded using :py:func:`fetch_data`
+DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
 try:
     import pooch
@@ -80,8 +87,22 @@ else:
     )
 
 
-def find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
-    """Find directory shared by all paths."""
+def _find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
+    """
+    Find directory shared by all paths.
+
+    Helper function for when downloading tar archives.
+
+    Parameters
+    ----------
+    paths
+        List of paths to check.
+
+    Returns
+    -------
+    shared_dir
+        Most recent common ancestor.
+    """
     for dir in paths[0].parents:
         if all([dir in p.parents for p in paths]):
             break
@@ -89,15 +110,41 @@ def find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
 
 
 def fetch_data(dataset_name: str) -> pathlib.Path:
-    """Download data, using pooch. These are largely used for testing.
+    """
+    Download data, using pooch. These are largely used for testing.
 
-    To view list of downloadable files, look at `DOWNLOADABLE_FILES`.
+    To view list of downloadable files, look at :py:const:`DOWNLOADABLE_FILES`.
 
     This checks whether the data already exists and is unchanged and downloads
     again, if necessary. If dataset_name ends in .tar.gz, this also
     decompresses and extracts the archive, returning the Path to the resulting
     directory. Else, it just returns the Path to the downloaded file.
 
+    Parameters
+    ----------
+    dataset_name
+        Name of the dataset to download.
+
+    Returns
+    -------
+    path
+        Path of the downloaded dataset.
+
+    Raises
+    ------
+    ImportError
+        If pooch isn't installed.
+
+    Examples
+    --------
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> from plenoptic.data import fetch
+      >>> path = fetch.fetch_data("portilla_simoncelli_images.tar.gz")
+      >>> img = po.load_images(path / "fig12a.jpg")
+      >>> po.imshow(img)  # doctest: +ELLIPSIS
+      <PyrFigure ... >
     """
     if retriever is None:
         raise ImportError(
@@ -108,7 +155,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
     fname = retriever.fetch(dataset_name, progressbar=True, processor=processor)
     if dataset_name.endswith(".tar.gz"):
-        fname = find_shared_directory([pathlib.Path(f) for f in fname])
+        fname = _find_shared_directory([pathlib.Path(f) for f in fname])
     else:
         fname = pathlib.Path(fname)
     return fname

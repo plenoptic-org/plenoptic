@@ -166,3 +166,8 @@ checks = [
     "EX01",
     "PR04",
 ]
+
+# don't report on objects that match any of these regex
+exclude = [
+    '__dir__',
+]
