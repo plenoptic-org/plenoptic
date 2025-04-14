@@ -133,7 +133,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     Raises
     ------
     ImportError
-        If pooch isn't installed.
+        If ``pooch`` isn't installed.
 
     Examples
     --------
@@ -142,9 +142,11 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
       >>> import plenoptic as po
       >>> from plenoptic.data import fetch
       >>> path = fetch.fetch_data("portilla_simoncelli_images.tar.gz")
-      >>> img = po.load_images(path / "fig12a.jpg")
+      >>> len(list(path.glob("*")))
+      38
+      >>> img = po.load_images(path / "fig3b.jpg")
       >>> po.imshow(img)  # doctest: +ELLIPSIS
-      <PyrFigure ... >
+      <PyrFigure size ...>
     """
     if retriever is None:
         raise ImportError(
