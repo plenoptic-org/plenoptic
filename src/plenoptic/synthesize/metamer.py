@@ -190,8 +190,8 @@ class Metamer(OptimizedSynthesis):
                 if initial_image.size() != self.image.size():
                     warnings.warn(
                         "initial_image and image are different sizes! This "
-                        "has not been tested as much, open an issue if you "
-                        "problems! https://github.com/plenoptic-org/plenoptic/"
+                        "has not been tested as much, open an issue if you have"
+                        "any problems! https://github.com/plenoptic-org/plenoptic/"
                         "issues/new?template=bug_report.md"
                     )
                 metamer = initial_image.clone().detach()
