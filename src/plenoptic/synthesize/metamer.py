@@ -36,16 +36,13 @@ class Metamer(OptimizedSynthesis):
     Parameters
     ----------
     image :
-        A 4d tensor, this is the image whose representation we wish to
-        match. If this is not a tensor, we try to cast it as one.
+        A tensor, this is the image whose representation we wish to
+        match.
     model :
         A visual model, see `Metamer` notebook for more details
     loss_function :
         the loss function to use to compare the representations of the models
-        in order to determine their loss. Because of the limitations of pickle,
-        you cannot use a lambda function for this if you wish to save the
-        Metamer object (i.e., it must be one of our built-in functions or
-        defined using a `def` statement)
+        in order to determine their loss.
     range_penalty_lambda :
         strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
@@ -128,10 +125,10 @@ class Metamer(OptimizedSynthesis):
             The tensor we use to initialize the metamer. If None, we initialize with
             uniformly-distributed random noise lying within ``self.allowed_range``.
         optimizer :
-            The un-initialized optimizer object to use. If None, we use Adam(lr=.01,
-            amsgrad=True).
+            The un-initialized optimizer object to use. If None, we use Adam.
         optimizer_kwargs :
-            The keyword arguments to pass to the optimizer on initialization.
+            The keyword arguments to pass to the optimizer on initialization. If None,
+            we use {"lr": .01} and, if optimizer is None, {"amsgrad": True}
         scheduler :
             The learning rate scheduler to use. If None, we don't use one.
         scheduler_kwargs :
@@ -189,14 +186,14 @@ class Metamer(OptimizedSynthesis):
                 # self.allowed_range
                 metamer = signal.rescale(metamer, *self.allowed_range)
             else:
-                if initial_image.ndimension() < 4:
-                    raise ValueError(
-                        "initial_image must be torch.Size([n_batch"
-                        ", n_channels, im_height, im_width]) but got "
-                        f"{initial_image.size()}"
-                    )
+                validate_input(initial_image, allowed_range=self.allowed_range)
                 if initial_image.size() != self.image.size():
-                    raise ValueError("initial_image and image must be same size!")
+                    warnings.warn(
+                        "initial_image and image are different sizes! This "
+                        "has not been tested as much, open an issue if you have"
+                        "any problems! https://github.com/plenoptic-org/plenoptic/"
+                        "issues/new?template=bug_report.md"
+                    )
                 metamer = initial_image.clone().detach()
                 metamer = metamer.to(dtype=self.image.dtype, device=self.image.device)
             metamer.requires_grad_()
@@ -240,8 +237,8 @@ class Metamer(OptimizedSynthesis):
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
         store_progress :
-            Whether we should store the metamer image in progress on every
-            iteration. If False, we don't save anything. If True, we save every
+            Whether we should store the metamer image in progress during
+            synthesis. If False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True).
         stop_criterion :
@@ -605,16 +602,13 @@ class MetamerCTF(Metamer):
     Parameters
     ----------
     image :
-        A 4d tensor, this is the image whose representation we wish to
-        match. If this is not a tensor, we try to cast it as one.
+        A tensor, this is the image whose representation we wish to
+        match.
     model :
         A visual model, see `Metamer` notebook for more details
     loss_function :
         the loss function to use to compare the representations of the models
-        in order to determine their loss. Because of the limitations of pickle,
-        you cannot use a lambda function for this if you wish to save the
-        Metamer object (i.e., it must be one of our built-in functions or
-        defined using a `def` statement)
+        in order to determine their loss.
     range_penalty_lambda :
         strength of the regularizer that enforces the allowed_range. Must be
         non-negative.

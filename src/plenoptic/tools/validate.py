@@ -19,15 +19,15 @@ def validate_input(
 
     - Checks if input_tensor has a float or complex dtype
 
-    - Checks if input_tensor is 4d.
-
-    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] != 1``
+    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] == 1`` or
+      ``input_tensor.ndimension()==1``
 
     - If ``allowed_range`` is not None, check whether all values of
-     ``input_tensor`` lie
-      within the specified range.
+     ``input_tensor`` lie within the specified range.
 
     If any of the above fail, a ``ValueError`` is raised.
+
+    If input_tensor is not 4d, raises a ``UserWarning``.
 
     Parameters
     ----------
@@ -40,6 +40,27 @@ def validate_input(
     allowed_range
         If not None, ensure that all values of ``input_tensor`` lie within
         allowed_range.
+
+    Raises
+    ------
+    ValueError, UserWarning :
+        See above
+
+    Examples
+    --------
+
+    Check that our built-in images work.
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_input(po.data.einstein())
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> po.tools.validate.validate_input(img, allowed_range=(0, .5)) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: input_tensor range ...
 
     """
     # validate dtype
@@ -56,14 +77,15 @@ def validate_input(
             + f" allowed but got type {input_tensor.dtype}"
         )
     if input_tensor.ndimension() != 4:
-        n_batch = 1 if no_batch else "n_batch"
-        # numpy raises ValueError when operands cannot be broadcast together,
-        # so it seems reasonable here
-        raise ValueError(
-            f"input_tensor must be torch.Size([{n_batch}, n_channels, "
-            f"im_height, im_width]) but got shape {input_tensor.size()}"
+        warnings.warn(
+            "plenoptic's methods have mostly been tested on 4d inputs with shape "
+            "torch.Size([n_batch, n_channels, im_height, im_width]). They should "
+            "theoretically work with different dimensionality; if you have any "
+            "problems, please open an issue at https://github.com/plenoptic-org/"
+            "plenoptic/issues/new?template=bug_report.md"
         )
-    if no_batch and input_tensor.shape[0] != 1:
+    # if input is 1d, then it satisfies no_batch
+    if no_batch and input_tensor.ndimension() > 1 and input_tensor.shape[0] != 1:
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
@@ -108,14 +130,16 @@ def validate_model(
 
     - If ``model`` changes the precision of the input tensor (``TypeError``).
 
-    - If ``model`` returns a 3d or 4d output when given a 4d input
-      (``ValueError``).
-
     - If ``model`` changes the device of the input (``RuntimeError``).
 
-    Finally, we check if ``model`` is in training mode and raise a warning
-    if so. Note that this is different from having learnable parameters,
-    see ``pytorch docs <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+    Finally, we raise a ``UserWarning``:
+
+    - If ``model`` is in training mode. Note that this is different from having
+      learnable parameters, see ``pytorch docs
+      <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+
+    - If ``model`` returns a 3d or 4d output when given a tensor with shape
+      ``image_shape``
 
     Parameters
     ----------
@@ -135,6 +159,34 @@ def validate_model(
     --------
     remove_grad
         Helper function for detaching all parameters (in place).
+
+    Raises
+    ------
+    ValueError, UserWarning :
+        See above
+
+    Examples
+    --------
+
+    Check that one of our built-in models work:
+
+    >>> import plenoptic as po
+    >>> model = po.simul.PortillaSimoncelli((256, 256))
+    >>> po.tools.validate.validate_model(model, image_shape=(1, 1, 256, 256))
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> class FailureModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...     def forward(self, x):
+    ...         x = x.detach().numpy()
+    ...         return torch.as_tensor(x)
+    >>> po.tools.validate.validate_model(FailureModel()) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: model strips gradient from input, ...
 
     """
     if image_shape is None:
@@ -185,10 +237,12 @@ def validate_model(
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
     if model(test_img).ndimension() not in [3, 4]:
-        raise ValueError(
-            "When given a 4d input, model output must be three- or"
-            f" four-dimensional but had {model(test_img).ndimension()}"
-            " dimensions instead!"
+        warnings.warn(
+            "plenoptic's methods have mostly been tested on models which produce 3d"
+            " or 4d outputs. They should theoretically work with different "
+            "dimensionality; if you have any problems, please open an issue at "
+            "https://github.com/plenoptic-org/plenoptic/issues/new?"
+            "template=bug_report.md"
         )
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
@@ -228,6 +282,36 @@ def validate_coarse_to_fine(
     device
         Which device to place the test image on.
 
+    Raises
+    ------
+    AttributeError, TypeError, ValueError
+        See above
+
+    Examples
+    --------
+    Check that one of our built-in models work:
+
+    >>> import plenoptic as po
+    >>> model = po.simul.PortillaSimoncelli((256, 256))
+    >>> po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, 256, 256))
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> # this fails because it's missing the scales attribute
+    >>> class FailureModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.model = po.simul.PortillaSimoncelli((256, 256))
+    ...     def forward(self, x):
+    ...         return self.model(x)
+    >>> shape = (1, 1, 256, 256)
+    >>> model = FailureModel()
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: model has no scales attribute ...
+
     """
     warnings.warn(
         "Validating whether model can work with coarse-to-fine synthesis --"
@@ -265,15 +349,15 @@ def validate_metric(
     In particular, this functions checks the following (with associated
     exceptions):
 
-    - Whether ``metric`` is callable and accepts two 4d tensors as input
-      (``TypeError``).
+    - Whether ``metric`` is callable and accepts two tensors of shape ``image_shape`` as
+      input (``TypeError``).
 
-    - Whether ``metric`` returns a scalar when called with two 4d tensors as
-      input (``ValueError``).
+    - Whether ``metric`` returns a scalar when called with two tensors of shape
+      ``image_shape`` as input (``ValueError``).
 
-    - Whether ``metric`` returns a value less than 5e-7 when with two identical
-      4d tensors as input (``ValueError``). (This threshold was chosen because
-      1-SSIM of two identical images is 5e-8 on GPU).
+    - Whether ``metric`` returns a value less than 5e-7 when with two identical tensors
+      of shape ``image_shape`` as input (``ValueError``). (This threshold was chosen
+      because 1-SSIM of two identical images is 5e-8 on GPU).
 
     Parameters
     ----------
@@ -289,6 +373,26 @@ def validate_metric(
     device
         What device to place the test images on.
 
+    Raises
+    ------
+    TypeError, ValueError
+        See above
+
+    Examples
+    --------
+    Check that 1-SSIM works:
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_metric(lambda x, y: 1-po.metric.ssim(x, y))
+
+    Check that SSIM doesn't work (because SSIM=0 means that images are *different*,
+    whereas we need metric=0 to mean *identical*):
+
+    >>> import plenoptic as po
+    >>> po.tools.validate.validate_metric(po.metric.ssim) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: metric should return ...
+
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -296,7 +400,7 @@ def validate_metric(
     try:
         same_val = metric(test_img, test_img).item()
     except TypeError:
-        raise TypeError("metric should be callable and accept two 4d tensors as input")
+        raise TypeError("metric should be callable and accept two tensors as input")
     # as of torch 2.0.0, this is a RuntimeError (a Tensor with X elements
     # cannot be converted to Scalar); previously it was a ValueError (only one
     # element tensors can be converted to Python scalars)
@@ -320,7 +424,24 @@ def validate_metric(
 
 
 def remove_grad(model: torch.nn.Module):
-    """Detach all parameters and buffers of model (in place)."""
+    """Detach all parameters and buffers of model (in place).
+
+    Parameters
+    ----------
+    model
+        torch Module with learnable parameters
+
+    Examples
+    --------
+
+    >>> import plenoptic as po
+    >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
+    >>> po.tools.validate.validate_model(model) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: model adds gradient to input, ...
+    >>> po.tools.remove_grad(model)
+    >>> po.tools.validate.validate_model(model)
+    """
     for p in model.parameters():
         if p.requires_grad:
             p.detach_()

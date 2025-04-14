@@ -169,6 +169,22 @@ def get_model(name):
                 return 1 * x
 
         return NonModule()
+    elif "diff_dims" in name:
+
+        class DimModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.target_dims = int(name.replace("diff_dims-", ""))
+
+            def forward(self, img):
+                img = img.flatten()
+                while img.ndimension() != self.target_dims:
+                    img = img.unsqueeze(0)
+                return img
+
+        model = DimModel()
+        model.eval()
+        return model
 
 
 @pytest.fixture(scope="package")

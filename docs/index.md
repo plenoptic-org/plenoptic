@@ -20,7 +20,7 @@
 :align: center
 :::
 
-`plenoptic` is a python library for model-based synthesis of perceptual stimuli. For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
+`plenoptic` is a python library for model-based synthesis of perceptual stimuli. For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
 ## Getting started
 
@@ -142,7 +142,10 @@ tutorials/advanced/*
 
 [^footnote-1]: These methods also work with auditory models, such as in [Feather et al., 2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html) though we haven't yet implemented examples. If you're interested, please post in [Discussions](<https://github.com/plenoptic-org/plenoptic/discussions)>)!
 
+[^footnote-2]: Here and throughout the documentation, we use "image" to describe the input. The models and metrics that are included in plenoptic are intended to work on images, represented as 4d tensors. However, the synthesis methods should also work on videos (5d tensors), audio (3d tensors) and more! If you have a problem using a tensor with different dimensionality, please [open an issue](https://github.com/plenoptic-org/plenoptic/issues/new?template=bug_report.md)!
+
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
+
 
 :::{image} images/CCN-logo-wText.png
 :align: center

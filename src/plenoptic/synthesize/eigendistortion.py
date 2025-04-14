@@ -75,24 +75,19 @@ class Eigendistortion(Synthesis):
     Parameters
     ----------
     image
-        Image, torch.Size(batch=1, channel, height, width). We currently do not
-        support batches of images, as each image requires its own optimization.
+        Image. We currently do not support batches of images, as each image requires its
+        own optimization, so either ``image.ndimension()==1`` or ``image.shape[0]==1``
     model
         Torch model with defined forward and backward operations.
 
     Attributes
     ----------
-    batch_size: int
-    n_channels: int
-    im_height: int
-    im_width: int
     jacobian: Tensor
         Is only set when :func:`synthesize` is run with ``method='exact'``. Default to
         ``None``.
     eigendistortions: Tensor
         Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by
-        eigenvalue, with Size((n_distortions, n_channels, im_height,
-        im_width)).
+        eigenvalue, with Size((n_distortions, *image.shape[1:])).
     eigenvalues: Tensor
         Tensor of eigenvalues corresponding to each eigendistortion, listed in
         decreasing order.
@@ -137,12 +132,9 @@ class Eigendistortion(Synthesis):
             device=image.device,
         )
 
-        (
-            self.batch_size,
-            self.n_channels,
-            self.im_height,
-            self.im_width,
-        ) = image.shape
+        self._image_shape = image.shape
+        if image.ndimension() != 1:
+            self._image_shape = self._image_shape[1:]
 
         self._model = model
         # flatten and attach gradient and reshape to image
@@ -463,13 +455,10 @@ class Eigendistortion(Synthesis):
         Returns
         -------
         imgs
-            List of Tensor images, each with ``torch.Size(img_height, im_width)``.
+            List of Tensor images
         """
 
-        imgs = [
-            vecs[:, i].reshape((self.n_channels, self.im_height, self.im_width))
-            for i in range(vecs.shape[1])
-        ]
+        imgs = [vecs[:, i].reshape(self._image_shape) for i in range(vecs.shape[1])]
         return imgs
 
     def _indexer(self, idx: int) -> int:
@@ -700,11 +689,7 @@ def display_eigendistortion(
 
     """
     # reshape so channel dim is last
-    im_shape = (
-        eigendistortion.n_channels,
-        eigendistortion.im_height,
-        eigendistortion.im_width,
-    )
+    im_shape = eigendistortion._image_shape
     image = eigendistortion.image.detach().view(1, *im_shape).cpu()
     dist = (
         eigendistortion.eigendistortions[eigendistortion._indexer(eigenindex)]
