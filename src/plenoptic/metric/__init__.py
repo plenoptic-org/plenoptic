@@ -1,3 +1,9 @@
+"""
+Image quality metrics.
+
+These functions and classes address questions of the form "how different are these
+images?"
+"""
 # ruff: noqa: F401
 
 from .classes import NLP

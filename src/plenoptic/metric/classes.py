@@ -1,3 +1,5 @@
+"""Class versions of perceptual metric functions."""  # numpydoc ignore=ES01
+
 import torch
 from deprecated.sphinx import deprecated
 
@@ -9,7 +11,8 @@ from .perceptual_distance import normalized_laplacian_pyramid
     "1.2.0",
 )
 class NLP(torch.nn.Module):
-    r"""Simple class for implementing normalized laplacian pyramid.
+    r"""
+    Simple class for implementing normalized laplacian pyramid.
 
     This class just calls
     ``plenoptic.metric.normalized_laplacian_pyramid`` on the image and
@@ -28,29 +31,33 @@ class NLP(torch.nn.Module):
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
-
+    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
     """
 
-    def __init__(self):
+    def __init__(self):  # numpydoc ignore=GL08
         super().__init__()
 
-    def forward(self, image):
-        """Returns flattened NLP activations.
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """
+        Compute flattened NLP activations.
 
         WARNING: For now this only supports images with batch and
         channel size 1
 
         Parameters
         ----------
-        image : torch.Tensor
-            image to pass to normalized_laplacian_pyramid
+        image
+            Image to pass to normalized_laplacian_pyramid.
 
         Returns
         -------
-        representation : torch.Tensor
-            3d tensor with flattened NLP activations
+        representation
+            3d tensor with flattened NLP activations.
 
+        Raises
+        ------
+        Exception
+            If ``image`` has more than one batch or channel.
         """
         if image.shape[0] > 1 or image.shape[1] > 1:
             raise Exception("For now, this only supports batch and channel size 1")

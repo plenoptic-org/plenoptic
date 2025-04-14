@@ -2,7 +2,7 @@
 Metrics designed to model human perceptual distance.
 
 Metrics that model human perceptual distance seek to answer the question "how different
-are these two images?".
+do humans find these two images?".
 """
 
 import warnings
