@@ -1,3 +1,9 @@
+"""
+Simple filters for visual models.
+
+The functions in this module only create tensors, they do not perform convolution.
+"""
+
 import torch
 from deprecated.sphinx import deprecated
 from torch import Tensor
@@ -10,25 +16,30 @@ __all__ = ["gaussian1d", "circular_gaussian2d"]
     "1.2.0",
 )
 def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
-    """Normalized 1D Gaussian.
+    """
+    Create normalized 1D Gaussian.
 
     1d Gaussian of size `kernel_size`, centered half-way, with variable std
     deviation, and sum of 1.
 
-    With default values, this is the 1d Gaussian used to generate the windows
-    for SSIM
-
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Size of Gaussian. Recommended to be odd so that kernel is properly centered.
-    std:
+    std
         Standard deviation of Gaussian.
 
     Returns
     -------
     filt:
         1d Gaussian with `Size([kernel_size])`.
+
+    Raises
+    ------
+    ValueError
+        If ``std`` non-scalar.
+    ValueError
+        If ``std`` non-positive.
 
     Examples
     --------
@@ -42,30 +53,28 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
       >>> kernel_size = 21
       >>> filt = gaussian1d(kernel_size=kernel_size, std=2).reshape(1, 1, kernel_size)
       >>> # define a sinusoid + noise
-      >>> sin_plus_noise = (
-      ... torch.sin(torch.linspace(0, 5 * torch.pi, 500)) +
-      ... 0.5 * torch.randn(500)
-      ... )
+      >>> sin_plus_noise = torch.sin(
+      ...     torch.linspace(0, 5 * torch.pi, 500)
+      ... ) + 0.5 * torch.randn(500)
       >>> sin_plus_noise = sin_plus_noise.reshape(1, 1, 500)
       >>> # convolve signal with the Gaussian filter
       >>> smooth_sin = conv1d(sin_plus_noise, filt, padding="same")
       >>> # plot filter, signal and convolved signal
       >>> f, axs = plt.subplots(3, 1)
       >>> # plot filter and convolution results
-      >>> axs[0].plot(filt.flatten())  #doctest: +ELLIPSIS
+      >>> axs[0].plot(filt.flatten())  # doctest: +ELLIPSIS
       [...
-      >>> axs[0].set_title("1D Gaussian filter") #doctest: +ELLIPSIS
+      >>> axs[0].set_title("1D Gaussian filter")  # doctest: +ELLIPSIS
       Text(0.5, 1.0, '1D Gaussian filter')
-      >>> axs[1].plot(sin_plus_noise.flatten()) #doctest: +ELLIPSIS
+      >>> axs[1].plot(sin_plus_noise.flatten())  # doctest: +ELLIPSIS
       [...
-      >>> axs[1].set_title("Sin + Noise") #doctest: +ELLIPSIS
+      >>> axs[1].set_title("Sin + Noise")  # doctest: +ELLIPSIS
       Text(0.5, 1.0, 'Sin + Noise')
-      >>> axs[2].plot(smooth_sin.flatten()) #doctest: +ELLIPSIS
+      >>> axs[2].plot(smooth_sin.flatten())  # doctest: +ELLIPSIS
       [...
-      >>> axs[2].set_title("Convolved Sin + Noise") #doctest: +ELLIPSIS
+      >>> axs[2].set_title("Convolved Sin + Noise")  # doctest: +ELLIPSIS
       Text(0.5, 1.0, 'Convolved Sin + Noise')
       >>> plt.tight_layout()
-
     """
     try:
         dtype = std.dtype
@@ -90,27 +99,31 @@ def circular_gaussian2d(
     std: int | list[int] | float | list[float] | Tensor,
     out_channels: int | None = None,
 ) -> Tensor:
-    """Creates normalized, centered circular 2D gaussian tensor with which to convolve.
+    """
+    Create normalized, centered circular 2D gaussian tensor with which to convolve.
+
+    The filter is normalized by total pixel-sum (*not* by ``2*pi*std``) and has shape
+    ``(out_channels, 1, height, width)``. For 2d convolutions in torch, the first
+    dimensions of the filter tensor corresponds to ``out_channels`` and the second to
+    ``in_channels``, see `torch.nn.Conv2d`_ for more details.
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Filter kernel size. Recommended to be odd so that kernel is properly centered.
-        If you use same-padding, convolution with an odd-length kernel will also be
-        faster, see
-        https://pytorch.org/docs/stable/generated/torch.nn.functional.conv2d.html
-    std:
+        If you use same-padding, convolution with an odd-length kernel will be faster,
+        see :func:`torch.nn.functional.conv2d`_.
+    std
         Standard deviation of 2D circular Gaussian. If a scalar and ``out_channels`` is
         not ``None``, all out channels will have the same value. If not a scalar and
         ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
-    out_channels:
+    out_channels
         Number of output channels. If None, inferred from shape of ``std``.
 
     Returns
     -------
     filt:
-        Circular gaussian kernel, normalized by total pixel-sum (_not_ by 2pi*std).
-        ``filt`` has shape ``(out_channels=n_channels, in_channels=1, height, width)``
+        Circular gaussian kernel.
 
     Raises
     ------
@@ -141,12 +154,14 @@ def circular_gaussian2d(
       >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
       >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=2)
+      >>> filt_2d.shape
+      torch.Size([1, 1, 32, 32])
       >>> einstein_img = po.data.einstein()
       >>> blurred_einstein = conv2d(einstein_img, filt_2d, padding="same")
       >>> po.imshow(
       ...     [einstein_img, filt_2d, blurred_einstein],
-      ...     title=["Einstein", "2D Gaussian Filter", "Blurred Einstein"]
-      ... )  #doctest: +ELLIPSIS
+      ...     title=["Einstein", "2D Gaussian Filter", "Blurred Einstein"],
+      ... )  # doctest: +ELLIPSIS
       <PyrFigure ...>
 
     Multiple output channels with different standard deviations.
@@ -159,15 +174,23 @@ def circular_gaussian2d(
       >>> import torch
       >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=[2, 5.5],
-      ...                               out_channels=2)
+      >>> filt_2d = circular_gaussian2d(
+      ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
+      ... )
+      >>> filt_2d.shape
+      torch.Size([2, 1, 32, 32])
       >>> einstein_img = po.data.einstein()
       >>> blurred_einstein = conv2d(einstein_img, filt_2d, padding="same")
-      >>> titles = ["Einstein", "2D Gaussian Filter", "Larger 2D Gaussian Filter",
-      ...           "Blurred Einstein", "Blurrier Einstein"]
+      >>> titles = [
+      ...     "Einstein",
+      ...     "2D Gaussian Filter",
+      ...     "Larger 2D Gaussian Filter",
+      ...     "Blurred Einstein",
+      ...     "Blurrier Einstein",
+      ... ]
       >>> po.imshow(
       ...     [einstein_img, filt_2d, blurred_einstein], title=titles
-      ... )  #doctest: +ELLIPSIS
+      ... )  # doctest: +ELLIPSIS
       <PyrFigure ...>
 
     Multiple input and output channels, convolved independently. See [conv2d
@@ -182,21 +205,23 @@ def circular_gaussian2d(
       >>> import torch
       >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=[2, 5.5],
-      ...                               out_channels=2)
+      >>> filt_2d = circular_gaussian2d(
+      ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
+      ... ).repeat(3, 1, 1, 1)
+      >>> filt_2d.shape
+      torch.Size([6, 1, 32, 32])
       >>> wheel = po.data.color_wheel(as_gray=False)
-      >>> blurred_wheel = conv2d(wheel, filt_2d.repeat(3, 1, 1, 1), groups=3,
-      ...                        padding="same")
+      >>> blurred_wheel = conv2d(wheel, filt_2d, groups=3, padding="same")
       >>> titles = ["Wheel", "Blurred Wheel", "Blurrier Wheel"]
       >>> # note that the order of channels: the first two correspond to the first
       >>> # channel of the input image, convolved with the each of the two gaussians,
       >>> # and so on.
       >>> po.imshow(
-      ...     [wheel, blurred_wheel[:, ::2], blurred_wheel[:, 1::2]], title=titles,
+      ...     [wheel, blurred_wheel[:, ::2], blurred_wheel[:, 1::2]],
+      ...     title=titles,
       ...     as_rgb=True,
-      ... )  #doctest: +ELLIPSIS
+      ... )  # doctest: +ELLIPSIS
       <PyrFigure ...>
-
     """
     kernel_size, std, out_channels = _validate_filter_args(
         kernel_size, std, out_channels
@@ -227,7 +252,8 @@ def _validate_filter_args(
     std_name: str = "std",
     out_channels_name: str = "out_channels",
 ) -> tuple[Tensor, Tensor, Tensor]:
-    """Validate common filter args.
+    """
+    Validate common filter args.
 
     Checks that:
 
@@ -239,40 +265,43 @@ def _validate_filter_args(
     - out_channels must be a positive integer.
 
     Does the following and then returns the three values
+
     - if ``out_channels`` is ``None``, then infer from shape of ``std``.
+
     - makes ``kernel_size`` a 1d tensor of size 2
+
     - makes ``std`` a float32 1d tensor of size ``out_channels``
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Filter kernel size.
-    std:
+    std
         Standard deviation of 2D circular Gaussian. If a scalar and ``out_channels`` is
         not ``None``, all out channels will have the same value. If not a scalar and
         ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
-    out_channels:
+    out_channels
         Number of output channels. If None, inferred from ``len(std)``.
-    std_name, out_channels_name:
+    std_name, out_channels_name
         Names of these variables to raise more informative error messages (when e.g.,
         calling from ``CenterSurround``, which uses this function to validate different
-        std arguments.)
+        std arguments).
 
     Returns
     -------
     kernel_size, std, out_channels
+        The validated tensors.
 
     Raises
     ------
-    ValueError:
+    ValueError
         If out_channels is not a positive integer.
-    ValueError:
+    ValueError
         If kernel_size is not one or two positive integers.
-    ValueError:
+    ValueError
         If std is not positive.
-    ValueError:
+    ValueError
         If std is non-scalar and ``len(std) != out_channels``
-
     """
     std = torch.as_tensor(std)
     if not torch.is_floating_point(std):
