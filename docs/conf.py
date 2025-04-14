@@ -50,7 +50,10 @@ extensions = [
     "myst_parser",
     "sphinxcontrib.bibtex",
     "sphinx_design",
+    "sphinx.ext.viewcode",
 ]
+
+add_module_names = False
 
 intersphinx_mapping = {"torch": ("https://pytorch.org/docs/stable/", None)}
 
