@@ -330,7 +330,7 @@ def validate_coarse_to_fine(
                 if model_output_shape == model(test_img, scales=sc).shape:
                     raise ValueError(
                         "Output of model forward method doesn't change"
-                        " shape when scales keyword arg is set to {sc} {msg}"
+                        f" shape when scales keyword arg is set to {sc} {msg}"
                     )
             except TypeError:
                 raise TypeError(
