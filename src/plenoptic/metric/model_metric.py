@@ -1,16 +1,40 @@
+"""
+Model metrics.
+
+Simple functions to convert models, which can return a tensor of arbitrary shape, to
+metrics, which must return a tensor.
+"""
+
 import torch
 
 
-def model_metric(x, y, model):
-    """
+def model_metric(
+    x: torch.Tensor, y: torch.Tensor, model: torch.nn.Module
+) -> torch.Tensor:
+    r"""
     Calculate distance between x and y in model space root mean squared error.
+
+    For two images, :math:`x` and :math:`y`, and model :math:`M`.
+
+    .. math::
+
+        metric = \sqrt{\frac{1}{n}\sum_i (M(x)_i - M(y)_i)^2+\epsilon}
+
+    where :math:`M(x)` and :math:`M(y)` are the model representations of ``x`` and
+    ``y``, with :math:`n` elements, and :math:`\epsilon=1e-10` is to stabilize the
+    gradient around zero.
 
     Parameters
     ----------
-    x, y:
-        images with shape (batch, channel, height, width)
-    model:
-        torch model with defined forward and backward operations
+    x, y
+        Images to pass to ``model``.
+    model
+        Torch model with defined forward operation.
+
+    Returns
+    -------
+    model_error
+        Root mean-squared error between the model representation of ``x`` and ``y``.
 
     Examples
     --------
