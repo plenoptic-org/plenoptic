@@ -9,6 +9,10 @@ repos:
     - id: ruff
       args: [--config=pyproject.toml]
 
+- repo: https://github.com/numpy/numpydoc
+  rev: v1.8.0
+  hooks:
+    - id: numpydoc-validation
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0

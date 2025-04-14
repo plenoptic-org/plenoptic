@@ -123,6 +123,8 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+docstring-code-format = true
+
 [tool.ruff.lint]
 select = [
     # pycodestyle
@@ -138,6 +140,29 @@ select = [
     "I",
     # in particular, this looks for invalid escape sequences (has been an issue
     # for regex strings used in tests)
-    "W"
+    "W",
+    # docstrings, note that DOC rules (pydoclint) are all in preview, so have to be explicitly added
+    "D", "DOC201", "DOC202", "DOC402", "DOC403", "DOC501", "DOC502",
 ]
 ignore = []
+
+# allow preview rules, but require them to be explicitly added
+preview = true
+explicit-preview-rules = true
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore docstring rules everywhere except for the `src/` directory, from
+# https://docs.astral.sh/ruff/settings/#lint_per-file-ignores.
+"!src/**.py" = ["D", "DOC"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.numpydoc_validation]
+checks = [
+    "all",
+    "SA01",
+    # will remove this eventually
+    "EX01",
+    "PR04",
+]
