@@ -19,7 +19,7 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     """
     Create normalized 1D Gaussian.
 
-    1d Gaussian of size `kernel_size`, centered half-way, with variable std
+    1d Gaussian of size ``kernel_size``, centered half-way, with variable std
     deviation, and sum of 1.
 
     Parameters
@@ -32,7 +32,7 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     Returns
     -------
     filt:
-        1d Gaussian with `Size([kernel_size])`.
+        1d Gaussian with ``Size([kernel_size])``.
 
     Raises
     ------

@@ -8,7 +8,7 @@ import astroid
 
 LINK_REGEX = re.escape("](")
 # we want basically everything except a backtick
-EVERYTHING_BUT_BACKTICK = r"[A-Za-z_\(\)<>:/ -.=\[\]0-9]"
+EVERYTHING_BUT_BACKTICK = r"[A-Za-z_\(\)<>:/ -.=\[\]0-9\\^~{}]"
 BACKTICK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_?)"
 SPHINX_DIRECTIVE_REGEX = rf":[:a-z]+:(`+{EVERYTHING_BUT_BACKTICK}+?_?`+)"
 SPHINX_LINK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_)"
@@ -44,7 +44,7 @@ def get_nodes(tree_body):
 paths = []
 for p in sys.argv[1:]:
     p = pathlib.Path(p)
-    p = list(p.glob("**/*.py")) if p.isdir() else [p]
+    p = list(p.glob("**/*.py")) if p.is_dir() else [p]
     paths.extend(p)
 
 links = []
