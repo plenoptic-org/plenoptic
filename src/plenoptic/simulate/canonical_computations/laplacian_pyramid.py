@@ -41,10 +41,14 @@ class LaplacianPyramid(nn.Module):
     ----------
     .. [1] Burt, P. and Adelson, E., 1983. The Laplacian pyramid as a compact
        image code. IEEE Transactions on communications, 31(4), pp.532-540.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> lpyr = po.simul.LaplacianPyramid(n_scales=4, scale_filter=True)
     """
 
     def __init__(self, n_scales: int = 5, scale_filter: bool = False):
-        # numpydoc ignore=GL08
         super().__init__()
         self.n_scales = n_scales
         self.scale_filter = scale_filter

@@ -34,7 +34,7 @@ class NLP(torch.nn.Module):
     .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
     """
 
-    def __init__(self):  # numpydoc ignore=GL08
+    def __init__(self):
         super().__init__()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
