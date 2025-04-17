@@ -8,7 +8,7 @@ import astroid
 
 LINK_REGEX = re.escape("](")
 # we want basically everything except a backtick
-EVERYTHING_BUT_BACKTICK = r"[A-Za-z_\(\)<>:/ -.=\[\]0-9\\^~{}]"
+EVERYTHING_BUT_BACKTICK = r"[A-Za-z_\(\)<>:/ -.=\[\]0-9\\^~{}'\"]"
 BACKTICK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_?)"
 SPHINX_DIRECTIVE_REGEX = rf":[:a-z]+:(`+{EVERYTHING_BUT_BACKTICK}+?_?`+)"
 SPHINX_LINK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_)"
