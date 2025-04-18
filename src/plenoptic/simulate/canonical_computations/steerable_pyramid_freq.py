@@ -59,7 +59,7 @@ class SteerablePyramidFreq(nn.Module):
         The Gaussian derivative order used for the steerable filters, in ``[0, 15]``.
         Note that to achieve steerability the minimum number of orientation is
         ``order + 1``, which is used here. To get more orientations at the same order,
-        use the method :py:meth:`steer_coeffs`.
+        use the method :meth:`steer_coeffs`.
     twidth
         The width of the transition region of the radial lowpass function, in
         octaves.
@@ -87,7 +87,7 @@ class SteerablePyramidFreq(nn.Module):
         Dictionary containing the sizes of the pyramid coefficients. Keys are
         ``(level, band)`` tuples and values are tuples.
     fft_norm : str
-        The way the ffts are normalized, see :py:func:`torch.fft.fft2` for more details.
+        The way the ffts are normalized, see :func:`torch.fft.fft2` for more details.
     is_complex : bool
         Whether the coefficients are complex- or real-valued.
 
@@ -126,7 +126,7 @@ class SteerablePyramidFreq(nn.Module):
        on Image Processing, Washington, DC, Oct 1995.
     .. [2] A Karasaridis and E P Simoncelli, "A Filter Design Technique for
        Steerable Pyramid Image Transforms", ICASSP, Atlanta, GA, May 1996. ..
-    .. [3] `https://www.cns.nyu.edu/~eero/steerpyr/`_
+    .. [3] `<https://www.cns.nyu.edu/~eero/steerpyr/>`_
 
     Examples
     --------
@@ -369,16 +369,16 @@ class SteerablePyramidFreq(nn.Module):
         -------
         representation
             Pyramid coefficients. These will be stored in an ordered dictionary with
-            keys that are "residual_highpass", "residual_lowpass", or tuples of form
-            ``(scale, orientation)``, where ``scale`` runs from 0 to
+            keys that are ``"residual_highpass"``, ``"residual_lowpass"``, or tuples of
+            form ``(scale, orientation)``, where ``scale`` runs from ``0`` to
             ``self.num_scales-1`` and ``orientation`` runs from 0 to ``self.order``.
             Coefficients have shape ``(*x.shape[:2], x.shape[2] / 2**scale, x.shape[3] /
-            2**scale)``, with the residual_highpass height and width matching that of
-            ``x``, and residual_lowpass having height and width ``(x.shape[2] /
+            2**scale)``, with the ``"residual_highpass"`` height and width matching that
+            of ``x``, and ``"residual_lowpass"`` having height and width ``(x.shape[2] /
             2**self.num_scales, x.shape[3] / 2**self.num_scales)``. They are ordered
-            from fine to coarse: residual_highpass, (scale 0, orientation 0), (scale 0,
-            orientation 1), ..., (scale num_scales-1, orientation order-1),
-            residual_lowpass.
+            from fine to coarse: ``"residual_highpass", (scale=0, orientation=0),
+            (scale=0, orientation=1), ..., (scale=num_scales-1, orientation=order),
+            "residual_lowpass"``.
 
         Raises
         ------
@@ -518,16 +518,16 @@ class SteerablePyramidFreq(nn.Module):
         Convert coefficient dictionary to a tensor.
 
         The output tensor has shape (batch, channel, height, width) and is
-        intended to be used in an ``torch.nn.Module`` downstream. In the
+        intended to be used in an :class:`torch.nn.Module` downstream. In the
         multichannel case, all bands for each channel will be stacked together
         (i.e. if there are 2 channels and 18 bands per channel,
-        pyr_tensor[:,0:18,...] will contain the pyr responses for channel 1 and
-        pyr_tensor[:, 18:36, ...] will contain the responses for channel 2). In
-        the case of a complex, multichannel pyramid with split_complex=True,
+        ``pyr_tensor[:,0:18,...]`` will contain the pyr responses for channel 1 and
+        ``pyr_tensor[:, 18:36, ...]`` will contain the responses for channel 2). In
+        the case of a complex, multichannel pyramid with ``split_complex=True``,
         the real/imaginary bands will be intereleaved so that they appear as
         pairs with neighboring indices in the channel dimension of the tensor
         (Note: the residual bands are always real so they will only ever have a
-        single band even when split_complex=True.)
+        single band even when ``split_complex=True``.)
 
         This only works if ``pyr_coeffs`` was created with a pyramid with
         ``downsample=False``
@@ -711,7 +711,7 @@ class SteerablePyramidFreq(nn.Module):
         r"""
         Check whether levels arg is valid for reconstruction and return valid version.
 
-        When reconstructing the input image (i.e., when calling :py:meth:`recon_pyr()`),
+        When reconstructing the input image (i.e., when calling :meth:`recon_pyr()`),
         the user specifies which levels to include. This makes sure those
         levels are valid and gets them in the form we expect for the rest of
         the reconstruction. If the user passes ``"all"``, this constructs the
@@ -775,7 +775,7 @@ class SteerablePyramidFreq(nn.Module):
         """
         Check whether bands arg is valid for reconstruction and return valid version.
 
-        When reconstructing the input image (i.e., when calling :py:meth:`recon_pyr()`),
+        When reconstructing the input image (i.e., when calling :meth:`recon_pyr()`),
         the user specifies which orientations to include. This makes sure those
         orientations are valid and gets them in the form we expect for the rest
         of the reconstruction. If the user passes ``'all'``, this
@@ -829,7 +829,7 @@ class SteerablePyramidFreq(nn.Module):
         """
         Make a list of all the relevant keys from to use in pyramid reconstruction.
 
-        When reconstructing the input image (i.e., when calling :py:meth:`recon_pyr()`),
+        When reconstructing the input image (i.e., when calling :meth:`recon_pyr()`),
         the user specifies some subset of the pyramid coefficients to include
         in the reconstruction. This function takes in those specifications,
         checks that they're valid, and returns a list of tuples that are keys
@@ -876,7 +876,7 @@ class SteerablePyramidFreq(nn.Module):
         Reconstruct the image or batch of images, optionally using subset coefficients.
 
         NOTE: in order to call this function, you need to have previously called
-        :py:meth:`forward`, with the tensor you wish to reconstruct. This will fail if
+        :meth:`forward`, with the tensor you wish to reconstruct. This will fail if
         you called ``forward()`` with a subset of scales.
 
         Parameters

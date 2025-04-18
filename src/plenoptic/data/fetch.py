@@ -65,7 +65,7 @@ REGISTRY_URLS = {
     ),
 }
 
-#: List of files that can be downloaded using :py:func:`fetch_data`
+#: List of files that can be downloaded using :func:`fetch_data`
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
 try:
@@ -113,7 +113,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     """
     Download data, using pooch. These are largely used for testing.
 
-    To view list of downloadable files, look at :py:const:`DOWNLOADABLE_FILES`.
+    To view list of downloadable files, look at :const:`DOWNLOADABLE_FILES`.
 
     This checks whether the data already exists and is unchanged and downloads
     again, if necessary. If dataset_name ends in .tar.gz, this also

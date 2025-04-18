@@ -1,37 +1,55 @@
+"""
+Some useful non-linearities for visual models.
+
+The functions operate on dictionaries or tensors.
+"""
+
 import torch
 
+from ...tools import signal
 from ...tools.conv import blur_downsample, upsample_blur
-from ...tools.signal import polar_to_rectangular, rectangular_to_polar
 
 
-def rectangular_to_polar_dict(coeff_dict, residuals=False):
-    """Return the complex modulus and the phase of each complex tensor in a dictionary.
+def rectangular_to_polar_dict(
+    coeff_dict: dict, residuals: bool = False
+) -> tuple[dict, dict]:
+    """
+    Return the complex modulus and the phase of each complex tensor in a dictionary.
+
+    Keys are preserved, with the option of dropping ``"residual_lowpass"`` and
+    ``"residual_highpass"`` by setting ``residuals=False``.
 
     Parameters
     ----------
-    coeff_dict : dict
-       A dictionary containing complex tensors.
-    dim : int, optional
-       The dimension that contains the real and imaginary components.
-    residuals: bool, optional
-        An option to carry around residuals in the energy branch.
+    coeff_dict
+        A dictionary containing complex tensors.
+    residuals
+        An option to include residuals in the returned ``energy`` dict.
 
     Returns
     -------
-    energy : dict
+    energy
         The dictionary of torch.Tensors containing the local complex
         modulus of ``coeff_dict``.
-    state: dict
+    state
         The dictionary of torch.Tensors containing the local phase of
         ``coeff_dict``.
 
+    See Also
+    --------
+    :func:`~plenoptic.tools.signal.rectangular_to_polar`
+        Same operation on tensors.
+    polar_to_rectangular_dict
+        The inverse operation.
+    local_gain_control_dict
+        The analogous function for complex-valued signals.
     """
     energy = {}
     state = {}
     for key in coeff_dict:
         # ignore residuals
         if isinstance(key, tuple) or not key.startswith("residual"):
-            energy[key], state[key] = rectangular_to_polar(coeff_dict[key])
+            energy[key], state[key] = signal.rectangular_to_polar(coeff_dict[key])
 
     if residuals:
         energy["residual_lowpass"] = coeff_dict["residual_lowpass"]
@@ -40,32 +58,45 @@ def rectangular_to_polar_dict(coeff_dict, residuals=False):
     return energy, state
 
 
-def polar_to_rectangular_dict(energy, state, residuals=True):
-    """Return the real and imaginary parts of tensor in a dictionary.
+def polar_to_rectangular_dict(
+    energy: dict, state: dict, residuals: bool = True
+) -> dict:
+    """
+    Return the real and imaginary parts of tensor in a dictionary.
+
+    Keys are preserved, with the option of dropping ``"residual_lowpass"`` and
+    ``"residual_highpass"`` by setting ``residuals=False``.
 
     Parameters
     ----------
-    energy : dict
+    energy
         The dictionary of torch.Tensors containing the local complex
         modulus.
-    state : dict
+    state
         The dictionary of torch.Tensors containing the local phase.
-    dim : int, optional
-       The dimension that contains the real and imaginary components.
-    residuals: bool, optional
+    residuals
         An option to carry around residuals in the energy branch.
 
     Returns
     -------
-    coeff_dict : dict
+    coeff_dict
        A dictionary containing complex tensors of coefficients.
+
+    See Also
+    --------
+    :func:`~plenoptic.tools.signal.polar_to_rectangular`
+        Same operation on tensors.
+    rectangular_to_polar_dict
+        The inverse operation.
+    local_gain_release_dict
+        The analogous function for real-valued signals.
     """
     coeff_dict = {}
     for key in energy:
         # ignore residuals
 
         if isinstance(key, tuple) or not key.startswith("residual"):
-            coeff_dict[key] = polar_to_rectangular(energy[key], state[key])
+            coeff_dict[key] = signal.polar_to_rectangular(energy[key], state[key])
 
     if residuals:
         coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
@@ -74,39 +105,49 @@ def polar_to_rectangular_dict(energy, state, residuals=True):
     return coeff_dict
 
 
-def local_gain_control(x, epsilon=1e-8):
-    """Spatially local gain control.
+def local_gain_control(
+    x: torch.Tensor, epsilon: float = 1e-8
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Spatially local gain control.
+
+    Compute the local energy and phase of a real-valued tensor.
 
     Parameters
     ----------
-    x : torch.Tensor
-        Tensor of shape (batch, channel, height, width)
-    epsilon: float, optional
+    x
+        Tensor of shape (batch, channel, height, width).
+    epsilon
         Small constant to avoid division by zero.
 
     Returns
     -------
-    norm : torch.Tensor
-        The local energy of ``x``. Note that it is down sampled by a
-        factor 2 in (unlike rect2pol).
-    direction: torch.Tensor
-        The local phase of ``x`` (aka. local unit vector, or local
-        state)
+    norm
+        The local energy of ``x``, shape (batch, channel, height/2,
+        width/2).
+    direction
+        The local phase of ``x`` (a.k.a. local unit vector, or local
+        state), shape (batch, channel, height, width).
+
+    See Also
+    --------
+    local_gain_control_dict
+        Same operation on dictionaries.
+    local_gain_release
+        The inverse operation.
+    :func:`~plenoptic.tools.signal.rectangular_to_polar`
+        The analogous function for complex-valued signals.
 
     Notes
     -----
-    This function is an analogue to rectangular_to_polar for
-    real valued signals.
-
-    Norm and direction (analogous to complex modulus and phase) are
-    defined using blurring operator and division.  Indeed blurring the
-    responses removes high frequencies introduced by the squaring
-    operation. In the complex case adding the quadrature pair response
-    has the same effect (note that this is most clearly seen in the
-    frequency domain).  Here computing the direction (phase) reduces to
-    dividing out the norm (modulus), indeed the signal only has one real
-    component. This is a normalization operation (local unit vector),
-    hence the connection to local gain control.
+    Norm and direction (analogous to complex modulus and phase) are defined using
+    blurring operator and division. Indeed blurring the responses removes high
+    frequencies introduced by the squaring operation. In the complex case adding the
+    quadrature pair response has the same effect (note that this is most clearly seen in
+    the frequency domain). Here computing the direction (phase) reduces to dividing out
+    the norm (modulus), indeed the signal only has one real component. This is a
+    normalization operation (local unit vector), hence the connection to local gain
+    control.
     """
     # these could be parameters, but no use case so far
     p = 2.0
@@ -118,73 +159,93 @@ def local_gain_control(x, epsilon=1e-8):
     return norm, direction
 
 
-def local_gain_release(norm, direction, epsilon=1e-8):
-    """Spatially local gain release.
+def local_gain_release(
+    norm: torch.Tensor, direction: torch.Tensor, epsilon: float = 1e-8
+) -> torch.Tensor:
+    """
+    Spatially local gain release.
+
+    Convert the local energy and phase to a single real-valued tensor.
 
     Parameters
     ----------
-    norm : torch.Tensor
-        The local energy of ``x``. Note that it is down sampled by a
-        factor 2 in (unlike rect2pol).
-    direction: torch.Tensor
-        The local phase of ``x`` (aka. local unit vector, or local
-        state)
-    epsilon: float, optional
+    norm
+        The local energy of a tensor, with shape (batch, channel, height/2,
+        width/2).
+    direction
+        The local phase of a tensor (a.k.a. local unit vector, or local state),
+        with shape (batch, channel, height, width).
+    epsilon
         Small constant to avoid division by zero.
 
     Returns
     -------
-    x : torch.Tensor
-        Tensor of shape (batch, channel, height, width)
+    x
+        Tensor of shape (batch, channel, height, width).
+
+    See Also
+    --------
+    local_gain_release_dict
+        Same operation on dictionaries.
+    local_gain_control
+        The inverse operation.
+    :func:`~plenoptic.tools.signal.polar_to_rectangular`
+        The analogous function for complex-valued signals.
 
     Notes
     -----
-    This function is an analogue to polar_to_rectangular for
-    real valued signals.
-
-    Norm and direction (analogous to complex modulus and phase) are
-    defined using blurring operator and division.  Indeed blurring the
-    responses removes high frequencies introduced by the squaring
-    operation. In the complex case adding the quadrature pair response
-    has the same effect (note that this is most clearly seen in the
-    frequency domain).  Here computing the direction (phase) reduces to
-    dividing out the norm (modulus), indeed the signal only has one real
-    component. This is a normalization operation (local unit vector),
-    hence the connection to local gain control.
+    Norm and direction (analogous to complex modulus and phase) are defined using
+    blurring operator and division. Indeed blurring the responses removes high
+    frequencies introduced by the squaring operation. In the complex case adding the
+    quadrature pair response has the same effect (note that this is most clearly seen in
+    the frequency domain). Here computing the direction (phase) reduces to dividing out
+    the norm (modulus), indeed the signal only has one real component. This is a
+    normalization operation (local unit vector), hence the connection to local gain
+    control.
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
     return x
 
 
-def local_gain_control_dict(coeff_dict, residuals=True):
-    """Spatially local gain control, for each element in a dictionary.
+def local_gain_control_dict(
+    coeff_dict: dict, residuals: bool = True
+) -> tuple[dict, dict]:
+    """
+    Spatially local gain control, for each element in a dictionary.
+
+    For more details, see :func:`local_gain_control`.
 
     Parameters
     ----------
-    coeff_dict : dict
-        A dictionary containing tensors of shape (batch, channel, height, width)
-    residuals: bool, optional
+    coeff_dict
+        A dictionary containing tensors of shape (batch, channel, height, width).
+    residuals
         An option to carry around residuals in the energy dict.
         Note that the transformation is not applied to the residuals,
         that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
-    energy : dict
+    energy
         The dictionary of torch.Tensors containing the local energy of
         ``x``.
-    state: dict
+    state
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
 
+    See Also
+    --------
+    local_gain_control
+        Same operation on tensors.
+    local_gain_release_dict
+        The inverse operation.
+    rectangular_to_polar_dict
+        The analogous function for complex-valued signals.
+
     Notes
     -----
-    Note that energy and state is not computed on the residuals.
-
-    The inverse operation is achieved by `local_gain_release_dict`.
-    This function is an analogue to rectangular_to_polar_dict for real
-    valued signals. For more details, see :meth:`local_gain_control`
+    Note that energy and state are not computed on the residuals.
     """
     energy = {}
     state = {}
@@ -200,32 +261,38 @@ def local_gain_control_dict(coeff_dict, residuals=True):
     return energy, state
 
 
-def local_gain_release_dict(energy, state, residuals=True):
-    """Spatially local gain release, for each element in a dictionary.
+def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -> dict:
+    """
+    Spatially local gain release, for each element in a dictionary.
+
+    For more details, see :func:`local_gain_release`.
 
     Parameters
     ----------
-    energy : dict
+    energy
         The dictionary of torch.Tensors containing the local energy of
         ``x``.
-    state: dict
+    state
         The dictionary of torch.Tensors containing the local phase of
         ``x``.
-    residuals: bool, optional
+    residuals
         An option to carry around residuals in the energy dict.
         Note that the transformation is not applied to the residuals,
         that is dictionary elements with a key starting in "residual".
 
     Returns
     -------
-    coeff_dict : dict
-        A dictionary containing tensors of shape (batch, channel, height, width)
+    coeff_dict
+        A dictionary containing tensors of shape (batch, channel, height, width).
 
-    Notes
-    -----
-    The inverse operation to `local_gain_control_dict`.
-    This function is  an analogue to polar_to_rectangular_dict for real
-    valued signals. For more details, see :meth:`local_gain_release`
+    See Also
+    --------
+    local_gain_release
+        Same operation on tensors.
+    local_gain_control_dict
+        The inverse operation.
+    polar_to_rectangular_dict
+        The analogous function for complex-valued signals.
     """
     coeff_dict = {}
 

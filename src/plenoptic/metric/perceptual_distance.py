@@ -47,7 +47,7 @@ def _ssim_parts(
         inaccurate, and we will raise a warning (but will still compute it).
     pad
         If not False, how to pad the image for the convolutions computing the
-        local average of each image. See :py:func:`torch.nn.functional.pad` for how
+        local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
     func_name
         Name of the function that called this one, in order to raise more helpful error
@@ -191,7 +191,7 @@ def ssim(
 
     This function returns the mean SSIM, a scalar-valued metric giving the
     average over the whole image. For the SSIM map (showing the computed value
-    across the image), call :py:func:`ssim_map`.
+    across the image), call :func:`ssim_map`.
 
     Parameters
     ----------
@@ -211,7 +211,7 @@ def ssim(
         section for the weight.
     pad :
         If not False, how to pad the image for the convolutions computing the
-        local average of each image. See :py:func:`torch.nn.functional.pad` for how
+        local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
 
     Returns
@@ -311,7 +311,7 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     between -1 and 1.
 
     This function returns the SSIM map, showing the SSIM values across the
-    image. For the mean SSIM (a single value metric), call :py:func:`ssim`.
+    image. For the mean SSIM (a single value metric), call :func:`ssim`.
 
     Parameters
     ----------
@@ -396,8 +396,8 @@ def ms_ssim(
     SSIM is based on three comparison measurements between the two images:
     luminance, contrast, and structure. All of these are computed convolutionally
     across the images, producing three maps instead of scalars. The SSIM map is
-    the elementwise product of these three maps. See :py:func:`ssim` and
-    :py:func:`ssim_map` for a full description of SSIM.
+    the elementwise product of these three maps. See :func:`ssim` and
+    :func:`ssim_map` for a full description of SSIM.
 
     To get images of different scales, average pooling operations with kernel
     size 2 are performed recursively on the input images. The product of
