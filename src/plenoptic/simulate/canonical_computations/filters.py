@@ -193,9 +193,8 @@ def circular_gaussian2d(
       ... )  # doctest: +ELLIPSIS
       <PyrFigure ...>
 
-    Multiple input and output channels, convolved independently. See [conv2d
-    documentation](https://pytorch.org/docs/stable/generated/torch.nn.functional.conv2d.html)
-    to understand the behavior below:
+    Multiple input and output channels, convolved independently. See
+    :func:`torch.nn.functional.conv2d` to understand the behavior below:
 
     .. plot::
 

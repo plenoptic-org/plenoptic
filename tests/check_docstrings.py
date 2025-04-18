@@ -60,7 +60,7 @@ for p in paths:
 
     for name, doc in docstrings:
         if re.findall(LINK_REGEX, doc):
-            links.append(name)
+            links.append((p, name))
         directives = re.findall(SPHINX_DIRECTIVE_REGEX, doc)
         sphinx_link = re.findall(SPHINX_LINK_REGEX, doc)
         backtick = [
@@ -72,8 +72,13 @@ for p in paths:
             backticks.append((p, name, backtick))
 
 if backticks or links:
-    print("The following docstrings appear to contain markdown:")
-    for p, name, markup in backticks:
-        markup = ", ".join(markup)
-        print(f"{p}:{name} {markup}")
+    if backticks:
+        print("The following docstrings appear to contain markdown:")
+        for p, name, markup in backticks:
+            markup = ", ".join(markup)
+            print(f"{p}:{name} {markup}")
+    if links:
+        print("The following docstrings appear to contain markdown links:")
+        for p, name in links:
+            print(f"{p}:{name}")
     sys.exit(1)
