@@ -1,6 +1,9 @@
 """
-Model architectures in this file are found in [1]_, [2]_, pretrained parameters from
-[3]_.
+Simple convolutional models of the visual system's front-end.
+
+All models are some combination of linear filtering, non-linear activation, and
+(optionally) gain control. Model architectures in this file are found in [1]_, [2]_,
+pretrained parameters from [3]_.
 
 References
 ----------
@@ -10,7 +13,6 @@ References
 .. [3] A Berardino, Hierarchically normalized models of visual distortion
    sensitivity: Physiology, perception, and application; Ph.D. Thesis,
    2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-
 """
 
 from collections import OrderedDict
@@ -36,45 +38,43 @@ __all__ = [
 
 
 class LinearNonlinear(nn.Module):
-    """Linear-Nonlinear model, applies a difference of Gaussians filter followed by an
-    activation function. Model is described in [1]_ and [2]_.
+    """
+    Linear-Nonlinear model.
 
-    This model is called LN in Berardino et al. 2017 [1]_.
+    This model applies a difference of Gaussians filter followed by an activation
+    function.
+
+    Model is described in [1]_ and [2]_, where it is called LN.
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Shape of convolutional kernel.
-    on_center:
+    on_center
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    amplitude_ratio:
+    amplitude_ratio
         Ratio of center/surround amplitude. Applied before filter normalization.
-    pad_mode:
-        Padding for convolution, defaults to "reflect".
-    pretrained:
+    pad_mode
+        Padding for convolution.
+    pretrained
         Whether or not to load model params from [3]_. See Notes for details.
-    activation:
+    activation
         Activation function following linear convolution.
-    cache_filt:
+    cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
 
     Attributes
     ----------
-    center_surround: nn.Module
-        `CenterSurround` difference of Gaussians filter.
+    center_surround: torch.nn.Module
+        :class:`CenterSurround` difference of Gaussians filter.
 
     Notes
     -----
     These 2 parameters (standard deviations) were taken from Table 2, page 149
     from [3]_ and are the values used [1]_. Please use these pretrained weights
     at your own discretion.
-
-    Examples
-    --------
-    >>> import plenoptic as po
-    >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
 
     References
     ----------
@@ -84,6 +84,11 @@ class LinearNonlinear(nn.Module):
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -123,19 +128,20 @@ class LinearNonlinear(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
-        """Compute model response on input tensor.
+        """
+        Compute model response on input tensor.
 
         We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x :
-            The input tensor, should be 4d (batch, channel, height, width)
+        x
+            The input tensor, should be 4d (batch, channel, height, width).
 
         Returns
         -------
-        y :
-            model response to input.
+        y
+            Model response to input.
 
         Examples
         --------
@@ -146,9 +152,8 @@ class LinearNonlinear(nn.Module):
           >>> img = po.data.einstein()
           >>> y = ln_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
           <PyrFigure size...>
-
         """
         y = self.activation(self.center_surround(x))
         return y
@@ -160,15 +165,15 @@ class LinearNonlinear(nn.Module):
         title: str | list[str] | None = "linear filter",
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model.
+        """
+        Display convolutional filter of model.
 
         Parameters
         ----------
-        zoom, vrange, title
-            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
-            details.
-        **kwargs:
-            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+        vrange, zoom, title
+            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+        **kwargs
+            Keyword args for :func:`plenoptic.imshow`.
 
         Returns
         -------
@@ -181,10 +186,9 @@ class LinearNonlinear(nn.Module):
 
           >>> import plenoptic as po
           >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
-          >>> ln_model.display_filters() #doctest: +ELLIPSIS
+          >>> ln_model.display_filters()  # doctest: +ELLIPSIS
           <PyrFigure ...>
-
-        """
+        """  # numpydoc ignore=ES01
         weights = self.center_surround.filt.detach()
         fig = imshow(weights, title=title, zoom=zoom, vrange=vrange, **kwargs)
 
@@ -192,7 +196,22 @@ class LinearNonlinear(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018."""
+        """
+        Return parameters fit to human distortion judgments.
+
+        Values copied from Table 2 in [1]_.
+
+        Returns
+        -------
+        state_dict
+            Dictionary of parameters, to pass to :func:`load_state_dict`.
+
+        References
+        ----------
+        .. [1] A Berardino, Hierarchically normalized models of visual distortion
+           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+        """
         state_dict = OrderedDict(
             [
                 ("center_surround.center_std", torch.as_tensor([0.5339])),
@@ -204,37 +223,38 @@ class LinearNonlinear(nn.Module):
 
 
 class LuminanceGainControl(nn.Module):
-    """Linear center-surround followed by luminance gain control and activation.
-    Model is described in [1]_ and [2]_.
+    """
+    Linear center-surround followed by luminance gain control and activation.
 
-    This model is called LG in Berardino et al. 2017 [1]_.
+    Model is described in [1]_ and [2]_, where it is called LG.
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Shape of convolutional kernel.
-    on_center:
+    on_center
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    amplitude_ratio:
+    amplitude_ratio
         Ratio of center/surround amplitude. Applied before filter normalization.
-    pad_mode:
-        Padding for convolution, defaults to "reflect".
-    pretrained:
+    pad_mode
+        Padding for convolution.
+    pretrained
         Whether or not to load model params from [3]_. See Notes for details.
-    activation:
+    activation
         Activation function following linear convolution.
-    cache_filt:
+    cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
 
     Attributes
     ----------
-    center_surround: nn.Module
-        Difference of Gaussians linear filter.
-    luminance: nn.Module
-        Gaussian convolutional kernel used to normalize signal by local luminance.
-    luminance_scalar: nn.Parameter
+    center_surround: torch.nn.Module
+        :class:`CenterSurround` difference of Gaussians linear filter.
+    luminance: torch.nn.Module
+        :class:`Gaussian` convolutional kernel used to normalize signal by local
+        luminance.
+    luminance_scalar: torch.nn.Parameter
         Scale factor for luminance normalization.
 
     Notes
@@ -242,11 +262,6 @@ class LuminanceGainControl(nn.Module):
     These 4 parameters (standard deviations and scalar constants) were taken
     from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
     these pretrained weights at your own discretion.
-
-    Examples
-    --------
-    >>> import plenoptic as po
-    >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True, cache_filt=True)
 
     References
     ----------
@@ -256,6 +271,11 @@ class LuminanceGainControl(nn.Module):
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -301,33 +321,34 @@ class LuminanceGainControl(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
-        """Compute model response on input tensor.
+        """
+        Compute model response on input tensor.
 
         We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x :
-            The input tensor, should be 4d (batch, channel, height, width)
+        x
+            The input tensor, should be 4d (batch, channel, height, width).
 
         Returns
         -------
-        y :
-            model response to input.
+        y
+            Model response to input.
 
         Examples
         --------
         .. plot::
 
           >>> import plenoptic as po
-          >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True,
-          ...                                          cache_filt=True)
+          >>> lg_model = po.simul.LuminanceGainControl(
+          ...     31, pretrained=True, cache_filt=True
+          ... )
           >>> img = po.data.einstein()
           >>> y = lg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
           <PyrFigure size...>
-
         """
         linear = self.center_surround(x)
         lum = self.luminance(x)
@@ -343,15 +364,15 @@ class LuminanceGainControl(nn.Module):
         col_wrap: int | None = 2,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model.
+        """
+        Display convolutional filters of model.
 
         Parameters
         ----------
-        zoom, vrange, title
-            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
-            details.
-        **kwargs:
-            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+        vrange, zoom, title, col_wrap
+            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+        **kwargs
+            Keyword args for :func:`plenoptic.imshow`.
 
         Returns
         -------
@@ -363,12 +384,12 @@ class LuminanceGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True,
-          ...                                          cache_filt=True)
-          >>> lg_model.display_filters() #doctest: +ELLIPSIS
+          >>> lg_model = po.simul.LuminanceGainControl(
+          ...     31, pretrained=True, cache_filt=True
+          ... )
+          >>> lg_model.display_filters()  # doctest: +ELLIPSIS
           <PyrFigure ...>
-
-        """
+        """  # numpydoc ignore=ES01
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -390,7 +411,22 @@ class LuminanceGainControl(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018."""
+        """
+        Return parameters fit to human distortion judgments.
+
+        Values copied from Table 2 in [1]_.
+
+        Returns
+        -------
+        state_dict
+            Dictionary of parameters, to pass to :func:`load_state_dict`.
+
+        References
+        ----------
+        .. [1] A Berardino, Hierarchically normalized models of visual distortion
+           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+        """
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([14.95])),
@@ -404,41 +440,43 @@ class LuminanceGainControl(nn.Module):
 
 
 class LuminanceContrastGainControl(nn.Module):
-    """Linear center-surround followed by luminance and contrast gain control,
-    and activation function. Model is described in [1]_ and [2]_.
+    """
+    Center-surround followed by luminance and contrast gain control, then activation.
 
-    This model is called LGG in Berardino et al. 2017 [1]_.
+    Model is described in [1]_ and [2]_, where it is called LGG.
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Shape of convolutional kernel.
-    on_center:
+    on_center
         Dictates whether center is on or off; surround will be the opposite of center
         (i.e. on-off or off-on).
-    amplitude_ratio:
+    amplitude_ratio
         Ratio of center/surround amplitude. Applied before filter normalization.
-    pad_mode:
-        Padding for convolution, defaults to "reflect".
-    pretrained:
+    pad_mode
+        Padding for convolution.
+    pretrained
         Whether or not to load model params from [3]_. See Notes for details.
-    activation:
+    activation
         Activation function following linear convolution.
-    cache_filt:
+    cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
 
     Attributes
     ----------
-    center_surround: nn.Module
-        Difference of Gaussians linear filter.
-    luminance: nn.Module
-        Gaussian convolutional kernel used to normalize signal by local luminance.
-    contrast: nn.Module
-        Gaussian convolutional kernel used to normalize signal by local contrast.
-    luminance_scalar: nn.Parameter
+    center_surround: torch.nn.Module
+        :class:`CenterSurround` difference of Gaussians linear filter.
+    luminance: torch.nn.Module
+        :class:`Gaussian` convolutional kernel used to normalize signal by local
+        luminance.
+    contrast: torch.nn.Module
+        :class:`Gaussian` convolutional kernel used to normalize signal by local
+        contrast.
+    luminance_scalar: torch.nn.Parameter
         Scale factor for luminance normalization.
-    contrast_scalar: nn.Parameter
+    contrast_scalar: torch.nn.Parameter
         Scale factor for contrast normalization.
 
     Notes
@@ -446,12 +484,6 @@ class LuminanceContrastGainControl(nn.Module):
     These 6 parameters (standard deviations and constants) were taken from
     Table 2, page 149 from [3]_ and are the values used [1]_. Please use these
     pretrained weights at your own discretion.
-
-    Examples
-    --------
-    >>> import plenoptic as po
-    >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
-    ...                                                   cache_filt=True)
 
     References
     ----------
@@ -461,6 +493,13 @@ class LuminanceContrastGainControl(nn.Module):
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> lgg_model = po.simul.LuminanceContrastGainControl(
+    ...     31, pretrained=True, cache_filt=True
+    ... )
     """
 
     def __init__(
@@ -513,33 +552,34 @@ class LuminanceContrastGainControl(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
-        """Compute model response on input tensor.
+        """
+        Compute model response on input tensor.
 
         We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x :
-            The input tensor, should be 4d (batch, channel, height, width)
+        x
+            The input tensor, should be 4d (batch, channel, height, width).
 
         Returns
         -------
-        y :
-            model response to input.
+        y
+            Model response to input.
 
         Examples
         --------
         .. plot::
 
           >>> import plenoptic as po
-          >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
-          ...                                                   cache_filt=True)
+          >>> lgg_model = po.simul.LuminanceContrastGainControl(
+          ...     31, pretrained=True, cache_filt=True
+          ... )
           >>> img = po.data.einstein()
           >>> y = lgg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
           <PyrFigure size...>
-
         """
         linear = self.center_surround(x)
         lum = self.luminance(x)
@@ -562,15 +602,15 @@ class LuminanceContrastGainControl(nn.Module):
         col_wrap: int | None = 3,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model.
+        """
+        Display convolutional filters of model.
 
         Parameters
         ----------
-        zoom, vrange, title
-            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
-            details.
-        **kwargs:
-            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+        vrange, zoom, title, col_wrap
+            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+        **kwargs
+            Keyword args for :func:`plenoptic.imshow`.
 
         Returns
         -------
@@ -582,12 +622,12 @@ class LuminanceContrastGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lgg_model = po.simul.LuminanceContrastGainControl(31, pretrained=True,
-          ...                                                   cache_filt=True)
-          >>> lgg_model.display_filters() #doctest: +ELLIPSIS
+          >>> lgg_model = po.simul.LuminanceContrastGainControl(
+          ...     31, pretrained=True, cache_filt=True
+          ... )
+          >>> lgg_model.display_filters()  # doctest: +ELLIPSIS
           <PyrFigure ...>
-
-        """
+        """  # numpydoc ignore=ES01
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -610,7 +650,22 @@ class LuminanceContrastGainControl(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018."""
+        """
+        Return parameters fit to human distortion judgments.
+
+        Values copied from Table 2 in [1]_.
+
+        Returns
+        -------
+        state_dict
+            Dictionary of parameters, to pass to :func:`load_state_dict`.
+
+        References
+        ----------
+        .. [1] A Berardino, Hierarchically normalized models of visual distortion
+           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+        """
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([2.94])),
@@ -626,42 +681,37 @@ class LuminanceContrastGainControl(nn.Module):
 
 
 class OnOff(nn.Module):
-    """Two-channel on-off and off-on center-surround model with local contrast and
-    luminance gain control.
+    """
+    On-off and off-on center-surround with contrast and luminance gain control.
 
-    This model is called OnOff in Berardino et al 2017 [1]_.
+    Model is described in [1]_ and [2]_, where it is called OnOff.
 
     Parameters
     ----------
-    kernel_size:
+    kernel_size
         Shape of convolutional kernel.
-    amplitude_ratio:
+    amplitude_ratio
         Ratio of center/surround amplitude. Applied before filter normalization.
-    pad_mode:
-        Padding for convolution, defaults to "reflect".
-    pretrained:
+    pad_mode
+        Padding for convolution.
+    pretrained
         Whether or not to load model params estimated from [1]_. See Notes for details.
-    activation:
+    activation
         Activation function following linear and gain control operations.
-    apply_mask:
+    apply_mask
         Whether or not to apply circular disk mask centered on the input image. This is
         useful for synthesis methods like Eigendistortions to ensure that the
         synthesized distortion will not appear in the periphery. See
-        `plenoptic.tools.signal.make_disk()` for details on how mask is created.
-    cache_filt:
+        :func:`plenoptic.tools.signal.make_disk()` for details on how mask is created.
+    cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
-        forward pass. Cached to `self._filt`.
+        forward pass.
 
     Notes
     -----
     These 12 parameters (standard deviations & scalar constants) were taken
     from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
     these pretrained weights at your own discretion.
-
-    Examples
-    --------
-    >>> import plenoptic as po
-    >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
 
     References
     ----------
@@ -671,6 +721,11 @@ class OnOff(nn.Module):
     .. [3] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -728,19 +783,20 @@ class OnOff(nn.Module):
         self.activation = activation
 
     def forward(self, x: Tensor) -> Tensor:
-        """Compute model response on input tensor.
+        """
+        Compute model response on input tensor.
 
         We use same-padding to ensure that the output and input shapes are matched.
 
         Parameters
         ----------
-        x :
-            The input tensor, should be 4d (batch, channel, height, width)
+        x
+            The input tensor, should be 4d (batch, channel, height, width).
 
         Returns
         -------
-        y :
-            model response to input.
+        y
+            Model response to input.
 
         Examples
         --------
@@ -751,9 +807,8 @@ class OnOff(nn.Module):
           >>> img = po.data.einstein()
           >>> y = onoff_model.forward(img)
           >>> titles = ["Input image", "Output channel 0", "Output channel 1"]
-          >>> po.imshow([img, y], title=titles) #doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
           <PyrFigure size...>
-
         """
         linear = self.center_surround(x)
         lum = self.luminance(x)
@@ -789,15 +844,16 @@ class OnOff(nn.Module):
         col_wrap: int | None = 2,
         **kwargs,
     ) -> PyrFigure:
-        """Displays convolutional filters of model.
+        """
+        Display convolutional filters of model.
 
         Parameters
         ----------
-        zoom, vrange, title
-            Arguments for [plenoptic.imshow](plenoptic.imshow), see its docstrings for
+        vrange, zoom, title, col_wrap
+            Arguments for :func:`plenoptic.imshow`, see its docstrings for
             details.
-        **kwargs:
-            Keyword args for [plenoptic.imshow](plenoptic.imshow)
+        **kwargs
+            Keyword args for :func:`plenoptic.imshow`.
 
         Returns
         -------
@@ -810,10 +866,9 @@ class OnOff(nn.Module):
 
           >>> import plenoptic as po
           >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
-          >>> onoff_model.display_filters() #doctest: +ELLIPSIS
+          >>> onoff_model.display_filters()  # doctest: +ELLIPSIS
           <PyrFigure ...>
-
-        """
+        """  # numpydoc ignore=ES01
         weights = torch.cat(
             [
                 self.center_surround.filt,
@@ -836,7 +891,22 @@ class OnOff(nn.Module):
 
     @staticmethod
     def _pretrained_state_dict() -> OrderedDict:
-        """Copied from Table 2 in Berardino, 2018."""
+        """
+        Return parameters fit to human distortion judgments.
+
+        Values copied from Table 2 in [1]_.
+
+        Returns
+        -------
+        state_dict
+            Dictionary of parameters, to pass to :func:`load_state_dict`.
+
+        References
+        ----------
+        .. [1] A Berardino, Hierarchically normalized models of visual distortion
+           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
+           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
+        """
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),
