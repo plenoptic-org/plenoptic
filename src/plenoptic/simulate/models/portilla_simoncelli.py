@@ -1,10 +1,19 @@
-"""Portilla-Simoncelli texture statistics.
+"""
+Portilla-Simoncelli texture statistics.
 
 The Portilla-Simoncelli (PS) texture statistics are a set of image
 statistics, first described in [1]_, that are proposed as a sufficient set
 of measurements for describing visual textures. That is, if two texture
 images have the same values for all PS texture stats, humans should
 consider them as members of the same family of textures.
+
+References
+----------
+.. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
+   Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
+   Computer Vision. 40(1):49-71, October, 2000.
+   https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+   https://www.cns.nyu.edu/~lcv/texture/
 """
 
 from collections import OrderedDict
@@ -34,7 +43,8 @@ SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 
 
 class PortillaSimoncelli(nn.Module):
-    r"""Portila-Simoncelli texture statistics.
+    r"""
+    Portila-Simoncelli texture statistics.
 
     The Portilla-Simoncelli (PS) texture statistics are a set of image
     statistics, first described in [1]_, that are proposed as a sufficient set
@@ -42,8 +52,8 @@ class PortillaSimoncelli(nn.Module):
     images have the same values for all PS texture stats, humans should
     consider them as members of the same family of textures.
 
-    The PS stats are computed based on the steerable pyramid [2]_. They consist
-    of the local auto-correlations, cross-scale (within-orientation)
+    The PS stats are computed based on the :class:`SteerablePyramidFreq` [2]_.
+    They consist of the local auto-correlations, cross-scale (within-orientation)
     correlations, and cross-orientation (within-scale) correlations of both the
     pyramid coefficients and the local energy (as computed by those
     coefficients). Additionally, they include the first four global moments
@@ -52,20 +62,27 @@ class PortillaSimoncelli(nn.Module):
 
     Parameters
     ----------
-    image_shape:
+    image_shape
         Shape of input image.
-    n_scales:
-        The number of pyramid scales used to measure the statistics (default=4)
-    n_orientations:
-        The number of orientations used to measure the statistics (default=4)
-    spatial_corr_width:
-        The width of the spatial cross- and auto-correlation statistics
+    n_scales
+        The number of pyramid scales used to measure the statistics.
+    n_orientations
+        The number of orientations used to measure the statistics.
+    spatial_corr_width
+        The width of the spatial cross- and auto-correlation statistics.
 
     Attributes
     ----------
     scales: list
         The names of the unique scales of coefficients in the pyramid, used for
         coarse-to-fine metamer synthesis.
+
+    Raises
+    ------
+    ValueError
+        If the height or width of ``image`` cannot be divided by 2 ``n_scales``
+        times. This is necessary because of how the model handles multiscale
+        representations.
 
     References
     ----------
@@ -77,7 +94,6 @@ class PortillaSimoncelli(nn.Module):
     .. [2] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
-
     """
 
     def __init__(
@@ -150,7 +166,8 @@ class PortillaSimoncelli(nn.Module):
         self.eval()
 
     def _create_scales_shape_dict(self) -> OrderedDict:
-        """Create dictionary defining scales and shape of each stat.
+        """
+        Create dictionary defining scales and shape of each stat.
 
         This dictionary functions as metadata which is used for two main
         purposes:
@@ -179,7 +196,6 @@ class PortillaSimoncelli(nn.Module):
            values. These arrays have the same shape as the stat (excluding
            batch and channel), with values defining which scale they correspond
            to.
-
         """
         shape_dict = OrderedDict()
         # There are 6 pixel statistics
@@ -269,7 +285,8 @@ class PortillaSimoncelli(nn.Module):
     def _create_necessary_stats_dict(
         self, scales_shape_dict: OrderedDict
     ) -> OrderedDict:
-        """Create mask specifying the necessary statistics.
+        """
+        Create mask specifying the necessary statistics.
 
         Some of the statistics computed by the model are redundant, due to
         symmetries. For example, about half of the values in the
@@ -291,7 +308,6 @@ class PortillaSimoncelli(nn.Module):
             scales_shape_dict's corresponding values. True denotes the
             statistics that will be included in the model's output, while False
             denotes the redundant ones we will toss.
-
         """
         mask_dict = scales_shape_dict.copy()
         # Pre-compute some necessary indices.
@@ -336,7 +352,8 @@ class PortillaSimoncelli(nn.Module):
         return mask_dict
 
     def forward(self, image: Tensor, scales: list[SCALES_TYPE] | None = None) -> Tensor:
-        r"""Generate Texture Statistics representation of an image.
+        r"""
+        Generate Texture Statistics representation of an image.
 
         Note that separate batches and channels are analyzed in parallel.
 
@@ -346,10 +363,10 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        image :
+        image
             A 4d tensor (batch, channel, height, width) containing the image(s) to
             analyze.
-        scales :
+        scales
             Which scales to include in the returned representation. If None, we
             include all scales. Otherwise, can contain subset of values present
             in this model's ``scales`` attribute, and the returned tensor will
@@ -357,15 +374,14 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        representation_tensor:
+        representation_tensor
             3d tensor of shape (batch, channel, stats) containing the measured
             texture statistics.
 
         Raises
         ------
-        ValueError :
-            If `image` is not 4d or has a dtype other than float or complex.
-
+        ValueError
+            If ``image`` is not 4d or has a dtype other than float or complex.
         """
         validate_input(image)
 
@@ -503,7 +519,8 @@ class PortillaSimoncelli(nn.Module):
     def remove_scales(
         self, representation_tensor: Tensor, scales_to_keep: list[SCALES_TYPE]
     ) -> Tensor:
-        """Remove statistics not associated with scales.
+        """
+        Remove statistics not associated with scales.
 
         For a given representation_tensor and a list of scales_to_keep, this
         attribute removes all statistics *not* associated with those scales.
@@ -512,9 +529,9 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        representation_tensor:
+        representation_tensor
             3d tensor containing the measured representation statistics.
-        scales_to_keep:
+        scales_to_keep
             Which scales to include in the returned representation. Can contain
             subset of values present in this model's ``scales`` attribute, and
             the returned tensor will then contain the subset of the full
@@ -522,9 +539,8 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        limited_representation_tensor :
+        limited_representation_tensor
             Representation tensor with some statistics removed.
-
         """
         # this is necessary because object is the dtype of
         # self._representation_scales
@@ -538,29 +554,35 @@ class PortillaSimoncelli(nn.Module):
         return representation_tensor.index_select(-1, ind)
 
     def convert_to_tensor(self, representation_dict: OrderedDict) -> Tensor:
-        r"""Convert dictionary of statistics to a tensor.
+        r"""
+        Convert dictionary of statistics to a tensor.
+
+        The output has shape (batch, channel, n_statistics), flattening and
+        concatenating across all statistic classes. The dictionary representation
+        may be easier to make sense of.
 
         Parameters
         ----------
-        representation_dict :
+        representation_dict
              Dictionary of representation.
 
         Returns
         -------
-        3d tensor of statistics.
+        rep
+            3d tensor of statistics.
 
         See Also
         --------
-        convert_to_dict:
+        convert_to_dict
             Convert tensor representation to dictionary.
-
         """
         rep = einops.pack(list(representation_dict.values()), "b c *")[0]
         # then get rid of all the nans / unnecessary stats
         return rep.index_select(-1, self._necessary_stats_mask)
 
     def convert_to_dict(self, representation_tensor: Tensor) -> OrderedDict:
-        """Convert tensor of statistics to a dictionary.
+        """
+        Convert tensor of statistics to a dictionary.
 
         While the tensor representation is required by plenoptic's synthesis
         objects, the dictionary representation is easier to manually inspect.
@@ -578,11 +600,19 @@ class PortillaSimoncelli(nn.Module):
         rep
             Dictionary of representation, with informative keys.
 
+        Raises
+        ------
+        ValueError
+            If ``representation_tensor`` has an unexpected number of elements. This can
+            happen if some elements were manually removed from
+            ``representation_tensor``, if a non-``None`` value was passed to ``forward``
+            when computing it, or if it was computed using a different instantiation of
+            the model.
+
         See Also
         --------
         convert_to_tensor:
             Convert dictionary representation to tensor.
-
         """
         if representation_tensor.shape[-1] != len(self._representation_scales):
             raise ValueError(
@@ -617,35 +647,35 @@ class PortillaSimoncelli(nn.Module):
     def _compute_pyr_coeffs(
         self, image: Tensor
     ) -> tuple[OrderedDict, list[Tensor], Tensor, Tensor]:
-        """Compute pyramid coefficients of image.
+        """
+        Compute pyramid coefficients of image.
 
         Note that the residual lowpass has been demeaned independently for each
         batch and channel (and this is true of the lowpass returned separately
-        as well as the one included in pyr_coeffs_dict)
+        as well as the one included in pyr_coeffs_dict).
 
         Parameters
         ----------
-        image :
+        image
             4d tensor of shape (batch, channel, height, width) containing the
-            image
+            image.
 
         Returns
         -------
-        pyr_coeffs_dict :
+        pyr_coeffs_dict
             OrderedDict of containing all pyramid coefficients.
-        pyr_coeffs :
+        pyr_coeffs
             List of length n_scales, containing 5d tensors of shape (batch,
             channel, n_orientations, height, width) containing the complex-valued
             oriented bands (note that height and width shrink by half on each
             scale). This excludes the residual highpass and lowpass bands.
-        highpass :
+        highpass
             The residual highpass as a real-valued 4d tensor (batch, channel,
-            height, width)
-        lowpass :
+            height, width).
+        lowpass
             The residual lowpass as a real-valued 4d tensor (batch, channel,
             height, width). This tensor has been demeaned (independently for
             each batch and channel).
-
         """
         pyr_coeffs = self._pyr.forward(image)
         # separate out the residuals and demean the residual lowpass
@@ -665,22 +695,22 @@ class PortillaSimoncelli(nn.Module):
 
     @staticmethod
     def _compute_pixel_stats(image: Tensor) -> Tensor:
-        """Compute the pixel stats: first four moments, min, and max.
+        """
+        Compute the PS pixel stats: first four moments, min, and max.
 
         Parameters
         ----------
-        image :
+        image
             4d tensor of shape (batch, channel, height, width) containing input
             image. Stats are computed indepently for each batch and channel.
 
         Returns
         -------
-        pixel_stats :
+        pixel_stats
             3d tensor of shape (batch, channel, 6) containing the mean,
             variance, skew, kurtosis, minimum pixel value, and maximum pixel
-            value (in that order)
-
-        """
+            value (in that order).
+        """  # numpydoc ignore=ES01
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
         # we use torch.var instead of plenoptic.tools.variance, because our
         # variance is the uncorrected (or sample) variance and we want the
@@ -701,7 +731,8 @@ class PortillaSimoncelli(nn.Module):
     def _compute_intermediate_representations(
         pyr_coeffs: Tensor,
     ) -> tuple[list[Tensor], list[Tensor]]:
-        """Compute useful intermediate representations.
+        """
+        Compute useful intermediate representations.
 
         These representations are:
           1) demeaned magnitude of the pyramid coefficients,
@@ -711,24 +742,23 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        pyr_coeffs :
+        pyr_coeffs
             Complex steerable pyramid coefficients (without residuals), as list
             of length n_scales, containing 5d tensors of shape (batch, channel,
-            n_orientations, height, width)
+            n_orientations, height, width).
 
         Returns
         -------
-        magnitude_pyr_coeffs :
+        magnitude_pyr_coeffs
            List of length n_scales, containing 5d tensors of shape (batch,
            channel, n_orientations, height, width) (same as ``pyr_coeffs``),
            containing the demeaned magnitude of the steerable pyramid
-           coefficients (i.e., coeffs.abs() - coeffs.abs().mean((-2, -1)))
+           coefficients (i.e., ``coeffs.abs() - coeffs.abs().mean((-2, -1))``).
         real_pyr_coeffs :
            List of length n_scales, containing 5d tensors of shape (batch,
            channel, n_orientations, height, width) (same as ``pyr_coeffs``),
            containing the real components of the coefficients (i.e.
-           coeffs.real)
-
+           ``coeffs.real``).
         """
         magnitude_pyr_coeffs = [coeff.abs() for coeff in pyr_coeffs]
         magnitude_means = [
@@ -743,26 +773,26 @@ class PortillaSimoncelli(nn.Module):
     def _reconstruct_lowpass_at_each_scale(
         self, pyr_coeffs_dict: OrderedDict
     ) -> list[Tensor]:
-        """Reconstruct the lowpass unoriented image at each scale.
+        """
+        Reconstruct the lowpass unoriented image at each scale.
 
         The autocorrelation, standard deviation, skew, and kurtosis of each of
         these images is part of the texture representation.
 
         Parameters
         ----------
-        pyr_coeffs_dict :
+        pyr_coeffs_dict
             Dictionary containing the steerable pyramid coefficients, with the
             lowpass residual demeaned.
 
         Returns
         -------
-        reconstructed_images :
+        reconstructed_images
             List of length n_scales+1 containing the reconstructed unoriented
             image at each scale, from fine to coarse. The final image is
             reconstructed just from the residual lowpass image. Each is a 4d
             tensor, this is a list because they are all different heights and
             widths.
-
         """
         reconstructed_images = [
             self._pyr.recon_pyr(pyr_coeffs_dict, levels=["residual_lowpass"])
@@ -783,31 +813,36 @@ class PortillaSimoncelli(nn.Module):
         return reconstructed_images
 
     def _compute_autocorr(self, coeffs_list: list[Tensor]) -> tuple[Tensor, Tensor]:
-        """Compute the autocorrelation of some statistics.
+        """
+        Compute the autocorrelation of some statistics.
 
         Parameters
         ----------
-        coeffs_list :
+        coeffs_list
             List (of length s) of tensors of shape (batch, channel, *, height,
             width), where * is zero or one additional dimensions. Intended use
-            case: magnitude_pyr_coeffs (which is list of length n_scales of 5d
-            tensors, with * containing n_orientations) or reconstructed_images
-            (which is a list of length n_scales+1 of 4d tensors)
+            case: ``magnitude_pyr_coeffs`` (which is list of length ``n_scales`` of 5d
+            tensors, with * containing ``n_orientations``) or ``reconstructed_images``
+            (which is a list of length ``n_scales+1`` of 4d tensors).
 
         Returns
         -------
-        autocorrs :
+        autocorrs
             Tensor of shape (batch, channel, spatial_corr_width,
             spatial_corr_width, *, s) containing the autocorrelation (up to
             distance ``spatial_corr_width//2``) of each element in
             ``coeffs_list``, computed independently over all but the final two
             dimensions.
-        vars :
+        vars
             3d Tensor of shape (batch, channel, *, s) containing the variance
             of each element in ``coeffs_list``, computed independently over all
             but the final two dimensions.
 
-        """
+        Raises
+        ------
+        ValueError
+            If ``coeffs_list`` contains tensors that have other than 4 or 5 dimensions.
+        """  # numpydoc ignore=ES01
         if coeffs_list[0].ndim == 5:
             dims = "o"
         elif coeffs_list[0].ndim == 4:
@@ -828,34 +863,34 @@ class PortillaSimoncelli(nn.Module):
     def _compute_skew_kurtosis_recon(
         reconstructed_images: list[Tensor], var_recon: Tensor, img_var: Tensor
     ) -> tuple[Tensor, Tensor]:
-        """Compute the skew and kurtosis of each lowpass reconstructed image.
+        """
+        Compute the skew and kurtosis of each lowpass reconstructed image.
 
         For each scale, if the ratio of its variance to the original image's
         pixel variance is below a threshold of
-        torch.finfo(img_var.dtype).resolution (1e-6 for float32, 1e-15 for
-        float64), skew and kurtosis are assigned default values of 0 or 3,
-        respectively.
+        ``torch.finfo(img_var.dtype).resolution`` (``1e-6`` for ``float32``,
+        ``1e-15`` for ``float64``), skew and kurtosis are assigned default
+        values of ``0`` or ``3``, respectively.
 
         Parameters
         ----------
-        reconstructed_images :
-            List of length n_scales+1 containing the reconstructed unoriented
+        reconstructed_images
+            List of length ``n_scales+1`` containing the reconstructed unoriented
             image at each scale, from fine to coarse. The final image is
             reconstructed just from the residual lowpass image.
-        var_recon :
+        var_recon
             Tensor of shape (batch, channel, n_scales+1) containing the
-            variance of each tensor in reconstruced_images
-        img_var :
+            variance of each tensor in reconstruced_images.
+        img_var
             Tensor of shape (batch, channel) containing the pixel variance
-            (from pixel_stats tensor)
+            (from ``pixel_stats`` tensor).
 
         Returns
         -------
-        skew_recon, kurtosis_recon :
+        skew_recon, kurtosis_recon
             Tensors of shape (batch, channel, n_scales+1) containing the skew
             and kurtosis, respectively, of each tensor in
             ``reconstructed_images``.
-
         """
         skew_recon = [
             stats.skew(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
@@ -885,14 +920,15 @@ class PortillaSimoncelli(nn.Module):
         coeffs_var: None | Tensor = None,
         coeffs_other_var: None | Tensor = None,
     ) -> Tensor:
-        """Compute cross-correlations.
+        """
+        Compute cross-correlations.
 
         Parameters
         ----------
-        coeffs_tensor, coeffs_tensor_other :
+        coeffs_tensor, coeffs_tensor_other
             The two lists of length scales, each containing 5d tensors of shape
             (batch, channel, n_orientations, height, width) to be correlated.
-        coeffs_var, coeffs_other_var :
+        coeffs_var, coeffs_other_var
             Two optional tensors containing the variances of coeffs_tensor and
             coeffs_tensor_other, respectively, in case they've already been computed.
             Should be of shape (batch, channel, n_orientations, n_scales). Used to
@@ -900,12 +936,11 @@ class PortillaSimoncelli(nn.Module):
 
         Returns
         -------
-        cross_corrs :
+        cross_corrs
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
-
-        """
+        """  # numpydoc ignore=ES01
         covars = []
         for i, (coeff, coeff_other) in enumerate(
             zip(coeffs_tensor, coeffs_tensor_other)
@@ -949,30 +984,33 @@ class PortillaSimoncelli(nn.Module):
     def _double_phase_pyr_coeffs(
         pyr_coeffs: list[Tensor],
     ) -> tuple[list[Tensor], list[Tensor]]:
-        """Upsample and double the phase of pyramid coefficients.
+        """
+        Upsample and double the phase of pyramid coefficients.
+
+        This is trick is key to correctly computing the correlation between
+        coefficients at different spatial scales.
 
         Parameters
         ----------
-        pyr_coeffs :
+        pyr_coeffs
             Complex steerable pyramid coefficients (without residuals), as list
             of length n_scales, containing 5d tensors of shape (batch, channel,
-            n_orientations, height, width)
+            n_orientations, height, width).
 
         Returns
         -------
-        doubled_phase_mags :
+        doubled_phase_mags
             The demeaned magnitude (i.e., pyr_coeffs.abs()) of each upsampled
             double-phased coefficient. List of length n_scales-1 containing
             tensors of same shape the input (the finest scale has been
             removed).
-        doubled_phase_separate :
+        doubled_phase_separate
             The real and imaginary parts of each double-phased coefficient.
             List of length n_scales-1, containing tensors of shape (batch,
             channel, 2*n_orientations, height, width), with the real component
             found at the same orientation index as the input, and the imaginary
             at orientation+self.n_orientations. (The finest scale has been
-            removed.)
-
+            removed).
         """
         doubled_phase_mags = []
         doubled_phase_sep = []
@@ -1002,8 +1040,11 @@ class PortillaSimoncelli(nn.Module):
         batch_idx: int = 0,
         title: str | None = None,
     ) -> tuple[plt.Figure, list[plt.Axes]]:
-        r"""Plot the representation in a human viewable format -- stem
-        plots with data separated out by statistic type.
+        r"""
+        Plot the representation in a human viewable format.
+
+        We plot the representation as stem plots with data separated out by
+        statistic type.
 
         This plots the representation of a single batch and averages over all
         channels in the representation.
@@ -1031,8 +1072,8 @@ class PortillaSimoncelli(nn.Module):
           between each orientation at each scale (summarized using Euclidean
           norm)
 
-        If self.n_scales > 1, we also have combination of the following, where all
-        cross-correlations are summarized using Euclidean norm over the
+        If ``self.n_scales > 1``, we also have combination of the following, where
+        all cross-correlations are summarized using Euclidean norm over the
         channel dimension:
 
         - cross_scale_correlation_magnitude: the cross-correlations between the
@@ -1045,34 +1086,38 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        data :
+        data
             The data to show on the plot. Else, should look like the output of
             ``self.forward(img)``, with the exact same structure (e.g., as
             returned by ``metamer.representation_error()`` or another instance
             of this class).
-        ax :
+        ax
             Axes where we will plot the data. If a ``plt.Axes`` instance, will
             subdivide into 6 or 8 new axes (depending on self.n_scales). If
             None, we create a new figure.
-        figsize :
+        figsize
             The size of the figure to create. Must be ``None`` if ax is not ``None``. If
-            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``
-        ylim :
+            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``.
+        ylim
             If not None, the y-limits to use for this plot. If None, we use the
             default, slightly adjusted so that the minimum is 0. If False, do not
             change y-limits.
-        batch_idx :
-            Which index to take from the batch dimension (the first one)
-        title : string
-            Title for the plot
+        batch_idx
+            Which index to take from the batch dimension (the first one).
+        title
+            Title for the plot.
 
         Returns
         -------
-        fig:
-            Figure containing the plot
-        axes:
-            List of 6 or 8 axes containing the plot (depending on self.n_scales)
+        fig
+            Figure containing the plot.
+        axes
+            List of 6 or 8 axes containing the plot (depending on ``self.n_scales``).
 
+        Raises
+        ------
+        ValueError
+            If both ``figsize`` and ``ax`` are not ``None``.
         """
         if ax is None and figsize is None:
             figsize = (15, 15)
@@ -1124,11 +1169,28 @@ class PortillaSimoncelli(nn.Module):
         return fig, axes
 
     def _representation_for_plotting(self, rep: OrderedDict) -> OrderedDict:
-        r"""Convert the data into a dictionary representation that is more convenient
-        for plotting.
+        r"""
+        Convert into a representation that is more convenient for plotting.
 
         Intended as a helper function for plot_representation.
 
+        Parameters
+        ----------
+        rep
+            Dictionary of representation, with informative keys.
+
+        Returns
+        -------
+        plot_rep
+            Dictionary of representation summarized for plotting.
+
+        Raises
+        ------
+        ValueError
+            If the tensors in ``rep`` looks like they have more than one batch
+            or channel. Should select or average over those dimensions.
+        ValueError
+            If ``rep`` contains unexpected keys.
         """
         if rep["skew_reconstructed"].ndim > 1:
             raise ValueError(
@@ -1175,7 +1237,8 @@ class PortillaSimoncelli(nn.Module):
         data: Tensor,
         batch_idx: int = 0,
     ) -> list[plt.Artist]:
-        r"""Update the information in our representation plot.
+        r"""
+        Update the information in our representation plot.
 
         This is used for creating an animation of the representation
         over time. In order to create the animation, we need to know how
@@ -1198,24 +1261,23 @@ class PortillaSimoncelli(nn.Module):
 
         Parameters
         ----------
-        axes :
+        axes
             A list of axes to update. We assume that these are the axes
             created by ``plot_representation`` and so contain stem plots
             in the correct order.
-        batch_idx :
-            Which index to take from the batch dimension (the first one)
-        data :
+        data
             The data to show on the plot. Else, should look like the output of
             ``self.forward(img)``, with the exact same structure (e.g., as
             returned by ``metamer.representation_error()`` or another instance
             of this class).
+        batch_idx
+            Which index to take from the batch dimension (the first one).
 
         Returns
         -------
-        stem_artists :
+        stem_artists
             A list of the artists used to update the information on the
-            stem plots
-
+            stem plots.
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
