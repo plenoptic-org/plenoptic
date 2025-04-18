@@ -67,8 +67,8 @@ class LinearNonlinear(nn.Module):
 
     Attributes
     ----------
-    center_surround: torch.nn.Module
-        :class:`CenterSurround` difference of Gaussians filter.
+    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+        Difference of Gaussians filter.
 
     Notes
     -----
@@ -249,12 +249,11 @@ class LuminanceGainControl(nn.Module):
 
     Attributes
     ----------
-    center_surround: torch.nn.Module
-        :class:`CenterSurround` difference of Gaussians linear filter.
-    luminance: torch.nn.Module
-        :class:`Gaussian` convolutional kernel used to normalize signal by local
-        luminance.
-    luminance_scalar: torch.nn.Parameter
+    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+        Difference of Gaussians linear filter.
+    luminance: ~plenoptic.simulate.models.naive.Gaussian
+        Gaussian convolutional kernel used to normalize signal by local luminance.
+    luminance_scalar: torch.nn.parameter.Parameter
         Scale factor for luminance normalization.
 
     Notes
@@ -466,17 +465,15 @@ class LuminanceContrastGainControl(nn.Module):
 
     Attributes
     ----------
-    center_surround: torch.nn.Module
-        :class:`CenterSurround` difference of Gaussians linear filter.
-    luminance: torch.nn.Module
-        :class:`Gaussian` convolutional kernel used to normalize signal by local
-        luminance.
-    contrast: torch.nn.Module
-        :class:`Gaussian` convolutional kernel used to normalize signal by local
-        contrast.
-    luminance_scalar: torch.nn.Parameter
+    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+        Difference of Gaussians linear filter.
+    luminance: ~plenoptic.simulate.models.naive.Gaussian
+        Gaussian convolutional kernel used to normalize signal by local luminance.
+    contrast: ~plenoptic.simulate.models.naive.Gaussian
+        Gaussian convolutional kernel used to normalize signal by local contrast.
+    luminance_scalar: torch.nn.parameter.Parameter
         Scale factor for luminance normalization.
-    contrast_scalar: torch.nn.Parameter
+    contrast_scalar: torch.nn.parameter.Parameter
         Scale factor for contrast normalization.
 
     Notes
@@ -706,6 +703,21 @@ class OnOff(nn.Module):
     cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
+
+    Attributes
+    ----------
+    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+        2-channel (on-off and off-on) difference of Gaussians linear filter.
+    luminance: ~plenoptic.simulate.models.naive.Gaussian
+        2-channel Gaussian convolutional kernel used to normalize signal by local
+        luminance.
+    contrast: ~plenoptic.simulate.models.naive.Gaussian
+        2-channel Gaussian convolutional kernel used to normalize signal by local
+        contrast.
+    luminance_scalar: torch.nn.parameter.Parameter
+        Scale factor for luminance normalization.
+    contrast_scalar: torch.nn.parameter.Parameter
+        Scale factor for contrast normalization.
 
     Notes
     -----
