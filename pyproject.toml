@@ -173,4 +173,5 @@ exclude = [
     "__dir__",
     # init has no docstring, documented in the class docstring
     "__init__",
+    "noxfile",
 ]
