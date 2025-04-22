@@ -10,9 +10,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import inspect
 import os
 import sys
 from importlib.metadata import version
+
+import torch
+
+import plenoptic
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
@@ -51,6 +56,7 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_design",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.mermaid",
 ]
 
 add_module_names = False
@@ -92,8 +98,43 @@ napoleon_use_rtype = False
 numfig = True
 
 # numpydoc
-# to avoid showing all the torch.nn.Module attributes and methods
-numpydoc_show_inherited_class_members = False
+
+
+# find whether the object is part of plenoptic
+def is_part_of_plenoptic(obj):
+    try:
+        return obj.__module__.startswith("plenoptic")
+    except AttributeError:
+        # then it's a module
+        return obj.__name__.startswith("plenoptic")
+
+
+def is_interesting(obj):
+    # find whether the object is a class or a module
+    is_right_object = inspect.isclass(obj) or inspect.ismodule(obj)
+    return is_right_object and is_part_of_plenoptic(obj)
+
+
+def find_module(obj):
+    members = inspect.getmembers(obj, is_interesting)
+    to_return = []
+    for name, mem in set(members):
+        if inspect.ismodule(mem):
+            # go through the modules recursively
+            to_return.extend(find_module(mem))
+        else:
+            # if they inherit torch Module
+            if torch.nn.Module in mem.__bases__:
+                to_return.append(f"{mem.__module__}.{name}")
+    # remove duplicates
+    return set(to_return)
+
+
+# avoid showing all the torch.nn.Module attributes and methods
+numpydoc_show_inherited_class_members = {k: False for k in find_module(plenoptic)}
+
+# to avoid this issue https://stackoverflow.com/a/73294408/4659293
+numpydoc_class_members_toctree = False
 
 # -- Options for HTML output -------------------------------------------------
 
