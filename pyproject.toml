@@ -60,6 +60,7 @@ dev = [
     "pooch>=1.2.0",
     "ruff>=0.6.8",
     "astroid",
+    'numpydoc',
 ]
 
 nb = [
