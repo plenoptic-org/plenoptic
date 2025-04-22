@@ -91,6 +91,9 @@ napoleon_use_rtype = False
 
 numfig = True
 
+# numpydoc
+# to avoid showing all the torch.nn.Module attributes and methods
+numpydoc_show_inherited_class_members = False
 
 # -- Options for HTML output -------------------------------------------------
 

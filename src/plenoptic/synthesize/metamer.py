@@ -30,13 +30,7 @@ class Metamer(OptimizedSynthesis):
 
     Following the basic idea in [1]_, this class creates a metamer for a given model on
     a given image. We iteratively adjust the pixel values so as to match the
-    representation of the ``metamer`` and ``image``.
-
-    All ``saved_`` attributes are initialized as empty lists and will be
-    non-empty if the ``store_progress`` arg to ``synthesize()`` is not
-    ``False``. They will be appended to on every iteration if
-    ``store_progress=True`` or every ``store_progress`` iterations if it's an
-    ``int``.
+    representation of the :attr:`metamer` and :attr:`image`.
 
     Parameters
     ----------
@@ -222,8 +216,8 @@ class Metamer(OptimizedSynthesis):
         r"""
         Synthesize a metamer.
 
-        Update the pixels of ``metamer`` until its representation matches that of
-        ``image``.
+        Update the pixels of :attr:`metamer` until its representation matches that of
+        :attr:`image`.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
@@ -392,7 +386,7 @@ class Metamer(OptimizedSynthesis):
         """
         Store metamer, if appropriate.
 
-        If it's the right iteration, we update ``saved_metamer``.
+        If it's the right iteration, we update :attr:`saved_metamer`.
 
         Parameters
         ----------
@@ -416,7 +410,7 @@ class Metamer(OptimizedSynthesis):
         r"""
         Save all relevant variables in .pt file.
 
-        Note that if store_progress is True, this will probably be very
+        Note that if ``store_progress`` is True, this will probably be very
         large.
 
         See :func:`load` docstring for an example of use.
