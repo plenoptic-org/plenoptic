@@ -19,7 +19,6 @@ repos:
               docs/
           )
 
-
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
   # note: pre-commit runs top-to-bottom, so put the hooks that modify content first,
@@ -39,3 +38,11 @@ repos:
   - id: end-of-file-fixer
   # Removes trailing whitespace characters from files.
   - id: trailing-whitespace
+
+- repo: local
+  hooks:
+    - id: check-docstrings
+      name: check docstrings for markdown
+      language: system
+      entry: python tests/check_docstrings.py
+      types: [file, python]

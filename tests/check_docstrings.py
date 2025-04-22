@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
+import ast
 import pathlib
 import re
 import sys
-
-import astroid
 
 LINK_REGEX = re.escape("](")
 # we want basically everything except a backtick
@@ -14,37 +13,33 @@ SPHINX_DIRECTIVE_REGEX = rf":[:a-z]+:(`+{EVERYTHING_BUT_BACKTICK}+?_?`+)"
 SPHINX_LINK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_)"
 
 
-def parse_docstring(doc_node):
-    if doc_node is not None and doc_node.value is not None:
-        docstring = doc_node.value.splitlines()
-        docstring = [d.strip() for d in docstring]
-        return " ".join(docstring)
-    else:
-        return ""
+def parse_docstring(docstring):
+    docstring = docstring.splitlines()
+    docstring = [d.strip() for d in docstring]
+    return " ".join(docstring)
 
 
-def get_nodes(tree_body):
-    funcs = []
-    classes = []
-    for obj in tree_body:
+def get_docstrings(tree_body):
+    docstrings = []
+    for node in tree_body:
         try:
-            obj_type = obj.type
-        except AttributeError:
-            obj_type = ""
-        if obj_type in ["function", "method"]:
-            funcs.append(obj)
-        elif obj_type == "class":
-            classes.append(obj)
-            f, c = get_nodes(obj.body)
-            funcs.extend(f)
-            classes.extend(c)
-    return funcs, classes
+            doc = ast.get_docstring(node)
+        except TypeError:
+            doc = None
+        if doc is not None:
+            docstrings.append((node.name, parse_docstring(doc)))
+    return docstrings
 
 
 paths = []
 for p in sys.argv[1:]:
     p = pathlib.Path(p)
-    p = list(p.glob("**/*.py")) if p.is_dir() else [p]
+    if p.is_dir():
+        p = list(p.glob("**/*.py"))
+    elif p.suffix == ".py":
+        p = [p]
+    else:
+        p = []
     paths.extend(p)
 
 links = []
@@ -52,11 +47,8 @@ backticks = []
 
 for p in paths:
     with open(p) as f:
-        tree = astroid.parse(f.read())
-    funcs, classes = get_nodes(tree.body)
-    docstrings = [(c.name, parse_docstring(c.doc_node)) for c in classes] + [
-        (f.name, parse_docstring(f.doc_node)) for f in funcs
-    ]
+        tree = ast.parse(f.read())
+    docstrings = get_docstrings(tree.body)
 
     for name, doc in docstrings:
         if re.findall(LINK_REGEX, doc):
