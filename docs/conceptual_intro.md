@@ -41,7 +41,7 @@ A worked example may help demonstrate this point more clearly. Let's match the r
 (primaries)=
 
 ```{eval-rst}
-..plot:: scripts/conceptual_intro.py primaries
+.. plot:: scripts/conceptual_intro.py primaries
   :include-source: false
   :show-source-link: true
 

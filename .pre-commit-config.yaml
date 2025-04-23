@@ -29,3 +29,11 @@ repos:
   - id: end-of-file-fixer
   # Removes trailing whitespace characters from files.
   - id: trailing-whitespace
+
+- repo: local
+  hooks:
+    - id: check-malformed-directive
+      language: system
+      name: Check for malformed sphinx directives
+      types_or: ["python", "rst", "markdown"]
+      entry: python tests/check_sphinx_directives.py
