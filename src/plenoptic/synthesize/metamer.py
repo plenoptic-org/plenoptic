@@ -9,7 +9,7 @@ import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -418,7 +418,7 @@ class Metamer(OptimizedSynthesis):
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
-    def to(self, *args, **kwargs):
+    def to(self, *args: Any, **kwargs: Any):
         r"""
         Move and/or cast the parameters and buffers.
 
@@ -468,7 +468,7 @@ class Metamer(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
         r"""
         Load all relevant stuff from a .pt file.
@@ -522,7 +522,7 @@ class Metamer(OptimizedSynthesis):
         map_location: str | None = None,
         additional_check_attributes: list[str] = [],
         additional_check_io_attributes: list[str] = [],
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
         r"""
         Load from a file.
@@ -1051,7 +1051,7 @@ class MetamerCTF(Metamer):
         self,
         file_path: str,
         map_location: str | None = None,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
         r"""
         Load all relevant stuff from a .pt file.
@@ -1134,7 +1134,7 @@ def plot_loss(
     metamer: Metamer,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
     """
     Plot synthesis loss with log-scaled y axis.
@@ -1189,7 +1189,7 @@ def display_metamer(
     zoom: float | None = None,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
     """
     Display metamer.
@@ -1258,7 +1258,9 @@ def display_metamer(
 
 
 def _representation_error(
-    metamer: Metamer, iteration: int | None = None, **kwargs
+    metamer: Metamer,
+    iteration: int | None = None,
+    **kwargs: Any,
 ) -> Tensor:
     r"""
     Get the representation error.
@@ -1298,7 +1300,7 @@ def plot_representation_error(
     ylim: tuple[float, float] | None | Literal[False] = None,
     ax: mpl.axes.Axes | None = None,
     as_rgb: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> list[mpl.axes.Axes]:
     r"""
     Plot distance ratio showing how close we are to convergence.
@@ -1359,7 +1361,7 @@ def plot_pixel_values(
     iteration: int | None = None,
     ylim: tuple[float, float] | Literal[False] = False,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
     r"""
     Plot histogram of pixel values of target image and its metamer.
@@ -1458,9 +1460,9 @@ def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name:
     """
     Check whether the user wanted us to create plots that we can't.
 
-    Helper function for plot_synthesis_status and animate.
+    Helper function for :func:`plot_synthesis_status` and :func:`animate`.
 
-    Raises a ValueError to_check contains any values that are not allowed.
+    Raises a ``ValueError`` if ``to_check`` contains any values that are not allowed.
 
     Parameters
     ----------
@@ -1510,7 +1512,7 @@ def _setup_synthesis_fig(
     plot_pixel_values_width: float = 1,
 ) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
     """
-    Set up figure for plot_synthesis_status.
+    Set up figure for :func:`plot_synthesis_status`.
 
     Creates figure with enough axes for the all the plots you want. Will
     also create index in ``axes_idx`` for them if you haven't done so already.
@@ -1527,13 +1529,13 @@ def _setup_synthesis_fig(
     fig
         The figure to plot on or ``None``. If ``None``, we create a new figure.
     axes_idx
-        Dictionary specifying which axes contains which type of plot, allows
-        for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: loss, representation_error,
-        pixel_values, misc. Values should all be ints. If you tell this
-        function to create a plot that doesn't have a corresponding key, we
-        find the lowest int that is not already in the dict, so if you have
-        axes that you want unchanged, place their idx in misc.
+        Dictionary specifying which axes contains which type of plot, allows for more
+        fine-grained control of the resulting figure. Probably only helpful if fig is
+        also defined. Possible keys: ``"loss"``, ``"representation_error"``,
+        ``"pixel_values"``, ``"misc"``. Values should all be ints. If you tell this
+        function to create a plot that doesn't have a corresponding key, we find the
+        lowest int that is not already in the dict, so if you have
+        axes that you want unchanged, place their idx in ``"misc"``.
     figsize
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If ``None``, we attempt to
@@ -1552,11 +1554,11 @@ def _setup_synthesis_fig(
 
     Returns
     -------
-    fig :
+    fig
         The figure to plot on.
-    axes :
+    axes
         List or array of axes contained in fig.
-    axes_idx :
+    axes_idx
         Dictionary identifying the idx for each plot type.
     """
     n_subplots = 0
@@ -1701,7 +1703,7 @@ def plot_synthesis_status(
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
     width_ratios
-        By default, all plots axes will have the same width. To change
+        By default, all plots will have the same width. To change
         that, specify their relative widths using the keys: ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
         specifying their relative width. Any not included will be assumed to be
@@ -1741,7 +1743,7 @@ def plot_synthesis_status(
         fig, axes_idx, figsize, included_plots, **width_ratios
     )
 
-    def check_iterables(i, vals) -> bool:
+    def check_iterables(i: int, vals: list | tuple) -> bool:
         """
         Determine whether i is in vals.
 
@@ -2020,7 +2022,7 @@ def animate(
         for ax in rep_error_axes:
             ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
 
-    def movie_plot(i: int):
+    def movie_plot(i: int) -> list[mpl.artist.Artist]:
         """
         Matplotlib function for animation.
 
