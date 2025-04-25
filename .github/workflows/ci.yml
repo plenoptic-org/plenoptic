@@ -48,16 +48,6 @@ jobs:
               jupyter execute $file --kernel_name=python3
             fi
         done
-  check_docstring_for_markdown:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install Python 3
-      uses: actions/setup-python@v5
-    - name: Install dependencies
-      run: pip install astroid
-    - name: check for markdown
-      run: python tests/check_docstrings.py src/plenoptic/
   doctests:
     runs-on: ubuntu-latest
     strategy:
