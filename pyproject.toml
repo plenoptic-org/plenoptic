@@ -51,6 +51,7 @@ docs = [
      "myst-parser",
      "sphinxcontrib-bibtex",
      "sphinx-design",
+     "pooch",
 ]
 
 dev = [
