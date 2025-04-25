@@ -125,6 +125,8 @@ def pixel_change_convergence(
     - The ``pixel_change_norm`` has changed by less than ``stop_criterion`` over the
       past ``stop_iters_to_check`` iterations.
 
+    If both conditions are met, we return ``True``. Else, we return ``False``.
+
     Parameters
     ----------
     synth
