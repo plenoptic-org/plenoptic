@@ -671,7 +671,7 @@ def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
     We allow for breaks in the baseline value if we want to visually
     break up the plot, as we see below.
 
-    ..plot::
+    .. plot::
       :include-source:
 
       import plenoptic as po
@@ -692,7 +692,7 @@ def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
     the default xvals (``None``). In this case, this function will just
     clean up the plot a little bit
 
-    ..plot::
+    .. plot::
       :include-source:
 
       import plenoptic as po
