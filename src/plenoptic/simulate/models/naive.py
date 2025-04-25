@@ -5,6 +5,8 @@ While these may be useful as is, they are useful when combined with each other o
 non-linearities, as in :mod:`plenoptic.simulate.models.frontend`
 """
 
+from typing import Any
+
 import torch
 from torch import Tensor
 from torch import nn as nn
@@ -230,7 +232,7 @@ class Gaussian(nn.Module):
         self.register_buffer("_filt", None)
 
     @property
-    def filt(self):
+    def filt(self) -> Tensor:
         """Gaussian filter(s)."""  # numpydoc ignore=ES01,RT01
         if self._filt is not None:  # use old filter
             return self._filt
@@ -241,7 +243,7 @@ class Gaussian(nn.Module):
                 self.register_buffer("_filt", filt)
             return filt
 
-    def forward(self, x: Tensor, **conv2d_kwargs) -> Tensor:
+    def forward(self, x: Tensor, **conv2d_kwargs: Any) -> Tensor:
         """
         Convolve Gaussian filter with input tensor.
 

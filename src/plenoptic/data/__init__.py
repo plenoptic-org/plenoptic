@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-def __dir__():
+def __dir__() -> list[str]:
     return __all__
 
 

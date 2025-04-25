@@ -128,7 +128,7 @@ def _ssim_parts(
         img1 = same_padding(img1, (real_size, real_size), pad_mode=pad)
         img2 = same_padding(img2, (real_size, real_size), pad_mode=pad)
 
-    def windowed_average(img):  # numpydoc ignore=GL08
+    def windowed_average(img: torch.Tensor) -> torch.Tensor:  # numpydoc ignore=GL08
         padd = 0
         (n_batches, n_channels, _, _) = img.shape
         img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
@@ -477,7 +477,7 @@ def ms_ssim(
     if power_factors is None:
         power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    def downsample(img):  # numpydoc ignore=GL08
+    def downsample(img: torch.Tensor) -> torch.Tensor:  # numpydoc ignore=GL08
         img = F.pad(img, (0, img.shape[3] % 2, 0, img.shape[2] % 2), mode="replicate")
         img = F.avg_pool2d(img, kernel_size=2)
         return img

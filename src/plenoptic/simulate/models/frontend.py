@@ -17,6 +17,7 @@ References
 
 from collections import OrderedDict
 from collections.abc import Callable
+from typing import Any
 from warnings import warn
 
 import torch
@@ -163,7 +164,7 @@ class LinearNonlinear(nn.Module):
         vrange: tuple[float, float] | str = "indep0",
         zoom: float | None = 5.0,
         title: str | list[str] | None = "linear filter",
-        **kwargs,
+        **kwargs: Any,
     ) -> PyrFigure:
         """
         Display convolutional filter of model.
@@ -361,7 +362,7 @@ class LuminanceGainControl(nn.Module):
         zoom: float | None = 5.0,
         title: str | list[str] | None = ["linear filt", "luminance filt"],
         col_wrap: int | None = 2,
-        **kwargs,
+        **kwargs: Any,
     ) -> PyrFigure:
         """
         Display convolutional filters of model.
@@ -597,7 +598,7 @@ class LuminanceContrastGainControl(nn.Module):
             "contrast filt",
         ],
         col_wrap: int | None = 3,
-        **kwargs,
+        **kwargs: Any,
     ) -> PyrFigure:
         """
         Display convolutional filters of model.
@@ -854,7 +855,7 @@ class OnOff(nn.Module):
             "contrast filt off",
         ],
         col_wrap: int | None = 2,
-        **kwargs,
+        **kwargs: Any,
     ) -> PyrFigure:
         """
         Display convolutional filters of model.
