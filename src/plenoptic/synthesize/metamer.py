@@ -355,16 +355,7 @@ class Metamer(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
-         |      no |
-         |       | yes
-         <-------' |
-         |         '------> return ``True``
-         |
-         '---------> return ``False``
+        Uses :func:`loss_convergence`.
 
         Parameters
         ----------
@@ -379,7 +370,7 @@ class Metamer(OptimizedSynthesis):
         -------
         loss_stabilized
             Whether the loss has stabilized or not.
-        """  # noqa: E501
+        """
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
@@ -448,19 +439,22 @@ class Metamer(OptimizedSynthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See below for examples.
+        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.
 
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-        """  # numpydoc ignore=PR01
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
         attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
