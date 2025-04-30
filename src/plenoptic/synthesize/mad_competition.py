@@ -158,7 +158,8 @@ class MADCompetition(OptimizedSynthesis):
             ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
             ``{"amsgrad": True}``.
         scheduler
-            The learning rate scheduler to use. If ``None``, we don't use one.
+            The un-initialized learning rate scheduler object to use. If ``None``, we
+            don't use one.
         scheduler_kwargs
             The keyword arguments to pass to the scheduler on initialization.
 
@@ -570,10 +571,31 @@ class MADCompetition(OptimizedSynthesis):
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to :func:`torch.device`.
+            pass to :class:`torch.device`.
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
             :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``MADCompetition`` object.
+        ValueError
+            If the saved and loading ``MADCompetition`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
+        ValueError
+            If the behavior of :attr:`optimized_metric` or :attr:`reference_metric` is
+            different between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after ``load``, to finish
+            initializing :attr:`optimizer` or :attr:`scheduler`.
 
         See Also
         --------

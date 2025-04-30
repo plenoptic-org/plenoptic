@@ -112,7 +112,8 @@ class Metamer(OptimizedSynthesis):
             ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
             ``{"amsgrad": True}``.
         scheduler
-            The learning rate scheduler to use. If ``None``, we don't use one.
+            The un-initialized learning rate scheduler object to use. If ``None``, we
+            don't use one.
         scheduler_kwargs
             The keyword arguments to pass to the scheduler on initialization.
 
@@ -122,6 +123,22 @@ class Metamer(OptimizedSynthesis):
             If you try to set ``initial_image`` after calling :func:`load`.
         ValueError
             If ``setup`` is called more than once or after :func:`synthesize`.
+        ValueError
+            If you try to set ``optimizer_kwargs`` after calling :func:`load`.
+        TypeError
+            If the loaded object had a non-Adam optimizer, but the ``optimizer`` arg
+            is not specified.
+        ValueError
+            If the loaded object had an optimizer, and the ``optimizer`` arg is
+            a different type.
+        ValueError
+            If you try to set ``scheduler_kwargs`` after calling :func:`load`.
+        TypeError
+            If the loaded object had a scheduler, but the ``scheduler`` arg is not
+            specified.
+        ValueError
+            If the loaded object had a scheduler, but the ``scheduler`` arg is
+            a different type.
 
         Warns
         -----
@@ -491,10 +508,31 @@ class Metamer(OptimizedSynthesis):
             save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to :func:`torch.device`.
+            pass to :class:`torch.device`.
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
             :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``Metamer`` object.
+        ValueError
+            If the saved and loading ``Metamer`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            or :attr:`allowed_range`.
+        ValueError
+            If the behavior of :attr:`loss_function` or :attr:`model` is different
+            between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after load, to finish initializing
+            :attr:`optimizer` or :attr:`scheduler`.
 
         See Also
         --------
@@ -1075,6 +1113,27 @@ class MetamerCTF(Metamer):
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
             :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``MetamerCTF`` object.
+        ValueError
+            If the saved and loading ``MetamerCTF`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            :attr:`allowed_range`, or :attr:`coarse_to_fine`.
+        ValueError
+            If the behavior of :attr:`loss_function` or :attr:`model` is different
+            between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after load, to finish initializing
+            :attr:`optimizer` or :attr:`scheduler`.
 
         Examples
         --------
