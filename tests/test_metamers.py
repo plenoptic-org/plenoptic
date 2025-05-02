@@ -690,7 +690,7 @@ class TestMetamers:
         model.to(DEVICE)
 
     @pytest.mark.parametrize(
-        "model", ["naive.Identity", "NonModule", "naive.CenterSurround"], indirect=True
+        "model", ["naive.Identity", "NonModule", "frontend.OnOff.nograd"], indirect=True
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
