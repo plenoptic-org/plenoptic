@@ -327,7 +327,9 @@ class TestEigendistortionSynthesis:
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
 
-    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["naive.Identity", "NonModule", "naive.CenterSurround"], indirect=True
+    )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
