@@ -533,7 +533,13 @@ class Metamer(OptimizedSynthesis):
         >>> metamer_copy.load('metamers.pt')
 
         """
-        self._load(file_path, map_location, **pickle_load_args)
+        self._load(
+            file_path,
+            map_location,
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
+            **pickle_load_args,
+        )
 
     def _load(
         self,
@@ -1062,6 +1068,8 @@ class MetamerCTF(Metamer):
             file_path,
             map_location,
             ["_coarse_to_fine"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
 
