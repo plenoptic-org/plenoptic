@@ -706,6 +706,11 @@ class TestMetamers:
             met.to("cpu")
         met.metamer - met.image
         met.synthesize(max_iter=5)
+        # reset so we don't mess up further tests
+        if to_type == "dtype":
+            met.to(torch.float32)
+        elif to_type == "device" and DEVICE.type != "cpu":
+            met.to(DEVICE)
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported

@@ -346,6 +346,11 @@ class TestEigendistortionSynthesis:
             ed.to("cpu")
         ed.eigendistortions - ed.image
         ed.synthesize(max_iter=5, method="power")
+        # reset so we don't mess up further tests
+        if to_type == "dtype":
+            ed.to(torch.float32)
+        elif to_type == "device" and DEVICE.type != "cpu":
+            ed.to(DEVICE)
 
     # test that we support models with 3d and 4d outputs
     @pytest.mark.parametrize(
