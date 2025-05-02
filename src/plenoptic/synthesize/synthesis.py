@@ -124,6 +124,8 @@ class Synthesis(abc.ABC):
         check_attributes: list[str] = [],
         check_io_attributes: list[str] = [],
         state_dict_attributes: list[str] = [],
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args,
     ):
         r"""Load all relevant attributes from a .pt file.
@@ -159,6 +161,16 @@ class Synthesis(abc.ABC):
             are identical and then load the state_dict. If the attribute is None on the
             initialized Synthesis object, then we set the tuple, and count on the
             Synthesis object to properly handle it when needed.
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to decrease if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this!
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to decrease if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this!
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -228,6 +240,8 @@ class Synthesis(abc.ABC):
                         f"different {{error_type}}!"
                     ),
                     error_append_str=check_str,
+                    atol=tensor_equality_atol,
+                    rtol=tensor_equality_rtol,
                 )
             elif isinstance(getattr(self, k), float):
                 if not np.allclose(getattr(self, k), tmp_dict[k]):
@@ -263,6 +277,8 @@ class Synthesis(abc.ABC):
                     f"different {{error_type}}!"
                 ),
                 error_append_str=check_str,
+                atol=tensor_equality_atol,
+                rtol=tensor_equality_rtol,
             )
         for k, v in tmp_dict.items():
             # check_io_attributes is a tuple
