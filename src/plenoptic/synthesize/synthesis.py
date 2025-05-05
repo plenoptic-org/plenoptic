@@ -163,7 +163,7 @@ class Synthesis(abc.ABC):
             Synthesis object to properly handle it when needed.
         tensor_equality_atol :
             Absolute tolerance to use when checking for tensor equality during load,
-            passed to :func:`torch.allclose`. It may be necessary to decrease if you are
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
             versions. Be careful when changing this! See
             :class:`torch.finfo<torch.torch.finfo>` for more details about floating
@@ -172,7 +172,7 @@ class Synthesis(abc.ABC):
             dealing with a numerical issue.
         tensor_equality_rtol :
             Relative tolerance to use when checking for tensor equality during load,
-            passed to :func:`torch.allclose`. It may be necessary to decrease if you are
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
             versions. Be careful when changing this! See
             :class:`torch.finfo<torch.torch.finfo>` for more details about floating
