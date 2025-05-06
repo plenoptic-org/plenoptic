@@ -544,6 +544,8 @@ class MADCompetition(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -567,6 +569,24 @@ class MADCompetition(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -610,6 +630,8 @@ class MADCompetition(OptimizedSynthesis):
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer", "_scheduler"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
         # make this require a grad again

@@ -475,6 +475,8 @@ class Metamer(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -498,6 +500,24 @@ class Metamer(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -521,7 +541,13 @@ class Metamer(OptimizedSynthesis):
         >>> metamer_copy.load('metamers.pt')
 
         """
-        self._load(file_path, map_location, **pickle_load_args)
+        self._load(
+            file_path,
+            map_location,
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
+            **pickle_load_args,
+        )
 
     def _load(
         self,
@@ -529,6 +555,8 @@ class Metamer(OptimizedSynthesis):
         map_location: str | None = None,
         additional_check_attributes: list[str] = [],
         additional_check_io_attributes: list[str] = [],
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args,
     ):
         r"""Helper function for loading.
@@ -555,6 +583,8 @@ class Metamer(OptimizedSynthesis):
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer", "_scheduler"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
         # make this require a grad again
@@ -994,6 +1024,8 @@ class MetamerCTF(Metamer):
         self,
         file_path: str,
         map_location: str | None = None,
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args,
     ):
         r"""Load all relevant stuff from a .pt file.
@@ -1014,6 +1046,24 @@ class MetamerCTF(Metamer):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to ``torch.device``
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
         pickle_load_args :
             any additional kwargs will be added to ``pickle_module.load`` via
             ``torch.load``, see that function's docstring for details.
@@ -1034,6 +1084,8 @@ class MetamerCTF(Metamer):
             file_path,
             map_location,
             ["_coarse_to_fine"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
 

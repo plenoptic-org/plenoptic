@@ -531,6 +531,30 @@ class TestMAD:
             elif mad.scheduler is not None:
                 raise ValueError("Didn't set scheduler to None!")
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_load_tol(self, einstein_img, tmp_path):
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            lambda *args: 1 - po.metric.ssim(*args),
+            "min",
+            metric_tradeoff_lambda=1,
+            allowed_range=(-1, 2),
+        )
+        mad.synthesize(5)
+        mad.save(op.join(tmp_path, "test_mad_load_tol.pt"))
+        mad = po.synth.MADCompetition(
+            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            po.metric.mse,
+            lambda *args: 1 - po.metric.ssim(*args),
+            "min",
+            metric_tradeoff_lambda=1,
+            allowed_range=(-1, 2),
+        )
+        with pytest.raises(ValueError, match="Saved and initialized attribute image"):
+            mad.load(op.join(tmp_path, "test_mad_load_tol.pt"))
+        mad.load(op.join(tmp_path, "test_mad_load_tol.pt"), tensor_equality_atol=1e-7)
+
     @pytest.mark.parametrize(
         "optimizer",
         ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
