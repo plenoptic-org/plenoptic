@@ -477,6 +477,24 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    def test_load_tol(self, einstein_img, model, tmp_path):
+        met = po.synth.Metamer(einstein_img, model, allowed_range=(-1, 2))
+        met.synthesize(5)
+        met.save(op.join(tmp_path, "test_metamer_load_tol.pt"))
+        met = po.synth.Metamer(
+            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            model,
+            allowed_range=(-1, 2),
+        )
+        with pytest.raises(ValueError, match="Saved and initialized attribute image"):
+            met.load(op.join(tmp_path, "test_metamer_load_tol.pt"))
+        met.load(
+            op.join(tmp_path, "test_metamer_load_tol.pt"), tensor_equality_atol=1e-7
+        )
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("load", [True, False])
     @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_resume_synthesis(self, einstein_img, curie_img, model, load, tmp_path):
@@ -689,7 +707,9 @@ class TestMetamers:
         # reset model device for other tests
         model.to(DEVICE)
 
-    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["naive.Identity", "NonModule", "frontend.OnOff.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
@@ -704,6 +724,11 @@ class TestMetamers:
             met.to("cpu")
         met.metamer - met.image
         met.synthesize(max_iter=5)
+        # reset so we don't mess up further tests
+        if to_type == "dtype":
+            met.to(torch.float32)
+        elif to_type == "device" and DEVICE.type != "cpu":
+            met.to(DEVICE)
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported

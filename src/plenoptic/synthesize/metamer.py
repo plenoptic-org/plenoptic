@@ -485,6 +485,8 @@ class Metamer(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
     ):
         r"""
@@ -509,6 +511,24 @@ class Metamer(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to :class:`torch.device`.
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
             :func:`torch.load`, see that function's docstring for details.
@@ -552,7 +572,13 @@ class Metamer(OptimizedSynthesis):
         >>> metamer_copy = po.synth.Metamer(img, model)
         >>> metamer_copy.load("metamers.pt")
         """
-        self._load(file_path, map_location, **pickle_load_args)
+        self._load(
+            file_path,
+            map_location,
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
+            **pickle_load_args,
+        )
 
     def _load(
         self,
@@ -560,6 +586,8 @@ class Metamer(OptimizedSynthesis):
         map_location: str | None = None,
         additional_check_attributes: list[str] = [],
         additional_check_io_attributes: list[str] = [],
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
     ):
         r"""
@@ -579,7 +607,7 @@ class Metamer(OptimizedSynthesis):
             save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``.
+            pass to :class:`torch.device`.
         additional_check_attributes
             Any additional attributes to check for equality. Intended for use by any
             subclasses, to add other attributes set at initialization.
@@ -608,6 +636,8 @@ class Metamer(OptimizedSynthesis):
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer", "_scheduler"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
         # make this require a grad again
@@ -1089,6 +1119,8 @@ class MetamerCTF(Metamer):
         self,
         file_path: str,
         map_location: str | None = None,
+        tensor_equality_atol: float = 1e-8,
+        tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
     ):
         r"""
@@ -1109,7 +1141,25 @@ class MetamerCTF(Metamer):
             save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``.
+            pass to :class:`torch.device`.
+        tensor_equality_atol :
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol :
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
             :func:`torch.load`, see that function's docstring for details.
@@ -1150,6 +1200,8 @@ class MetamerCTF(Metamer):
             file_path,
             map_location,
             ["_coarse_to_fine"],
+            tensor_equality_atol=tensor_equality_atol,
+            tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
         )
 
@@ -1728,7 +1780,7 @@ def plot_synthesis_status(
         The ylimit to use for the representation_error plot. We pass
         this value directly to ``plot_representation_error``.
     vrange
-        The vrange option to pass to ``display_metamer()``. See
+        The vrange option to pass to :func:`display_metamer()`. See
         docstring of :func:`plenoptic.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
@@ -1935,7 +1987,7 @@ def animate(
           animation.
 
     vrange
-        The vrange option to pass to ``display_metamer()``. See
+        The vrange option to pass to :func:`display_metamer()`. See
         docstring of :func:`plenoptic.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio

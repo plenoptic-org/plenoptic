@@ -327,7 +327,26 @@ class TestEigendistortionSynthesis:
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
 
-    @pytest.mark.parametrize("model", ["naive.Identity", "NonModule"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_load_tol(self, einstein_img, model, tmp_path):
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=5)
+        eig.save(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
+        eig = Eigendistortion(
+            einstein_img + 1e-7 * torch.rand_like(einstein_img), model
+        )
+        with pytest.raises(ValueError, match="Saved and initialized attribute image"):
+            eig.load(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
+        eig.load(
+            op.join(tmp_path, "test_eigendistortion_load_tol.pt"),
+            tensor_equality_atol=1e-7,
+        )
+
+    @pytest.mark.parametrize(
+        "model", ["naive.Identity", "NonModule", "frontend.OnOff.nograd"], indirect=True
+    )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
@@ -344,6 +363,11 @@ class TestEigendistortionSynthesis:
             ed.to("cpu")
         ed.eigendistortions - ed.image
         ed.synthesize(max_iter=5, method="power")
+        # reset so we don't mess up further tests
+        if to_type == "dtype":
+            ed.to(torch.float32)
+        elif to_type == "device" and DEVICE.type != "cpu":
+            ed.to(DEVICE)
 
     # test that we support models with 3d and 4d outputs
     @pytest.mark.parametrize(
