@@ -56,7 +56,6 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_design",
     "sphinx.ext.viewcode",
-    "sphinxcontrib.mermaid",
 ]
 
 add_module_names = False
