@@ -639,7 +639,7 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
         if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
             raise ValueError(
                 "Either img1 and img2 should have the same number of "
-                "elements in each dimension, or one of "
+                "elements in the batch and channel dimensions, or one of "
                 "them should be 1! But got shapes "
                 f"{img1.shape}, {img2.shape} instead"
             )
