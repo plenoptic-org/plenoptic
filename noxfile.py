@@ -26,6 +26,7 @@ def lint(session):
     session.run("ruff", "format", "--check", "--config=pyproject.toml")
     session.run("numpydoc", "lint", "src")
     session.run("python", "tests/check_docstrings.py", "src")
+    session.run("python", "tests/check_sphinx_directives.py", "src")
 
 
 @nox.session(name="tests", python=["3.10", "3.11", "3.12"])
