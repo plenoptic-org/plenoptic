@@ -187,7 +187,7 @@ class Synthesis(abc.ABC):
             are identical and then load the state_dict. If the attribute is None on the
             initialized Synthesis object, then we set the tuple, and count on the
             Synthesis object to properly handle it when needed.
-        tensor_equality_atol :
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -196,7 +196,7 @@ class Synthesis(abc.ABC):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda

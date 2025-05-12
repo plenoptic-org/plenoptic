@@ -574,7 +574,7 @@ class MADCompetition(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to :class:`torch.device`.
-        tensor_equality_atol :
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -583,7 +583,7 @@ class MADCompetition(OptimizedSynthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
