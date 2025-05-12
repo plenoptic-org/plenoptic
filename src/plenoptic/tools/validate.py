@@ -57,7 +57,9 @@ def validate_input(
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> po.tools.validate.validate_input(img, allowed_range=(0, .5)) #doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_input(
+    ...     img, allowed_range=(0, 0.5)
+    ... )  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: input_tensor range ...
 
@@ -179,10 +181,11 @@ def validate_model(
     >>> class FailureModel(torch.nn.Module):
     ...     def __init__(self):
     ...         super().__init__()
+    ...
     ...     def forward(self, x):
     ...         x = x.detach().numpy()
     ...         return torch.as_tensor(x)
-    >>> po.tools.validate.validate_model(FailureModel()) #doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_model(FailureModel())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
 
@@ -302,11 +305,12 @@ def validate_coarse_to_fine(
     ...     def __init__(self):
     ...         super().__init__()
     ...         self.model = po.simul.PortillaSimoncelli((256, 256))
+    ...
     ...     def forward(self, x):
     ...         return self.model(x)
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_coarse_to_fine(model, shape) #doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
 
@@ -381,13 +385,13 @@ def validate_metric(
     Check that 1-SSIM works:
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(lambda x, y: 1-po.metric.ssim(x, y))
+    >>> po.tools.validate.validate_metric(lambda x, y: 1 - po.metric.ssim(x, y))
 
     Check that SSIM doesn't work (because SSIM=0 means that images are *different*,
     whereas we need metric=0 to mean *identical*):
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(po.metric.ssim) #doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_metric(po.metric.ssim)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: metric should return ...
 
@@ -433,7 +437,7 @@ def remove_grad(model: torch.nn.Module):
     --------
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
-    >>> po.tools.validate.validate_model(model) #doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_model(model)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model adds gradient to input, ...
     >>> po.tools.remove_grad(model)
