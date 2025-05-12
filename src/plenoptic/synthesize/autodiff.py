@@ -1,3 +1,10 @@
+"""
+Helper functions for comptuing Jacobian and related outputs.
+
+Not intended for users to interact with directly; users should use
+:class:`Eigendistortion`.
+"""
+
 import warnings
 
 import torch
@@ -5,21 +12,31 @@ from torch import Tensor
 
 
 def jacobian(y: Tensor, x: Tensor) -> Tensor:
-    """Explicitly compute the full Jacobian matrix.
+    """
+    Explicitly compute the full Jacobian matrix.
 
-    N.B. This is only recommended for small input sizes (e.g. <100x100 image).
+    N.B. This is only recommended for small input sizes (e.g. fewer than 10,000
+    elements).
 
     Parameters
     ----------
     y
-        Model output with gradient attached
+        Model output with gradient attached. Must be a vector, of shape
+        ``torch.Size([m, 1])``.
     x
-        Tensor with gradient function model input with gradient attached
+        Tensor with gradient function model input with gradient attached. Must
+        be a vector, of shape ``torch.Size([n, 1])``.
 
     Returns
     -------
     J
-        Jacobian matrix with ``torch.Size([len(y), len(x)])``
+        Jacobian matrix with ``torch.Size([m, n])``.
+
+    Warns
+    -----
+    UserWarning
+        If ``x`` has more than 1e4 elements, in which case we believe that this
+        calculation will take too long.
     """
     if x.numel() > 1e4:
         warnings.warn(
@@ -55,14 +72,15 @@ def vector_jacobian_product(
     retain_graph: bool = True,
     create_graph: bool = True,
     detach: bool = False,
-):
-    r"""Compute vector Jacobian product :math:`\text{vjp} = u^T(\partial y/\partial x)`.
+) -> Tensor:
+    r"""
+    Compute vector Jacobian product :math:`\text{vjp} = u^T(\partial y/\partial x)`.
 
-    Backward Mode Auto-Differentiation (`Lop` in Theano)
+    Backward Mode Auto-Differentiation (``Lop`` in Theano).
 
     Note on efficiency: When this function is used in the context of power iteration for
     computing eigenvectors, the vector output will be repeatedly fed back into :meth:
-    `vector_jacobian_product()` and :meth:`jacobian_vector_product()`.
+    `vector_jacobian_product` and :meth:`jacobian_vector_product`.
     To prevent the accumulation of gradient history in this vector (especially on GPU),
     we need to ensure the computation graph is not kept in memory after each iteration.
     We can do this by detaching the output, as well as carefully specifying where/when
@@ -76,9 +94,10 @@ def vector_jacobian_product(
         Input with gradient attached, ``torch.Size([n, 1])``.
     U
         Direction, shape is ``torch.Size([m, k])``, i.e. same dim as output tensor.
+        ``k`` is the number of directions.
     retain_graph
         Whether or not to keep graph after doing one :meth:`vector_jacobian_product`.
-        Must be set to True if k>1.
+        Must be set to True if ``k>1``.
     create_graph
         Whether or not to create computational graph. Usually should be set to True
         unless you're reusing the graph like in the second step
@@ -90,7 +109,7 @@ def vector_jacobian_product(
     Returns
     -------
     vJ
-        vector-Jacobian product, ``torch.Size([m, k])``.
+        Vector-Jacobian product, ``torch.Size([m, k])``.
     """
     assert y.shape[-1] == 1
     assert U.shape[0] == y.shape[0]
@@ -120,11 +139,12 @@ def vector_jacobian_product(
 def jacobian_vector_product(
     y: Tensor, x: Tensor, V: Tensor, dummy_vec: Tensor = None
 ) -> Tensor:
-    r"""Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`.
+    r"""
+    Compute Jacobian Vector Product: :math:`\text{jvp} = (\partial y/\partial x) v`.
 
     Forward Mode Auto-Differentiation (``Rop`` in Theano). PyTorch does not natively
     support this operation; this function essentially calls backward mode autodiff
-    twice, as described in [1].
+    twice, as described in [1]_.
 
     See :meth:`vector_jacobian_product()` docstring on why we and pass arguments for
     ``retain_graph`` and ``create_graph``.
@@ -132,26 +152,26 @@ def jacobian_vector_product(
     Parameters
     ----------
     y
-        Model output with gradient attached, shape is torch.Size([m, 1])
+        Model output with gradient attached, shape is ``torch.Size([m, 1])``.
     x
-        Model input with gradient attached, shape is torch.Size([n, 1]), i.e. same dim
-        as input tensor
+        Model input with gradient attached, shape is ``torch.Size([n, 1])``, i.e. same
+        dim as input tensor.
     V
-        Directions in which to compute product, shape is torch.Size([n, k]) where k is
-        number of vectors to compute
+        Directions in which to compute product, shape is ``torch.Size([n, k])`` where
+        ``k`` is the number of vectors to compute.
     dummy_vec
-        Vector with which to do jvp trick [1]. If argument exists, then use some
-        pre-allocated, cached vector, otherwise create a new one and move to device in
-        this method.
+        Vector with which to do jvp trick [1]_, shape matches ``y``. If argument exists,
+        then use some pre-allocated, cached vector, otherwise create a new one and move
+        to ``y.device``.
 
     Returns
     -------
     Jv
-        Jacobian-vector product, torch.Size([n, k])
+        Jacobian-vector product, ``torch.Size([n, k])``.
 
     Notes
     -----
-    [1] https://j-towns.github.io/2017/06/12/A-new-trick.html
+    .. [1] https://j-towns.github.io/2017/06/12/A-new-trick.html
     """
     assert y.shape[-1] == 1
     assert V.shape[0] == x.shape[0]
