@@ -2,7 +2,7 @@
 Helper functions for comptuing Jacobian and related outputs.
 
 Not intended for users to interact with directly; users should use
-:class:`Eigendistortion`.
+:class:`~plenoptic.synthesize.eigendistortion.Eigendistortion`.
 """
 
 import warnings
@@ -79,12 +79,11 @@ def vector_jacobian_product(
     Backward Mode Auto-Differentiation (``Lop`` in Theano).
 
     Note on efficiency: When this function is used in the context of power iteration for
-    computing eigenvectors, the vector output will be repeatedly fed back into :meth:
-    `vector_jacobian_product` and :meth:`jacobian_vector_product`.
-    To prevent the accumulation of gradient history in this vector (especially on GPU),
-    we need to ensure the computation graph is not kept in memory after each iteration.
-    We can do this by detaching the output, as well as carefully specifying where/when
-    to retain the created graph.
+    computing eigenvectors, the vector output will be repeatedly fed back into this
+    method and :meth:`jacobian_vector_product`. To prevent the accumulation of gradient
+    history in this vector (especially on GPU), we need to ensure the computation graph
+    is not kept in memory after each iteration. We can do this by detaching the output,
+    as well as carefully specifying where/when to retain the created graph.
 
     Parameters
     ----------
@@ -169,8 +168,8 @@ def jacobian_vector_product(
     Jv
         Jacobian-vector product, ``torch.Size([n, k])``.
 
-    Notes
-    -----
+    References
+    ----------
     .. [1] https://j-towns.github.io/2017/06/12/A-new-trick.html
     """
     assert y.shape[-1] == 1

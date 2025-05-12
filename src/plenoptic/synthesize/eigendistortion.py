@@ -115,10 +115,10 @@ class Eigendistortion(Synthesis):
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to
-    explain perceptual sensitivity in humans. It estimates eigenvectors of the FIM.
-    A model, :math:`y = f(x)`, is a deterministic (and differentiable)
-    mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output
-    response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
+    explain perceptual sensitivity in humans. It estimates eigenvectors of the Fisher
+    Information Matrix. A model, :math:`y = f(x)`, is a deterministic (and
+    differentiable) mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean
+    output response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
     Gaussian noise in the response space.
     The Jacobian matrix at x is:
         :math:`J(x) = J = dydx`,
@@ -191,7 +191,7 @@ class Eigendistortion(Synthesis):
         Compute eigendistortions of Fisher Information Matrix with given input image.
 
         There are three potential ways of computing the eigendistortion for a model;
-        all have the same interpretation. See :param:`method` for details.
+        all have the same interpretation. See ``method`` argument for details.
 
         Parameters
         ----------
@@ -649,7 +649,7 @@ class Eigendistortion(Synthesis):
             dealing with a numerical issue.
         **pickle_load_args
             Any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+            :func:`torch.load`, see that function's docstring for details.
 
         Raises
         ------
@@ -667,7 +667,7 @@ class Eigendistortion(Synthesis):
 
         See Also
         --------
-        examine_saved_synthesis :
+        :func:`~plenoptic.tools.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 

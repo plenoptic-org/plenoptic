@@ -619,7 +619,7 @@ class MADCompetition(OptimizedSynthesis):
 
         See Also
         --------
-        examine_saved_synthesis
+        :func:`~plenoptic.tools.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
