@@ -1,4 +1,4 @@
-"""various helpful utilities for plotting or displaying information."""
+"""various helpful utilities for plotting or displaying information"""
 
 import warnings
 
@@ -327,6 +327,7 @@ def animshow(
 
     Notes
     -----
+
     By default, we use the ffmpeg backend, which requires that you have
     ffmpeg installed and on your path (https://ffmpeg.org/download.html).
     To use a different, use the matplotlib rcParams:
@@ -511,7 +512,7 @@ def clean_up_axes(
     spines_to_remove=["top", "right", "bottom"],
     axes_to_remove=["x"],
 ):
-    r"""Clean up an axis, as desired when making a stem plot of the representation.
+    r"""Clean up an axis, as desired when making a stem plot of the representation
 
     Parameters
     ----------
@@ -553,7 +554,7 @@ def clean_up_axes(
 
 
 def update_stem(stem_container, ydata):
-    r"""Update the information in a stem plot.
+    r"""Update the information in a stem plot
 
     We update the information in a single stem plot to match that given
     by ``ydata``. We update the position of the markers and and the
@@ -592,7 +593,7 @@ def update_stem(stem_container, ydata):
 
 
 def rescale_ylim(axes, data):
-    r"""Rescale y-limits nicely.
+    r"""rescale y-limits nicely
 
     We take the axes and set their limits to be ``(-y_max, y_max)``,
     where ``y_max=np.abs(data).max()``
@@ -625,7 +626,7 @@ def rescale_ylim(axes, data):
 
 
 def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
-    r"""Convenience wrapper for plotting stem plots.
+    r"""convenience wrapper for plotting stem plots
 
     This plots the data, baseline, cleans up the axis, and sets the
     title
@@ -977,7 +978,7 @@ def plot_representation(
     title="",
     as_rgb=False,
 ):
-    r"""Helper function for plotting model representation.
+    r"""Helper function for plotting model representation
 
     We are trying to plot ``data`` on ``ax``, using
     ``model.plot_representation`` method, if it has it, and otherwise

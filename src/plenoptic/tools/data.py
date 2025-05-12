@@ -27,7 +27,7 @@ TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.item
 
 
 def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
-    r"""Cast tensor to numpy in the most conservative way possible.
+    r"""cast tensor to numpy in the most conservative way possible
 
     Parameters
     ----------
@@ -41,6 +41,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     -------
     Converted tensor as `numpy.ndarray` on CPU.
     """
+
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
         x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
@@ -50,7 +51,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
 
 def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
-    r"""Correctly load in images.
+    r"""Correctly load in images
 
     Our models and synthesis methods generally expect their inputs to
     be 4d float32 images: (batch, channel, height, width), where the batch
@@ -155,7 +156,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
 
 
 def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
-    r"""Convert image from float to 8 or 16 bit image.
+    r"""Convert image from float to 8 or 16 bit image
 
     We work with float images that lie between 0 and 1, but for saving
     them (either as png or in a numpy array), we want to convert them to
@@ -195,7 +196,7 @@ def polar_radius(
     origin: int | tuple[int, int] | None = None,
     device: str | torch.device | None = None,
 ) -> Tensor:
-    """Make distance-from-origin (r) matrix.
+    """Make distance-from-origin (r) matrix
 
     Compute a matrix of given size containing samples of a radial ramp
     function, raised to given exponent, centered at given origin.

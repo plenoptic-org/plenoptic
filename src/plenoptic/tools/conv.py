@@ -8,7 +8,7 @@ from torch import Tensor
 
 
 def correlate_downsample(image, filt, padding_mode="reflect"):
-    """Correlate with a filter and downsample by 2.
+    """Correlate with a filter and downsample by 2
 
     Parameters
     ----------
@@ -20,6 +20,7 @@ def correlate_downsample(image, filt, padding_mode="reflect"):
         One of "constant", "reflect", "replicate", "circular". The option "constant"
         means padding with zeros.
     """
+
     assert isinstance(image, torch.Tensor) and isinstance(filt, torch.Tensor)
     assert image.ndim == 4 and filt.ndim == 2
     n_channels = image.shape[1]
@@ -33,7 +34,7 @@ def correlate_downsample(image, filt, padding_mode="reflect"):
 
 
 def upsample_convolve(image, odd, filt, padding_mode="reflect"):
-    """Upsample by 2 and convolve with a filter.
+    """Upsample by 2 and convolve with a filter
 
     Parameters
     ----------
@@ -49,6 +50,7 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
         One of "constant", "reflect", "replicate", "circular". The option "constant"
         means padding with zeros.
     """
+
     assert isinstance(image, torch.Tensor) and isinstance(filt, torch.Tensor)
     assert image.ndim == 4 and filt.ndim == 2
     filt = filt.flip((0, 1))
@@ -71,7 +73,7 @@ def upsample_convolve(image, odd, filt, padding_mode="reflect"):
 
 
 def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
-    """Correlate with a binomial coefficient filter and downsample by 2.
+    """Correlate with a binomial coefficient filter and downsample by 2
 
     Parameters
     ----------
@@ -86,6 +88,7 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
         If true (default), the filter sums to 1 (ie. it does not affect the DC
         component of the signal). If false, the filter sums to 2.
     """
+
     f = pt.named_filter(filtname)
     filt = torch.as_tensor(np.outer(f, f), dtype=x.dtype, device=x.device)
     if scale_filter:
@@ -96,7 +99,7 @@ def blur_downsample(x, n_scales=1, filtname="binom5", scale_filter=True):
 
 
 def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
-    """Upsample by 2 and convolve with a binomial coefficient filter.
+    """Upsample by 2 and convolve with a binomial coefficient filter
 
     Parameters
     ----------
@@ -111,6 +114,7 @@ def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
         If true (default), the filter sums to 4 (ie. it multiplies the signal
         by 4 before the blurring operation). If false, the filter sums to 2.
     """
+
     f = pt.named_filter(filtname)
     filt = torch.as_tensor(np.outer(f, f), dtype=x.dtype, device=x.device)
     if scale_filter:
@@ -119,7 +123,7 @@ def upsample_blur(x, odd, filtname="binom5", scale_filter=True):
 
 
 def _get_same_padding(x: int, kernel_size: int, stride: int, dilation: int) -> int:
-    """Helper function to determine integer padding for F.pad() given img and kernel."""
+    """Helper function to determine integer padding for F.pad() given img and kernel"""
     pad = (math.ceil(x / stride) - 1) * stride + (kernel_size - 1) * dilation + 1 - x
     pad = max(pad, 0)
     return pad
