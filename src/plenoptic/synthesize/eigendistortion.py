@@ -120,7 +120,7 @@ class Eigendistortion(Synthesis):
     differentiable) mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean
     output response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
     Gaussian noise in the response space.
-    The Jacobian matrix at x is:
+    The Jacobian matrix at :math:`x` is:
         :math:`J(x) = J = dydx`,
         :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
     The matrix consists of all partial derivatives of the vector-valued function f.
