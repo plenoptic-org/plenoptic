@@ -127,7 +127,7 @@ def find_module(obj):
             to_return.extend(find_module(mem))
         else:
             # if they inherit torch Module
-            if torch.nn.Module in mem.__bases__:
+            if issubclass(mem, torch.nn.Module):
                 to_return.append(f"{mem.__module__}.{name}")
     # remove duplicates
     return set(to_return)
