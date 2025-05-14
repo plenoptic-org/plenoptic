@@ -398,7 +398,7 @@ class Synthesis(abc.ABC):
         pinned memory to CUDA devices.
 
         When calling this method to move tensors to a CUDA device, items in ``attrs``
-        that start with "saved_" will not be moved.
+        that start with ``"saved_"`` will not be moved.
 
         See :meth:`torch.nn.Module.to` for examples.
 
