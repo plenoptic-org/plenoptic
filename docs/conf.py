@@ -244,7 +244,6 @@ plot_html_show_source_link = False
 myst_enable_extensions = [
     "colon_fence",
     "dollarmath",
-    "fieldlist",
 ]
 
 # sphinxcontrib-bibtex
