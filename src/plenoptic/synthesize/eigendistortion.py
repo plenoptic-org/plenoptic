@@ -123,9 +123,9 @@ class Eigendistortion(Synthesis):
     The Jacobian matrix at x is:
         :math:`J(x) = J = dydx`,
         :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
-    The matrix consists of all partial derivatives of the vector-valued function f.
-    The Fisher Information Matrix (FIM) at x, under white Gaussian noise in the
-    response space, is:
+    The matrix consists of all partial derivatives of the vector-valued function
+    :math:`f`. The Fisher Information Matrix (FIM) at :math:`x`, under white Gaussian
+    noise in the response space, is:
         :math:`F = J^T J`
     It is a quadratic approximation of the discriminability of distortions
     relative to :math:`x`.
@@ -654,8 +654,7 @@ class Eigendistortion(Synthesis):
         Raises
         ------
         ValueError
-            If :func:`setup` or :func:`synthesize` has been called before this call
-            to ``load``.
+            If :func:`synthesize` has been called before this call to ``load``.
         ValueError
             If the object saved at ``file_path`` is not a ``Eigendistortion`` object.
         ValueError
