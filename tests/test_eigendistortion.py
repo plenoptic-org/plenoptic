@@ -29,7 +29,7 @@ class TestEigendistortionSynthesis:
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
         ed = Eigendistortion(einstein_img, model)
-        with pytest.raises(AssertionError, match="method must be in "):
+        with pytest.raises(ValueError, match="method must be in "):
             ed.synthesize(method="asdfsdfasf")
 
     @pytest.mark.parametrize(

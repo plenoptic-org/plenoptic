@@ -10,9 +10,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import inspect
 import os
 import sys
 from importlib.metadata import version
+
+import torch
+
+import plenoptic
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
@@ -35,29 +40,31 @@ version: str = ".".join(release.split(".")[:3])
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.doctest",
-    "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.githubpages",
     "sphinx.ext.napoleon",
     "numpydoc",
     "nbsphinx",
     "nbsphinx_link",
-    "sphinxcontrib.apidoc",
     "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "myst_parser",
     "sphinxcontrib.bibtex",
     "sphinx_design",
+    "sphinx.ext.viewcode",
 ]
 
-intersphinx_mapping = {"torch": ("https://pytorch.org/docs/stable/", None)}
+add_module_names = False
+
+intersphinx_mapping = {
+    "torch": ("https://pytorch.org/docs/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -89,10 +96,48 @@ napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
-napoleon_use_rtype = True
+napoleon_use_rtype = False
 
 numfig = True
 
+# numpydoc
+
+
+# find whether the object is part of plenoptic
+def is_part_of_plenoptic(obj):
+    try:
+        return obj.__module__.startswith("plenoptic")
+    except AttributeError:
+        # then it's a module
+        return obj.__name__.startswith("plenoptic")
+
+
+def is_interesting(obj):
+    # find whether the object is a class or a module
+    is_right_object = inspect.isclass(obj) or inspect.ismodule(obj)
+    return is_right_object and is_part_of_plenoptic(obj)
+
+
+def find_module(obj):
+    members = inspect.getmembers(obj, is_interesting)
+    to_return = []
+    for name, mem in set(members):
+        if inspect.ismodule(mem):
+            # go through the modules recursively
+            to_return.extend(find_module(mem))
+        else:
+            # if they inherit torch Module
+            if issubclass(mem, torch.nn.Module):
+                to_return.append(f"{mem.__module__}.{name}")
+    # remove duplicates
+    return set(to_return)
+
+
+# avoid showing all the torch.nn.Module attributes and methods
+numpydoc_show_inherited_class_members = {k: False for k in find_module(plenoptic)}
+
+# to avoid this issue https://stackoverflow.com/a/73294408/4659293
+numpydoc_class_members_toctree = False
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -100,11 +145,6 @@ numfig = True
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
 
 # these are for the sphinx_rtd_theme
 html_theme_options = {

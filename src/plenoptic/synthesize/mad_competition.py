@@ -1,10 +1,14 @@
-"""Run MAD Competition."""
+"""
+Run MAD Competition.
+
+Classes to perform the synthesis of Maximum Differentiation Competition.
+"""
 
 import contextlib
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -21,7 +25,8 @@ from .synthesis import OptimizedSynthesis
 
 
 class MADCompetition(OptimizedSynthesis):
-    r"""Synthesize a single maximally-differentiating image for two metrics.
+    r"""
+    Synthesize a single maximally-differentiating image for two metrics.
 
     Following the basic idea in [1]_, this class synthesizes a
     maximally-differentiating image for two given metrics, based on a given
@@ -40,48 +45,25 @@ class MADCompetition(OptimizedSynthesis):
 
     Parameters
     ----------
-    image :
+    image
         A tensor, this is the image we use as the reference point.
-    optimized_metric :
+    optimized_metric
         The metric whose value you wish to minimize or maximize, which takes
         two tensors and returns a scalar.
-    reference_metric :
+    reference_metric
         The metric whose value you wish to keep fixed, which takes two tensors
         and returns a scalar.
-    minmax :
+    minmax
         Whether you wish to minimize or maximize ``optimized_metric``.
-    metric_tradeoff_lambda :
+    metric_tradeoff_lambda
         Lambda to multiply by ``reference_metric`` loss and add to
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
-    range_penalty_lambda :
+    range_penalty_lambda
         Lambda to multiply by range penalty and add to loss.
-    allowable_range :
+    allowed_range
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
-
-    Attributes
-    ----------
-    mad_image : torch.Tensor
-        The Maximally-Differentiating Image. This may be unfinished depending
-        on how many iterations we've run for.
-    initial_image : torch.Tensor
-        The initial ``mad_image``, which we obtain by adding Gaussian noise to
-        ``image``.
-    losses : list
-        A list of the objective function's loss over iterations.
-    gradient_norm : list
-        A list of the gradient's L2 norm over iterations.
-    pixel_change_norm : list
-        A list containing the L2 norm of the pixel change over iterations
-        (``pixel_change_norm[i]`` is the pixel change norm in
-        ``mad_image`` between iterations ``i`` and ``i-1``).
-    optimized_metric_loss : list
-        A list of the ``optimized_metric`` loss over iterations.
-    reference_metric_loss : list
-        A list of the ``reference_metric`` loss over iterations.
-    saved_mad_image : torch.Tensor
-        Saved ``self.mad_image`` for later examination.
 
     References
     ----------
@@ -89,7 +71,6 @@ class MADCompetition(OptimizedSynthesis):
            competition: A methodology for comparing computational models of
            perceptual discriminability. Journal of Vision, 8(12), 1–13.
            https://dx.doi.org/10.1167/8.12.8
-
     """
 
     def __init__(
@@ -158,26 +139,36 @@ class MADCompetition(OptimizedSynthesis):
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         scheduler_kwargs: dict | None = None,
     ):
-        """Initialize the MAD image, optimizer, and scheduler.
+        """
+        Initialize the MAD image, optimizer, and scheduler.
 
         Can only be called once. If ``load()`` has been called, ``initial_noise`` must
         be None.
 
         Parameters
         ----------
-        initial_noise :
-            ``mad_image`` is initialized to ``self.image + initial_noise *
+        initial_noise
+            :attr:`mad_image` is initialized to ``self.image + initial_noise *
             torch.randn_like(self.image)``, so this gives the standard deviation of the
             Gaussian noise. If None, we use a value of 0.1.
-        optimizer :
+        optimizer
             The un-initialized optimizer object to use. If None, we use Adam.
-        optimizer_kwargs :
-            The keyword arguments to pass to the optimizer on initialization. If None,
-            we use {"lr": .01} and, if optimizer is None, {"amsgrad": True}
-        scheduler :
-            The learning rate scheduler to use. If None, we don't use one.
-        scheduler_kwargs :
+        optimizer_kwargs
+            The keyword arguments to pass to the optimizer on initialization. If
+            ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
+            ``{"amsgrad": True}``.
+        scheduler
+            The un-initialized learning rate scheduler object to use. If ``None``, we
+            don't use one.
+        scheduler_kwargs
             The keyword arguments to pass to the scheduler on initialization.
+
+        Raises
+        ------
+        ValueError
+            If you try to set ``initial_noise`` after calling :func:`load`.
+        ValueError
+            If ``setup`` is called more than once or after :func:`synthesize`.
 
         Examples
         --------
@@ -185,9 +176,13 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
-        ...                               po.metric.mse, "min",
-        ...                               metric_tradeoff_lambda=0.1)
+        >>> mad = po.synth.MADCompetition(
+        ...     img,
+        ...     lambda x, y: 1 - po.metric.ssim(x, y),
+        ...     po.metric.mse,
+        ...     "min",
+        ...     metric_tradeoff_lambda=0.1,
+        ... )
         >>> mad.setup(1)
         >>> mad.synthesize(10)
 
@@ -195,9 +190,13 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
-        ...                               po.metric.mse, "min",
-        ...                               metric_tradeoff_lambda=0.1)
+        >>> mad = po.synth.MADCompetition(
+        ...     img,
+        ...     lambda x, y: 1 - po.metric.ssim(x, y),
+        ...     po.metric.mse,
+        ...     "min",
+        ...     metric_tradeoff_lambda=0.1,
+        ... )
         >>> mad.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
 
@@ -206,19 +205,26 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
-        ...                               po.metric.mse, "min",
-        ...                               metric_tradeoff_lambda=0.1)
+        >>> mad = po.synth.MADCompetition(
+        ...     img,
+        ...     lambda x, y: 1 - po.metric.ssim(x, y),
+        ...     po.metric.mse,
+        ...     "min",
+        ...     metric_tradeoff_lambda=0.1,
+        ... )
         >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
         >>> mad.save("mad_setup.pt")
-        >>> mad = po.synth.MADCompetition(img, lambda x,y: 1 - po.metric.ssim(x, y),
-        ...                               po.metric.mse, "min",
-        ...                               metric_tradeoff_lambda=0.1)
+        >>> mad = po.synth.MADCompetition(
+        ...     img,
+        ...     lambda x, y: 1 - po.metric.ssim(x, y),
+        ...     po.metric.mse,
+        ...     "min",
+        ...     metric_tradeoff_lambda=0.1,
+        ... )
         >>> mad.load("mad_setup.pt")
         >>> mad.setup(optimizer=torch.optim.SGD)
         >>> mad.synthesize(10)
-
         """
         if self._mad_image is None:
             if initial_noise is None:
@@ -259,34 +265,39 @@ class MADCompetition(OptimizedSynthesis):
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
     ):
-        r"""Synthesize a MAD image.
+        r"""
+        Synthesize a MAD image.
 
-        Update the pixels of ``initial_image`` to maximize or minimize
+        Update the pixels of :attr:`initial_image` to maximize or minimize
         (depending on the value of ``minmax``) the value of
         ``optimized_metric(image, mad_image)`` while keeping the value of
         ``reference_metric(image, mad_image)`` constant.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first
+        ``stop_criterion``, whichever comes first.
 
         Parameters
         ----------
-        max_iter :
+        max_iter
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
-        store_progress :
+        store_progress
             Whether we should store the MAD image in progress during synthesis. If
             False, we don't save anything. If True, we save every iteration. If an int,
             we save every ``store_progress`` iterations (note then that 0 is the same as
             False and 1 the same as True).
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
+        Raises
+        ------
+        ValueError
+            If we find a NaN during optimization.
         """
         # if setup hasn't been called manually, call it now.
         if self._mad_image is None or isinstance(self._scheduler, tuple):
@@ -318,7 +329,8 @@ class MADCompetition(OptimizedSynthesis):
         mad_image: Tensor | None = None,
         image: Tensor | None = None,
     ) -> Tensor:
-        r"""Compute the MADCompetition synthesis loss.
+        r"""
+        Compute the MADCompetition synthesis loss.
 
         This computes:
 
@@ -327,29 +339,26 @@ class MADCompetition(OptimizedSynthesis):
             t L_1(x, \hat{x}) &+ \lambda_1 [L_2(x, x+\epsilon) - L_2(x, \hat{x})]^2 \\
                               &+ \lambda_2 \mathcal{B}(\hat{x})
 
-
-        where :math:`t` is 1 if ``self.minmax`` is ``'min'`` and -1
-        if it's ``'max'``, :math:`L_1` is ``self.optimized_metric``,
-        :math:`L_2` is ``self.reference_metric``, :math:`x` is
-        ``self.image``, :math:`\hat{x}` is ``self.mad_image``,
-        :math:`\epsilon` is the initial noise, :math:`\mathcal{B}` is the
-        quadratic bound penalty, :math:`\lambda_1` is
-        ``self.metric_tradeoff_lambda`` and :math:`\lambda_2` is
-        ``self.range_penalty_lambda``.
+        where :math:`t` is 1 if :attr:`minmax` is ``'min'`` and -1 if it's ``'max'``,
+        :math:`L_1` is :attr:`optimized_metric`, :math:`L_2` is
+        :attr:`reference_metric`, :math:`x` is :attr:`image`, :math:`\hat{x}` is
+        :attr:`mad_image`, :math:`\epsilon` is the initial noise, :math:`\mathcal{B}` is
+        the quadratic bound penalty, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
+        and :math:`\lambda_2` is :attr:`range_penalty_lambda`.
 
         Parameters
         ----------
-        mad_image :
+        mad_image
             Proposed ``mad_image``, :math:`\hat{x}` in the above equation. If
             None, use ``self.mad_image``.
-        image :
+        image
             Proposed ``image``, :math:`x` in the above equation. If
             None, use ``self.image``.
 
         Returns
         -------
         loss
-
+            1-element tensor containing the loss on this step.
         """
         if image is None:
             image = self.image
@@ -368,8 +377,8 @@ class MADCompetition(OptimizedSynthesis):
         )
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
-        r"""Compute and propagate gradients, then step the optimizer to update
-        mad_image.
+        r"""
+        Compute and propagate gradients, then step optimizer to update mad_image.
 
         Parameters
         ----------
@@ -382,9 +391,8 @@ class MADCompetition(OptimizedSynthesis):
         Returns
         -------
         loss
-            1-element tensor containing the loss on this step
-
-        """
+            1-element tensor containing the loss on this step.
+        """  # numpydoc ignore=ES01
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
@@ -421,52 +429,45 @@ class MADCompetition(OptimizedSynthesis):
         )
         return loss
 
-    def _check_convergence(self, stop_criterion, stop_iters_to_check):
-        r"""Check whether the loss has stabilized and, if so, return True.
+    def _check_convergence(
+        self, stop_criterion: float, stop_iters_to_check: int
+    ) -> bool:
+        r"""
+        Check whether the loss has stabilized and, if so, return True.
 
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
-         |      no |
-         |       | yes
-         <-------' |
-         |         '------> return ``True``
-         |
-         '---------> return ``False``
+        Uses :func:`loss_convergence`.
 
         Parameters
         ----------
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
         Returns
         -------
-        loss_stabilized :
+        loss_stabilized
             Whether the loss has stabilized or not.
-
-        """  # noqa: E501
+        """
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
-        """Store mad_image anbd model response, if appropriate.
+        """
+        Store mad_image anbd model response, if appropriate.
 
-        if it's the right iteration, we update ``saved_mad_image``
+        If it's the right iteration, we update :attr:`saved_mad_image`.
 
         Parameters
         ----------
         i
-            the current iteration
+            The current iteration.
 
         Returns
         -------
-        stored :
+        stored
             True if we stored this iteration, False if not.
-
         """
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
@@ -477,18 +478,18 @@ class MADCompetition(OptimizedSynthesis):
         return stored
 
     def save(self, file_path: str):
-        r"""Save all relevant variables in .pt file.
+        r"""
+        Save all relevant variables in .pt file.
 
-        Note that if store_progress is True, this will probably be very
+        Note that if ``store_progress`` is True, this will probably be very
         large.
 
-        See ``load`` docstring for an example of use.
+        See :func:`load` docstring for an example of use.
 
         Parameters
         ----------
-        file_path : str
-            The path to save the MADCompetition object to
-
+        file_path
+            The path to save the MADCompetition object to.
         """
         save_io_attrs = [
             ("_optimized_metric", ("_image", "_mad_image")),
@@ -497,8 +498,9 @@ class MADCompetition(OptimizedSynthesis):
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
-    def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
+    def to(self, *args: Any, **kwargs: Any):
+        r"""
+        Move and/or casts the parameters and buffers.
 
         This can be called as
 
@@ -517,20 +519,22 @@ class MADCompetition(OptimizedSynthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See below for examples.
+        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.
 
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-
-        """
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
         attrs = ["_initial_image", "_image", "_mad_image", "_saved_mad_image"]
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
@@ -546,9 +550,10 @@ class MADCompetition(OptimizedSynthesis):
         map_location: str | None = None,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Load all relevant stuff from a .pt file.
+        r"""
+        Load all relevant stuff from a .pt file.
 
         This must be called by a ``MADCompetition`` object initialized just like the
         saved object.
@@ -561,15 +566,15 @@ class MADCompetition(OptimizedSynthesis):
 
         Parameters
         ----------
-        file_path : str
-            The path to load the synthesis object from
-        map_location : str, optional
-            map_location argument to pass to ``torch.load``. If you save
+        file_path
+            The path to load the synthesis object from.
+        map_location
+            Argument to pass to ``torch.load`` as ``map_location``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``
-        tensor_equality_atol :
+            pass to :class:`torch.device`.
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -578,7 +583,7 @@ class MADCompetition(OptimizedSynthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -587,13 +592,34 @@ class MADCompetition(OptimizedSynthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        pickle_load_args :
-            any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``MADCompetition`` object.
+        ValueError
+            If the saved and loading ``MADCompetition`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
+        ValueError
+            If the behavior of :attr:`optimized_metric` or :attr:`reference_metric` is
+            different between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after ``load``, to finish
+            initializing :attr:`optimizer` or :attr:`scheduler`.
 
         See Also
         --------
-        examine_saved_synthesis :
+        :func:`~plenoptic.tools.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
@@ -602,15 +628,16 @@ class MADCompetition(OptimizedSynthesis):
         >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> def ds_ssim(x, y):
-        ...    return 1 - po.metric.ssim(x, y)
-        >>> mad = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min",
-        ...                               metric_tradeoff_lambda=10)
+        ...     return 1 - po.metric.ssim(x, y)
+        >>> mad = po.synth.MADCompetition(
+        ...     img, po.metric.mse, ds_ssim, "min", metric_tradeoff_lambda=10
+        ... )
         >>> mad.synthesize(max_iter=5, store_progress=True)
-        >>> mad.save('mad.pt')
-        >>> mad_copy = po.synth.MADCompetition(img, po.metric.mse, ds_ssim, "min",
-        ...                                    metric_tradeoff_lambda=10)
-        >>> mad_copy.load('mad.pt')
-
+        >>> mad.save("mad.pt")
+        >>> mad_copy = po.synth.MADCompetition(
+        ...     img, po.metric.mse, ds_ssim, "min", metric_tradeoff_lambda=10
+        ... )
+        >>> mad_copy.load("mad.pt")
         """
         check_attributes = [
             "_image",
@@ -643,43 +670,83 @@ class MADCompetition(OptimizedSynthesis):
             self._saved_mad_image = [mad.to("cpu") for mad in self._saved_mad_image]
 
     @property
-    def mad_image(self):
+    def mad_image(self) -> Tensor:
+        """Maximally-differentiating image, the parameter we are optimizing."""
+        # numpydoc ignore=RT01,ES01
         return self._mad_image
 
     @property
-    def optimized_metric(self):
+    def optimized_metric(self) -> torch.nn.Module | Callable[[Tensor, Tensor], Tensor]:
+        """The metric whose value we are minimizing or maximizing."""
+        # numpydoc ignore=RT01,ES01
         return self._optimized_metric
 
     @property
-    def reference_metric(self):
+    def reference_metric(self) -> torch.nn.Module | Callable[[Tensor, Tensor], Tensor]:
+        """The metric whose value we are keeping constant."""
+        # numpydoc ignore=RT01,ES01
         return self._reference_metric
 
     @property
-    def image(self):
+    def image(self) -> Tensor:
+        """The reference image for this MAD Competition."""
+        # numpydoc ignore=RT01,ES01
         return self._image
 
     @property
-    def initial_image(self):
+    def initial_image(self) -> Tensor:
+        """
+        Initial image for MAD Competition.
+
+        This is the image whose distance to ``image``, the reference, we are
+        maximizing/minimizing for ``optimized_metric``, while keeping constant for
+        ``reference_metric``.
+        """
+        # numpydoc ignore=RT01
         return self._initial_image
 
     @property
-    def reference_metric_loss(self):
+    def reference_metric_loss(self) -> Tensor:
+        """
+        :attr:`reference_metric` loss over iterations.
+
+        That is, the value of ``reference_metric(image, mad_image)``. Ideally, this is
+        equal to ``reference_metric(image, initial_image)``.
+        """
+        # numpydoc ignore=RT01
         return torch.as_tensor(self._reference_metric_loss)
 
     @property
-    def optimized_metric_loss(self):
+    def optimized_metric_loss(self) -> Tensor:
+        """
+        :attr:`optimized_metric` loss over iterations.
+
+        That is, the value of ``optimized_metric(image, mad_image)``. Ideally, this is
+        either very different from ``optimized_metric(image, initial_image)``.
+        """
+        # numpydoc ignore=RT01
         return torch.as_tensor(self._optimized_metric_loss)
 
     @property
-    def metric_tradeoff_lambda(self):
+    def metric_tradeoff_lambda(self) -> float:
+        """Tradeoff between the two metrics in synthesis loss."""
+        # numpydoc ignore=RT01,ES01
         return self._metric_tradeoff_lambda
 
     @property
-    def minmax(self):
+    def minmax(self) -> Literal["min", "max"]:
+        """Whether we are minimizing or maximizing :attr:`optimized_metric`."""
+        # numpydoc ignore=RT01,ES01
         return self._minmax
 
     @property
-    def saved_mad_image(self):
+    def saved_mad_image(self) -> Tensor:
+        """
+        :attr:`mad_image`, cached over time for later examination.
+
+        How often the metamer is cached is determined by the ``store_progress`` argument
+        to the :func:`synthesize` function.
+        """  # numpydoc ignore=RT01
         return torch.stack(self._saved_mad_image)
 
 
@@ -687,9 +754,10 @@ def plot_loss(
     mad: MADCompetition,
     iteration: int | None = None,
     axes: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    """Plot metric losses.
+    """
+    Plot metric losses.
 
     Plots ``mad.optimized_metric_loss`` and ``mad.reference_metric_loss`` on two
     separate axes, over all iterations. Also plots a red dot at ``iteration``,
@@ -698,17 +766,17 @@ def plot_loss(
 
     Parameters
     ----------
-    mad :
+    mad
         MADCompetition object whose loss we want to plot.
-    iteration :
+    iteration
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
-    axes :
+    axes
         Pre-existing axes for plot. If a list of axes, must be the two axes to
         use for this plot. If a single axis, we'll split it in half
-        horizontally. If None, we call ``plt.gca()``.
-    kwargs :
-        passed to plt.plot
+        horizontally. If None, we call :func:`matplotlib.pyplot.gca()`.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.semilogy`.
 
     Returns
     -------
@@ -720,7 +788,6 @@ def plot_loss(
     We plot ``abs(mad.losses)`` because if we're maximizing the synthesis
     metric, we minimized its negative. By plotting the absolute value, we get
     them all on the same scale.
-
     """
     if iteration is None:
         loss_idx = len(mad.losses) - 1
@@ -755,47 +822,52 @@ def display_mad_image(
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
     title: str = "MADCompetition",
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    """Display MAD image.
+    """
+    Display MAD image.
 
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
 
-    We use ``plenoptic.imshow`` to display the synthesized image and attempt to
+    We use :func:`plenoptic.imshow` to display the synthesized image and attempt to
     automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that ``plenoptic.imshow`` is
+    value using the zoom arg, but remember that :func:`plenoptic.imshow` is
     opinionated about the size of the resulting image and will throw an
     Exception if the axis created is not big enough for the selected zoom.
 
     Parameters
     ----------
-    mad :
+    mad
         MADCompetition object whose MAD image we want to display.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we assume
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we assume
         image is RGB(A) and show all channels.
-    zoom :
+    zoom
         How much to zoom in / enlarge the synthesized image, the ratio
-        of display pixels to image pixels. If None (the default), we
+        of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    iteration :
+    iteration
         Which iteration to display. If None, the default, we show
         the most recent one. Negative values are also allowed.
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
+    ax
+        Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     title :
         Title of the axis.
-    kwargs :
-        Passed to ``plenoptic.imshow``
+    **kwargs
+        Passed to :func:`plenoptic.imshow`.
 
     Returns
     -------
     ax :
         The matplotlib axes containing the plot.
 
+    Raises
+    ------
+    ValueError
+        If ``batch_idx`` is not an int.
     """
     image = mad.mad_image if iteration is None else mad.saved_mad_image[iteration]
     if batch_idx is None:
@@ -827,43 +899,57 @@ def plot_pixel_values(
     iteration: int | None = None,
     ylim: tuple[float] | Literal[False] = False,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    r"""Plot histogram of pixel values of reference and MAD images.
+    r"""
+    Plot histogram of pixel values of reference and MAD images.
 
     As a way to check the distributions of pixel intensities and see
-    if there's any values outside the allowed range
+    if there's any values outside the allowed range.
 
     Parameters
     ----------
-    mad :
+    mad
         MADCompetition object with the images whose pixel values we want to compare.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we use all
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) images).
-    iteration :
-        Which iteration to display. If None, the default, we show
+    iteration
+        Which iteration to display. If ``None``, the default, we show
         the most recent one. Negative values are also allowed.
-    ylim :
-        if tuple, the ylimit to set for this axis. If False, we leave
-        it untouched
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    kwargs :
-        passed to plt.hist
+    ylim
+        If tuple, the ylimit to set for this axis. If False, we leave
+        it untouched.
+    ax
+        Pre-existing axes for plot. If ``None``, we call
+        :func:`matplotlib.pyplot.gca()`.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.hist`.
 
     Returns
     -------
     ax :
         Creates axes.
-
     """
 
-    def _freedman_diaconis_bins(a):
-        """Calculate number of hist bins using Freedman-Diaconis rule. copied from
-        seaborn."""
+    def _freedman_diaconis_bins(a: np.ndarray) -> int:
+        """
+        Calculate number of hist bins using Freedman-Diaconis rule.
+
+        Copied from seaborn.
+
+        Parameters
+        ----------
+        a
+            The array to histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins to use for histogram.
+        """
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
         iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
@@ -909,21 +995,26 @@ def plot_pixel_values(
 
 
 def _check_included_plots(to_check: list[str] | dict[str, int], to_check_name: str):
-    """Check whether the user wanted us to create plots that we can't.
+    """
+    Check whether the user wanted us to create plots that we can't.
 
-    Helper function for plot_synthesis_status and animate.
+    Helper function for :func:`plot_synthesis_status` and :func:`animate`.
 
-    Raises a ValueError to_check contains any values that are not allowed.
+    Raises a ``ValueError`` if ``to_check`` contains any values that are not allowed.
 
     Parameters
     ----------
-    to_check :
+    to_check
         The variable to check. We ensure that it doesn't contain any extra (not
         allowed) values. If a list, we check its contents. If a dict, we check
         its keys.
-    to_check_name :
-        Name of the `to_check` variable, used in the error message.
+    to_check_name
+        Name of the ``to_check`` variable, used in the error message.
 
+    Raises
+    ------
+    ValueError
+        If ``to_check`` takes an illegal value.
     """
     allowed_vals = [
         "display_mad_image",
@@ -956,52 +1047,51 @@ def _setup_synthesis_fig(
     plot_loss_width: float = 2,
     plot_pixel_values_width: float = 1,
 ) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
-    """Set up figure for plot_synthesis_status.
+    """
+    Set up figure for :func:`plot_synthesis_status`.
 
     Creates figure with enough axes for the all the plots you want. Will
-    also create index in axes_idx for them if you haven't done so already.
+    also create index in ``axes_idx`` for them if you haven't done so already.
 
     By default, all axes will be on the same row and have the same width. If
-    you want them to be on different rows, will need to initialize fig yourself
-    and pass that in. For changing width, change the corresponding *_width arg,
+    you want them to be on different rows, will need to initialize ``fig`` yourself
+    and pass that in. For changing width, change the corresponding ``*_width`` arg,
     which gives width relative to other axes. So if you want the axis for the
-    loss plot to be three times as wide as the others, set loss_width=3.
+    loss plot to be three times as wide as the others, set ``loss_width=3``.
 
     Parameters
     ----------
-    fig :
-        The figure to plot on or None. If None, we create a new figure
-    axes_idx :
-        Dictionary specifying which axes contains which type of plot, allows
-        for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: loss, pixel_values,
-        misc. Values should all be ints. If you tell this function to create a
-        plot that doesn't have a corresponding key, we find the lowest int that
-        is not already in the dict, so if you have axes that you want
-        unchanged, place their idx in misc.
-    figsize :
+    fig
+        The figure to plot on or None. If None, we create a new figure.
+    axes_idx
+        Dictionary specifying which axes contains which type of plot, allows for more
+        fine-grained control of the resulting figure. Probably only helpful if fig is
+        also defined. Possible keys: ``"loss"``, ``"pixel_values"``, ``"misc"``. Values
+        should all be ints. If you tell this function to create a plot that doesn't have
+        a corresponding key, we find the lowest int that is not already in the dict, so
+        if you have axes that you want unchanged, place their idx in ``"misc"``.
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have relative width=1 correspond to 5
-    included_plots :
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have relative width=1 correspond to 5.
+    included_plots
         Which plots to include. Must be some subset of ``'display_mad_image',
         'plot_loss', 'plot_pixel_values'``.
-    display_mad_image_width :
+    display_mad_image_width
         Relative width of the axis for the synthesized image.
-    plot_loss_width :
+    plot_loss_width
         Relative width of the axis for loss plot.
-    plot_pixel_values_width :
+    plot_pixel_values_width
         Relative width of the axis for image pixel intensities histograms.
 
     Returns
     -------
-    fig :
-        The figure to plot on
-    axes :
-        List or array of axes contained in fig
-    axes_idx :
-        Dictionary identifying the idx for each plot type
-
+    fig
+        The figure to plot on.
+    axes
+        List or array of axes contained in fig.
+    axes_idx
+        Dictionary identifying the idx for each plot type.
     """
     n_subplots = 0
     axes_idx = axes_idx.copy()
@@ -1071,43 +1161,41 @@ def plot_synthesis_status(
     ],
     width_ratios: dict[str, float] = {},
 ) -> tuple[mpl.figure.Figure, dict[str, int]]:
-    r"""Make a plot showing synthesis status.
+    r"""
+    Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create two
     subplots on a new figure: the first one contains the MAD image and the
     second contains the loss.
 
-    There is an optional additional plot: pixel_values, a histogram of pixel
-    values of the synthesized and target images.
-
-    All of these (including the default plots) can be toggled using their
-    corresponding boolean flags, and can be created separately using the
-    method with the name `plot_{flag}`.
+    The plots to include are specified by including their name in the
+    ``included_plots`` list. All plots can be created separately using the
+    method with the same name.
 
     Parameters
     ----------
-    mad :
+    mad
         MADCompetition object whose status we want to plot.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we use all
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
-    iteration :
-        Which iteration to display. If None, the default, we show
+    iteration
+        Which iteration to display. If ``None``, we show
         the most recent one. Negative values are also allowed.
-    vrange :
+    vrange
         The vrange option to pass to ``display_mad_image()``. See
-        docstring of ``imshow`` for possible values.
-    zoom :
+        docstring of :func:`plenoptic.imshow` for possible values.
+    zoom
         How much to zoom in / enlarge the synthesized image, the ratio
-        of display pixels to image pixels. If None (the default), we
+        of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    fig :
-        if None, we create a new figure. otherwise we assume this is
+    fig
+        If ``None``, we create a new figure. otherwise we assume this is
         an empty figure that has the appropriate size and number of
-        subplots
-    axes_idx :
+        subplots.
+    axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
         helpful if fig is also defined. Possible keys: ``'mad_image',
@@ -1115,27 +1203,33 @@ def plot_synthesis_status(
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
         have axes that you want unchanged, place their idx in ``'misc'``.
-    figsize :
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have each axis be of size (5, 5)
-    included_plots :
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
+    included_plots
         Which plots to include. Must be some subset of ``'display_mad_image',
         'plot_loss', 'plot_pixel_values'``.
-    width_ratios :
-        By default, all plots axes will have the same width. To change
-        that, specify their relative widths using the keys:
-        ['display_mad_image', 'plot_loss', 'plot_pixel_values'] and floats
-        specifying their relative width. Any not included will be assumed to be
-        1.
+    width_ratios
+        By default, ``plot_loss`` will have double the width of the other plots. To
+        change that, specify their relative widths using the keys: ['display_mad_image',
+        'plot_loss', 'plot_pixel_values'] and floats specifying their relative width.
+        If keys are not included, revert to default behavior.
 
     Returns
     -------
-    fig :
-        The figure containing this plot
-    axes_idx :
+    fig
+        The figure containing this plot.
+    axes_idx
         Dictionary giving index of each plot.
 
+    Raises
+    ------
+    ValueError
+        If ``mad.mad_image`` object is not 3d or 4d.
+    ValueError
+        If the ``iteration is not None`` and the given ``mad`` object was run
+        with ``store_progress=False``.
     """
     if iteration is not None and not mad.store_progress:
         raise ValueError(
@@ -1207,41 +1301,42 @@ def animate(
     ],
     width_ratios: dict[str, float] = {},
 ) -> mpl.animation.FuncAnimation:
-    r"""Animate synthesis progress.
+    r"""
+    Animate synthesis progress.
 
     This is essentially the figure produced by
     ``mad.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
-    (e.g.,
-    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
+    (e.g., `Quickstart
+    <https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html>`_)
     for examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
-    [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html) for
-    more details.
+    `matplotlib documentation <https://matplotlib.org/stable/api/animation_api.html>`_
+    for more details.
 
     Parameters
     ----------
-    mad :
+    mad
         MADCompetition object whose synthesis we want to animate.
-    framerate :
+    framerate
         How many frames a second to display.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
         Which index to take from the channel dimension. If None, we use all
         channels (assumed use-case is RGB(A) image).
-    zoom :
+    zoom
         How much to zoom in / enlarge the synthesized image, the ratio
-        of display pixels to image pixels. If None (the default), we
+        of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    fig :
-        If None, create the figure from scratch. Else, should be an empty
-        figure with enough axes (the expected use here is have same-size
-        movies with different plots).
-    axes_idx :
+    fig
+        If ``None``, we create a new figure. otherwise we assume this is
+        an empty figure that has the appropriate size and number of
+        subplots.
+    axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
         helpful if fig is also defined. Possible keys: ``'mad_image',
@@ -1249,34 +1344,45 @@ def animate(
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
         have axes that you want unchanged, place their idx in ``'misc'``.
-    figsize :
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have each axis be of size (5, 5)
-    width_ratios :
-        By default, all plots axes will have the same width. To change
-        that, specify their relative widths using the keys:
-        ['display_mad_image', 'plot_loss', 'plot_pixel_values'] and floats
-        specifying their relative width. Any not included will be assumed to be
-        1.
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
+    included_plots
+        Which plots to include. Must be some subset of ``'display_mad_image',
+        'plot_loss', 'plot_pixel_values'``.
+    width_ratios
+        By default, ``plot_loss`` will have double the width of the other plots. To
+        change that, specify their relative widths using the keys: ['display_mad_image',
+        'plot_loss', 'plot_pixel_values'] and floats specifying their relative width.
+        If keys are not included, revert to default behavior.
 
     Returns
     -------
-    anim :
+    anim
         The animation object. In order to view, must convert to HTML
         or save.
+
+    Raises
+    ------
+    ValueError
+        If the given ``mad`` object was run with ``store_progress=False``.
+    ValueError
+        If ``mad.mage_image`` object is not 3d or 4d.
+    ValueError
+        If we do not know how to interpret the value of ``ylim``.
 
     Notes
     -----
     By default, we use the ffmpeg backend, which requires that you have
     ffmpeg installed and on your path (https://ffmpeg.org/download.html).
     To use a different, use the matplotlib rcParams:
-    `matplotlib.rcParams['animation.writer'] = writer`, see
-    https://matplotlib.org/stable/api/animation_api.html#writer-classes for
-    more details.
+    ``matplotlib.rcParams['animation.writer'] = writer``, see
+    `matplotlib documentation
+    <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
+    details.
 
     For displaying in a jupyter notebook, ffmpeg appears to be required.
-
     """
     if not mad.store_progress:
         raise ValueError(
@@ -1311,7 +1417,22 @@ def animate(
         scat = [fig.axes[i].collections[0] for i in axes_idx["plot_loss"]]
     # can also have multiple plots
 
-    def movie_plot(i):
+    def movie_plot(i: int) -> list[mpl.artist.Artist]:
+        """
+        Matplotlib function for animation.
+
+        Update plots for frame ``i``.
+
+        Parameters
+        ----------
+        i
+            The frame to plot.
+
+        Returns
+        -------
+        artists
+            The updated matplotlib artists.
+        """
         artists = []
         if "display_mad_image" in included_plots:
             artists.extend(
@@ -1365,47 +1486,50 @@ def display_mad_image_all(
     metric1_name: str | None = None,
     metric2_name: str | None = None,
     zoom: int | float = 1,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.figure.Figure:
-    """Display all MAD Competition images.
+    """
+    Display all MAD Competition images.
 
     To generate a full set of MAD Competition images, you need four instances:
     one for minimizing and maximizing each metric. This helper function creates
     a figure to display the full set of images.
 
     In addition to the four MAD Competition images, this also plots the initial
-    image from `mad_metric1_min`, for comparison.
-
-    Note that all four MADCompetition instances must have the same
-    `image`.
+    image from ``mad_metric1_min``, for comparison.
 
     Parameters
     ----------
-    mad_metric1_min :
-        MADCompetition object that minimized the first metric.
-    mad_metric2_min :
-        MADCompetition object that minimized the second metric.
-    mad_metric1_max :
-        MADCompetition object that maximized the first metric.
-    mad_metric2_max :
-        MADCompetition object that maximized the second metric.
-    metric1_name :
-        Name of the first metric. If None, we use the name of the
-        `optimized_metric` function from `mad_metric1_min`.
-    metric2_name :
-        Name of the second metric. If None, we use the name of the
-        `optimized_metric` function from `mad_metric2_min`.
-    zoom :
-        Ratio of display pixels to image pixels. See `plenoptic.imshow` for
+    mad_metric1_min
+        ``MADCompetition`` object that minimized the first metric.
+    mad_metric2_min
+        ``MADCompetition`` object that minimized the second metric.
+    mad_metric1_max
+        ``MADCompetition`` object that maximized the first metric.
+    mad_metric2_max
+        ``MADCompetition`` object that maximized the second metric.
+    metric1_name
+        Name of the first metric. If ``None``, we use the name of the
+        ``optimized_metric`` function from ``mad_metric1_min``.
+    metric2_name
+        Name of the second metric. If ``None``, we use the name of the
+        ``optimized_metric`` function from ``mad_metric2_min``.
+    zoom
+        Ratio of display pixels to image pixels. See :func:`plenoptic.imshow` for
         details.
-    kwargs :
-        Passed to `plenoptic.imshow`.
+    **kwargs
+        Passed to :func:`plenoptic.imshow`.
 
     Returns
     -------
-    fig :
+    fig
         Figure containing the images.
 
+    Raises
+    ------
+    ValueError
+        If the four ``MADCompetition`` instances do not have the same ``image``
+        attribute.
     """
     # this is a bit of a hack right now, because they don't all have same
     # initial image
@@ -1465,53 +1589,56 @@ def plot_loss_all(
     metric2_kwargs: dict = {"c": "C1"},
     min_kwargs: dict = {"linestyle": "--"},
     max_kwargs: dict = {"linestyle": "-"},
-    figsize=(10, 5),
+    figsize: tuple[int, int] = (10, 5),
 ) -> mpl.figure.Figure:
-    """Plot loss for full set of MAD Competiton instances.
+    """
+    Plot loss for full set of MAD Competiton instances.
 
     To generate a full set of MAD Competition images, you need four instances:
     one for minimizing and maximizing each metric. This helper function creates
     a two-axis figure to display the loss for this full set.
 
-    Note that all four MADCompetition instances must have the same
-    `image`.
-
     Parameters
     ----------
-    mad_metric1_min :
-        MADCompetition object that minimized the first metric.
-    mad_metric2_min :
-        MADCompetition object that minimized the second metric.
-    mad_metric1_max :
-        MADCompetition object that maximized the first metric.
-    mad_metric2_max :
-        MADCompetition object that maximized the second metric.
-    metric1_name :
-        Name of the first metric. If None, we use the name of the
-        `optimized_metric` function from `mad_metric1_min`.
-    metric2_name :
-        Name of the second metric. If None, we use the name of the
-        `optimized_metric` function from `mad_metric2_min`.
-    metric1_kwargs :
-        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+    mad_metric1_min
+        ``MADCompetition`` object that minimized the first metric.
+    mad_metric2_min
+        ``MADCompetition`` object that minimized the second metric.
+    mad_metric1_max
+        ``MADCompetition`` object that maximized the first metric.
+    mad_metric2_max
+        ``MADCompetition`` object that maximized the second metric.
+    metric1_name
+        Name of the first metric. If ``None``, we use the name of the
+        ``optimized_metric`` function from ``mad_metric1_min``.
+    metric2_name
+        Name of the second metric. If ``None``, we use the name of the
+        ``optimized_metric`` function from ``mad_metric2_min``.
+    metric1_kwargs
+        Dictionary of arguments to pass to :func:`matplotlib.pyplot.plot` to identify
         synthesis instance where the first metric was being optimized.
-    metric2_kwargs :
-        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
+    metric2_kwargs
+        Dictionary of arguments to pass to :func:`matplotlib.pyplot.plot` to identify
         synthesis instance where the second metric was being optimized.
-    min_kwargs :
-        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
-        synthesis instance where `optimized_metric` was being minimized.
-    max_kwargs :
-        Dictionary of arguments to pass to `matplotlib.pyplot.plot` to identify
-        synthesis instance where `optimized_metric` was being maximized.
-    figsize :
+    min_kwargs
+        Dictionary of arguments to pass to :func:`matplotlib.pyplot.plot` to identify
+        synthesis instance where ``optimized_metric`` was being minimized.
+    max_kwargs
+        Dictionary of arguments to pass to :func:`matplotlib.pyplot.plot` to identify
+        synthesis instance where ``optimized_metric`` was being maximized.
+    figsize
         Size of the figure we create.
 
     Returns
     -------
-    fig :
+    fig
         Figure containing the plot.
 
+    Raises
+    ------
+    ValueError
+        If the four ``MADCompetition`` instances do not have the same ``image``
+        attribute.
     """
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
         raise ValueError("All four instances of MADCompetition must have same image!")

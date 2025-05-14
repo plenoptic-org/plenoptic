@@ -51,6 +51,7 @@ docs = [
      "myst-parser",
      "sphinxcontrib-bibtex",
      "sphinx-design",
+     "pooch",
 ]
 
 dev = [
@@ -59,6 +60,7 @@ dev = [
     'pytest-xdist',
     "pooch>=1.2.0",
     "ruff>=0.6.8",
+    'numpydoc',
 ]
 
 nb = [
@@ -84,7 +86,7 @@ local_scheme = 'no-local-version'
 [tool.pytest.ini_options]
 addopts = "--cov=plenoptic --cov-append -n auto --cov-report term"
 testpaths = ["tests"]
-doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
+doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
 
 # ignore a bunch of common plenoptic-generated warnings, and raise errors
 # otherwise. this way we can actually stay on top of deprecations etc. Per docs
@@ -123,6 +125,8 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+docstring-code-format = true
+
 [tool.ruff.lint]
 select = [
     # pycodestyle
@@ -138,6 +142,42 @@ select = [
     "I",
     # in particular, this looks for invalid escape sequences (has been an issue
     # for regex strings used in tests)
-    "W"
+    "W",
+    # docstrings, note that DOC rules (pydoclint) are all in preview, so have to be explicitly added
+    "D", "DOC201", "DOC202", "DOC402", "DOC403", "DOC501",
+    "ANN",
 ]
 ignore = []
+
+# allow preview rules, but require them to be explicitly added
+preview = true
+explicit-preview-rules = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+suppress-none-returning = true
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore docstring rules everywhere except for the `src/` directory, from
+# https://docs.astral.sh/ruff/settings/#lint_per-file-ignores.
+"!src/**.py" = ["D", "DOC", "ANN"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.numpydoc_validation]
+checks = [
+    "all",
+    "SA01",
+    # will remove this eventually
+    "EX01",
+    "PR04",
+]
+
+# don't report on objects that match any of these regex
+exclude = [
+    "__dir__",
+    # init has no docstring, documented in the class docstring
+    "__init__",
+    "noxfile",
+]

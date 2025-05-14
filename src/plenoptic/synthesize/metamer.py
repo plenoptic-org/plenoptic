@@ -1,11 +1,15 @@
-"""Synthesize model metamers."""
+"""
+Model metamers.
+
+Classes to perform the synthesis of model metamers.
+"""
 
 import contextlib
 import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -21,53 +25,29 @@ from .synthesis import OptimizedSynthesis
 
 
 class Metamer(OptimizedSynthesis):
-    r"""Synthesize metamers for image-computable differentiable models.
+    r"""
+    Synthesize metamers for image-computable differentiable models.
 
     Following the basic idea in [1]_, this class creates a metamer for a given model on
     a given image. We iteratively adjust the pixel values so as to match the
-    representation of the ``metamer`` and ``image``.
-
-    All ``saved_`` attributes are initialized as empty lists and will be
-    non-empty if the ``store_progress`` arg to ``synthesize()`` is not
-    ``False``. They will be appended to on every iteration if
-    ``store_progress=True`` or every ``store_progress`` iterations if it's an
-    ``int``.
+    representation of the :attr:`metamer` and :attr:`image`.
 
     Parameters
     ----------
-    image :
+    image
         A tensor, this is the image whose representation we wish to
         match.
-    model :
-        A visual model, see `Metamer` notebook for more details
-    loss_function :
-        the loss function to use to compare the representations of the models
+    model
+        A visual model.
+    loss_function
+        The loss function to use to compare the representations of the models
         in order to determine their loss.
-    range_penalty_lambda :
-        strength of the regularizer that enforces the allowed_range. Must be
+    range_penalty_lambda
+        Strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
-    allowed_range :
+    allowed_range
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
-
-    Attributes
-    ----------
-    target_representation : torch.Tensor
-        Whatever is returned by ``model(image)``, this is what we match
-        in order to create a metamer
-    metamer : torch.Tensor
-        The metamer. This may be unfinished depending on how many
-        iterations we've run for.
-    losses : list
-        A list of our loss over iterations.
-    gradient_norm : list
-        A list of the gradient's L2 norm over iterations.
-    pixel_change_norm : list
-        A list containing the L2 norm of the pixel change over iterations
-        (``pixel_change_norm[i]`` is the pixel change norm in
-        ``metamer`` between iterations ``i`` and ``i-1``).
-    saved_metamer : torch.Tensor
-        Saved ``self.metamer`` for later examination.
 
     References
     ----------
@@ -76,7 +56,6 @@ class Metamer(OptimizedSynthesis):
        Journal of Computer Vision. 40(1):49-71, October, 2000.
        https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        https://www.cns.nyu.edu/~lcv/texture/
-
     """
 
     def __init__(
@@ -114,30 +93,57 @@ class Metamer(OptimizedSynthesis):
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         scheduler_kwargs: dict | None = None,
     ):
-        """Initialize the metamer, optimizer, and scheduler.
+        """
+        Initialize the metamer, optimizer, and scheduler.
 
         Can only be called once. If ``load()`` has been called, ``initial_image`` must
-        be None.
+        be ``None``.
 
         Parameters
         ----------
-        initial_image :
-            The tensor we use to initialize the metamer. If None, we initialize with
+        initial_image
+            The tensor we use to initialize the metamer. If ``None``, we initialize with
             uniformly-distributed random noise lying within ``self.allowed_range``.
-        optimizer :
-            The un-initialized optimizer object to use. If None, we use Adam.
-        optimizer_kwargs :
-            The keyword arguments to pass to the optimizer on initialization. If None,
-            we use {"lr": .01} and, if optimizer is None, {"amsgrad": True}
-        scheduler :
-            The learning rate scheduler to use. If None, we don't use one.
-        scheduler_kwargs :
+        optimizer
+            The un-initialized optimizer object to use. If ``None``, we use
+            :class:`torch.optim.Adam`.
+        optimizer_kwargs
+            The keyword arguments to pass to the optimizer on initialization. If
+            ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
+            ``{"amsgrad": True}``.
+        scheduler
+            The un-initialized learning rate scheduler object to use. If ``None``, we
+            don't use one.
+        scheduler_kwargs
             The keyword arguments to pass to the scheduler on initialization.
 
         Raises
         ------
-        ValueError :
-            If ``initial_image`` is the wrong shape.
+        ValueError
+            If you try to set ``initial_image`` after calling :func:`load`.
+        ValueError
+            If ``setup`` is called more than once or after :func:`synthesize`.
+        ValueError
+            If you try to set ``optimizer_kwargs`` after calling :func:`load`.
+        TypeError
+            If the loaded object had a non-Adam optimizer, but the ``optimizer`` arg
+            is not specified.
+        ValueError
+            If the loaded object had an optimizer, and the ``optimizer`` arg is
+            a different type.
+        ValueError
+            If you try to set ``scheduler_kwargs`` after calling :func:`load`.
+        TypeError
+            If the loaded object had a scheduler, but the ``scheduler`` arg is not
+            specified.
+        ValueError
+            If the loaded object had a scheduler, but the ``scheduler`` arg is
+            a different type.
+
+        Warns
+        -----
+        UserWarning
+            If ``initial_image`` is a different shape than ``self.image``.
 
         Examples
         --------
@@ -169,15 +175,17 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.setup(po.data.curie(), optimizer=torch.optim.SGD,
-        ...           optimizer_kwargs={"lr": 0.01})
+        >>> met.setup(
+        ...     po.data.curie(),
+        ...     optimizer=torch.optim.SGD,
+        ...     optimizer_kwargs={"lr": 0.01},
+        ... )
         >>> met.synthesize(10)
         >>> met.save("metamer_setup.pt")
         >>> met = po.synth.Metamer(img, model)
         >>> met.load("metamer_setup.pt")
         >>> met.setup(optimizer=torch.optim.SGD)
         >>> met.synthesize(10)
-
         """
         if self._metamer is None:
             if initial_image is None:
@@ -222,32 +230,37 @@ class Metamer(OptimizedSynthesis):
         stop_criterion: float = 1e-4,
         stop_iters_to_check: int = 50,
     ):
-        r"""Synthesize a metamer.
+        r"""
+        Synthesize a metamer.
 
-        Update the pixels of ``metamer`` until its representation matches that of
-        ``image``.
+        Update the pixels of :attr:`metamer` until its representation matches that of
+        :attr:`image`.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first
+        ``stop_criterion``, whichever comes first.
 
         Parameters
         ----------
-        max_iter :
+        max_iter
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
-        store_progress :
+        store_progress
             Whether we should store the metamer image in progress during
             synthesis. If False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True).
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
+        Raises
+        ------
+        ValueError
+            If we find a NaN during optimization.
         """
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
@@ -279,24 +292,25 @@ class Metamer(OptimizedSynthesis):
         metamer_representation: Tensor | None = None,
         target_representation: Tensor | None = None,
     ) -> Tensor:
-        """Compute the metamer synthesis loss.
+        """
+        Compute the metamer synthesis loss.
 
         This calls self.loss_function on ``metamer_representation`` and
         ``target_representation`` and then adds the weighted range penalty.
 
         Parameters
         ----------
-        metamer_representation :
-            Model response to ``metamer``. If None, we use
-            ``self.model(self.metamer)``
-        target_representation :
-            Model response to ``image``. If None, we use
+        metamer_representation
+            Model response to ``metamer``. If ``None``, we use
+            ``self.model(self.metamer)``.
+        target_representation
+            Model response to ``image``. If ``None``, we use
             ``self.target_representation``.
 
         Returns
         -------
         loss
-
+            1-element tensor containing the loss on this step.
         """
         if metamer_representation is None:
             metamer_representation = self.model(self.metamer)
@@ -307,11 +321,12 @@ class Metamer(OptimizedSynthesis):
         return loss + self.range_penalty_lambda * range_penalty
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
-        r"""Compute and propagate gradients, then step the optimizer to update metamer.
+        r"""
+        Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
         ----------
-        pbar :
+        pbar
             A tqdm progress-bar, which we update with a postfix
             describing the current loss, gradient norm, and learning
             rate (it already tells us which iteration and the time
@@ -319,10 +334,9 @@ class Metamer(OptimizedSynthesis):
 
         Returns
         -------
-        loss : torch.Tensor
-            1-element tensor containing the loss on this step
-
-        """
+        loss
+            1-element tensor containing the loss on this step.
+        """  # numpydoc ignore=ES01
         last_iter_metamer = self.metamer.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss.item())
@@ -352,52 +366,45 @@ class Metamer(OptimizedSynthesis):
         )
         return loss
 
-    def _check_convergence(self, stop_criterion, stop_iters_to_check):
-        r"""Check whether the loss has stabilized and, if so, return True.
+    def _check_convergence(
+        self, stop_criterion: float, stop_iters_to_check: int
+    ) -> bool:
+        r"""
+        Check whether the loss has stabilized and, if so, return True.
 
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
-         |      no |
-         |       | yes
-         <-------' |
-         |         '------> return ``True``
-         |
-         '---------> return ``False``
+        Uses :func:`loss_convergence`.
 
         Parameters
         ----------
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
 
         Returns
         -------
-        loss_stabilized :
+        loss_stabilized
             Whether the loss has stabilized or not.
-
-        """  # noqa: E501
+        """
         return loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
-        """Store metamer, if appropriate.
+        """
+        Store metamer, if appropriate.
 
-        if it's the right iteration, we update ``saved_metamer``.
+        If it's the right iteration, we update :attr:`saved_metamer`.
 
         Parameters
         ----------
         i
-            the current iteration
+            The current iteration.
 
         Returns
         -------
-        stored :
+        stored
             True if we stored this iteration, False if not.
-
         """
         if self.store_progress and (i % self.store_progress == 0):
             # want these to always be on cpu, to reduce memory use for GPUs
@@ -408,18 +415,18 @@ class Metamer(OptimizedSynthesis):
         return stored
 
     def save(self, file_path: str):
-        r"""Save all relevant variables in .pt file.
+        r"""
+        Save all relevant variables in .pt file.
 
-        Note that if store_progress is True, this will probably be very
+        Note that if ``store_progress`` is True, this will probably be very
         large.
 
-        See ``load`` docstring for an example of use.
+        See :func:`load` docstring for an example of use.
 
         Parameters
         ----------
         file_path :
-            The path to save the metamer object to
-
+            The path to save the metamer object to.
         """
         save_io_attrs = [
             ("loss_function", ("_image", "_metamer")),
@@ -428,8 +435,9 @@ class Metamer(OptimizedSynthesis):
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
 
-    def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
+    def to(self, *args: Any, **kwargs: Any):
+        r"""
+        Move and/or cast the parameters and buffers.
 
         This can be called as
 
@@ -448,20 +456,22 @@ class Metamer(OptimizedSynthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See below for examples.
+        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.
 
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-
-        """
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
         attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
@@ -477,9 +487,10 @@ class Metamer(OptimizedSynthesis):
         map_location: str | None = None,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Load all relevant stuff from a .pt file.
+        r"""
+        Load all relevant stuff from a .pt file.
 
         This must be called by a ``Metamer`` object initialized just like the saved
         object.
@@ -492,15 +503,15 @@ class Metamer(OptimizedSynthesis):
 
         Parameters
         ----------
-        file_path :
-            The path to load the synthesis object from
-        map_location :
-            map_location argument to pass to ``torch.load``. If you save
-            stuff that was being run on a GPU and are loading onto a
+        file_path
+            The path to load the synthesis object from.
+        map_location
+            Argument to pass to :func:`torch.load` as ``map_location``. If you
+            save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``
-        tensor_equality_atol :
+            pass to :class:`torch.device`.
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -509,7 +520,7 @@ class Metamer(OptimizedSynthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -518,13 +529,34 @@ class Metamer(OptimizedSynthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        pickle_load_args :
-            any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``Metamer`` object.
+        ValueError
+            If the saved and loading ``Metamer`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            or :attr:`allowed_range`.
+        ValueError
+            If the behavior of :attr:`loss_function` or :attr:`model` is different
+            between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after load, to finish initializing
+            :attr:`optimizer` or :attr:`scheduler`.
 
         See Also
         --------
-        examine_saved_synthesis :
+        :func:`~plenoptic.tools.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
@@ -536,10 +568,9 @@ class Metamer(OptimizedSynthesis):
         >>> po.tools.remove_grad(model)
         >>> metamer = po.synth.Metamer(img, model)
         >>> metamer.synthesize(max_iter=5, store_progress=True)
-        >>> metamer.save('metamers.pt')
+        >>> metamer.save("metamers.pt")
         >>> metamer_copy = po.synth.Metamer(img, model)
-        >>> metamer_copy.load('metamers.pt')
-
+        >>> metamer_copy.load("metamers.pt")
         """
         self._load(
             file_path,
@@ -557,13 +588,53 @@ class Metamer(OptimizedSynthesis):
         additional_check_io_attributes: list[str] = [],
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Helper function for loading.
+        r"""
+        Load from a file.
+
+        This is a helper function for loading.
 
         Users interact with ``load`` (without the underscore), this is to allow
         subclasses to specify additional attributes or loss functions to check.
 
+        Parameters
+        ----------
+        file_path
+            The path to load the synthesis object from.
+        map_location
+            Argument to pass to :func:`torch.load` as ``map_location``. If you
+            save stuff that was being run on a GPU and are loading onto a
+            CPU, you'll need this to make sure everything lines up
+            properly. This should be structured like the str you would
+            pass to :class:`torch.device`.
+        additional_check_attributes
+            Any additional attributes to check for equality. Intended for use by any
+            subclasses, to add other attributes set at initialization.
+        additional_check_io_attributes
+            Any additional attributes whose input/output behavior we should check.
+            Intended for use by any subclasses.
+        tensor_equality_atol
+            Absolute tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        tensor_equality_rtol
+            Relative tolerance to use when checking for tensor equality during load,
+            passed to :func:`torch.allclose`. It may be necessary to increase if you are
+            saving and loading on two machines with torch built by different cuda
+            versions. Be careful when changing this! See
+            :class:`torch.finfo<torch.torch.finfo>` for more details about floating
+            point precision of different data types (especially, ``eps``); if you have
+            to increase this by more than 1 or 2 decades, then you are probably not
+            dealing with a numerical issue.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
         """
         check_attributes = [
             "_image",
@@ -596,30 +667,46 @@ class Metamer(OptimizedSynthesis):
             self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
 
     @property
-    def model(self):
+    def model(self) -> torch.nn.Module:
+        """The model for which the metamer is synthesized."""
+        # numpydoc ignore=RT01,ES01
         return self._model
 
     @property
-    def image(self):
+    def image(self) -> torch.Tensor:
+        """Target image of metamer optimization."""
+        # numpydoc ignore=RT01,ES01
         return self._image
 
     @property
-    def target_representation(self):
-        """Model representation of ``image``, the goal of synthesis is for
-        ``model(metamer)`` to match this value."""
+    def target_representation(self) -> torch.Tensor:
+        """
+        :attr:`model` representation of :attr:`image`, i.e. ``model(image)``.
+
+        The goal of synthesis is for ``model(metamer)`` to match this value.
+        """  # numpydoc ignore=RT01
         return self._target_representation
 
     @property
-    def metamer(self):
+    def metamer(self) -> torch.Tensor:
+        """Model metamer, the parameter we are optimizing."""
+        # numpydoc ignore=RT01,ES01
         return self._metamer
 
     @property
-    def saved_metamer(self):
+    def saved_metamer(self) -> torch.Tensor:
+        """
+        :attr:`metamer`, cached over time for later examination.
+
+        How often the metamer is cached is determined by the ``store_progress`` argument
+        to the :func:`synthesize` function.
+        """  # numpydoc ignore=RT01
         return torch.stack(self._saved_metamer)
 
 
 class MetamerCTF(Metamer):
-    """Synthesize model metamers with coarse-to-fine synthesis.
+    """
+    Synthesize model metamers with coarse-to-fine synthesis.
 
     This is a special case of ``Metamer``, which uses the coarse-to-fine
     synthesis procedure described in [1]_: we start by updating metamer with
@@ -631,56 +718,37 @@ class MetamerCTF(Metamer):
 
     Parameters
     ----------
-    image :
+    image
         A tensor, this is the image whose representation we wish to
         match.
-    model :
-        A visual model, see `Metamer` notebook for more details
-    loss_function :
-        the loss function to use to compare the representations of the models
+    model
+        A visual model.
+    loss_function
+        The loss function to use to compare the representations of the models
         in order to determine their loss.
-    range_penalty_lambda :
-        strength of the regularizer that enforces the allowed_range. Must be
+    range_penalty_lambda
+        Strength of the regularizer that enforces the allowed_range. Must be
         non-negative.
-    allowed_range :
+    allowed_range
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
-    coarse_to_fine :
-        - 'together': start with the coarsest scale, then gradually
+    coarse_to_fine
+        - ``"together"``: start with the coarsest scale, then gradually
           add each finer scale.
-        - 'separate': compute the gradient with respect to each
+        - ``"separate"``: compute the gradient with respect to each
           scale separately (ignoring the others), then with respect
           to all of them at the end.
-        (see ``Metamer`` tutorial for more details).
+        (see `Metamer tutorial
+        <https://docs.plenoptic.org/docs/branch/main/tutorials/intro/06_Metamer.html>`_
+        for more details).
 
-    Attributes
+    References
     ----------
-    target_representation : torch.Tensor
-        Whatever is returned by ``model(image)``, this is what we match
-        in order to create a metamer
-    metamer : torch.Tensor
-        The metamer. This may be unfinished depending on how many
-        iterations we've run for.
-    losses : list
-        A list of our loss over iterations.
-    gradient_norm : list
-        A list of the gradient's L2 norm over iterations.
-    pixel_change_norm : list
-        A list containing the L2 norm of the pixel change over iterations
-        (``pixel_change_norm[i]`` is the pixel change norm in
-        ``metamer`` between iterations ``i`` and ``i-1``).
-    saved_metamer : torch.Tensor
-        Saved ``self.metamer`` for later examination.
-    scales : list or None
-        The list of scales in optimization order (i.e., from coarse to fine).
-        Will be modified during the course of optimization.
-    scales_loss : list or None
-        The scale-specific loss at each iteration
-    scales_timing : dict or None
-        Keys are the values found in ``scales``, values are lists, specifying
-        the iteration where we started and stopped optimizing this scale.
-    scales_finished : list or None
-        List of scales that we've finished optimizing.
+    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model
+       based on Joint Statistics of Complex Wavelet Coefficients. Int'l
+       Journal of Computer Vision. 40(1):49-71, October, 2000.
+       https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
+       https://www.cns.nyu.edu/~lcv/texture/
     """
 
     def __init__(
@@ -702,7 +770,26 @@ class MetamerCTF(Metamer):
         self._init_ctf(coarse_to_fine)
 
     def _init_ctf(self, coarse_to_fine: Literal["together", "separate"]):
-        """Initialize stuff related to coarse-to-fine."""
+        """
+        Initialize stuff related to coarse-to-fine.
+
+        - Validates value of ``coarse_to_fine``
+
+        - Validates ``self.model`` for coarse-to-fine synthesis (calls
+          :func:`validate_coarse_to_fine`).
+
+        - Initializes attributes for coarse-to-fine synthesis.
+
+        Parameters
+        ----------
+        coarse_to_fine
+            Which mode of coarse-to-fine to use, see initial docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If ``coarse_to_fine`` takes an illegal value.
+        """
         # this will hold the reduced representation of the target image.
         if coarse_to_fine not in ["separate", "together"]:
             raise ValueError(
@@ -733,6 +820,25 @@ class MetamerCTF(Metamer):
         synth_attr: torch.Tensor,
         optimizer_kwargs: dict | None = None,
     ):
+        """
+        Initialize optimizer.
+
+        Calls ``super._initialize_optimizer()``, passing all arguments through, and also
+        caches the initial learning rate (``self._initial_lr``), which we use when
+        switching scales.
+
+        Parameters
+        ----------
+        optimizer
+            The (un-initialized) optimizer object to use. If ``None``, we use
+            :class:`torch.optim.Adam`.
+        synth_attr
+            The tensor we will optimize.
+        optimizer_kwargs
+            The keyword arguments to pass to the optimizer on initialization. If
+            ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
+            ``{"amsgrad": True}``.
+        """
         super()._initialize_optimizer(optimizer, synth_attr, optimizer_kwargs)
         # save the initial learning rate so we can reset it when we change scales
         self._initial_lr = [pg["lr"] for pg in self.optimizer.param_groups]
@@ -746,29 +852,30 @@ class MetamerCTF(Metamer):
         change_scale_criterion: float | None = 1e-2,
         ctf_iters_to_check: int = 50,
     ):
-        r"""Synthesize a metamer.
+        r"""
+        Synthesize a metamer.
 
         Update the pixels of ``metamer`` until its representation matches
         that of ``image``.
 
         We run this until either we reach ``max_iter`` or the change over the
         past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first
+        ``stop_criterion``, whichever comes first.
 
         Parameters
         ----------
-        max_iter :
+        max_iter
             The maximum number of iterations to run before we end synthesis
             (unless we hit the stop criterion).
-        store_progress :
+        store_progress
             Whether we should store the metamer image in progress on every
             iteration. If False, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True).
-        stop_criterion :
+        stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
-        stop_iters_to_check :
+        stop_iters_to_check
             How many iterations back to check in order to see if the
             loss has stopped decreasing (for ``stop_criterion``).
         change_scale_criterion
@@ -776,12 +883,19 @@ class MetamerCTF(Metamer):
             a given scale finished (and move onto the next) if the loss has
             changed less than this in the past ``ctf_iters_to_check``
             iterations. If ``None``, we'll change scales as soon as we've spent
-            ``ctf_iters_to_check`` on a given scale
+            ``ctf_iters_to_check`` on a given scale.
         ctf_iters_to_check
             Scale-specific analogue of ``stop_iters_to_check``: how many
             iterations back in order to check in order to see if we should
             switch scales.
 
+        Raises
+        ------
+        ValueError
+            If ``stop_criterion >= change_scale_criterion`` -- behavior is strange
+            otherwise.
+        ValueError
+            If we find a NaN during optimization.
         """
         if (change_scale_criterion is not None) and (
             stop_criterion >= change_scale_criterion
@@ -826,28 +940,28 @@ class MetamerCTF(Metamer):
         change_scale_criterion: float,
         ctf_iters_to_check: int,
     ) -> Tensor:
-        r"""Compute and propagate gradients, then step the optimizer to update metamer.
+        r"""
+        Compute and propagate gradients, then step the optimizer to update metamer.
 
         Parameters
         ----------
-        pbar :
+        pbar
             A tqdm progress-bar, which we update with a postfix
             describing the current loss, gradient norm, and learning
             rate (it already tells us which iteration and the time
             elapsed).
-        change_scale_criterion :
+        change_scale_criterion
             How many iterations back to check to see if the loss has stopped
             decreasing and we should thus move to the next scale in
             coarse-to-fine optimization.
-        ctf_iters_to_check :
+        ctf_iters_to_check
             Minimum number of iterations coarse-to-fine must run at each scale.
 
         Returns
         -------
-        loss : torch.Tensor
-            1-element tensor containing the loss on this step
-
-        """
+        loss
+            1-element tensor containing the loss on this step.
+        """  # numpydoc ignore=ES01
         last_iter_metamer = self.metamer.clone()
 
         # Check if conditions hold for switching scales:
@@ -915,7 +1029,8 @@ class MetamerCTF(Metamer):
         return overall_loss
 
     def _closure(self) -> tuple[Tensor, Tensor]:
-        r"""An abstraction of the gradient calculation, before the optimization step.
+        r"""
+        Calculate the gradient, before the optimization step.
 
         This enables optimization algorithms that perform several evaluations
         of the gradient before taking a step (ie. second order methods like
@@ -924,7 +1039,7 @@ class MetamerCTF(Metamer):
         Additionally, this is where:
 
         - ``metamer_representation`` is calculated, and thus any modifications
-          to the model's forward call (e.g., specifying `scale` kwarg for
+          to the model's forward call (e.g., specifying ``scale`` kwarg for
           coarse-to-fine) should happen.
 
         - ``loss`` is calculated and ``loss.backward()`` is called.
@@ -932,11 +1047,10 @@ class MetamerCTF(Metamer):
         Returns
         -------
         loss
-            Loss of the current objective function
+            Loss of the current objective function.
         overall_loss
-            Loss of the complete model. This differs from ``loss`` if we're
-            doing coarse-to-fine synthesis
-
+            Loss of the complete model. This differs from ``loss`` because it
+            includes all scales.
         """
         self.optimizer.zero_grad()
         analyze_kwargs = {}
@@ -977,10 +1091,10 @@ class MetamerCTF(Metamer):
         stop_iters_to_check: int,
         ctf_iters_to_check: int,
     ) -> bool:
-        r"""Check whether the loss has stabilized and whether we've synthesized all
-        scales.
+        r"""
+        Check whether the loss has stabilized and whether we've synthesized all scales.
 
-         Have we been synthesizing for ``stop_iters_to_check`` iterations?
+        Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
          | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
@@ -1013,9 +1127,8 @@ class MetamerCTF(Metamer):
 
         Returns
         -------
-        loss_stabilized :
+        loss_stabilized
             Whether the loss has stabilized and we've synthesized all scales.
-
         """  # noqa: E501
         loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
         return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
@@ -1026,9 +1139,10 @@ class MetamerCTF(Metamer):
         map_location: str | None = None,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Load all relevant stuff from a .pt file.
+        r"""
+        Load all relevant stuff from a .pt file.
 
         This should be called by an initialized ``Metamer`` object -- we will
         ensure that ``image``, ``target_representation`` (and thus
@@ -1038,15 +1152,15 @@ class MetamerCTF(Metamer):
 
         Parameters
         ----------
-        file_path : str
-            The path to load the synthesis object from
-        map_location : str, optional
-            map_location argument to pass to ``torch.load``. If you save
-            stuff that was being run on a GPU and are loading onto a
+        file_path
+            The path to load the synthesis object from.
+        map_location
+            Argument to pass to :func:`torch.load` as ``map_location``. If you
+            save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``
-        tensor_equality_atol :
+            pass to :class:`torch.device`.
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -1055,7 +1169,7 @@ class MetamerCTF(Metamer):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -1064,9 +1178,30 @@ class MetamerCTF(Metamer):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        pickle_load_args :
-            any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`setup` or :func:`synthesize` has been called before this call
+            to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``MetamerCTF`` object.
+        ValueError
+            If the saved and loading ``MetamerCTF`` objects have a different value
+            for any of :attr:`image`, :attr:`range_penalty_lambda`,
+            :attr:`allowed_range`, or :attr:`coarse_to_fine`.
+        ValueError
+            If the behavior of :attr:`loss_function` or :attr:`model` is different
+            between the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after load, to finish initializing
+            :attr:`optimizer` or :attr:`scheduler`.
 
         Examples
         --------
@@ -1075,10 +1210,9 @@ class MetamerCTF(Metamer):
         >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
         >>> metamer = po.synth.MetamerCTF(img, model)
         >>> metamer.synthesize(max_iter=5, store_progress=True)
-        >>> metamer.save('metamers.pt')
+        >>> metamer.save("metamers.pt")
         >>> metamer_copy = po.synth.MetamerCTF(img, model)
-        >>> metamer_copy.load('metamers.pt')
-
+        >>> metamer_copy.load("metamers.pt")
         """
         super()._load(
             file_path,
@@ -1090,23 +1224,38 @@ class MetamerCTF(Metamer):
         )
 
     @property
-    def coarse_to_fine(self):
+    def coarse_to_fine(self) -> str:
+        """How we scales are handled, see :class:`MetamerCTF` for details."""
+        # numpydoc ignore=RT01,ES01
         return self._coarse_to_fine
 
     @property
-    def scales(self):
+    def scales(self) -> tuple:
+        """Model scales that we've yet to optimize, modified during optimization."""
+        # numpydoc ignore=RT01,ES01
         return tuple(self._scales)
 
     @property
-    def scales_loss(self):
+    def scales_loss(self) -> tuple:
+        """Scale-specific loss at each iteration."""
+        # numpydoc ignore=RT01,ES01
         return tuple(self._scales_loss)
 
     @property
-    def scales_timing(self):
+    def scales_timing(self) -> dict:
+        """
+        Information about when each scale was started and stopped.
+
+        Keys are the values found in :attr:`scales`, and values are lists specifying
+        the iteration where we started and stopped optimizing this scale, which are
+        modified during optimization.
+        """  # numpydoc ignore=RT01
         return self._scales_timing
 
     @property
-    def scales_finished(self):
+    def scales_finished(self) -> tuple:
+        """Model scales that we've finished optimizing, modified during optimization."""
+        # numpydoc ignore=RT01,ES01
         return tuple(self._scales_finished)
 
 
@@ -1114,9 +1263,10 @@ def plot_loss(
     metamer: Metamer,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    """Plot synthesis loss with log-scaled y axis.
+    """
+    Plot synthesis loss with log-scaled y axis.
 
     Plots ``metamer.losses`` over all iterations. Also plots a red dot at
     ``iteration``, to highlight the loss there. If ``iteration=None``, then the
@@ -1124,21 +1274,21 @@ def plot_loss(
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose loss we want to plot.
-    iteration :
-        Which iteration to display. If None, the default, we show
+    iteration
+        Which iteration to display. If ``None``,  we show
         the most recent one. Negative values are also allowed.
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    kwargs :
-        passed to plt.semilogy
+    ax
+        Pre-existing axes for plot. If ``None``, we call
+        :func:`matplotlib.pyplot.gca()`.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.semilogy`.
 
     Returns
     -------
-    ax :
+    ax
         The matplotlib axes containing the plot.
-
     """
     if iteration is None:
         loss_idx = len(metamer.losses) - 1
@@ -1168,48 +1318,53 @@ def display_metamer(
     zoom: float | None = None,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    """Display metamer.
+    """
+    Display metamer.
 
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
 
-    We use ``plenoptic.imshow`` to display the metamer and attempt to
+    We use :func:`plenoptic.imshow` to display the metamer and attempt to
     automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that ``plenoptic.imshow`` is
+    value using the zoom arg, but remember that :func:`plenoptic.imshow` is
     opinionated about the size of the resulting image and will throw an
     Exception if the axis created is not big enough for the selected zoom.
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose synthesized metamer we want to display.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we assume
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we assume
         image is RGB(A) and show all channels.
-    iteration :
-        Which iteration to display. If None, the default, we show
-        the most recent one. Negative values are also allowed.
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    zoom :
+    zoom
         How much to zoom in / enlarge the metamer, the ratio of display pixels
-        to image pixels. If None (the default), we attempt to find the best
+        to image pixels. If ``None``, we attempt to find the best
         value ourselves.
-    kwargs :
-        Passed to ``plenoptic.imshow``
+    iteration
+        Which iteration to display. If ``None``, we show
+        the most recent one. Negative values are also allowed.
+    ax
+        Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
+    **kwargs
+        Passed to :func:`plenoptic.imshow`.
 
     Returns
     -------
-    ax :
+    ax
         The matplotlib axes containing the plot.
 
+    Raises
+    ------
+    ValueError
+        If ``batch_idx`` is not an int.
     """
     image = metamer.metamer if iteration is None else metamer.saved_metamer[iteration]
-    if batch_idx is None:
+    if not isinstance(batch_idx, int):
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
@@ -1232,28 +1387,31 @@ def display_metamer(
 
 
 def _representation_error(
-    metamer: Metamer, iteration: int | None = None, **kwargs
+    metamer: Metamer,
+    iteration: int | None = None,
+    **kwargs: Any,
 ) -> Tensor:
-    r"""Get the representation error.
+    r"""
+    Get the representation error.
 
     This is ``metamer.model(metamer) - target_representation)``. If
-    ``iteration`` is not None, we use
+    ``iteration`` is not ``None``, we use
     ``metamer.model(saved_metamer[iteration])`` instead.
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose representation error we want to compute.
-    iteration :
-        Which iteration to compute the representation error for. If None, we
+    iteration
+        Which iteration to compute the representation error for. If ``None``, we
         show the most recent one. Negative values are also allowed.
-    kwargs :
-        Passed to ``metamer.model.forward``
+    **kwargs
+        Passed to ``metamer.model.forward``.
 
     Returns
     -------
     representation_error
-
+        The representation error at the specified iteration, for displaying.
     """
     if iteration is not None:
         metamer_rep = metamer.model(
@@ -1271,43 +1429,43 @@ def plot_representation_error(
     ylim: tuple[float, float] | None | Literal[False] = None,
     ax: mpl.axes.Axes | None = None,
     as_rgb: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> list[mpl.axes.Axes]:
-    r"""Plot distance ratio showing how close we are to convergence.
+    r"""
+    Plot distance ratio showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
     ``plenoptic.tools.display.plot_representation``.
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose synthesized metamer we want to display.
-    batch_idx :
-        Which index to take from the batch dimension
-    iteration :
-        Which iteration to display. If None, the default, we show
+    batch_idx
+        Which index to take from the batch dimension.
+    iteration
+        Which iteration to display. If ``None``, we show
         the most recent one. Negative values are also allowed.
-    ylim :
+    ylim
         If ``ylim`` is ``None``, we sets the axes' y-limits to be ``(-y_max,
         y_max)``, where ``y_max=np.abs(data).max()``. If it's ``False``, we do
         nothing. If a tuple, we use that range.
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    as_rgb : bool, optional
+    ax
+        Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
+    as_rgb
         The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the model has its
-        own plot_representation_error() method. Else, it will be passed to
-        `po.imshow()`, see that methods docstring for details.
-    kwargs :
-        Passed to ``metamer.model.forward``
+        own ``plot_representation_error()`` method. Else, it will be passed to
+        :func:`plenoptic.imshow()`, see that methods docstring for details.
+    **kwargs
+        Passed to ``metamer.model.forward``.
 
     Returns
     -------
     axes :
-        List of created axes
-
+        List of created axes.
     """
     representation_error = _representation_error(
         metamer=metamer, iteration=iteration, **kwargs
@@ -1332,43 +1490,57 @@ def plot_pixel_values(
     iteration: int | None = None,
     ylim: tuple[float, float] | Literal[False] = False,
     ax: mpl.axes.Axes | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> mpl.axes.Axes:
-    r"""Plot histogram of pixel values of target image and its metamer.
+    r"""
+    Plot histogram of pixel values of target image and its metamer.
 
     As a way to check the distributions of pixel intensities and see
     if there's any values outside the allowed range
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object with the images whose pixel values we want to compare.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we use all
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) images).
-    iteration :
-        Which iteration to display. If None, the default, we show
+    iteration
+        Which iteration to display. If ``None``, we show
         the most recent one. Negative values are also allowed.
-    ylim :
-        if tuple, the ylimit to set for this axis. If False, we leave
-        it untouched
-    ax :
-        Pre-existing axes for plot. If None, we call ``plt.gca()``.
-    kwargs :
-        passed to plt.hist
+    ylim
+        If tuple, the ylimit to set for this axis. If False, we leave
+        it untouched.
+    ax
+        Pre-existing axes for plot. If ``None``, we call
+        :func:`matplotlib.pyplot.gca()`.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.hist`.
 
     Returns
     -------
-    ax :
+    ax
         Created axes.
-
     """
 
-    def _freedman_diaconis_bins(a):
-        """Calculate number of hist bins using Freedman-Diaconis rule. copied from
-        seaborn."""
+    def _freedman_diaconis_bins(a: np.ndarray) -> int:
+        """
+        Calculate number of hist bins using Freedman-Diaconis rule.
+
+        Copied from seaborn.
+
+        Parameters
+        ----------
+        a
+            The array to histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins to use for histogram.
+        """
         # From https://stats.stackexchange.com/questions/798/
         a = np.asarray(a)
         iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
@@ -1414,21 +1586,26 @@ def plot_pixel_values(
 
 
 def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name: str):
-    """Check whether the user wanted us to create plots that we can't.
+    """
+    Check whether the user wanted us to create plots that we can't.
 
-    Helper function for plot_synthesis_status and animate.
+    Helper function for :func:`plot_synthesis_status` and :func:`animate`.
 
-    Raises a ValueError to_check contains any values that are not allowed.
+    Raises a ``ValueError`` if ``to_check`` contains any values that are not allowed.
 
     Parameters
     ----------
-    to_check :
+    to_check
         The variable to check. We ensure that it doesn't contain any extra (not
         allowed) values. If a list, we check its contents. If a dict, we check
         its keys.
-    to_check_name :
-        Name of the `to_check` variable, used in the error message.
+    to_check_name
+        Name of the ``to_check`` variable, used in the error message.
 
+    Raises
+    ------
+    ValueError
+        If ``to_check`` takes an illegal value.
     """
     allowed_vals = [
         "display_metamer",
@@ -1463,55 +1640,55 @@ def _setup_synthesis_fig(
     plot_representation_error_width: float = 1,
     plot_pixel_values_width: float = 1,
 ) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
-    """Set up figure for plot_synthesis_status.
+    """
+    Set up figure for :func:`plot_synthesis_status`.
 
     Creates figure with enough axes for the all the plots you want. Will
-    also create index in axes_idx for them if you haven't done so already.
+    also create index in ``axes_idx`` for them if you haven't done so already.
 
     By default, all axes will be on the same row and have the same width.
-    If you want them to be on different rows, will need to initialize fig
+    If you want them to be on different rows, will need to initialize ``fig``
     yourself and pass that in. For changing width, change the corresponding
-    *_width arg, which gives width relative to other axes. So if you want
-    the axis for the representation_error plot to be twice as wide as the
-    others, set representation_error_width=2.
+    ``*_width`` arg, which gives width relative to other axes. So if you want
+    the axis for the ``representation_error`` plot to be twice as wide as the
+    others, set ``representation_error_width=2``.
 
     Parameters
     ----------
-    fig :
-        The figure to plot on or None. If None, we create a new figure
-    axes_idx :
-        Dictionary specifying which axes contains which type of plot, allows
-        for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: loss, representation_error,
-        pixel_values, misc. Values should all be ints. If you tell this
-        function to create a plot that doesn't have a corresponding key, we
-        find the lowest int that is not already in the dict, so if you have
-        axes that you want unchanged, place their idx in misc.
-    figsize :
+    fig
+        The figure to plot on or ``None``. If ``None``, we create a new figure.
+    axes_idx
+        Dictionary specifying which axes contains which type of plot, allows for more
+        fine-grained control of the resulting figure. Probably only helpful if fig is
+        also defined. Possible keys: ``"loss"``, ``"representation_error"``,
+        ``"pixel_values"``, ``"misc"``. Values should all be ints. If you tell this
+        function to create a plot that doesn't have a corresponding key, we find the
+        lowest int that is not already in the dict, so if you have
+        axes that you want unchanged, place their idx in ``"misc"``.
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have relative width=1 correspond to 5
-    included_plots :
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have relative width=1 correspond to 5.
+    included_plots
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
-    display_metamer_width :
+    display_metamer_width
         Relative width of the axis for the synthesized metamer.
-    plot_loss_width :
+    plot_loss_width
         Relative width of the axis for loss plot.
-    plot_representation_error_width :
+    plot_representation_error_width
         Relative width of the axis for representation error plot.
-    plot_pixel_values_width :
+    plot_pixel_values_width
         Relative width of the axis for image pixel intensities histograms.
 
     Returns
     -------
-    fig :
-        The figure to plot on
-    axes :
-        List or array of axes contained in fig
-    axes_idx :
-        Dictionary identifying the idx for each plot type
-
+    fig
+        The figure to plot on.
+    axes
+        List or array of axes contained in fig.
+    axes_idx
+        Dictionary identifying the idx for each plot type.
     """
     n_subplots = 0
     axes_idx = axes_idx.copy()
@@ -1590,7 +1767,8 @@ def plot_synthesis_status(
     ],
     width_ratios: dict[str, float] = {},
 ) -> tuple[mpl.figure.Figure, dict[str, int]]:
-    r"""Make a plot showing synthesis status.
+    r"""
+    Make a plot showing synthesis status.
 
     We create several subplots to analyze this. By default, we create three
     subplots on a new figure: the first one contains the synthesized metamer,
@@ -1606,38 +1784,38 @@ def plot_synthesis_status(
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose status we want to plot.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we use all
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
-    iteration :
-        Which iteration to display. If None, the default, we show
+    iteration
+        Which iteration to display. If ``None``, we show
         the most recent one. Negative values are also allowed.
-    ylim :
+    ylim
         The ylimit to use for the representation_error plot. We pass
-        this value directly to ``plot_representation_error``
-    vrange :
-        The vrange option to pass to ``display_metamer()``. See
-        docstring of ``imshow`` for possible values.
-    zoom :
+        this value directly to ``plot_representation_error``.
+    vrange
+        The vrange option to pass to :func:`display_metamer()`. See
+        docstring of :func:`plenoptic.imshow` for possible values.
+    zoom
         How much to zoom in / enlarge the metamer, the ratio
-        of display pixels to image pixels. If None (the default), we
+        of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    plot_representation_error_as_rgb : bool, optional
+    plot_representation_error_as_rgb
         The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the
         model has its own plot_representation_error() method. Else, it will
-        be passed to `po.imshow()`, see that methods docstring for details.
-    fig :
-        if None, we create a new figure. otherwise we assume this is
+        be passed to :func:`plenoptic.imshow`, see that methods docstring for details.
+    fig
+        If ``None``, we create a new figure. otherwise we assume this is
         an empty figure that has the appropriate size and number of
-        subplots
-    axes_idx :
+        subplots.
+    axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
         helpful if fig is also defined. Possible keys: ``'display_metamer',
@@ -1646,15 +1824,15 @@ def plot_synthesis_status(
         create a plot that doesn't have a corresponding key, we find the lowest
         int that is not already in the dict, so if you have axes that you want
         unchanged, place their idx in ``'misc'``.
-    figsize :
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have each axis be of size (5, 5)
-    included_plots :
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
+    included_plots
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
-    width_ratios :
-        By default, all plots axes will have the same width. To change
+    width_ratios
+        By default, all plots will have the same width. To change
         that, specify their relative widths using the keys: ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
         specifying their relative width. Any not included will be assumed to be
@@ -1662,11 +1840,18 @@ def plot_synthesis_status(
 
     Returns
     -------
-    fig :
-        The figure containing this plot
-    axes_idx :
+    fig
+        The figure containing this plot.
+    axes_idx
         Dictionary giving index of each plot.
 
+    Raises
+    ------
+    ValueError
+        If ``metamer.metamer`` object is not 3d or 4d.
+    ValueError
+        If the ``iteration is not None`` and the given ``metamer`` object was run
+        with ``store_progress=False``.
     """
     if iteration is not None and not metamer.store_progress:
         raise ValueError(
@@ -1687,7 +1872,24 @@ def plot_synthesis_status(
         fig, axes_idx, figsize, included_plots, **width_ratios
     )
 
-    def check_iterables(i, vals):
+    def check_iterables(i: int, vals: list | tuple) -> bool:
+        """
+        Determine whether i is in vals.
+
+        Works with an iterable of iterables and iterable of non-iterables.
+
+        Parameters
+        ----------
+        i
+            The value we're looking for.
+        vals
+            The iterable it might be in.
+
+        Returns
+        -------
+        contained
+            Whether i is in vals.
+        """
         for j in vals:
             try:
                 # then it's an iterable
@@ -1757,70 +1959,71 @@ def animate(
     ],
     width_ratios: dict[str, float] = {},
 ) -> mpl.animation.FuncAnimation:
-    r"""Animate synthesis progress.
+    r"""
+    Animate synthesis progress.
 
     This is essentially the figure produced by
     ``metamer.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
-    (e.g.,
-    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
-    for examples on how to view it in a Jupyter notebook. In order to save, use
+    (e.g., `Quickstart
+    <https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html>`_) for
+    examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
-    [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html) for
-    more details.
+    `matplotlib documentation <https://matplotlib.org/stable/api/animation_api.html>`_
+    for more details.
 
     Parameters
     ----------
-    metamer :
+    metamer
         Metamer object whose synthesis we want to animate.
-    framerate :
+    framerate
         How many frames a second to display.
-    batch_idx :
-        Which index to take from the batch dimension
-    channel_idx :
-        Which index to take from the channel dimension. If None, we use all
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
-    ylim :
+    ylim
         The y-limits of the representation_error plot:
 
         * If a tuple, then this is the ylim of all plots
 
-        * If None, then all plots have the same limits, all
+        * If ``None``, then all plots have the same limits, all
           symmetric about 0 with a limit of
           ``np.abs(representation_error).max()`` (for the initial
-          representation_error)
+          representation_error).
 
         * If False, don't modify limits.
 
-        * If a string, must be 'rescale' or of the form 'rescaleN',
-          where N can be any integer. If 'rescaleN', we rescale the
-          limits every N frames (we rescale as if ylim = None). If
-          'rescale', then we do this 10 times over the course of the
-          animation
+        * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
+          where N can be any integer. If ``"rescaleN"``, we rescale the
+          limits every N frames (we rescale as if ``ylim=None``). If
+          ``"rescale"``, then we do this 10 times over the course of the
+          animation.
 
-    vrange :
-        The vrange option to pass to ``display_metamer()``. See
-        docstring of ``imshow`` for possible values.
-    zoom :
+    vrange
+        The vrange option to pass to :func:`display_metamer()`. See
+        docstring of :func:`plenoptic.imshow` for possible values.
+    zoom
         How much to zoom in / enlarge the metamer, the ratio
-        of display pixels to image pixels. If None (the default), we
+        of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    plot_representation_error_as_rgb :
+    plot_representation_error_as_rgb
         The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the representation doesn't look image-like or if the
         model has its own plot_representation_error() method. Else, it will
-        be passed to `po.imshow()`, see that methods docstring for details.
-        since plot_synthesis_status normally sets it up for us
-    fig :
-        If None, create the figure from scratch. Else, should be an empty
+        be passed to :func:`plenoptic.imshow()`, see that methods docstring for details.
+        since plot_synthesis_status normally sets it up for us.
+    fig
+        If ``None``, create the figure from scratch. Else, should be an empty
         figure with enough axes (the expected use here is have same-size
         movies with different plots).
-    axes_idx :
+    axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
         helpful if fig is also defined. Possible keys: ``'display_metamer',
@@ -1829,14 +2032,14 @@ def animate(
         create a plot that doesn't have a corresponding key, we find the lowest
         int that is not already in the dict, so if you have axes that you want
         unchanged, place their idx in ``'misc'``.
-    figsize :
+    figsize
         The size of the figure to create. It may take a little bit of
-        playing around to find a reasonable value. If None, we attempt to
-        make our best guess, aiming to have each axis be of size (5, 5)
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
     included_plots :
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
-    width_ratios :
+    width_ratios
         By default, all plots axes will have the same width. To change
         that, specify their relative widths using the keys: ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
@@ -1845,21 +2048,27 @@ def animate(
 
     Returns
     -------
-    anim :
+    anim
         The animation object. In order to view, must convert to HTML
         or save.
 
+    Raises
+    ------
+    ValueError
+        If the given ``metamer`` object was run with ``store_progress=False``.
+    ValueError
+        If ``metamer.metamer`` object is not 3d or 4d.
+    ValueError
+        If we do not know how to interpret the value of ``ylim``.
+
     Notes
     -----
-    By default, we use the ffmpeg backend, which requires that you have
-    ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-    To use a different, use the matplotlib rcParams:
-    `matplotlib.rcParams['animation.writer'] = writer`, see
-    https://matplotlib.org/stable/api/animation_api.html#writer-classes for
-    more details.
-
-    For displaying in a jupyter notebook, ffmpeg appears to be required.
-
+    By default, we use the ffmpeg backend, which requires that you have ffmpeg installed
+    and on your path (https://ffmpeg.org/download.html). To use a different, use the
+    matplotlib rcParams: ``matplotlib.rcParams['animation.writer'] = writer``, see
+    `matplotlib documentation
+    <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
+    details.
     """
     if not metamer.store_progress:
         raise ValueError(
@@ -1942,7 +2151,22 @@ def animate(
         for ax in rep_error_axes:
             ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
 
-    def movie_plot(i):
+    def movie_plot(i: int) -> list[mpl.artist.Artist]:
+        """
+        Matplotlib function for animation.
+
+        Update plots for frame ``i``.
+
+        Parameters
+        ----------
+        i
+            The frame to plot.
+
+        Returns
+        -------
+        artists
+            The updated matplotlib artists.
+        """
         artists = []
         if "display_metamer" in included_plots:
             artists.extend(

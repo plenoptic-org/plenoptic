@@ -1,6 +1,12 @@
+"""
+Eigendistortions.
+
+Classes to perform the synthesis of eigendistortions.
+"""
+
 import warnings
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 import matplotlib.pyplot
 import torch
@@ -21,23 +27,24 @@ from .synthesis import Synthesis
 def fisher_info_matrix_vector_product(
     y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
 ) -> Tensor:
-    r"""Compute Fisher Information Matrix Vector Product: :math:`Fv`
+    r"""
+    Compute Fisher Information Matrix Vector Product: :math:`Fv`.
 
     Parameters
     ----------
     y
-        Output tensor with gradient attached
+        Output tensor with gradient attached.
     x
-        Input tensor with gradient attached
+        Input tensor with gradient attached.
     v
-        The vectors with which to compute Fisher vector products
+        The vectors with which to compute Fisher vector products.
     dummy_vec
-        Dummy vector for Jacobian vector product trick
+        Dummy vector for Jacobian vector product trick.
 
     Returns
     -------
     Fv
-        Vector, Fisher vector product
+        Vector, Fisher vector product.
 
     Notes
     -----
@@ -45,7 +52,7 @@ def fisher_info_matrix_vector_product(
     of Jacobian transpose and Jacobian:
     :math:`F = J^T J`. Hence:
     :math:`Fv = J^T (Jv)`
-    """
+    """  # numpydoc ignore=ES01
     Jv = jacobian_vector_product(y, x, v, dummy_vec)
     Fv = vector_jacobian_product(y, x, Jv, detach=True)
 
@@ -55,8 +62,27 @@ def fisher_info_matrix_vector_product(
 def fisher_info_matrix_eigenvalue(
     y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
 ) -> Tensor:
-    r"""Compute the eigenvalues of the Fisher Information Matrix corresponding to
-    eigenvectors in v:math:`\lambda= v^T F v`
+    r"""
+    Compute eigenvalues of Fisher vector products.
+
+    We compute the Fisher Information Matrix corresponding to eigenvectors in ``v``:
+    :math:`\lambda= v^T F v`.
+
+    Parameters
+    ----------
+    y
+        Output tensor with gradient attached.
+    x
+        Input tensor with gradient attached.
+    v
+        The vectors with which to compute Fisher vector products.
+    dummy_vec
+        Dummy vector for Jacobian vector product trick.
+
+    Returns
+    -------
+    lmbda
+        The computed eigenvalues.
     """
     if dummy_vec is None:
         dummy_vec = torch.ones_like(y, requires_grad=True)
@@ -69,45 +95,37 @@ def fisher_info_matrix_eigenvalue(
 
 
 class Eigendistortion(Synthesis):
-    r"""Synthesis object to compute eigendistortions induced by a model on a given
-    input image.
+    r"""
+    Synthesize eigendistortions induced by a model on a given input image.
+
+    Following the basic idea in [1]_, this class synthesizes image perturbations that
+    are considered the most and least noticeable for a model on a given image. Because
+    these are perturbations on the input image, they are local in pixel space, i.e.,
+    they do not change the pixels much.
 
     Parameters
     ----------
     image
-        Image. We currently do not support batches of images, as each image requires its
-        own optimization, so either ``image.ndimension()==1`` or ``image.shape[0]==1``
+        Image to perturb. We currently do not support batches of images, as each image
+        requires its own optimization, so either ``image.ndimension()==1`` or
+        ``image.shape[0]==1``.
     model
         Torch model with defined forward and backward operations.
-
-    Attributes
-    ----------
-    jacobian: Tensor
-        Is only set when :func:`synthesize` is run with ``method='exact'``. Default to
-        ``None``.
-    eigendistortions: Tensor
-        Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by
-        eigenvalue, with Size((n_distortions, *image.shape[1:])).
-    eigenvalues: Tensor
-        Tensor of eigenvalues corresponding to each eigendistortion, listed in
-        decreasing order.
-    eigenindex: listlike
-        Index of each eigenvector/eigenvalue.
 
     Notes
     -----
     This is a method for comparing image representations in terms of their ability to
-    explain perceptual sensitivity in humans. It estimates eigenvectors of the FIM.
-    A model, :math:`y = f(x)`, is a deterministic (and differentiable)
-    mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean output
-    response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
+    explain perceptual sensitivity in humans. It estimates eigenvectors of the Fisher
+    Information Matrix. A model, :math:`y = f(x)`, is a deterministic (and
+    differentiable) mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean
+    output response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
     Gaussian noise in the response space.
-    The Jacobian matrix at x is:
+    The Jacobian matrix at :math:`x` is:
         :math:`J(x) = J = dydx`,
         :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
-    The matrix consists of all partial derivatives of the vector-valued function f.
-    The Fisher Information Matrix (FIM) at x, under white Gaussian noise in the
-    response space, is:
+    The matrix consists of all partial derivatives of the vector-valued function
+    :math:`f`. The Fisher Information Matrix (FIM) at :math:`x`, under white Gaussian
+    noise in the response space, is:
         :math:`F = J^T J`
     It is a quadratic approximation of the discriminability of distortions
     relative to :math:`x`.
@@ -119,7 +137,6 @@ class Eigendistortion(Synthesis):
            neural information processing systems (pp. 3530-3539).
            https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
            https://www.cns.nyu.edu/~lcv/eigendistortions/
-
     """
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
@@ -146,8 +163,9 @@ class Eigendistortion(Synthesis):
         self._eigenvalues = None
         self._eigenindex = None
 
-    def _init_representation(self, image):
-        """Set self._representation_flat, based on model and image"""
+    def _init_representation(self, image: torch.Tensor):
+        """Set self._representation_flat, based on ``self.model`` and ``image``."""
+        # numpydoc ignore=ES01,PR01
         self._image = self._image_flat.view(*image.shape)
         image_representation = self.model(self.image)
 
@@ -172,13 +190,16 @@ class Eigendistortion(Synthesis):
         r"""
         Compute eigendistortions of Fisher Information Matrix with given input image.
 
+        There are three potential ways of computing the eigendistortion for a model;
+        all have the same interpretation. See ``method`` argument for details.
+
         Parameters
         ----------
         method
-            Eigensolver method. 'exact' tries to do eigendecomposition directly (
-            not recommended for very large inputs). 'power' (default) uses the power
+            Eigensolver method. ``'exact'`` tries to do eigendecomposition directly
+            (not recommended for very large inputs). ``'power'`` uses the power
             method to compute first and last eigendistortions, with maximum number of
-            iterations dictated by n_steps. 'randomized_svd' uses randomized SVD to
+            iterations dictated by n_steps. ``'randomized_svd'`` uses randomized SVD to
             approximate the top k eigendistortions and their corresponding eigenvalues.
         k
             How many vectors to return using block power method or svd.
@@ -187,21 +208,33 @@ class Eigendistortion(Synthesis):
             computation. Ignored for other methods.
         p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled,
-            and k will be returned. See docstring of ``_synthesize_randomized_svd``
+            and k will be returned. See docstring of :meth:`_synthesize_randomized_svd`
             for more details including algorithm reference.
         q
             Matrix power parameter for randomized SVD. This is an effective trick for
             the algorithm to converge to the correct eigenvectors when the
-            eigenspectrum does not decay quickly. See ``_synthesize_randomized_svd``
+            eigenspectrum does not decay quickly. See :meth:`_synthesize_randomized_svd`
             for more details including algorithm reference.
         stop_criterion
             Used if ``method='power'`` to check for convergence. If the L2-norm
             of the eigenvalues has changed by less than this value from one
             iteration to the next, we terminate synthesis.
 
+        Raises
+        ------
+        ValueError
+            If ``method`` takes an illegal value.
+
+        Warns
+        -----
+        UserWarning
+            If ``method == "power"`` but the Jacobian size is greater than 1e6 (which
+            depends on the number of elements in the model's representation and input
+            image), in which case we're worried abour running out of memory.
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
-        assert method in allowed_methods, f"method must be in {allowed_methods}"
+        if method not in allowed_methods:
+            raise ValueError(f"method must be in {allowed_methods}")
 
         if (
             method == "exact"
@@ -252,22 +285,23 @@ class Eigendistortion(Synthesis):
         self._eigenindex = eig_vecs_ind
 
     def _synthesize_exact(self) -> tuple[Tensor, Tensor]:
-        r"""Eigendecomposition of explicitly computed Fisher Information Matrix.
+        r"""
+        Eigendecomposition of explicitly computed Fisher Information Matrix.
 
         To be used when the input is small (e.g. less than 70x70 image on cluster or
         30x30 on your own machine). This method obviates the power iteration and its
         related algorithms (e.g. Lanczos). This method computes the Fisher Information
-        Matrix by explicitly computing the Jacobian of the representation wrt the input.
+        Matrix by explicitly computing the Jacobian of the representation with respect
+        to the input.
 
         Returns
         -------
         eig_vals
             Eigenvalues in decreasing order.
         eig_vecs
-            Eigenvectors in 2D tensor, whose cols are eigenvectors
-            (i.e. eigendistortions) corresponding to eigenvalues.
+            Eigenvectors in 2D tensor, whose cols are eigenvectors (i.e.
+            eigendistortions) corresponding to eigenvalues.
         """
-
         J = self.compute_jacobian()
         F = J.T @ J
         eig_vals, eig_vecs = torch.linalg.eigh(F, UPLO="U")
@@ -277,13 +311,19 @@ class Eigendistortion(Synthesis):
 
     def compute_jacobian(self) -> Tensor:
         r"""
-        Calls autodiff.jacobian and returns jacobian. Will throw error if input too big.
+        Compute (via :func:`autodiff.jacobian`), cache, and return jacobian.
 
         Returns
         -------
         J
-            Jacobian of representation wrt input.
-        """
+            Jacobian of representation with respect to input.
+
+        Warns
+        -----
+        UserWarning
+            If input dimensionality is greater than 1e4, in which case we believe that
+            this calculation will take too long.
+        """  # numpydoc ignore=ES01
         if self.jacobian is None:
             J = jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
@@ -295,14 +335,16 @@ class Eigendistortion(Synthesis):
     def _synthesize_power(
         self, k: int, shift: Tensor | float, tol: float, max_iter: int
     ) -> tuple[Tensor, Tensor]:
-        r"""Use power method (or orthogonal iteration when k>1) to obtain largest
-        (smallest) eigenvalue/vector pairs.
+        r"""
+        Use power method  to obtain largest (smallest) eigenvalue/vector pairs.
+
+        When ``k>1``, uses orthogonal iteration, see [1]_.
 
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors
         of the Fisher Information Matrix, without explicitly representing that matrix.
 
-        This method repeatedly calls ``fisher_info_matrix_vector_product()`` with a
-        single (`k=1`), or multiple (`k>1`) vectors.
+        This method repeatedly calls :func:`fisher_info_matrix_vector_product` with a
+        single (``k=1``), or multiple (``k>1``) vectors.
 
         Parameters
         ----------
@@ -330,10 +372,9 @@ class Eigendistortion(Synthesis):
 
         References
         ----------
-        [1] Orthogonal iteration; Algorithm 8.2.8 Golub and Van Loan, Matrix
-        Computations, 3rd Ed.
+        .. [1] Orthogonal iteration; Algorithm 8.2.8 Golub and Van Loan, Matrix
+               Computations, 3rd Ed.
         """
-
         x, y = self._image_flat, self._representation_flat
 
         # note: v is an n x k matrix where k is number of eigendists to be synthesized!
@@ -379,10 +420,11 @@ class Eigendistortion(Synthesis):
     def _synthesize_randomized_svd(
         self, k: int, p: int, q: int
     ) -> tuple[Tensor, Tensor, Tensor]:
-        r"""Synthesize eigendistortions using randomized truncated SVD.
+        r"""
+        Synthesize eigendistortions using randomized truncated SVD.
 
         This method approximates the column space of the Fisher Info Matrix, projects
-        the FIM into that column space, then computes its SVD.
+        the FIM into that column space, then computes its SVD. See [1]_ for details.
 
         Parameters
         ----------
@@ -405,13 +447,12 @@ class Eigendistortion(Synthesis):
             between the true subspace and approximated subspace.
 
         References
-        -----
-        [1] Halko, Martinsson, Tropp, Finding structure with randomness:
-        Probabilistic algorithms for constructing approximate matrix decompositions,
-        SIAM Rev. 53:2, pp. 217-288 https://arxiv.org/abs/0909.4061 (2011)
-
+        ----------
+        .. [1] Halko, Martinsson, Tropp, Finding structure with randomness:
+               Probabilistic algorithms for constructing approximate matrix
+               decompositions, SIAM Rev. 53:2, pp. 217-288
+               https://arxiv.org/abs/0909.4061 (2011)
         """
-
         x, y = self._image_flat, self._representation_flat
         n = len(x)
 
@@ -443,7 +484,8 @@ class Eigendistortion(Synthesis):
         return S[:k].clone(), V[:, :k].clone(), error_approx  # truncate
 
     def _vector_to_image(self, vecs: Tensor) -> list[Tensor]:
-        r"""Reshapes eigenvectors back into correct image dimensions.
+        r"""
+        Reshape eigenvectors back into correct image dimensions.
 
         Parameters
         ----------
@@ -455,14 +497,25 @@ class Eigendistortion(Synthesis):
         Returns
         -------
         imgs
-            List of Tensor images
-        """
-
+            List of Tensor images.
+        """  # numpydoc ignore=ES01
         imgs = [vecs[:, i].reshape(self._image_shape) for i in range(vecs.shape[1])]
         return imgs
 
     def _indexer(self, idx: int) -> int:
-        """Maps eigenindex to arg index (0-indexed)"""
+        """
+        Map eigenindex to arg index (0-indexed).
+
+        Parameters
+        ----------
+        idx
+            Eigenvalue number.
+
+        Returns
+        -------
+        idx
+            Index into eigenvalue tensor.
+        """  # numpydoc ignore=ES01
         n = len(self._image_flat)
         idx_range = range(n)
         i = idx_range[idx]
@@ -475,21 +528,22 @@ class Eigendistortion(Synthesis):
         return torch.where(all_idx == i)[0].item()
 
     def save(self, file_path: str):
-        r"""Save all relevant variables in .pt file.
+        r"""
+        Save all relevant variables in .pt file.
 
-        See ``load`` docstring for an example of use.
+        See :meth:`load` docstring for an example of use.
 
         Parameters
         ----------
         file_path : str
-            The path to save the Eigendistortion object to
-
+            The path to save the Eigendistortion object to.
         """
         save_io_attrs = [("_model", ("_image",))]
         super().save(file_path, save_io_attrs)
 
-    def to(self, *args, **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
+    def to(self, *args: Any, **kwargs: Any):
+        r"""
+        Move and/or cast the parameters and buffers.
 
         This can be called as
 
@@ -508,20 +562,22 @@ class Eigendistortion(Synthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See below for examples.
+        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.
 
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-
-        """
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
         attrs = [
             "_jacobian",
             "_eigendistortions",
@@ -549,9 +605,10 @@ class Eigendistortion(Synthesis):
         map_location: str | None = None,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Load all relevant stuff from a .pt file.
+        r"""
+        Load all relevant stuff from a .pt file.
 
         This must be called by a ``Eigendistortion`` object initialized just like the
         saved object.
@@ -564,15 +621,15 @@ class Eigendistortion(Synthesis):
 
         Parameters
         ----------
-        file_path : str
-            The path to load the synthesis object from
-        map_location : str, optional
-            map_location argument to pass to ``torch.load``. If you save
-            stuff that was being run on a GPU and are loading onto a
+        file_path
+            The path to load the synthesis object from.
+        map_location
+            Argument to pass to :func:`torch.load` as ``map_location``. If you
+            save stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``
-        tensor_equality_atol :
+            pass to :class:`torch.device`.
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -581,7 +638,7 @@ class Eigendistortion(Synthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -590,13 +647,26 @@ class Eigendistortion(Synthesis):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        pickle_load_args :
-            any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
+
+        Raises
+        ------
+        ValueError
+            If :func:`synthesize` has been called before this call to ``load``.
+        ValueError
+            If the object saved at ``file_path`` is not a ``Eigendistortion`` object.
+        ValueError
+            If the saved and loading ``Eigendistortion`` objects have a different value
+            for :attr:`image`.
+        ValueError
+            If the behavior of :attr:`model` is different between the saved and loading
+            objects.
 
         See Also
         --------
-        examine_saved_synthesis :
+        :func:`~plenoptic.tools.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
@@ -608,10 +678,9 @@ class Eigendistortion(Synthesis):
         >>> po.tools.remove_grad(model)
         >>> eig = po.synth.Eigendistortion(img, model)
         >>> eig.synthesize(max_iter=5)
-        >>> eig.save('eig.pt')
+        >>> eig.save("eig.pt")
         >>> eig_copy = po.synth.Eigendistortion(img, model)
-        >>> eig_copy.load('eig.pt')
-
+        >>> eig_copy.load("eig.pt")
         """
         check_attributes = ["_image"]
         check_io_attrs = [("_model", ("_image",))]
@@ -633,34 +702,47 @@ class Eigendistortion(Synthesis):
         self._init_representation(self.image)
 
     @property
-    def model(self):
+    def model(self) -> torch.nn.Module:
+        """The model for which the eigendistortions are synthesized."""
+        # numpydoc ignore=RT01,ES01
         return self._model
 
     @property
-    def image(self):
+    def image(self) -> torch.Tensor:
+        """Target image of eigendistortion synthesis."""
+        # numpydoc ignore=RT01,ES01
         return self._image
 
     @property
-    def jacobian(self):
-        """Is only set when :func:`synthesize` is run with ``method='exact'``.
-        Default to ``None``."""
+    def jacobian(self) -> torch.Tensor:
+        """
+        Jacobian matrix of :attr:`model` with respect to :attr:`image`.
+
+        Only set when :func:`synthesize` is run with ``method='exact'``.
+        Else, ``None``.
+        """  # numpydoc ignore=RT01
         return self._jacobian
 
     @property
-    def eigendistortions(self):
-        """Tensor of eigendistortions (eigenvectors of Fisher matrix), ordered by
-        eigenvalue."""
+    def eigendistortions(self) -> torch.Tensor:
+        """
+        Eigendistortions, ordered by eigenvalue.
+
+        Eigendistortions are the eigenvectors of Fisher matrix, will have size
+        ``Size((n_distortions, *image.shape[1:]))``.
+        """  # numpydoc ignore=RT01
         return self._eigendistortions
 
     @property
-    def eigenvalues(self):
-        """Tensor of eigenvalues corresponding to each eigendistortion, listed in
-        decreasing order."""
+    def eigenvalues(self) -> torch.Tensor:
+        """Eigenvalues corresponding to each eigendistortion, in decreasing order."""
+        # numpydoc ignore=RT01,ES01,SS05
         return self._eigenvalues
 
     @property
-    def eigenindex(self):
+    def eigenindex(self) -> torch.Tensor:
         """Index of each eigenvector/eigenvalue."""
+        # numpydoc ignore=RT01,ES01
         return self._eigenindex
 
 
@@ -669,12 +751,12 @@ def display_eigendistortion(
     eigenindex: int = 0,
     alpha: float = 5.0,
     process_image: Callable[[Tensor], Tensor] = lambda x: x,
-    # ax: matplotlib.pyplot.axis | None = None,
     ax: matplotlib.axes.Axes | None = None,
     plot_complex: str = "rectangular",
-    **kwargs,
+    **kwargs: Any,
 ) -> Figure:
-    r"""Displays specified eigendistortion added to the image.
+    r"""
+    Display specified eigendistortion added to the image.
 
     If image or eigendistortions have 3 channels, then it is assumed to be a color
     image and it is converted to grayscale. This is merely for display convenience
@@ -683,13 +765,13 @@ def display_eigendistortion(
     Parameters
     ----------
     eigendistortion
-        Eigendistortion object whose synthesized eigendistortion we want to display
+        Eigendistortion object whose synthesized eigendistortion we want to display.
     eigenindex
         Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will
         index the first one, and -1 or 9 will index the last one.
     alpha
-        Amount by which to scale eigendistortion for `image + (alpha * eigendistortion)`
-        for display.
+        Amount by which to scale eigendistortion for
+        ``image + (alpha * eigendistortion)`` for display.
     process_image
         A function to process the image+alpha*distortion before clamping between 0,1.
         E.g. multiplying by the stdev ImageNet then adding the mean of ImageNet to undo
@@ -698,17 +780,15 @@ def display_eigendistortion(
         Axis handle on which to plot.
     plot_complex
         Parameter for :meth:`plenoptic.imshow` determining how to handle complex values.
-        Defaults to 'rectangular', which plots real and complex components as separate
-        images. Can also be 'polar' or 'logpolar'; see that method's docstring
-        for details.
-    kwargs
+        Defaults to ``'rectangular'``, which plots real and complex components as
+        separate images. See that method's docstring for details.
+    **kwargs
         Additional arguments for :meth:`po.imshow()`.
 
     Returns
     -------
     fig
-        matplotlib Figure handle returned by plenoptic.imshow()
-
+        Figure handle returned by :meth:`plenoptic.imshow()`.
     """
     # reshape so channel dim is last
     im_shape = eigendistortion._image_shape

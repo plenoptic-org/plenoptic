@@ -1,3 +1,9 @@
+"""
+Synthesis methods.
+
+Classes to perform stimulus synthesis.
+"""
+
 # ignore unused imports
 # ruff: noqa: F401
 from .eigendistortion import Eigendistortion

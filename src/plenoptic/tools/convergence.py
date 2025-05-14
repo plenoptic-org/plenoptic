@@ -1,4 +1,5 @@
-"""Functions that check for optimization convergence/stabilization.
+"""
+Functions that check for optimization convergence/stabilization.
 
 The functions herein generally differ in what they are checking for
 convergence: loss, pixel change, etc.
@@ -15,7 +16,6 @@ They should probably be able to accept the following arguments, in this order
 
 They must return a single ``bool``: ``True`` if we've reached convergence,
 ``False`` if not.
-
 """
 
 # to avoid circular import error:
@@ -27,25 +27,23 @@ if TYPE_CHECKING:
     from ..synthesize.synthesis import OptimizedSynthesis
 
 
-# ignoring E501 to keep the diagram below readable
-# ruff: noqa: E501
 def loss_convergence(
     synth: "OptimizedSynthesis",
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
-    r"""Check whether the loss has stabilized and, if so, return True.
+    r"""
+    Check whether the loss has stabilized and, if so, return True.
 
-     Have we been synthesizing for ``stop_iters_to_check`` iterations?
-     | |
-    no yes
-     | '---->Is ``abs(synth.loss[-1] - synth.losses[-stop_iters_to_check]) < stop_criterion``?
-     |      no |
-     |       | yes
-     <-------' |
-     |         '------> return ``True``
-     |
-     '---------> return ``False``
+    We check whether:
+
+    - We have been synthesizing for ``stop_iters_to_check`` iterations,
+      i.e. ``len(synth.losses) > stop_iters_to_check``.
+
+    - Loss has decreased by less than ``stop_criterion`` over the past
+      ``stop_iters_to_check`` iterations.
+
+    If both conditions are met, we return ``True``. Else, we return ``False``.
 
     Parameters
     ----------
@@ -62,7 +60,6 @@ def loss_convergence(
     -------
     loss_stabilized :
         Whether the loss has stabilized or not.
-
     """
     return (
         len(synth.losses) > stop_iters_to_check
@@ -71,9 +68,21 @@ def loss_convergence(
 
 
 def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> bool:
-    r"""Check whether we've synthesized all scales and done so for at least ctf_iters_to_check iterations
+    r"""
+    Check whether we've been synthesized all scales for long enough.
 
-    This is meant to be paired with another convergence check, such as ``loss_convergence``.
+    This is meant to be paired with another convergence check, such as
+    ``loss_convergence``.
+
+    We check whether:
+
+    - We have finished synthesizing each individual scale, i.e. ``synth.scales[0] ==
+      "all"``.
+
+    - We have been synthesizing all scales for more than ``ctf_iters_to_check``
+      iterations, i.e. ``i - synth.scales_timing["all"][0]) > ctf_iters_to_check``.
+
+    If both conditions are met, we return ``True``. Else, we return ``False``.
 
     Parameters
     ----------
@@ -89,11 +98,11 @@ def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> 
     -------
     ctf_enough
         Whether we've been doing coarse to fine synthesis for long enough.
-
     """
     all_scales = synth.scales[0] == "all"
     # synth.scales_timing['all'] will only be a non-empty list if all_scales is
-    # True, so we only check it then. This is equivalent to checking if both conditions are trued
+    # True, so we only check it then. This is equivalent to checking if both
+    # conditions are true
     if all_scales:
         return (i - synth.scales_timing["all"][0]) > ctf_iters_to_check
     else:
@@ -105,18 +114,18 @@ def pixel_change_convergence(
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
-    """Check whether the pixel change norm has stabilized and, if so, return True.
+    """
+    Check whether the pixel change norm has stabilized and, if so, return True.
 
-     Have we been synthesizing for ``stop_iters_to_check`` iterations?
-     | |
-    no yes
-     | '---->Is ``(synth.pixel_change_norm[-stop_iters_to_check:] < stop_criterion).all()``?
-     |      no |
-     |       | yes
-     <-------' |
-     |         '------> return ``True``
-     |
-     '---------> return ``False``
+    We check whether:
+
+    - We have been synthesizing for ``stop_iters_to_check`` iterations, i.e.
+      ``len(synth.pixel_change_norm) > stop_iters_to_check``.
+
+    - The ``pixel_change_norm`` has changed by less than ``stop_criterion`` over the
+      past ``stop_iters_to_check`` iterations.
+
+    If both conditions are met, we return ``True``. Else, we return ``False``.
 
     Parameters
     ----------
@@ -133,7 +142,6 @@ def pixel_change_convergence(
     -------
     loss_stabilized :
         Whether the pixel change norm has stabilized or not.
-
     """
     return (
         len(synth.pixel_change_norm) > stop_iters_to_check

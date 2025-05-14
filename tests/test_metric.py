@@ -94,11 +94,11 @@ class TestPerceptualMetrics:
                     break
             if tgt_size is None:
                 with pytest.raises(
-                    Exception,
+                    ValueError,
                     match=(
                         "Either img1 and img2 should have the same number of"
-                        " elements in each dimension, or one of them should"
-                        " be 1"
+                        " elements in the batch and channel dimensions, or "
+                        "one of them should be 1"
                     ),
                 ):
                     func(A, B)

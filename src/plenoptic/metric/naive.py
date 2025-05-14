@@ -1,8 +1,15 @@
+"""
+Naive image metrics.
+
+These aren't expected to do very well, just to provide a baseline for comparison.
+"""
+
 import torch
 
 
-def mse(img1, img2):
-    r"""return the MSE between img1 and img2
+def mse(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+    r"""
+    Return the MSE between img1 and img2.
 
     Our baseline metric to compare two images is often mean-squared
     error, MSE. This is not a good approximation of the human visual
@@ -13,21 +20,24 @@ def mse(img1, img2):
 
     .. math::
 
-        MSE &= \frac{1}{n}\sum_i=1^n (x_i - y_i)^2
-
-    The two images must have a float dtype
+        MSE = \frac{1}{n}\sum_i (x_i - y_i)^2
 
     Parameters
     ----------
-    img1 : torch.Tensor
-        The first image to compare
-    img2 : torch.Tensor
-        The second image to compare, must be same size as ``img1``
+    img1
+        The first image to compare.
+    img2
+        The second image to compare, must be same size as ``img1``.
 
     Returns
     -------
-    mse : torch.float
-        the mean-squared error between ``img1`` and ``img2``
+    mse
+        The mean-squared error between ``img1`` and ``img2``.
+
+    Raises
+    ------
+    RuntimeError
+        If ``img1`` and ``img2`` aren't the same size.
 
     Examples
     --------

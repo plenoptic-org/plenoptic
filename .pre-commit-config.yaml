@@ -9,6 +9,15 @@ repos:
     - id: ruff
       args: [--config=pyproject.toml]
 
+- repo: https://github.com/numpy/numpydoc
+  rev: v1.8.0
+  hooks:
+    - id: numpydoc-validation
+      exclude: |
+          (?x)(
+              tests/|
+              docs/
+          )
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
@@ -32,6 +41,11 @@ repos:
 
 - repo: local
   hooks:
+    - id: check-docstrings
+      name: check docstrings for markdown
+      language: system
+      entry: python tests/check_docstrings.py
+      types: [file, python]
     - id: check-malformed-directive
       language: system
       name: Check for malformed sphinx directives

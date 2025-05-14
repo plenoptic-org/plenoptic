@@ -1,6 +1,14 @@
+"""
+Metrics designed to model human perceptual distance.
+
+Metrics that model human perceptual distance seek to answer the question "how different
+do humans find these two images?".
+"""
+
 import warnings
 from importlib import resources
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import torch
@@ -13,47 +21,84 @@ from ..tools.conv import same_padding
 DIRNAME = resources.files("plenoptic.metric")
 
 
-def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
-    """Calcluates the various components used to compute SSIM
+def _ssim_parts(
+    img1: torch.Tensor,
+    img2: torch.Tensor,
+    pad: Literal[False, "constant", "reflect", "replicate", "circular"] = False,
+    func_name: str = "SSIM",
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Calculate the various components used to compute SSIM.
 
     This should not be called by users directly, but is meant to assist for
     calculating SSIM and MS-SSIM.
 
     Parameters
     ----------
-    img1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images.
-    img2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. The heights and widths of `img1`
-        and `img2` must be the same. The numbers of batches and channels of
-        `img1` and `img2` need to be broadcastable: either they are the same
-        or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches). Both
-        images should have values between 0 and 1. Otherwise, the result may
-        be inaccurate, and we will raise a warning (but will still compute it).
-    pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
+    img1
+        The first image or batch of images, of shape (batch, channel, height, width).
+    img2
+        The second image or batch of images, of shape (batch, channel, height, width).
+        The heights and widths of ``img1`` and ``img2`` must be the same. The numbers of
+        batches and channels of ``img1`` and ``img2`` need to be broadcastable: either
+        they are the same or one of them is 1. The output will be computed separately
+        for each channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may be
+        inaccurate, and we will raise a warning (but will still compute it).
+    pad
         If not False, how to pad the image for the convolutions computing the
-        local average of each image. See `torch.nn.functional.pad` for how
+        local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
+    func_name
+        Name of the function that called this one, in order to raise more helpful error
+        / warning messages.
 
+    Returns
+    -------
+    map_ssim
+        Map of SSIM values across the image.
+    contrast_structure_map
+        Map of contrast structure values.
+    weight
+        Weight used for stability of computation.
+
+    Raises
+    ------
+    ValueError
+        If either ``img1`` or ``img2`` is not 4d.
+    ValueError
+        If ``img1`` and ``img2`` have different height or width.
+    ValueError
+        If ``img1`` and ``img2`` have different batch or channel, unless one of them has
+        a 1 there, so they can be broadcast.
+    ValueError
+        If ``img1`` and ``img2`` have different dtypes.
+
+    Warns
+    -----
+    UserWarning
+        If either ``img1`` or ``img2`` has multiple channels, as SSIM was designed for
+        grayscale images.
+    UserWarning
+        If either ``img1`` or ``img2`` has a value outside of range ``[0, 1]``.
     """
     img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
-            f"Image range falls outside [0, 1]. {func_name} output may not make sense."
+            f"Image range falls outside [0, 1]. {func_name} output may not make sense.",
         )
 
     if not img1.ndim == img2.ndim == 4:
-        raise Exception(
+        raise ValueError(
             "Input images should have four dimensions: (batch, channel, height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
-        raise Exception("img1 and img2 must have the same height and width!")
+        raise ValueError("img1 and img2 must have the same height and width!")
     for i in range(2):
         if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
-            raise Exception(
+            raise ValueError(
                 "Either img1 and img2 should have the same number of "
-                "elements in each dimension, or one of "
+                "elements in the batch and channel dimensions, or one of "
                 "them should be 1! But got shapes "
                 f"{img1.shape}, {img2.shape} instead"
             )
@@ -61,7 +106,7 @@ def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
         warnings.warn(
             "SSIM was designed for grayscale images and here it will be"
             " computed separately for each channel (so channels are treated in"
-            " the same way as batches)."
+            " the same way as batches).",
         )
     if img1.dtype != img2.dtype:
         raise ValueError("Input images must have same dtype!")
@@ -77,13 +122,13 @@ def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
         warnings.warn("window should have sum of 1! normalizing...")
         window = window / window_sum
     if window.ndim != 4:
-        raise Exception("window must have 4 dimensions!")
+        raise ValueError("window must have 4 dimensions!")
 
     if pad is not False:
         img1 = same_padding(img1, (real_size, real_size), pad_mode=pad)
         img2 = same_padding(img2, (real_size, real_size), pad_mode=pad)
 
-    def windowed_average(img):
+    def windowed_average(img: torch.Tensor) -> torch.Tensor:  # numpydoc ignore=GL08
         padd = 0
         (n_batches, n_channels, _, _) = img.shape
         img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
@@ -119,8 +164,14 @@ def _ssim_parts(img1, img2, pad=False, func_name="SSIM"):
     return map_ssim, contrast_structure_map, weight
 
 
-def ssim(img1, img2, weighted=False, pad=False):
-    r"""Structural similarity index
+def ssim(
+    img1: torch.Tensor,
+    img2: torch.Tensor,
+    weighted: bool = False,
+    pad: Literal[False, "constant", "reflect", "replicate", "circular"] = False,
+) -> torch.Tensor:
+    r"""
+    Compute the structural similarity index.
 
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
@@ -140,44 +191,65 @@ def ssim(img1, img2, weighted=False, pad=False):
 
     This function returns the mean SSIM, a scalar-valued metric giving the
     average over the whole image. For the SSIM map (showing the computed value
-    across the image), call `ssim_map`.
+    across the image), call :func:`ssim_map`.
 
     Parameters
     ----------
-    img1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images.
-    img2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. The heights and widths of `img1`
-        and `img2` must be the same. The numbers of batches and channels of
-        `img1` and `img2` need to be broadcastable: either they are the same
-        or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches). Both
-        images should have values between 0 and 1. Otherwise, the result may
-        be inaccurate, and we will raise a warning (but will still compute it).
-    weighted : bool, optional
-        whether to use the original, unweighted SSIM version (`False`) as used
-        in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
-        section for the weight
-    pad : {False, 'constant', 'reflect', 'replicate', 'circular'}, optional
+    img1
+        The first image or batch of images, of shape (batch, channel, height, width).
+    img2
+        The second image or batch of images, of shape (batch, channel, height, width).
+        The heights and widths of ``img1`` and ``img2`` must be the same. The numbers of
+        batches and channels of ``img1`` and ``img2`` need to be broadcastable: either
+        they are the same or one of them is 1. The output will be computed separately
+        for each channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may be
+        inaccurate, and we will raise a warning (but will still compute it).
+    weighted
+        Whether to use the original, unweighted SSIM version (``False``) as used
+        in [1]_ or the weighted version (``True``) as used in [4]_. See Notes
+        section for the weight.
+    pad :
         If not False, how to pad the image for the convolutions computing the
-        local average of each image. See `torch.nn.functional.pad` for how
+        local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
 
     Returns
     -------
-    mssim : torch.Tensor
+    mssim
         2d tensor of shape (batch, channel) containing the mean SSIM for each
-        image, averaged over the whole image
+        image, averaged over the whole image.
+
+    Raises
+    ------
+    ValueError
+        If either ``img1`` or ``img2`` is not 4d.
+    ValueError
+        If ``img1`` and ``img2`` have different height or width.
+    ValueError
+        If ``img1`` and ``img2`` have different batch or channel, unless one of them has
+        a 1 there, so they can be broadcast.
+    ValueError
+        If ``img1`` and ``img2`` have different dtypes.
+
+    Warns
+    -----
+    UserWarning
+        If either ``img1`` or ``img2`` has multiple channels, as SSIM was designed for
+        grayscale images.
+    UserWarning
+        If at least one scale from either ``img1`` or ``img2`` has height or width of
+        less than 11, since SSIM uses an 11x11 convolutional kernel.
 
     Notes
     -----
-    The weight used when `weighted=True` is:
+    The weight used when ``weighted=True`` is:
 
     .. math::
        \log((1+\frac{\sigma_1^2}{C_2})(1+\frac{\sigma_2^2}{C_2}))
 
-    where :math:`sigma_1^2` and :math:`sigma_2^2` are the variances of `img1`
-    and `img2`, respectively, and :math:`C_2` is a constant. See [4]_ for more
+    where :math:`\sigma_1^2` and :math:`\sigma_2^2` are the variances of ``img1``
+    and ``img2``, respectively, and :math:`C_2` is a constant. See [4]_ for more
     details.
 
     References
@@ -185,8 +257,8 @@ def ssim(img1, img2, weighted=False, pad=False):
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
-    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
+    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
@@ -200,7 +272,6 @@ def ssim(img1, img2, weighted=False, pad=False):
     >>> img = po.data.einstein()
     >>> po.metric.ssim(img, img + torch.rand_like(img))
     tensor([[0.0519]])
-
     """
     # these are named map_ssim instead of the perhaps more natural ssim_map
     # because that's the name of a function
@@ -219,8 +290,9 @@ def ssim(img1, img2, weighted=False, pad=False):
     return mssim
 
 
-def ssim_map(img1, img2):
-    """Structural similarity index map
+def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+    """
+    Structural similarity index map.
 
     As described in [1]_, the structural similarity index (SSIM) is a
     perceptual distance metric, giving the distance between two images. SSIM is
@@ -239,37 +311,54 @@ def ssim_map(img1, img2):
     between -1 and 1.
 
     This function returns the SSIM map, showing the SSIM values across the
-    image. For the mean SSIM (a single value metric), call `ssim`.
+    image. For the mean SSIM (a single value metric), call :func:`ssim`.
 
     Parameters
     ----------
-    img1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images.
-    img2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. The heights and widths of `img1`
-        and `img2` must be the same. The numbers of batches and channels of
-        `img1` and `img2` need to be broadcastable: either they are the same
-        or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches). Both
-        images should have values between 0 and 1. Otherwise, the result may
-        be inaccurate, and we will raise a warning (but will still compute it).
-    weighted : bool, optional
-        whether to use the original, unweighted SSIM version (`False`) as used
-        in [1]_ or the weighted version (`True`) as used in [4]_. See Notes
-        section for the weight
+    img1
+        The first image or batch of images, of shape (batch, channel, height, width).
+    img2
+        The second image or batch of images, of shape (batch, channel, height, width).
+        The heights and widths of ``img1`` and ``img2`` must be the same. The numbers of
+        batches and channels of ``img1`` and ``img2`` need to be broadcastable: either
+        they are the same or one of them is 1. The output will be computed separately
+        for each channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may be
+        inaccurate, and we will raise a warning (but will still compute it).
 
     Returns
     -------
-    ssim_map : torch.Tensor
+    ssim_map
         4d tensor containing the map of SSIM values.
+
+    Raises
+    ------
+    ValueError
+        If either ``img1`` or ``img2`` is not 4d.
+    ValueError
+        If ``img1`` and ``img2`` have different height or width.
+    ValueError
+        If ``img1`` and ``img2`` have different batch or channel, unless one of them has
+        a 1 there, so they can be broadcast.
+    ValueError
+        If ``img1`` and ``img2`` have different dtypes.
+
+    Warns
+    -----
+    UserWarning
+        If either ``img1`` or ``img2`` has multiple channels, as SSIM was designed for
+        grayscale images.
+    UserWarning
+        If at least one scale from either ``img1`` or ``img2`` has height or width of
+        less than 11, since SSIM uses an 11x11 convolutional kernel.
 
     References
     ----------
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m)
-    .. [3] [project page](https://www.cns.nyu.edu/~lcv/ssim/)
+    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
@@ -284,7 +373,6 @@ def ssim_map(img1, img2):
     >>> ssim_map = po.metric.ssim_map(img, img + torch.rand_like(img))
     >>> ssim_map.shape
     torch.Size([1, 1, 246, 246])
-
     """
     if min(img1.shape[2], img1.shape[3]) < 11:
         warnings.warn(
@@ -295,8 +383,11 @@ def ssim_map(img1, img2):
     return _ssim_parts(img1, img2)[0]
 
 
-def ms_ssim(img1, img2, power_factors=None):
-    r"""Multiscale structural similarity index (MS-SSIM)
+def ms_ssim(
+    img1: torch.Tensor, img2: torch.Tensor, power_factors: torch.Tensor | None = None
+) -> torch.Tensor:
+    r"""
+    Multiscale structural similarity index (MS-SSIM).
 
     As described in [1]_, multiscale structural similarity index (MS-SSIM) is
     an improvement upon structural similarity index (SSIM) that takes into
@@ -305,8 +396,8 @@ def ms_ssim(img1, img2, power_factors=None):
     SSIM is based on three comparison measurements between the two images:
     luminance, contrast, and structure. All of these are computed convolutionally
     across the images, producing three maps instead of scalars. The SSIM map is
-    the elementwise product of these three maps. See `metric.ssim` and
-    `metric.ssim_map` for a full description of SSIM.
+    the elementwise product of these three maps. See :func:`ssim` and
+    :func:`ssim_map` for a full description of SSIM.
 
     To get images of different scales, average pooling operations with kernel
     size 2 are performed recursively on the input images. The product of
@@ -318,34 +409,55 @@ def ms_ssim(img1, img2, power_factors=None):
     .. math::
         MSSSIM = {SSIM}_M^{a_M} \prod_{i=1}^{M-1} ({CS}_i)^{a_i}
 
-    Here :math: `M` is the number of scales, :math: `{CS}_i` is the mean value
-    of the contrast-structure map for the i'th finest scale, and :math: `{SSIM}_M`
+    Here :math:`M` is the number of scales, :math:`{CS}_i` is the mean value
+    of the contrast-structure map for the i'th finest scale, and :math:`{SSIM}_M`
     is the mean value of the SSIM map for the coarsest scale. If at least one
     of these terms are negative, the value of MS-SSIM is zero. The values of
-    :math: `a_i, i=1,...,M` are taken from the argument `power_factors`.
+    :math:`a_i, i=1,...,M` are taken from the argument ``power_factors``.
 
     Parameters
     ----------
-    img1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images.
-    img2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. The heights and widths of `img1`
-        and `img2` must be the same. The numbers of batches and channels of
-        `img1` and `img2` need to be broadcastable: either they are the same
-        or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches). Both
-        images should have values between 0 and 1. Otherwise, the result may
-        be inaccurate, and we will raise a warning (but will still compute it).
-    power_factors : 1D array, optional.
-        power exponents for the mean values of maps, for different scales (from
+    img1
+        The first image or batch of images, of shape (batch, channel, height, width).
+    img2
+        The second image or batch of images, of shape (batch, channel, height, width).
+        The heights and widths of ``img1`` and ``img2`` must be the same. The numbers of
+        batches and channels of ``img1`` and ``img2`` need to be broadcastable: either
+        they are the same or one of them is 1. The output will be computed separately
+        for each channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may be
+        inaccurate, and we will raise a warning (but will still compute it).
+    power_factors
+        Power exponents for the mean values of maps, for different scales (from
         fine to coarse). The length of this array determines the number of scales.
-        By default, this is set to [0.0448, 0.2856, 0.3001, 0.2363, 0.1333],
-        which is what psychophysical experiments in [1]_ found.
+        If None, set to ``[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]``, which is what
+        psychophysical experiments in [1]_ found.
 
     Returns
     -------
-    msssim : torch.Tensor
-        2d tensor of shape (batch, channel) containing the MS-SSIM for each image
+    msssim
+        2d tensor of shape (batch, channel) containing the MS-SSIM for each image.
+
+    Raises
+    ------
+    ValueError
+        If either ``img1`` or ``img2`` is not 4d.
+    ValueError
+        If ``img1`` and ``img2`` have different height or width.
+    ValueError
+        If ``img1`` and ``img2`` have different batch or channel, unless one of them has
+        a 1 there, so they can be broadcast.
+    ValueError
+        If ``img1`` and ``img2`` have different dtypes.
+
+    Warns
+    -----
+    UserWarning
+        If either ``img1`` or ``img2`` has multiple channels, as MS-SSIM was designed
+        for grayscale images.
+    UserWarning
+        If at least one scale from either ``img1`` or ``img2`` has height or width of
+        less than 11, since SSIM uses an 11x11 convolutional kernel.
 
     References
     ----------
@@ -361,12 +473,11 @@ def ms_ssim(img1, img2, power_factors=None):
     >>> img = po.data.einstein()
     >>> po.metric.ms_ssim(img, img + torch.rand_like(img))
     tensor([[0.4684]])
-
     """
     if power_factors is None:
         power_factors = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    def downsample(img):
+    def downsample(img: torch.Tensor) -> torch.Tensor:  # numpydoc ignore=GL08
         img = F.pad(img, (0, img.shape[3] % 2, 0, img.shape[2] % 2), mode="replicate")
         img = F.avg_pool2d(img, kernel_size=2)
         return img
@@ -390,33 +501,32 @@ def ms_ssim(img1, img2, power_factors=None):
     return msssim
 
 
-def normalized_laplacian_pyramid(img):
-    """Compute the normalized Laplacian Pyramid using pre-optimized parameters
+def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
+    """
+    Compute the normalized Laplacian Pyramid using pre-optimized parameters.
 
     Model parameters are those used in [1]_, copied from the matlab code used in the
     paper, found at [2]_.
 
     Parameters
     ----------
-    img: torch.Tensor of shape (batch, channel, height, width)
-        Image, or batch of images. This representation is designed
-        for grayscale images and will be computed separately for each
-        channel (so channels are treated in the same way as batches).
+    img
+        Image, or batch of images of shape (batch, channel, height, width). This
+        representation is designed for grayscale images and will be computed separately
+        for each channel (so channels are treated in the same way as batches).
 
     Returns
     -------
-    normalized_laplacian_activations: list of torch.Tensor
-        The normalized Laplacian Pyramid with six scales
+    normalized_laplacian_activations
+        The normalized Laplacian Pyramid with six scales.
 
     References
     ----------
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
-
+    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
     """
-
     (_, channel, height, width) = img.size()
 
     N_scales = 6
@@ -446,8 +556,9 @@ def normalized_laplacian_pyramid(img):
     return normalized_laplacian_activations
 
 
-def nlpd(img1, img2):
-    """Normalized Laplacian Pyramid Distance
+def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+    """
+    Compute the normalized Laplacian Pyramid Distance.
 
     As described in  [1]_, this is an image quality metric based on the transformations
     associated with the early visual system: local luminance subtraction and local
@@ -467,28 +578,48 @@ def nlpd(img1, img2):
 
     Parameters
     ----------
-    img1: torch.Tensor of shape (batch, channel, height, width)
-        The first image or batch of images.
-    img2: torch.Tensor of shape (batch, channel, height, width)
-        The second image or batch of images. The heights and widths of `img1`
-        and `img2` must be the same. The numbers of batches and channels of
-        `img1` and `img2` need to be broadcastable: either they are the same
-        or one of them is 1. The output will be computed separately for each
-        channel (so channels are treated in the same way as batches). Both
-        images should have values between 0 and 1. Otherwise, the result may
-        be inaccurate, and we will raise a warning (but will still compute it).
+    img1
+        The first image or batch of images of shape (batch, channel, height, width).
+    img2
+        The second image or batch of images of shape (batch, channel, height, width).
+        The heights and widths of ``img1`` and ``img2`` must be the same. The numbers of
+        batches and channels of ``img1`` and ``img2`` need to be broadcastable: either
+        they are the same or one of them is 1. The output will be computed separately
+        for each channel (so channels are treated in the same way as batches). Both
+        images should have values between 0 and 1. Otherwise, the result may be
+        inaccurate, and we will raise a warning (but will still compute it).
 
     Returns
     -------
-    distance: torch.Tensor of shape (batch, channel)
-        The normalized Laplacian Pyramid distance.
+    distance
+        The normalized Laplacian Pyramid distance, with shape (batch, channel).
+
+    Raises
+    ------
+    ValueError
+        If either ``img1`` or ``img2`` is not 4d.
+    ValueError
+        If ``img1`` and ``img2`` have different height or width.
+    ValueError
+        If ``img1`` and ``img2`` have different batch or channel, unless one of them has
+        a 1 there, so they can be broadcast.
+    ValueError
+        If ``img1`` and ``img2`` have different dtypes.
+
+    Warns
+    -----
+    UserWarning
+        If either ``img1`` or ``img2`` has multiple channels, as SSIM was designed for
+        grayscale images.
+    UserWarning
+        If either ``img1`` or ``img2`` has a value outside of range ``[0, 1]``.
 
     References
     ----------
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] [matlab code](https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m)
+    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
 
     Examples
     --------
@@ -497,20 +628,18 @@ def nlpd(img1, img2):
     >>> curie_img = po.data.curie()
     >>> po.metric.nlpd(einstein_img, curie_img)
     tensor([[1.3507]])
-
     """
-
     if not img1.ndim == img2.ndim == 4:
-        raise Exception(
+        raise ValueError(
             "Input images should have four dimensions: (batch, channel, height, width)"
         )
     if img1.shape[-2:] != img2.shape[-2:]:
-        raise Exception("img1 and img2 must have the same height and width!")
+        raise ValueError("img1 and img2 must have the same height and width!")
     for i in range(2):
         if img1.shape[i] != img2.shape[i] and img1.shape[i] != 1 and img2.shape[i] != 1:
-            raise Exception(
+            raise ValueError(
                 "Either img1 and img2 should have the same number of "
-                "elements in each dimension, or one of "
+                "elements in the batch and channel dimensions, or one of "
                 "them should be 1! But got shapes "
                 f"{img1.shape}, {img2.shape} instead"
             )

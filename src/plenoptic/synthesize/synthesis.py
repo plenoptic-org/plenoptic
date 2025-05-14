@@ -1,9 +1,15 @@
-"""abstract synthesis super-class."""
+"""
+Abstract synthesis super-class.
+
+Users should not interact with this file, but any concrete synthesis methods should
+inherit one of these classes, to provide a unified interface.
+"""
 
 import abc
 import importlib
 import inspect
 import warnings
+from typing import Any
 
 import numpy as np
 import torch
@@ -12,8 +18,21 @@ from ..tools import examine_saved_synthesis
 from ..tools.data import _check_tensor_equality
 
 
-def _get_name(x):
-    """Get the name of an object, for saving/loading purposes"""
+def _get_name(x: object) -> str:
+    """
+    Get the name of an object ``x``, for saving/loading purposes.
+
+    Parameters
+    ----------
+    x
+        A python object or function.
+
+    Returns
+    -------
+    name
+        The name of that object, with full module path (e.g.,
+        ``torch.optim.optimizer.Adam``).
+    """  # numpydoc ignore=ES01
     if x is None:
         return None
     try:
@@ -27,13 +46,13 @@ def _get_name(x):
 
 
 class Synthesis(abc.ABC):
-    r"""Abstract super-class for synthesis objects.
+    r"""
+    Abstract super-class for synthesis objects.
 
     All synthesis objects share a variety of similarities and thus need
     to have similar methods. Some of these can be implemented here and
     simply inherited, some of them will need to be different for each
-    sub-class and thus are marked as abstract methods here
-
+    sub-class and thus are marked as abstract methods here.
     """
 
     def __init__(self):
@@ -42,7 +61,7 @@ class Synthesis(abc.ABC):
 
     @abc.abstractmethod
     def synthesize(self):
-        r"""Synthesize something."""
+        r"""Synthesize something."""  # numpydoc ignore=ES01
         pass
 
     def save(
@@ -51,7 +70,8 @@ class Synthesis(abc.ABC):
         save_io_attrs: list[tuple[str]] = [],
         save_state_dict_attrs: list[str] = [],
     ):
-        r"""Save all attributes in .pt file.
+        r"""
+        Save all attributes in .pt file.
 
         Note that there are two special categories of attributes, as described below.
         All other attributes will be pickled directly and so should be either tensors or
@@ -60,9 +80,9 @@ class Synthesis(abc.ABC):
 
         Parameters
         ----------
-        file_path :
-            The path to save the synthesis object to
-        save_io_attrs :
+        file_path
+            The path to save the synthesis object to.
+        save_io_attrs
             List with tuples of form (str, (str, ...)). The first element is the name of
             the attribute to we save, and the second element is a tuple of attributes of
             the Synthesis object, which we can pass as inputs to the attribute. We save
@@ -70,13 +90,18 @@ class Synthesis(abc.ABC):
             initialized object's name hasn't changed, and that when called on the same
             inputs, we get the same outputs. Intended for models, metrics, loss
             functions. Used to avoid saving callables, which is brittle and unsafe.
-        save_state_dict_attrs :
+        save_state_dict_attrs
             Names of attributes that we save as tuples of (name, state_dict).
             Corresponding attribute can be None, in which case we save an empty
             dictionary as state_dict. On load, we check that the initialized object's
             name hasn't changed, and load the state_dict. Intended for optimizers,
             schedulers. Used to avoid saving callables, which is brittle and unsafe.
 
+        Raises
+        ------
+        ValueError
+            If any of the strings specified in ``save_io_attrs`` as inputs for the
+            callable attribute-to-save are not attributes of ``self``.
         """
         save_dict = {}
         save_dict["save_metadata"] = {
@@ -126,9 +151,10 @@ class Synthesis(abc.ABC):
         state_dict_attributes: list[str] = [],
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
-        **pickle_load_args,
+        **pickle_load_args: Any,
     ):
-        r"""Load all relevant attributes from a .pt file.
+        r"""
+        Load all relevant attributes from a .pt file.
 
         This should be called by ``Synthesis`` object that has just been initialized.
 
@@ -136,32 +162,32 @@ class Synthesis(abc.ABC):
 
         Parameters
         ----------
-        file_path :
-            The path to load the synthesis object from
-        empty_on_init_attr :
+        file_path
+            The path to load the synthesis object from.
+        empty_on_init_attr
             The name of an attribute that will either be None or have length 0 if the
             Synthesis object has just been initialized.
-        map_location :
-            map_location argument to pass to ``torch.load``. If you save
+        map_location
+            Argument to pass to :func:`torch.load` as ``map_location``. If you save
             stuff that was being run on a GPU and are loading onto a
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
-            pass to ``torch.device``
-        check_attributes :
+            pass to :class:`torch.device`.
+        check_attributes
             List of strings we ensure are identical in the current ``Synthesis`` object
             and the loaded one.
-        check_io_attributes :
+        check_io_attributes
             Names of attributes whose input/output behavior we should check (i.e., if we
             call them on identical inputs, do we get identical outputs). In the loaded
             dictionary, these are a tuple of three values: the name of the callable, the
             name of the attribute to use as input, and the output we expect.
-        state_dict_attributes :
+        state_dict_attributes
             Names of attributes that were callables, saved as a tuple with the name of
             the callable and their state_dict. We will ensure the name of the attributes
             are identical and then load the state_dict. If the attribute is None on the
             initialized Synthesis object, then we set the tuple, and count on the
             Synthesis object to properly handle it when needed.
-        tensor_equality_atol :
+        tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -170,7 +196,7 @@ class Synthesis(abc.ABC):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        tensor_equality_rtol :
+        tensor_equality_rtol
             Relative tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
             saving and loading on two machines with torch built by different cuda
@@ -179,10 +205,32 @@ class Synthesis(abc.ABC):
             point precision of different data types (especially, ``eps``); if you have
             to increase this by more than 1 or 2 decades, then you are probably not
             dealing with a numerical issue.
-        pickle_load_args :
-            any additional kwargs will be added to ``pickle_module.load`` via
-            ``torch.load``, see that function's docstring for details.
+        **pickle_load_args
+            Any additional kwargs will be added to ``pickle_module.load`` via
+            :func:`torch.load`, see that function's docstring for details.
 
+        Raises
+        ------
+        ValueError
+            If the loading object has not just been initialized.
+        ValueError
+            If the object saved at ``file_path`` is not the same type as the loading
+            object.
+        ValueError
+            If either the saved or loading object has attributes not found in the
+            other.
+        ValueError
+            If the saved and loading objects have a different value for one of the
+            ``check_attributes``.
+        ValueError
+            If the behavior of one of the ``check_io_attributes`` is different between
+            the saved and loading objects.
+
+        Warns
+        -----
+        UserWarning
+            If :func:`setup` will need to be called after load, to finish initializing
+            one of the ``state_dict_attributes``
         """
         check_str = (
             "\n\nIf this is confusing, try calling "
@@ -325,15 +373,21 @@ class Synthesis(abc.ABC):
         self._loaded = True
 
     @abc.abstractmethod
-    def to(self, *args, attrs: list[str] = [], **kwargs):
-        r"""Moves and/or casts the parameters and buffers.
-        Similar to ``save``, this is an abstract method only because you
+    def to(self, *args: Any, attrs: list[str] = [], **kwargs: Any):
+        r"""
+        Move and/or cast the parameters and buffers.
+
+        Similar to :func:`save`, this is an abstract method only because you
         need to define the attributes to call to on.
 
         This can be called as
+
         .. function:: to(device=None, dtype=None, non_blocking=False)
+
         .. function:: to(dtype, non_blocking=False)
+
         .. function:: to(tensor, non_blocking=False)
+
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
         floating point desired :attr:`dtype` s. In addition, this method will
         only cast the floating point parameters and buffers to :attr:`dtype`
@@ -341,26 +395,33 @@ class Synthesis(abc.ABC):
         :attr:`device`, if that is given, but with dtypes unchanged. When
         :attr:`non_blocking` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
-        pinned memory to CUDA devices. When calling this method to move tensors
-        to a CUDA device, items in ``attrs`` that start with "saved_" will not
-        be moved.
+        pinned memory to CUDA devices.
+
+        When calling this method to move tensors to a CUDA device, items in ``attrs``
+        that start with ``"saved_"`` will not be moved.
+
+        See :meth:`torch.nn.Module.to` for examples.
+
         .. note::
             This method modifies the module in-place.
-        Args:
-            device (:class:`torch.device`): the desired device of the parameters
-                and buffers in this module
-            dtype (:class:`torch.dtype`): the desired floating point type of
-                the floating point parameters and buffers in this module
-            tensor (torch.Tensor): Tensor whose dtype and device are the desired
-                dtype and device for all parameters and buffers in this module
-            attrs (:class:`list`): list of strs containing the attributes of
-                this object to move to the specified device/dtype
-        """
+
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
         device, dtype, non_blocking, memory_format = torch._C._nn._parse_to(
             *args, **kwargs
         )
 
-        def move(a, k):
+        def move(a: torch.Tensor, k: str) -> torch.Tensor:
+            # numpydoc ignore=RT01,ES01,PR01,GL08
             move_device = None if k.startswith("saved_") else device
             if memory_format is not None and a.dim() == 4:
                 return a.to(
@@ -389,11 +450,20 @@ class Synthesis(abc.ABC):
 
 
 class OptimizedSynthesis(Synthesis):
-    r"""Abstract super-class for synthesis objects that use optimization.
+    r"""
+    Abstract super-class for synthesis objects that use optimization.
 
     The primary difference between this and the generic Synthesis class is that
     these will use an optimizer object to iteratively update their output.
 
+    Parameters
+    ----------
+    range_penalty_lambda
+        Strength of the regularizer that enforces the allowed_range. Must be
+        non-negative.
+    allowed_range
+        Range (inclusive) of allowed pixel values. Any values outside this
+        range will be penalized.
     """
 
     def __init__(
@@ -401,7 +471,6 @@ class OptimizedSynthesis(Synthesis):
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
     ):
-        """Initialize the properties of OptimizedSynthesis."""
         super().__init__()
         self._losses = []
         self._gradient_norm = []
@@ -415,12 +484,13 @@ class OptimizedSynthesis(Synthesis):
 
     @abc.abstractmethod
     def setup(self):
-        r"""What to start synthesis with."""
+        r"""Initialize relevant attributes."""  # numpydoc ignore=ES01
         pass
 
     @abc.abstractmethod
     def objective_function(self):
-        r"""How good is the current synthesized object.
+        r"""
+        How good is the current synthesized object.
 
         See ``plenoptic.tools.optim`` for some examples.
         """
@@ -428,14 +498,16 @@ class OptimizedSynthesis(Synthesis):
 
     @abc.abstractmethod
     def _check_convergence(self):
-        r"""How to determine if synthesis has finished.
+        r"""
+        How to determine if synthesis has finished.
 
         See ``plenoptic.tools.convergence`` for some examples.
         """
         pass
 
     def _closure(self) -> torch.Tensor:
-        r"""An abstraction of the gradient calculation, before the optimization step.
+        r"""
+        Calculate the gradient, before the optimization step.
 
         This enables optimization algorithms that perform several evaluations
         of the gradient before taking a step (ie. second order methods like
@@ -447,8 +519,7 @@ class OptimizedSynthesis(Synthesis):
         Returns
         -------
         loss
-            Loss of the current objective function
-
+            Loss of the current objective function.
         """
         self.optimizer.zero_grad()
         loss = self.objective_function()
@@ -462,7 +533,8 @@ class OptimizedSynthesis(Synthesis):
         optimizer_kwargs: dict | None = None,
         learning_rate: float = 0.01,
     ):
-        """Initialize optimizer.
+        """
+        Initialize optimizer.
 
         optimizer can be:
 
@@ -485,6 +557,31 @@ class OptimizedSynthesis(Synthesis):
         - else, the saved and user-specified optimizers must have the same class name
           and we load the state_dict. in this case, ``optimizer_kwargs`` must be None
 
+        Parameters
+        ----------
+        optimizer
+            The (un-initialized) optimizer object to use. If ``None``, we use
+            :class:`torch.optim.Adam`.
+        synth_attr
+            The Tensor that we are updating as part of optimization.
+        optimizer_kwargs
+            The keyword arguments to pass to the optimizer on initialization. If
+            ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
+            ``{"amsgrad": True}``.
+        learning_rate
+            The learning rate for the optimizer.
+
+        Raises
+        ------
+        ValueError
+            If ``optimizer_kwargs`` is not ``None`` and ``self.optimizer`` is a tuple
+            (thus, :meth:`load` was called before this).
+        TypeError
+            If ``self.optimizer`` is a tuple (thus, :meth:`load` was called before
+            this), was not :class`torch.optim.Adam`, and ``optimizer`` arg is ``None``.
+        ValueError
+            If ``self.optimizer`` is a tuple (thus, :meth:`load` was called before this)
+            but ``optimizer`` arg has a different type than the saved optimizer.
         """
         if isinstance(self.optimizer, tuple):
             # then we're calling this after load()
@@ -531,7 +628,8 @@ class OptimizedSynthesis(Synthesis):
         optimizer: torch.optim.Optimizer,
         scheduler_kwargs: dict | None = None,
     ):
-        """Initialize scheduler.
+        """
+        Initialize scheduler.
 
         scheduler can be:
 
@@ -554,6 +652,28 @@ class OptimizedSynthesis(Synthesis):
         object initialization). Then, we will pass the loss to scheduler.step when we
         call it.
 
+        Parameters
+        ----------
+        scheduler
+            The un-initialized learning rate scheduler object to use. If ``None``, we
+            don't use one.
+        optimizer
+            The initialized optimizer whose learning rate ``scheduler`` will be
+            adjusting.
+        scheduler_kwargs
+            The keyword arguments to pass to the scheduler on initialization.
+
+        Raises
+        ------
+        ValueError
+            If ``scheduler_kwargs`` is not ``None`` and ``self.scheduler`` is a tuple
+            (thus, :meth:`load` was called before this).
+        TypeError
+            If ``self.scheduler`` is a tuple (thus, :meth:`load` was called before this)
+            but ``scheduler`` arg is ``None``.
+        ValueError
+            If ``self.scheduler`` is a tuple (thus, :meth:`load` was called before this)
+            but ``scheduler`` arg has a different type than the saved scheduler.
         """
         if isinstance(self.scheduler, tuple):
             # then we're calling this after load()
@@ -593,50 +713,66 @@ class OptimizedSynthesis(Synthesis):
                     self._scheduler_step_arg = True
 
     @property
-    def range_penalty_lambda(self):
+    def range_penalty_lambda(self) -> float:
+        """Magnitude of the penalty on pixel values outside :attr:`allowed_range`."""
+        # numpydoc ignore=RT01,ES01
         return self._range_penalty_lambda
 
     @property
-    def allowed_range(self):
+    def allowed_range(self) -> tuple[float, float]:
+        """Allowable range of pixel values."""
+        # numpydoc ignore=RT01,ES01
         return self._allowed_range
 
     @property
-    def losses(self):
-        """Synthesis loss over iterations."""
+    def losses(self) -> torch.Tensor:
+        """Optimization loss over iterations."""
+        # numpydoc ignore=RT01,ES01
         return torch.as_tensor(self._losses)
 
     @property
-    def gradient_norm(self):
-        """Synthesis gradient's L2 norm over iterations."""
+    def gradient_norm(self) -> torch.Tensor:
+        """Optimization gradient's L2 norm over iterations."""
+        # numpydoc ignore=RT01,ES01
         return torch.as_tensor(self._gradient_norm)
 
     @property
-    def pixel_change_norm(self):
+    def pixel_change_norm(self) -> torch.Tensor:
         """L2 norm change in pixel values over iterations."""
+        # numpydoc ignore=RT01,ES01
         return torch.as_tensor(self._pixel_change_norm)
 
     @property
-    def store_progress(self):
+    def store_progress(self) -> bool | int:
+        """
+        How often we are caching progress.
+
+        If ``False``, we don't save anything. If ``True``, we save every iteration. If
+        an int, we save every ``store_progress`` iterations (note then that 0 is the
+        same as ``False`` and 1 the same as ``True``).
+        """  # numpydoc ignore=RT01
         return self._store_progress
 
     @store_progress.setter
     def store_progress(self, store_progress: bool | int):
-        """Initialize store_progress.
-
-        Sets the ``self.store_progress`` attribute, as well as changing the
-        ``saved_metamer`` attibute to a list so we can append to them. finally,
-        adds first value to ``saved_metamer`` if it's empty.
+        """
+        Initialize store_progress.
 
         Parameters
         ----------
         store_progress : bool or int, optional
             Whether we should store the metamer image in progress on every
-            iteration. If False, we don't save anything. If True, we save every
-            iteration. If an int, we save every ``store_progress`` iterations
-            (note then that 0 is the same as False and 1 the same as True). If
-            True or int>0, ``self.saved_metamer`` contains the stored images.
+            iteration. If ``False``, we don't save anything. If ``True``, we save
+            every iteration. If an int, we save every ``store_progress`` iterations
+            (note then that 0 is the same as ``False`` and 1 the same as ``True``).
 
+        Raises
+        ------
+        ValueError
+            If ``store_progress`` has already been set and you are trying to change the
+            value.
         """
+        # numpydoc ignore=RT01,ES01
         if store_progress and store_progress is True:
             store_progress = 1
         if self.store_progress is not None and store_progress != self.store_progress:
@@ -645,7 +781,7 @@ class OptimizedSynthesis(Synthesis):
             # iteration (loss, gradient, etc) and those that are stored every
             # store_progress iteration (e.g., saved_metamer) changes partway
             # through and that's annoying
-            raise Exception(
+            raise ValueError(
                 "If you've already run synthesize() before, must "
                 "re-run it with same store_progress arg. You "
                 f"passed {store_progress} instead of "
@@ -654,9 +790,13 @@ class OptimizedSynthesis(Synthesis):
         self._store_progress = store_progress
 
     @property
-    def optimizer(self):
+    def optimizer(self) -> torch.optim.Optimizer:
+        """Torch optimizer object which updates the synthesis target."""
+        # numpydoc ignore=RT01,ES01
         return self._optimizer
 
     @property
-    def scheduler(self):
+    def scheduler(self) -> torch.optim.lr_scheduler.LRScheduler | None:
+        """Learning rate scheduler which adjusts optimizer learning rate."""
+        # numpydoc ignore=RT01,ES01
         return self._scheduler
