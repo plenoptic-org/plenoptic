@@ -60,7 +60,7 @@ class Identity(torch.nn.Module):
            >>> img = po.data.curie()
            >>> y = identity_model.forward(img)
            >>> titles = ["Input", "Output (identical)"]
-           >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+           >>> po.imshow([img, y], title=titles)
            <PyrFigure ...>
         """  # numpydoc ignore=ES01
         y = 1 * x
@@ -164,7 +164,7 @@ class Linear(nn.Module):
           ...         "Lowpass channel output",
           ...         "Bandpass channel output",
           ...     ],
-          ... )  # doctest: +ELLIPSIS
+          ... )
           <PyrFigure size...>
         """
         y = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)
@@ -269,7 +269,7 @@ class Gaussian(nn.Module):
           >>> gaussian_model = po.simul.Gaussian(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = gaussian_model.forward(img)
-          >>> po.imshow([img, y], title=["Input image", "Output"])  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=["Input image", "Output"])
           <PyrFigure size...>
 
         Multiple output channels with different standard deviations.
@@ -285,7 +285,7 @@ class Gaussian(nn.Module):
           >>> po.imshow(
           ...     [img, y],
           ...     title=["Input image", "Output Channel 0", "Output Channel 1"],
-          ... )  # doctest: +ELLIPSIS
+          ... )
           <PyrFigure ...>
         """
         self.std.data = self.std.data.abs()  # ensure stdev is positive
@@ -465,7 +465,7 @@ class CenterSurround(nn.Module):
           >>> cs_model = po.simul.CenterSurround(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = cs_model.forward(img)
-          >>> po.imshow([img, y], title=["Input image", "Output"])  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=["Input image", "Output"])
           <PyrFigure size...>
 
         Model with both on-center/off-surround and off-center/on-surround:
@@ -481,7 +481,7 @@ class CenterSurround(nn.Module):
           ...     "On-center/off-surround",
           ...     "Off-center/on-surround",
           ... ]
-          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

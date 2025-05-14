@@ -153,7 +153,7 @@ class LinearNonlinear(nn.Module):
           >>> img = po.data.einstein()
           >>> y = ln_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         y = self.activation(self.center_surround(x))
@@ -187,7 +187,7 @@ class LinearNonlinear(nn.Module):
 
           >>> import plenoptic as po
           >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
-          >>> ln_model.display_filters()  # doctest: +ELLIPSIS
+          >>> ln_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
         weights = self.center_surround.filt.detach()
@@ -347,7 +347,7 @@ class LuminanceGainControl(nn.Module):
           >>> img = po.data.einstein()
           >>> y = lg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -387,7 +387,7 @@ class LuminanceGainControl(nn.Module):
           >>> lg_model = po.simul.LuminanceGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
-          >>> lg_model.display_filters()  # doctest: +ELLIPSIS
+          >>> lg_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
         weights = torch.cat(
@@ -576,7 +576,7 @@ class LuminanceContrastGainControl(nn.Module):
           >>> img = po.data.einstein()
           >>> y = lgg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -623,7 +623,7 @@ class LuminanceContrastGainControl(nn.Module):
           >>> lgg_model = po.simul.LuminanceContrastGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
-          >>> lgg_model.display_filters()  # doctest: +ELLIPSIS
+          >>> lgg_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
         weights = torch.cat(
@@ -820,7 +820,7 @@ class OnOff(nn.Module):
           >>> img = po.data.einstein()
           >>> y = onoff_model.forward(img)
           >>> titles = ["Input image", "Output channel 0", "Output channel 1"]
-          >>> po.imshow([img, y], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -879,7 +879,7 @@ class OnOff(nn.Module):
 
           >>> import plenoptic as po
           >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
-          >>> onoff_model.display_filters()  # doctest: +ELLIPSIS
+          >>> onoff_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
         weights = torch.cat(

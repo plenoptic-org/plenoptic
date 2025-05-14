@@ -86,7 +86,7 @@ local_scheme = 'no-local-version'
 [tool.pytest.ini_options]
 addopts = "--cov=plenoptic --cov-append -n auto --cov-report term"
 testpaths = ["tests"]
-doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER"
+doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
 
 # ignore a bunch of common plenoptic-generated warnings, and raise errors
 # otherwise. this way we can actually stay on top of deprecations etc. Per docs

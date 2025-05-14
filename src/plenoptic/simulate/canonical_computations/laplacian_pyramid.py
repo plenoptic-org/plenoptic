@@ -84,7 +84,7 @@ class LaplacianPyramid(nn.Module):
           >>> import plenoptic as po
           >>> img = po.data.einstein()
           >>> lpyr = po.simul.LaplacianPyramid()
-          >>> po.imshow(lpyr(img))  # doctest: +ELLIPSIS
+          >>> po.imshow(lpyr(img))
           <PyrFigure ...>
         """
         y = []
@@ -131,7 +131,7 @@ class LaplacianPyramid(nn.Module):
           >>> torch.allclose(img, recon)
           True
           >>> titles = ["Original", "Reconstructed", "Difference"]
-          >>> po.imshow([img, recon, img - recon], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, recon, img - recon], title=titles)
           <PyrFigure ...>
         """
         x = y[self.n_scales - 1]

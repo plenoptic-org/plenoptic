@@ -62,17 +62,17 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
       >>> # plot filter, signal and convolved signal
       >>> f, axs = plt.subplots(3, 1)
       >>> # plot filter and convolution results
-      >>> axs[0].plot(filt.flatten())  # doctest: +ELLIPSIS
+      >>> axs[0].plot(filt.flatten())
       [...
-      >>> axs[0].set_title("1D Gaussian filter")  # doctest: +ELLIPSIS
+      >>> axs[0].set_title("1D Gaussian filter")
       Text(0.5, 1.0, '1D Gaussian filter')
-      >>> axs[1].plot(sin_plus_noise.flatten())  # doctest: +ELLIPSIS
+      >>> axs[1].plot(sin_plus_noise.flatten())
       [...
-      >>> axs[1].set_title("Sin + Noise")  # doctest: +ELLIPSIS
+      >>> axs[1].set_title("Sin + Noise")
       Text(0.5, 1.0, 'Sin + Noise')
-      >>> axs[2].plot(smooth_sin.flatten())  # doctest: +ELLIPSIS
+      >>> axs[2].plot(smooth_sin.flatten())
       [...
-      >>> axs[2].set_title("Convolved Sin + Noise")  # doctest: +ELLIPSIS
+      >>> axs[2].set_title("Convolved Sin + Noise")
       Text(0.5, 1.0, 'Convolved Sin + Noise')
       >>> plt.tight_layout()
     """
@@ -161,7 +161,7 @@ def circular_gaussian2d(
       >>> po.imshow(
       ...     [einstein_img, filt_2d, blurred_einstein],
       ...     title=["Einstein", "2D Gaussian Filter", "Blurred Einstein"],
-      ... )  # doctest: +ELLIPSIS
+      ... )
       <PyrFigure ...>
 
     Multiple output channels with different standard deviations.
@@ -188,9 +188,7 @@ def circular_gaussian2d(
       ...     "Blurred Einstein",
       ...     "Blurrier Einstein",
       ... ]
-      >>> po.imshow(
-      ...     [einstein_img, filt_2d, blurred_einstein], title=titles
-      ... )  # doctest: +ELLIPSIS
+      >>> po.imshow([einstein_img, filt_2d, blurred_einstein], title=titles)
       <PyrFigure ...>
 
     Multiple input and output channels, convolved independently. See
@@ -219,7 +217,7 @@ def circular_gaussian2d(
       ...     [wheel, blurred_wheel[:, ::2], blurred_wheel[:, 1::2]],
       ...     title=titles,
       ...     as_rgb=True,
-      ... )  # doctest: +ELLIPSIS
+      ... )
       <PyrFigure ...>
     """
     kernel_size, std, out_channels = _validate_filter_args(

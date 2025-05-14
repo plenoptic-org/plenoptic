@@ -394,7 +394,7 @@ class SteerablePyramidFreq(nn.Module):
           >>> import plenoptic as po
           >>> img = po.data.einstein()
           >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-          >>> po.pyrshow(spyr(img))  # doctest: +ELLIPSIS
+          >>> po.pyrshow(spyr(img))
           <PyrFigure ...>
         """
         if self.image_shape != x.shape[-2:]:
@@ -584,9 +584,7 @@ class SteerablePyramidFreq(nn.Module):
           ...     coeffs_tensor[:, :1],
           ...     coeffs_tensor[:, -1:],
           ... ]
-          >>> po.imshow(
-          ...     coeffs_tensor, col_wrap=spyr.num_orientations
-          ... )  # doctest: +ELLIPSIS
+          >>> po.imshow(coeffs_tensor, col_wrap=spyr.num_orientations)
           <PyrFigure ...>
         """
         pyr_keys = list(pyr_coeffs.keys())
@@ -925,7 +923,7 @@ class SteerablePyramidFreq(nn.Module):
           >>> torch.allclose(recon, img, rtol=1e-8, atol=1e-5)
           True
           >>> titles = ["Original", "Reconstructed", "Difference"]
-          >>> po.imshow([img, recon, img - recon], title=titles)  # doctest: +ELLIPSIS
+          >>> po.imshow([img, recon, img - recon], title=titles)
           <PyrFigure ...>
         """
         # For reconstruction to work, last time we called forward needed

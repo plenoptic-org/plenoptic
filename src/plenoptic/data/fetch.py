@@ -145,7 +145,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
       >>> len(list(path.glob("*")))
       38
       >>> img = po.load_images(path / "fig3b.jpg")
-      >>> po.imshow(img)  # doctest: +ELLIPSIS
+      >>> po.imshow(img)
       <PyrFigure size ...>
     """
     if retriever is None:
