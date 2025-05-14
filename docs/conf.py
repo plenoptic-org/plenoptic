@@ -60,7 +60,11 @@ extensions = [
 
 add_module_names = False
 
-intersphinx_mapping = {"torch": ("https://pytorch.org/docs/stable/", None)}
+intersphinx_mapping = {
+    "torch": ("https://pytorch.org/docs/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
