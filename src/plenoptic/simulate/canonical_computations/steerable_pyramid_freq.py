@@ -65,8 +65,8 @@ class SteerablePyramidFreq(nn.Module):
         octaves.
     is_complex
         Whether the pyramid coefficients should be complex or not. If True, the
-        real and imaginary parts correspond to a pair of even and odd symmetric
-        filters. If False, the coefficients only include the real part / even filters.
+        real and imaginary parts correspond to a pair of odd and even symmetric
+        filters. If False, the coefficients only include the real part / odd filters.
     downsample
         Whether to downsample each scale in the pyramid or keep the output
         pyramid coefficients in fixed bands of size ``image_shape``. When
