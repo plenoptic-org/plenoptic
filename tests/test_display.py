@@ -54,7 +54,7 @@ class TestDisplay:
             _, ax_y = ax.lines[0].get_data()
             y_check = y2[0, i] if how == "tensor" else y2[i]
 
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
         plt.close(fig)
 
@@ -107,7 +107,7 @@ class TestDisplay:
                 y_check = y2[i]
             elif how == "dict-single":
                 y_check = {0: y2[0], 1: y1[1]}[i]
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
         plt.close(fig)
 
@@ -147,7 +147,7 @@ class TestDisplay:
             ax_y = ax.containers[0].markerline.get_ydata()
             y_check = y2[0, i] if how == "tensor" else y2[i]
 
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
         plt.close(fig)
 
@@ -180,7 +180,7 @@ class TestDisplay:
                 y_check = y2[i]
             elif how == "dict-single":
                 y_check = {0: y2[0], 1: y1[1]}[i]
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
         plt.close(fig)
 
@@ -215,7 +215,7 @@ class TestDisplay:
 
             y_check = y2[0, i] if how == "tensor" else y2[i]
 
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update image correctly!")
         plt.close(fig)
 
@@ -232,7 +232,7 @@ class TestDisplay:
         po.tools.update_plot(ax, data)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
-        if not np.allclose(ax_data, data):
+        if not np.allclose(ax_data, po.to_numpy(data)):
             raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close(fig)
 
@@ -270,7 +270,7 @@ class TestDisplay:
             ax_data = ax.collections[0].get_offsets()
             data_check = data[0, i] if how == "tensor" else data[i]
 
-            if not np.allclose(ax_data, data_check):
+            if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close(fig)
 
@@ -330,7 +330,7 @@ class TestDisplay:
                     -1,
                 )
                 data_check = {0: data[0], 1: tmp[1]}[i]
-            if not np.allclose(ax_data, data_check):
+            if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
 
     def test_update_plot_mixed_multi_axes(self):
@@ -364,7 +364,7 @@ class TestDisplay:
                 assert len(ax.collections) == 0, "Too many scatter plots created"
                 assert len(ax.lines) == 1, "Too many lines created"
                 _, ax_data = ax.lines[0].get_data()
-            if not np.allclose(ax_data, data[i]):
+            if not np.allclose(ax_data, po.to_numpy(data[i])):
                 raise Exception("Didn't update points of the scatter plot correctly!")
         plt.close(fig)
 
