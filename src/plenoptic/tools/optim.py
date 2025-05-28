@@ -133,7 +133,7 @@ def penalize_range(
     **kwargs: Any,
 ) -> Tensor:
     r"""
-    Penalize values outside of allowed_range.
+    Calculate quadratic penalty on values outside of ``allowed_range``.
 
     Instead of clamping values to exactly fall in a range, this provides
     a 'softer' way of doing it, by imposing a quadratic penalty on any
