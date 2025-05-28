@@ -34,7 +34,7 @@ def mse(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
 
     .. math::
 
-        MSE &= \frac{1}{n}\sum_i=1^n (x_i - y_i)^2
+        MSE = \frac{1}{n}\sum_{i=1}^n (x_i - y_i)^2
 
     The two images must have a float dtype.
 
@@ -66,7 +66,7 @@ def l2_norm(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
 
     .. math::
 
-        L2 &= \sqrt{\sum_i=1^n (x_i - y_i)^2}
+        L2 = \sqrt{\sum_{i=1}^n (x_i - y_i)^2}
 
     Parameters
     ----------
@@ -135,7 +135,7 @@ def penalize_range(
     r"""
     Penalize values outside of allowed_range.
 
-    instead of clamping values to exactly fall in a range, this provides
+    Instead of clamping values to exactly fall in a range, this provides
     a 'softer' way of doing it, by imposing a quadratic penalty on any
     values outside the allowed_range. All values within the
     allowed_range have a penalty of 0.
