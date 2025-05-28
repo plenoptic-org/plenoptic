@@ -23,12 +23,12 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..synthesize.metamer import Metamer
+    from ..synthesize.metamer import MetamerCTF
     from ..synthesize.synthesis import OptimizedSynthesis
 
 
 def loss_convergence(
-    synth: "OptimizedSynthesis",
+    synth: OptimizedSynthesis,
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
@@ -67,7 +67,7 @@ def loss_convergence(
     )
 
 
-def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> bool:
+def coarse_to_fine_enough(synth: MetamerCTF, i: int, ctf_iters_to_check: int) -> bool:
     r"""
     Check whether we've been synthesized all scales for long enough.
 
@@ -87,7 +87,7 @@ def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> 
     Parameters
     ----------
     synth
-        The Metamer object to check.
+        The MetamerCTF object to check.
     i
         The current iteration (0-indexed).
     ctf_iters_to_check
@@ -110,7 +110,7 @@ def coarse_to_fine_enough(synth: "Metamer", i: int, ctf_iters_to_check: int) -> 
 
 
 def pixel_change_convergence(
-    synth: "OptimizedSynthesis",
+    synth: OptimizedSynthesis,
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
