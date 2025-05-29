@@ -830,11 +830,11 @@ def display_mad_image(
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
 
-    We use :func:`plenoptic.imshow` to display the synthesized image and attempt to
-    automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that :func:`plenoptic.imshow` is
-    opinionated about the size of the resulting image and will throw an
-    Exception if the axis created is not big enough for the selected zoom.
+    We use :func:`~plenoptic.tools.display.imshow` to display the synthesized image and
+    attempt to automatically find the most reasonable zoom value. You can override this
+    value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
+    is opinionated about the size of the resulting image and will throw an Exception if
+    the axis created is not big enough for the selected zoom.
 
     Parameters
     ----------
@@ -857,7 +857,7 @@ def display_mad_image(
     title :
         Title of the axis.
     **kwargs
-        Passed to :func:`plenoptic.imshow`.
+        Passed to :func:`~plenoptic.tools.display.imshow`.
 
     Returns
     -------
@@ -1186,7 +1186,7 @@ def plot_synthesis_status(
         the most recent one. Negative values are also allowed.
     vrange
         The vrange option to pass to ``display_mad_image()``. See
-        docstring of :func:`plenoptic.imshow` for possible values.
+        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the synthesized image, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -1515,10 +1515,10 @@ def display_mad_image_all(
         Name of the second metric. If ``None``, we use the name of the
         ``optimized_metric`` function from ``mad_metric2_min``.
     zoom
-        Ratio of display pixels to image pixels. See :func:`plenoptic.imshow` for
-        details.
+        Ratio of display pixels to image pixels. See
+        :func:`~plenoptic.tools.display.imshow` for details.
     **kwargs
-        Passed to :func:`plenoptic.imshow`.
+        Passed to :func:`~plenoptic.tools.display.imshow`.
 
     Returns
     -------
