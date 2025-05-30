@@ -1,3 +1,6 @@
+"""Helper functions for modifying tensors in useful ways."""
+
+# numpydoc ignore=ES01
 import numpy as np
 import torch
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
@@ -5,7 +8,21 @@ from torch import Tensor
 
 
 def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
-    r"""Linearly rescale the dynamic range of the input x to [a,b]."""
+    r"""
+    Linearly rescale the dynamic range of the input to ``[a, b]``.
+
+    Parameters
+    ----------
+    x
+        Tensor to rescale.
+    a, b
+        Min and max values, respectively, for the output.
+
+    Returns
+    -------
+    rescaled_x
+        The rescaled tensor.
+    """  # numpydoc ignore=ES01
     v = x.max() - x.min()
     g = x - x.min()
     if v > 0:
@@ -16,13 +33,16 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
 def raised_cosine(
     width: float = 1, position: float = 0, values: tuple[float, float] = (0, 1)
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return a lookup table containing a "raised cosine" soft threshold function.
+    """
+    Return a lookup table containing a "raised cosine" soft threshold function.
 
-    Y =  VALUES(1)
-        + (VALUES(2)-VALUES(1))
-        * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
+    .. code::
 
-    This lookup table is suitable for use by `interpolate1d`
+       Y =  VALUES(1)
+           + (VALUES(2)-VALUES(1))
+           * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
+
+    This lookup table is suitable for use by :func:`interpolate1d`.
 
     Parameters
     ----------
@@ -40,7 +60,6 @@ def raised_cosine(
     Y
         The y values of this raised cosine.
     """
-
     sz = 256  # arbitrary!
 
     X = np.pi * np.arange(-sz - 1, 2) / (2 * sz)
@@ -59,12 +78,14 @@ def raised_cosine(
 def interpolate1d(
     x_new: Tensor, Y: Tensor | np.ndarray, X: Tensor | np.ndarray
 ) -> Tensor:
-    r"""One-dimensional linear interpolation.
+    r"""
+    One-dimensional linear interpolation.
 
     Returns the one-dimensional piecewise linear interpolant to a
-    function with given discrete data points (X, Y), evaluated at x_new.
+    function with given discrete data points ``(X, Y)``, evaluated at
+    ``x_new``.
 
-    Note: this function is just a wrapper around ``np.interp()``.
+    Note: this function is just a wrapper around :func:`np.interp()`.
 
     Parameters
     ----------
@@ -77,17 +98,19 @@ def interpolate1d(
 
     Returns
     -------
-    Interpolated values of shape identical to `x_new`.
-
+    interp_x
+        Interpolated values of shape identical to ``x_new``.
     """
-
     out = np.interp(x=x_new.flatten(), xp=X, fp=Y)
-
     return np.reshape(out, x_new.shape)
 
 
 def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
-    r"""Rectangular to polar coordinate transform
+    r"""
+    Rectangular to polar coordinate transform.
+
+    If input is real-valued, ``amplitude`` will be identical to the input and ``phase``
+    will be all 0s.
 
     Parameters
     ----------
@@ -100,29 +123,45 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
         Tensor containing the amplitude (aka. complex modulus).
     phase
         Tensor containing the phase.
-    """
 
+    See Also
+    --------
+    polar_to_rectangular
+        The inverse operation.
+    """
     amplitude = torch.abs(x)
     phase = torch.angle(x)
     return amplitude, phase
 
 
 def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
-    r"""Polar to rectangular coordinate transform
+    r"""
+    Polar to rectangular coordinate transform.
 
     Parameters
     ----------
     amplitude
-        Tensor containing the amplitude (aka. complex modulus). Must be > 0.
+        Tensor containing the amplitude (aka. complex modulus). Must be >= 0.
     phase
-        Tensor containing the phase
+        Tensor containing the phase.
 
     Returns
     -------
-    Complex tensor.
-    """
+    image
+        Complex tensor.
+
+    Raises
+    ------
+    ValueError
+        If ``amplitude`` is not non-negative.
+
+    See Also
+    --------
+    rectangular_to_polar
+        The inverse operation.
+    """  # numpydoc ignore=ES01
     if (amplitude < 0).any():
-        raise ValueError("Amplitudes must be strictly positive.")
+        raise ValueError("Amplitudes must be non-negative.")
 
     real = amplitude * torch.cos(phase)
     imaginary = amplitude * torch.sin(phase)
@@ -134,10 +173,10 @@ def steer(
     angle: np.ndarray | Tensor | float,
     harmonics: list[int] | None = None,
     steermtx: Tensor | np.ndarray | None = None,
-    return_weights: bool = False,
     even_phase: bool = True,
-):
-    """Steer BASIS to the specfied ANGLE.
+) -> tuple[Tensor, Tensor]:
+    """
+    Steer ``basis`` to the specfied ``angle``.
 
     Parameters
     ----------
@@ -145,19 +184,18 @@ def steer(
         Array whose columns are vectorized rotated copies of a steerable
         function, or the responses of a set of steerable filters.
     angle
-        Scalar or column vector the size of the basis. specifies the angle(s)
-        (in radians) to steer to
+        Scalar or column vector the size of the basis. Specifies the angle(s)
+        (in radians) to steer to.
     harmonics
         A list of harmonic numbers indicating the angular harmonic content of
-        the basis. if None (default), N even or odd low frequencies, as for
-        derivative filters
+        the basis. If ``None``, will use N even or odd low frequencies, as for
+        derivative filters.
     steermtx
         Matrix which maps the filters onto Fourier series components (ordered
-        [cos0 cos1 sin1 cos2 sin2 ... sinN]). See steer_to_harmonics_mtx
-        function for more details. If None (default), assumes cosine phase
-        harmonic components, and filter positions at 2pi*n/N.
-    return_weights
-        Whether to return the weights or not.
+        ``[cos0, cos1, sin1, cos2, sin2, ..., sinN]``). See
+        ``pyrtools.steer_to_harmonics_mtx`` function for more details. If
+        ``None``, assumes cosine phase harmonic components, and filter positions
+        at ``2pi*n/N``.
     even_phase
         Specifies whether the harmonics are cosine or sine phase aligned about
         those positions.
@@ -167,10 +205,17 @@ def steer(
     res
         The resteered basis.
     steervect
-        The weights used to resteer the basis. only returned if
-        ``return_weights`` is True.
-    """
+        The weights used to resteer the basis.
 
+    Raises
+    ------
+    ValueError
+        If ``angle`` is not a scalar or appropriately-sized column vector.
+    ValueError
+        If ``harmonics`` is not 1d.
+    ValueError
+        If ``harmonics`` is not compatible with the size of ``basis``.
+    """  # numpydoc ignore=ES01
     num = basis.shape[-1]
     device = basis.device
 
@@ -178,7 +223,7 @@ def steer(
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:
-            raise Exception(
+            raise ValueError(
                 "ANGLE must be a scalar, or a column vector the"
                 "size of the basis elements"
             )
@@ -191,10 +236,10 @@ def steer(
         # reshape to column matrix
         harmonics = harmonics.reshape(harmonics.shape[0], 1)
     elif harmonics.shape[0] != 1 and harmonics.shape[1] != 1:
-        raise Exception("input parameter HARMONICS must be 1D!")
+        raise ValueError("input parameter HARMONICS must be 1D!")
 
     if 2 * harmonics.shape[0] - (harmonics == 0).sum() != num:
-        raise Exception("harmonics list is incompatible with basis size!")
+        raise ValueError("harmonics list is incompatible with basis size!")
 
     # If STEERMTX not passed, assume evenly distributed cosine-phase filters:
     if steermtx is None:
@@ -220,10 +265,7 @@ def steer(
         res = tmp.sum().t()
     else:
         res = basis @ steervect.t()
-    if return_weights:
-        return res, steervect.reshape(num)
-    else:
-        return res
+    return res, steervect.reshape(num)
 
 
 def make_disk(
@@ -231,7 +273,8 @@ def make_disk(
     outer_radius: float | None = None,
     inner_radius: float | None = None,
 ) -> Tensor:
-    r"""Create a circular mask with softened edges to  an image.
+    r"""
+    Create a circular mask with softened edges.
 
     All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
     to ``outer_radius`` will decay smoothly to 0.
@@ -252,7 +295,6 @@ def make_disk(
     mask
         Tensor mask with torch.Size(img_size).
     """
-
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
     assert len(img_size) == 2
@@ -282,7 +324,8 @@ def make_disk(
 
 
 def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
-    """Add normally distributed noise to an image
+    """
+    Add normally distributed noise to an image.
 
     This adds normally-distributed noise to an image so that the resulting
     noisy version has the specified mean-squared error.
@@ -298,10 +341,9 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     Returns
     -------
     noisy_img
-        The noisy image. If `noise_mse` contains only one element, this will be
-        the same size as `img`. Else, each separate value from `noise_mse` will
+        The noisy image. If ``noise_mse`` contains only one element, this will be
+        the same size as ``img``. Else, each separate value from ``noise_mse`` will
         be along the batch dimension.
-
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
@@ -320,7 +362,8 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
 
 
 def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
-    """Modulate the phase of a complex signal.
+    """
+    Modulate the phase of a complex signal.
 
     Doubling the phase of a complex signal allows you to, for example, take the
     correlation between steerable pyramid coefficients at two adjacent spatial
@@ -328,16 +371,20 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
 
     Parameters
     ----------
-    x :
+    x
         Complex tensor whose phase will be modulated.
-    phase_factor :
+    phase_factor
         Multiplicative factor to change phase by.
 
     Returns
     -------
-    x_mod :
+    x_mod
         Phase-modulated complex tensor.
 
+    Raises
+    ------
+    TypeError
+        If ``x`` is not complex-valued.
     """
     try:
         angle = torch.atan2(x.imag, x.real)
@@ -351,19 +398,23 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
 
 
 def autocorrelation(x: Tensor) -> Tensor:
-    r"""Compute the autocorrelation of `x`.
+    r"""
+    Compute the autocorrelation of ``x``.
+
+    This uses the Fourier transform to compute the autocorrelation in an efficient
+    manner (see Notes).
 
     Parameters
     ----------
-    x :
+    x
        N-dimensional tensor. We assume the last two dimension are height and
        width and compute you autocorrelation on these dimensions (independently
        on each other dimension).
 
     Returns
     -------
-    ac :
-        Autocorrelation of x
+    ac
+        Autocorrelation of ``x``.
 
     Notes
     -----
@@ -371,14 +422,13 @@ def autocorrelation(x: Tensor) -> Tensor:
       sense stationary (WSS) process is the inverse Fourier transform of its
       energy spectrum (ESD) - which itself is the multiplication between
       FT(x(t)) and FT(x(-t)). In other words, the auto-correlation is
-      convolution of the signal `x` with itself, which corresponds to squaring
+      convolution of the signal ``x`` with itself, which corresponds to squaring
       in the frequency domain. This approach is computationally more efficient
       than brute force (n log(n) vs n^2).
 
     - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
       location (ie. no shift) - that maximum value is the signal's variance
       (assuming that the input signal is mean centered).
-
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -391,25 +441,33 @@ def autocorrelation(x: Tensor) -> Tensor:
 
 
 def center_crop(x: Tensor, output_size: int) -> Tensor:
-    """Crop out the center of a signal.
+    """
+    Crop out the center of a signal.
 
     If x has an even number of elements on either of those final two
     dimensions, we round up.
 
     Parameters
     ----------
-    x :
+    x
         N-dimensional tensor, we assume the last two dimensions are height and
         width.
-    output_size :
+    output_size
         The size of the output. Must be a positive int. Note that we only support a
-        single number, so both dimensions are cropped identically
+        single number, so both dimensions are cropped identically.
 
     Returns
     -------
-    cropped :
+    cropped
         Tensor whose last two dimensions have each been cropped to
-        ``output_size``
+        ``output_size``.
+
+    Raises
+    ------
+    TypeError
+        If ``output_size`` is not a single int.
+    ValueError
+        If ``output_size is not positive or larger than the height/width of ``x``.
 
     Examples
     --------
@@ -420,7 +478,6 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
     >>> img = po.tools.center_crop(img, 128)
     >>> img.shape
     torch.Size([1, 1, 128, 128])
-
     """
     h, w = x.shape[-2:]
     output_size = torch.as_tensor(output_size)
@@ -440,29 +497,38 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
 
 
 def expand(x: Tensor, factor: float) -> Tensor:
-    r"""Expand a signal by a factor.
+    r"""
+    Expand a signal by a factor.
 
     We do this in the frequency domain: pasting the Fourier contents of ``x``
     in the center of a larger empty tensor, and then taking the inverse FFT.
 
     Parameters
     ----------
-    x:
+    x
         The signal for expansion.
-    factor :
-        Factor by which to resize image. Must be larger than 1 and `factor *
-        x.shape[-2:]` must give integer values
+    factor
+        Factor by which to resize image. Must be larger than 1 and ``factor *
+        x.shape[-2:]`` must give integer values.
 
     Returns
     -------
-    expanded :
-        The expanded signal
+    expanded
+        The expanded signal.
+
+    Raises
+    ------
+    ValueError
+        If ``factor`` is less than or equal to 1.
+    ValueError
+        If ``factor`` times the height or width of ``x`` is not an integer.
 
     See Also
     --------
-    shrink :
-        The inverse operation
-
+    shrink
+        The inverse operation.
+    :func:`~plenoptic.tools.conv.upsample_blur`
+        An alternative upsampling operation.
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
@@ -524,29 +590,38 @@ def expand(x: Tensor, factor: float) -> Tensor:
 
 
 def shrink(x: Tensor, factor: int) -> Tensor:
-    r"""Shrink a signal by a factor.
+    r"""
+    Shrink a signal by a factor.
 
     We do this in the frequency domain: cropping out the center of the Fourier
     transform of ``x``, putting it in a new tensor, and taking the IFFT.
 
     Parameters
     ----------
-    x :
+    x
         The signal for expansion.
-    factor :
-        Factor by which to resize image. Must be larger than 1 and `factor /
-        x.shape[-2:]` must give integer values
+    factor
+        Factor by which to resize image. Must be larger than 1 and ``factor /
+        x.shape[-2:]`` must give integer values.
 
     Returns
     -------
-    expanded :
-        The expanded signal
+    expanded
+        The expanded signal.
+
+    Raises
+    ------
+    ValueError
+        If ``factor`` is less than or equal to 1.
+    ValueError
+        If the height or width of ``x`` divided by ``factor`` is not an integer.
 
     See Also
     --------
-    expand :
-        The inverse operation
-
+    expand
+        The inverse operation.
+    :func:`~plenoptic.tools.conv.blur_downsample`
+        An alternative downsampling operation.
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")

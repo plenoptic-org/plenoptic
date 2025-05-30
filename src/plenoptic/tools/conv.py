@@ -175,6 +175,8 @@ def blur_downsample(
     upsample_blur
         Perform the inverse operation, upsampling and convolving a user-specified number
         of times using a named filter.
+    :func:`~plenoptic.tools.signal.shrink`
+        An alternative downsampling operation.
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
@@ -236,6 +238,8 @@ def upsample_blur(
     blur_downsample
         Perform the inverse operation, correlating and downsampling a user-specified
         number of times using a named filter.
+    :func:`~plenoptic.tools.signal.expand`
+        An alternative upsampling operation.
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
