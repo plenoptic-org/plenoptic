@@ -64,9 +64,14 @@ class SteerablePyramidFreq(nn.Module):
         The width of the transition region of the radial lowpass function, in
         octaves.
     is_complex
-        Whether the pyramid coefficients should be complex or not. If True, the
-        real and imaginary parts correspond to a pair of odd and even symmetric
-        filters. If False, the coefficients only include the real part / odd filters.
+        Whether the pyramid coefficients should be complex or not. If True, the real and
+        imaginary parts correspond to a pair of odd and even symmetric filters. If
+        False, the coefficients only include the real part. Regardless of the value of
+        ``is_complex``, the symmetry of the real part is determined by the ``order``
+        parameter: if ``order`` is even, then the real coefficients are even symmetric;
+        if ``order`` is odd, then the real coefficients are odd symmetric. (If
+        ``is_complex=True``, then the imaginary coefficients will have the opposite
+        symmetry of the real ones).
     downsample
         Whether to downsample each scale in the pyramid or keep the output
         pyramid coefficients in fixed bands of size ``image_shape``. When
