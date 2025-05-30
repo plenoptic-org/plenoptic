@@ -1,4 +1,10 @@
-"""Functions to validate synthesis inputs."""
+"""
+Functions to validate synthesis inputs.
+
+These are intended to be useful both for developers and users: users can use them to
+ensure their models / images will work with our methods, and developers should use them
+to ensure a standard interface to the synthesis objects.
+"""
 
 import itertools
 import warnings
@@ -13,21 +19,20 @@ def validate_input(
     no_batch: bool = False,
     allowed_range: tuple[float, float] | None = None,
 ):
-    """Determine whether input_tensor tensor can be used for synthesis.
+    """
+    Determine whether ``input_tensor`` can be used for synthesis.
 
     In particular, this function:
 
-    - Checks if input_tensor has a float or complex dtype
+    - Checks if input_tensor has a float or complex dtype (``TypeError``).
 
     - If ``no_batch`` is True, check whether ``input_tensor.shape[0] == 1`` or
-      ``input_tensor.ndimension()==1``
+      ``input_tensor.ndimension()==1`` (``ValueError``).
 
     - If ``allowed_range`` is not None, check whether all values of
-     ``input_tensor`` lie within the specified range.
+     ``input_tensor`` lie within the specified range (``ValueError``).
 
-    If any of the above fail, a ``ValueError`` is raised.
-
-    If input_tensor is not 4d, raises a ``UserWarning``.
+    Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
 
     Parameters
     ----------
@@ -35,21 +40,26 @@ def validate_input(
         The tensor to validate.
     no_batch
         If True, raise a ValueError if the batch dimension of ``input_tensor``
-        is greater
-        than 1.
+        is greater than 1.
     allowed_range
         If not None, ensure that all values of ``input_tensor`` lie within
         allowed_range.
 
     Raises
     ------
-    ValueError, UserWarning :
-        See above
+    ValueError
+        If ``input_tensor`` fails any of the above checks.
+    TypeError
+        If ``input_tensor`` does not have a float or complex dtype.
+
+    Warns
+    -----
+    UserWarning
+        If ``input_tensor`` is not 4d.
 
     Examples
     --------
-
-    Check that our built-in images work.
+    Check that our built-in images work:
 
     >>> import plenoptic as po
     >>> po.tools.validate.validate_input(po.data.einstein())
@@ -63,7 +73,6 @@ def validate_input(
     ... )  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: input_tensor range ...
-
     """
     # validate dtype
     if input_tensor.dtype not in [
@@ -113,7 +122,8 @@ def validate_model(
     image_dtype: torch.dtype = torch.float32,
     device: str | torch.device = "cpu",
 ):
-    """Determine whether model can be used for sythesis.
+    """
+    Determine whether model can be used for sythesis.
 
     In particular, this function checks the following (with their associated
     errors raised):
@@ -138,10 +148,10 @@ def validate_model(
 
     - If ``model`` is in training mode. Note that this is different from having
       learnable parameters, see ``pytorch docs
-      <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_
+      <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>``_.
 
-    - If ``model`` returns a 3d or 4d output when given a tensor with shape
-      ``image_shape``
+    - If ``model`` returns an output with other than 3 or 4 dimensions when given a
+      tensor with shape ``image_shape``.
 
     Parameters
     ----------
@@ -150,26 +160,35 @@ def validate_model(
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
-        specify the expected shape. If None, we use an image of shape
-        (1,1,16,16)
+        specify the expected shape. If ``None``, we use an image of shape
+        ``(1,1,16,16)``.
     image_dtype
         What dtype to validate against.
     device
         What device to place test image on.
 
-    See also
+    Raises
+    ------
+    ValueError
+        If ``model`` fails one of the checks listed above.
+    TypeError
+        If ``model`` changes the precision of the input tensor.
+    RuntimeError
+        If ``model`` changes the device of the input tensor.
+
+    Warns
+    -----
+    UserWarning
+       If ``model`` is in training mode or returns an output with other than 3 or 4
+       dimensions.
+
+    See Also
     --------
     remove_grad
         Helper function for detaching all parameters (in place).
 
-    Raises
-    ------
-    ValueError, UserWarning :
-        See above
-
     Examples
     --------
-
     Check that one of our built-in models work:
 
     >>> import plenoptic as po
@@ -190,7 +209,6 @@ def validate_model(
     >>> po.tools.validate.validate_model(FailureModel())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
-
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -262,7 +280,8 @@ def validate_coarse_to_fine(
     image_shape: tuple[int, int, int, int] | None = None,
     device: str | torch.device = "cpu",
 ):
-    """Determine whether a model can be used for coarse-to-fine synthesis.
+    """
+    Determine whether a model can be used for coarse-to-fine synthesis.
 
     In particular, this function checks the following (with associated errors):
 
@@ -281,14 +300,19 @@ def validate_coarse_to_fine(
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
         specify the expected shape. If None, we use an image of shape
-        (1,1,16,16)
+        ``(1,1,16,16)``.
     device
         Which device to place the test image on.
 
     Raises
     ------
-    AttributeError, TypeError, ValueError
-        See above
+    AttributeError
+        If ``model`` does not have a ``scales`` attribute.
+    TypeError
+        If ``model.forward`` does not accept a ``scales`` keyword argument.
+    ValueError
+        If ``model.forward`` output does not change shape when ``scales`` keyword
+        argument is set.
 
     Examples
     --------
@@ -315,7 +339,6 @@ def validate_coarse_to_fine(
     >>> po.tools.validate.validate_coarse_to_fine(model, shape)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
-
     """
     warnings.warn(
         "Validating whether model can work with coarse-to-fine synthesis --"
@@ -348,7 +371,8 @@ def validate_metric(
     image_dtype: torch.dtype = torch.float32,
     device: str | torch.device = "cpu",
 ):
-    """Determines whether a metric can be used for MADCompetition synthesis.
+    """
+    Determine whether a metric can be used for MADCompetition synthesis.
 
     In particular, this functions checks the following (with associated
     exceptions):
@@ -371,7 +395,7 @@ def validate_metric(
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
         specify the expected shape. If None, we use an image of shape
-        (1,1,16,16)
+        ``(1,1,16,16)``.
     image_dtype
         What dtype to validate against.
     device
@@ -379,8 +403,11 @@ def validate_metric(
 
     Raises
     ------
-    TypeError, ValueError
-        See above
+    TypeError
+        If ``metric`` cannot be called with two tensors of specified shape.
+    ValueError
+        If ``metric`` does not return a scalar or doesn't return a value less than
+        5e-7 when given two identical tensors.
 
     Examples
     --------
@@ -396,7 +423,6 @@ def validate_metric(
     >>> po.tools.validate.validate_metric(po.metric.ssim)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: metric should return ...
-
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -428,16 +454,20 @@ def validate_metric(
 
 
 def remove_grad(model: torch.nn.Module):
-    """Detach all parameters and buffers of model (in place).
+    """
+    Detach all parameters and buffers of model (in place).
+
+    Because models in plenoptic are fixed (i.e., we don't change their parameters),
+    we want to remove the gradients from their parameters to avoid unnecessary
+    computation.
 
     Parameters
     ----------
     model
-        torch Module with learnable parameters
+        Torch Module with learnable parameters.
 
     Examples
     --------
-
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
     >>> po.tools.validate.validate_model(model)  # doctest: +ELLIPSIS
