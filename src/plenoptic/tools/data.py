@@ -1,3 +1,6 @@
+"""Helper functions for loading tensors, converting dtypes, etc."""
+# numpydoc ignore=ES01
+
 import contextlib
 import pathlib
 import warnings
@@ -27,21 +30,32 @@ TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.item
 
 
 def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
-    r"""cast tensor to numpy in the most conservative way possible
+    r"""
+    Cast tensor to numpy in the most conservative way possible.
+
+    In order this will:
+
+    - Detach the tensor.
+
+    - Move it to the CPU.
+
+    - Convert it to numpy (calling ``.numpy()``).
+
+    - Convert to the corresponding datatype.
 
     Parameters
     ----------
     x
-        Tensor to be converted to `numpy.ndarray` on CPU.
-
+        Tensor to be converted to :class:`numpy.ndarray` on CPU. If already an array, do
+        nothing.
     squeeze
-        Removes all dummy dimensions of the tensor
+        Whether to remove all dummy dimensions from input.
 
     Returns
     -------
-    Converted tensor as `numpy.ndarray` on CPU.
+    array
+        The former tensor, now an array.
     """
-
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
         x = x.detach().cpu().numpy().astype(TORCH_TO_NUMPY_TYPES[x.dtype])
@@ -51,10 +65,11 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
 
 def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
-    r"""Correctly load in images
+    r"""
+    Load in images.
 
     Our models and synthesis methods generally expect their inputs to
-    be 4d float32 images: (batch, channel, height, width), where the batch
+    be 4d float32 images: ``(batch, channel, height, width)``, where the batch
     dimension contains multiple images and channel contains something
     like RGB or color channel. This function helps you get your inputs
     into that format. It accepts either a single file, a list of files,
@@ -75,12 +90,26 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     as_gray
         Whether to convert the images into grayscale or not after
         loading them. If False, we do nothing. If True, we call
-        skimage.color.rgb2gray on them.
+        skimage.color.rgb2gray on them, which will result in a single
+        channel.
 
     Returns
     -------
     images
         4d tensor containing the images.
+
+    Raises
+    ------
+    FileNotFoundError
+        If any of the explicit image paths do not exist.
+    ValueError
+        If the images we attempt to load are not all the same shape.
+
+    Warns
+    -----
+    UserWarning
+        If ``paths`` is a directory and any of the files it contains
+        are non-images.
     """
     try:
         paths = pathlib.Path(paths)
@@ -155,39 +184,39 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
     return images
 
 
-def convert_float_to_int(im: np.ndarray, dtype=np.uint8) -> np.ndarray:
-    r"""Convert image from float to 8 or 16 bit image
+def convert_float_to_int(
+    image: np.ndarray, dtype: Literal[np.uint8, np.uint16] = np.uint8
+) -> np.ndarray:
+    r"""
+    Convert numpy array from float to 8 or 16 bit integer.
 
-    We work with float images that lie between 0 and 1, but for saving
-    them (either as png or in a numpy array), we want to convert them to
-    8 or 16 bit integers. This function does that by multiplying it by
-    the max value for the target dtype (255 for 8 bit 65535 for 16 bit)
-    and then converting it to the proper type.
-
-    We'll raise an exception if the max is higher than 1, in which case
-    we have no idea what to do.
+    We work with float images that lie between 0 and 1, but for saving them (either as
+    png or in a numpy array), we typically want to convert them to 8 or 16 bit integers.
+    This function does that by multiplying it by the max value for the target dtype (255
+    for 8 bit 65535 for 16 bit) and then converting it to the proper type.
 
     Parameters
     ----------
-    im
-        The image to convert
+    image
+        The image to convert, with max less than or equal to 1.
     dtype
-        The target data type.  {np.uint8, np.uint16}
+        The target data type.
 
     Returns
     -------
-    im
-        The converted image, now with dtype=dtype
+    image
+        The converted image, now with specified dtype.
 
-    Notes
-    -----
-
+    Raises
+    ------
+    ValueError
+        If ``image`` max is greater than 1.
     """
-    if im.max() > 1:
-        raise Exception(
-            f"all values of im must lie between 0 and 1, but max is {im.max()}"
+    if image.max() > 1:
+        raise ValueError(
+            f"all values of image must lie between 0 and 1, but max is {image.max()}"
         )
-    return (im * np.iinfo(dtype).max).astype(dtype)
+    return (image * np.iinfo(dtype).max).astype(dtype)
 
 
 def polar_radius(
@@ -196,7 +225,8 @@ def polar_radius(
     origin: int | tuple[int, int] | None = None,
     device: str | torch.device | None = None,
 ) -> Tensor:
-    """Make distance-from-origin (r) matrix
+    """
+    Make distance-from-origin (r) matrix.
 
     Compute a matrix of given size containing samples of a radial ramp
     function, raised to given exponent, centered at given origin.
@@ -204,23 +234,23 @@ def polar_radius(
     Parameters
     ----------
     size
-        If an int, we assume the image should be of dimensions `(size,
-        size)`. if a tuple, must be a 2-tuple of ints specifying the
+        If an int, we assume the image should be of dimensions ``(size,
+        size)``. if a tuple, must be a 2-tuple of ints specifying the
         dimensions.
     exponent
         The exponent of the radial ramp function.
     origin
         The center of the image. if an int, we assume the origin is at
-        `(origin, origin)`. if a tuple, must be a 2-tuple of ints
-        specifying the origin (where `(0, 0)` is the upper left).  if
+        ``(origin, origin)``. if a tuple, must be a 2-tuple of ints
+        specifying the origin (where ``(0, 0)`` is the upper left).  if
         None, we assume the origin lies at the center of the matrix,
-        `(size+1)/2`.
+        ``(size+1)/2``.
     device
         The device to create this tensor on.
 
     Returns
     -------
-    res
+    radius
         The polar radius matrix.
     """
     if not hasattr(size, "__iter__"):
@@ -241,10 +271,10 @@ def polar_radius(
         # zero to a negative exponent raises:
         # ZeroDivisionError: 0.0 cannot be raised to a negative power
         r = xramp**2 + yramp**2
-        res = np.power(r, exponent / 2.0, where=(r != 0))
+        radius = np.power(r, exponent / 2.0, where=(r != 0))
     else:
-        res = (xramp**2 + yramp**2) ** (exponent / 2.0)
-    return res
+        radius = (xramp**2 + yramp**2) ** (exponent / 2.0)
+    return radius
 
 
 def polar_angle(
@@ -254,7 +284,8 @@ def polar_angle(
     direction: Literal["clockwise", "counter-clockwise"] = "clockwise",
     device: torch.device | None = None,
 ) -> Tensor:
-    """Make polar angle matrix (in radians).
+    """
+    Make polar angle matrix (in radians).
 
     Compute a matrix of given size containing samples of the polar angle (in radians,
     increasing in user-defined direction from the X-axis, ranging from -pi to pi),
@@ -267,15 +298,15 @@ def polar_angle(
     Parameters
     ----------
     size
-        If an int, we assume the image should be of dimensions `(size, size)`. if a
-        tuple, must be a 2-tuple of ints specifying the dimensions
+        If an int, we assume the image should be of dimensions ``(size, size)``. If a
+        tuple, must be a 2-tuple of ints specifying the dimensions.
     phase
-        The phase of the polar angle function (in radians, clockwise from the X-axis)
+        The phase of the polar angle function (in radians, clockwise from the X-axis).
     origin
         The center of the image. if an int, we assume the origin is at
-        `(origin, origin)`. if a tuple, must be a 2-tuple of ints specifying the origin
-        (where `(0, 0)` is the upper left). If None, we assume the origin lies at the
-        center of the matrix, `(size+1)/2`.
+        ``(origin, origin)``. if a tuple, must be a 2-tuple of ints specifying the
+        origin (where ``(0, 0)`` is the upper left). If None, we assume the origin lies
+        at the center of the matrix, ``(size+1)/2``.
     direction
         Whether the angle increases in a clockwise or counter-clockwise direction from
         the x-axis. The standard mathematical convention is to increase
@@ -286,8 +317,12 @@ def polar_angle(
     Returns
     -------
     res
-        The polar angle matrix
+        The polar angle matrix.
 
+    Raises
+    ------
+    ValueError
+        If ``direction`` takes an illegal value.
     """
     if direction not in ["clockwise", "counter-clockwise"]:
         raise ValueError(
@@ -318,20 +353,20 @@ def polar_angle(
     return res
 
 
-def _find_min_int(vals):
-    """Find the minimum non-negative int not in an iterable.
+def _find_min_int(vals: list[int]) -> int:
+    """
+    Find the minimum non-negative int not in an iterable.
 
     Parameters
     ----------
-    vals : iterable
-        iterable of ints or iterables of ints
+    vals
+        Iterable(s) of ints.
 
     Returns
     -------
-    min_idx : int
-        minimum non-negative int
-
-    """
+    min_idx
+        Minimum non-negative int.
+    """  # numpydoc ignore=ES01
     flat_vals = []
     for v in vals:
         try:
@@ -361,26 +396,31 @@ def _check_tensor_equality(
     error_prepend_str: str = "Different {error_type}",
     error_append_str: str = "",
 ):
-    """Check two tensors for equality: device, size, dtype, and values.
+    """
+    Check two tensors for equality: device, size, dtype, and values.
 
     Raises a ValueError (with informative error messages) if any of the above are not
     equal.
 
     Parameters
     ----------
-    x, y :
-        The tensors to compare
-    xname, yname :
+    x, y
+        The tensors to compare.
+    xname, yname
         Names of the tensors, used in error messages.
-    rtol, atol :
+    rtol, atol
         Relative and absolute tolerance for value comparison, passed to
-        ``torch.allclose``
-    error_prepend_str :
+        :func:``torch.allclose``.
+    error_prepend_str
         String to start error message with, should contain the string-formatting field
-        "{error_type}"
-    error_append_str :
-        String to finish error message with
+        ``"{error_type}"``.
+    error_append_str
+        String to finish error message with.
 
+    Raises
+    ------
+    ValueError
+        If any of the device, dtype, size, or values differ.
     """
     error_str = (
         f"{error_prepend_str}"
