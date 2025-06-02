@@ -30,7 +30,7 @@ def validate_input(
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
     - If ``allowed_range`` is not None, check whether all values of
-     ``input_tensor`` lie within the specified range (``ValueError``).
+      ``input_tensor`` lie within the specified range (``ValueError``).
 
     Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
 

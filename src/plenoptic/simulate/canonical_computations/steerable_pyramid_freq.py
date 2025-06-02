@@ -64,8 +64,8 @@ class SteerablePyramidFreq(nn.Module):
         The width of the transition region of the radial lowpass function, in
         octaves.
     is_complex
-        Whether the pyramid coefficients should be complex or not. If True, the real and
-        imaginary parts correspond to a pair of odd and even symmetric filters. If
+        Whether the pyramid coefficients should be complex or not. If ``True``, the real
+        and imaginary parts correspond to a pair of odd and even symmetric filters. If
         False, the coefficients only include the real part. Regardless of the value of
         ``is_complex``, the symmetry of the real part is determined by the ``order``
         parameter: if ``order`` is even, then the real coefficients are even symmetric;
@@ -79,7 +79,7 @@ class SteerablePyramidFreq(nn.Module):
     tight_frame
         Whether the pyramid obeys the generalized parseval theorem or not (i.e.
         is a tight frame). If ``True``, the energy of the pyr_coeffs equals the energy
-        of the image. If not this is not true. In order to match the `matlabPyrTools
+        of the image. In order to match the `matlabPyrTools
         <http://github.com/labForComputationalVision/matlabpyrtools>`_ or `pyrtools
         <https://github.com/labForComputationalVision/pyrtools>`_ implementations, this
         must be set to ``False``.

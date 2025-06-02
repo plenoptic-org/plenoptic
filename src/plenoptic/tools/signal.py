@@ -293,7 +293,7 @@ def make_disk(
     Returns
     -------
     mask
-        Tensor mask with torch.Size(img_size).
+        Tensor mask with ``torch.Size(img_size)``.
     """
     if isinstance(img_size, int):
         img_size = (img_size, img_size)

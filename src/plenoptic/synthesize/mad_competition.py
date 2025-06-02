@@ -1062,7 +1062,7 @@ def _setup_synthesis_fig(
     Parameters
     ----------
     fig
-        The figure to plot on or None. If None, we create a new figure.
+        The figure to plot on or ``None``. If ``None``, we create a new figure.
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows for more
         fine-grained control of the resulting figure. Probably only helpful if fig is
