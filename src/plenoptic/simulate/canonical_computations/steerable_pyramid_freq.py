@@ -66,8 +66,8 @@ class SteerablePyramidFreq(nn.Module):
     is_complex
         Whether the pyramid coefficients should be complex or not. If ``True``, the real
         and imaginary parts correspond to a pair of odd and even symmetric filters. If
-        False, the coefficients only include the real part. Regardless of the value of
-        ``is_complex``, the symmetry of the real part is determined by the ``order``
+        ``False``, the coefficients only include the real part. Regardless of the value
+        of ``is_complex``, the symmetry of the real part is determined by the ``order``
         parameter: if ``order`` is even, then the real coefficients are even symmetric;
         if ``order`` is odd, then the real coefficients are odd symmetric. (If
         ``is_complex=True``, then the imaginary coefficients will have the opposite
