@@ -193,9 +193,9 @@ def steer(
     steermtx
         Matrix which maps the filters onto Fourier series components (ordered
         ``[cos0, cos1, sin1, cos2, sin2, ..., sinN]``). See
-        ``pyrtools.steer_to_harmonics_mtx`` function for more details. If
-        ``None``, assumes cosine phase harmonic components, and filter positions
-        at ``2pi*n/N``.
+        :func:`pyrtools.pyramids.steer.steer_to_harmonics_mtx` function for more
+        details. If ``None``, assumes cosine phase harmonic components, and
+        filter positions at ``2pi*n/N``.
     even_phase
         Specifies whether the harmonics are cosine or sine phase aligned about
         those positions.

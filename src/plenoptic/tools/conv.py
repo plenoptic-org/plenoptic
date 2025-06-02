@@ -151,7 +151,8 @@ def blur_downsample(
         Apply the blur and downsample procedure recursively ``n_scales`` times.
         Must be positive.
     filtname
-        Name of the filter. See ``pyrtools.named_filter`` for options.
+        Name of the filter. See :func:`~pyrtools.pyramids.filters.named_filter` for
+        options.
     scale_filter
         If ``True``, the filter sums to 1 (i.e., it does not affect the DC component of
         the signal and the output's mean will approximately match that of the input). If
@@ -214,7 +215,8 @@ def upsample_blur(
         Apply the blur and downsample procedure recursively ``n_scales`` times.
         Must be positive.
     filtname
-        Name of the filter. See ``pyrtools.named_filter`` for options.
+        Name of the filter. See :func:`~pyrtools.pyramids.filters.named_filter` for
+        options.
     scale_filter
         If ``True``, the filter sums to 4 (i.e., it does not affect the DC component of
         the signal and the output's mean will approximately match that of the input). If
