@@ -87,7 +87,7 @@ def imshow(
         * If ``str``, will put the same title on every plot.
 
         * If ``list``, all values must be ``str``, must be the same length as img,
-          assigning each title to corresponding image.
+          and each title will be assigned to corresponding plot.
 
         * If ``None``, no title will be printed and subtitle will be removed.
 
@@ -102,7 +102,8 @@ def imshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        :class:`matplotlib.cm.RdBu_r`, else we use :class:`matplotlib.cm.gray`.
+        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
+        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
     plot_complex
         Specifies handling of complex values.
 
@@ -263,13 +264,10 @@ def animshow(
     """
     Animate video(s), avoiding interpolation.
 
-    This function animates videos correctly, making sure that each element in
-    the tensor corresponds to a pixel or an integer number of pixels, to avoid
-    aliasing (NOTE: this guarantee only holds for the saved animation (assuming
-    video compression doesn't interfere); it should generally hold in notebooks
-    as well, but will fail if, e.g., your video is 2000 pixels wide on an
-    monitor 1000 pixels wide; the notebook handles the rescaling in a way we
-    can't control).
+    This function shows images carefully, avoiding interpolation: each element in the
+    input ``image`` will correspond to a pixel or an integer number of pixels. When
+    ``zoom<1``, an integer number of input elements will be averaged into a single
+    pixel.
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
     (e.g., `Quickstart
@@ -337,7 +335,7 @@ def animshow(
         * If ``str``, will put the same title on every plot.
 
         * If ``list``, all values must be ``str``, must be the same length as img,
-          assigning each title to corresponding image.
+          and each title will be assigned to corresponding plot.
 
         * If ``None``, no title will be printed and subtitle will be removed.
 
@@ -352,7 +350,8 @@ def animshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        :class:`matplotlib.cm.RdBu_r`, else we use :class:`matplotlib.cm.gray`.
+        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
+        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
     plot_complex
         Specifies handling of complex values.
 
@@ -396,13 +395,18 @@ def animshow(
 
     Notes
     -----
-    By default, we use the ffmpeg backend, which requires that you have
-    ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-    To use a different, use the matplotlib rcParams:
-    ``matplotlib.rcParams['animation.writer'] = writer``, see
-    `matplotlib documentation
-    <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
-    details.
+    - By default, we use the ffmpeg backend, which requires that you have
+      ffmpeg installed and on your path (https://ffmpeg.org/download.html).
+      To use a different, use the matplotlib rcParams:
+      ``matplotlib.rcParams['animation.writer'] = writer``, see
+      `matplotlib documentation
+      <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
+      details.
+
+    - This interpolation avoidance is only guaranteed for the saved image; it should
+      generally hold in notebooks as well, but will fail if, e.g., you plot an image
+      that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
+      rescaling in a way we can't control.
     """
     if not isinstance(video, list):
         video = [video]
@@ -587,7 +591,7 @@ def pyrshow(
 
 def clean_up_axes(
     ax: mpl.axes.Axes,
-    ylim: tuple[float, float] | False | None = None,
+    ylim: tuple[float, float] | None | Literal[False] = None,
     spines_to_remove: list[Literal["top", "right", "bottom", "left"]] = [
         "top",
         "right",
@@ -734,7 +738,7 @@ def clean_stem_plot(
     data: np.ndarray,
     ax: mpl.axes.Axes | None = None,
     title: str | None = "",
-    ylim: tuple | None | False = None,
+    ylim: tuple | None | Literal[False] = None,
     xvals: tuple[list[float], list[float]] | None = None,
     **kwargs: Any,
 ) -> mpl.axes.Axes:
@@ -744,7 +748,7 @@ def clean_stem_plot(
     This plots the data, baseline, cleans up the axis, and sets the
     title.
 
-    Helper function for the :func:`~plenoptic.tools.display.plot_representation()`.
+    Helper function for :func:`~plenoptic.tools.display.plot_representation()`.
 
     By default, stem plot would have a baseline that covers the entire range of the
     data. We want to be able to break that up visually (so there's a line from 0 to 9,
@@ -1101,7 +1105,7 @@ def plot_representation(
     data: np.ndarray | dict | None = None,
     ax: mpl.axes.Axes | None = None,
     figsize: tuple[float, float] | None = None,
-    ylim: tuple[float, float] | None | False = False,
+    ylim: tuple[float, float] | None | Literal[False] = False,
     batch_idx: int = 0,
     title: str = "",
     as_rgb: bool = False,
