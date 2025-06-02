@@ -86,7 +86,7 @@ def check_parseval(im, coeff, rtol=1e-4, atol=0):
     function that checks if the pyramid is parseval, i.e. energy of coeffs is
     the same as the energy in the original image.
     Args:
-    input image: image stimulus as torch.Tensor
+    input image: image stimulus as ``torch.Tensor``
     coeff: dictionary of torch tensors corresponding to each band
     """
     total_band_energy = 0

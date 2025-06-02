@@ -33,7 +33,7 @@ def loss_convergence(
     stop_iters_to_check: int,
 ) -> bool:
     r"""
-    Check whether the loss has stabilized and, if so, return True.
+    Check whether the loss has stabilized and, if so, return ``True``.
 
     We check whether:
 
@@ -115,7 +115,7 @@ def pixel_change_convergence(
     stop_iters_to_check: int,
 ) -> bool:
     """
-    Check whether the pixel change norm has stabilized and, if so, return True.
+    Check whether the pixel change norm has stabilized and, if so, return ``True``.
 
     We check whether:
 
