@@ -11,10 +11,12 @@ EVERYTHING_BUT_BACKTICK = r"[ A-Za-z_\(\)<>:/\-.=\[\]0-9\\^~{}|'\"]"
 BACKTICK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK.replace(' ', '')}+?`+_?)"
 SPHINX_DIRECTIVE_REGEX = rf":[:a-z]+:(`+{EVERYTHING_BUT_BACKTICK}+?_?`+)"
 SPHINX_LINK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_)"
+# underscores are part of variable names, so we don't want to match them
+EVERYTHING_BUT_BACKTICK_ = EVERYTHING_BUT_BACKTICK.replace("_", "")
 # None/True/False surrounded by single backtick is also wrong, but will be caught by the
 # markdown check.
 COMMON_VALS = (
-    rf"{EVERYTHING_BUT_BACKTICK}([Nn]one|[Tt]rue|[Ff]alse){EVERYTHING_BUT_BACKTICK}"
+    rf"{EVERYTHING_BUT_BACKTICK_}([Nn]one|[Tt]rue|[Ff]alse){EVERYTHING_BUT_BACKTICK_}"
 )
 LIBRARIES_XREF = [
     "plenoptic",
