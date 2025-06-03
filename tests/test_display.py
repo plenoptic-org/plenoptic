@@ -563,6 +563,32 @@ class TestDisplay:
         with pytest.raises(ValueError, match="3 or 4d"):
             po.synth.metamer.animate(met)
 
+    @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1])
+    @pytest.mark.parametrize("func", ["imshow", "animshow"])
+    def test_zoom(self, zoom, func):
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        if func == "imshow":
+            x = torch.rand(1, 1, 32, 32)
+            func = po.imshow
+        elif func == "animshow":
+            x = torch.rand(1, 1, 10, 32, 32)
+            func = po.animshow
+        if zoom is not None and zoom <= 0:
+            expectation = pytest.raises(ValueError, match="zoom must be positive")
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            func(x, ax=ax, zoom=zoom)
+            if zoom is None:
+                zoom = 12
+            zoom_title = float(ax.get_title().split("*")[1])
+            if zoom != zoom_title:
+                raise ValueError(
+                    f"Zoom didn't work as expected, expected {zoom} but"
+                    f" got {zoom_title}!"
+                )
+            plt.close(fig)
+
 
 def template_test_synthesis_all_plot(
     synthesis_object,

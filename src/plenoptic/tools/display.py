@@ -193,6 +193,8 @@ def imshow(
     TypeError
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
     ValueError
+        If ``zoom`` takes an illegal value.
+    ValueError
         If ``as_rgb=True`` and the input ``image`` does not have 3 or 4 channels.
     ValueError
         If ``as_rgb=False``, ``image`` has more than one channel and one more than
@@ -259,6 +261,8 @@ def imshow(
         zoom = _find_zoom(heights, widths, ax)
     elif zoom is None:
         zoom = 1
+    elif zoom <= 0:
+        raise ValueError("zoom must be positive!")
 
     return pt.imshow(
         images_to_plot,
@@ -485,6 +489,8 @@ def animshow(
         zoom = _find_zoom(heights, widths, ax)
     elif zoom is None:
         zoom = 1
+    elif zoom <= 0:
+        raise ValueError("zoom must be positive!")
 
     return pt.animshow(
         videos_to_show,
