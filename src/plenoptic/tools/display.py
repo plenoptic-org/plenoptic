@@ -468,7 +468,7 @@ def animshow(
 def pyrshow(
     pyr_coeffs: dict,
     vrange: tuple[float, float] | str = "indep1",
-    zoom: float | None = None,
+    zoom: float = 1,
     show_residuals: bool = True,
     cmap: mpl.colors.Colormap | None = None,
     plot_complex: Literal["rectangular", "polar", "logpolar"] = "rectangular",
@@ -527,7 +527,7 @@ def pyrshow(
     zoom
         Ratio of display pixels to image pixels. if greater than 1, must be an
         integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
-        size of the largest image. If ``None``, we try to determine the best zoom.
+        size of the largest image.
     show_residuals
         Whether to display the residual bands.
     cmap
