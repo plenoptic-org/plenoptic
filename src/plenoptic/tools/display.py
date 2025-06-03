@@ -133,7 +133,7 @@ def imshow(
           10th/90th percentile values map to the 10th/90th percentile intensities.
 
     zoom
-        Ratio of display pixels to image pixels. if greater than 1, must be an
+        Ratio of display pixels to image pixels. If greater than 1, must be an
         integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
         size of the largest image. If ``None``, we try to determine the best zoom.
     title
@@ -357,7 +357,7 @@ def animshow(
           10th/90th percentile values map to the 10th/90th percentile intensities.
 
     zoom
-        Ratio of display pixels to image pixels. if greater than 1, must be an
+        Ratio of display pixels to image pixels. If greater than 1, must be an
         integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
         size of the largest image. If ``None``, we try to determine the best zoom.
     title

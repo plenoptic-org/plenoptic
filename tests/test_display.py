@@ -563,7 +563,7 @@ class TestDisplay:
         with pytest.raises(ValueError, match="3 or 4d"):
             po.synth.metamer.animate(met)
 
-    @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1])
+    @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
     @pytest.mark.parametrize("func", ["imshow", "animshow"])
     def test_zoom(self, zoom, func):
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
@@ -575,6 +575,10 @@ class TestDisplay:
             func = po.animshow
         if zoom is not None and zoom <= 0:
             expectation = pytest.raises(ValueError, match="zoom must be positive")
+        elif zoom is not None and int(zoom * 32) != zoom * 32:
+            expectation = pytest.raises(
+                Exception, match=r"zoom \* signal.shape must result in integers"
+            )
         else:
             expectation = does_not_raise()
         with expectation:
