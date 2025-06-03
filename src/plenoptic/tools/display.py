@@ -13,6 +13,62 @@ import torch
 from .data import to_numpy
 
 
+def _find_zoom(
+    image_heights: list[int], image_widths: list[int], ax: mpl.axes.Axes
+) -> float:
+    """
+    Find best-fitting zoom based on image and axes sizes.
+
+    If images are bigger than ``ax``, then we figure out the largest float of form
+    ``1/d``, where ``d`` is an integer. If ``ax`` is bigger than images, figure out the
+    largest integer we can use.
+
+    Parameters
+    ----------
+    image_heights, image_widths
+        The last two dimensions of all images to plot.
+    ax
+        The existing axis we will use for imshow.
+
+    Returns
+    -------
+    zoom
+        Our best guess at zoom.
+    """
+
+    def find_zoom_helper(x: float, limit: float) -> float:
+        """
+        Find zoom that works. This is only for limit < x.
+
+        Parameters
+        ----------
+        x
+            The sizes to consider.
+        limit
+            The max possible size.
+
+        Returns
+        -------
+        zoom
+            The valid zoom level.
+        """  # numpydoc ignore=ES01
+        # find all non-trivial divisors of x
+        divisors = [i for i in range(2, x) if not x % i]
+        # find the largest zoom (equivalently, smallest divisor) such that the
+        # zoomed in image is smaller than the limit
+        return 1 / min([i for i in divisors if x / i <= limit])
+
+    if ax.bbox.height > max(image_heights):
+        zoom = ax.bbox.height // max(image_heights)
+    else:
+        zoom = find_zoom_helper(max(image_heights), ax.bbox.height)
+    if ax.bbox.width > max(image_widths):
+        zoom = min(zoom, ax.bbox.width // max(image_widths))
+    else:
+        zoom = find_zoom_helper(max(image_widths), ax.bbox.width)
+    return zoom
+
+
 def imshow(
     image: torch.Tensor | list[torch.Tensor],
     vrange: tuple[float, float] | str = "indep1",
@@ -199,39 +255,11 @@ def imshow(
             heights.extend([i_.shape[0] for i_ in i])
             widths.extend([i_.shape[1] for i_ in i])
 
-    def find_zoom(x: float, limit: float) -> float:
-        """
-        Find zoom that works. This is only for limit < x.
-
-        Parameters
-        ----------
-        x
-            The sizes to consider.
-        limit
-            The max possible size.
-
-        Returns
-        -------
-        zoom
-            The valid zoom level.
-        """  # numpydoc ignore=ES01
-        # find all non-trivial divisors of x
-        divisors = [i for i in range(2, x) if not x % i]
-        # find the largest zoom (equivalently, smallest divisor) such that the
-        # zoomed in image is smaller than the limit
-        return 1 / min([i for i in divisors if x / i <= limit])
-
-    if ax is not None and zoom is None:
-        if ax.bbox.height > max(heights):
-            zoom = ax.bbox.height // max(heights)
-        else:
-            zoom = find_zoom(max(heights), ax.bbox.height)
-        if ax.bbox.width > max(widths):
-            zoom = min(zoom, ax.bbox.width // max(widths))
-        else:
-            zoom = find_zoom(max(widths), ax.bbox.width)
+    if zoom is None and ax is not None:
+        zoom = _find_zoom(heights, widths, ax)
     elif zoom is None:
         zoom = 1
+
     return pt.imshow(
         images_to_plot,
         vrange=vrange,
@@ -250,7 +278,7 @@ def animshow(
     framerate: float = 2.0,
     repeat: bool = False,
     vrange: tuple[float, float] | str = "indep1",
-    zoom: float = 1,
+    zoom: float | None = None,
     title: str | list[str] | None = "",
     col_wrap: int | None = None,
     ax: mpl.axes.Axes | None = None,
@@ -411,6 +439,7 @@ def animshow(
     if not isinstance(video, list):
         video = [video]
     videos_to_show = []
+    heights, widths = [], []
     for vid in video:
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
@@ -449,6 +478,14 @@ def animshow(
         # be (b,c,t,h,w) or (b,c,t,h,w,r) where r is the RGB(A) values
         for v in vid:
             videos_to_show.extend([v_.squeeze() for v_ in v])
+            heights.extend([v_.shape[1] for v_ in v])
+            widths.extend([v_.shape[2] for v_ in v])
+
+    if zoom is None and ax is not None:
+        zoom = _find_zoom(heights, widths, ax)
+    elif zoom is None:
+        zoom = 1
+
     return pt.animshow(
         videos_to_show,
         framerate=framerate,
