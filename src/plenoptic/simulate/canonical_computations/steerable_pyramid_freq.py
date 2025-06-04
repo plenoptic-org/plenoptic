@@ -1125,9 +1125,7 @@ class SteerablePyramidFreq(nn.Module):
             )
 
             for j, a in enumerate(angles):
-                res, steervect = steer(
-                    basis, a, return_weights=True, even_phase=even_phase
-                )
+                res, steervect = steer(basis, a, even_phase=even_phase)
                 resteering_weights[(i, j)] = steervect
                 resteered_coeffs[(i, num_orientations + j)] = res.reshape(
                     pyr_coeffs[(i, 0)].shape
