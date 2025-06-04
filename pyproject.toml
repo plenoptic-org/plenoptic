@@ -55,7 +55,7 @@ docs = [
 ]
 
 dev = [
-    "pytest>=5.1.2,<8.4",
+    "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
@@ -99,7 +99,11 @@ filterwarnings = [
     # https://github.com/fatiando/pooch/pull/458 but not in release as of April
     # 2025.
     "ignore:Python 3.14 will, by default, filter extracted tar archives:DeprecationWarning",
+    "ignore:Failed to generate report:",
 ]
+
+[tool.coverage.run]
+disable_warnings = ["module-not-measured"]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
