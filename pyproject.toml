@@ -99,9 +99,11 @@ filterwarnings = [
     # https://github.com/fatiando/pooch/pull/458 but not in release as of April
     # 2025.
     "ignore:Python 3.14 will, by default, filter extracted tar archives:DeprecationWarning",
+    # seems to be necessary to solve https://github.com/pytest-dev/pytest-cov/issues/693
     "ignore:Failed to generate report:",
 ]
 
+# seems to be necessary to solve https://github.com/pytest-dev/pytest-cov/issues/693
 [tool.coverage.run]
 disable_warnings = ["module-not-measured"]
 
