@@ -472,7 +472,7 @@ def animshow(
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
         elif vid.shape[1] > 1 and vid.shape[0] > 1:
             raise ValueError(
-                "Don't know how to plot images with more than one channel and"
+                "Don't know how to plot non-rgb images with more than one channel and"
                 " batch! Use batch_idx / channel_idx to choose a subset for"
                 " plotting"
             )
