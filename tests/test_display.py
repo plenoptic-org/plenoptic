@@ -366,7 +366,7 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot non-rgb images with more than one"
+                    "Don't know how to plot non-rgb images with more than one "
                     "channel and batch"
                 ),
             )
@@ -491,7 +491,7 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot non-rgb images with more than one"
+                    "Don't know how to plot non-rgb images with more than one "
                     "channel and batch"
                 ),
             )
