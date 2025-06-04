@@ -366,7 +366,8 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot images with more than one channel and batch"
+                    "Don't know how to plot non-rgb images with more than one"
+                    "channel and batch"
                 ),
             )
         else:
@@ -391,7 +392,7 @@ class TestDisplay:
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
             expectation = pytest.raises(
-                TypeError, match="must be an int or None but got"
+                TypeError, match=r".* must be an int or None but got"
             )
         with expectation:
             fig = po.imshow(
@@ -427,9 +428,7 @@ class TestDisplay:
         ).to(DEVICE)
         expectation = does_not_raise()
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
-            expectation = pytest.raises(
-                TypeError, match="must be an int or None but got"
-            )
+            expectation = pytest.raises(TypeError, match=r".* must be an int but got")
         n_axes = 4
         if steerpyr.is_complex:
             n_axes *= 2
@@ -492,7 +491,8 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot images with more than one channel and batch"
+                    "Don't know how to plot non-rgb images with more than one"
+                    "channel and batch"
                 ),
             )
         else:
