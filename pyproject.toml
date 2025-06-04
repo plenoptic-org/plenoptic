@@ -55,7 +55,7 @@ docs = [
 ]
 
 dev = [
-    "pytest>=5.1.2",
+    "pytest>=5.1.2,<8.4",
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
