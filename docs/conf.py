@@ -10,8 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import glob
 import inspect
 import os
+import pathlib
 import sys
 from importlib.metadata import version
 
@@ -43,8 +45,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "numpydoc",
-    "nbsphinx",
-    "nbsphinx_link",
     "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autodoc",
@@ -52,7 +52,7 @@ extensions = [
     "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
-    "myst_parser",
+    "myst_nb",
     "sphinxcontrib.bibtex",
     "sphinx_design",
     "sphinx.ext.viewcode",
@@ -233,8 +233,11 @@ epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
+#
+# APIDOC
 apidoc_module_dir = "../src/plenoptic"
 
+# MATPLOTLIB
 # because of the examples in the docstrings, want to default to showing source and not
 # showing link. in actual doc pages, this needs to be reversed.
 plot_include_source = True
@@ -247,9 +250,35 @@ myst_enable_extensions = [
     "dollarmath",
 ]
 
-# sphinxcontrib-bibtex
+# SPHINXCONTRIB-BIBTEX
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
-# sphinx copybutton
+# SPHINX COPYBUTTON
 copybutton_exclude = ".linenos, .gp"
+
+# MYST_NB
+
+# max time (in secs) per notebook cell. here, we disable this
+nb_execution_timeout = -1
+# by default, we don't run any of the notebooks (they take too long). users can override
+# this behavior using env variables
+if run_nb := os.environ.get("RUN_NB"):
+    if run_nb == "1" or run_nb == "all":
+        nb_execution_excludepatterns = []
+        print("Running all notebooks, things will take longer...")
+    else:
+        all_nbs = glob.glob("tutorials/**/*md", recursive=True)
+        all_nbs = [pathlib.Path(n).stem for n in all_nbs]
+        run_globs = [f"*{n}*" for n in run_nb.split(",")]
+        nb_execution_excludepatterns = [
+            f"*{n}*"
+            for n in all_nbs
+            if not any([glob.fnmatch.fnmatch(n, g) for g in run_globs])
+        ]
+        print(f"Excluding notebooks: {nb_execution_excludepatterns}")
+else:
+    nb_execution_excludepatterns = ["*"]
+    print("Not running any notebooks, see CONTRIBUTING for details")
+nb_execution_mode = "cache"
+nb_execution_raise_on_error = True
