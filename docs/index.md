@@ -25,7 +25,7 @@
 ## Getting started
 
 - If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
-- Otherwise, see the [Quickstart](tutorials/00_quickstart.nblink) tutorial.
+- Otherwise, see the [](quickstart) tutorial.
 
 ### Installation
 
