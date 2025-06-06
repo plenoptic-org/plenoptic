@@ -97,10 +97,19 @@ for p in paths:
         for lib in LIBRARIES_XREF:
             # use negative look-behind to avoid stuff in the attribute section
             if xr := re.findall(rf"(?<![a-z]:){XREF_EXCEPT}{lib}\.", doc):
+                # the url for torch has `pytorch.` (not `torch.`), which we don't want
+                # to match
                 if lib == "torch":
                     xr = [x for x in xr if x != "ytorch."]
                 if not xr:
                     continue
+                missing_xref.append((p, name, xr))
+            # we also want to raise an error if we have two backticks before these
+            # libraries, which corresponds to monospace (but no link). We *don't* want
+            # to match if it looks like an actual call, so we either can have no
+            # parentheses or only parentheses with on args in them at the end of the
+            # backticks
+            if xr := re.findall(rf"``{lib}\.[a-z0-9_\.]+(?:\(\))?``", doc):
                 missing_xref.append((p, name, xr))
 
 if backticks or links or unescaped or missing_xref:

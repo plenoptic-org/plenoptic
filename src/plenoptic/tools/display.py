@@ -804,7 +804,7 @@ def clean_stem_plot(
         The data to plot (as a stem plot).
     ax
         The axis to plot the data on. If ``None``, we plot on the current axis
-        (``plt.gca()``).
+        (grabbed with :func:`matplotlib.pyplot.gca`).
     title
         The title to put on the axis. If ``None``, we don't call ``ax.set_title``
         (useful if you want to avoid changing the title on an existing plot).

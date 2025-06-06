@@ -410,7 +410,7 @@ def _check_tensor_equality(
         Names of the tensors, used in error messages.
     rtol, atol
         Relative and absolute tolerance for value comparison, passed to
-        :func:``torch.allclose``.
+        :func:`torch.allclose`.
     error_prepend_str
         String to start error message with, should contain the string-formatting field
         ``"{error_type}"``.
