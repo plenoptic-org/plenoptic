@@ -24,7 +24,7 @@ Additionally, it may be helpful to visualize the progression of synthesis, using
 
 You can also improve your changes of finding a good synthesis by tweaking the model. For example, the loss function used for metamer synthesis by default is mean-squared error. This implicitly weights all aspects of the model's representation equally. Thus, if there are portions of the representation whose magnitudes are significantly smaller than the others, they might not be matched at the same rate as the others. You can address this using coarse-to-fine synthesis or picking a more suitable loss function, but it's generally a good idea for all of a model's representation to have roughly the same magnitude. You can do this in a principled or empirical manner:
 
-- Principled: compose your representation of statistics that you know lie within the same range. For example, use correlations instead of covariances (see the Portilla-Simoncelli model, and in particular [how plenoptic's implementation differs from matlab](./tutorials/models/Metamer-Portilla-Simoncelli.nblink#7.-Notable-differences-between-Matlab-and-Plenoptic-Implementations:) for an example of this).
+- Principled: compose your representation of statistics that you know lie within the same range. For example, use correlations instead of covariances (see the Portilla-Simoncelli model, and in particular [how plenoptic's implementation differs from matlab](ps-mat-diffs) for an example of this).
 - Empirical: measure your model's representation on a dataset of relevant natural images and then use this output to z-score your model's representation on each pass (see {cite:alp}`Ziemba2021-oppos-effec` for an example; this is what the Van Hateren database is used for).
 - In the middle: normalize statistics based on their value in the original image (note: not the image the model is taking as input! this will likely make optimization very difficult).
 
@@ -34,7 +34,7 @@ If you are computing a multi-channel representation, you may have a similar prob
 
 `plenoptic` provides three synthesis methods, but you may find you wish to do something slightly outside the capabilities of the existing methods. There are generally two ways to do this: by tweaking your model or by extending one of the methods.
 
-- See the [Portilla-Simoncelli texture model notebook](./tutorials/models/Metamer-Portilla-Simoncelli.nblink) for examples on how to get different metamer results by tweaking your model or extending the `Metamer` class.
+- See the [Portilla-Simoncelli texture model notebook](ps-nb) for examples on how to get different metamer results by tweaking your model or extending the `Metamer` class.
 - The coarse-to-fine optimization, discussed in the [metamer notebook](./tutorials/intro/06_Metamer.nblink#Coarse-to-fine-optimization), is an example of changing optimization by extending the `Metamer` class.
 - The [Synthesis extensions notebook](synthesis-extensions) contains a discussion focused on this as well.
 
