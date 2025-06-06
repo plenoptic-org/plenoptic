@@ -31,12 +31,14 @@ plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
 All `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here:
 
 ```{code-cell} ipython3
-im = po.data.einstein()
+im = po.data.einstein().to(DEVICE)
 fig = po.imshow(im)
 ```
 
@@ -72,6 +74,8 @@ class SimpleModel(torch.nn.Module):
 
 
 model = SimpleModel()
+model.eval()
+model.to(DEVICE)
 rep = model(im)
 ```
 
@@ -149,7 +153,7 @@ po.synth.metamer.animate(
 We can see the model's insensitivity to high frequencies more dramatically by initializing our metamer synthesis with a different image. By default, we initialize with a patch of white noise, but we can initialize with any image of the same size. Let's try with a different natural image, a picture of Marie Curie.
 
 ```{code-cell} ipython3
-curie = po.data.curie()
+curie = po.data.curie().to(DEVICE)
 po.imshow(curie);
 ```
 
