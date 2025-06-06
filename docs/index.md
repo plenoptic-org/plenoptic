@@ -1,6 +1,4 @@
-
-(index)=
-
+(index-doc)=
 # plenoptic
 
 [![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
@@ -25,7 +23,7 @@
 ## Getting started
 
 - If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
-- Otherwise, see the [](quickstart) tutorial.
+- Otherwise, see the [](quickstart-nb) tutorial.
 
 ### Installation
 
@@ -41,7 +39,7 @@ or `conda`:
 $ conda install plenoptic -c conda-forge
 ```
 
-See the [](install) page for more details, including how to set up an isolated virtual environment (recommended).
+See the [](install-doc) page for more details, including how to set up an isolated virtual environment (recommended).
 
 (package-contents)=
 
@@ -89,7 +87,7 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 
 ## Citing us
 
-If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation) for more details.
+If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation-doc) for more details.
 
 :::{toctree}
 :caption: Basic concepts

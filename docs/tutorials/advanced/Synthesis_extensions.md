@@ -11,6 +11,7 @@ kernelspec:
   name: python3
 ---
 
+(synthesis-extensions)=
 # Extending existing synthesis objects
 
 Once you are familiar with the existing synthesis objects included in `plenoptic`, you may wish to change some aspect of their function. For example, you may wish to change how the `po.synth.MADCompetition` initializes the MAD image or alter the objective function of `po.synth.Metamer`. While you could certainly start from scratch or copy the source code of the object and alter them directly, an easier way to do so is to create a new sub-class: an object that inherits the synthesis object you wish to modify and over-writes some of its existing methods.

@@ -1,4 +1,4 @@
-(models)=
+(models-doc)=
 
 # Model requirements
 
@@ -11,7 +11,7 @@
   - If you inherit [](torch.nn.Module), implementing the `forward()` method will make your model callable.
   - Otherwise, implement the `__call__()` method.
 
-- the above transformation must be differentiable by [](torch). In practice, this generally means you perform all computations using [](torch) functions (unless you want to write a custom `.backward()` method).
+- the above transformation must be differentiable by [torch](inv:torch:std:doc#index). In practice, this generally means you perform all computations using [torch functions](inv:torch:std:doc#torch) (unless you want to write a custom `.backward()` method).
 
 - must not have any learnable parameters. This is largely to save time by avoiding calculation of unnecessary gradients, but synthesis is performed with a **fixed** model --- we are optimizing the input, not the model parameters. You can use the helper function [`remove_grad`](plenoptic.tools.validate.remove_grad) to detach all parameters. Similarly, your model should probably be in evaluation mode (i.e., call `model.eval()`), though this is not strictly required. See the [pytorch documentation](https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc) for the difference between evaluation mode and disabling gradient computation.
 

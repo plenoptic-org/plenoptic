@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-(quickstart)=
+(quickstart-nb)=
 # Quickstart
 
 The following tutorial is intended to show you how to create a simple `plenoptic`-compliant model and use it with our synthesis methods, with a brief explanation of how to interpret the outputs. See the other tutorials for more details.

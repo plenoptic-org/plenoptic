@@ -1,4 +1,4 @@
-(tips)=
+(tips-doc)=
 
 # Tips and Tricks
 
@@ -36,6 +36,6 @@ If you are computing a multi-channel representation, you may have a similar prob
 
 - See the [Portilla-Simoncelli texture model notebook](./tutorials/models/Metamer-Portilla-Simoncelli.nblink) for examples on how to get different metamer results by tweaking your model or extending the `Metamer` class.
 - The coarse-to-fine optimization, discussed in the [metamer notebook](./tutorials/intro/06_Metamer.nblink#Coarse-to-fine-optimization), is an example of changing optimization by extending the `Metamer` class.
-- The [Synthesis extensions notebook](./tutorials/advanced/Synthesis_extensions.nblink) contains a discussion focused on this as well.
+- The [Synthesis extensions notebook](synthesis-extensions) contains a discussion focused on this as well.
 
 If you extend a method successfully or would like help making it work, please let us know by posting a [discussion!](https://github.com/plenoptic-org/plenoptic/discussions)

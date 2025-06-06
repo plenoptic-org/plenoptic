@@ -45,7 +45,7 @@ plt.rcParams["figure.dpi"] = 72
 
 ## General
 
-We include two wrappers of display code from [`pyrtools`](inv:pyrtools:std:doc#imshow), adapting them for use with tensors. These `imshow` and `animshow`, which accept tensors of real- or complex-valued images or videos (respectively) and properly convert them to arrays for display purposes. These are not the most flexible functions (for example, `imshow` requires that real-valued tensors be 4d) but, assuming you follow our API, should work relatively painlessly. The main reason for using them (over the image-display code from `matplotlib`) is that we guarantee fidelity to image size: a value in the tensor corresponds to a pixel or an integer number of pixels in the image (if upsampling); if downsampling, we can only down-sample by factors of two. This way, you can be sure that any strange apperance of the image is not due to aliasing in the plotting.
+We include two wrappers of display code from [`pyrtools`](inv:pyrtools:std:doc#index), adapting them for use with tensors. These `imshow` and `animshow` functions, which accept tensors of real- or complex-valued images or videos (respectively) and properly convert them to arrays for display purposes. These are not the most flexible functions (for example, `imshow` requires that real-valued tensors be 4d) but, assuming you follow our API, should work relatively painlessly. The main reason for using them (over the image-display code from `matplotlib`) is that we guarantee fidelity to image size: a value in the tensor corresponds to a pixel or an integer number of pixels in the image (if upsampling); if downsampling, we can only down-sample by factors of two. This way, you can be sure that any strange apperance of the image is not due to aliasing in the plotting.
 
 For `imshow`, we require that real-valued tensors be 4d: `(batch, channel, height, width)`. If you're showing images, they're likely to be grayscale (in which case there's only 1 channel) or RGB(A) (in which case there's 3 or 4, depending on whether it includes the alpha channel). We plot grayscale images without a problem:
 
@@ -90,7 +90,7 @@ Note that in the above `imshow` calls, we had to specify the `batch_idx`. This f
 po.imshow(coeffs[:, 1:-1], channel_idx=0);
 ```
 
-`animshow` works analogously to `imshow`, wrapping around the [`pyrtools` version](inv:pyrtools:#*.imshow) but expecting a 5d tensor: `(batch, channel, time, height, width)`. It returns a `matplotlib.animation.FuncAnimation` object, which can be saved as an mp4 or converted to an html object for display in a Jupyter notebook (because of the matplotlib configuration options set in the first cell of this notebook, and others in our documentation that make use of them, this happens automatically).
+`animshow` works analogously to `imshow`, but expecting a 5d tensor: `(batch, channel, time, height, width)`. It returns a `matplotlib.animation.FuncAnimation` object, which can be saved as an mp4 or converted to an html object for display in a Jupyter notebook (because of the matplotlib configuration options set in the first cell of this notebook, and others in our documentation that make use of them, this happens automatically).
 
 ```{code-cell} ipython3
 pyr = po.simul.SteerablePyramidFreq(

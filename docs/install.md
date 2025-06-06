@@ -1,4 +1,4 @@
-(install)=
+(install-doc)=
 # Installation
 
 `plenoptic` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a [bug report](https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=)!
@@ -120,7 +120,7 @@ To install `plenoptic` in editable mode, you need `pip >= 21.3` (see pip's [chan
 
 In addition to installing plenoptic and its core dependencies, you may also wish to install some of our optional dependencies. These dependencies are specified using square brackets during the `pip install` command and can be installed for either a local, editable install or one directly from PyPI:
 
-- If you would like to run the jupyter notebooks locally: `pip install "plenoptic[nb]"` or `pip install -e ".[nb]"`. This includes `pooch` (for downloading some extra data) `torchvision` (which has some models we'd like to use), `jupyter`, and related libraries. See [](jupyter) for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using [Binder](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples), no installation required!
+- If you would like to run the jupyter notebooks locally: `pip install "plenoptic[nb]"` or `pip install -e ".[nb]"`. This includes `pooch` (for downloading some extra data) `torchvision` (which has some models we'd like to use), `jupyter`, and related libraries. See [](jupyter-doc) for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using [Binder](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples), no installation required!
 - If you would like to run the tests: `pip install -e ".[dev]"`. This includes `pytest` and related libraries. (This probably only makes sense if you have a local installation.)
 - If you would like to locally build the documentation: `pip install -e ".[docs]"`. This includes `sphinx` and related libraries. (This probably only makes sense if you have a local installation.)
 
