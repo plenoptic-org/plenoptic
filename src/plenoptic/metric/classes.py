@@ -15,11 +15,11 @@ class NLP(torch.nn.Module):
     Simple class for implementing normalized laplacian pyramid.
 
     This class just calls
-    ``plenoptic.metric.normalized_laplacian_pyramid`` on the image and
+    :func:`plenoptic.metric.normalized_laplacian_pyramid` on the image and
     returns a 3d tensor with the flattened activations.
 
     NOTE: synthesis using this class will not be the exact same as
-    synthesis using the ``plenoptic.metric.nlpd`` function (by default),
+    synthesis using the :func:`plenoptic.metric.nlpd` function (by default),
     because the ``nlpd`` function uses the root-mean square of the L2 distance (i.e.,
     ``torch.sqrt(torch.mean(x-y)**2))`` as the distance metric between representations.
 

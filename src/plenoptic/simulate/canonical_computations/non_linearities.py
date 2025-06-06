@@ -29,10 +29,10 @@ def rectangular_to_polar_dict(
     Returns
     -------
     energy
-        The dictionary of torch.Tensors containing the local complex
+        The dictionary of :class:`torch.Tensor` containing the local complex
         modulus of ``coeff_dict``.
     state
-        The dictionary of torch.Tensors containing the local phase of
+        The dictionary of :class:`torch.Tensor` containing the local phase of
         ``coeff_dict``.
 
     See Also
@@ -70,10 +70,10 @@ def polar_to_rectangular_dict(
     Parameters
     ----------
     energy
-        The dictionary of torch.Tensors containing the local complex
+        The dictionary of :class:`torch.Tensor` containing the local complex
         modulus.
     state
-        The dictionary of torch.Tensors containing the local phase.
+        The dictionary of :class:`torch.Tensor` containing the local phase.
     residuals
         An option to carry around residuals in the energy branch.
 
@@ -228,10 +228,10 @@ def local_gain_control_dict(
     Returns
     -------
     energy
-        The dictionary of torch.Tensors containing the local energy of
+        The dictionary of :class:`torch.Tensor` containing the local energy of
         ``x``.
     state
-        The dictionary of torch.Tensors containing the local phase of
+        The dictionary of :class:`torch.Tensor` containing the local phase of
         ``x``.
 
     See Also
@@ -270,10 +270,10 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     Parameters
     ----------
     energy
-        The dictionary of torch.Tensors containing the local energy of
+        The dictionary of :class:`torch.Tensor` containing the local energy of
         ``x``.
     state
-        The dictionary of torch.Tensors containing the local phase of
+        The dictionary of :class:`torch.Tensor` containing the local phase of
         ``x``.
     residuals
         An option to carry around residuals in the energy dict.

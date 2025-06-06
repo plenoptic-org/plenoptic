@@ -1,12 +1,14 @@
-"""tools to deal with data from outside plenoptic
+"""
+Tools to deal with data from outside plenoptic.
 
-For example, pre-existing synthesized images
-
+For example, images synthesized using the code from another paper.
 """
 
 import os.path as op
+from typing import Any
 
 import imageio.v3 as iio
+import matplotlib as mpl
 import matplotlib.lines as lines
 import numpy as np
 import pyrtools as pt
@@ -16,15 +18,16 @@ from ..data.fetch import fetch_data
 
 
 def plot_MAD_results(
-    original_image,
-    noise_levels=None,
-    results_dir=None,
-    ssim_images_dir=None,
-    zoom=3,
-    vrange="indep1",
-    **kwargs,
-):
-    r"""plot original MAD results, provided by Zhou Wang
+    original_image: str,
+    noise_levels: list[int] | None = None,
+    results_dir: str | None = None,
+    ssim_images_dir: str | None = None,
+    zoom: int | float = 3,
+    vrange: str = "indep1",
+    **kwargs: Any,
+) -> tuple[mpl.figure.Figure, dict[str, dict[str, float | np.ndarray]]]:
+    r"""
+    Plot original MAD results, provided by Zhou Wang.
 
     Plot the results of original MAD Competition, as provided in .mat
     files. The figure created shows the results for one reference image
@@ -33,52 +36,62 @@ def plot_MAD_results(
     will show the initial (noisy) image and the four synthesized images,
     with their respective losses for the two metrics (MSE and SSIM).
 
-    We also return a DataFrame that contains the losses, noise levels,
-    and original image name for each plotted noise level.
+    We also return a dictionary that contains the losses, noise levels, and original
+    image name for each plotted noise level.
 
     This code can probably be adapted to other uses, but requires that
     all images are the same size and assumes they're all 64 x 64 pixels.
 
     Parameters
     ----------
-    original_image : {samp1, samp2, samp3, samp4, samp5, samp6, samp7,
-                      samp8, samp9, samp10}
-        which of the sample images to plot
-    noise_levels : list or None, optional
-        which noise levels to plot. if None, will plot all. If a list,
-        elements must be 2**i where i is in [1, 10]
-    results_dir : None or str, optional
-        path to the results directory containing the results.mat files. If
-        None, we download them (requires optional dependency pooch).
-    ssim_images_dir : None or str, optional
-        path to the directory containing the .tif images used in SSIM paper. If
-        None, we download them (requires optional dependency pooch).
-    zoom : int, optional
-        amount to zoom each image, passed to pyrtools.imshow
-    vrange : str, optional
-        in addition to the values accepted by pyrtools.imshow, we also
-        accept 'row0/1/2/3', which is the same as 'auto0/1/2/3', except
-        that we do it on a per-row basis (all images with same noise
-        level)
-    kwargs :
-        passed to pyrtools.imshow. Note that we call imshow separately
-        on each image and so any argument that relies on imshow having
-        access to all images will probably not work as expected
+    original_image
+        Which of the sample images to plot. Must be of the form ``f"samp{i}"``
+        where ``i`` is an integer between 1 and 10 (inclusive).
+    noise_levels
+        Which noise levels to plot. if ``None``, will plot all. If a list,
+        elements must be :math:`2^i` where :math:`i\in [1, 10]`.
+    results_dir
+        Path to the results directory containing the results.mat files. If
+        ``None``, we download them (requires optional dependency ``pooch``).
+    ssim_images_dir
+        Path to the directory containing the .tif images used in SSIM paper. If
+        ``None``, we download them (requires optional dependency ``pooch``).
+    zoom
+        Ratio of display pixels to image pixels, passed to
+        :func:`~plenoptic.tools.display.imshow`. If >1, must be an integer. If <1, must
+        be 1/d where d is a a divisor of the size of the largest image.
+    vrange
+        How to map image values to colormap. In addition to the values accepted by
+        :func:`~plenoptic.tools.display.imshow`, we also accept ``"row0/1/2/3"``, which
+        is the same as ``"auto0/1/2/3"``, except that we do it on a per-row basis (all
+        images with same noise level).
+    **kwargs
+        Passed to :func:`~plenoptic.tools.display.imshow`. Note that we call imshow
+        separately on each image and so any argument that relies on imshow having
+        access to all images will probably not work as expected.
 
     Returns
     -------
-    fig : pyrtools.tools.display.Figure
-        figure containing the images
-    results : dict
-        dictionary containing the errors for each noise level. To
+    fig :
+        Figure containing the images.
+    results :
+        Dictionary containing the errors for each noise level. To
         convert to a well-structured pandas DataFrame, run
-        ``pd.DataFrame(results).T``
+        ``pandas.DataFrame(results).T``.
 
+    Raises
+    ------
+    ValueError
+        If ``original_image`` takes an illegal value.
     """
     if results_dir is None:
         results_dir = str(fetch_data("MAD_results.tar.gz"))
     if ssim_images_dir is None:
         ssim_images_dir = str(fetch_data("ssim_images.tar.gz"))
+    allowed_vals = [f"samp{i}" for i in range(1, 11)]
+    if original_image not in allowed_vals:
+        err_msg = f"original_image must be one of {allowed_vals}"
+        raise ValueError(err_msg)
     img_path = op.join(op.expanduser(ssim_images_dir), f"{original_image}.tif")
     orig_img = iio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))

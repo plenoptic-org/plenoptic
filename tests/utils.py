@@ -12,7 +12,9 @@ from plenoptic.data.fetch import fetch_data
 from test_models import TestPortillaSimoncelli
 
 
-def update_ps_synthesis_test_file(torch_version: str | None = None):
+def update_ps_synthesis_test_file(
+    torch_version: str | None = None,
+) -> po.synthesize.metamer.Metamer:
     """Create new test file for test_models.test_ps_synthesis().
 
     We cannot guarantee perfect reproducibility across pytorch versions, but we
@@ -34,7 +36,7 @@ def update_ps_synthesis_test_file(torch_version: str | None = None):
 
     Returns
     -------
-    met : po.synth.Metamer
+    met
         Metamer object for inspection
 
     """

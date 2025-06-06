@@ -779,16 +779,16 @@ def display_eigendistortion(
     ax
         Axis handle on which to plot.
     plot_complex
-        Parameter for :meth:`plenoptic.imshow` determining how to handle complex values.
-        Defaults to ``'rectangular'``, which plots real and complex components as
-        separate images. See that method's docstring for details.
+        Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
+        complex values. Defaults to ``'rectangular'``, which plots real and complex
+        components as separate images. See that method's docstring for details.
     **kwargs
-        Additional arguments for :meth:`po.imshow()`.
+        Additional arguments for :func:`~plenoptic.tools.display.imshow`.
 
     Returns
     -------
     fig
-        Figure handle returned by :meth:`plenoptic.imshow()`.
+        Figure containing the displayed images.
     """
     # reshape so channel dim is last
     im_shape = eigendistortion._image_shape

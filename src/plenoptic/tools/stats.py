@@ -1,3 +1,6 @@
+"""Functions for computing image statistics on multi-dimensional tensors."""
+
+# numpydoc ignore=ES01
 import torch
 from torch import Tensor
 
@@ -8,27 +11,27 @@ def variance(
     dim: int | list[int] | None = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""Calculate sample variance.
+    r"""
+    Calculate sample variance.
 
     Note that this is the uncorrected, or sample, variance, corresponding to
-    ``torch.var(*, correction=0)``
+    ``torch.var(*, correction=0)``.
 
     Parameters
     ----------
     x
-        The input tensor
+        The input tensor.
     mean
-        Reuse a precomputed mean
+        Reuse a precomputed mean.
     dim
         The dimension or dimensions to reduce.
     keepdim
-        Whether the output tensor has dim retained or not.
+        Whether to retain the reduced dimensions (as singletons) or not.
 
     Returns
     -------
     out
         The variance tensor.
-
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -44,20 +47,31 @@ def skew(
     dim: int | list[int] | None = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""Sample estimate of `x` *asymmetry* about its mean
+    r"""
+    Calculate sample estimate of *asymmetry* about input's mean.
+
+    To help with interpretation:
+
+    - Skew of normal distribution is 0.
+
+    - Negative skew, also known as left-skewed: the left tail is longer. Distribution
+      appears as a right-leaning curve.
+
+    - Positive skew, also known as right-skewed: the right tail is longer. Distribution
+      appears as a left-leaning curve.
 
     Parameters
     ----------
     x
-        The input tensor
+        The input tensor.
     mean
-        Reuse a precomputed mean
+        Reuse a precomputed mean.
     var
-        Reuse a precomputed variance
+        Reuse a precomputed variance.
     dim
         The dimension or dimensions to reduce.
     keepdim
-        Whether the output tensor has dim retained or not.
+        Whether to retain the reduced dimensions (as singletons) or not.
 
     Returns
     -------
@@ -80,13 +94,16 @@ def kurtosis(
     dim: int | list[int] | None = None,
     keepdim: bool = False,
 ) -> Tensor:
-    r"""sample estimate of `x` *tailedness* (presence of outliers)
+    r"""
+    Calculate sample estimate of *tailedness* (presence of outliers).
 
-    kurtosis of univariate noral is 3.
+    To help with interpretation:
 
-    smaller than 3: *platykurtic* (eg. uniform distribution)
+    - Kurtosis of univariate normal is 3.
 
-    greater than 3: *leptokurtic* (eg. Laplace distribution)
+    - Smaller than 3: *platykurtic* (e.g. uniform distribution).
+
+    - Greater than 3: *leptokurtic* (e.g. Laplace distribution).
 
     Parameters
     ----------
@@ -99,7 +116,7 @@ def kurtosis(
     dim
         The dimension or dimensions to reduce.
     keepdim
-        Whether the output tensor has dim retained or not.
+        Whether to retain the reduced dimensions (as singletons) or not.
 
     Returns
     -------

@@ -64,9 +64,14 @@ class SteerablePyramidFreq(nn.Module):
         The width of the transition region of the radial lowpass function, in
         octaves.
     is_complex
-        Whether the pyramid coefficients should be complex or not. If True, the
-        real and imaginary parts correspond to a pair of odd and even symmetric
-        filters. If False, the coefficients only include the real part / odd filters.
+        Whether the pyramid coefficients should be complex or not. If ``True``, the real
+        and imaginary parts correspond to a pair of odd and even symmetric filters. If
+        ``False``, the coefficients only include the real part. Regardless of the value
+        of ``is_complex``, the symmetry of the real part is determined by the ``order``
+        parameter: if ``order`` is even, then the real coefficients are even symmetric;
+        if ``order`` is odd, then the real coefficients are odd symmetric. (If
+        ``is_complex=True``, then the imaginary coefficients will have the opposite
+        symmetry of the real ones).
     downsample
         Whether to downsample each scale in the pyramid or keep the output
         pyramid coefficients in fixed bands of size ``image_shape``. When
@@ -74,7 +79,7 @@ class SteerablePyramidFreq(nn.Module):
     tight_frame
         Whether the pyramid obeys the generalized parseval theorem or not (i.e.
         is a tight frame). If ``True``, the energy of the pyr_coeffs equals the energy
-        of the image. If not this is not true. In order to match the `matlabPyrTools
+        of the image. In order to match the `matlabPyrTools
         <http://github.com/labForComputationalVision/matlabpyrtools>`_ or `pyrtools
         <https://github.com/labForComputationalVision/pyrtools>`_ implementations, this
         must be set to ``False``.
@@ -1120,9 +1125,7 @@ class SteerablePyramidFreq(nn.Module):
             )
 
             for j, a in enumerate(angles):
-                res, steervect = steer(
-                    basis, a, return_weights=True, even_phase=even_phase
-                )
+                res, steervect = steer(basis, a, even_phase=even_phase)
                 resteering_weights[(i, j)] = steervect
                 resteered_coeffs[(i, num_orientations + j)] = res.reshape(
                     pyr_coeffs[(i, 0)].shape

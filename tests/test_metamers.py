@@ -67,7 +67,7 @@ class TestMetamers:
                     match=("Saved and initialized model output have different values"),
                 )
             elif fail == "loss":
-                loss = po.tools.optim.relative_MSE
+                loss = po.tools.optim.relative_sse
                 expectation = pytest.raises(
                     ValueError,
                     match=(

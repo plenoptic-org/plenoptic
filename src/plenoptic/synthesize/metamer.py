@@ -1326,10 +1326,10 @@ def display_metamer(
     You can specify what iteration to view by using the ``iteration`` arg.
     The default, ``None``, shows the final one.
 
-    We use :func:`plenoptic.imshow` to display the metamer and attempt to
+    We use :func:`~plenoptic.tools.display.imshow` to display the metamer and attempt to
     automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that :func:`plenoptic.imshow` is
-    opinionated about the size of the resulting image and will throw an
+    value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
+    is opinionated about the size of the resulting image and will throw an
     Exception if the axis created is not big enough for the selected zoom.
 
     Parameters
@@ -1351,7 +1351,7 @@ def display_metamer(
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     **kwargs
-        Passed to :func:`plenoptic.imshow`.
+        Passed to :func:`~plenoptic.tools.display.imshow`.
 
     Returns
     -------
@@ -1435,7 +1435,7 @@ def plot_representation_error(
     Plot distance ratio showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
-    ``plenoptic.tools.display.plot_representation``.
+    :func:`plenoptic.tools.display.plot_representation`.
 
     Parameters
     ----------
@@ -1458,7 +1458,7 @@ def plot_representation_error(
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the model has its
         own ``plot_representation_error()`` method. Else, it will be passed to
-        :func:`plenoptic.imshow()`, see that methods docstring for details.
+        :func:`~plenoptic.tools.display.imshow`, see that methods docstring for details.
     **kwargs
         Passed to ``metamer.model.forward``.
 
@@ -1799,7 +1799,7 @@ def plot_synthesis_status(
         this value directly to ``plot_representation_error``.
     vrange
         The vrange option to pass to :func:`display_metamer()`. See
-        docstring of :func:`plenoptic.imshow` for possible values.
+        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -1810,7 +1810,8 @@ def plot_synthesis_status(
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the
         model has its own plot_representation_error() method. Else, it will
-        be passed to :func:`plenoptic.imshow`, see that methods docstring for details.
+        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        docstring for details.
     fig
         If ``None``, we create a new figure. otherwise we assume this is
         an empty figure that has the appropriate size and number of
@@ -2006,7 +2007,7 @@ def animate(
 
     vrange
         The vrange option to pass to :func:`display_metamer()`. See
-        docstring of :func:`plenoptic.imshow` for possible values.
+        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -2016,9 +2017,9 @@ def animate(
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the representation doesn't look image-like or if the
-        model has its own plot_representation_error() method. Else, it will
-        be passed to :func:`plenoptic.imshow()`, see that methods docstring for details.
-        since plot_synthesis_status normally sets it up for us.
+        model has its own ``plot_representation_error()`` method. Else, it will
+        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        docstring for details.
     fig
         If ``None``, create the figure from scratch. Else, should be an empty
         figure with enough axes (the expected use here is have same-size
