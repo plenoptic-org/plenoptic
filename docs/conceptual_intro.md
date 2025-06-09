@@ -104,9 +104,9 @@ Furthermore, image synthesis provides a complementary method of comparing models
 
 `plenoptic` contains more than just metamers --- it provides a set of methods for performing image synthesis. Each method allows for different exploration of a model's representational space:
 
-- [Metamers](tutorials/intro/06_Metamer.nblink) investigate what features the model disregards entirely.
-- [Eigendistortions](tutorials/intro/02_Eigendistortions.nblink) investigates which features the model considers the least and which it considers the most important
-- [Maximal differentiation (MAD) competition](tutorials/intro/08_MAD_Competition.nblink) enables efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
+- [Metamers](metamer-nb) investigate what features the model disregards entirely.
+- [Eigendistortions](eigendistortion-nb) investigates which features the model considers the least and which it considers the most important
+- [Maximal differentiation (MAD) competition](mad-nb) enables efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
 
 The goal of this package is to facilitate model exploration and understanding. We hope that providing these tools helps tighten the model-experiment loop: when a model is proposed, whether by importing from a related field or earlier experiments, `plenoptic` enables scientists to make targeted exploration of the model's representational space, generating stimuli that will provide the most information. We hope to help theorists become more active participants in directing future experiments by efficiently finding new predictions to test.
 

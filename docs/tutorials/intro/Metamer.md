@@ -200,6 +200,7 @@ met.synthesize()
 
 `setup()` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
 
+(metamer-coarse-to-fine)=
 ### Coarse-to-fine optimization
 
 Some models, such as the Portilla-Simoncelli texture statistics, have a multiscale representation of the image, which can complicate the optimization. It's generally recommended that you normalize the representation (or use a specific loss function) so that the different scales all contribute equally to the representation (see [](tips-model-tweak) for more information).

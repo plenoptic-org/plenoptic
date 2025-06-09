@@ -11,9 +11,9 @@ Synthesis can take a while to run, especially if you are trying to synthesize a 
 
 ## Optimization is hard
 
-You should double-check whether synthesis has successfully completed before interpreting the outputs or using them in any experiments. This is not necessary for eigendistortions (see its [notebook](./tutorials/intro/02_Eigendistortions.nblink) for more details on why), but is necessary for all the iterative optimization methods.
+You should double-check whether synthesis has successfully completed before interpreting the outputs or using them in any experiments. This is not necessary for eigendistortions (see its [notebook](eigendistortion-nb) for more details on why), but is necessary for all the iterative optimization methods.
 
-- For metamers, this means double-checking that the difference between the model representation of the metamer and the target image is small enough. If your model's representation is multi-scale, trying coarse-to-fine optimization may help (see [notebook](./tutorials/intro/06_Metamer.nblink#Coarse-to-fine-optimization) for details).
+- For metamers, this means double-checking that the difference between the model representation of the metamer and the target image is small enough. If your model's representation is multi-scale, trying coarse-to-fine optimization may help (see [notebook](metamer-coarse-to-fine) for details).
 - For MAD competition, this means double-checking that the reference metric is constant and that the optimized metric has converged at a lower or higher value (depending on the value of `synthesis_target`); use [`plot_synthesis_status`](plenoptic.synthesize.mad_competition.plot_synthesis_status) to visualize these values. You will likely need to spend time trying out different values for the `metric_tradeoff_lambda` argument set during initialization to achieve this.
 
 For all of the above, if synthesis has not found a good solution, you may need to run synthesis longer, use a learning-rate scheduler, change the learning rate, or try different optimizers. Each method's `objective_function` method captures the value that we are trying to minimize, but may contain other values (such as the penalty on allowed range values).
@@ -36,7 +36,7 @@ If you are computing a multi-channel representation, you may have a similar prob
 `plenoptic` provides three synthesis methods, but you may find you wish to do something slightly outside the capabilities of the existing methods. There are generally two ways to do this: by tweaking your model or by extending one of the methods.
 
 - See the [Portilla-Simoncelli texture model notebook](ps-nb) for examples on how to get different metamer results by tweaking your model or extending the `Metamer` class.
-- The coarse-to-fine optimization, discussed in the [metamer notebook](./tutorials/intro/06_Metamer.nblink#Coarse-to-fine-optimization), is an example of changing optimization by extending the `Metamer` class.
+- The coarse-to-fine optimization, discussed in the [metamer notebook](metamer-coarse-to-fine), is an example of changing optimization by extending the `Metamer` class.
 - The [Synthesis extensions notebook](synthesis-extensions) contains a discussion focused on this as well.
 
 If you extend a method successfully or would like help making it work, please let us know by posting a [discussion!](https://github.com/plenoptic-org/plenoptic/discussions)
