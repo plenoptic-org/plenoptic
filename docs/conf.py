@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.abspath("./tutorials/"))
 # -- Project information -----------------------------------------------------
 
 project = "plenoptic"
-copyright = "2019, Plenoptic authors"
+copyright = "2019-2025, Plenoptic authors"
 author = "Plenoptic authors"
 
 release: str = version("plenoptic")
