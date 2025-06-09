@@ -52,15 +52,15 @@ See the [](install-doc) page for more details, including how to set up an isolat
 
 ### Synthesis methods
 
-- [Metamers](tutorials/intro/06_Metamer.nblink): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method makes explicit those features that the model retains/discards.
+- [Metamers](metamer-nb): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method makes explicit those features that the model retains/discards.
 
   - Example papers: {cite:alp}`Portilla2000-param-textur`, {cite:alp}`Freeman2011-metam-ventr-stream`, {cite:alp}`Deza2019-towar-metam`, {cite:alp}`Feather2019-metam`, {cite:alp}`Wallis2019-image-conten`, {cite:alp}`Ziemba2021-oppos-effec`
 
-- [Eigendistortions](tutorials/intro/02_Eigendistortions.nblink): given a model and a reference image, compute the image perturbations that produce the smallest/largest change in the model response space. These are the image changes to which the model is least/most sensitive, respectively.
+- [Eigendistortions](eigendistortion-nb): given a model and a reference image, compute the image perturbations that produce the smallest/largest change in the model response space. These are the image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: {cite:alp}`Berardino2017-eigen`
 
-- [Maximal differentiation (MAD) competition](tutorials/intro/08_MAD_Competition.nblink): given a reference image and two models that measure distance
+- [Maximal differentiation (MAD) competition](mad-nb): given a reference image and two models that measure distance
   between images, generate pairs of images that optimally differentiate the models. Specifically, synthesize a pair of images that are equi-distant from the reference image according to model-1, but maximally/minimally distant according to model-2. Synthesize a second pair with the roles of the two models reversed. This method allows for efficient comparison of two metrics, highlighting the aspects in which their sensitivities most differ.
 
   - Example papers: {cite:alp}`Wang2008-maxim-differ`

@@ -34,6 +34,7 @@ warnings.filterwarnings(
 
 ```
 
+(eigendistortion-nb)=
 # Eigendistortions
 
 **Run notebook online with Binder:**[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples/02_Eigendistortions.ipynb)
