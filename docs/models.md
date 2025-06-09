@@ -23,6 +23,7 @@ Additionally, your model inputs and outputs should be real- or complex-valued an
 - when called on two identical inputs, the metric must return a value less than `5e-7` (effectively, zero).
 - it must always return a non-negative number.
 
+(models-coarse-to-fine)=
 Finally, [`MetamerCTF`](plenoptic.synthesize.metamer.MetamerCTF) implements
 coarse-to-fine synthesis, as described in {cite:alp}`Portilla2000-param-textur`. To make use of coarse-to-fine synthesis, your model must meet the following additional requirements (use the [`validate_coarse_to_fine`](plenoptic.tools.validate.validate_coarse_to_fine) function to check and see [`PortillaSimoncelli`](plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli) for an example):
 

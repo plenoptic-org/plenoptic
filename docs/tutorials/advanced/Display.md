@@ -11,6 +11,7 @@ kernelspec:
   name: python3
 ---
 
+(display-nb)=
 # Display and animate functions
 
 `plenoptic` contains a variety of code for visualizing the outputs and the process of synthesis. This notebook details how to make use of that code, which has largely been written with the following goals:

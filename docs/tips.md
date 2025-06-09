@@ -20,6 +20,7 @@ For all of the above, if synthesis has not found a good solution, you may need t
 
 Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animate` or `plot_synthesis_status` helper functions (e.g., [`metamer.plot_synthesis_status`](plenoptic.synthesize.metamer.plot_synthesis_status)).
 
+(tips-model-tweak)=
 ### Tweaking the model
 
 You can also improve your changes of finding a good synthesis by tweaking the model. For example, the loss function used for metamer synthesis by default is mean-squared error. This implicitly weights all aspects of the model's representation equally. Thus, if there are portions of the representation whose magnitudes are significantly smaller than the others, they might not be matched at the same rate as the others. You can address this using coarse-to-fine synthesis or picking a more suitable loss function, but it's generally a good idea for all of a model's representation to have roughly the same magnitude. You can do this in a principled or empirical manner:
