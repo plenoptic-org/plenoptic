@@ -789,6 +789,11 @@ def display_eigendistortion(
     -------
     fig
         Figure containing the displayed images.
+
+    See Also
+    --------
+    display_eigendistortion_all
+        Display base image and multiple eigendistortions, alone and added to image.
     """
     # reshape so channel dim is last
     im_shape = eigendistortion._image_shape
@@ -801,6 +806,107 @@ def display_eigendistortion(
 
     img_processed = process_image(image + alpha * dist)
     to_plot = torch.clamp(img_processed, 0, 1)
-    fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, **kwargs)
+    title = f"{alpha} * Eigendistortion[{eigenindex}]"
+    fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, title=title, **kwargs)
+
+    return fig
+
+
+def display_eigendistortion_all(
+    eigendistortion: Eigendistortion,
+    eigenindex: int | list[int] = [0, -1],
+    alpha: float = 5.0,
+    process_image: Callable[[Tensor], Tensor] = lambda x: x,
+    plot_complex: str = "rectangular",
+    suptitle: str = "Eigendistortions",
+    suptitle_kwargs: dict | None = None,
+    **kwargs: Any,
+) -> Figure:
+    r"""
+    Display base image, eigendistortions alone, and eigendistortions added to the image.
+
+    If image or eigendistortions have 3 channels, then it is assumed to be a color
+    image and it is converted to grayscale. This is merely for display convenience
+    and may change in the future.
+
+    Parameters
+    ----------
+    eigendistortion
+        Eigendistortion object whose synthesized eigendistortion we want to display.
+    eigenindex
+        Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will
+        index the first one, and -1 or 9 will index the last one.
+    alpha
+        Amount by which to scale eigendistortion for
+        ``image + (alpha * eigendistortion)`` for display.
+    process_image
+        A function to process the image+alpha*distortion before clamping between 0,1.
+        E.g. multiplying by the stdev ImageNet then adding the mean of ImageNet to undo
+        image preprocessing.
+    plot_complex
+        Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
+        complex values. Defaults to ``'rectangular'``, which plots real and complex
+        components as separate images. See that method's docstring for details.
+    suptitle
+        Super title to plot above all axes.
+    suptitle_kwargs
+        Additional arguments for :func:`matplotlib.pyplot.suptitle`.
+    **kwargs
+        Additional arguments for :func:`~plenoptic.tools.display.imshow`.
+
+    Returns
+    -------
+    fig
+        Figure containing the displayed images.
+
+    See Also
+    --------
+    display_eigendistortion
+        Display single eigendistortion added to image.
+    """
+    # reshape so channel dim is last
+    im_shape = eigendistortion._image_shape
+    image = eigendistortion.image.detach().view(1, *im_shape).cpu()
+    if not hasattr(eigenindex, "__iter__"):
+        eigenindex = [eigenindex]
+    distortions = [torch.ones_like(image)]
+    distortion_titles = [""]
+    img_processed = [image]
+    img_titles = ["Original image"]
+    as_rgb = kwargs.get("as_rgb", False)
+
+    for idx in eigenindex:
+        dist = (
+            eigendistortion.eigendistortions[eigendistortion._indexer(idx)]
+            .unsqueeze(0)
+            .cpu()
+        )
+        img_processed.append(torch.clamp(process_image(image + alpha * dist), 0, 1))
+        img_titles.append(f"{alpha} * Eigendistortion[{idx}]")
+        distortion_titles.append(f"Eigendistortion[{idx}]")
+        if as_rgb:
+            dist += 0.5
+            distortion_titles[-1] += "+ 0.5"
+            warnings.warn(
+                "Adding 0.5 to distortion to plot as RGB image, else matplotlib"
+                " clipping will result in a strange looking image..."
+            )
+        distortions.append(dist)
+
+    fig = imshow(
+        distortions + img_processed,
+        plot_complex=plot_complex,
+        title=distortion_titles + img_titles,
+        col_wrap=len(distortions),
+        **kwargs,
+    )
+    fig.axes[0].set_title("")
+
+    if suptitle_kwargs is None:
+        suptitle_kwargs = {}
+    va = suptitle_kwargs.pop("verticalalignment", None)
+    va = suptitle_kwargs.pop("va", "bottom") if va is None else "bottom"
+    y = suptitle_kwargs.pop("y", 1.05)
+    fig.suptitle(suptitle, y=y, va=va, **suptitle_kwargs)
 
     return fig
