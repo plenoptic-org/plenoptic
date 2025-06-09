@@ -97,7 +97,7 @@ pipeline {
               pip install -U pip setuptools
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              make -C docs html O="-T"
+              make -C docs html O="-T -j auto"
               echo \$(ls \$HOME)
               echo \$(ls \$HOME/docs)
               echo \$(ls \$HOME/docs/_build)
