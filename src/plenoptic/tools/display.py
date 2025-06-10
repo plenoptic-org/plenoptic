@@ -429,7 +429,7 @@ def animshow(
     -----
     - By default, we use the ffmpeg backend, which requires that you have
       ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-      To use a different, use the matplotlib rcParams:
+      To use a different backend, use the matplotlib rcParams:
       ``matplotlib.rcParams['animation.writer'] = writer``, see
       `matplotlib documentation
       <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more

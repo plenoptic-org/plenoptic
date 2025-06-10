@@ -424,7 +424,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       FT(x(t)) and FT(x(-t)). In other words, the auto-correlation is
       convolution of the signal ``x`` with itself, which corresponds to squaring
       in the frequency domain. This approach is computationally more efficient
-      than brute force (n log(n) vs n^2).
+      than brute force ($n log(n)$ vs $n^2$).
 
     - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
       location (ie. no shift) - that maximum value is the signal's variance
