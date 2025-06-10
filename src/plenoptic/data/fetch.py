@@ -5,6 +5,9 @@ This is inspired by scipy's datasets module.
 """
 
 import pathlib
+import sys
+
+from tqdm.auto import tqdm
 
 __all__ = ["DOWNLOADABLE_FILES", "fetch_data"]
 
@@ -155,7 +158,20 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
             "conda to install 'pooch'."
         )
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
-    fname = retriever.fetch(dataset_name, progressbar=True, processor=processor)
+    use_ascii = bool(sys.platform == "win32")
+    fname = retriever.fetch(
+        dataset_name,
+        progressbar=tqdm(
+            total=1,
+            ncols=79,
+            unit_scale=True,
+            delay=1e-5,
+            leave=True,
+            unit="B",
+            ascii=use_ascii,
+        ),
+        processor=processor,
+    )
     if dataset_name.endswith(".tar.gz"):
         fname = _find_shared_directory([pathlib.Path(f) for f in fname])
     else:
