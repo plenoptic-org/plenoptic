@@ -11,6 +11,7 @@ kernelspec:
   name: python3
 ---
 
+(mad-concept)=
 # MAD Competition Conceptual Introduction
 
 This notebook shows the simplest possible MAD: a two pixel image, where our models are L2-norm and L1-norm. It will not explain the basics of MAD Competition or how to use it. Instead, since we're dealing with a simple and low-dimensional example, we can plot the image in pixel space and draw out the model contours, which we can use to explicitly check whether we've found the correct results.
