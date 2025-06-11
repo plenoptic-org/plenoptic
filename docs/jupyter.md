@@ -234,8 +234,4 @@ The following table summarizes the advantages and disadvantages of these three c
 
 ## Running the notebooks
 
-Once you have jupyter installed and the kernel set up, navigate to plenoptic's `examples/` directory on your terminal and activate the environment you installed jupyter into, then run `jupyter` and open up the notebooks. If you did not install `jupyter` into the same environment as `plenoptic`, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
-
-:::{attention}
-If you did not install `plenoptic` from source, then you will not have the notebooks on your machine and will need to download them directly from [our GitHub repo](https://github.com/plenoptic-org/plenoptic/tree/main/examples). If you installed plenoptic from source (and thus ran `git clone`), then the notebooks can be found in the `examples/` directory.
-:::
+Once you have jupyter installed and the kernel set up, you can download the tutorial notebooks and run them. Each notebook has a `Download this notebook` link at the top. After downloading, navigate to the directory containing the notebook, then run `jupyter` and open up the notebooks. If you did not install `jupyter` into the same environment as `plenoptic`, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
