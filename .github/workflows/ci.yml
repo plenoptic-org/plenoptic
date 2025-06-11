@@ -12,8 +12,7 @@ env:
   POOCH_ALLOW_UPDATES: false
 
 jobs:
-  # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
-  notebooks:
+  notebooks_cpu:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -34,18 +33,19 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[dev,nb] papermill
     - name: Run notebooks
       run: |
-        for file in examples/*ipynb; do
-           # these first two notebooks take much longer than the rest to run (2
-           # and 1 hours on laptop, respectively, longer on runners). So we use
-           # papermill's parameters to reduce the max number of steps for
-           # synthesis in them (we want to test that each cell runs, but we
-           # don't need synthesis to go to completion).
+        for file in $(find docs/tutorials/ -name '*.md'); do
+           nb="${file/md/ipynb}"
+           jupytext $file -o $nb --from myst
+           # these first two notebooks take much longer than the rest to run.
+           # So we use papermill's parameters to reduce the max number of steps
+           # for synthesis in them (we want to test that each cell runs on the
+           # cpu, but we don't need synthesis to go to completion).
            if [[ "$file" =~ "Metamer-Portilla-Simoncelli" ]]; then
-              papermill $file $file_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd examples/
+              papermill $nb $nb_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd "$(dirname $nb)"
            elif [[ "$file" =~ "Demo_Eigendistortion" ]]; then
-              papermill $file $file_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd examples/
+              papermill $nb $nb_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd "$(dirname $nb)"
            else
-              jupyter execute $file --kernel_name=python3
+              jupyter execute $nb --kernel_name=python3
             fi
         done
   doctests:
@@ -101,48 +101,14 @@ jobs:
       uses: codecov/codecov-action@v5.4.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-  all_tutorials_in_docs:
-    runs-on: ubuntu-latest
-    name: Check that all tutorial notebooks are included in docs
-    steps:
-    - uses: actions/checkout@v4
-    - name: Check for file
-      shell: bash
-      # there are two levels that the notebooks can be in
-      run: |
-        for file in examples/*ipynb; do
-           if [[ -z "$(grep $file docs/tutorials/*nblink)" && -z "$(grep $file docs/tutorials/*/*nblink)" ]] ; then
-              exit 1
-           fi
-        done
-  no_extra_nblinks:
-    runs-on: ubuntu-latest
-    name: Check that we don't have any extra nblink files
-    steps:
-    - uses: actions/checkout@v4
-    - name: Check same number of nblink and notebooks
-      shell: bash
-      run: |
-        n_nblink=0; for file in docs/tutorials/*nblink; do let "n_nblink+=1"; done;
-        for file in docs/tutorials/*/*nblink; do let "n_nblink+=1"; done;
-        n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
-        if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
   check_urls:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
     - uses: actions/checkout@v4
-      # there are several cells in the notebook whose output includes links that
-      # urlchecker htinks are invalid (though when I check them manually, they
-      # look fine). Regardless, they're unimportant -- they're part of warning
-      # messages and similar, so we don't want to check them.
-    - name: strip notebook output
-      run: |
-        pipx install nbstripout
-        nbstripout examples/*ipynb
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
-        file_types: .md,.py,.rst,.ipynb
+        file_types: .md,.py,.rst
         print_all: false
         timeout: 5
         retry_count: 3
@@ -150,11 +116,9 @@ jobs:
   check:
     if: always()
     needs:
-    - notebooks
+    - notebooks_cpu
     - doctests
     - tests
-    - all_tutorials_in_docs
-    - no_extra_nblinks
     - check_urls
     runs-on: ubuntu-latest
     steps:
