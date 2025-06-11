@@ -11,6 +11,13 @@ kernelspec:
   name: python3
 ---
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Display.ipynb`**!
+
+:::
+
 (display-nb)=
 # Display and animate functions
 

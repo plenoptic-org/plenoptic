@@ -21,6 +21,13 @@ warnings.filterwarnings(
 )
 ```
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`MAD_Competition.ipynb`**!
+
+:::
+
 (mad-nb)=
 # MAD Competition Usage
 

@@ -11,7 +11,27 @@ kernelspec:
   name: python3
 ---
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Portilla-Simoncelli.ipynb`**!
+
+:::
+
 (ps-nb)=
+# Portilla-Simoncelli Texture Metamer
+
+In this tutorial we will aim to replicate [Portilla & Simoncelli (1999)](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf). The tutorial is broken into the following parts:
+
+1. Introduce the concept of a Visual Texture.
+2. How to synthesize metamers for the Portilla & Simoncelli texture model.
+3. Demonstrate the importance of different classes of statistics.
+4. Example syntheses from different classes of textures (e.g., artificial, Julesz, pseudoperiodic, etc.)
+5. Extrapolation and Mixtures: Applying texture synthesis to more complex texture problems.
+6. Some model limitations.
+7. List of notable differences between the MATLAB and python implementations of the Portilla Simoncelli texture model and texture synthesis.
+
+Note that this notebook takes a long time to run (roughly an hour with a GPU, several hours without), because of all the metamers that are synthesized.
 
 ```{code-cell} ipython3
 import einops
@@ -49,22 +69,6 @@ short_synth_max_iter = 1000
 long_synth_max_iter = 3000
 longest_synth_max_iter = 4000
 ```
-
-# Portilla-Simoncelli Texture Metamer
-
-In this tutorial we will aim to replicate [Portilla & Simoncelli (1999)](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf). The tutorial is broken into the following parts:
-
-1. Introduce the concept of a Visual Texture.
-2. How to synthesize metamers for the Portilla & Simoncelli texture model.
-3. Demonstrate the importance of different classes of statistics.
-4. Example syntheses from different classes of textures (e.g., artificial, Julesz, pseudoperiodic, etc.)
-5. Extrapolation and Mixtures: Applying texture synthesis to more complex texture problems.
-6. Some model limitations.
-7. List of notable differences between the MATLAB and python implementations of the Portilla Simoncelli texture model and texture synthesis.
-
-Note that this notebook takes a long time to run (roughly an hour with a GPU, several hours without), because of all the metamers that are synthesized.
-
-+++
 
 ## 1. What is a visual texture?
 
@@ -1019,8 +1023,6 @@ po.imshow(
 
 Note: We use standard deviations, instead of variances, because the value of the standard deviations lie within approximately the same range as the other values in the model's representation, which makes optimization work better.
 
-+++
-
 ## 7.1 Redundant statistics
 
 The original Portilla-Simoncelli paper presents formulas to obtain the number of statistics in each class from the model parameters `n_scales`, `n_orientations` and `spatial_corr_width` (labeled in the original paper $N$, $K$, and $M$ respectively). The formulas indicate the following statistics for each class:
@@ -1041,8 +1043,6 @@ The redundant statistics that are removed by the `plenoptic` package but that ar
 5) **Statistics not in paper**: The Matlab code outputs the mean magnitude of each band and cross-orientation real correlations, but these are not enumerated in the paper. These statistics are removed in `plenoptic`. See the next section for some more detail about the magnitude means.
 
 Note: This can be understood by thinking of $A_{i,0}$, the autocorrelation of every pixel and the pixel $i$ to their right. Computing this auto-covariance involves adding together all the products $I_{x,y}*I_{x+i,y}$ for every x and y in the image. But this is equivalent to computing $A_{-i,0}$, because every pair of two neighbors $i$ to the right $I_{x,y}*I_{x+i,y}$ is also a pair of neighbors $i$ to the left, $I_{x+i,y}*I_{(x+i)-i,y}=I_{x+i,y}*I_{x,y}$. So, any opposite displacements around the central element in the auto-covariance matrix will have the same value.
-
-+++
 
 As shown below, the output of `plenoptic` matches the number of statistics indicated in the paper:
 

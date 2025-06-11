@@ -51,3 +51,8 @@ repos:
       name: Check for malformed sphinx directives
       types_or: ["python", "rst", "markdown"]
       entry: python tests/check_sphinx_directives.py
+    - id: check-tutorials
+      language: system
+      name: Check for issues with markdown tutorial notebooks
+      types_or: ["markdown"]
+      entry: python tests/check_tutorials.py

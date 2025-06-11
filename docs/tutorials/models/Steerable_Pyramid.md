@@ -11,6 +11,13 @@ kernelspec:
   name: python3
 ---
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
+
+:::
+
 # Steerable Pyramid
 
 

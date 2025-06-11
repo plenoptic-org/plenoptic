@@ -11,6 +11,13 @@ kernelspec:
   name: python3
 ---
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Synthesis_extensions.ipynb`**!
+
+:::
+
 (synthesis-extensions)=
 # Extending existing synthesis objects
 

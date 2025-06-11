@@ -11,6 +11,13 @@ kernelspec:
   name: python3
 ---
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`MAD_Simple.ipynb`**!
+
+:::
+
 (mad-concept)=
 # MAD Competition Conceptual Introduction
 

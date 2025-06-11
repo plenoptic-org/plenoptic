@@ -34,10 +34,17 @@ warnings.filterwarnings(
 
 ```
 
+
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Eigendistortions.ipynb`**!
+
+:::
+
+
 (eigendistortion-nb)=
 # Eigendistortions
-
-**Run notebook online with Binder:**[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples/02_Eigendistortions.ipynb)
 
 **In this tutorial we will cover:**
 

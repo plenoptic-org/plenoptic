@@ -26,6 +26,13 @@ warnings.filterwarnings(
 This currently contains examples of the earlier MAD synthesis, but we have yet to reproduce it using `plenoptic`.
 :::
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Original_MAD.ipynb`**!
+
+:::
+
 # Reproducing Wang and Simoncelli, 2008 (MAD Competition)
 
 Goal here is to reproduce original MAD Competition results, as generated using the [matlab code](https://github.com/LabForComputationalVision/MAD_Competition) originally provided by Zhou Wang and then modified by the authors. MAD Competition is a synthesis method for efficiently computing two models, by generating sets of images that minimize/maximize one model's loss while holding the other's constant. For more details, see the [](mad-nb) and [](mad-concept) notebooks.

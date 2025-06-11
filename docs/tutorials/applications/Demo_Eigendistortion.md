@@ -11,7 +11,12 @@ kernelspec:
   language: python
 ---
 
-**Run notebook online with Binder:**[![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples/Demo_Eigendistortion.ipynb)
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Demo_Eigendistortion.ipynb`**!
+
+:::
 
 # Reproducing Berardino et al., 2017 (Eigendistortions)
 Author: Lyndon Duong, Jan 2021

@@ -22,6 +22,13 @@ warnings.filterwarnings(
 )
 ```
 
+:::{admonition} Download
+:class: important
+
+Download this notebook: **{nb-download}`Metamer.ipynb`**!
+
+:::
+
 (metamer-nb)=
 # Metamers
 

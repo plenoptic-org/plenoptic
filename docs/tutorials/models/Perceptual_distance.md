@@ -22,9 +22,14 @@ warnings.filterwarnings(
 )
 ```
 
-# Perceptual distance
+:::{admonition} Download
+:class: important
 
-**Run notebook online with Binder:** [![Binder](http://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.1.0?filepath=examples/04_Perceptual_distance.ipynb)
+Download this notebook: **{nb-download}`Perceptual_distance.ipynb`**!
+
+:::
+
+# Perceptual distance
 
 The easiest way to measure the difference between two images is by computing the mean square error (MSE), but it does not match the perceptual distance judged by humans. Several perceptual distance functions have been developed to better match human perception. This tutorial introduces three perceptual distance functions available in `plenoptic` package: [SSIM](plenoptic.metric.perceptual_distance.ssim) (structural similarity), [MS-SSIM](plenoptic.metric.perceptual_distance.ms_ssim) (multiscale structural similarity) and [NLPD](plenoptic.metric.perceptual_distance.nlpd) (normalized Laplacian pyramid distance).
 
