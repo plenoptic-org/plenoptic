@@ -526,6 +526,22 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
     .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> pyramid = po.metric.normalized_laplacian_pyramid(img)
+        >>> po.imshow(pyramid, col_wrap=3)
+        <PyrFigure size ...>
+
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> pyramid = po.metric.normalized_laplacian_pyramid(img)
+    >>> [p.shape for p in pyramid]
+    [torch.Size([1, 1, 256, 256]), torch.Size([1, 1, 128, 128]), torch.Size([1, 1, 64, 64]), torch.Size([1, 1, 32, 32]), torch.Size([1, 1, 16, 16]), torch.Size([1, 1, 8, 8])]
     """
     (_, channel, height, width) = img.size()
 
