@@ -27,6 +27,6 @@ for p in paths:
 
 
 if fails:
-    print("The following markdown files are missing a download notebook button!")
+    print("The following markdown notebooks are missing a download notebook button!")
     for p in fails:
         print(p)

@@ -16,6 +16,7 @@ repos:
       exclude: |
           (?x)(
               tests/|
+              linting/|
               docs/
           )
 
@@ -44,15 +45,15 @@ repos:
     - id: check-docstrings
       name: check docstrings for markdown
       language: system
-      entry: python tests/check_docstrings.py
+      entry: python linting/check_docstrings.py
       types: [file, python]
     - id: check-malformed-directive
       language: system
       name: Check for malformed sphinx directives
       types_or: ["python", "rst", "markdown"]
-      entry: python tests/check_sphinx_directives.py
+      entry: python linting/check_sphinx_directives.py
     - id: check-tutorials
       language: system
       name: Check for issues with markdown tutorial notebooks
       types_or: ["markdown"]
-      entry: python tests/check_tutorials.py
+      entry: python linting/check_tutorials.py
