@@ -245,8 +245,7 @@ When doing a new release, the following steps must be taken:
 1. In a new PR:
   - Update all the [binder](https://mybinder.org) links, which are of the form
     `https://mybinder.org/v2/gh/plenoptic-org/plenoptic/X.Y.Z?filepath=examples`,
-    which are found in `README.md`, `index.rst`, `examples/README.md`, and some
-    of the tutorial notebooks found in `examples/`. Note that the version tag
+    which are found in `README.md` and `index.md`. Note that the version tag
     must match the github tag (specified in the next step) or the link won't
     work.
 2. After merging the above PR into the `main` branch, [create a Github
@@ -258,6 +257,8 @@ When doing a new release, the following steps must be taken:
    [setuptools_scm](https://github.com/pypa/setuptools_scm).
 
 Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, so ensure they match!
+
+Shortly after the deploy to pypi goes through (typically within a day), a PR will be automatically opened on the [conda-forge/plenoptic-feedstock](https://github.com/conda-forge/plenoptic-feedstock) repo. After merging that PR, the [plenoptic version on conda-forge](https://anaconda.org/conda-forge/plenoptic) will also be updated
 
 ## Testing
 
@@ -456,20 +457,6 @@ try and debug some errors (though errors that result from environment issues
 obviously will be harder to figure out locally); `jupyter execute` is part of
 the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
-Similar to adding new [test scripts](#adding-tests), you don't need to
-explicitly add new tutorials to `ci.yml` to be tested: as long as your notebook
-is in the `examples/` directory and has an `ipynb` extension, our github actions
-will automatically find it and test it.
-
-If your notebook needs additional files to run, you should add a [conditional
-job](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution)
-to download them. If you need to upload them, we recommend uploading a tarball
-to the [Open Science Framework](https://osf.io/), and they can then be
-downloaded using `wget` and extracted. See `Download TID2013 dataset` in
-`ci.yml` for an example. We have a [single OSF project](https://osf.io/ts37w/)
-containing all the files we've uploaded and will probably want to include yours
-there as well.
-
 If your notebook takes more than ~10 minutes on a github runner, you should find
 a way to use reduce it for tests. The goal of the tests is only to check that
 each cell runs successfully. For example, the Portilla-Simoncelli texture model
@@ -488,13 +475,8 @@ metamer instances run for. We do this using
   = 1000`).
 - Where synthesis is called later in the notebook, replace the number with the
   variable (e.g., `metamer.synthesize(max_iter=vgg16_max_iter)`).
-- Add a conditional job to `ci.yml` for your notebook which installs papermill
-  and calls it with the syntax: `papermill ${{ matrix.notebook }} ${{
-  matrix.notebook }}_output.ipynb -p PARAM1 VAL1 -p PARAM2 VAL2 -k python3 --cwd
-  examples/`, replacing `PARAM1 VAL1` and `PARAM2 VAL2` as appropriate (e.g.,
-  `vgg16_synth_max_iter 10`; note that you need a `-p` for each parameter and
-  you should change nothing else about that line). See the block with `if: ${{
-  matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}` for an example.
+- Add a conditional job to `ci.yml` for your notebook which installs papermill.
+  See `ci.yml` for examples.
 
 A similar procedure could be used to reduce the size of an image or other steps
 that could similarly reduce the total time necessary to run a notebook.
@@ -595,24 +577,20 @@ just modify the existing tutorials and add documentation. If unsure, ask!
 Documentation in `plenoptic` is built using Sphinx on some of Flatiron's Jenkins
 runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
-Documentation comes in two types: `.rst` files (reST, the markup language used
-by Sphinx, see
-[here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
-for a primer), which contain only text (including math) and images, and `.ipynb`
-files (Jupyter notebooks), which also contain code.
+All of our documentation is written as markdown files, with the extension `.md`. We use the [myst parser](https://myst-parser.readthedocs.io/), along with [myst-nb](https://myst-nb.readthedocs.io). Both process markdown files, but `myst-nb` allows us to write [text-based notebooks](https://myst-nb.readthedocs.io/en/latest/authoring/text-notebooks.html), with python code that gets executed when the documentation is built.
 
-Jupyter notebooks are tutorials and show how to use the various functions and
+The text-based notebooks are tutorials and show how to use the various functions and
 classes contained in the package, and they all should be located in the
-`examples/` directory. If you add or change a substantial amount of code, please
+`docs/tutorials/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it. Once you've added a tutorial, see
 [here](#add-tutorials) for how to include it in the Sphinx site.
 
-reST files contain everything else, especially discussions about why you should
+The regular markdown files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
-in the `docs/` directory. Add it to the table of contents in `index.rst` by
+in the `docs/` directory. Add it to the table of contents in `index.md` by
 adding the name of the file (without extension, but with any subfolders) to the
-`toctree` block. For example, if you add two new files, `docs/my_cool_docs.rst`
-and `docs/some_folder/even_cooler_docs.rst`, you should edit `docs/index.rst`
+`toctree` block. For example, if you add two new files, `docs/my_cool_docs.md`
+and `docs/some_folder/even_cooler_docs.md`, you should edit `docs/index.md`
 like so:
 
 ```
@@ -623,7 +601,7 @@ like so:
    some_folder/even_cooler_docs
 ```
 
-In order for table of contents to look good, your `.rst` file must be well
+In order for table of contents to look good, your `.md` file must be well
 structured. Similar to [tutorials](#add-tutorials), it must have a single H1
 header (you can have as many sub-headers as you'd like).
 
@@ -632,16 +610,16 @@ looks correct before pushing.
 
 #### Images and plots
 
-You can include images in `.rst` files in the documentation as well. Simply
+You can include images in `.md` files in the documentation as well. Simply
 place them in the `docs/images/` folder and use the `figure` role, e.g.,:
 
-```rst
-.. figure:: images/path_to_my_image.svg
-   :figwidth: 100%
-   :alt: Alt-text describing my image.
+```md
+:::{figure} images/path_to_my_image.svg
+:figwidth: 100%
+:alt: Alt-text describing my image.
 
-   Caption describing my image.
-
+Caption describing my image.
+:::
 ```
 
 To refer to it directly, you may want to use the [numref
@@ -650,7 +628,7 @@ role](https://docs.readthedocs.io/en/stable/guides/cross-referencing-with-sphinx
 
 If you have plots or other images generated by code that you wish to include,
 you can include them in the file directly without either saving the output in
-`docs/images/` or turning the page into a notebook. This is useful if you want
+`docs/_static/images/` or turning the page into a notebook. This is useful if you want
 to show something generated by code but the code itself isn't the point. We
 handle this with [matplotlib plot
 directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html)
@@ -658,11 +636,13 @@ directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html)
 write a function that creates the matplotlib figure you wish to display. Then,
 in your documentation, add:
 
-```rst
+````md
+```{eval-rst}
 .. plot:: scripts/path_to_my_script.py my_useful_plotting_function
 
    Caption describing what is in my plot.
 ```
+````
 
 Similar to figures, you can use `numref` to refer to plots as well.
 
@@ -693,89 +673,12 @@ documentation is built automatically, pushed to the
 [plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
 github repo and published at http://docs.plenoptic.org/.
 
-However, it can be built locally as well. You would do this if you've
-made changes locally to the documentation (or the docstrings) that you
-would like to examine before pushing. The virtual environment required
-to do so is defined in `docs/environment.yml`, so to create that
-environment and build the docs, do the following from the project's
-root directory:
+However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 
-```
-# install sphinx and required packages to build documentation
-conda env create -f docs/environment.yml
-# activate the environment
-conda activate plenoptic_docs
-# install plenoptic
-pip install -e ".[docs]"
-# build documentation
-cd docs/
-make html
-```
+Then, to build the documentation, run: `make -C docs html O="-T -j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
+
+By default, the notebooks are not run because they take a long time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/tutorials/intro/Metamer`, `docs/tutorials/intro/MAD_Competition`, and `docs/tutorials/intro/MAD_Simple`.
 
 The index page of the documentation will then be located at
 `docs/_build/html/index.html`, open it in your browser to navigate
 around.
-
-The `plenoptic_docs` environment you're creating contains the package
-`sphinx` and several extensions for it that are required to build the
-documentation. You also need to install `plenoptic` from your local
-version so that `sphinx` can import the library and grab all of the
-docstrings (you're installing the local version so you can see all the
-changes you've made).
-
-And then whenever you want to recreate / update your local
-documentation, run:
-
-```
-conda activate plenoptic_docs
-cd docs/
-make html
-```
-
-### Add tutorials
-
-We build tutorials as Jupyter notebooks so that they can be launched in Binder
-and people can play with them on their local machine. In order to include them
-in the built docs, add a `nblink` file to the `docs/tutorials/` directory or one
-of its sub-directories. We check for this during the tests, so you won't be able
-to merge your pull request into `main` unless you've done this!
-
-This is a json file that should contain the path to the notebook, like so, for
-`docs/tutorials/my_awesome_tutorial.nblink`:
-
-```
-{
-    "path": "../../examples/my_tutorial.ipynb"
-}
-```
-
-note that you *cannot* have a trailing comma there, because json is very
-particular. And note that the number of `../` you need will depend on whether
-the `nblink` file lives in `docs/tutorials/` or one of its sub-directories.
-
-If you have extra media (such as images) that are rendered in the notebook, you
-need to specify them as well, otherwise they won't render in the documentation:
-
-```
-{
-    "path": "../../examples/my_tutorial.ipynb",
-    "extra-media": ["../../examples/assets/my_folder"]
-}
-
-```
-
-note that `extra-media` must be a list, even with a single path.
-
-See the [nbsphinx-link](https://github.com/vidartf/nbsphinx-link) page for more
-details.
-
-The location of the `.nblink` file (in `docs/tutorials`, `docs/tutorials/intro`,
-etc.) determines which of the sub-headings it appears under in the table of
-contents. View the `toctree` directives at the bottom of `index.rst` to see
-which subfolders corresponds to which
-
-*NOTE*: In order for the `toctree` formatting to work correctly, your notebook
-should have exactly one H1 title (i.e., line starting with a single `#`), but
-you can have as many lower-level titles as you'd like. If you have multiple H1
-titles, they'll each show up as different tutorials. If you don't have an H1
-title, it won't show up at all.
