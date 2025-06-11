@@ -8,7 +8,7 @@ Synthesis is a framework for exploring models by using them to create new stimul
 
 (synthesis-schematic)=
 
-:::{figure} images/model_sim-fit-infer.svg
+:::{figure} /_static/images/model_sim-fit-infer.svg
 :alt: Schematic describing relationship between simulate, fit, and synthesize.
 :figwidth: 100%
 
@@ -27,7 +27,7 @@ Researchers studying color perception arrived at a standard procedure -- the bip
 
 (trichromacy)=
 
-:::{figure} images/trichromacy.svg
+:::{figure} /_static/images/trichromacy.svg
 :alt: Color matching experiment.
 :figwidth: 100%
 
@@ -75,7 +75,7 @@ Let's consider a slightly more complex example. Human vision is very finely deta
 
 (model-schematic)=
 
-:::{figure} images/model_schematic.svg
+:::{figure} /_static/images/model_schematic.svg
 :alt: Foveated pixel intensity model.
 :figwidth: 100%
 
@@ -86,7 +86,7 @@ This model cares about the average pixel intensity in a given area, but doesn't 
 
 (fov-met)=
 
-:::{figure} images/foveated_mets.svg
+:::{figure} /_static/images/foveated_mets.svg
 :alt: Three images, all identical as far as the foveated pixel intensity model is concerned.
 :figwidth: 100%
 

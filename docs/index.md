@@ -12,7 +12,7 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-:::{figure} images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:::{figure} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
 :alt: plenoptic logo
 :figwidth: 100%
 :align: center
@@ -45,7 +45,7 @@ See the [](install-doc) page for more details, including how to set up an isolat
 
 ## Contents
 
-:::{figure} images/example_synth.svg
+:::{figure} /_static/images/example_synth.svg
 :alt: The three synthesis methods included in plenoptic
 :figwidth: 100%
 :::
@@ -144,8 +144,10 @@ tutorials/advanced/*
 
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
 
+```{nb-exec-table}
+```
 
-:::{image} images/CCN-logo-wText.png
+:::{image} /_static/images/CCN-logo-wText.png
 :align: center
 :alt: Flatiron Institute Center for Computational Neuroscience logo
 :::
