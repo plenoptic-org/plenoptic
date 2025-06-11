@@ -815,9 +815,10 @@ def display_eigendistortion(
 def display_eigendistortion_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
-    alpha: float = 5.0,
+    alpha: float | list[float] = 5.0,
     process_image: Callable[[Tensor], Tensor] = lambda x: x,
     plot_complex: str = "rectangular",
+    as_rgb: bool = False,
     suptitle: str = "Eigendistortions",
     suptitle_kwargs: dict | None = None,
     **kwargs: Any,
@@ -837,16 +838,24 @@ def display_eigendistortion_all(
         Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will
         index the first one, and -1 or 9 will index the last one.
     alpha
-        Amount by which to scale eigendistortion for
-        ``image + (alpha * eigendistortion)`` for display.
+        Amount by which to scale eigendistortion for ``image + (alpha *
+        eigendistortion)`` for display. If a list, must be the same length as
+        ``eigenindex`` and will multiply each distortion by the corresponding
+        ``alpha`` value.
     process_image
-        A function to process the image+alpha*distortion before clamping between 0,1.
-        E.g. multiplying by the stdev ImageNet then adding the mean of ImageNet to undo
-        image preprocessing.
+        A function to process all images before display. E.g. multiplying by the
+        stdev ImageNet then adding the mean of ImageNet to undo image
+        preprocessing. If ``None`` and ``as_rgb is True``, will add 0.5 to the
+        distortion(s) (to avoid matplotlib clipping).
     plot_complex
         Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
         complex values. Defaults to ``'rectangular'``, which plots real and complex
         components as separate images. See that method's docstring for details.
+    as_rgb
+        Whether to consider the channels as encoding RGB(A) values. If ``True``, we
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if
+        you want the alpha channel) elements in the channel dimension. If ``False``,
+        we plot each channel as a separate grayscale image.
     suptitle
         Super title to plot above all axes.
     suptitle_kwargs
@@ -859,6 +868,17 @@ def display_eigendistortion_all(
     fig
         Figure containing the displayed images.
 
+    Raises
+    ------
+    ValueError
+        If ``len(alpha) != len(eigenindex)``.
+
+    Warns
+    -----
+    UserWarning
+        If ``process_image=None`` and ``as_rgb=True``, because we are adding 0.5
+        to the distortion.
+
     See Also
     --------
     display_eigendistortion
@@ -869,38 +889,52 @@ def display_eigendistortion_all(
     image = eigendistortion.image.detach().view(1, *im_shape).cpu()
     if not hasattr(eigenindex, "__iter__"):
         eigenindex = [eigenindex]
+    if not hasattr(alpha, "__iter__"):
+        alpha = [alpha] * len(eigenindex)
+    if len(alpha) != len(eigenindex):
+        raise ValueError(
+            "If alpha is a list, it must have the same number of values as eigenindex! "
+            f"{len(alpha)=} vs. {len(eigenindex)=}"
+        )
     distortions = [torch.ones_like(image)]
     distortion_titles = [""]
-    img_processed = [image]
+    img_processed = [process_image(image)]
     img_titles = ["Original image"]
-    as_rgb = kwargs.get("as_rgb", False)
+    dist_suffix = ""
+    warnings.warn("TEST")
+    if process_image is None and as_rgb:
 
-    for idx in eigenindex:
+        def process_dist(x: Tensor) -> Tensor:
+            return x + 0.5
+
+        warnings.warn(
+            "Adding 0.5 to distortion to plot as RGB image, else matplotlib"
+            " clipping will result in a strange looking image..."
+        )
+        dist_suffix = " + 0.5"
+    elif process_image is not None:
+        process_dist = process_image
+
+    for a, idx in zip(alpha, eigenindex):
         dist = (
             eigendistortion.eigendistortions[eigendistortion._indexer(idx)]
             .unsqueeze(0)
             .cpu()
         )
-        img_processed.append(torch.clamp(process_image(image + alpha * dist), 0, 1))
-        img_titles.append(f"{alpha} * Eigendistortion[{idx}]")
-        distortion_titles.append(f"Eigendistortion[{idx}]")
-        if as_rgb:
-            dist += 0.5
-            distortion_titles[-1] += "+ 0.5"
-            warnings.warn(
-                "Adding 0.5 to distortion to plot as RGB image, else matplotlib"
-                " clipping will result in a strange looking image..."
-            )
-        distortions.append(dist)
+        img_processed.append(torch.clamp(process_image(image + a * dist), 0, 1))
+        img_titles.append(f"{a} * Eigendistortion[{idx}]")
+        distortion_titles.append(f"Eigendistortion[{idx}]{dist_suffix}")
+        distortions.append(process_dist(dist))
 
     fig = imshow(
         distortions + img_processed,
         plot_complex=plot_complex,
         title=distortion_titles + img_titles,
         col_wrap=len(distortions),
+        as_rgb=as_rgb,
         **kwargs,
     )
-    fig.axes[0].set_title("")
+    fig.axes[0].set_visible(False)
 
     if suptitle_kwargs is None:
         suptitle_kwargs = {}
