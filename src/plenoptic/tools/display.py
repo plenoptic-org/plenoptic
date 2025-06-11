@@ -429,7 +429,7 @@ def animshow(
     -----
     - By default, we use the ffmpeg backend, which requires that you have
       ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-      To use a different, use the matplotlib rcParams:
+      To use a different backend, use the matplotlib rcParams:
       ``matplotlib.rcParams['animation.writer'] = writer``, see
       `matplotlib documentation
       <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
@@ -804,7 +804,7 @@ def clean_stem_plot(
         The data to plot (as a stem plot).
     ax
         The axis to plot the data on. If ``None``, we plot on the current axis
-        (``plt.gca()``).
+        (grabbed with :func:`matplotlib.pyplot.gca`).
     title
         The title to put on the axis. If ``None``, we don't call ``ax.set_title``
         (useful if you want to avoid changing the title on an existing plot).

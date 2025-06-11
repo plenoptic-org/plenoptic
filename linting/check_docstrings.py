@@ -71,6 +71,7 @@ links = []
 backticks = []
 unescaped = []
 missing_xref = []
+dollarsigns = []
 
 for p in paths:
     with open(p) as f:
@@ -80,6 +81,8 @@ for p in paths:
     for name, doc in docstrings:
         if re.findall(LINK_REGEX, doc):
             links.append((p, name))
+        if re.findall(r"\$", doc):
+            dollarsigns.append((p, name))
         directives = re.findall(SPHINX_DIRECTIVE_REGEX, doc)
         sphinx_link = re.findall(SPHINX_LINK_REGEX, doc)
         backtick = [
@@ -97,13 +100,22 @@ for p in paths:
         for lib in LIBRARIES_XREF:
             # use negative look-behind to avoid stuff in the attribute section
             if xr := re.findall(rf"(?<![a-z]:){XREF_EXCEPT}{lib}\.", doc):
+                # the url for torch has `pytorch.` (not `torch.`), which we don't want
+                # to match
                 if lib == "torch":
                     xr = [x for x in xr if x != "ytorch."]
                 if not xr:
                     continue
                 missing_xref.append((p, name, xr))
+            # we also want to raise an error if we have two backticks before these
+            # libraries, which corresponds to monospace (but no link). We *don't* want
+            # to match if it looks like an actual call, so we either can have no
+            # parentheses or only parentheses with on args in them at the end of the
+            # backticks
+            if xr := re.findall(rf"``{lib}\.[a-z0-9_\.]+(?:\(\))?``", doc):
+                missing_xref.append((p, name, xr))
 
-if backticks or links or unescaped or missing_xref:
+if backticks or links or unescaped or missing_xref or dollarsigns:
     if backticks:
         print("The following docstrings appear to contain markdown:")
         for p, name, markup in backticks:
@@ -131,4 +143,11 @@ if backticks or links or unescaped or missing_xref:
         for p, name, markup in missing_xref:
             print(f"{p}:{name} {markup}")
         print("\n")
+    if dollarsigns:
+        print(
+            "The following docstrings appear to contain latex surrounded by dollar "
+            "signs; docstrings should be rst-formatted, use :math:`x` instead of $x$"
+        )
+        for p, name in dollarsigns:
+            print(f"{p}:{name}")
     sys.exit(1)

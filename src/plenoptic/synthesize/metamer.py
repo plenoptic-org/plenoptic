@@ -1435,7 +1435,7 @@ def plot_representation_error(
     Plot distance ratio showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
-    ``plenoptic.tools.display.plot_representation``.
+    :func:`plenoptic.tools.display.plot_representation`.
 
     Parameters
     ----------

@@ -99,6 +99,10 @@ napoleon_use_rtype = False
 
 numfig = True
 
+# SPHINX CROSS REFERENCES
+
+add_function_parentheses = False
+
 # numpydoc
 
 

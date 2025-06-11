@@ -304,9 +304,10 @@ class CenterSurround(nn.Module):
 
     Filter is constructed as:
 
-    .. math::
-        f &= amplitude\_ratio * center - surround \\
-        f &= f/f.sum()
+    .. code::
+
+        f = amplitude_ratio * center - surround
+        f = f / f.sum()
 
     The signs of center and surround are determined by ``on_center`` argument.
 

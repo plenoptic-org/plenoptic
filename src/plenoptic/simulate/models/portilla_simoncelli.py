@@ -52,13 +52,15 @@ class PortillaSimoncelli(nn.Module):
     images have the same values for all PS texture stats, humans should
     consider them as members of the same family of textures.
 
-    The PS stats are computed based on the :class:`SteerablePyramidFreq` [2]_.
-    They consist of the local auto-correlations, cross-scale (within-orientation)
-    correlations, and cross-orientation (within-scale) correlations of both the
-    pyramid coefficients and the local energy (as computed by those
-    coefficients). Additionally, they include the first four global moments
-    (mean, variance, skew, and kurtosis) of the image and down-sampled versions
-    of that image. See the paper and notebook for more description.
+    The PS stats are computed based on the
+    :class:`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`
+    [2]_. They consist of the local auto-correlations, cross-scale
+    (within-orientation) correlations, and cross-orientation (within-scale)
+    correlations of both the pyramid coefficients and the local energy (as
+    computed by those coefficients). Additionally, they include the first four
+    global moments (mean, variance, skew, and kurtosis) of the image and
+    down-sampled versions of that image. See the paper and notebook for more
+    description.
 
     Parameters
     ----------
