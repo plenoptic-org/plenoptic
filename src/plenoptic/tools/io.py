@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+"""Helper functions for saving/loading."""  # numpydoc ignore=ES01
 
 import importlib
 
@@ -6,21 +6,22 @@ import torch
 
 
 def examine_saved_synthesis(file_path: str, map_location: str | None = None):
-    """Examine saved synthesis object.
+    """
+    Examine saved synthesis object.
 
     This is used for debugging, it will print out information about the versions used,
     names of the callable attributes, shapes of tensor attributes, etc.
 
     Parameters
     ----------
-    file_path :
-        The path to load the synthesis object from
-    map_location :
-        map_location argument to pass to ``torch.load``. If you save
-        stuff that was being run on a GPU and are loading onto a
+    file_path
+        The path to load the synthesis object from.
+    map_location
+        Argument to pass to :func:`torch.load` as ``map_location``. If you
+        save stuff that was being run on a GPU and are loading onto a
         CPU, you'll need this to make sure everything lines up
         properly. This should be structured like the str you would
-        pass to ``torch.device``
+        pass to :class:`torch.device`.
     """
     load_dict = torch.load(file_path, map_location=map_location, weights_only=True)
     metadata = load_dict.pop("save_metadata")

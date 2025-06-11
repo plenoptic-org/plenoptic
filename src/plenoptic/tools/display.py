@@ -1,7 +1,10 @@
-"""various helpful utilities for plotting or displaying information"""
+"""Various helpful utilities for plotting or displaying information."""
+# numpydoc ignore=ES01
 
 import warnings
+from typing import Any, Literal
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
@@ -10,114 +13,201 @@ import torch
 from .data import to_numpy
 
 
-def imshow(
-    image,
-    vrange="indep1",
-    zoom=None,
-    title="",
-    col_wrap=None,
-    ax=None,
-    cmap=None,
-    plot_complex="rectangular",
-    batch_idx=None,
-    channel_idx=None,
-    as_rgb=False,
-    **kwargs,
-):
-    """Show image(s) correctly.
+def _find_zoom(
+    image_heights: list[int], image_widths: list[int], ax: mpl.axes.Axes
+) -> float:
+    """
+    Find best-fitting zoom based on image and axes sizes.
 
-    This function shows images correctly, making sure that each element in the
-    tensor corresponds to a pixel or an integer number of pixels, to avoid
-    aliasing (NOTE: this guarantee only holds for the saved image; it should
-    generally hold in notebooks as well, but will fail if, e.g., you plot an
-    image that's 2000 pixels wide on an monitor 1000 pixels wide; the notebook
-    handles the rescaling in a way we can't control).
+    If images are bigger than ``ax``, then we figure out the largest float of form
+    ``1/d``, where ``d`` is an integer. If ``ax`` is bigger than images, figure out the
+    largest integer we can use.
 
     Parameters
     ----------
-    image : torch.Tensor or list
+    image_heights, image_widths
+        The last two dimensions of all images to plot.
+    ax
+        The existing axis we will use for imshow.
+
+    Returns
+    -------
+    zoom
+        Our best guess at zoom.
+    """
+
+    def find_zoom_helper(x: float, limit: float) -> float:
+        """
+        Find zoom that works. This is only for limit < x.
+
+        Parameters
+        ----------
+        x
+            The sizes to consider.
+        limit
+            The max possible size.
+
+        Returns
+        -------
+        zoom
+            The valid zoom level.
+        """  # numpydoc ignore=ES01
+        # find all non-trivial divisors of x
+        divisors = [i for i in range(2, x) if not x % i]
+        # find the largest zoom (equivalently, smallest divisor) such that the
+        # zoomed in image is smaller than the limit
+        return 1 / min([i for i in divisors if x / i <= limit])
+
+    if ax.bbox.height > max(image_heights):
+        zoom = ax.bbox.height // max(image_heights)
+    else:
+        zoom = find_zoom_helper(max(image_heights), ax.bbox.height)
+    if ax.bbox.width > max(image_widths):
+        zoom = min(zoom, ax.bbox.width // max(image_widths))
+    else:
+        zoom = find_zoom_helper(max(image_widths), ax.bbox.width)
+    return zoom
+
+
+def imshow(
+    image: torch.Tensor | list[torch.Tensor],
+    vrange: tuple[float, float] | str = "indep1",
+    zoom: float | None = None,
+    title: str | list[str] | None = "",
+    col_wrap: int | None = None,
+    ax: mpl.axes.Axes | None = None,
+    cmap: mpl.colors.Colormap | None = None,
+    plot_complex: Literal["rectangular", "polar", "logpolar"] = "rectangular",
+    batch_idx: int | None = None,
+    channel_idx: int | None = None,
+    as_rgb: bool = False,
+    **kwargs: Any,
+) -> pt.tools.display.PyrFigure:
+    """
+    Show image(s), avoiding interpolation.
+
+    This function shows images carefully, avoiding interpolation: each element in the
+    input ``image`` will correspond to a pixel or an integer number of pixels. When
+    ``zoom<1``, an integer number of input elements will be averaged into a single
+    pixel.
+
+    Parameters
+    ----------
+    image
         The images to display. Tensors should be 4d (batch, channel, height,
         width). List of tensors should be used for tensors of different height
         and width: all images will automatically be rescaled so they're
         displayed at the same height and width, thus, their heights and widths
         must be scalar multiples of each other.
-    vrange : `tuple` or `str`
+    vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
         string:
 
-        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
-                     value, and come from the minimum or maximum across all
-                     images, whichever has the larger absolute value
-        * `'auto/auto1'`: all images have same vmin/vmax, which are the
-                          minimum/maximum values across all images
-        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
-                     all images) minus/ plus 2 std dev (across all images)
-        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
-                     10th/90th percentile values to the 10th/90th percentile of
-                     the display intensity range. For example: vmin is the 10th
-                     percentile image value minus 1/8 times the difference
-                     between the 90th and 10th percentile
-        * `'indep0'`: each image has an independent vmin/vmax, which have the
-                      same absolute value, which comes from either their
-                      minimum or maximum value, whichever has the larger
-                      absolute value.
-        * `'indep1'`: each image has an independent vmin/vmax, which are their
-                      minimum/maximum values
-        * `'indep2'`: each image has an independent vmin/vmax, which is their
-                      mean minus/plus 2 std dev
-        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
-                      the 10th/90th percentile values map to the 10th/90th
-                      percentile intensities.
-    zoom : `float` or `None`
-        ratio of display pixels to image pixels. if >1, must be an integer. If
-        <1, must be 1/d where d is a a divisor of the size of the largest
-        image. If None, we try to determine the best zoom.
-    title : `str`, `list`, or None, optional
-        Title for the plot. In addition to the specified title, we add a
-        subtitle giving the plotted range and dimensionality (with zoom)
-        * if `str`, will put the same title on every plot.
-        * if `list`, all values must be `str`, must be the same length as img,
-          assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed).
-    col_wrap : `int` or None, optional
-        number of axes to have in each row. If None, will fit all axes in a
-        single row.
-    ax : `matplotlib.pyplot.axis` or None, optional
-        if None, we make the appropriate figure. otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception!,
-        so first define a large enough figure using either make_figure or
-        plt.figure)
-    cmap : matplotlib colormap, optional
-        colormap to use when showing these images
-    plot_complex : {'rectangular', 'polar', 'logpolar'}
-        specifies handling of complex values.
+        * ``"auto0"``: All images have same vmin/vmax, which have the same
+          absolute value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value.
 
-        * `'rectangular'`: plot real and imaginary components as separate images
-        * `'polar'`: plot amplitude and phase as separate images
-        * `'logpolar'`: plot log_2 amplitude and phase as separate images
-        for any other value, we raise a warning and default to rectangular.
-    batch_idx : int or None, optional
-        Which element from the batch dimension to plot. If None, we plot all.
-    channel_idx : int or None, optional
-        Which element from the channel dimension to plot. If None, we plot all.
-        Note if this is an int, then `as_rgb=True` will fail, because we
+        * ``"auto1"``: All images have same vmin/vmax, which are the
+          minimum/maximum values across all images.
+
+        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images).
+
+        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
+          percentile values to the 10th/90th percentile of the display intensity range.
+          For example: vmin is the 10th percentile image value minus 1/8 times the
+          difference between the 90th and 10th percentile.
+
+        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
+          absolute value, which comes from either their minimum or maximum value,
+          whichever has the larger absolute value.
+
+        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+          minimum/maximum values.
+
+        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+          mean minus/plus 2 std dev.
+
+        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
+          10th/90th percentile values map to the 10th/90th percentile intensities.
+
+    zoom
+        Ratio of display pixels to image pixels. If greater than 1, must be an
+        integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
+        size of the largest image. If ``None``, we try to determine the best zoom.
+    title
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom).
+
+        * If ``str``, will put the same title on every plot.
+
+        * If ``list``, all values must be ``str``, must be the same length as img,
+          and each title will be assigned to corresponding plot.
+
+        * If ``None``, no title will be printed and subtitle will be removed.
+
+    col_wrap
+        Number of axes to have in each row. If ``None``, will fit all axes in a
+        single row.
+    ax
+        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception,
+        so first define a large enough figure).
+    cmap
+        Colormap to use when showing these images. If ``None``, then behavior is
+        determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
+        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
+        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+    plot_complex
+        Specifies handling of complex values.
+
+        * ``"rectangular"``: plot real and imaginary components as separate images.
+
+        * ``"polar"``: plot amplitude and phase as separate images.
+
+        * ``"logpolar"``: plot log (base 2) amplitude and phase as separate images.
+
+    batch_idx
+        Which element from the batch dimension to plot. If ``None``, we plot all.
+    channel_idx
+        Which element from the channel dimension to plot. If ``None``, we plot all.
+        Note if this is not ``None``, then ``as_rgb=True`` will fail, because we
         restrict the channels.
-    as_rgb : bool, optional
-        Whether to consider the channels as encoding RGB(A) values. If True, we
+    as_rgb
+        Whether to consider the channels as encoding RGB(A) values. If ``True``, we
         attempt to plot the image in color, so your tensor must have 3 (or 4 if
-        you want the alpha channel) elements in the channel dimension, or this
-        will raise an Exception. If False, we plot each channel as a separate
-        grayscale image.
-    kwargs :
-        Passed to `ax.imshow`
+        you want the alpha channel) elements in the channel dimension. If ``False``,
+        we plot each channel as a separate grayscale image.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.imshow`.
 
     Returns
     -------
-    fig : `PyrFigure`
-        figure containing the plotted images
+    fig
+        Figure containing the plotted images.
 
+    Raises
+    ------
+    TypeError
+        If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+    ValueError
+        If ``zoom`` takes an illegal value.
+    ValueError
+        If ``as_rgb=True`` and the input ``image`` does not have 3 or 4 channels.
+    ValueError
+        If ``as_rgb=False``, ``image`` has more than one channel and one more than
+        one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
+    Exception
+        If ``plot_complex`` takes an illegal value.
+
+    Notes
+    -----
+    This interpolation avoidance is only guaranteed for the saved image; it should
+    generally hold in notebooks as well, but will fail if, e.g., you plot an image
+    that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
+    rescaling in a way we can't control.
     """
     if not isinstance(image, list):
         image = [image]
@@ -151,9 +241,9 @@ def imshow(
             im = im.reshape((im.shape[0], 1, *im.shape[1:]))
         elif im.shape[1] > 1 and im.shape[0] > 1:
             raise ValueError(
-                "Don't know how to plot images with more than one channel and"
-                " batch! Use batch_idx / channel_idx to choose a subset for"
-                " plotting"
+                "Don't know how to plot non-rgb images with more than one channel"
+                " and batch! Use batch_idx / channel_idx to choose a subset for"
+                " plotting."
             )
         # by iterating through it twice, we make sure to peel apart the batch
         # and channel dimensions so that they each show up as a separate image.
@@ -167,25 +257,13 @@ def imshow(
             heights.extend([i_.shape[0] for i_ in i])
             widths.extend([i_.shape[1] for i_ in i])
 
-    def find_zoom(x, limit):
-        """Find zoom that works. This is only for limit < x."""
-        # find all non-trivial divisors of x
-        divisors = [i for i in range(2, x) if not x % i]
-        # find the largest zoom (equivalently, smallest divisor) such that the
-        # zoomed in image is smaller than the limit
-        return 1 / min([i for i in divisors if x / i <= limit])
-
-    if ax is not None and zoom is None:
-        if ax.bbox.height > max(heights):
-            zoom = ax.bbox.height // max(heights)
-        else:
-            zoom = find_zoom(max(heights), ax.bbox.height)
-        if ax.bbox.width > max(widths):
-            zoom = min(zoom, ax.bbox.width // max(widths))
-        else:
-            zoom = find_zoom(max(widths), ax.bbox.width)
+    if zoom is None and ax is not None:
+        zoom = _find_zoom(heights, widths, ax)
     elif zoom is None:
         zoom = 1
+    elif zoom <= 0:
+        raise ValueError("zoom must be positive!")
+
     return pt.imshow(
         images_to_plot,
         vrange=vrange,
@@ -200,145 +278,172 @@ def imshow(
 
 
 def animshow(
-    video,
-    framerate=2.0,
-    repeat=False,
-    vrange="indep1",
-    zoom=1,
-    title="",
-    col_wrap=None,
-    ax=None,
-    cmap=None,
-    plot_complex="rectangular",
-    batch_idx=None,
-    channel_idx=None,
-    as_rgb=False,
-    **kwargs,
-):
-    """Animate video(s) correctly.
+    video: torch.Tensor | list[torch.Tensor],
+    framerate: float = 2.0,
+    repeat: bool = False,
+    vrange: tuple[float, float] | str = "indep1",
+    zoom: float | None = None,
+    title: str | list[str] | None = "",
+    col_wrap: int | None = None,
+    ax: mpl.axes.Axes | None = None,
+    cmap: mpl.colors.Colormap | None = None,
+    plot_complex: Literal["rectangular", "polar", "logpolar"] = "rectangular",
+    batch_idx: int | None = None,
+    channel_idx: int | None = None,
+    as_rgb: bool = False,
+    **kwargs: Any,
+) -> mpl.animation.FuncAnimation:
+    """
+    Animate video(s), avoiding interpolation.
 
-    This function animates videos correctly, making sure that each element in
-    the tensor corresponds to a pixel or an integer number of pixels, to avoid
-    aliasing (NOTE: this guarantee only holds for the saved animation (assuming
-    video compression doesn't interfere); it should generally hold in notebooks
-    as well, but will fail if, e.g., your video is 2000 pixels wide on an
-    monitor 1000 pixels wide; the notebook handles the rescaling in a way we
-    can't control).
+    This function shows images carefully, avoiding interpolation: each element in the
+    input ``image`` will correspond to a pixel or an integer number of pixels. When
+    ``zoom<1``, an integer number of input elements will be averaged into a single
+    pixel.
 
     This functions returns a matplotlib FuncAnimation object. See our documentation
-    (e.g.,
-    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html))
-    for examples on how to view it in a Jupyter notebook. In order to save, use
+    (e.g., `Quickstart
+    <https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html>`_) for
+    examples on how to view it in a Jupyter notebook. In order to save, use
     ``anim.save(filename)``. In either case, this can take a while and you'll need the
     appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
-    [matplotlib documentation](https://matplotlib.org/stable/api/animation_api.html) for
-    more details.
+    `matplotlib documentation <https://matplotlib.org/stable/api/animation_api.html>`_
+    for more details.
 
     Parameters
     ----------
-    video : torch.Tensor or list
-        The videos to display. Tensors should be 5d (batch, channel, time,
+    video
+        The video(s) to display. Tensors should be 5d (batch, channel, time,
         height, width). List of tensors should be used for tensors of different
         height and width: all videos will automatically be rescaled so they're
         displayed at the same height and width, thus, their heights and widths
         must be scalar multiples of each other. Videos must all have the same
-        number of frames as well.
-    framerate : `float`
+        number of frames.
+    framerate
         Temporal resolution of the video, in Hz (frames per second).
-    repeat : `bool`
-        whether to loop the animation or just play it once
-    vrange : `tuple` or `str`
+    repeat
+        Whether to loop the animation or just play it once.
+    vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
         string:
 
-        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
-                     value, and come from the minimum or maximum across all
-                     images, whichever has the larger absolute value
-        * `'auto/auto1'`: all images have same vmin/vmax, which are the
-                          minimum/maximum values across all images
-        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
-                     all images) minus/ plus 2 std dev (across all images)
-        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
-                     10th/90th percentile values to the 10th/90th percentile of
-                     the display intensity range. For example: vmin is the 10th
-                     percentile image value minus 1/8 times the difference
-                     between the 90th and 10th percentile
-        * `'indep0'`: each image has an independent vmin/vmax, which have the
-                      same absolute value, which comes from either their
-                      minimum or maximum value, whichever has the larger
-                      absolute value.
-        * `'indep1'`: each image has an independent vmin/vmax, which are their
-                      minimum/maximum values
-        * `'indep2'`: each image has an independent vmin/vmax, which is their
-                      mean minus/plus 2 std dev
-        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
-                      the 10th/90th percentile values map to the 10th/90th
-                      percentile intensities.
-    zoom : `float`
-        ratio of display pixels to image pixels. if >1, must be an integer. If
-        <1, must be 1/d where d is a a divisor of the size of the largest
-        image.
-    title : `str`, `list`, or None, optional
-        Title for the plot. In addition to the specified title, we add a
-        subtitle giving the plotted range and dimensionality (with zoom)
-        * if `str`, will put the same title on every plot.
-        * if `list`, all values must be `str`, must be the same length as img,
-          assigning each title to corresponding image.
-        * if None, no title will be printed (and subtitle will be removed).
-    col_wrap : `int` or None, optional
-        number of axes to have in each row. If None, will fit all axes in a
-        single row.
-    ax : `matplotlib.pyplot.axis` or None, optional
-        if None, we make the appropriate figure. otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception!,
-        so first define a large enough figure using either
-        pyrtools.make_figure or plt.figure)
-    cmap : matplotlib colormap, optional
-        colormap to use when showing these images
-    plot_complex : {'rectangular', 'polar', 'logpolar'}
-        specifies handling of complex values.
+        * ``"auto0"``: All images have same vmin/vmax, which have the same
+          absolute value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value.
 
-        * `'rectangular'`: plot real and imaginary components as separate images
-        * `'polar'`: plot amplitude and phase as separate images
-        * `'logpolar'`: plot log_2 amplitude and phase as separate images
-        for any other value, we raise a warning and default to rectangular.
-    batch_idx : int or None, optional
-        Which element from the batch dimension to plot. If None, we plot all.
-    channel_idx : int or None, optional
-        Which element from the channel dimension to plot. If None, we plot all.
-        Note if this is an int, then `as_rgb=True` will fail, because we
+        * ``"auto1"``: All images have same vmin/vmax, which are the
+          minimum/maximum values across all images.
+
+        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images).
+
+        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
+          percentile values to the 10th/90th percentile of the display intensity range.
+          For example: vmin is the 10th percentile image value minus 1/8 times the
+          difference between the 90th and 10th percentile.
+
+        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
+          absolute value, which comes from either their minimum or maximum value,
+          whichever has the larger absolute value.
+
+        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+          minimum/maximum values.
+
+        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+          mean minus/plus 2 std dev.
+
+        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
+          10th/90th percentile values map to the 10th/90th percentile intensities.
+
+    zoom
+        Ratio of display pixels to image pixels. If greater than 1, must be an
+        integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
+        size of the largest image. If ``None``, we try to determine the best zoom.
+    title
+        Title for the plot. In addition to the specified title, we add a
+        subtitle giving the plotted range and dimensionality (with zoom).
+
+        * If ``str``, will put the same title on every plot.
+
+        * If ``list``, all values must be ``str``, must be the same length as img,
+          and each title will be assigned to corresponding plot.
+
+        * If ``None``, no title will be printed and subtitle will be removed.
+
+    col_wrap
+        Number of axes to have in each row. If ``None``, will fit all axes in a
+        single row.
+    ax
+        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
+        so that it's the appropriate number of pixels (done by shrinking the
+        bbox - if the bbox is already too small, this will throw an Exception,
+        so first define a large enough figure).
+    cmap
+        Colormap to use when showing these images. If ``None``, then behavior is
+        determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
+        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
+        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+    plot_complex
+        Specifies handling of complex values.
+
+        * ``"rectangular"``: plot real and imaginary components as separate images.
+
+        * ``"polar"``: plot amplitude and phase as separate images.
+
+        * ``"logpolar"``: plot log (base 2) amplitude and phase as separate images.
+
+    batch_idx
+        Which element from the batch dimension to plot. If ``None``, we plot all.
+    channel_idx
+        Which element from the channel dimension to plot. If ``None``, we plot all.
+        Note if this is not ``None``, then ``as_rgb=True`` will fail, because we
         restrict the channels.
-    as_rgb : bool, optional
-        Whether to consider the channels as encoding RGB(A) values. If True, we
+    as_rgb
+        Whether to consider the channels as encoding RGB(A) values. If ``True``, we
         attempt to plot the image in color, so your tensor must have 3 (or 4 if
-        you want the alpha channel) elements in the channel dimension, or this
-        will raise an Exception. If False, we plot each channel as a separate
-        grayscale image.
-    kwargs :
-        Passed to `ax.imshow`
+        you want the alpha channel) elements in the channel dimension. If ``False``,
+        we plot each channel as a separate grayscale image.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.imshow`.
 
     Returns
     -------
-    anim : matplotlib.animation.FuncAnimation
+    anim
         The animation object. In order to view, must convert to HTML
         or save.
 
+    Raises
+    ------
+    TypeError
+        If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+    ValueError
+        If ``as_rgb=True`` and the input ``image`` does not have 3 or 4 channels.
+    ValueError
+        If ``as_rgb=False``, ``image`` has more than one channel and one more than
+        one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
+    Exception
+        If ``plot_complex`` takes an illegal value.
+
     Notes
     -----
+    - By default, we use the ffmpeg backend, which requires that you have
+      ffmpeg installed and on your path (https://ffmpeg.org/download.html).
+      To use a different backend, use the matplotlib rcParams:
+      ``matplotlib.rcParams['animation.writer'] = writer``, see
+      `matplotlib documentation
+      <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
+      details.
 
-    By default, we use the ffmpeg backend, which requires that you have
-    ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-    To use a different, use the matplotlib rcParams:
-    `matplotlib.rcParams['animation.writer'] = writer`, see
-    https://matplotlib.org/stable/api/animation_api.html#writer-classes for
-    more details.
-
+    - This interpolation avoidance is only guaranteed for the saved image; it should
+      generally hold in notebooks as well, but will fail if, e.g., you plot an image
+      that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
+      rescaling in a way we can't control.
     """
     if not isinstance(video, list):
         video = [video]
     videos_to_show = []
+    heights, widths = [], []
     for vid in video:
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
@@ -367,7 +472,7 @@ def animshow(
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
         elif vid.shape[1] > 1 and vid.shape[0] > 1:
             raise ValueError(
-                "Don't know how to plot images with more than one channel and"
+                "Don't know how to plot non-rgb images with more than one channel and"
                 " batch! Use batch_idx / channel_idx to choose a subset for"
                 " plotting"
             )
@@ -377,6 +482,16 @@ def animshow(
         # be (b,c,t,h,w) or (b,c,t,h,w,r) where r is the RGB(A) values
         for v in vid:
             videos_to_show.extend([v_.squeeze() for v_ in v])
+            heights.extend([v_.shape[1] for v_ in v])
+            widths.extend([v_.shape[2] for v_ in v])
+
+    if zoom is None and ax is not None:
+        zoom = _find_zoom(heights, widths, ax)
+    elif zoom is None:
+        zoom = 1
+    elif zoom <= 0:
+        raise ValueError("zoom must be positive!")
+
     return pt.animshow(
         videos_to_show,
         framerate=framerate,
@@ -394,85 +509,96 @@ def animshow(
 
 
 def pyrshow(
-    pyr_coeffs,
-    vrange="indep1",
-    zoom=1,
-    show_residuals=True,
-    cmap=None,
-    plot_complex="rectangular",
-    batch_idx=0,
-    channel_idx=0,
-    **kwargs,
-):
-    r"""Display steerable pyramid coefficients in orderly fashion.
+    pyr_coeffs: dict,
+    vrange: tuple[float, float] | str = "indep1",
+    zoom: float = 1,
+    show_residuals: bool = True,
+    cmap: mpl.colors.Colormap | None = None,
+    plot_complex: Literal["rectangular", "polar", "logpolar"] = "rectangular",
+    batch_idx: int = 0,
+    channel_idx: int = 0,
+    **kwargs: Any,
+) -> pt.tools.display.PyrFigure:
+    r"""
+    Display steerable pyramid coefficients in orderly fashion.
 
-    This function uses ``imshow`` to show the coefficients of the steeable
-    pyramid, such that each scale shows up on a single row, with each scale in
-    a given column.
+    This function uses :func:`~plenoptic.tools.display.imshow` to show the coefficients
+    of the steeable pyramid, such that each scale shows up on a single row, with each
+    scale in a given column.
 
-    Note that unlike imshow, we can only show one batch or channel at a time
+    Note that unlike :func:`~plenoptic.tools.display.imshow`, we can only show one batch
+    or channel at a time.
 
     Parameters
     ----------
-    pyr_coeffs : `dict`
-        pyramid coefficients in the standard dictionary format as returned by
-        ``SteerablePyramidFreq.forward()``
-    vrange : `tuple` or `str`
+    pyr_coeffs
+        Pyramid coefficients in the standard dictionary format as returned by
+        ``SteerablePyramidFreq.forward()``.
+    vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
         string:
 
-        * `'auto0'`: all images have same vmin/vmax, which have the same absolute
-                     value, and come from the minimum or maximum across all
-                     images, whichever has the larger absolute value
-        * `'auto/auto1'`: all images have same vmin/vmax, which are the
-                          minimum/maximum values across all images
-        * `'auto2'`: all images have same vmin/vmax, which are the mean (across
-                     all images) minus/ plus 2 std dev (across all images)
-        * `'auto3'`: all images have same vmin/vmax, chosen so as to map the
-                     10th/90th percentile values to the 10th/90th percentile of
-                     the display intensity range. For example: vmin is the 10th
-                     percentile image value minus 1/8 times the difference
-                     between the 90th and 10th percentile
-        * `'indep0'`: each image has an independent vmin/vmax, which have the
-                      same absolute value, which comes from either their
-                      minimum or maximum value, whichever has the larger
-                      absolute value.
-        * `'indep1'`: each image has an independent vmin/vmax, which are their
-                      minimum/maximum values
-        * `'indep2'`: each image has an independent vmin/vmax, which is their
-                      mean minus/plus 2 std dev
-        * `'indep3'`: each image has an independent vmin/vmax, chosen so that
-                      the 10th/90th percentile values map to the 10th/90th
-                      percentile intensities.
-    zoom : `float`
-        ratio of display pixels to image pixels. if >1, must be an integer. If
-        <1, must be 1/d where d is a a divisor of the size of the largest
-        image.
-    show_residuals : `bool`
-        whether to display the residual bands (lowpass, highpass depending on the
-        pyramid type)
-    cmap : matplotlib colormap, optional
-        colormap to use when showing these images
-    plot_complex : {'rectangular', 'polar', 'logpolar'}
-        specifies handling of complex values.
+        * ``"auto0"``: All images have same vmin/vmax, which have the same
+          absolute value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value.
 
-        * `'rectangular'`: plot real and imaginary components as separate images
-        * `'polar'`: plot amplitude and phase as separate images
-        * `'logpolar'`: plot log_2 amplitude and phase as separate images
-        for any other value, we raise a warning and default to rectangular.
-    batch_idx : int, optional
+        * ``"auto1"``: All images have same vmin/vmax, which are the
+          minimum/maximum values across all images.
+
+        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images).
+
+        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
+          percentile values to the 10th/90th percentile of the display intensity range.
+          For example: vmin is the 10th percentile image value minus 1/8 times the
+          difference between the 90th and 10th percentile.
+
+        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
+          absolute value, which comes from either their minimum or maximum value,
+          whichever has the larger absolute value.
+
+        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+          minimum/maximum values.
+
+        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+          mean minus/plus 2 std dev.
+
+        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
+          10th/90th percentile values map to the 10th/90th percentile intensities.
+
+    zoom
+        Ratio of display pixels to image pixels. if greater than 1, must be an
+        integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
+        size of the largest image.
+    show_residuals
+        Whether to display the residual bands.
+    cmap
+        Colormap to use when showing these images.
+    plot_complex : {'rectangular', 'polar', 'logpolar'}
+        Specifies handling of complex values.
+
+        * ``"rectangular"``: plot real and imaginary components as separate images.
+
+        * ``"polar"``: plot amplitude and phase as separate images.
+
+        * ``"logpolar"``: plot log (base 2) amplitude and phase as separate images.
+    batch_idx
         Which element from the batch dimension to plot.
-    channel_idx : int, optional
+    channel_idx
         Which element from the channel dimension to plot.
-    kwargs :
-        Passed on to ``pyrtools.pyrshow``
+    **kwargs
+        Passed on to :func:`pyrtools.tools.display.pyrshow`.
 
     Returns
     -------
-    fig: `PyrFigure`
-        the figure displaying the coefficients.
+    fig
+        The figure displaying the coefficients.
 
+    Raises
+    ------
+    TypeError
+        If ``batch_idx`` or ``channel_idx`` takes an illegal value.
     """
     pyr_coeffvis = {}
     is_complex = False
@@ -484,12 +610,12 @@ def pyrshow(
             # this removes only the first (batch) dimension
             im = im[batch_idx : batch_idx + 1].squeeze(0)
         except TypeError:
-            raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
+            raise TypeError(f"batch_idx must be an int but got {batch_idx}")
         try:
             # this removes only the first (now channel) dimension
             im = im[channel_idx : channel_idx + 1].squeeze(0)
         except TypeError:
-            raise TypeError(f"channel_idx must be an int or None but got {channel_idx}")
+            raise TypeError(f"channel_idx must be an int but got {channel_idx}")
         # because of how we've handled everything above, we know that im will
         # be (h,w).
         pyr_coeffvis[k] = im
@@ -507,32 +633,44 @@ def pyrshow(
 
 
 def clean_up_axes(
-    ax,
-    ylim=None,
-    spines_to_remove=["top", "right", "bottom"],
-    axes_to_remove=["x"],
-):
-    r"""Clean up an axis, as desired when making a stem plot of the representation
+    ax: mpl.axes.Axes,
+    ylim: tuple[float, float] | None | Literal[False] = None,
+    spines_to_remove: list[Literal["top", "right", "bottom", "left"]] = [
+        "top",
+        "right",
+        "bottom",
+    ],
+    axes_to_remove: list[Literal["x", "y"]] = ["x"],
+) -> mpl.axes.Axes:
+    r"""
+    Clean up an axis, as desired when making a stem plot of the representation.
+
+    This function can:
+
+    - Remove the spines from axis (the axis lines and tick marks).
+
+    - Set axis objects themselves invisible (includes not just spines but also tick
+      labels and axis label).
+
+    - Set ylim.
 
     Parameters
     ----------
-    ax : `matplotlib.pyplot.axis`
+    ax
         The axis to clean up.
-    ylim : `tuple`, False, or None
-        If a tuple, the y-limits to use for this plot. If None, we use the
-        default, slightly adjusted so that the minimum is 0. If False,
+    ylim
+        If a tuple, the y-limits to use for this plot. If ``None``, we use the
+        default, slightly adjusted so that the minimum is 0. If ``False``,
         we do nothing.
-    spines_to_remove : `list`
-        Some combination of 'top', 'right', 'bottom', and 'left'. The spines we
-        remove from the axis.
-    axes_to_remove : `list`
-        Some combination of 'x', 'y'. The axes to set as invisible.
+    spines_to_remove
+        The spines to remove from the axis.
+    axes_to_remove
+        The axes to set as invisible.
 
     Returns
     -------
-    ax : matplotlib.pyplot.axis
-        The cleaned-up axis
-
+    ax
+        The cleaned-up axis.
     """
     if spines_to_remove is None:
         spines_to_remove = ["top", "right", "bottom"]
@@ -553,8 +691,11 @@ def clean_up_axes(
     return ax
 
 
-def update_stem(stem_container, ydata):
-    r"""Update the information in a stem plot
+def update_stem(
+    stem_container: mpl.container.StemContainer, ydata: np.ndarray | torch.Tensor
+) -> mpl.container.StemContainer:
+    r"""
+    Update the information in a stem plot.
 
     We update the information in a single stem plot to match that given
     by ``ydata``. We update the position of the markers and and the
@@ -563,21 +704,19 @@ def update_stem(stem_container, ydata):
 
     Parameters
     ----------
-    stem_container : `matplotlib.container.StemContainer`
-        Single container for the artists created in a ``plt.stem``
-        plot. It can be treated like a namedtuple ``(markerline,
-        stemlines, baseline)``. In order to get this from an axis
-        ``ax``, try ``ax.containers[0]`` (obviously if you have more
-        than one container in that axis, it may not be the first one).
-    ydata : array_like
-        The new y-data to show on the plot. Importantly, must be the
-        same length as the existing y-data.
+    stem_container
+        Single container for the artists created in a :func:`matplotlib.pyplot.stem`
+        plot. It can be treated like a namedtuple ``(markerline, stemlines, baseline)``.
+        In order to get this from an axis ``ax``, try ``ax.containers[0]`` (if you have
+        more than one container in that axis, it may not be the first one).
+    ydata
+        The new y-data to show on the plot. Importantly, must be the same length as
+        the existing y-data.
 
     Returns
     -------
-    stem_container : `matplotlib.container.StemContainer`
+    stem_container
         The StemContainer containing the updated artists.
-
     """
     stem_container.markerline.set_ydata(ydata)
     segments = stem_container.stemlines.get_segments().copy()
@@ -592,23 +731,36 @@ def update_stem(stem_container, ydata):
     return stem_container
 
 
-def rescale_ylim(axes, data):
-    r"""rescale y-limits nicely
+def rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
+    r"""
+    Rescale y-limits nicely.
 
     We take the axes and set their limits to be ``(-y_max, y_max)``,
-    where ``y_max=np.abs(data).max()``
+    where ``y_max=np.abs(data).max()``.
 
     Parameters
     ----------
-    axes : `list`
-        A list of matplotlib axes to rescale
-    data : array_like or dict
-        The data to use when rescaling (or a dictiontary of those
-        values)
+    axes
+        A list of matplotlib axes to rescale.
+    data
+        The data to use when rescaling (or a dictionary of such values).
     """
     data = data.cpu()
 
-    def find_ymax(data):
+    def find_ymax(data: np.ndarray | torch.Tensor) -> float:
+        """
+        Find appropriate ymax.
+
+        Parameters
+        ----------
+        data
+            The tensor whose ymax we should grab.
+
+        Returns
+        -------
+        ymax
+            The appropriate ymax.
+        """  # numpydoc ignore=ES01
         try:
             return np.abs(data).max()
         except RuntimeError:
@@ -625,47 +777,51 @@ def rescale_ylim(axes, data):
         ax.set_ylim((-y_max, y_max))
 
 
-def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
-    r"""convenience wrapper for plotting stem plots
+def clean_stem_plot(
+    data: np.ndarray,
+    ax: mpl.axes.Axes | None = None,
+    title: str | None = "",
+    ylim: tuple | None | Literal[False] = None,
+    xvals: tuple[list[float], list[float]] | None = None,
+    **kwargs: Any,
+) -> mpl.axes.Axes:
+    r"""
+    Create a simple stem plot.
 
     This plots the data, baseline, cleans up the axis, and sets the
-    title
+    title.
 
-    Should not be called by users directly, but is a helper function for
-    the various plot_representation() functions
+    Helper function for :func:`~plenoptic.tools.display.plot_representation()`.
 
-    By default, stem plot would have a baseline that covers the entire
-    range of the data. We want to be able to break that up visually (so
-    there's a line from 0 to 9, from 10 to 19, etc), and passing xvals
-    separately allows us to do that. If you want the default stem plot
-    behavior, leave xvals as None.
+    By default, stem plot would have a baseline that covers the entire range of the
+    data. We want to be able to break that up visually (so there's a line from 0 to 9,
+    from 10 to 19, etc), and passing ``xvals`` separately allows us to do that. If you
+    want the default stem plot behavior, leave ``xvals=None``.
 
     Parameters
     ----------
-    data : `np.ndarray`
-        The data to plot (as a stem plot)
-    ax : `matplotlib.pyplot.axis` or `None`, optional
-        The axis to plot the data on. If None, we plot on the current
-        axis
-    title : str or None, optional
-        The title to put on the axis if not None. If None, we don't call
-        ``ax.set_title`` (useful if you want to avoid changing the title
-        on an existing plot)
-    ylim : tuple or None, optional
-        If not None, the y-limits to use for this plot. If None, we use the
-        default, slightly adjusted so that the minimum is 0. If False, do not
-        change y-limits.
-    xvals : `tuple` or `None`, optional
+    data
+        The data to plot (as a stem plot).
+    ax
+        The axis to plot the data on. If ``None``, we plot on the current axis
+        (grabbed with :func:`matplotlib.pyplot.gca`).
+    title
+        The title to put on the axis. If ``None``, we don't call ``ax.set_title``
+        (useful if you want to avoid changing the title on an existing plot).
+    ylim
+        The y-limits to use for this plot. If ``None``, we use the default, slightly
+        adjusted so that the minimum is 0. If ``False``, do not change y-limits.
+    xvals
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
-        (``xvals[1]``) x values for plotting. If None, we use the
+        (``xvals[1]``) x values for plotting. If ``None``, we use the
         default stem plot behavior.
-    kwargs :
-        passed to ax.stem
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.stem`.
 
     Returns
     -------
-    ax : `matplotlib.pyplot.axis`
-        The axis with the plot
+    ax
+        The axis with the plot.
 
     Examples
     --------
@@ -704,7 +860,6 @@ def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
       y = np.abs(np.random.randn(55))
       po.tools.display.clean_stem_plot(y)
       plt.show()
-
     """
     if ax is None:
         ax = plt.gca()
@@ -721,27 +876,36 @@ def clean_stem_plot(data, ax=None, title="", ylim=None, xvals=None, **kwargs):
     return ax
 
 
-def _get_artists_from_axes(axes, data):
-    """Grab artists from axes.
+def _get_artists_from_axes(
+    axes: mpl.axes.Axes | list[mpl.axes.Axes],
+    data: torch.Tensor | dict,
+) -> dict:
+    """
+    Grab artists from axes.
 
     For now, we only grab containers (stem plots), images, or lines
 
-    See the docstring of :meth:`update_plot()` for details on how `axes` and
-    `data` should be structured
+    See the docstring of :meth:`~plenoptic.tools.display.update_plot()` for details on
+    how ``axes`` and ``data`` should be structured.
 
     Parameters
     ----------
-    axes : list or matplotlib.axes.Axes
+    axes
         The axis/axes to update.
-    data : torch.Tensor or dict
+    data
         The new data to plot.
 
     Returns
     -------
-    artists : dict
-        dictionary of artists for updating plots. values are the artists to
-        use, keys are the corresponding keys for data
+    artists
+        Dictionary of artists for updating plots. Values are the artists to
+        use, keys are the corresponding keys from data.
 
+    Raises
+    ------
+    ValueError
+        If the number of artists in ``axes`` is different from the size of the
+        dimension-to-plot of ``data``.
     """
     if not hasattr(axes, "__iter__"):
         # then we only have one axis, so we may be able to update more than one
@@ -822,68 +986,79 @@ def _get_artists_from_axes(axes, data):
     return artists
 
 
-def update_plot(axes, data, model=None, batch_idx=0):
-    r"""Update the information in some axes.
+def update_plot(
+    axes: mpl.axes.Axes | list[mpl.axes.Axes],
+    data: torch.Tensor | dict,
+    model: torch.nn.Module | None = None,
+    batch_idx: int = 0,
+) -> list:
+    r"""
+    Update the information in some axes.
 
-    This is used for creating an animation over time. In order to create
-    the animation, we need to know how to update the matplotlib Artists,
-    and this provides a simple way of doing that. It assumes the plot
-    has been created by something like ``plot_representation``, which
-    initializes all the artists.
+    This is used for creating an animation over time. In order to create the animation,
+    we need to know how to update the matplotlib Artists, and this provides a simple way
+    of doing that. It assumes the plot has been created by something like
+    :func:`~plenoptic.tools.display.plot_representation`, which initializes all the
+    artists.
 
-    We can update stem plots, lines (as returned by ``plt.plot``), scatter
-    plots, or images (RGB, RGBA, or grayscale).
+    We can update stem plots, lines (as returned by :func:`matplotlib.pyplot.plot`),
+    scatter plots, or images (RGB, RGBA, or grayscale).
 
     There are two modes for this:
 
-    - single axis: axes is a single axis, which may contain multiple artists
-      (all of the same type) to update. data should be a Tensor with multiple
-      channels (one per artist in the same order) or be a dictionary whose keys
-      give the label(s) of the corresponding artist(s) and whose values are
-      Tensors.
+    - Single axis: ``axes`` is a single axis, which may contain multiple artists (all of
+      the same type) to update. ``data`` should be a :class:`torch.Tensor` with multiple
+      channels (one per artist in the same order) or be a dictionary whose keys give the
+      label(s) of the corresponding artist(s) and whose values are
+      :class:`torch.Tensor`.
 
-    - multiple axes: axes is a list of axes, each of which contains a single
-      artist to update (artists can be different types). data should be a
-      Tensor with multiple channels (one per axis in the same order) or a
-      dictionary with the same number of keys as axes, which we can iterate
-      through in order, and whose values are Tensors.
+    - Multiple axes: ``axes`` is a list of axes, each of which contains a single artist
+      to update (artists can be different types). ``data`` should be a
+      :class:`torch.Tensor` with multiple channels (one per axis in the same order) or a
+      dictionary with the same number of keys as ``axes``, which we can iterate through
+      in order, and whose values are :class:`torch.Tensor`.
 
-    In all cases, data Tensors should be 3d (if the plot we're updating is a
+    In all cases, ``data`` Tensors should be 3d (if the plot we're updating is a
     line or stem plot) or 4d (if it's an image or scatter plot).
 
     RGB(A) images are special, since we store that info along the channel
     dimension, so they only work with single-axis mode (which will only have a
     single artist, because that's how imshow works).
 
-    If you have multiple axes, each with multiple artists you want to update,
-    that's too complicated for us, and so you should write a
-    ``model.update_plot()`` function which handles that.
+    If you have multiple axes, each with multiple artists you want to update, that's too
+    complicated for us, and so you should write a ``model.update_plot()`` function which
+    handles that (see
+    :func:`plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.update_plot`
+    for an example).
 
-    If ``model`` is set, we try to call ``model.update_plot()`` (which
-    must also return artists). If model doesn't have an ``update_plot``
-    method, then we try to figure out how to update the axes ourselves,
-    based on the shape of the data.
+    If ``model`` is set, we try to call ``model.update_plot()`` (which must also return
+    artists). If ``model`` doesn't have an ``update_plot`` method, then we try to figure
+    out how to update the axes ourselves, based on the shape of the data.
 
     Parameters
     ----------
-    axes : `list` or `matplotlib.pyplot.axis`
-        The axis or list of axes to update. We assume that these are the axes
-        created by ``plot_representation`` and so contain stem plots in the
-        correct order.
-    data : `torch.Tensor` or `dict`
+    axes
+        The axis or list of axes to update. We assume that these are the axes created by
+        :func:`~plenoptic.tools.display.plot_representation` and so contain artists
+        in the correct order.
+    data
         The new data to plot.
-    model : `torch.nn.Module` or `None`, optional
-        A differentiable model that tells us how to plot ``data``. See
-        above for behavior if ``None``.
-    batch_idx : int, optional
-        Which index to take from the batch dimension
+    model
+        A differentiable model that tells us how to plot ``data``. See above for
+        behavior if ``None``.
+    batch_idx
+        Which index to take from the batch dimension.
 
     Returns
     -------
-    artists : `list`
+    artists
         A list of the artists used to update the information on the
-        plots
+        plots.
 
+    Raises
+    ------
+    ValueError
+        If ``data`` (or its values, if it's a ``dict``) are not 3 or 4 dimensional.
     """
     if isinstance(data, dict):
         for v in data.values():
@@ -969,29 +1144,31 @@ def update_plot(axes, data, model=None, batch_idx=0):
 
 
 def plot_representation(
-    model=None,
-    data=None,
-    ax=None,
-    figsize=None,
-    ylim=False,
-    batch_idx=0,
-    title="",
-    as_rgb=False,
-):
-    r"""Helper function for plotting model representation
+    model: torch.nn.Module | None = None,
+    data: np.ndarray | dict | None = None,
+    ax: mpl.axes.Axes | None = None,
+    figsize: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None | Literal[False] = False,
+    batch_idx: int = 0,
+    title: str = "",
+    as_rgb: bool = False,
+) -> list[mpl.axes.Axes]:
+    r"""
+    Plot model representation.
 
-    We are trying to plot ``data`` on ``ax``, using
-    ``model.plot_representation`` method, if it has it, and otherwise
-    default to a function that makes sense based on the shape of ``data``.
+    We try to plot ``data`` on ``ax``, using the ``model.plot_representation`` method,
+    if it has it, and otherwise default to a function that makes sense based on the
+    shape of ``data``.
 
     All of these arguments are optional, but at least some of them need
     to be set:
 
-    - If ``model`` is ``None``, we fall-back to a type of plot based on the
-      shape of ``data``. If it looks image-like, we'll use ``plenoptic.imshow``
-      and if it looks vector-like, we'll use ``plenoptic.clean_stem_plot``. If
-      it's a dictionary, we'll assume each key, value pair gives the title and
-      data to plot on a separate sub-plot.
+    - If ``model`` is ``None``, we fall-back to a type of plot based on the shape of
+      ``data``. If it looks image-like, we'll use
+      :func:`~plenoptic.tools.display.imshow` and if it looks vector-like, we'll use
+      :func:`~plenoptic.tools.display.clean_stem_plot`. If it's a dictionary, we'll
+      assume each key, value pair gives the title and data to plot on a separate
+      sub-plot.
 
     - If ``data`` is ``None``, we can only do something if
       ``model.plot_representation`` has some default behavior when
@@ -1002,43 +1179,48 @@ def plot_representation(
     - If ``ax`` is ``None``, we create a one-subplot figure using ``figsize``.
       If ``ax`` is not ``None``, we therefore ignore ``figsize``.
 
-    - If ``ylim`` is ``None``, we call ``rescale_ylim``, which sets the axes'
-      y-limits to be ``(-y_max, y_max)``, where ``y_max=np.abs(data).max()``.
-      If it's ``False``, we do nothing.
+    - If ``ylim`` is ``None``, we call :func:`~plenoptic.tools.display.rescale_ylim`,
+      which sets the axes' y-limits to be ``(-y_max, y_max)``, where
+      ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
 
     Parameters
     ----------
-    model : `torch.nn.Module` or None, optional
+    model
         A differentiable model that tells us how to plot ``data``. See
         above for behavior if ``None``.
-    data : `array_like`, `dict`, or `None`, optional
+    data
         The data to plot. See above for behavior if ``None``.
-    ax : matplotlib.pyplot.axis or None, optional
+    ax
         The axis to plot on. See above for behavior if ``None``.
-    figsize : `tuple`, optional
+    figsize
         The size of the figure to create. Must be ``None`` if ax is not ``None``. If
-        both figsize and ax are ``None``, then we set ``figsize=(5, 5)``
-    ylim : `tuple`, `None`, or `False`, optional
-        If not None, the y-limits to use for this plot. See above for
-        behavior if ``None``. If False, we do nothing.
-    batch_idx : `int`, optional
-        Which index to take from the batch dimension
-    title : `str`, optional
+        both figsize and ax are ``None``, then we use ``figsize=(5, 5)``.
+    ylim
+        The y-limits to use for this plot. See above for behavior if ``None``.
+        If ``False``, we do nothing. Ignored if ``data`` looks image-like.
+    batch_idx
+        Which index to take from the batch dimension.
+    title
         The title to put above this axis. If you want no title, pass
-        the empty string (``''``)
-    as_rgb : bool, optional
-        The representation can be image-like with multiple channels, and we
-        have no way to determine whether it should be represented as an RGB
-        image or not, so the user must set this flag to tell us. It will be
+        the empty string (``""``).
+    as_rgb
+        Whether to consider the channels as encoding RGB(A) values. It will be
         ignored if the representation doesn't look image-like or if the
         model has its own plot_representation_error() method. Else, it will
-        be passed to `po.imshow()`, see that methods docstring for details.
+        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        docstring for details.
 
     Returns
     -------
-    axes : list
+    axes
         List of created axes.
 
+    Raises
+    ------
+    ValueError
+        If both ``figsize`` and ``ax`` are not ``None``.
+    ValueError
+        If ``data`` (or its values, if it's a ``dict``) are not 3 or 4 dimensional.
     """
     if ax is None:
         if figsize is None:

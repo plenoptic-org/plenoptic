@@ -64,6 +64,7 @@ intersphinx_mapping = {
     "torch": ("https://pytorch.org/docs/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "pyrtools": ("https://pyrtools.readthedocs.io/en/latest", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -99,6 +100,10 @@ napoleon_use_param = True
 napoleon_use_rtype = False
 
 numfig = True
+
+# SPHINX CROSS REFERENCES
+
+add_function_parentheses = False
 
 # numpydoc
 

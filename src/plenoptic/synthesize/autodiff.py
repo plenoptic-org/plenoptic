@@ -96,13 +96,13 @@ def vector_jacobian_product(
         ``k`` is the number of directions.
     retain_graph
         Whether or not to keep graph after doing one :meth:`vector_jacobian_product`.
-        Must be set to True if ``k>1``.
+        Must be set to ``True`` if ``k>1``.
     create_graph
-        Whether or not to create computational graph. Usually should be set to True
+        Whether or not to create computational graph. Usually should be set to ``True``
         unless you're reusing the graph like in the second step
         of :meth:`jacobian_vector_product`.
     detach
-        As with ``create_graph``, only necessary to be True when reusing the output
+        As with ``create_graph``, only necessary to be ``True`` when reusing the output
         like we do in the 2nd step of :meth:`jacobian_vector_product`.
 
     Returns

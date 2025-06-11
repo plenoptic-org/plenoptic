@@ -172,9 +172,10 @@ class LinearNonlinear(nn.Module):
         Parameters
         ----------
         vrange, zoom, title
-            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            docstrings for details.
         **kwargs
-            Keyword args for :func:`plenoptic.imshow`.
+            Keyword args for :func:`~plenoptic.tools.display.imshow`.
 
         Returns
         -------
@@ -370,9 +371,10 @@ class LuminanceGainControl(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            docstrings for details.
         **kwargs
-            Keyword args for :func:`plenoptic.imshow`.
+            Keyword args for :func:`~plenoptic.tools.display.imshow`.
 
         Returns
         -------
@@ -606,9 +608,10 @@ class LuminanceContrastGainControl(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`plenoptic.imshow`, see its docstrings for details.
+            Arguments for :func:`~plenoptic.tools.display.imshow`, see
+            its docstrings for details.
         **kwargs
-            Keyword args for :func:`plenoptic.imshow`.
+            Keyword args for :func:`~plenoptic.tools.display.imshow`.
 
         Returns
         -------
@@ -863,10 +866,10 @@ class OnOff(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`plenoptic.imshow`, see its docstrings for
-            details.
+            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            docstrings for details.
         **kwargs
-            Keyword args for :func:`plenoptic.imshow`.
+            Keyword args for :func:`~plenoptic.tools.display.imshow`.
 
         Returns
         -------
