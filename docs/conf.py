@@ -83,8 +83,6 @@ master_doc = "index"
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
 
 # Napoleon settings
 napoleon_google_docstring = False
@@ -151,6 +149,10 @@ html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "display_version": True,
 }
+
+# Path for static files (custom stylesheets or JavaScript)
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
