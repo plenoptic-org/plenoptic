@@ -14,11 +14,11 @@ Synthesis can take a while to run, especially if you are trying to synthesize a 
 You should double-check whether synthesis has successfully completed before interpreting the outputs or using them in any experiments. This is not necessary for eigendistortions (see its [notebook](eigendistortion-nb) for more details on why), but is necessary for all the iterative optimization methods.
 
 - For metamers, this means double-checking that the difference between the model representation of the metamer and the target image is small enough. If your model's representation is multi-scale, trying coarse-to-fine optimization may help (see [notebook](metamer-coarse-to-fine) for details).
-- For MAD competition, this means double-checking that the reference metric is constant and that the optimized metric has converged at a lower or higher value (depending on the value of `synthesis_target`); use [`plot_synthesis_status`](plenoptic.synthesize.mad_competition.plot_synthesis_status) to visualize these values. You will likely need to spend time trying out different values for the `metric_tradeoff_lambda` argument set during initialization to achieve this.
+- For MAD competition, this means double-checking that the reference metric is constant and that the optimized metric has converged at a lower or higher value (depending on the value of `synthesis_target`); use {func}`plot_synthesis_status <plenoptic.synthesize.mad_competition.plot_synthesis_status>` to visualize these values. You will likely need to spend time trying out different values for the `metric_tradeoff_lambda` argument set during initialization to achieve this.
 
 For all of the above, if synthesis has not found a good solution, you may need to run synthesis longer, use a learning-rate scheduler, change the learning rate, or try different optimizers. Each method's `objective_function` method captures the value that we are trying to minimize, but may contain other values (such as the penalty on allowed range values).
 
-Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animate` or `plot_synthesis_status` helper functions (e.g., [`metamer.plot_synthesis_status`](plenoptic.synthesize.metamer.plot_synthesis_status)).
+Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animate` or `plot_synthesis_status` helper functions (e.g., {func}`metamer.plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>`).
 
 (tips-model-tweak)=
 ### Tweaking the model

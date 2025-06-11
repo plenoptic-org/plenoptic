@@ -29,7 +29,7 @@ This signal-flow diagram shows an input being decomposed into two channels, with
 
 ## What do eigendistortions tell us?
 
-Our perception is influenced by our internal representation (neural responses) of the external world. Eigendistortions are rank-ordered directions in image space, along which a model's responses are more sensitive. `Plenoptic`'s [`Eigendistortion`](plenoptic.synthesize.eigendistortion.Eigendistortion) provides an easy way to synthesize eigendistortions for any PyTorch model.
+Our perception is influenced by our internal representation (neural responses) of the external world. Eigendistortions are rank-ordered directions in image space, along which a model's responses are more sensitive. `Plenoptic`'s {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` provides an easy way to synthesize eigendistortions for any PyTorch model.
 
 ```{code-cell} ipython3
 import torch
@@ -103,7 +103,7 @@ po.imshow(
 ## Synthesizing eigendistortions
 
 ### Front-end model: eigendistortion synthesis
-Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling [`synthesis()`](plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize) after instantiating the `Eigendistortion` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
+Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling {func}`synthesis <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` after instantiating the `Eigendistortion` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
 
 The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `k>1` so the algorithm converges/stabilizes faster.
 
@@ -115,7 +115,7 @@ eigendist_f.synthesize(k=3, method="power", max_iter=max_iter_frontend)
 
 ### Front-end model: eigendistortion display
 
-Once synthesized, we can plot the distortion on the image using [`display_eigendistortion_all`](plenoptic.synthesize.eigendistortion.display_eigendistortion_all). Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
+Once synthesized, we can plot the distortion on the image using {func}`display_eigendistortion_all <plenoptic.synthesize.eigendistortion.display_eigendistortion_all>`. Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
 
 ```{code-cell} ipython3
 po.synth.eigendistortion.display_eigendistortion_all(eigendist_f, [0, -1], alpha=3, suptitle="OnOff", zoom=zoom);
