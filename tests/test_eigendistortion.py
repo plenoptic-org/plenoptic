@@ -1,4 +1,5 @@
 import os.path as op
+from contextlib import nullcontext as does_not_raise
 
 import matplotlib.pyplot as plt
 import pytest
@@ -6,7 +7,7 @@ import torch
 from torch import nn
 
 import plenoptic.synthesize.autodiff as autodiff
-from conftest import DEVICE, get_model
+from conftest import DEVICE, ColorModel, get_model
 from plenoptic.metric import mse
 from plenoptic.simulate import Gaussian, OnOff
 from plenoptic.synthesize import (
@@ -16,6 +17,7 @@ from plenoptic.synthesize import (
 from plenoptic.synthesize.eigendistortion import (
     Eigendistortion,
     display_eigendistortion,
+    display_eigendistortion_all,
 )
 from plenoptic.tools import examine_saved_synthesis, remove_grad, set_seed
 
@@ -157,21 +159,54 @@ class TestEigendistortionSynthesis:
         "ignore:Randomized SVD complete!:UserWarning",
     )
     def test_display(self, model, einstein_img, color_img, method, k):
-        # in this case, we're working with grayscale images
         img = einstein_img if model.__class__ == OnOff else color_img
+        as_rgb = model.__class__ == ColorModel
 
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = Eigendistortion(img, model)
         eigendist.synthesize(k=k, method=method, max_iter=10)
-        display_eigendistortion(eigendist, eigenindex=0)
-        display_eigendistortion(eigendist, eigenindex=1)
+        display_eigendistortion(eigendist, eigenindex=0, as_rgb=as_rgb)
+        display_eigendistortion(eigendist, eigenindex=1, as_rgb=as_rgb)
 
         if method == "power":
-            display_eigendistortion(eigendist, eigenindex=-1)
-            display_eigendistortion(eigendist, eigenindex=-2)
+            display_eigendistortion(eigendist, eigenindex=-1, as_rgb=as_rgb)
+            display_eigendistortion(eigendist, eigenindex=-2, as_rgb=as_rgb)
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
-            with pytest.raises(AssertionError):
+            with pytest.raises(ValueError, match="eigenindex must be the index"):
                 display_eigendistortion(eigendist, eigenindex=-1)
+        plt.close("all")
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
+    )
+    @pytest.mark.parametrize("alpha", [1, [1], [1, 10], [1, 10, 10]])
+    @pytest.mark.parametrize("eigenindex", [0, [0, -1], [0, -1, 5]])
+    @pytest.mark.filterwarnings(
+        "ignore:Adding 0.5 to distortion:UserWarning",
+    )
+    def test_display_all(self, model, einstein_img, color_img, alpha, eigenindex):
+        # in this case, we're working with grayscale images
+        img = einstein_img if model.__class__ == OnOff else color_img
+        as_rgb = model.__class__ == ColorModel
+
+        img = img[..., :SMALL_DIM, :SMALL_DIM]
+        eigendist = Eigendistortion(img, model)
+        eigendist.synthesize(k=2, method="power", max_iter=10)
+        expectation = does_not_raise()
+        if isinstance(eigenindex, list):
+            if 5 in eigenindex:
+                expectation = pytest.raises(
+                    ValueError, match="eigenindex must be the index"
+                )
+            # this will get raised first
+            if isinstance(alpha, list) and len(alpha) != len(eigenindex):
+                expectation = pytest.raises(ValueError, match="If alpha is a list")
+        elif isinstance(alpha, list) and len(alpha) != 1:
+            expectation = pytest.raises(ValueError, match="If alpha is a list")
+        with expectation:
+            display_eigendistortion_all(
+                eigendist, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
+            )
         plt.close("all")
 
     @pytest.mark.parametrize(

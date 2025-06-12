@@ -515,16 +515,24 @@ class Eigendistortion(Synthesis):
         -------
         idx
             Index into eigenvalue tensor.
+
+        Raises
+        ------
+        ValueError
+            If ``eigenindex`` doesn't correspond to one of the synthesized
+            eigendistortions.
+        ValueError
+            If no eigendistortions have been synthesized.
         """  # numpydoc ignore=ES01
         n = len(self._image_flat)
         idx_range = range(n)
         i = idx_range[idx]
 
         all_idx = self.eigenindex
-        assert i in all_idx, "eigenindex must be the index of one of the vectors"
-        assert all_idx is not None and len(all_idx) != 0, (
-            "No eigendistortions synthesized"
-        )
+        if i not in all_idx:
+            raise ValueError("eigenindex must be the index of one of the vectors")
+        if all_idx is None or len(all_idx) != 0:
+            raise ValueError("No eigendistortions synthesized")
         return torch.where(all_idx == i)[0].item()
 
     def save(self, file_path: str):
@@ -790,6 +798,11 @@ def display_eigendistortion(
     fig
         Figure containing the displayed images.
 
+    Raises
+    ------
+    ValueError
+        If ``eigenindex`` doesn't correspond to one of the synthesized eigendistortions.
+
     See Also
     --------
     display_eigendistortion_all
@@ -872,6 +885,9 @@ def display_eigendistortion_all(
     ------
     ValueError
         If ``len(alpha) != len(eigenindex)``.
+    ValueError
+        If a value of ``eigenindex`` doesn't correspond to one of the
+        synthesized eigendistortions.
 
     Warns
     -----
@@ -901,7 +917,6 @@ def display_eigendistortion_all(
     img_processed = [process_image(image)]
     img_titles = ["Original image"]
     dist_suffix = ""
-    warnings.warn("TEST")
     if process_image is None and as_rgb:
 
         def process_dist(x: Tensor) -> Tensor:
