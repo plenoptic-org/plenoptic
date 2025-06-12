@@ -1,0 +1,4 @@
+/* adapted from nbsphinx, to make stderr background red */
+div.cell_output.container div.output .highlight, div.cell_output.container div.output pre {
+    background: unset;
+}
