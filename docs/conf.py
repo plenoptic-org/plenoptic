@@ -287,5 +287,6 @@ if run_nb := os.environ.get("RUN_NB"):
 else:
     nb_execution_excludepatterns = ["*"]
     print("Not running any notebooks, see CONTRIBUTING for details")
-nb_execution_mode = "cache"
+
+nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
