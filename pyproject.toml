@@ -50,6 +50,7 @@ docs = [
      "ipywidgets",
      "torchvision",
      "pooch",
+     "jupytext",
 ]
 
 dev = [
@@ -62,11 +63,12 @@ dev = [
 ]
 
 nb = [
-    'jupyter',
-    'ipywidgets',
-    'nbclient>=0.5.5',
+    "jupyter",
+    "ipywidgets",
+    "nbclient>=0.5.5",
     "torchvision>=0.3",
     "pooch>=1.2.0",
+    "jupytext",
 ]
 
 [project.urls]
