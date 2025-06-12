@@ -11,6 +11,11 @@ on:
 env:
   POOCH_ALLOW_UPDATES: false
 
+concurrency:
+  # from https://stackoverflow.com/a/72408109/4659293
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   notebooks_cpu:
     runs-on: ubuntu-latest
