@@ -61,7 +61,7 @@ extensions = [
 add_module_names = False
 
 intersphinx_mapping = {
-    "torch": ("https://pytorch.org/docs/stable/", None),
+    "torch": ("https://docs.pytorch.org/docs/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pyrtools": ("https://pyrtools.readthedocs.io/en/latest", None),
