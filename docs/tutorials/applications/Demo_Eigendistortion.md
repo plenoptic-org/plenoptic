@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.1
 kernelspec:
-  name: plenoptic_venv
-  display_name: plenoptic_venv
+  display_name: plenoptic
   language: python
+  name: python3
 ---
 
 :::{admonition} Download
