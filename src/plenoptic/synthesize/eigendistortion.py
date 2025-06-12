@@ -531,7 +531,7 @@ class Eigendistortion(Synthesis):
         all_idx = self.eigenindex
         if i not in all_idx:
             raise ValueError("eigenindex must be the index of one of the vectors")
-        if all_idx is None or len(all_idx) != 0:
+        if all_idx is None or len(all_idx) == 0:
             raise ValueError("No eigendistortions synthesized")
         return torch.where(all_idx == i)[0].item()
 
