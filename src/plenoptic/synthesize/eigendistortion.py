@@ -899,6 +899,27 @@ def display_eigendistortion_all(
     --------
     display_eigendistortion
         Display single eigendistortion added to image.
+
+    Examples
+    --------
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> from plenoptic.data.fetch import fetch_data
+      >>> img = po.data.einstein()
+      >>> lg = po.simul.LuminanceGainControl(
+      ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
+      ... ).eval()
+      >>> po.tools.remove_grad(lg)
+      >>> eig = po.synth.Eigendistortion(img, lg)
+      >>> # grab saved example eigendistortion, which runs the above to completion.
+      >>> eig.load(
+      ...     fetch_data("example_eigendistortion.pt"),
+      ...     map_location="cpu",
+      ...     tensor_equality_atol=1e-7,
+      ... )
+      >>> po.synth.eigendistortion.display_eigendistortion_all(eig)
+      <PyrFigure size ...>
     """
     # reshape so channel dim is last
     im_shape = eigendistortion._image_shape
