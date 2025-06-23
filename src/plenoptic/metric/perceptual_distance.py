@@ -182,7 +182,7 @@ def ssim(
     This implementation follows the original implementation, as found at [2]_,
     as well as providing the option to use the weighted version used in [4]_
     (which was shown to consistently improve the image quality prediction on
-    the LIVE database).
+    the LIVE database). More info can be found at [3]_.
 
     Note that this is a similarity metric (not a distance), and so 1 means the
     two images are identical and 0 means they're very different. When the two
@@ -303,7 +303,7 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     This implementation follows the original implementation, as found at [2]_,
     as well as providing the option to use the weighted version used in [4]_
     (which was shown to consistently improve the image quality prediction on
-    the LIVE database).
+    the LIVE database). More info can be found at [3]_.
 
     Note that this is a similarity metric (not a distance), and so 1 means the
     two images are identical and 0 means they're very different. When the two

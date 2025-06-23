@@ -310,9 +310,10 @@ class TestDownsampleUpsample:
     @pytest.mark.parametrize("odd", [0, 1])
     @pytest.mark.parametrize("size", [9, 10, 11, 12])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_filter(self, odd, size, dtype):
-        img = torch.zeros([1, 1, 24 + odd, 25], device=DEVICE, dtype=dtype)
-        img[0, 0, 12, 12] = 1
+    @pytest.mark.parametrize("n_scales", [1, 2, 3])
+    def test_filter(self, odd, size, dtype, n_scales):
+        img = torch.zeros([1, 1, 48 + odd, 49], device=DEVICE, dtype=dtype)
+        img[0, 0, 24, 24] = 1
         filt = np.zeros([size, size + 1])
         filt[5, 5] = 1
         filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
@@ -322,18 +323,74 @@ class TestDownsampleUpsample:
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
             0,
             0,
-            12,
-            12,
+            24,
+            24,
         )
 
-        img_down = po.tools.blur_downsample(img)
-        img_up = po.tools.upsample_blur(img_down, odd=(odd, 1))
+        img_down = po.tools.blur_downsample(img, n_scales=n_scales)
+        img_up = po.tools.upsample_blur(img_down, odd=(odd, 1), n_scales=n_scales)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
             0,
             0,
-            12,
-            12,
+            24,
+            24,
         )
+
+    @pytest.mark.parametrize("n_scales", [0, 1, 2, 3])
+    @pytest.mark.parametrize("scale_filter", [True, False])
+    def test_upsample(self, einstein_img, n_scales, scale_filter):
+        if n_scales == 0:
+            expectation = pytest.raises(ValueError, match="n_scales must be positive")
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            us_img = po.tools.upsample_blur(
+                einstein_img, (0, 0), n_scales, scale_filter=scale_filter
+            )
+            us_mn = us_img.mean()
+            mn = einstein_img.mean()
+            if us_img.shape[-2:] != (256 * 2**n_scales, 256 * 2**n_scales):
+                raise Exception(f"upsampled shape is unexpected, {us_img.shape[-2:]}!")
+            if scale_filter and not torch.isclose(us_mn, mn, atol=3e-3):
+                raise Exception(
+                    f"upsampled shape has unexpected mean, {us_mn} vs. {mn}!"
+                )
+            if not scale_filter and not torch.isclose(
+                us_mn * (2**n_scales), mn, atol=1e-2
+            ):
+                raise Exception(
+                    f"upsampled shape has unexpected mean, {us_mn} "
+                    f"({us_mn * (2**n_scales)}) vs. {mn}!"
+                )
+
+    @pytest.mark.parametrize("n_scales", [0, 1, 2, 3])
+    @pytest.mark.parametrize("scale_filter", [True, False])
+    def test_downsample(self, einstein_img, n_scales, scale_filter):
+        if n_scales == 0:
+            expectation = pytest.raises(ValueError, match="n_scales must be positive")
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            ds_img = po.tools.blur_downsample(
+                einstein_img, n_scales, scale_filter=scale_filter
+            )
+            ds_mn = ds_img.mean()
+            mn = einstein_img.mean()
+            if ds_img.shape[-2:] != (256 // 2**n_scales, 256 // 2**n_scales):
+                raise Exception(
+                    f"downsampled shape is unexpected, {ds_img.shape[-2:]}!"
+                )
+            if scale_filter and not torch.isclose(ds_mn, mn, atol=3e-3):
+                raise Exception(
+                    f"downsampled shape has unexpected mean, {ds_mn} vs. {mn}!"
+                )
+            if not scale_filter and not torch.isclose(
+                ds_mn, mn * (2**n_scales), atol=1e-2
+            ):
+                raise Exception(
+                    f"downsampled shape has unexpected mean, {ds_mn} vs. {mn} "
+                    f"({mn * (2**n_scales)})!"
+                )
 
     def test_multichannel(self):
         img = torch.randn([10, 3, 24, 25], device=DEVICE, dtype=torch.float32)

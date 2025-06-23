@@ -413,7 +413,8 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot images with more than one channel and batch"
+                    "Don't know how to plot non-rgb images with more than one "
+                    "channel and batch"
                 ),
             )
         else:
@@ -438,7 +439,7 @@ class TestDisplay:
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
             expectation = pytest.raises(
-                TypeError, match="must be an int or None but got"
+                TypeError, match=r".* must be an int or None but got"
             )
         with expectation:
             fig = po.imshow(
@@ -474,9 +475,7 @@ class TestDisplay:
         ).to(DEVICE)
         expectation = does_not_raise()
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
-            expectation = pytest.raises(
-                TypeError, match="must be an int or None but got"
-            )
+            expectation = pytest.raises(TypeError, match=r".* must be an int but got")
         n_axes = 4
         if steerpyr.is_complex:
             n_axes *= 2
@@ -539,7 +538,8 @@ class TestDisplay:
             expectation = pytest.raises(
                 ValueError,
                 match=(
-                    "Don't know how to plot images with more than one channel and batch"
+                    "Don't know how to plot non-rgb images with more than one "
+                    "channel and batch"
                 ),
             )
         else:
@@ -609,6 +609,36 @@ class TestDisplay:
             po.synth.metamer.plot_synthesis_status(met)
         with pytest.raises(ValueError, match="3 or 4d"):
             po.synth.metamer.animate(met)
+
+    @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
+    @pytest.mark.parametrize("func", ["imshow", "animshow"])
+    def test_zoom(self, zoom, func):
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        if func == "imshow":
+            x = torch.rand(1, 1, 32, 32)
+            func = po.imshow
+        elif func == "animshow":
+            x = torch.rand(1, 1, 10, 32, 32)
+            func = po.animshow
+        if zoom is not None and zoom <= 0:
+            expectation = pytest.raises(ValueError, match="zoom must be positive")
+        elif zoom is not None and int(zoom * 32) != zoom * 32:
+            expectation = pytest.raises(
+                Exception, match=r"zoom \* signal.shape must result in integers"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            func(x, ax=ax, zoom=zoom)
+            if zoom is None:
+                zoom = 12
+            zoom_title = float(ax.get_title().split("*")[1])
+            if zoom != zoom_title:
+                raise ValueError(
+                    f"Zoom didn't work as expected, expected {zoom} but"
+                    f" got {zoom_title}!"
+                )
+            plt.close(fig)
 
 
 def template_test_synthesis_all_plot(
