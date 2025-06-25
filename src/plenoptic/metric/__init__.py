@@ -12,7 +12,7 @@ from .naive import mse
 from .perceptual_distance import (
     ms_ssim,
     nlpd,
+    normalized_laplacian_pyramid,
     ssim,
     ssim_map,
-    normalized_laplacian_pyramid,
 )
