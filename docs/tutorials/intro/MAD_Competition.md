@@ -58,7 +58,12 @@ import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# use GPU if available
+if torch.cuda.device_count() > 1:
+    DEVICE = torch.device(1)
+else:
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72

@@ -51,7 +51,7 @@ except ModuleNotFoundError:
         "and restart the notebook kernel"
     )
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device(0 if torch.cuda.is_available() else "cpu")
 ```
 
 This notebook takes a while to run, especially if you don't have a GPU available. To reduce the amount of iterations we run synthesis for, and thus the duration of running the notebook, you can reduce the following values. Note that if you do so, the synthesis will not have completed and you *should not* interpret the resulting images as eigendistortions.
@@ -68,9 +68,9 @@ Let's load the parrot image used in the paper and display it:
 
 ```{code-cell} ipython3
 # crop the image to be square:
-image_tensor = po.data.parrot(as_gray=True).to(device)
+image_tensor = po.data.parrot().to(DEVICE)
 # reduce size of image if we're on CPU, otherwise this will take too long
-if device.type == "cpu":
+if DEVICE.type == "cpu":
     sz = 64
     zoom = 256 / 64
 else:
@@ -90,7 +90,7 @@ We'll apply a circular mask to this model's inputs to avoid edge artifacts in th
 ```{code-cell} ipython3
 mdl_f = OnOff(kernel_size=(31, 31), pretrained=True, apply_mask=True)
 po.tools.remove_grad(mdl_f)
-mdl_f = mdl_f.to(device)
+mdl_f = mdl_f.to(DEVICE)
 
 response_f = mdl_f(image_tensor)
 po.imshow(
@@ -152,13 +152,13 @@ def normalize(img_tensor):
 # store these for later so we can un-normalize the image for display purposes
 orig_mean = image_tensor.mean().detach()
 orig_std = image_tensor.std().detach()
-image_tensor = normalize(image_tensor).to(device)
+image_tensor = normalize(image_tensor).to(DEVICE)
 
 image_tensor3 = image_tensor.repeat(1, 3, 1, 1)
 
 # "layer 3" according to Berardino et al (2017)
-vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
-mdl_v = TorchVision(vgg, "features.11").to(device)
+vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
+mdl_v = TorchVision(vgg, "features.11").to(DEVICE)
 po.tools.remove_grad(mdl_v)
 mdl_v.eval()
 

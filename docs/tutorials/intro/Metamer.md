@@ -45,8 +45,8 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 import plenoptic as po
 

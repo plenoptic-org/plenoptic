@@ -65,14 +65,15 @@ See the [last section of this notebook](eigendistortion-math-details) for more m
 import matplotlib.pyplot as plt
 import torch
 from torch import nn
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
+
 
 import plenoptic as po
 from plenoptic.synthesize.eigendistortion import Eigendistortion
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # this notebook uses torchvision, which is an optional dependency.
 # if this fails, install torchvision in your plenoptic environment
@@ -300,7 +301,7 @@ class TorchVision(torch.nn.Module):
         return self.extractor(x)[self.return_node]
 
 # different potential models of human visual perception of distortions
-resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1, progress=False)
 resnet = resnet.to(DEVICE)
 resnet18_a = TorchVision(resnet, "maxpool")
 po.tools.remove_grad(resnet18_a)

@@ -30,8 +30,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
 import torch
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 import plenoptic as po
 from plenoptic.tools import to_numpy
@@ -59,7 +59,7 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
     name = f"{m1.__name__}_{t}"
     # we set the seed like this to ensure that all four MADCompetition instances have
     # the same initial_image. Try different seed values!
-    po.tools.set_seed(0)
+    po.tools.set_seed(115)
     all_mad[name] = po.synth.MADCompetition(img, m1, m2, t, metric_tradeoff_lambda=1e4)
     all_mad[name].setup(optimizer_kwargs={"lr": 0.0001})
     print(f"Synthesizing {name}")

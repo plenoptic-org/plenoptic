@@ -27,6 +27,8 @@ Here we will specifically focus on the specifics of the torch version and how it
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
+import os
+import contextlib
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -51,7 +53,8 @@ except ModuleNotFoundError:
 import torchvision.transforms as transforms
 
 dtype = torch.float32
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 %load_ext autoreload
 
@@ -86,9 +89,9 @@ Because of this we don't have direct access to a set of spatial filters for visu
 order = 3
 imsize = 64
 pyr = SteerablePyramidFreq(height=3, image_shape=[imsize, imsize], order=order).to(
-    device
+    DEVICE
 )
-empty_image = torch.zeros((1, 1, imsize, imsize), dtype=dtype).to(device)
+empty_image = torch.zeros((1, 1, imsize, imsize), dtype=dtype).to(DEVICE)
 pyr_coeffs = pyr.forward(empty_image)
 
 # insert a 1 in the center of each coefficient...
@@ -115,13 +118,13 @@ Now let's see what the steerable pyramid representation for images look like.
 The included steerable pyramid operates on 4-dimensional tensors of shape `(batch, channel, height, width)`. We are able to perform batch computations with the steerable pyramid implementation, analyzing each batch separately. Similarly, the pyramid is meant to operate on gray-scale images, and so `channel > 1` will cause the pyramid to run independently on each channel (meaning each of the first two dimensions are treated effectively as batch dimensions).
 
 ```{code-cell} ipython3
-im_batch = torch.cat([po.data.curie(), po.data.reptile_skin()], axis=0).to(device)
+im_batch = torch.cat([po.data.curie(), po.data.reptile_skin()], axis=0).to(DEVICE)
 print(im_batch.shape)
 po.imshow(im_batch)
 order = 3
 dim_im = 256
 pyr = SteerablePyramidFreq(height=4, image_shape=[dim_im, dim_im], order=order).to(
-    device
+    DEVICE
 )
 pyr_coeffs = pyr(im_batch)
 ```
@@ -153,7 +156,7 @@ height = 3
 pyr_complex = SteerablePyramidFreq(
     height=height, image_shape=[256, 256], order=order, is_complex=True
 )
-pyr_complex.to(device)
+pyr_complex.to(DEVICE)
 pyr_coeffs_complex = pyr_complex(im_batch)
 ```
 
@@ -187,7 +190,7 @@ class PaddedSteerPyr(torch.nn.Module):
 
 ```{code-cell} ipython3
 ppyr = PaddedSteerPyr(im_batch.shape[-2:], height=3)
-ppyr.to(device)
+ppyr.to(DEVICE)
 ppyr_coeffs = ppyr(im_batch)
 po.pyrshow(ppyr_coeffs);
 ```
@@ -232,9 +235,9 @@ class PaddedCroppedSteerPyr(torch.nn.Module):
 
 ```{code-cell} ipython3
 pcpyr = PaddedCroppedSteerPyr(im_batch.shape[-2:], height=3)
-pcpyr.to(device)
+pcpyr.to(DEVICE)
 pyr = SteerablePyramidFreq(im_batch.shape[-2:], height=3)
-pyr.to(device)
+pyr.to(DEVICE)
 # check that the coefficients are the same shape as when you have no padding
 pcpyr_coeffs = pcpyr(im_batch)
 for k, v in pyr(im_batch).items():
@@ -251,7 +254,7 @@ Below we steer a set of coefficients through a series of angles and visualize ho
 # note that steering is currently only implemented for real pyramids, so the `is_complex`
 # argument must be False (as it is by default)
 pyr = SteerablePyramidFreq(height=3, image_shape=[256, 256], order=3, twidth=1).to(
-    device
+    DEVICE
 )
 coeffs = pyr(im_batch)
 
@@ -293,7 +296,7 @@ pyr_fixed = SteerablePyramidFreq(
     is_complex=True,
     downsample=False,
     tight_frame=True,
-).to(device)
+).to(DEVICE)
 pyr_coeffs_fixed, pyr_info = pyr_fixed.convert_pyr_to_tensor(
     pyr_fixed(im_batch), split_complex=False
 )
@@ -338,7 +341,7 @@ pyr_not_downsample = SteerablePyramidFreq(
     downsample=False,
     tight_frame=False,
 )
-pyr_not_downsample.to(device)
+pyr_not_downsample.to(DEVICE)
 
 pyr_downsample = SteerablePyramidFreq(
     height=height,
@@ -349,9 +352,9 @@ pyr_downsample = SteerablePyramidFreq(
     downsample=True,
     tight_frame=False,
 )
-pyr_downsample.to(device)
-pyr_coeffs_downsample = pyr_downsample(im_batch.to(device))
-pyr_coeffs_not_downsample = pyr_not_downsample(im_batch.to(device))
+pyr_downsample.to(DEVICE)
+pyr_coeffs_downsample = pyr_downsample(im_batch.to(DEVICE))
+pyr_coeffs_not_downsample = pyr_not_downsample(im_batch.to(DEVICE))
 for i in range(len(pyr_coeffs_downsample.keys())):
     k = list(pyr_coeffs_downsample.keys())[i]
     v1 = to_numpy(pyr_coeffs_downsample[k])
@@ -374,14 +377,16 @@ for i in range(len(pyr_coeffs_downsample.keys())):
 We are now ready to demonstrate how the steerable pyramid can be used as a fixed frontend for further stages of (learnable) processing!
 
 ```{code-cell} ipython3
-# First we define/download the dataset
-train_set = torchvision.datasets.FashionMNIST(
-    # change this line to wherever you'd like to download the FashionMNIST dataset
-    root="../data",
-    train=True,
-    download=True,
-    transform=transforms.Compose([transforms.ToTensor()]),
-)
+# First we define/download the dataset. The with block here effectively suppresses stderr,
+# so we don't print out the progressbar. If you would like to see it, remove this line.
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    train_set = torchvision.datasets.FashionMNIST(
+        # change this line to wherever you'd like to download the FashionMNIST dataset
+        root="../data",
+        train=True,
+        download=True,
+        transform=transforms.Compose([transforms.ToTensor()]),
+    )
 ```
 
 We will define a simple model, which consists of the steerable pyramid, followed by a single convolutional layer, then a single fully connected layer.
@@ -452,7 +457,7 @@ Now, we train this model:
 ```{code-cell} ipython3
 # Training Pyramid Model
 model_pyr = PyrConvFull([28, 28], order=4, scales=2, is_complex=False)
-model_pyr.to(device)
+model_pyr.to(DEVICE)
 loader = torch.utils.data.DataLoader(train_set, batch_size=50)
 optimizer = torch.optim.Adam(model_pyr.parameters(), lr=1e-3)
 
@@ -462,8 +467,8 @@ losses = []
 fracts_correct = []
 for e in range(epoch):
     for batch in tqdm(loader):
-        images = batch[0].to(device)
-        labels = batch[1].to(device)
+        images = batch[0].to(DEVICE)
+        labels = batch[1].to(DEVICE)
         preds = model_pyr(images)
         loss = F.cross_entropy(preds, labels)
 
