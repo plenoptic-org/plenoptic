@@ -246,8 +246,6 @@ def local_gain_release(
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
         >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
-        >>> po.pyrshow(x, col_wrap=4)
-        <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
