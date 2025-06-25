@@ -143,7 +143,7 @@ met.synthesize(
 )
 ```
 
-After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the `plot_synthesis_status()` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
+After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the `plot_synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
 
 ```{code-cell} ipython3
 # we have two image plots for representation error, so that bit should be 2x wider

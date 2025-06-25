@@ -72,7 +72,7 @@ class MADCompetitionVariant(po.synth.MADCompetition):
         self._loaded = False
 ```
 
-We can then interact with this new object in the same way as the original `MADCompetition` object, the only difference being how `setup()` is called:
+We can then interact with this new object in the same way as the original `MADCompetition` object, the only difference being how `setup` is called:
 
 ```{code-cell} ipython3
 image = po.data.einstein()
