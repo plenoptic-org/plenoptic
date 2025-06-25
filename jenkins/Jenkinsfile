@@ -98,11 +98,7 @@ pipeline {
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-T -j $PARALLEL"
-              echo \$(ls \$HOME)
-              echo \$(ls \$HOME/docs)
-              echo \$(ls \$HOME/docs/_build)
               mv docs/_build/ $HOME/built-docs/
-              echo \$(ls \$HOME/built-docs)
            '''
             lock('plenoptic_docs_publish') {
               script {
@@ -121,10 +117,6 @@ pipeline {
                 DOCS_DIR=docs/\$PROJECT_NAME/\$out_dir
                 rm -rf \$DOCS_DIR
                 mkdir -p \$DOCS_DIR
-                echo \$(ls \$HOME)
-                echo \$(ls \$HOME/docs)
-                echo \$(ls \$HOME/built-docs)
-                echo \$(ls \$DOCS_DIR)
                 cp -rp \$HOME/built-docs/html/* \$DOCS_DIR
                 # using -f here makes sure we add the index.html files, which are included in workshops .gitignore (since some are auto-generated)
                 git add -A -f --verbose docs/\$PROJECT_NAME
