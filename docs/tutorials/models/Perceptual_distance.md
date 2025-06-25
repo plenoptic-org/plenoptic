@@ -49,8 +49,8 @@ import torch
 from scipy.stats import pearsonr, spearmanr
 
 import plenoptic as po
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 ```
 
 ## SSIM (structural similarity)
