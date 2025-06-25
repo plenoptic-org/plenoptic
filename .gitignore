@@ -16,6 +16,7 @@ __pycache__/
 *.mat
 *.npy
 
+data/
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
