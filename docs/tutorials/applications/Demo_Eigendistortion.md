@@ -103,7 +103,7 @@ po.imshow(
 ## Synthesizing eigendistortions
 
 ### Front-end model: eigendistortion synthesis
-Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling {func}`synthesis <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` after instantiating the `Eigendistortion` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
+Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling {func}`synthesis <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` after instantiating the {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
 
 The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `k>1` so the algorithm converges/stabilizes faster.
 
