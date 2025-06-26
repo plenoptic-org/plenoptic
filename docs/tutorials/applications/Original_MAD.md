@@ -44,6 +44,16 @@ import plenoptic as po
 
 %load_ext autoreload
 %autoreload 2
+
+# Download some data we'll need for this notebook
+import contextlib
+import os
+from plenoptic.data.fetch import fetch_data
+# the contextlib.redirect_stderr here is so that we don't print out the progressbar.
+# If you would like to see it, remove this line.
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    fetch_data("MAD_results.tar.gz")
+    fetch_data("ssim_images.tar.gz")
 ```
 
 ## SSIM

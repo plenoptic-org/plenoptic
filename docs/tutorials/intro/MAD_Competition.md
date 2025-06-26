@@ -41,15 +41,15 @@ $$t L_1(x, \hat{x}) + \lambda_1 [L_2(x, x+\epsilon) - L_2(x, \hat{x})]^2 + \lamb
 
 where:
 
-- $t$ is 1 if {attr}`mad.minmax <plenoptic.synthesize.mad_competition.MADCompetition.minmax>` is `'min'` and -1 if it's `'max'`
-- $L_1$ is {attr}`mad.optimized_metric <plenoptic.synthesize.mad_competition.MADCompetition.optimized_metric>`
-- $L_2$ is {attr}`mad.reference_metric <plenoptic.synthesize.mad_competition.MADCompetition.reference_metric>`
-- $x$ is {attr}`mad.image <plenoptic.synthesize.mad_competition.MADCompetition.image>`
-- $\hat{x}$ is {attr}`mad.mad_image <plenoptic.synthesize.mad_competition.MADCompetition.mad_image>`
+- $t$ is 1 if {attr}`minmax <plenoptic.synthesize.mad_competition.MADCompetition.minmax>` is `'min'` and -1 if it's `'max'`
+- $L_1$ is {attr}`optimized_metric <plenoptic.synthesize.mad_competition.MADCompetition.optimized_metric>`
+- $L_2$ is {attr}`reference_metric <plenoptic.synthesize.mad_competition.MADCompetition.reference_metric>`
+- $x$ is {attr}`image <plenoptic.synthesize.mad_competition.MADCompetition.image>`
+- $\hat{x}$ is {attr}`mad_image <plenoptic.synthesize.mad_competition.MADCompetition.mad_image>`
 - $\epsilon$ is the initial noise
 - $\mathcal{B}$ is the quadratic bound penalty
-- $\lambda_1$ is {attr}`mad.metric_tradeoff_lambda <plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda>`
-- $\lambda_2$ is `mad.range_penalty_lambda`
+- $\lambda_1$ is {attr}`metric_tradeoff_lambda <plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda>`
+- $\lambda_2$ is {attr}`range_penalty_lambda <plenoptic.synthesize.mad_competition.MADCompetition.range_penalty_lambda>`
 
 That's the general idea, now let's explore how to use the {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` class for generating these images
 
@@ -142,7 +142,7 @@ fig = po.synth.mad_competition.plot_synthesis_status(mad_ssim_max)
 
 Next, let's hold SSIM constant while changing MSE. This will require changing the {attr}`metric_tradeoff_lambda <plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda>`. We also set `stop_criterion` explicitly, to a smaller value, to allow the synthesis to continue longer.
 
-In general, finding an appropriate value for `metric_tradeoff_lambda` will require both some consideration on the part of the user and some testing of different values.
+In general, finding an appropriate value for {attr}`metric_tradeoff_lambda <plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda>` will require both some consideration on the part of the user and some testing of different values.
 
 ```{code-cell} ipython3
 mad_mse_min = po.synth.MADCompetition(
