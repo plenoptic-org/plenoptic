@@ -1,6 +1,4 @@
-
-(index)=
-
+(index-doc)=
 # plenoptic
 
 [![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
@@ -14,7 +12,7 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-:::{figure} images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:::{figure} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
 :alt: plenoptic logo
 :figwidth: 100%
 :align: center
@@ -25,7 +23,7 @@
 ## Getting started
 
 - If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
-- Otherwise, see the [Quickstart](tutorials/00_quickstart.nblink) tutorial.
+- Otherwise, see the [](quickstart-nb) tutorial.
 
 ### Installation
 
@@ -41,28 +39,28 @@ or `conda`:
 $ conda install plenoptic -c conda-forge
 ```
 
-See the [](install) page for more details, including how to set up an isolated virtual environment (recommended).
+See the [](install-doc) page for more details, including how to set up an isolated virtual environment (recommended).
 
 (package-contents)=
 
 ## Contents
 
-:::{figure} images/example_synth.svg
+:::{figure} /_static/images/example_synth.svg
 :alt: The three synthesis methods included in plenoptic
 :figwidth: 100%
 :::
 
 ### Synthesis methods
 
-- [Metamers](tutorials/intro/06_Metamer.nblink): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method makes explicit those features that the model retains/discards.
+- [Metamers](metamer-nb): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method makes explicit those features that the model retains/discards.
 
   - Example papers: {cite:alp}`Portilla2000-param-textur`, {cite:alp}`Freeman2011-metam-ventr-stream`, {cite:alp}`Deza2019-towar-metam`, {cite:alp}`Feather2019-metam`, {cite:alp}`Wallis2019-image-conten`, {cite:alp}`Ziemba2021-oppos-effec`
 
-- [Eigendistortions](tutorials/intro/02_Eigendistortions.nblink): given a model and a reference image, compute the image perturbations that produce the smallest/largest change in the model response space. These are the image changes to which the model is least/most sensitive, respectively.
+- [Eigendistortions](eigendistortion-nb): given a model and a reference image, compute the image perturbations that produce the smallest/largest change in the model response space. These are the image changes to which the model is least/most sensitive, respectively.
 
   - Example papers: {cite:alp}`Berardino2017-eigen`
 
-- [Maximal differentiation (MAD) competition](tutorials/intro/08_MAD_Competition.nblink): given a reference image and two models that measure distance
+- [Maximal differentiation (MAD) competition](mad-nb): given a reference image and two models that measure distance
   between images, generate pairs of images that optimally differentiate the models. Specifically, synthesize a pair of images that are equi-distant from the reference image according to model-1, but maximally/minimally distant according to model-2. Synthesize a second pair with the roles of the two models reversed. This method allows for efficient comparison of two metrics, highlighting the aspects in which their sensitivities most differ.
 
   - Example papers: {cite:alp}`Wang2008-maxim-differ`
@@ -89,7 +87,7 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 
 ## Citing us
 
-If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation) for more details.
+If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation-doc) for more details.
 
 :::{toctree}
 :caption: Basic concepts
@@ -146,8 +144,10 @@ tutorials/advanced/*
 
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
 
+```{nb-exec-table}
+```
 
-:::{image} images/CCN-logo-wText.png
+:::{image} /_static/images/CCN-logo-wText.png
 :align: center
 :alt: Flatiron Institute Center for Computational Neuroscience logo
 :::
