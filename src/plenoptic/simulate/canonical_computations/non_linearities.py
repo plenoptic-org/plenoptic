@@ -53,7 +53,9 @@ def rectangular_to_polar_dict(
         >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
-        >>> po.pyrshow(energy, col_wrap=4)
+        >>> po.pyrshow(energy)
+        <PyrFigure size ...>
+        >>> po.pyrshow(state)
         <PyrFigure size ...>
     """
     energy = {}
@@ -109,7 +111,7 @@ def polar_to_rectangular_dict(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
         >>> coeffs = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
@@ -180,6 +182,8 @@ def local_gain_control(
         >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
+        >>> po.imshow([img, norm, direction], title=["image", "norm", "direction"])
+        <PyrFigure size ...>
     """
     # these could be parameters, but no use case so far
     p = 2.0
@@ -243,6 +247,9 @@ def local_gain_release(
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
         >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
+        >>> po.imshow([img, norm, direction, x],
+        ...           title=["image", "norm", "direction", "x"])
+        <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
@@ -294,10 +301,12 @@ def local_gain_control_dict(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
-        >>> po.pyrshow(energy, col_wrap=4)
+        >>> po.pyrshow(energy)
+        <PyrFigure size ...>
+        >>> po.pyrshow(state)
         <PyrFigure size ...>
     """
     energy = {}
@@ -353,10 +362,14 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
-        >>> po.pyrshow(energy, col_wrap=4)
+        >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
+        ...     energy,
+        ...     state
+        ... )
+        >>> po.pyrshow(coeffs_dict)
         <PyrFigure size ...>
     """
     coeff_dict = {}
