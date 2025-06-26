@@ -156,7 +156,7 @@ stats = model(img)
 print(stats)
 ```
 
-To use `Metamer`, simply initialize it with the target image and the model, then call `.synthesize()`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.  Let's quickly run it for just 10 iterations to see how it works.
+To use `Metamer`, simply initialize it with the target image and the model, then call `synthesize`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.  Let's quickly run it for just 10 iterations to see how it works.
 
 ```{code-cell} ipython3
 met = po.synth.Metamer(img, model)
