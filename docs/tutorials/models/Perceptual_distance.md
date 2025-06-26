@@ -14,6 +14,11 @@ kernelspec:
 ```{code-cell} ipython3
 :tags: [hide-input]
 import warnings
+import pooch
+
+# don't have pooch output messages about downloading or untarring
+logger = pooch.get_logger()
+logger.setLevel("WARNING")
 
 warnings.filterwarnings(
     "ignore",
@@ -248,7 +253,7 @@ Note that, unlike SSIM and MS-SSIM, NLPD is a *distance* and so smaller numbers 
 
 ## Usage
 
-The basic usage of `ssim`, `ms_ssim` and `nlpd` are the same: they take two arguments, the images to be compared, whose shapes should be in the format `(batch, channel, height, width)`. All these functions are designed for grayscale images, so the channel dimension is treated as another batch dimension. The height and width of the two arguments should be the same, and the batch and channel sizes of the two arguments should be broadcastable. The broadcasting is already demonstrated in the examples of SSIM, MS-SSIM and NLPD that use the Einstein image.
+The basic usage of {func}`ssim <plenoptic.metric.perceptual_distance.ssim>`, {func}`ms_ssim <plenoptic.metric.perceptual_distance.ms_ssim>` and {func}`nlpd <plenoptic.metric.perceptual_distance.nlpd>` are the same: they take two arguments, the images to be compared, whose shapes should be in the format `(batch, channel, height, width)`. All these functions are designed for grayscale images, so the channel dimension is treated as another batch dimension. The height and width of the two arguments should be the same, and the batch and channel sizes of the two arguments should be broadcastable. The broadcasting is already demonstrated in the examples of SSIM, MS-SSIM and NLPD that use the Einstein image.
 
 SSIM, MS-SSIM and NLPD are not scale-invariant. The input images should have values between 0 and 1. Otherwise, the result may be inaccurate, and we will raise a warning (but will still compute it).
 

@@ -50,7 +50,7 @@ im = po.data.einstein().to(DEVICE)
 fig = po.imshow(im)
 ```
 
-Models can be really simple, as this demonstrates. It needs to inherit `torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` (so it can take an image). See the [Models page](../models.md) of the documentation for more details.
+Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` (so it can take an image). See the [Models page](../models.md) of the documentation for more details.
 
 For this notebook, we'll initialize a simple plenoptic-compatible model and call its forward method. This model just convolves a 2d gaussian filter across an image, so it's a low-pass model, preserving low frequency information while discarding the high frequencies.
 
@@ -202,9 +202,9 @@ fig = po.imshow(
 
 We see that the synthesized metamer here looks quite different from both the original and from our previous metamer, while the model outputs look very similar. Here, our synthesized model metamer looks like a blurry picture of Einstein with a high-frequency "shadow" of Curie added on top. Again, this is because the Gaussian model is insensitive to high frequencies, and thus a model metamer can include any high frequency information.
 
-By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use `Eigendistortion` for that.
+By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` for that.
 
-Like `Metamer`, `Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
+Like {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`, {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
 
 ```{code-cell} ipython3
 eig = po.synthesize.Eigendistortion(im, model)
@@ -222,4 +222,4 @@ po.imshow(
 
 We can see they make sense: the most noticeable distortion is a very low-frequency modification to the image, with a period of about half the image. The least noticeable, on the other hand, is very high-frequency, which matches our understanding from the metamer example above.
 
-This brief introduction hopefully demonstrates how you can use plenoptic to better understand your model representations! There's much more that can be done with both these methods, as well as two additional methods, `MADCompetition` and `Geodesic`, to explore.
+This brief introduction hopefully demonstrates how you can use plenoptic to better understand your model representations!

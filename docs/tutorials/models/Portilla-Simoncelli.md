@@ -11,6 +11,23 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell} ipython3
+:tags: [hide-input]
+import warnings
+
+import pooch
+
+# don't have pooch output messages about downloading or untarring
+logger = pooch.get_logger()
+logger.setLevel("WARNING")
+
+warnings.filterwarnings(
+    "ignore",
+    message="initial_image and image are different sizes",
+    category=UserWarning,
+)
+```
+
 :::{admonition} Download
 :class: important
 
@@ -147,7 +164,7 @@ Below we have an instance of the PortillaSimoncelli model with default parameter
 
 Running the model on an image will return a tensor of numbers summarizing the "texturiness" of that image, which we refer to as the model's representation. These statistics are measurements of different properties that the authors considered relevant to a texture's appearance (where a texture is defined above), and capture some of the repeating properties of these types of images. Section 3 of this notebook explores those statistics and how they relate to texture properties.
 
-When the model representation of two images match, the model considers the two images identical and we say that those two images are model metamers. Synthesizing a novel image that matches the representation of some arbitrary input is the goal of the `Metamer` class.
+When the model representation of two images match, the model considers the two images identical and we say that those two images are model metamers. Synthesizing a novel image that matches the representation of some arbitrary input is the goal of the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class.
 
 ```{code-cell} ipython3
 n = img.shape[-1]
@@ -156,14 +173,14 @@ stats = model(img)
 print(stats)
 ```
 
-To use `Metamer`, simply initialize it with the target image and the model, then call `.synthesize()`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.  Let's quickly run it for just 10 iterations to see how it works.
+To use {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`, simply initialize it with the target image and the model, then call {func}`synthesize <plenoptic.synthesize.metamer.Metamer.synthesize>`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.  Let's quickly run it for just 10 iterations to see how it works.
 
 ```{code-cell} ipython3
 met = po.synth.Metamer(img, model)
 met.synthesize(store_progress=True, max_iter=10)
 ```
 
-We can then call the `plot_synthesis_status` method to see how things are doing. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. For the texture model, we plot the difference in representations split up across the different category of statistics (which we'll describe in more detail later).
+We can then call the {func}`plot_synthesis_status <plenoptic.synthesize.metamer.Metamer.plot_synthesis_status>` method to see how things are doing. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. For the texture model, we plot the difference in representations split up across the different category of statistics (which we'll describe in more detail later).
 
 ```{code-cell} ipython3
 # representation_error plot has three subplots, so we increase its relative width
