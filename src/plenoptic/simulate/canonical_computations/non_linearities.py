@@ -110,11 +110,14 @@ def polar_to_rectangular_dict(
     .. plot::
 
         >>> import plenoptic as po
+        >>> import numpy as np
         >>> img = po.data.einstein()
         >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
         >>> coeffs = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
+        >>> all(np.allclose(coeffs[key], coeffs[key]) for key in coeffs)
+        True
         >>> po.pyrshow(coeffs)
         <PyrFigure size ...>
     """
@@ -247,8 +250,9 @@ def local_gain_release(
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
         >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
-        >>> po.imshow([img, norm, direction, x],
-        ...           title=["image", "norm", "direction", "x"])
+        >>> po.imshow(
+        ...     [img, norm, direction, x], title=["image", "norm", "direction", "x"]
+        ... )
         <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
@@ -366,8 +370,7 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
         >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
-        ...     energy,
-        ...     state
+        ...     energy, state
         ... )
         >>> po.pyrshow(coeffs_dict)
         <PyrFigure size ...>
