@@ -1122,8 +1122,6 @@ class SteerablePyramidFreq(nn.Module):
           ... )
           >>> po.pyrshow(resteered_coeffs)
           <PyrFigure ...>
-          >>> po.pyrshow(resteering_weights)
-          <PyrFigure ...>
         """
         assert pyr_coeffs[(0, 0)].dtype not in complex_types, (
             "steering only implemented for real coefficients"

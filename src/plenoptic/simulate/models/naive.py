@@ -233,7 +233,7 @@ class Gaussian(nn.Module):
 
     @property
     def filt(self) -> Tensor:
-        """Gaussian filter(s)."""  # numpydoc ignore=ES01,RT01
+        """Gaussian filter(s)."""  # numpydoc ignore=ES01,RT01,EX01
         if self._filt is not None:  # use old filter
             return self._filt
         else:  # create new filter, optionally cache it
@@ -416,7 +416,7 @@ class CenterSurround(nn.Module):
 
     @property
     def filt(self) -> Tensor:
-        """Center-surround filter(s)."""  # numpydoc ignore=ES01,RT01
+        """Center-surround filter(s)."""  # numpydoc ignore=ES01,RT01,EX01
         if self._filt is not None:
             # use cached filt
             return self._filt
