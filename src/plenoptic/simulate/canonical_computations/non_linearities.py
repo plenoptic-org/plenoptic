@@ -247,8 +247,9 @@ def local_gain_release(
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
         >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
-        >>> po.imshow([img, norm, direction, x],
-        ...           title=["image", "norm", "direction", "x"])
+        >>> po.imshow(
+        ...     [img, norm, direction, x], title=["image", "norm", "direction", "x"]
+        ... )
         <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
@@ -366,8 +367,7 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
         >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
-        ...     energy,
-        ...     state
+        ...     energy, state
         ... )
         >>> po.pyrshow(coeffs_dict)
         <PyrFigure size ...>
