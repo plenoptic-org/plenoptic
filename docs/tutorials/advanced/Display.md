@@ -144,13 +144,7 @@ met.synthesize(
 )
 ```
 
-<<<<<<< Updated upstream
-After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the `plot_synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
-||||||| Stash base
-After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the `plot_synthesis_status()` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
-=======
 After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the {func}`plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
->>>>>>> Stashed changes
 
 ```{code-cell} ipython3
 # we have two image plots for representation error, so that bit should be 2x wider

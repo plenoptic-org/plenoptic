@@ -82,13 +82,7 @@ class MADCompetitionVariant(po.synth.MADCompetition):
         self._loaded = False
 ```
 
-<<<<<<< Updated upstream
-We can then interact with this new object in the same way as the original `MADCompetition` object, the only difference being how `setup` is called:
-||||||| Stash base
-We can then interact with this new object in the same way as the original `MADCompetition` object, the only difference being how `setup()` is called:
-=======
 We can then interact with this new object in the same way as the original {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` object, the only difference being how {func}`setup <plenoptic.synthesize.mad_competition.MADCompetition.setup>` is called:
->>>>>>> Stashed changes
 
 ```{code-cell} ipython3
 image = po.data.einstein()
