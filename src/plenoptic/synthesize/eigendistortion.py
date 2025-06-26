@@ -829,7 +829,7 @@ def display_eigendistortion_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
     alpha: float | list[float] = 5.0,
-    process_image: Callable[[Tensor], Tensor] = lambda x: x,
+    process_image: Callable[[Tensor], Tensor] | None = None,
     plot_complex: str = "rectangular",
     as_rgb: bool = False,
     suptitle: str = "Eigendistortions",
@@ -859,7 +859,7 @@ def display_eigendistortion_all(
         A function to process all images before display. E.g. multiplying by the
         stdev ImageNet then adding the mean of ImageNet to undo image
         preprocessing. If ``None`` and ``as_rgb is True``, will add 0.5 to the
-        distortion(s) (to avoid matplotlib clipping).
+        distortion(s) (to avoid matplotlib clipping), else if ``None`` do nothing.
     plot_complex
         Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
         complex values. Defaults to ``'rectangular'``, which plots real and complex
@@ -935,21 +935,30 @@ def display_eigendistortion_all(
         )
     distortions = [torch.ones_like(image)]
     distortion_titles = [""]
-    img_processed = [process_image(image)]
     img_titles = ["Original image"]
     dist_suffix = ""
-    if process_image is None and as_rgb:
+    process_dist = None
+    if process_image is None:
 
-        def process_dist(x: Tensor) -> Tensor:
-            return x + 0.5
+        def process_image(x: Tensor) -> Tensor:
+            return x
 
-        warnings.warn(
-            "Adding 0.5 to distortion to plot as RGB image, else matplotlib"
-            " clipping will result in a strange looking image..."
-        )
-        dist_suffix = " + 0.5"
-    elif process_image is not None:
+        if as_rgb:
+
+            def process_dist(x: Tensor) -> Tensor:
+                return x + 0.5
+
+            warnings.warn(
+                "Adding 0.5 to distortion to plot as RGB image, else matplotlib"
+                " clipping will result in a strange looking image..."
+            )
+            dist_suffix = " + 0.5"
+    # the only situation in which the following is not true is if process_image
+    # was None and as_rgb=True
+    if process_dist is None:
         process_dist = process_image
+
+    img_processed = [process_image(image)]
 
     for a, idx in zip(alpha, eigenindex):
         dist = (
