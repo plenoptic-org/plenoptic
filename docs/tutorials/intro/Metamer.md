@@ -82,7 +82,7 @@ model.eval()
 po.tools.remove_grad(model)
 ```
 
-When this model is called on the image, it returns a 4d tensor. This representation is what the `Metamer` class will try to match.
+When this model is called on the image, it returns a 4d tensor. This representation is what the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class will try to match.
 
 ```{code-cell} ipython3
 print(model(img))
@@ -94,7 +94,7 @@ In order to visualize this, we can use the helper function {func}`plot_represent
 po.tools.display.plot_representation(data=model(img), figsize=(11, 5))
 ```
 
-At the simplest, to use `Metamer`, simply initialize it with the target image and the model, then call {func}`synthesize <plenoptic.synthesize.metamer.Metamer.synthesize>`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.
+At the simplest, to use {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`, simply initialize it with the target image and the model, then call {func}`synthesize <plenoptic.synthesize.metamer.Metamer.synthesize>`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.
 
 ```{code-cell} ipython3
 met = po.synth.Metamer(img, model)
@@ -110,7 +110,7 @@ po.synth.metamer.plot_synthesis_status(
 )
 ```
 
-`plot_synthesis_status()` is a helper function to show all of this at once, but the individual components can be created separately:
+{func}`plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>` is a helper function to show all of this at once, but the individual components can be created separately:
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 3, figsize=(25, 5), gridspec_kw={"width_ratios": [1, 1, 2]})
@@ -148,7 +148,7 @@ Generally speaking, synthesis will run until you hit `max_iter` iterations. Howe
 
 ### Moving between devices
 
-`Metamer` has a {func}`to <plenoptic.synthesize.metamer.Metamer.to>` method for moving the object between devices or dtypes. Call it as you would call any {func}`tensor.to <torch.Tensor.to>` and it will move over the necessary attributes.
+{class}`Metamer <plenoptic.synthesize.metamer.Metamer>` has a {func}`to <plenoptic.synthesize.metamer.Metamer.to>` method for moving the object between devices or dtypes. Call it as you would call any {func}`tensor.to <torch.Tensor.to>` and it will move over the necessary attributes.
 
 ### Saving and loading
 
@@ -164,13 +164,13 @@ imageio.imwrite("test.png", met_image)
 
 The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` at initialization.
 
-You can also save the entire `Metamer` object with its {func}`save <plenoptic.synthesize.metamer.Metamer.save>` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
+You can also save the entire {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object with its {func}`save <plenoptic.synthesize.metamer.Metamer.save>` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
 ```{code-cell} ipython3
 met.save("test.pt")
 ```
 
-You can then load it back in using the method {func}`.load <plenoptic.synthesize.metamer.Metamer.load>`. Note that you need to first instantiate the `Metamer` object and then call `.load` --- it must be instantiated with the same image, model, and loss function in order to load it in!
+You can then load it back in using the method {func}`load <plenoptic.synthesize.metamer.Metamer.load>`. Note that you need to first instantiate the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object and then call {func}`load <plenoptic.synthesize.metamer.Metamer.load>` --- it must be instantiated with the same image, model, and loss function in order to load it in!
 
 ```{code-cell} ipython3
 met_copy = po.synth.Metamer(img, model)
@@ -179,11 +179,11 @@ met_copy.load("test.pt")
 (met_copy.saved_metamer == met.saved_metamer).all()
 ```
 
-Because the model itself can be quite large, we do not save it along with the `Metamer` object. This is why you must initialize it before loading from disk.
+Because the model itself can be quite large, we do not save it along with the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object. This is why you must initialize it before loading from disk.
 
 ## Reproducibility
 
-You can set the seed before you call `synthesize` for reproducibility by using {func}`set_seed <plenoptic.tools.optim.set_seed>`. This will set both the `pytorch` and `numpy` seeds, but note that we can't guarantee complete reproducibility: see [](reproduce) for some caveats.
+You can set the seed before you call {func}`synthesize <plenoptic.synthesize.metamer.Metamer.synthesize>` for reproducibility by using {func}`set_seed <plenoptic.tools.optim.set_seed>`. This will set both the `pytorch` and `numpy` seeds, but note that we can't guarantee complete reproducibility: see [](reproduce) for some caveats.
 
 Also note that pytorch does not guarantee identical results between CPU and GPU, even with the same seed.
 
@@ -205,7 +205,7 @@ met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.001})
 met.synthesize()
 ```
 
-`setup()` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
+{func}`setup <plenoptic.synthesize.metamer.Metamer.setup>` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
 
 (metamer-coarse-to-fine)=
 ### Coarse-to-fine optimization
@@ -215,7 +215,7 @@ Some models, such as the Portilla-Simoncelli texture statistics, have a multisca
 We provide the option to use coarse-to-fine optimization, such that you optimize the different scales separately (starting with the coarsest and then moving progressively finer) and then, at the end, optimizing all of them simultaneously. This was first used in Portilla and Simoncelli, 2000, and can help avoid local optima in image space. Unlike everything else described in this notebook, it will not work for all models. There are two specifications the model must meet (see [Model requirements page](models-coarse-to-fine) for more details):
 
 1. It must have a `scales` attribute that gives the scales in the order they should be optimized.
-2. Its `forward()` method must accept a `scales` keyword argument, which accpets a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
+2. Its `forward` method must accept a `scales` keyword argument, which accpets a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
 
 We can see that the included {class}`PortillaSimoncelli <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli>` model satisfies these constraints, and that the model returns a subset of its output when the `scales` argument is passed to {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>`:
 
