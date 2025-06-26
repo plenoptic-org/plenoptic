@@ -71,13 +71,15 @@ def rectangular_to_polar_dict(
 
 
 def polar_to_rectangular_dict(
-    energy: dict, state: dict, residuals: bool = True
+    energy: dict,
+    state: dict,
 ) -> dict:
     """
     Return the real and imaginary parts of tensor in a dictionary.
 
-    Keys are preserved, with the option of dropping ``"residual_lowpass"`` and
-    ``"residual_highpass"`` by setting ``residuals=False``.
+    Keys in the output are identical to those in the input. Will grab residuals from
+    ``energy``, if present, with keys ``"residual_highpass"`` and
+    ``"residual_lowpass"``.
 
     Parameters
     ----------
@@ -86,8 +88,6 @@ def polar_to_rectangular_dict(
         modulus.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase.
-    residuals
-        An option to carry around residuals in the energy branch.
 
     Returns
     -------
@@ -111,21 +111,18 @@ def polar_to_rectangular_dict(
         >>> img = po.data.einstein()
         >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
-        ...     coeffs, residuals=True
-        ... )
+        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
         >>> coeffs = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
         >>> po.pyrshow(coeffs)
         <PyrFigure size ...>
     """
     coeff_dict = {}
     for key in energy:
-        # ignore residuals
-
+        # ignore residuals here
         if isinstance(key, tuple) or not key.startswith("residual"):
             coeff_dict[key] = signal.polar_to_rectangular(energy[key], state[key])
 
-    if residuals:
+    if "residual_lowpass" in energy:
         coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
         coeff_dict["residual_highpass"] = energy["residual_highpass"]
 
