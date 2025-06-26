@@ -1191,8 +1191,9 @@ class PortillaSimoncelli(nn.Module):
           >>> img = po.data.curie()
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model.forward(img)
-          >>> portilla_simoncelli_model.plot_representation(representation_tensor)
-          <PyrFigure size...>
+          >>> fig, axes = portilla_simoncelli_model.plot_representation(
+          ...     representation_tensor
+          ... )
         """
         if ax is None and figsize is None:
             figsize = (15, 15)
@@ -1366,7 +1367,6 @@ class PortillaSimoncelli(nn.Module):
         >>> fig, axes = portilla_simoncelli_model.plot_representation(
         ...     representation_tensor
         ... )
-        <PyrFigure size...>
         >>> new_img = po.data.einstein()
         >>> new_representation_tensor = portilla_simoncelli_model.forward(new_img)
         >>> stem_artists = portilla_simoncelli_model.update_plot(
