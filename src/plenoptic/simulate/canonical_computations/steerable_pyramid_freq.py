@@ -1107,6 +1107,23 @@ class SteerablePyramidFreq(nn.Module):
         resteering_weights :
             Dictionary of weights used to re-steer the pyramid coefficients.
             will have the same keys as ``resteered_coeffs``.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> import numpy as np
+          >>> img = po.data.einstein()
+          >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
+          >>> coeffs = spyr(img)
+          >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
+          ...     coeffs, angles=[0, 0.5 * np.pi]
+          ... )
+          >>> po.pyrshow(resteered_coeffs)
+          <PyrFigure ...>
+          >>> po.pyrshow(resteering_weights)
+          <PyrFigure ...>
         """
         assert pyr_coeffs[(0, 0)].dtype not in complex_types, (
             "steering only implemented for real coefficients"
