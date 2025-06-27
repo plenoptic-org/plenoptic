@@ -1192,7 +1192,7 @@ class PortillaSimoncelli(nn.Module):
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
-          ...     representation_tensor
+          ...     representation_tensor, figsize=(13, 6)
           ... )
         """
         if ax is None and figsize is None:
