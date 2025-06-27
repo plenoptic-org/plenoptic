@@ -254,9 +254,7 @@ def local_gain_release(
         >>> img = po.data.einstein()
         >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
         >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
-        >>> po.imshow(
-        ...     [img, norm, direction, x], title=["image", "norm", "direction", "x"]
-        ... )
+        >>> po.imshow([img, x, img-x], title=["Original image", "Gain release output", "Difference"])
         <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
