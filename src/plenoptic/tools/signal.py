@@ -219,7 +219,7 @@ def steer(
     num = basis.shape[-1]
     device = basis.device
 
-    if isinstance(angle, int | float):
+    if not isinstance(angle, np.ndarray):
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:

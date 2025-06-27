@@ -113,12 +113,15 @@ def polar_to_rectangular_dict(
 
         >>> import plenoptic as po
         >>> import numpy as np
+        >>> import torch
         >>> img = po.data.einstein()
         >>> spyr = po.simul.SteerablePyramidFreq(
         ...     img.shape[-2:], is_complex=True, height=3
         ... )
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
+        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
+        ...     coeffs, residuals=True
+        ... )
         >>> coeffs_back = po.simul.non_linearities.polar_to_rectangular_dict(
         ...     energy, state
         ... )
@@ -372,6 +375,7 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     .. plot::
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
         >>> coeffs = spyr(img)
@@ -379,6 +383,8 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
         >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
         ...     energy, state
         ... )
+        >>> all([torch.allclose(coeffs[k], coeffs_dict[k]) for k in coeffs.keys()])
+        True
         >>> po.pyrshow(coeffs_dict)
         <PyrFigure size ...>
     """
