@@ -565,7 +565,7 @@ class PortillaSimoncelli(nn.Module):
         ...     representation_tensor, scales_to_keep=[0]
         ... )
         >>> limited_representation_tensor.shape
-        torch.Size([1, 1, 43])
+        torch.Size([1, 1, 261])
         """
         # this is necessary because object is the dtype of
         # self._representation_scales
@@ -1367,16 +1367,16 @@ class PortillaSimoncelli(nn.Module):
            >>> import torch
            >>> img = po.data.einstein()
            >>> spyr = po.simul.SteerablePyramidFreq(
-           >>>     img.shape[-2:],
-           >>>     height=3,
-           >>> )
+           ...     img.shape[-2:],
+           ...     height=3,
+           ... )
            >>> coeffs = spyr(img)
            >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
-           >>>     coeffs, torch.linspace(0, 2 * np.pi, 64)
-           >>> )
+           ...     coeffs, torch.linspace(0, 2 * np.pi, 64)
+           ... )
            >>> resteered_coeffs = torch.stack(
-           >>>     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
-           >>> )
+           ...     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
+           ... )
            >>> ani = po.animshow(resteered_coeffs, framerate=6, repeat=True, zoom=4)
            >>> from matplotlib import rc
            >>> rc("animation", html="html5")
