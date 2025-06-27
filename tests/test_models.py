@@ -117,9 +117,7 @@ class TestNonLinearities:
         energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
             y, residuals=True
         )
-        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(
-            energy, state, residuals=True
-        )
+        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
         for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
