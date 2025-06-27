@@ -1368,7 +1368,7 @@ class PortillaSimoncelli(nn.Module):
         ...     representation_tensor
         ... )
         >>> new_img = po.data.einstein()
-        >>> new_representation_tensor = portilla_simoncelli_model.forward(new_img)
+        >>> new_representation_tensor = portilla_simoncelli_model(new_img)
         >>> stem_artists = portilla_simoncelli_model.update_plot(
         ...     axes, new_representation_tensor
         ... )
