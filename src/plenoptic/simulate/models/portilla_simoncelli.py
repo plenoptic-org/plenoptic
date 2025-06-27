@@ -390,7 +390,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         """
@@ -558,7 +558,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         >>> limited_representation_tensor = portilla_simoncelli_model.remove_scales(
@@ -607,7 +607,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import torch
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
         ...     representation_tensor
         ... )
@@ -660,7 +660,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
         ...     representation_tensor
         ... )
@@ -1190,9 +1190,9 @@ class PortillaSimoncelli(nn.Module):
           >>> import plenoptic as po
           >>> img = po.data.curie()
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-          >>> representation_tensor = portilla_simoncelli_model.forward(img)
+          >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
-          ...     representation_tensor
+          ...     representation_tensor, figsize=(13, 6)
           ... )
         """
         if ax is None and figsize is None:
@@ -1358,17 +1358,17 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         This method is meant to be used by animation functions, so users won't
-        typically us this themselves.
+        typically use this directly.
 
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> fig, axes = portilla_simoncelli_model.plot_representation(
         ...     representation_tensor
         ... )
         >>> new_img = po.data.einstein()
-        >>> new_representation_tensor = portilla_simoncelli_model.forward(new_img)
+        >>> new_representation_tensor = portilla_simoncelli_model(new_img)
         >>> stem_artists = portilla_simoncelli_model.update_plot(
         ...     axes, new_representation_tensor
         ... )
