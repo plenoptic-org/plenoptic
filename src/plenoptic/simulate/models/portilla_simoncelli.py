@@ -1358,7 +1358,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         This method is meant to be used by animation functions, so users won't
-        typically us this themselves.
+        typically use this directly.
 
         >>> import plenoptic as po
         >>> img = po.data.curie()
