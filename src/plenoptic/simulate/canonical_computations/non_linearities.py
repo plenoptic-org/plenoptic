@@ -119,7 +119,9 @@ def polar_to_rectangular_dict(
         ... )
         >>> coeffs = spyr(img)
         >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
-        >>> coeffs_back = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
+        >>> coeffs_back = po.simul.non_linearities.polar_to_rectangular_dict(
+        ...     energy, state
+        ... )
         >>> all(torch.allclose(coeffs[key], coeffs_back[key]) for key in coeffs)
         True
         >>> po.pyrshow(coeffs_back)
