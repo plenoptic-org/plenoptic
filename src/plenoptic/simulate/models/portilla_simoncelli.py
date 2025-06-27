@@ -558,7 +558,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         >>> limited_representation_tensor = portilla_simoncelli_model.remove_scales(
