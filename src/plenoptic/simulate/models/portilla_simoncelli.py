@@ -1378,9 +1378,6 @@ class PortillaSimoncelli(nn.Module):
            ...     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
            ... )
            >>> ani = po.animshow(resteered_coeffs, framerate=6, repeat=True, zoom=4)
-           >>> from matplotlib import rc
-           >>> rc("animation", html="html5")
-           >>> ani
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
