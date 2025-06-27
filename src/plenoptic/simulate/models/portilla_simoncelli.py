@@ -660,7 +660,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> img = po.data.curie()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
-        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
         ...     representation_tensor
         ... )
