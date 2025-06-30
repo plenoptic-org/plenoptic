@@ -1360,24 +1360,19 @@ class PortillaSimoncelli(nn.Module):
         This method is meant to be used by animation functions, so users won't
         typically use this directly.
 
-        .. plot::
-
-           >>> import plenoptic as po
-           >>> import numpy as np
-           >>> import torch
-           >>> img = po.data.einstein()
-           >>> spyr = po.simul.SteerablePyramidFreq(
-           ...     img.shape[-2:],
-           ...     height=3,
-           ... )
-           >>> coeffs = spyr(img)
-           >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
-           ...     coeffs, torch.linspace(0, 2 * np.pi, 64)
-           ... )
-           >>> resteered_coeffs = torch.stack(
-           ...     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
-           ... )
-           >>> ani = po.animshow(resteered_coeffs, framerate=6, repeat=True, zoom=4)
+        >>> import plenoptic as po
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> fig, axes = portilla_simoncelli_model.plot_representation(
+        ...     representation_tensor
+        ... )
+        <PyrFigure size...>
+        >>> new_img = po.data.einstein()
+        >>> new_representation_tensor = portilla_simoncelli_model.forward(new_img)
+        >>> stem_artists = portilla_simoncelli_model.update_plot(
+        ...     axes, new_representation_tensor
+        ... )
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]

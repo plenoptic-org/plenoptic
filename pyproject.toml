@@ -50,6 +50,7 @@ docs = [
      'docutils>=0.18.1,<0.21',
      "myst-parser",
      "sphinxcontrib-bibtex",
+     "sphinxcontrib-video",
      "sphinx-design",
      "pooch",
 ]
