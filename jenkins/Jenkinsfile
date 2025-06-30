@@ -75,7 +75,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
