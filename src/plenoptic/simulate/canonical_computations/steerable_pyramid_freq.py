@@ -1126,10 +1126,11 @@ class SteerablePyramidFreq(nn.Module):
             >>> resteered_coeffs = torch.stack(
             ...     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
             ... )
-            >>> ani = po.animshow(resteered_coeffs, repeat=True, framerate=6, zoom=8)
-            >>> ani.save("resteered_coeffs.mp4")
+            >>> ani = po.animshow(resteered_coeffs, repeat=True, framerate=6, zoom=4)
+            >>> # Save the video (here we're saving it as a .gif), and open it.
+            >>> ani.save("resteered_coeffs.gif")
 
-        .. video:: resteered_coeffs.mp4
+        .. image:: resteered_coeffs.gif
         """
         assert pyr_coeffs[(0, 0)].dtype not in complex_types, (
             "steering only implemented for real coefficients"
