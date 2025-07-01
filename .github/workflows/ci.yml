@@ -67,9 +67,10 @@ jobs:
       run: |
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
-        # dependencies, to make sure the cache doesn't go stale, and
-        # imageio_ffmpeg makes ffmpeg binaries available
-        pip install --upgrade --upgrade-strategy eager .[dev] imageio_ffmpeg
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .[dev]
+        # PyAV should make ffmpeg binaries available
+        pip install av
     - name: Run doctests with pytest
       run: |
         # ignore warnings in doctests, since otherwise pytest fails
