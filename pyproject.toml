@@ -111,7 +111,7 @@ disable_warnings = ["module-not-measured"]
 extend-include = ["*.ipynb"]
 src = ["src", "tests", "examples"]
 # Exclude a variety of commonly ignored directories.
-exclude = []
+exclude = ["conftest.py"]
 
 # Set the maximum line length (same as Black)
 line-length = 88
@@ -186,4 +186,5 @@ exclude = [
     # init has no docstring, documented in the class docstring
     "__init__",
     "noxfile",
+    "conftest",
 ]

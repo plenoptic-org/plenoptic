@@ -1116,7 +1116,6 @@ class SteerablePyramidFreq(nn.Module):
             >>> import plenoptic as po
             >>> import numpy as np
             >>> import torch
-            >>> import matplotlib.pyplot as plt
             >>> img = po.data.einstein()
             >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
             >>> coeffs = spyr(img)
