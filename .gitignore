@@ -41,3 +41,4 @@ build/
 # venv
 .venv
 venv
+*.lock

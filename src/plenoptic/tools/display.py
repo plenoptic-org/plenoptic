@@ -523,8 +523,8 @@ def pyrshow(
     Display steerable pyramid coefficients in orderly fashion.
 
     This function uses :func:`~plenoptic.tools.display.imshow` to show the coefficients
-    of the steeable pyramid, such that each scale shows up on a single row, with each
-    scale in a given column.
+    of the steeable pyramid (or any dictionary in the standard format),
+    such that each scale shows up on a single row, with each scale in a given column.
 
     Note that unlike :func:`~plenoptic.tools.display.imshow`, we can only show one batch
     or channel at a time.

@@ -384,6 +384,15 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If ``image`` is not 4d or has a dtype other than float or complex.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> representation_tensor = portilla_simoncelli_model(img)
+        >>> representation_tensor.shape
+        torch.Size([1, 1, 1046])
         """
         validate_input(image)
 
@@ -543,6 +552,20 @@ class PortillaSimoncelli(nn.Module):
         -------
         limited_representation_tensor
             Representation tensor with some statistics removed.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> representation_tensor = portilla_simoncelli_model(img)
+        >>> representation_tensor.shape
+        torch.Size([1, 1, 1046])
+        >>> limited_representation_tensor = portilla_simoncelli_model.remove_scales(
+        ...     representation_tensor, scales_to_keep=[0]
+        ... )
+        >>> limited_representation_tensor.shape
+        torch.Size([1, 1, 261])
         """
         # this is necessary because object is the dtype of
         # self._representation_scales
@@ -577,6 +600,22 @@ class PortillaSimoncelli(nn.Module):
         --------
         convert_to_dict
             Convert tensor representation to dictionary.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> import torch
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> representation_tensor = portilla_simoncelli_model(img)
+        >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
+        ...     representation_tensor
+        ... )
+        >>> representation_tensor_new = portilla_simoncelli_model.convert_to_tensor(
+        ...     representation_dict
+        ... )
+        >>> torch.equal(representation_tensor, representation_tensor_new)
+        True
         """
         rep = einops.pack(list(representation_dict.values()), "b c *")[0]
         # then get rid of all the nans / unnecessary stats
@@ -615,6 +654,55 @@ class PortillaSimoncelli(nn.Module):
         --------
         convert_to_tensor:
             Convert dictionary representation to tensor.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(
+        ...     img.shape[2:], n_scales=3
+        ... )
+        >>> representation_tensor = portilla_simoncelli_model(img)
+        >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
+        ...     representation_tensor
+        ... )
+        >>> # We will go through and examine each of these keys individually
+        >>> # Shape is (batch, channel, 6): first four moments plus min and max
+        >>> # of input image
+        >>> representation_dict["pixel_statistics"].shape
+        torch.Size([1, 1, 6])
+        >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
+        >>> # n_orientations, n_scales)
+        >>> representation_dict["auto_correlation_magnitude"].shape
+        torch.Size([1, 1, 9, 9, 4, 3])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["skew_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["kurtosis_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
+        >>> # n_scales+1)
+        >>> representation_dict["auto_correlation_reconstructed"].shape
+        torch.Size([1, 1, 9, 9, 4])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["std_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, n_orientations, n_orientations, n_scales)
+        >>> representation_dict["cross_orientation_correlation_magnitude"].shape
+        torch.Size([1, 1, 4, 4, 3])
+        >>> # Shape is (batch, channel, n_orientations, n_scales)
+        >>> representation_dict["magnitude_std"].shape
+        torch.Size([1, 1, 4, 3])
+        >>> # Shape is (batch, channel, n_orientations, n_orientations, n_scales-1)
+        >>> representation_dict["cross_scale_correlation_magnitude"].shape
+        torch.Size([1, 1, 4, 4, 2])
+        >>> # Shape is (batch, channel, n_orientations, 2*n_orientations, n_scales-1)
+        >>> representation_dict["cross_scale_correlation_real"].shape
+        torch.Size([1, 1, 4, 8, 2])
+        >>> # Shape is (batch, channel, 1)
+        >>> representation_dict["var_highpass_residual"].shape
+        torch.Size([1, 1, 1])
         """
         if representation_tensor.shape[-1] != len(self._representation_scales):
             raise ValueError(
@@ -1120,6 +1208,18 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If both ``figsize`` and ``ax`` are not ``None``.
+
+        Examples
+        --------
+        .. plot::
+
+          >>> import plenoptic as po
+          >>> img = po.data.curie()
+          >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+          >>> representation_tensor = portilla_simoncelli_model(img)
+          >>> fig, axes = portilla_simoncelli_model.plot_representation(
+          ...     representation_tensor, figsize=(13, 6)
+          ... )
         """
         if ax is None and figsize is None:
             figsize = (15, 15)
@@ -1280,6 +1380,24 @@ class PortillaSimoncelli(nn.Module):
         stem_artists
             A list of the artists used to update the information on the
             stem plots.
+
+        Examples
+        --------
+        This method is meant to be used by animation functions, so users won't
+        typically use this directly.
+
+        >>> import plenoptic as po
+        >>> img = po.data.curie()
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> representation_tensor = portilla_simoncelli_model.forward(img)
+        >>> fig, axes = portilla_simoncelli_model.plot_representation(
+        ...     representation_tensor
+        ... )
+        >>> new_img = po.data.einstein()
+        >>> new_representation_tensor = portilla_simoncelli_model.forward(new_img)
+        >>> stem_artists = portilla_simoncelli_model.update_plot(
+        ...     axes, new_representation_tensor
+        ... )
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
