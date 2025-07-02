@@ -34,7 +34,7 @@ class TestUploaded:
         os.makedirs("uploaded_files", exist_ok=True)
         eig.save("uploaded_files/example_eigendistortion.pt")
         eig_up = po.synth.Eigendistortion(img, lg)
-        eig_up.load(fetch_data("example_eigendistortion.pt"))
+        eig_up.load(fetch_data("example_eigendistortion.pt"), tensor_equality_atol=1e-7)
         for k in ["image", "_representation_flat", "eigendistortions"]:
             _check_tensor_equality(
                 getattr(eig, k),
@@ -42,6 +42,6 @@ class TestUploaded:
                 "Test",
                 "OSF",
                 1e-5,
-                1e-7,
+                1e-8,
                 f"{k} has different {{error_type}}! Update the OSF version.",
             )
