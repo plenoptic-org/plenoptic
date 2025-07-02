@@ -16,6 +16,7 @@ __pycache__/
 *.mat
 *.npy
 
+data/
 data/plenoptic-test-files
 data/ssim_images
 data/ssim_analysis.mat
@@ -41,4 +42,24 @@ build/
 # venv
 .venv
 venv
+
+# media
+*.png
+*.pgm
+*.jpg
+*.jpeg
+*.mp4
+
+# notebooks
+*.ipynb
+
+# save files
+*.pt
+*.zip
+*.tar
+*.tar.gz
+
+# sphinx inventories
+*.inv
+
 *.lock

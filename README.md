@@ -38,7 +38,7 @@ See our [documentation site](https://docs.plenoptic.org) for more details!
     for an in-depth introduction.
 -   If you understand the basics of synthesis and want to get started
     using `plenoptic` quickly, see the
-    [Quickstart](examples/00_quickstart.ipynb) tutorial.
+    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html) tutorial.
 
 ### Installation
 
@@ -88,9 +88,9 @@ with a random string, `matplotlib` will tell you the available choices.
 
 ![](docs/images/example_synth.svg)
 
--   [Metamers](examples/06_Metamer.ipynb): given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method investigates what image features the model disregards entirely.
--   [Eigendistortions](examples/02_Eigendistortions.ipynb): given a model and a reference image, compute the image perturbation that produces the smallest and largest changes in the model response space. This method investigates the image features the model considers the least and most important.
--   [Maximal differentiation (MAD) competition](examples/07_MAD_Competition.ipynb): given two metrics that measure distance between images and a reference image, generate pairs of images that optimally differentiate the models. Specifically, synthesize a pair of images that the first model says are equi-distant from the reference while the second model says they are maximally/minimally distant from the reference. Then synthesize a second pair with the roles of the two models reversed. This method allows for efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
+-   Metamers: given a model and a reference image, stochastically generate a new image whose model representation is identical to that of the reference image (a "metamer", as originally defined in the literature on Trichromacy). This method investigates what image features the model disregards entirely.
+-   Eigendistortions: given a model and a reference image, compute the image perturbation that produces the smallest and largest changes in the model response space. This method investigates the image features the model considers the least and most important.
+-   Maximal differentiation (MAD) competition: given two metrics that measure distance between images and a reference image, generate pairs of images that optimally differentiate the models. Specifically, synthesize a pair of images that the first model says are equi-distant from the reference while the second model says they are maximally/minimally distant from the reference. Then synthesize a second pair with the roles of the two models reversed. This method allows for efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
 
 
 ### Models, Metrics, and Model Components
