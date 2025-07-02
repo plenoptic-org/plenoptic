@@ -176,7 +176,7 @@ def steer(
     even_phase: bool = True,
 ) -> tuple[Tensor, Tensor]:
     """
-    Steer ``basis`` to the specfied ``angle``.
+    Steer ``basis`` to the specified ``angle``.
 
     Parameters
     ----------
