@@ -659,24 +659,50 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.curie()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(
+        ...     img.shape[2:], n_scales=3
+        ... )
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
         ...     representation_tensor
         ... )
-        >>> for k, v in representation_dict.items():
-        ...     print(k, v.shape)
-        pixel_statistics torch.Size([1, 1, 6])
-        auto_correlation_magnitude torch.Size([1, 1, 9, 9, 4, 4])
-        skew_reconstructed torch.Size([1, 1, 5])
-        kurtosis_reconstructed torch.Size([1, 1, 5])
-        auto_correlation_reconstructed torch.Size([1, 1, 9, 9, 5])
-        std_reconstructed torch.Size([1, 1, 5])
-        cross_orientation_correlation_magnitude torch.Size([1, 1, 4, 4, 4])
-        magnitude_std torch.Size([1, 1, 4, 4])
-        cross_scale_correlation_magnitude torch.Size([1, 1, 4, 4, 3])
-        cross_scale_correlation_real torch.Size([1, 1, 4, 8, 3])
-        var_highpass_residual torch.Size([1, 1, 1])
+        >>> # We will go through and examine each of these keys individually
+        >>> # Shape is (batch, channel, 6): first four moments plus min and max
+        >>> # of input image
+        >>> representation_dict["pixel_statistics"].shape
+        torch.Size([1, 1, 6])
+        >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
+        >>> # n_orientations, n_scales)
+        >>> representation_dict["auto_correlation_magnitude"].shape
+        torch.Size([1, 1, 9, 9, 4, 3])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["skew_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["kurtosis_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
+        >>> # n_scales+1)
+        >>> representation_dict["auto_correlation_reconstructed"].shape
+        torch.Size([1, 1, 9, 9, 4])
+        >>> # Shape is (batch, channel, n_scales+1)
+        >>> representation_dict["std_reconstructed"].shape
+        torch.Size([1, 1, 4])
+        >>> # Shape is (batch, channel, n_orientations, n_orientations, n_scales)
+        >>> representation_dict["cross_orientation_correlation_magnitude"].shape
+        torch.Size([1, 1, 4, 4, 3])
+        >>> # Shape is (batch, channel, n_orientations, n_scales)
+        >>> representation_dict["magnitude_std"].shape
+        torch.Size([1, 1, 4, 3])
+        >>> # Shape is (batch, channel, n_orientations, n_orientations, n_scales-1)
+        >>> representation_dict["cross_scale_correlation_magnitude"].shape
+        torch.Size([1, 1, 4, 4, 2])
+        >>> # Shape is (batch, channel, n_orientations, 2*n_orientations, n_scales-1)
+        >>> representation_dict["cross_scale_correlation_real"].shape
+        torch.Size([1, 1, 4, 8, 2])
+        >>> # Shape is (batch, channel, 1)
+        >>> representation_dict["var_highpass_residual"].shape
+        torch.Size([1, 1, 1])
         """
         if representation_tensor.shape[-1] != len(self._representation_scales):
             raise ValueError(
