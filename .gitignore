@@ -61,3 +61,5 @@ venv
 
 # sphinx inventories
 *.inv
+
+*.lock

@@ -176,7 +176,7 @@ def steer(
     even_phase: bool = True,
 ) -> tuple[Tensor, Tensor]:
     """
-    Steer ``basis`` to the specfied ``angle``.
+    Steer ``basis`` to the specified ``angle``.
 
     Parameters
     ----------
@@ -219,7 +219,7 @@ def steer(
     num = basis.shape[-1]
     device = basis.device
 
-    if isinstance(angle, int | float):
+    if isinstance(angle, int | float) or angle.ndim == 0:
         angle = np.array([angle])
     else:
         if angle.shape[0] != basis.shape[0] or angle.shape[1] != 1:

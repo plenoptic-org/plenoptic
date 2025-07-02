@@ -43,6 +43,22 @@ def rectangular_to_polar_dict(
         The inverse operation.
     local_gain_control_dict
         The analogous function for complex-valued signals.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> spyr = po.simul.SteerablePyramidFreq(
+        ...     img.shape[-2:], is_complex=True, height=3
+        ... )
+        >>> coeffs = spyr(img)
+        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
+        >>> po.pyrshow(energy)
+        <PyrFigure size ...>
+        >>> po.pyrshow(state)
+        <PyrFigure size ...>
     """
     energy = {}
     state = {}
@@ -59,13 +75,15 @@ def rectangular_to_polar_dict(
 
 
 def polar_to_rectangular_dict(
-    energy: dict, state: dict, residuals: bool = True
+    energy: dict,
+    state: dict,
 ) -> dict:
     """
     Return the real and imaginary parts of tensor in a dictionary.
 
-    Keys are preserved, with the option of dropping ``"residual_lowpass"`` and
-    ``"residual_highpass"`` by setting ``residuals=False``.
+    Keys in the output are identical to those in the input. Will grab residuals from
+    ``energy``, if present, with keys ``"residual_highpass"`` and
+    ``"residual_lowpass"``.
 
     Parameters
     ----------
@@ -74,8 +92,6 @@ def polar_to_rectangular_dict(
         modulus.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase.
-    residuals
-        An option to carry around residuals in the energy branch.
 
     Returns
     -------
@@ -90,15 +106,37 @@ def polar_to_rectangular_dict(
         The inverse operation.
     local_gain_release_dict
         The analogous function for real-valued signals.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> import numpy as np
+        >>> import torch
+        >>> img = po.data.einstein()
+        >>> spyr = po.simul.SteerablePyramidFreq(
+        ...     img.shape[-2:], is_complex=True, height=3
+        ... )
+        >>> coeffs = spyr(img)
+        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
+        ...     coeffs, residuals=True
+        ... )
+        >>> coeffs_back = po.simul.non_linearities.polar_to_rectangular_dict(
+        ...     energy, state
+        ... )
+        >>> all(torch.allclose(coeffs[key], coeffs_back[key]) for key in coeffs)
+        True
+        >>> po.pyrshow(coeffs_back)
+        <PyrFigure size ...>
     """
     coeff_dict = {}
     for key in energy:
-        # ignore residuals
-
+        # ignore residuals here
         if isinstance(key, tuple) or not key.startswith("residual"):
             coeff_dict[key] = signal.polar_to_rectangular(energy[key], state[key])
 
-    if residuals:
+    if "residual_lowpass" in energy:
         coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
         coeff_dict["residual_highpass"] = energy["residual_highpass"]
 
@@ -148,6 +186,16 @@ def local_gain_control(
     the norm (modulus), indeed the signal only has one real component. This is a
     normalization operation (local unit vector), hence the connection to local gain
     control.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
+        >>> po.imshow([img, norm, direction], title=["image", "norm", "direction"])
+        <PyrFigure size ...>
     """
     # these could be parameters, but no use case so far
     p = 2.0
@@ -202,6 +250,20 @@ def local_gain_release(
     the norm (modulus), indeed the signal only has one real component. This is a
     normalization operation (local unit vector), hence the connection to local gain
     control.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
+        >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
+        >>> po.imshow(
+        ...     [img, x, img - x],
+        ...     title=["Original image", "Gain release output", "Difference"],
+        ... )
+        <PyrFigure size ...>
     """
     odd = torch.as_tensor(direction.shape)[2:4] % 2
     x = direction * (upsample_blur(norm, odd) + epsilon)
@@ -246,6 +308,20 @@ def local_gain_control_dict(
     Notes
     -----
     Note that energy and state are not computed on the residuals.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
+        >>> coeffs = spyr(img)
+        >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
+        >>> po.pyrshow(energy)
+        <PyrFigure size ...>
+        >>> po.pyrshow(state)
+        <PyrFigure size ...>
     """
     energy = {}
     state = {}
@@ -293,6 +369,24 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
         The inverse operation.
     polar_to_rectangular_dict
         The analogous function for complex-valued signals.
+
+    Examples
+    --------
+    .. plot::
+
+        >>> import plenoptic as po
+        >>> import torch
+        >>> img = po.data.einstein()
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
+        >>> coeffs = spyr(img)
+        >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
+        >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
+        ...     energy, state
+        ... )
+        >>> all([torch.allclose(coeffs[k], coeffs_dict[k]) for k in coeffs.keys()])
+        True
+        >>> po.pyrshow(coeffs_dict)
+        <PyrFigure size ...>
     """
     coeff_dict = {}
 

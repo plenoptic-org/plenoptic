@@ -570,3 +570,33 @@ class TestSteerablePyramid:
             expect_str = "image_shape must be castable to ints"
         with pytest.raises(ValueError, match=expect_str):
             po.simul.SteerablePyramidFreq(shape)
+
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-{d}-{tf}"
+            for h, o, c, d, tf in product(
+                ["auto", 1, 2, 3],
+                [1, 2, 3],
+                [True, False],
+                [True, False],
+                [True, False],
+            )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-{d}-{tf}"
+            for h, d, tf in product(["auto", 1, 2, 3], [True, False], [True, False])
+        ],
+        indirect=True,
+    )
+    def test_steer_coeffs(self, img, spyr):
+        pyr_coeffs = spyr(img)
+        if spyr.is_complex:
+            expectation = pytest.raises(
+                AssertionError, match="steering only implemented"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            spyr.steer_coeffs(pyr_coeffs, torch.linspace(0, np.pi, 32))
