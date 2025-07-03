@@ -124,7 +124,7 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyter into that separate virtual environment, which is wasteful.
 
-2. Install jupyter in one environment and manually install the kernel in your ``plenoptic`` virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments.
+2. Install jupyter in one environment and manually install the kernel in your `plenoptic` virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments.
 
    ::::::{tab-set}
    :sync-group: os

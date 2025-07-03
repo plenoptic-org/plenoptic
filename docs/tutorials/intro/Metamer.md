@@ -121,9 +121,9 @@ po.synth.metamer.plot_representation_error(met, ax=axes[2])
 
 The loss is decreasing, but clearly there's much more to go. So let's continue.
 
-You can resume synthesis as long as you pass the same argument to ``store_progress`` on each run.
+You can resume synthesis as long as you pass the same argument to `store_progress` on each run.
 
-Everything that stores the progress of the optimization (``losses``, ``saved_metamer``) will persist between calls and so potentially get very large.
+Everything that stores the progress of the optimization (`losses`, `saved_metamer`) will persist between calls and so potentially get very large.
 
 ```{code-cell} ipython3
 met.synthesize(store_progress=True, max_iter=100)

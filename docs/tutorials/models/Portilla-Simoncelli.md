@@ -360,7 +360,7 @@ class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's scales attribute.
 
         Returns
         -------
@@ -828,7 +828,7 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's scales attribute.
 
         Returns
         -------
@@ -936,7 +936,7 @@ class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's scales attribute.
 
         Returns
         -------
@@ -1203,7 +1203,7 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
         scales : list, optional
             Which scales to include in the returned representation. If an empty
             list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's ``scales`` attribute.
+            subset of values present in this model's scales attribute.
 
         Returns
         -------
