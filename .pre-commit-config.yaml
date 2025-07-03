@@ -59,6 +59,8 @@ repos:
       entry: python linting/check_tutorials.py
     - id: check-docs-markdown
       language: system
+      # only run on docs/ folder
       name: Check for issues with markdown files in docs
       types_or: ["markdown"]
       entry: python linting/check_markdown.py
+      files: ^docs/

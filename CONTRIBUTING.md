@@ -582,8 +582,9 @@ All of our documentation is written as markdown files, with the extension `.md`.
 The text-based notebooks are tutorials and show how to use the various functions and
 classes contained in the package, and they all should be located in the
 `docs/tutorials/` directory. If you add or change a substantial amount of code, please
-add a tutorial showing how to use it. Once you've added a tutorial, see
-[here](#add-tutorials) for how to include it in the Sphinx site.
+add a tutorial showing how to use it.
+
+In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned (for example, you should refer to the `Metamer` class as ``{class}`Metamer <plenoptic.synthesize.metamer.Metamer>` ``). You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` method). The linter will ignore all monospace font that have the word "argument" after them (e.g., "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
 
 The regular markdown files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -601,12 +602,9 @@ like so:
    some_folder/even_cooler_docs
 ```
 
-In order for table of contents to look good, your `.md` file must be well
-structured. Similar to [tutorials](#add-tutorials), it must have a single H1
-header (you can have as many sub-headers as you'd like).
+In order for table of contents to look good, your `.md` file must be well structured. All markdown files (text-based notebooks and regular) must have a single H1 header (you can have as many sub-headers as you'd like).
 
-You should [build the docs yourself](#build-the-documentation) to ensure it
-looks correct before pushing.
+You should [build the docs yourself](#build-the-documentation) to ensure it looks correct before pushing.
 
 #### Images and plots
 

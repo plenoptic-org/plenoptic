@@ -51,6 +51,7 @@ docs = [
      "torchvision",
      "pooch",
      "jupytext",
+     "sphobjinv",
 ]
 
 dev = [
