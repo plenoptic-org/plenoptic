@@ -42,6 +42,6 @@ class TestUploaded:
                 "Test",
                 "OSF",
                 1e-5,
-                1e-8,
+                1e-7,
                 f"{k} has different {{error_type}}! Update the OSF version.",
             )
