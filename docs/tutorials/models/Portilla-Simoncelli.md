@@ -197,7 +197,7 @@ This section will show a successful texture synthesis for this wicker basket tex
 po.imshow(img);
 ```
 
-In the next block we will actually generate a metamer using the PortillaSimoncelli model, setting the following parameters for synthesis: `max_iter`, `store_progress`,`coarse_to_fine`, and `coarse_to_fine_kwargs`.
+In the next block we will actually generate a metamer using the PortillaSimoncelli model, setting the following parameters for synthesis: `max_iter`, `store_progress` <!-- skip-lint -->,`coarse_to_fine` <!-- skip-lint -->, and `coarse_to_fine_kwargs`.
 
 - `max_iter=1000` puts an upper bound (of 1000) on the number of iterations that the optimization will run.
 - `store_progress=True` tells the metamer class to store the progress of the metamer synthesis process
@@ -205,7 +205,7 @@ In the next block we will actually generate a metamer using the PortillaSimoncel
 
 It takes about 50s to run 100 iterations on my laptop.  And it takes hundreds of iterations to get convergence. So you'll have to wait a few minutes to generate the texture metamer.
 
-Note: we initialize synthesis with `im_init`, an initial uniform noise image with range `mean(target_signal)+[-.05,.05]`.  Initial images with uniform random noise covering the full pixel domain `[0,1]` (which is the default choice for `Metamer`) don't result in the very best metamers.  With the full range initial image, the optimization seems to get stuck.
+Note: we initialize synthesis with `im_init`, an initial uniform noise image with range `mean(target_signal)+[-.05,.05]`.  Initial images with uniform random noise covering the full pixel domain `[0,1]` (the default) don't result in the very best metamers: with the full range initial image, the optimization seems to get stuck.
 
 ```{code-cell} ipython3
 # send image and PS model to GPU, if available. then im_init and Metamer will also
@@ -307,7 +307,7 @@ In order to do so, we must create a version of the Portilla Simoncelli model whe
 :::{admonition} Implementation details
 :class: dropdown hint
 
-There are two important implementation details here, which you might be interested in if you'd like to write a similar extension of this model, and they both relate to coarse-to-fine synthesis. When removing statistics from the model, the most natural implementation would be to remove them from the model's representation, changing the shape of the returned tensor. However, in order for coarse-to-fine synthesis to work, we need to know which scale each statistic aligns with, and changing the shape destroys that mapping. Therefore, the proper way to remove statistics (in order to remain compatible with coarse-to-fine optimization) is to zero out those statistics instead: directly setting them to zero breaks the gradient so that they have no impact on the synthesis procedure. The second detail is that, during coarse-to-fine optimization, we must remove some set of statistics, which we do by calling the `remove_scales` method at the *end* of the function call. See the `forward` call below for an example of this.
+There are two important implementation details here, which you might be interested in if you'd like to write a similar extension of this model, and they both relate to coarse-to-fine synthesis. When removing statistics from the model, the most natural implementation would be to remove them from the model's representation, changing the shape of the returned tensor. However, in order for coarse-to-fine synthesis to work, we need to know which scale each statistic aligns with, and changing the shape destroys that mapping. Therefore, the proper way to remove statistics (in order to remain compatible with coarse-to-fine optimization) is to zero out those statistics instead: directly setting them to zero breaks the gradient so that they have no impact on the synthesis procedure. The second detail is that, during coarse-to-fine optimization, we must remove some set of statistics, which we do by calling the {func}`remove_scales <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.remove_scales>` method at the *end* of the function call. See the `forward` <!-- skip-lint --> call below for an example of this.
 
 :::
 
@@ -485,7 +485,7 @@ po.imshow(
 );
 ```
 
-And we can double check the error plots to see the difference in their representations. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the first plot in the middle row in the first figure, especially the center plot, `auto_correlation_reconstructed`, since these statistics are unconstrained for the synthesis done by `metamer_remove`. (Note we have to use `model`, not `model_remove` to create these plots, since `model_remove` always zeroes out those statistics.)
+And we can double check the error plots to see the difference in their representations. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the first plot in the middle row in the first figure, especially the center plot, `auto_correlation_reconstructed`, since these statistics are unconstrained for the synthesis done by `metamer_remove`. (Note we have to use `model` <!-- skip-lint -->, not `model_remove` to create these plots, since `model_remove` always zeroes out those statistics.)
 
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
@@ -546,7 +546,7 @@ po.imshow(
 );
 ```
 
-And again, let's look at the error plots. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the plot scorresponding to `auto_correlation_magnitude`, `cross_orientation_correlation_magnitude`, and `cross_scale_correlation_magnitude`., since these statistics are unconstrained for the synthesis done by `metamer_remove`. (Note we have to use `model`, not `model_remove` to create these plots, since `model_remove` always zeroes out those statistics.)
+And again, let's look at the error plots. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the plot scorresponding to `auto_correlation_magnitude`, `cross_orientation_correlation_magnitude`, and `cross_scale_correlation_magnitude`., since these statistics are unconstrained for the synthesis done by `metamer_remove`.
 
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
@@ -604,7 +604,7 @@ po.imshow(
 );
 ```
 
-And again, let's look at the error plots. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the final plot in the first figure, `cross_scale_correlation_real`, since these statistics are unconstrained for the synthesis done by `metamer_remove`. (Note we have to use `model`, not `model_remove` to create these plots, since `model_remove` always zeroes out those statistics.)
+And again, let's look at the error plots. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the final plot in the first figure, `cross_scale_correlation_real`, since these statistics are unconstrained for the synthesis done by `metamer_remove`.
 
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
@@ -1046,7 +1046,7 @@ Note: We use standard deviations, instead of variances, because the value of the
 
 ## 7.1 Redundant statistics
 
-The original Portilla-Simoncelli paper presents formulas to obtain the number of statistics in each class from the model parameters `n_scales`, `n_orientations` and `spatial_corr_width` (labeled in the original paper $N$, $K$, and $M$ respectively). The formulas indicate the following statistics for each class:
+The original Portilla-Simoncelli paper presents formulas to obtain the number of statistics in each class from the model parameters `n_scales` <!-- skip-lint -->, `n_orientations` and `spatial_corr_width` (labeled in the original paper $N$, $K$, and $M$ respectively). The formulas indicate the following statistics for each class:
 
 * **Marginal statistics**: $2(N+1)$ skewness and kurtosis of lowpass images, $1$ high-pass variance, $6$ pixel statistics.
 * **Raw coefficient correlation**: $(N+1)\frac{M^2+1}{2}$ statistics ($\frac{M^2+1}{2}$ auto-correlations for each scale including lowpass)
@@ -1168,7 +1168,7 @@ print(f"Phase statistics: {phase_statistics_num} parameters, compared to 96 in p
 
 The mean of each magnitude band are slightly different from the redundant statistics discussed in the previous section. Each of those statistics are exactly redundant, e.g., the center value of an autocorrelation matrix will always be 1. They thus cannot include any additional information. However, the magnitude means are only *approximately* redundant and thus could improve the texture representation. The authors excluded these values because they did not seem to be necessary: the magnitude means are constrained by the other statistics (though not perfectly), and thus including them does not improve the visual quality of the synthesized textures.
 
-To demonstrate this, we will create a modified version of the `PortillaSimoncelli` class which includes the magnitude means to demonstrate:
+To demonstrate this, we will create a modified version of the `PortillaSimoncelli` <!-- skip-lint --> class which includes the magnitude means to demonstrate:
 
 1. Even without explicitly including them in the texture representation, they are still approximately matched between the original and synthesized texture images.
 2. Including them in the representation does not significantly change the quality of the synthesized texture.

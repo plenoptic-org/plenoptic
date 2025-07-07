@@ -109,7 +109,7 @@ PS> pip install -e ".[dev]"
 In this setup, we're installing the `dev` optional dependencies as well as the core dependencies. This will allow you to run our tests. They are, as the name implies, optional (you can just run `pip install -e .` without the `[dev]`), but if you are developing, you will probably want to be able to run the tests. See the [](optional-deps) section for more details and the other sets of optional dependencies.
 
 
-Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named `.venv` within the `plenoptic/` directory you cloned. Therefore, if you delete the `plenoptic/` directory, you'll need to rerun the setup above to create a new virtual environment.
+Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named `.venv` <!-- skip-lint --> within the `plenoptic/` directory you cloned. Therefore, if you delete the `plenoptic/` directory, you'll need to rerun the setup above to create a new virtual environment.
 
 :::{attention}
 To install `plenoptic` in editable mode, you need `pip >= 21.3` (see pip's [changelog](https://pip.pypa.io/en/stable/news/#id286)). If you run into [an error](https://github.com/plenoptic-org/plenoptic/issues/227) after running the `pip install -e .` command, try updating your pip version with `pip install --upgrade pip`.

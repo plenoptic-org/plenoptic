@@ -22,7 +22,7 @@ Download this notebook: **{nb-download}`Display.ipynb`**!
 # Display and animate functions
 
 `plenoptic` contains a variety of code for visualizing the outputs and the process of synthesis. This notebook details how to make use of that code, which has largely been written with the following goals:
-1. If you follow the model API (and that of `Synthesis`, if creating a new synthesis method), display code should plot something reasonably useful automatically.
+1. If you follow the [model API](models-doc) (and that of {class}`Synthesis <plenoptic.synthesize.synthesis.Synthesis>` or {class}`OptimizedSynthesis <plenoptic.synthesize.synthesis.OptimizedSynthesis>`, if creating a new synthesis method; see the [synthesis design description](synthesis-objects)), display code should plot something reasonably useful automatically.
 2. The code is flexible enough to allow for customization for more useful visualizations.
 3. If the plotting code works, the animate code should also.
 
@@ -255,7 +255,7 @@ rep = ps(img)
 po.tools.display.plot_representation(data=rep);
 ```
 
-Trying to guess this advanced structure would be impossible for our generic plotting functions. However, if your model has a `plot_representation()` method, we can make use of it:
+Trying to guess this advanced structure would be impossible for our generic plotting functions. However, if your model has a `plot_representation` <!-- skip-lint --> method, we can make use of it:
 
 ```{code-cell} ipython3
 ps.plot_representation(data=rep, ylim=False);

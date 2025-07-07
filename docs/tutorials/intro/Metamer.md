@@ -101,7 +101,7 @@ met = po.synth.Metamer(img, model)
 met.synthesize(store_progress=True, max_iter=50)
 ```
 
-We then call the {func}`plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>` function to see how things are doing. The image on the left shows the metamer at this moment, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. If a model has a `plot_representation` method, this plot can be more informative, but this plot can always be created.
+We then call the {func}`plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>` function to see how things are doing. The image on the left shows the metamer at this moment, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. If a model has a `plot_representation` <!-- skip-lint --> method, this plot can be more informative, but this plot can always be created.
 
 ```{code-cell} ipython3
 # model response error plot has two subplots, so we increase its relative width
@@ -121,9 +121,9 @@ po.synth.metamer.plot_representation_error(met, ax=axes[2])
 
 The loss is decreasing, but clearly there's much more to go. So let's continue.
 
-You can resume synthesis as long as you pass the same argument to `store_progress` on each run.
+You can resume synthesis as long as you pass the same argument to `store_progress` <!-- skip-lint --> on each run.
 
-Everything that stores the progress of the optimization (`losses`, `saved_metamer`) will persist between calls and so potentially get very large.
+Everything that stores the progress of the optimization ({attr}`losses <plenoptic.synthesize.metamer.Metamer.losses>`, {attr}`saved_metamer <plenoptic.synthesize.metamer.Metamer.saved_metamer>`) will persist between calls and so potentially get very large.
 
 ```{code-cell} ipython3
 met.synthesize(store_progress=True, max_iter=100)
@@ -162,7 +162,7 @@ met_image = po.tools.convert_float_to_int(np.clip(met_image, 0, 1))
 imageio.imwrite("test.png", met_image)
 ```
 
-The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` at initialization.
+The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` <!-- skip-lint --> at initialization.
 
 You can also save the entire {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object with its {func}`save <plenoptic.synthesize.metamer.Metamer.save>` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
@@ -197,7 +197,7 @@ By default, we initialize the {attr}`metamer <plenoptic.synthesize.metamer.Metam
 
 ### Optimization basics
 
-You can set all the various optimization parameters you'd expect. {func}`setup <plenoptic.synthesize.metamer.Metamer.setup>` has an `optimizer` arg, which accepts an uninitialized pytorch optimizer, and an `optimizer_kwargs` arg, which accepts a dictionary. You can therefore change the optimizer from the default `Adam` and/or specify any of the arguments you would like:
+You can set all the various optimization parameters you'd expect. {func}`setup <plenoptic.synthesize.metamer.Metamer.setup>` has an `optimizer` argument, which accepts an uninitialized pytorch optimizer, and an `optimizer_kwargs` arg, which accepts a dictionary. You can therefore change the optimizer from the default `Adam` and/or specify any of the arguments you would like:
 
 ```{code-cell} ipython3
 met = po.synth.Metamer(img, model)
@@ -214,8 +214,8 @@ Some models, such as the Portilla-Simoncelli texture statistics, have a multisca
 
 We provide the option to use coarse-to-fine optimization, such that you optimize the different scales separately (starting with the coarsest and then moving progressively finer) and then, at the end, optimizing all of them simultaneously. This was first used in Portilla and Simoncelli, 2000, and can help avoid local optima in image space. Unlike everything else described in this notebook, it will not work for all models. There are two specifications the model must meet (see [Model requirements page](models-coarse-to-fine) for more details):
 
-1. It must have a `scales` attribute that gives the scales in the order they should be optimized.
-2. Its `forward` method must accept a `scales` keyword argument, which accpets a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
+1. It must have a `scales` <!-- skip-lint --> attribute that gives the scales in the order they should be optimized.
+2. Its `forward` <!-- skip-lint --> method must accept a `scales` keyword argument, which accpets a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
 
 We can see that the included {class}`PortillaSimoncelli <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli>` model satisfies these constraints, and that the model returns a subset of its output when the `scales` argument is passed to {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>`:
 
@@ -277,6 +277,6 @@ po.synth.metamer.animate(met)
 - {attr}`scales_loss <plenoptic.synthesize.metamer.MetamerCTF.scales_loss>`: this list contains the scale-specific loss at each iteration (that is, the loss computed on just the scale(s) we're optimizing on that iteration; which we use to determine when to switch scales).
 - {attr}`scales <plenoptic.synthesize.metamer.MetamerCTF.scales>`: this is a list of the scales in optimization order (i.e., from coarse to fine). The last entry will be `'all'` (since after we've optimized each individual scale, we move on to optimizing all at once). This attribute will be modified by the {func}`synthesize <plenoptic.synthesize.metamer.MetamerCTF.synthesize>` method and is used to track which scale we're currently optimizing (the first one). When we've gone through all the scales present, this will just contain a single value: `'all'`.
 - {attr}`scales_timing <plenoptic.synthesize.metamer.MetamerCTF.scales_timing>`: this is a dictionary whose keys are the values of scales. The values are lists, with 0 through 2 entries: the first entry is the iteration where we started optimizing this scale, the second is when we stopped (thus if it's an empty list, we haven't started optimzing it yet).
-- {attr}`scales_finished <plenoptic.synthesize.metamer.MetamerCTF.scales_finished>`: this is a list of the scales that we've finished optimizing (in the order we've finished). The union of this and `scales` will be the same as `metamer.model.scales` (e.g., {attr}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.scales>`).
+- {attr}`scales_finished <plenoptic.synthesize.metamer.MetamerCTF.scales_finished>`: this is a list of the scales that we've finished optimizing (in the order we've finished). The union of this and {attr}`scales <plenoptic.synthesize.metamer.MetamerCTF.scales>` will be the same as `metamer.model.scales` (e.g., {attr}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.scales>`).
 
 A small wrinkle: if `coarse_to_fine=='together'`, then none of these will ever contain the final, finest scale, since that is equivalent to `'all'`.

@@ -251,7 +251,7 @@ As we have seen, steerable pyramids decompose images into a fixed set of orienta
 Below we steer a set of coefficients through a series of angles and visualize how the represented features rotate.
 
 ```{code-cell} ipython3
-# note that steering is currently only implemented for real pyramids, so the `is_complex`
+# note that steering is currently only implemented for real pyramids, so the is_complex
 # argument must be False (as it is by default)
 pyr = SteerablePyramidFreq(height=3, image_shape=[256, 256], order=3, twidth=1).to(
     DEVICE
@@ -309,9 +309,9 @@ print(pyr_coeffs_split.shape, pyr_coeffs_split.dtype)
 print(pyr_coeffs_fixed.shape, pyr_coeffs_fixed.dtype)
 ```
 
-We can see that in this complex pyramid with 4 scales and 3 orientations there will be 26 channels: 4 scales x 3 orientations x 2 (for real and imaginary featuremaps) + 2 (for the residual bands). NOTE: you can change what scales/residuals get included in this output tensor again using the `scales` argument to the forward method.
+We can see that in this complex pyramid with 4 scales and 3 orientations there will be 26 channels: 4 scales x 3 orientations x 2 (for real and imaginary featuremaps) + 2 (for the residual bands).
 
-In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this either by directly accessing the dictionary version (through the `pyr_coeffs` attribute in the pyramid object) or by using the internal {func}`convert_tensor_to_pyr <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_tensor_to_pyr>` function. We can check that these are equal.
+In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this by using the {func}`convert_tensor_to_pyr <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_tensor_to_pyr>` method. We can check that these are equal.
 
 ```{code-cell} ipython3
 pyr_coeffs_fixed_1 = pyr_fixed(im_batch)

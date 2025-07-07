@@ -50,7 +50,7 @@ im = po.data.einstein().to(DEVICE)
 fig = po.imshow(im)
 ```
 
-Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` (so it can take an image). See the [Models page](../models.md) of the documentation for more details.
+Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image). See the [Models page](../models.md) of the documentation for more details.
 
 For this notebook, we'll initialize a simple plenoptic-compatible model and call its forward method. This model just convolves a 2d gaussian filter across an image, so it's a low-pass model, preserving low frequency information while discarding the high frequencies.
 
@@ -112,7 +112,7 @@ There's one final step before we're ready for synthesis. Most `pytorch` models w
 po.tools.remove_grad(model)
 ```
 
-Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image (there are some additional options, but the defaults are fine in this case; see the [Metamer notebook](metamer-nb) if you're interested). In general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set `store_progress` to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
+Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image (there are some additional options, but the defaults are fine in this case; see the [Metamer notebook](metamer-nb) if you're interested). In general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set the `store_progress` argument to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
 
 ```{code-cell} ipython3
 metamer = po.synth.Metamer(im, model)

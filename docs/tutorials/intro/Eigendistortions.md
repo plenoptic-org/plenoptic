@@ -144,7 +144,7 @@ fig.tight_layout()
 
 ### 1.2 - Synthesizing eigendistortions of linear model
 
-To compute the eigendistortions of this model, we can instantiate an {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object with an input tensor and a valid PyTorch model with a `forward` method. After that, we simply call the method {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>`, choosing the appropriate synthesis method. Normally our input has thousands of entries, but our input in this case is small (only n=25 entries), so we can compute the full $m \times n$ Jacobian, and all the eigenvectors of the $n \times n$ Fisher matrix, $F=J^TJ$. The {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` method does this for us and stores the outputs (`eigendistortions, eigenvalues, eigenindex`) of the synthesis.
+To compute the eigendistortions of this model, we can instantiate an {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object with an input tensor and a valid PyTorch model with a `forward` <!-- skip-lint --> method. After that, we simply call the method {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>`, choosing the appropriate synthesis method. Normally our input has thousands of entries, but our input in this case is small (only n=25 entries), so we can compute the full $m \times n$ Jacobian, and all the eigenvectors of the $n \times n$ Fisher matrix, $F=J^TJ$. The {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` method does this for us and stores the outputs (`eigendistortions, eigenvalues, eigenindex`) of the synthesis.
 
 
 ```{code-cell} ipython3

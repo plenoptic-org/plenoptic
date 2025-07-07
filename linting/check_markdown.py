@@ -38,6 +38,7 @@ for p in sys.argv[1:]:
 xrefs = []
 missing_xrefs = []
 double_backticks = []
+method_format = []
 for p in paths:
     with open(p) as f:
         md = f.read()
@@ -46,15 +47,25 @@ for p in paths:
     miss_xr = []
     for obj in objects_to_check:
         if xr := re.findall(
-            rf"`{obj}\(?\)?`(?! argument)(?! ?<\!-- *?skip-lint *?-->)", md
+            rf"`{obj}\(?\)?`(?! keyword)(?! argument)(?! ?<\!-- *?skip-lint *?-->)", md
         ):
             miss_xr.append(xr)
     if miss_xr:
         missing_xrefs.append((p, miss_xr))
+    mfmt = []
+    # these two strings are basically the same, but one is looking for "starts
+    # with ." and the second is "followed by parentheses"
+    for test in [
+        r"`\.[A-Za-z0-9_]+\(?\)?(?: <.*?>|`)(?! ?<\!-- *?skip-lint *?-->)",
+        r"`?[A-Za-z0-9_]+\(\)(?: <.*?>|`)",
+    ]:
+        mfmt.extend(re.findall(test, md))
+    if mfmt:
+        method_format.append((p, mfmt))
     if bt := re.findall(r"(?<!`)``(?!`).*(?<!`)``(?!`)", md):
         double_backticks.append((p, bt))
 
-if xrefs or missing_xrefs or double_backticks:
+if xrefs or missing_xrefs or double_backticks or method_format:
     if xrefs:
         print("The following markdown documents' crossreferences are misformatted!")
         for p, xr in xrefs:
@@ -71,4 +82,11 @@ if xrefs or missing_xrefs or double_backticks:
         print("The following markdown documents contain double backticks!")
         for p, bt in double_backticks:
             print(f"{p}: {bt}")
+    if method_format:
+        print(
+            "The following markdown documents contain method/attribute references"
+            " that contain a . or (), remove them"
+        )
+        for p, mf in method_format:
+            print(f"{p}: {mf}")
     sys.exit(1)
