@@ -10,28 +10,34 @@ update them.
 
 import os
 
+import numpy as np
 import pytest
+import torch
 
 import plenoptic as po
 from conftest import DEVICE
 from plenoptic.data.fetch import fetch_data
 from plenoptic.tools.data import _check_tensor_equality
 
+torch.use_deterministic_algorithms(True)
+
 
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestUploaded:
     def test_eigendistortion(self):
         po.tools.set_seed(0)
-        img = po.data.einstein().to(DEVICE)
+        os.makedirs("uploaded_files", exist_ok=True)
+        torch.save(torch.random.get_rng_state(), "uploaded_files/torch_rng_state.pt")
+        print(np.random.get_state())
+        img = po.data.einstein().to(DEVICE).to(torch.float64)
         lg = po.simul.LuminanceGainControl(
             (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
         )
         po.tools.remove_grad(lg)
-        lg = lg.to(DEVICE)
+        lg = lg.to(DEVICE).to(torch.float64)
         lg.eval()
         eig = po.synth.Eigendistortion(img, lg)
         eig.synthesize(max_iter=1000)
-        os.makedirs("uploaded_files", exist_ok=True)
         eig.save("uploaded_files/example_eigendistortion.pt")
         eig_up = po.synth.Eigendistortion(img, lg)
         eig_up.load(fetch_data("example_eigendistortion.pt"), tensor_equality_atol=1e-7)
