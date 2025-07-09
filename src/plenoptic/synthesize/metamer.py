@@ -1323,9 +1323,6 @@ def display_metamer(
     """
     Display metamer.
 
-    You can specify what iteration to view by using the ``iteration`` arg.
-    The default, ``None``, shows the final one.
-
     We use :func:`~plenoptic.tools.display.imshow` to display the metamer and attempt to
     automatically find the most reasonable zoom value. You can override this
     value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
@@ -1346,8 +1343,8 @@ def display_metamer(
         to image pixels. If ``None``, we attempt to find the best
         value ourselves.
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     **kwargs
@@ -1646,7 +1643,7 @@ def _setup_synthesis_fig(
     Creates figure with enough axes for the all the plots you want. Will
     also create index in ``axes_idx`` for them if you haven't done so already.
 
-    By default, all axes will be on the same row and have the same width.
+    If ``fig=None``, all axes will be on the same row and have the same width.
     If you want them to be on different rows, will need to initialize ``fig``
     yourself and pass that in. For changing width, change the corresponding
     ``*_width`` arg, which gives width relative to other axes. So if you want
@@ -1770,17 +1767,9 @@ def plot_synthesis_status(
     r"""
     Make a plot showing synthesis status.
 
-    We create several subplots to analyze this. By default, we create three
-    subplots on a new figure: the first one contains the synthesized metamer,
-    the second contains the loss, and the third contains the representation
-    error.
-
-    There is an optional additional plot: ``plot_pixel_values``, a histogram of
-    pixel values of the metamer and target image.
-
-    The plots to include are specified by including their name in the
-    ``included_plots`` list. All plots can be created separately using the
-    method with the same name.
+    We create several subplots to analyze this. The plots to include are
+    specified by including their name in the ``included_plots`` list. All plots
+    can be created separately using the method with the same name.
 
     Parameters
     ----------
@@ -1833,11 +1822,10 @@ def plot_synthesis_status(
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
     width_ratios
-        By default, all plots will have the same width. To change
-        that, specify their relative widths using the keys: ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
-        specifying their relative width. Any not included will be assumed to be
-        1.
+        If ``width_ratios`` is an empty dictionary, ``plot_loss`` will have
+        double the width of the other plots. To change that, specify their
+        relative widths using the keys: ['display_mad_image', 'plot_loss',
+        'plot_pixel_values'] and floats specifying their relative width.
 
     Returns
     -------
@@ -2041,11 +2029,10 @@ def animate(
         Which plots to include. Must be some subset of ``'display_metamer',
         'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
     width_ratios
-        By default, all plots axes will have the same width. To change
-        that, specify their relative widths using the keys: ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values'`` and floats
-        specifying their relative width. Any not included will be assumed to be
-        1.
+        If ``width_ratios`` is an empty dictionary, ``plot_loss`` will have
+        double the width of the other plots. To change that, specify their
+        relative widths using the keys: ['display_mad_image', 'plot_loss',
+        'plot_pixel_values'] and floats specifying their relative width.
 
     Returns
     -------
@@ -2064,12 +2051,13 @@ def animate(
 
     Notes
     -----
-    By default, we use the ffmpeg backend, which requires that you have ffmpeg installed
-    and on your path (https://ffmpeg.org/download.html). To use a different, use the
-    matplotlib rcParams: ``matplotlib.rcParams['animation.writer'] = writer``, see
-    `matplotlib documentation
-    <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
-    details.
+    Unless specified, we use the ffmpeg backend, which requires that you have
+    ffmpeg installed and on your path (https://ffmpeg.org/download.html). To use
+    a different, use the matplotlib rcParams:
+    ``matplotlib.rcParams['animation.writer'] = writer``, see `matplotlib
+    documentation
+    <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for
+    more details.
     """
     if not metamer.store_progress:
         raise ValueError(

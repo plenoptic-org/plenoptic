@@ -427,13 +427,13 @@ def animshow(
 
     Notes
     -----
-    - By default, we use the ffmpeg backend, which requires that you have
-      ffmpeg installed and on your path (https://ffmpeg.org/download.html).
-      To use a different backend, use the matplotlib rcParams:
-      ``matplotlib.rcParams['animation.writer'] = writer``, see
-      `matplotlib documentation
-      <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
-      details.
+    - Unless specified, we use the ffmpeg backend, which requires that you have
+      ffmpeg installed and on your path (https://ffmpeg.org/download.html). To
+      use a different, use the matplotlib rcParams:
+      ``matplotlib.rcParams['animation.writer'] = writer``, see `matplotlib
+      documentation
+      <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_
+      for more details.
 
     - This interpolation avoidance is only guaranteed for the saved image; it should
       generally hold in notebooks as well, but will fail if, e.g., you plot an image
@@ -659,9 +659,9 @@ def clean_up_axes(
     ax
         The axis to clean up.
     ylim
-        If a tuple, the y-limits to use for this plot. If ``None``, we use the
-        default, slightly adjusted so that the minimum is 0. If ``False``,
-        we do nothing.
+        If a tuple, the y-limits to use for this plot. If ``None``, we use
+        the original limits, slightly adjusted so that the minimum is 0. If
+        ``False``, we do not change y-limits.
     spines_to_remove
         The spines to remove from the axis.
     axes_to_remove
@@ -793,10 +793,9 @@ def clean_stem_plot(
 
     Helper function for :func:`~plenoptic.tools.display.plot_representation()`.
 
-    By default, stem plot would have a baseline that covers the entire range of the
-    data. We want to be able to break that up visually (so there's a line from 0 to 9,
-    from 10 to 19, etc), and passing ``xvals`` separately allows us to do that. If you
-    want the default stem plot behavior, leave ``xvals=None``.
+    If ``xvals=None``, stem plot will have a baseline that covers the entire range
+    of the data. In order to break that up visually (so there's a line from 0 to 9,
+    from 10 to 19, etc) pass ``xvals`` separately.
 
     Parameters
     ----------
@@ -809,12 +808,13 @@ def clean_stem_plot(
         The title to put on the axis. If ``None``, we don't call ``ax.set_title``
         (useful if you want to avoid changing the title on an existing plot).
     ylim
-        The y-limits to use for this plot. If ``None``, we use the default, slightly
-        adjusted so that the minimum is 0. If ``False``, do not change y-limits.
+        If a tuple, the y-limits to use for this plot. If ``None``, we use
+        the original limits, slightly adjusted so that the minimum is 0. If
+        ``False``, we do not change y-limits.
     xvals
         A 2-tuple of lists, containing the start (``xvals[0]``) and stop
-        (``xvals[1]``) x values for plotting. If ``None``, we use the
-        default stem plot behavior.
+        (``xvals[1]``) x values for plotting. If ``None``, baseline will cover
+        full range.
     **kwargs
         Passed to :func:`matplotlib.pyplot.stem`.
 
@@ -829,37 +829,34 @@ def clean_stem_plot(
     break up the plot, as we see below.
 
     .. plot::
-      :include-source:
 
-      import plenoptic as po
-      import numpy as np
-      import matplotlib.pyplot as plt
-      # if ylim=None, as in this example, the minimum y-valuewill get
-      # set to 0, so we want to make sure our values are all positive
-      y = np.abs(np.random.randn(55))
-      y[15:20] = np.nan
-      y[35:40] = np.nan
-      # we want to draw the baseline from 0 to 14, 20 to 34, and 40 to
-      # 54, everywhere that we have non-NaN values for y
-      xvals = ([0, 20, 40], [14, 34, 54])
-      po.tools.display.clean_stem_plot(y,  xvals=xvals)
-      plt.show()
+      >>> import plenoptic as po
+      >>> import numpy as np
+      >>> import matplotlib.pyplot as plt
+      >>> # if ylim=None, as in this example, the minimum y-valuewill get
+      >>> # set to 0, so we want to make sure our values are all positive
+      >>> y = np.abs(np.random.randn(55))
+      >>> y[15:20] = np.nan
+      >>> y[35:40] = np.nan
+      >>> # we want to draw the baseline from 0 to 14, 20 to 34, and 40 to
+      >>> # 54, everywhere that we have non-NaN values for y
+      >>> xvals = ([0, 20, 40], [14, 34, 54])
+      >>> po.tools.display.clean_stem_plot(y, xvals=xvals)
+      <Axes: >
 
-    If we don't care about breaking up the x-axis, you can simply use
-    the default xvals (``None``). In this case, this function will just
-    clean up the plot a little bit
+    If we don't care about breaking up the x-axis, you can set ``xvals=None``.
+    In this case, this function will just clean up the plot a little bit.
 
     .. plot::
-      :include-source:
 
-      import plenoptic as po
-      import numpy as np
-      import matplotlib.pyplot as plt
-      # if ylim=None, as in this example, the minimum y-valuewill get
-      # set to 0, so we want to make sure our values are all positive
-      y = np.abs(np.random.randn(55))
-      po.tools.display.clean_stem_plot(y)
-      plt.show()
+      >>> import plenoptic as po
+      >>> import numpy as np
+      >>> import matplotlib.pyplot as plt
+      >>> # if ylim=None, as in this example, the minimum y-valuewill get
+      >>> # set to 0, so we want to make sure our values are all positive
+      >>> y = np.abs(np.random.randn(55))
+      >>> po.tools.display.clean_stem_plot(y)
+      <Axes: >
     """
     if ax is None:
         ax = plt.gca()
@@ -1157,7 +1154,7 @@ def plot_representation(
     Plot model representation.
 
     We try to plot ``data`` on ``ax``, using the ``model.plot_representation`` method,
-    if it has it, and otherwise default to a function that makes sense based on the
+    if it has it, and otherwise use a function that makes sense based on the
     shape of ``data``.
 
     All of these arguments are optional, but at least some of them need
@@ -1171,7 +1168,7 @@ def plot_representation(
       sub-plot.
 
     - If ``data`` is ``None``, we can only do something if
-      ``model.plot_representation`` has some default behavior when
+      ``model.plot_representation`` has some behavior when
       ``data=None``; this is probably to plot its own ``representation``
       attribute. Thus, this will raise an Exception if both ``model`` and
       ``data`` are ``None``, because we have no idea what to plot then.

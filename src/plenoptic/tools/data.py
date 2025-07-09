@@ -291,10 +291,6 @@ def polar_angle(
     increasing in user-defined direction from the X-axis, ranging from -pi to pi),
     relative to given phase, about the given origin pixel.
 
-    Note that by default, the angle increases in a clockwise direction, which is NOT the
-    standard mathematical convention. Use the ``direction`` argument to change that
-    behavior.
-
     Parameters
     ----------
     size

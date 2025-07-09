@@ -769,8 +769,8 @@ def plot_loss(
     mad
         MADCompetition object whose loss we want to plot.
     iteration
-        Which iteration to display. If None, the default, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If None, we show the most recent one.
+        Negative values are also allowed.
     axes
         Pre-existing axes for plot. If a list of axes, must be the two axes to
         use for this plot. If a single axis, we'll split it in half
@@ -827,9 +827,6 @@ def display_mad_image(
     """
     Display MAD image.
 
-    You can specify what iteration to view by using the ``iteration`` arg.
-    The default, ``None``, shows the final one.
-
     We use :func:`~plenoptic.tools.display.imshow` to display the synthesized image and
     attempt to automatically find the most reasonable zoom value. You can override this
     value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
@@ -850,8 +847,8 @@ def display_mad_image(
         of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
     iteration
-        Which iteration to display. If None, the default, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If None, we show the most recent one.
+        Negative values are also allowed.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     title :
@@ -917,8 +914,8 @@ def plot_pixel_values(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) images).
     iteration
-        Which iteration to display. If ``None``, the default, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed.
     ylim
         If tuple, the ylimit to set for this axis. If False, we leave
         it untouched.
@@ -1053,7 +1050,7 @@ def _setup_synthesis_fig(
     Creates figure with enough axes for the all the plots you want. Will
     also create index in ``axes_idx`` for them if you haven't done so already.
 
-    By default, all axes will be on the same row and have the same width. If
+    If ``fig=None``, all axes will be on the same row and have the same width. If
     you want them to be on different rows, will need to initialize ``fig`` yourself
     and pass that in. For changing width, change the corresponding ``*_width`` arg,
     which gives width relative to other axes. So if you want the axis for the
@@ -1164,13 +1161,9 @@ def plot_synthesis_status(
     r"""
     Make a plot showing synthesis status.
 
-    We create several subplots to analyze this. By default, we create two
-    subplots on a new figure: the first one contains the MAD image and the
-    second contains the loss.
-
-    The plots to include are specified by including their name in the
-    ``included_plots`` list. All plots can be created separately using the
-    method with the same name.
+    We create several subplots to analyze this. The plots to include are
+    specified by including their name in the ``included_plots`` list. All plots
+    can be created separately using the method with the same name.
 
     Parameters
     ----------
@@ -1211,10 +1204,10 @@ def plot_synthesis_status(
         Which plots to include. Must be some subset of ``'display_mad_image',
         'plot_loss', 'plot_pixel_values'``.
     width_ratios
-        By default, ``plot_loss`` will have double the width of the other plots. To
-        change that, specify their relative widths using the keys: ['display_mad_image',
-        'plot_loss', 'plot_pixel_values'] and floats specifying their relative width.
-        If keys are not included, revert to default behavior.
+        If ``width_ratios`` is an empty dictionary, ``plot_loss`` will have
+        double the width of the other plots. To change that, specify their
+        relative widths using the keys: ['display_mad_image', 'plot_loss',
+        'plot_pixel_values'] and floats specifying their relative width.
 
     Returns
     -------
@@ -1352,10 +1345,10 @@ def animate(
         Which plots to include. Must be some subset of ``'display_mad_image',
         'plot_loss', 'plot_pixel_values'``.
     width_ratios
-        By default, ``plot_loss`` will have double the width of the other plots. To
-        change that, specify their relative widths using the keys: ['display_mad_image',
-        'plot_loss', 'plot_pixel_values'] and floats specifying their relative width.
-        If keys are not included, revert to default behavior.
+        If ``width_ratios`` is an empty dictionary, ``plot_loss`` will have
+        double the width of the other plots. To change that, specify their
+        relative widths using the keys: ['display_mad_image', 'plot_loss',
+        'plot_pixel_values'] and floats specifying their relative width.
 
     Returns
     -------
@@ -1374,15 +1367,13 @@ def animate(
 
     Notes
     -----
-    By default, we use the ffmpeg backend, which requires that you have
+    Unless specified, we use the ffmpeg backend, which requires that you have
     ffmpeg installed and on your path (https://ffmpeg.org/download.html).
     To use a different, use the matplotlib rcParams:
     ``matplotlib.rcParams['animation.writer'] = writer``, see
     `matplotlib documentation
     <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for more
     details.
-
-    For displaying in a jupyter notebook, ffmpeg appears to be required.
     """
     if not mad.store_progress:
         raise ValueError(
