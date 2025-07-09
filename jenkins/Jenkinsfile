@@ -36,6 +36,7 @@ pipeline {
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
            '''
+           archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
           }
         }
         stage('commit') {
