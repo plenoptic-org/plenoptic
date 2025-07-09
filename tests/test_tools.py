@@ -23,6 +23,32 @@ class TestData:
                 ]
             )
 
+    def test_load_images_sort(self):
+        imgs = po.load_images(IMG_DIR / "256")
+        sorted_paths = [
+            "color_wheel.jpg",
+            "curie.pgm",
+            "einstein.pgm",
+            "metal.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs_2 = po.load_images(sorted_paths)
+        torch.equal(imgs, imgs_2)
+
+    def test_load_images_custom_sort(self):
+        imgs = po.load_images(IMG_DIR / "256", sorted_key=lambda x: x.name[1])
+        sorted_paths = [
+            "metal.pgm",
+            "einstein.pgm",
+            "color_wheel.jpg",
+            "curie.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs_2 = po.load_images(sorted_paths)
+        torch.equal(imgs, imgs_2)
+
 
 class TestSignal:
     def test_polar_amplitude_zero(self):
