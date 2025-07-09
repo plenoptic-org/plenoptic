@@ -906,10 +906,11 @@ def display_eigendistortion_all(
 
       >>> import plenoptic as po
       >>> from plenoptic.data.fetch import fetch_data
-      >>> img = po.data.einstein()
+      >>> img = po.data.einstein().to(torch.float64)
       >>> lg = po.simul.LuminanceGainControl(
       ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
       ... ).eval()
+      >>> lg = lg.to(torch.float64)
       >>> po.tools.remove_grad(lg)
       >>> eig = po.synth.Eigendistortion(img, lg)
       >>> # grab saved example eigendistortion, which runs the above to completion.
