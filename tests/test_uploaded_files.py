@@ -19,12 +19,11 @@ from conftest import DEVICE
 from plenoptic.data.fetch import fetch_data
 from plenoptic.tools.data import _check_tensor_equality
 
-torch.use_deterministic_algorithms(True)
-
 
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestUploaded:
     def test_eigendistortion(self):
+        torch.use_deterministic_algorithms(True)
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(torch.random.get_rng_state(), "uploaded_files/torch_rng_state.pt")
