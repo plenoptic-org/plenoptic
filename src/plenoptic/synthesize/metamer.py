@@ -247,7 +247,7 @@ class Metamer(OptimizedSynthesis):
             (unless we hit the stop criterion).
         store_progress
             Whether we should store the metamer image in progress during
-            synthesis. If False, we don't save anything. If True, we save every
+            synthesis. If ``False``, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True).
         stop_criterion
@@ -869,7 +869,7 @@ class MetamerCTF(Metamer):
             (unless we hit the stop criterion).
         store_progress
             Whether we should store the metamer image in progress on every
-            iteration. If False, we don't save anything. If True, we save every
+            iteration. If ``False``, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True).
         stop_criterion
@@ -1508,7 +1508,7 @@ def plot_pixel_values(
         Which iteration to display. If ``None``, we show
         the most recent one. Negative values are also allowed.
     ylim
-        If tuple, the ylimit to set for this axis. If False, we leave
+        If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
     ax
         Pre-existing axes for plot. If ``None``, we call
@@ -1985,7 +1985,7 @@ def animate(
           ``np.abs(representation_error).max()`` (for the initial
           representation_error).
 
-        * If False, don't modify limits.
+        * If ``False``, don't modify limits.
 
         * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
           where N can be any integer. If ``"rescaleN"``, we rescale the

@@ -150,9 +150,9 @@ class MADCompetition(OptimizedSynthesis):
         initial_noise
             :attr:`mad_image` is initialized to ``self.image + initial_noise *
             torch.randn_like(self.image)``, so this gives the standard deviation of the
-            Gaussian noise. If None, we use a value of 0.1.
+            Gaussian noise. If ``None``, we use a value of 0.1.
         optimizer
-            The un-initialized optimizer object to use. If None, we use Adam.
+            The un-initialized optimizer object to use. If ``None``, we use Adam.
         optimizer_kwargs
             The keyword arguments to pass to the optimizer on initialization. If
             ``None``, we use ``{"lr": .01}`` and, if optimizer is ``None``,
@@ -284,9 +284,9 @@ class MADCompetition(OptimizedSynthesis):
             (unless we hit the stop criterion).
         store_progress
             Whether we should store the MAD image in progress during synthesis. If
-            False, we don't save anything. If True, we save every iteration. If an int,
-            we save every ``store_progress`` iterations (note then that 0 is the same as
-            False and 1 the same as True).
+            ``False``, we don't save anything. If True, we save every iteration. If an
+            int, we save every ``store_progress`` iterations (note then that ``0`` is
+            the same as ``False`` and ``1`` the same as ``True``).
         stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -350,10 +350,10 @@ class MADCompetition(OptimizedSynthesis):
         ----------
         mad_image
             Proposed ``mad_image``, :math:`\hat{x}` in the above equation. If
-            None, use ``self.mad_image``.
+            ``None``, use ``self.mad_image``.
         image
             Proposed ``image``, :math:`x` in the above equation. If
-            None, use ``self.image``.
+            ``None``, use ``self.image``.
 
         Returns
         -------
@@ -769,12 +769,12 @@ def plot_loss(
     mad
         MADCompetition object whose loss we want to plot.
     iteration
-        Which iteration to display. If None, we show the most recent one.
+        Which iteration to display. If ``None``, we show the most recent one.
         Negative values are also allowed.
     axes
         Pre-existing axes for plot. If a list of axes, must be the two axes to
         use for this plot. If a single axis, we'll split it in half
-        horizontally. If None, we call :func:`matplotlib.pyplot.gca()`.
+        horizontally. If ``None``, we call :func:`matplotlib.pyplot.gca()`.
     **kwargs
         Passed to :func:`matplotlib.pyplot.semilogy`.
 
@@ -847,7 +847,7 @@ def display_mad_image(
         of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
     iteration
-        Which iteration to display. If None, we show the most recent one.
+        Which iteration to display. If ``None``, we show the most recent one.
         Negative values are also allowed.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
@@ -917,7 +917,7 @@ def plot_pixel_values(
         Which iteration to display. If ``None``, we show the most recent one.
         Negative values are also allowed.
     ylim
-        If tuple, the ylimit to set for this axis. If False, we leave
+        If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
     ax
         Pre-existing axes for plot. If ``None``, we call
@@ -1319,7 +1319,7 @@ def animate(
     batch_idx
         Which index to take from the batch dimension.
     channel_idx
-        Which index to take from the channel dimension. If None, we use all
+        Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
     zoom
         How much to zoom in / enlarge the synthesized image, the ratio

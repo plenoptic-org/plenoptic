@@ -92,7 +92,7 @@ def coarse_to_fine_enough(synth: "MetamerCTF", i: int, ctf_iters_to_check: int) 
         The current iteration (0-indexed).
     ctf_iters_to_check
         Minimum number of iterations coarse-to-fine must run at each scale.
-        If self.coarse_to_fine is False, then this is ignored.
+        If self.coarse_to_fine is ``False``, then this is ignored.
 
     Returns
     -------

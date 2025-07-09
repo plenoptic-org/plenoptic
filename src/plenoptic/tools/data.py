@@ -89,7 +89,7 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
         directory with lots of non-image files). This is NOT recursive.
     as_gray
         Whether to convert the images into grayscale or not after
-        loading them. If False, we do nothing. If True, we call
+        loading them. If ``False``, we do nothing. If ``True``, we call
         skimage.color.rgb2gray on them, which will result in a single
         channel.
 
@@ -243,7 +243,7 @@ def polar_radius(
         The center of the image. if an int, we assume the origin is at
         ``(origin, origin)``. if a tuple, must be a 2-tuple of ints
         specifying the origin (where ``(0, 0)`` is the upper left).  if
-        None, we assume the origin lies at the center of the matrix,
+        ``None``, we assume the origin lies at the center of the matrix,
         ``(size+1)/2``.
     device
         The device to create this tensor on.
@@ -301,8 +301,8 @@ def polar_angle(
     origin
         The center of the image. if an int, we assume the origin is at
         ``(origin, origin)``. if a tuple, must be a 2-tuple of ints specifying the
-        origin (where ``(0, 0)`` is the upper left). If None, we assume the origin lies
-        at the center of the matrix, ``(size+1)/2``.
+        origin (where ``(0, 0)`` is the upper left). If ``None``, we assume the origin
+        lies at the center of the matrix, ``(size+1)/2``.
     direction
         Whether the angle increases in a clockwise or counter-clockwise direction from
         the x-axis. The standard mathematical convention is to increase

@@ -46,7 +46,7 @@ def _ssim_parts(
         images should have values between 0 and 1. Otherwise, the result may be
         inaccurate, and we will raise a warning (but will still compute it).
     pad
-        If not False, how to pad the image for the convolutions computing the
+        If not ``False``, how to pad the image for the convolutions computing the
         local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
     func_name
@@ -210,7 +210,7 @@ def ssim(
         in [1]_ or the weighted version (``True``) as used in [4]_. See Notes
         section for the weight.
     pad :
-        If not False, how to pad the image for the convolutions computing the
+        If not ``False``, how to pad the image for the convolutions computing the
         local average of each image. See :func:`torch.nn.functional.pad` for how
         these work.
 
@@ -430,7 +430,7 @@ def ms_ssim(
     power_factors
         Power exponents for the mean values of maps, for different scales (from
         fine to coarse). The length of this array determines the number of scales.
-        If None, set to ``[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]``, which is what
+        If ``None``, set to ``[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]``, which is what
         psychophysical experiments in [1]_ found.
 
     Returns
