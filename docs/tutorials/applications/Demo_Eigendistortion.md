@@ -118,7 +118,9 @@ eigendist_f.synthesize(k=3, method="power", max_iter=max_iter_frontend)
 Once synthesized, we can plot the distortion on the image using {func}`display_eigendistortion_all <plenoptic.synthesize.eigendistortion.display_eigendistortion_all>`. Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(eigendist_f, [0, -1], alpha=3, suptitle="OnOff", zoom=zoom);
+po.synth.eigendistortion.display_eigendistortion_all(
+    eigendist_f, [0, -1], alpha=3, suptitle="OnOff", zoom=zoom
+);
 ```
 
 ### VGG16: eigendistortion synthesis
@@ -176,9 +178,18 @@ Since the distortions here were synthesized using a pre-processed (normalized) i
 # create an image processing function to unnormalize the image and avg the channels to
 # grayscale
 def unnormalize(x):
-    return (x * orig_std.to(x.device) + orig_mean.to(x.device))
+    return x * orig_std.to(x.device) + orig_mean.to(x.device)
 
-po.synth.eigendistortion.display_eigendistortion_all(eigendist_v, [0, -1], alpha=[15, 100], suptitle="VGG16", zoom=zoom, as_rgb=True, process_image=unnormalize);
+
+po.synth.eigendistortion.display_eigendistortion_all(
+    eigendist_v,
+    [0, -1],
+    alpha=[15, 100],
+    suptitle="VGG16",
+    zoom=zoom,
+    as_rgb=True,
+    process_image=unnormalize,
+);
 ```
 
 ## Final thoughts

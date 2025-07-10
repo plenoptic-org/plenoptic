@@ -86,7 +86,7 @@ print(coeffs.shape)
 The first and last channels are residuals, so if we only wanted to look at the coefficients, we'd do the following:
 
 ```{code-cell} ipython3
-po.imshow(coeffs[:, 1:-1], batch_idx=0);
+po.imshow(coeffs[:, 1:-1], batch_idx=0)
 po.imshow(coeffs[:, 1:-1], batch_idx=1);
 ```
 

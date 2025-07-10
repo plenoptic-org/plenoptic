@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -13,6 +13,7 @@ kernelspec:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 import pooch
@@ -137,7 +138,6 @@ display_images(im_files, "Articial textures")
 im_files = [DATA_PATH / f"fig{num}.jpg" for num in hand_drawn]
 display_images(im_files, "Hand-drawn / computer-generated textures")
 ```
-
 
 ## 2. How to generate Portilla-Simoncelli Metamers
 

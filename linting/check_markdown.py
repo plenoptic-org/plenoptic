@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import pathlib
 import re
 import sys
@@ -23,6 +25,7 @@ except TypeError:
     print(
         "sphinx objects.inv file not found, will not check for missing cross-references"
     )
+
 
 paths = []
 for p in sys.argv[1:]:
