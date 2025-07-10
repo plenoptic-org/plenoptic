@@ -1,4 +1,4 @@
-(install)=
+(install-doc)=
 # Installation
 
 `plenoptic` should work on Windows, Linux, or Mac. If you have a problem with installation, please open a [bug report](https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=)!
@@ -103,13 +103,13 @@ PS> pip install -e ".[dev]"
 ::::
 
 :::{note}
-   With an editable copy, which we specified with the ``-e`` / ``--editable`` flag, any changes made locally will be automatically reflected in your installation.
+   With an editable copy, which we specified with the `-e` / `--editable` flag, any changes made locally will be automatically reflected in your installation.
 :::
 
 In this setup, we're installing the `dev` optional dependencies as well as the core dependencies. This will allow you to run our tests. They are, as the name implies, optional (you can just run `pip install -e .` without the `[dev]`), but if you are developing, you will probably want to be able to run the tests. See the [](optional-deps) section for more details and the other sets of optional dependencies.
 
 
-Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named `.venv` within the `plenoptic/` directory you cloned. Therefore, if you delete the `plenoptic/` directory, you'll need to rerun the setup above to create a new virtual environment.
+Note that, with the above setup, all files related to your virtual environment are stored in a hidden directory named `.venv` <!-- skip-lint --> within the `plenoptic/` directory you cloned. Therefore, if you delete the `plenoptic/` directory, you'll need to rerun the setup above to create a new virtual environment.
 
 :::{attention}
 To install `plenoptic` in editable mode, you need `pip >= 21.3` (see pip's [changelog](https://pip.pypa.io/en/stable/news/#id286)). If you run into [an error](https://github.com/plenoptic-org/plenoptic/issues/227) after running the `pip install -e .` command, try updating your pip version with `pip install --upgrade pip`.
@@ -120,7 +120,7 @@ To install `plenoptic` in editable mode, you need `pip >= 21.3` (see pip's [chan
 
 In addition to installing plenoptic and its core dependencies, you may also wish to install some of our optional dependencies. These dependencies are specified using square brackets during the `pip install` command and can be installed for either a local, editable install or one directly from PyPI:
 
-- If you would like to run the jupyter notebooks locally: `pip install "plenoptic[nb]"` or `pip install -e ".[nb]"`. This includes `pooch` (for downloading some extra data) `torchvision` (which has some models we'd like to use), `jupyter`, and related libraries. See [](jupyter) for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using [Binder](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples), no installation required!
+- If you would like to run the jupyter notebooks locally: `pip install "plenoptic[nb]"` or `pip install -e ".[nb]"`. This includes `pooch` (for downloading some extra data) `torchvision` (which has some models we'd like to use), `jupyter`, and related libraries. See [](jupyter-doc) for a discussion of several ways to handle jupyter and python virtual environments. Note that you can run our notebooks in the cloud using [Binder](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples), no installation required!
 - If you would like to run the tests: `pip install -e ".[dev]"`. This includes `pytest` and related libraries. (This probably only makes sense if you have a local installation.)
 - If you would like to locally build the documentation: `pip install -e ".[docs]"`. This includes `sphinx` and related libraries. (This probably only makes sense if you have a local installation.)
 

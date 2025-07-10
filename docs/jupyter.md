@@ -1,4 +1,4 @@
-(jupyter)=
+(jupyter-doc)=
 
 # Using Jupyter to Run Example Notebooks
 
@@ -8,7 +8,7 @@ You can run the notebooks in the cloud using [Binder](https://mybinder.org/v2/gh
 
 ## Installing jupyter and setting up the kernel
 
-If you wish to locally run the notebooks, you will need to install `jupyter`, `ipywidgets`, and (for some of the notebooks) `torchvision` and `pooch` . There are two or three possible ways of getting a local jupyter install working with this package, depending on what tool you are using to manage your virtual environments and how you wish to handle them (see [](install) for how to use `conda` or `pip and venv` to setup a virtual environment and install plenoptic).
+If you wish to locally run the notebooks, you will need to install `jupyter`, `ipywidgets`, and (for some of the notebooks) `torchvision` and `pooch` . There are two or three possible ways of getting a local jupyter install working with this package, depending on what tool you are using to manage your virtual environments and how you wish to handle them (see [](install-doc) for how to use `conda` or `pip and venv` to setup a virtual environment and install plenoptic).
 
 
 :::{hint}
@@ -124,7 +124,7 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyter into that separate virtual environment, which is wasteful.
 
-2. Install jupyter in one environment and manually install the kernel in your ``plenoptic`` virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments.
+2. Install jupyter in one environment and manually install the kernel in your `plenoptic` virtual environment. This requires only a single jupyter install and is the most general solution (it will work with conda or any other way of managing virtual environments), but requires you to be a bit more comfortable with handling environments.
 
    ::::::{tab-set}
    :sync-group: os
@@ -234,8 +234,4 @@ The following table summarizes the advantages and disadvantages of these three c
 
 ## Running the notebooks
 
-Once you have jupyter installed and the kernel set up, navigate to plenoptic's `examples/` directory on your terminal and activate the environment you installed jupyter into, then run `jupyter` and open up the notebooks. If you did not install `jupyter` into the same environment as `plenoptic`, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".
-
-:::{attention}
-If you did not install `plenoptic` from source, then you will not have the notebooks on your machine and will need to download them directly from [our GitHub repo](https://github.com/plenoptic-org/plenoptic/tree/main/examples). If you installed plenoptic from source (and thus ran `git clone`), then the notebooks can be found in the `examples/` directory.
-:::
+Once you have jupyter installed and the kernel set up, you can download the tutorial notebooks and run them. Each notebook has a `Download this notebook` link at the top. After downloading, navigate to the directory containing the notebook, then run `jupyter` and open up the notebooks. If you did not install `jupyter` into the same environment as `plenoptic`, you should be prompted to select your kernel the first time you open a notebook: select the one named "plenoptic".

@@ -8,7 +8,7 @@ Synthesis is a framework for exploring models by using them to create new stimul
 
 (synthesis-schematic)=
 
-:::{figure} images/model_sim-fit-infer.svg
+:::{figure} /_static/images/model_sim-fit-infer.svg
 :alt: Schematic describing relationship between simulate, fit, and synthesize.
 :figwidth: 100%
 
@@ -27,7 +27,7 @@ Researchers studying color perception arrived at a standard procedure -- the bip
 
 (trichromacy)=
 
-:::{figure} images/trichromacy.svg
+:::{figure} /_static/images/trichromacy.svg
 :alt: Color matching experiment.
 :figwidth: 100%
 
@@ -75,7 +75,7 @@ Let's consider a slightly more complex example. Human vision is very finely deta
 
 (model-schematic)=
 
-:::{figure} images/model_schematic.svg
+:::{figure} /_static/images/model_schematic.svg
 :alt: Foveated pixel intensity model.
 :figwidth: 100%
 
@@ -86,7 +86,7 @@ This model cares about the average pixel intensity in a given area, but doesn't 
 
 (fov-met)=
 
-:::{figure} images/foveated_mets.svg
+:::{figure} /_static/images/foveated_mets.svg
 :alt: Three images, all identical as far as the foveated pixel intensity model is concerned.
 :figwidth: 100%
 
@@ -104,9 +104,9 @@ Furthermore, image synthesis provides a complementary method of comparing models
 
 `plenoptic` contains more than just metamers --- it provides a set of methods for performing image synthesis. Each method allows for different exploration of a model's representational space:
 
-- [Metamers](tutorials/intro/06_Metamer.nblink) investigate what features the model disregards entirely.
-- [Eigendistortions](tutorials/intro/02_Eigendistortions.nblink) investigates which features the model considers the least and which it considers the most important
-- [Maximal differentiation (MAD) competition](tutorials/intro/08_MAD_Competition.nblink) enables efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
+- [Metamers](metamer-nb) investigate what features the model disregards entirely.
+- [Eigendistortions](eigendistortion-nb) investigates which features the model considers the least and which it considers the most important
+- [Maximal differentiation (MAD) competition](mad-nb) enables efficient comparison of two metrics, highlighting the aspects in which their sensitivities differ.
 
 The goal of this package is to facilitate model exploration and understanding. We hope that providing these tools helps tighten the model-experiment loop: when a model is proposed, whether by importing from a related field or earlier experiments, `plenoptic` enables scientists to make targeted exploration of the model's representational space, generating stimuli that will provide the most information. We hope to help theorists become more active participants in directing future experiments by efficiently finding new predictions to test.
 

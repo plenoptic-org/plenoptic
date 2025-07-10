@@ -95,6 +95,10 @@ class SteerablePyramidFreq(nn.Module):
         The way the ffts are normalized, see :func:`torch.fft.fft2` for more details.
     is_complex : bool
         Whether the coefficients are complex- or real-valued.
+    scales : list
+        All the scales of the representation (including residuals) in coarse-to-fine
+        order. A subset of this list can be passed to the :meth:`forward` method to
+        restrict the output.
 
     Raises
     ------

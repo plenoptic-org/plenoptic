@@ -5,6 +5,9 @@ This is inspired by scipy's datasets module.
 """
 
 import pathlib
+import sys
+
+from tqdm.auto import tqdm
 
 __all__ = ["DOWNLOADABLE_FILES", "fetch_data"]
 
@@ -34,6 +37,7 @@ REGISTRY = {
     "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": "9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61",  # noqa: E501
     "portilla_simoncelli_scales_ps-refactor.npz": "ce11d85e6bcf5fad1b819c36dac584c3e933706a0ee423ea1c76ffe0daccbae5",  # noqa: E501
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": "ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4",  # noqa: E501
+    "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -63,6 +67,7 @@ REGISTRY_URLS = {
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": OSF_TEMPLATE.format(  # noqa: E501
         "en8du"
     ),
+    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
 }
 
 #: List of files that can be downloaded using :func:`fetch_data`
@@ -155,7 +160,20 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
             "conda to install 'pooch'."
         )
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
-    fname = retriever.fetch(dataset_name, progressbar=True, processor=processor)
+    use_ascii = bool(sys.platform == "win32")
+    fname = retriever.fetch(
+        dataset_name,
+        progressbar=tqdm(
+            total=1,
+            ncols=79,
+            unit_scale=True,
+            delay=1e-5,
+            leave=True,
+            unit="B",
+            ascii=use_ascii,
+        ),
+        processor=processor,
+    )
     if dataset_name.endswith(".tar.gz"):
         fname = _find_shared_directory([pathlib.Path(f) for f in fname])
     else:

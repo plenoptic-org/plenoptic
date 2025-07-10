@@ -36,6 +36,7 @@ pipeline {
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
            '''
+           archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
           }
         }
         stage('commit') {
@@ -64,6 +65,7 @@ pipeline {
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
             '''
+            archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
           }
         }
         stage('docs') {
@@ -75,7 +77,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
@@ -97,12 +99,8 @@ pipeline {
               pip install -U pip setuptools
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              make -C docs html O="-T"
-              echo \$(ls \$HOME)
-              echo \$(ls \$HOME/docs)
-              echo \$(ls \$HOME/docs/_build)
+              RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-T -j $PARALLEL"
               mv docs/_build/ $HOME/built-docs/
-              echo \$(ls \$HOME/built-docs)
            '''
             lock('plenoptic_docs_publish') {
               script {
@@ -121,10 +119,6 @@ pipeline {
                 DOCS_DIR=docs/\$PROJECT_NAME/\$out_dir
                 rm -rf \$DOCS_DIR
                 mkdir -p \$DOCS_DIR
-                echo \$(ls \$HOME)
-                echo \$(ls \$HOME/docs)
-                echo \$(ls \$HOME/built-docs)
-                echo \$(ls \$DOCS_DIR)
                 cp -rp \$HOME/built-docs/html/* \$DOCS_DIR
                 # using -f here makes sure we add the index.html files, which are included in workshops .gitignore (since some are auto-generated)
                 git add -A -f --verbose docs/\$PROJECT_NAME
