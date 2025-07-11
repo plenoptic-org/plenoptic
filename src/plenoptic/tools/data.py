@@ -66,7 +66,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
 
 def load_images(
-    paths: str | list[str],
+    paths: str | list[str] | pathlib.Path | list[pathlib.Path],
     as_gray: bool = True,
     sorted_key: None | Callable = None,
 ) -> Tensor:
