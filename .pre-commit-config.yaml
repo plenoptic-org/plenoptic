@@ -71,4 +71,4 @@ repos:
       types_or: ["markdown"]
       entry: linting/ruff_notebooks.py
       files: ^docs/
-      additional_dependencies: ["ruff"]
+      additional_dependencies: ["ruff", "jupytext"]
