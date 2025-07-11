@@ -567,7 +567,7 @@ def remove_redundant_and_normalize(
     are computed automatically (because of how the computation works) and then
     discarded (e.g., symmetries in autocorrelation). This function removes both.
 
-    Additionally, if use_true_correlations=False, we normalize the
+    Additionally, if ``use_true_correlations=False``, we normalize the
     correlations. The matlab PS code did not do so, so that, e.g., the center
     value of the autocorrelations was the corresponding variance (rather than
     being normalized to 1). Originally, we supported both normalized and

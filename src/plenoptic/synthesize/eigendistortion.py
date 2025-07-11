@@ -788,8 +788,7 @@ def display_eigendistortion(
         Axis handle on which to plot.
     plot_complex
         Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
-        complex values. Defaults to ``'rectangular'``, which plots real and complex
-        components as separate images. See that method's docstring for details.
+        complex values. See that method's docstring for details.
     **kwargs
         Additional arguments for :func:`~plenoptic.tools.display.imshow`.
 
@@ -862,8 +861,7 @@ def display_eigendistortion_all(
         distortion(s) (to avoid matplotlib clipping), else if ``None`` do nothing.
     plot_complex
         Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
-        complex values. Defaults to ``'rectangular'``, which plots real and complex
-        components as separate images. See that method's docstring for details.
+        complex values. See that method's docstring for details.
     as_rgb
         Whether to consider the channels as encoding RGB(A) values. If ``True``, we
         attempt to plot the image in color, so your tensor must have 3 (or 4 if

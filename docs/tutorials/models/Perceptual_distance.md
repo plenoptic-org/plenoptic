@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -13,7 +13,9 @@ kernelspec:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
+
 import pooch
 
 # don't have pooch output messages about downloading or untarring
@@ -54,6 +56,7 @@ import torch
 from scipy.stats import pearsonr, spearmanr
 
 import plenoptic as po
+
 # this notebook runs just about as fast with GPU and CPU
 DEVICE = torch.device("cpu")
 ```
@@ -143,6 +146,7 @@ def get_distorted_images():
     )
     return img_distorted.to(DEVICE)
 
+
 img_distorted = get_distorted_images()
 mse_values = torch.square(img_distorted - img_distorted[0]).mean(dim=(1, 2, 3))
 ssim_values = po.metric.ssim(img_distorted, img_distorted[[0]])[:, 0]
@@ -174,6 +178,7 @@ def get_demo_images():
     abs_map = 1 - torch.abs(img - img_jpeg)
     img_demo = torch.cat([img, img_jpeg, ssim_map, abs_map], dim=0).cpu()
     return img_demo
+
 
 img_demo = get_demo_images()
 titles = ["Original", "JPEG artifact", "SSIM map", "Absolute error"]
@@ -249,6 +254,7 @@ titles = [
 ]
 po.imshow(img_distorted, vrange="auto", title=titles, col_wrap=3);
 ```
+
 Note that, unlike SSIM and MS-SSIM, NLPD is a *distance* and so smaller numbers mean that a pair of image are more similar. Thus, the above images are ranked from most to least similar to the original image.
 
 ## Usage
@@ -260,9 +266,7 @@ SSIM, MS-SSIM and NLPD are not scale-invariant. The input images should have val
 ```{code-cell} ipython3
 # Take SSIM as an example here. The images in img_demo have a range of [0, 1].
 val1 = po.metric.ssim(img_demo[[0]], img_demo[[1]])
-val2 = po.metric.ssim(
-    img_demo[[0]] * 255, img_demo[[1]] * 255
-)
+val2 = po.metric.ssim(img_demo[[0]] * 255, img_demo[[1]] * 255)
 # This produces a wrong result and triggers a warning: Image range falls
 # outside [0, 1].
 print(f"True SSIM: {float(val1):.4f}, rescaled image SSIM: {float(val2):.4f}")
@@ -282,24 +286,28 @@ To execute this part of the notebook, the TID2013 dataset needs to be downloaded
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 from plenoptic.data.fetch import fetch_data
+
 
 def get_tid2013_data():
     folder = fetch_data("tid2013.tar.gz")
     reference_images = sorted((folder / "reference_images").iterdir())
     reference_images = po.load_images(reference_images)
     # disorted_images file names are of the form "i##_##_#.bmp" (and both the i and
-    # the bmp can be either upper or lower case). the following sorts them by the numbers
-    # in the order they appear
-    distorted_images = sorted((folder / "distorted_images").iterdir(),
-                              key=lambda p: p.stem[1:].split("_"))
+    # the bmp can be either upper or lower case). the following sorts them by the
+    # numbers in the order they appear
+    distorted_images = sorted(
+        (folder / "distorted_images").iterdir(), key=lambda p: p.stem[1:].split("_")
+    )
     distorted_images = po.load_images(distorted_images)
     # reshape the tensor so that the first dimension correponds to the reference image,
     # the second the distortion type, and the third the sample
     distorted_images = distorted_images.reshape((25, 24, 5, 1, 384, 512))
 
     # Remove color distortions
-    distorted_images = distorted_images[:, [0] + list(range(2, 17)) + list(range(18, 24))]
+    non_color_distorts = [0] + list(range(2, 17)) + list(range(18, 24))
+    distorted_images = distorted_images[:, non_color_distorts]
 
     with open(folder / "mos.txt", encoding="utf-8") as g:
         mos_values = list(map(float, g.readlines()))
@@ -383,14 +391,18 @@ def correlate_with_tid(func_list, name_list):
     plt.tight_layout()
     plt.show()
 
+
 def rmse(img1, img2):
     return torch.sqrt(torch.square(img1 - img2).mean(dim=(-2, -1)))
+
 
 def one_minus_ssim(img1, img2):
     return 1 - po.metric.ssim(img1, img2)
 
+
 def one_minus_msssim(img1, img2):
     return 1 - po.metric.ms_ssim(img1, img2)
+
 
 # This takes some minutes to run
 correlate_with_tid(

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -13,6 +13,7 @@ kernelspec:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 warnings.filterwarnings(
@@ -31,9 +32,7 @@ warnings.filterwarnings(
     "ignore",
     message="Clipping input data to the valid range",
 )
-
 ```
-
 
 :::{admonition} Download
 :class: important
@@ -65,12 +64,12 @@ See the [last section of this notebook](eigendistortion-math-details) for more m
 import matplotlib.pyplot as plt
 import torch
 from torch import nn
-# this notebook runs just about as fast with GPU and CPU
-DEVICE = torch.device("cpu")
-
 
 import plenoptic as po
 from plenoptic.synthesize.eigendistortion import Eigendistortion
+
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
@@ -146,12 +145,9 @@ fig.tight_layout()
 
 To compute the eigendistortions of this model, we can instantiate an {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object with an input tensor and a valid PyTorch model with a `forward` <!-- skip-lint --> method. After that, we simply call the method {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>`, choosing the appropriate synthesis method. Normally our input has thousands of entries, but our input in this case is small (only n=25 entries), so we can compute the full $m \times n$ Jacobian, and all the eigenvectors of the $n \times n$ Fisher matrix, $F=J^TJ$. The {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` method does this for us and stores the outputs (`eigendistortions, eigenvalues, eigenindex`) of the synthesis.
 
-
 ```{code-cell} ipython3
 # instantiate Eigendistortion object using an input and model
-eig_jac = Eigendistortion(
-    x0, mdl_linear
-)
+eig_jac = Eigendistortion(x0, mdl_linear)
 # compute the entire Jacobian exactly
 eig_jac.synthesize(method="exact")
 ```
@@ -201,11 +197,11 @@ eig_pow.synthesize(method="power", max_iter=1000)
 eigdist_pow = eig_pow.eigendistortions
 
 print(f"Indices of computed eigenvectors: {eig_pow.eigenindex}\n")
-
 ```
 
 Now let's compare the eigendistortions we got from these two methods:
-```{code-cell}
+
+```{code-cell} ipython3
 eigdist_jac = eig_jac.eigendistortions
 fig, ax = plt.subplots(1, 1)
 ax.plot(eig_pow.eigenindex, eig_pow.eigenvalues, ".", markersize=15, label="Power")
@@ -256,9 +252,7 @@ Different inputs should in general have different sets of eigendistortions -- a 
 x1 = torch.randn_like(x0)
 
 eig_jac2 = Eigendistortion(x1, model=mdl_linear)
-eig_jac2.synthesize(
-    method="exact"
-)
+eig_jac2.synthesize(method="exact")
 
 # since the model is linear, the Jacobian should be the exact same as before
 print(
@@ -300,6 +294,7 @@ class TorchVision(torch.nn.Module):
     def forward(self, x):
         return self.extractor(x)[self.return_node]
 
+
 # different potential models of human visual perception of distortions
 resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1, progress=False)
 resnet = resnet.to(DEVICE)
@@ -334,13 +329,17 @@ Let's display the eigendistortions.
 `plenoptic` includes a {func}`display_eigendistortion_all <plenoptic.synthesize.eigendistortion.display_eigendistortion_all>` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant $\alpha$ times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2)
+po.synth.eigendistortion.display_eigendistortion_all(
+    ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
+)
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2);
+po.synth.eigendistortion.display_eigendistortion_all(
+    ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2
+);
 ```
 
 ### 2.5 - Which synthesized extremal eigendistortions better characterize human perception?
@@ -374,13 +373,17 @@ ed_resnetb.synthesize(method="power", max_iter=400)
 Unlike our [previous example](fisher-locally-adaptive), eigendistortions for either ResNet layer will differ depending upon the image they start with. We can see that below, where the Curie-based eigendistortions are different from the color wheel-based ones we examined earlier. First, the eigendistortions for the maxpool layer (pretty early in the model):
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2)
+po.synth.eigendistortion.display_eigendistortion_all(
+    ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
+)
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2);
+po.synth.eigendistortion.display_eigendistortion_all(
+    ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2
+);
 ```
 
 (eigendistortion-math-details)=

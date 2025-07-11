@@ -30,3 +30,4 @@ if fails:
     print("The following markdown notebooks are missing a download notebook button!")
     for p in fails:
         print(p)
+    sys.exit(1)

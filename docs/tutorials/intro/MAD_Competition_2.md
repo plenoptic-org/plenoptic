@@ -4,14 +4,16 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
   name: python3
 ---
+
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 warnings.filterwarnings(
@@ -24,7 +26,7 @@ warnings.filterwarnings(
 :::{admonition} Download
 :class: important
 
-Download this notebook: **{nb-download}`MAD_Competition.ipynb`**!
+Download this notebook: **{nb-download}`MAD_Competition_2.ipynb`**!
 
 :::
 
@@ -55,8 +57,9 @@ That's the general idea, now let's explore how to use the {class}`MADCompetition
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
-import plenoptic as po
 import torch
+
+import plenoptic as po
 
 # use GPU if available
 if torch.cuda.device_count() > 1:
@@ -87,6 +90,7 @@ on Image Processing](https://www.cns.nyu.edu/pub/lcv/wang03-preprint.pdf)) and m
 ```{code-cell} ipython3
 def model1(*args):
     return 1 - po.metric.ssim(*args, weighted=True, pad="reflect")
+
 
 model2 = po.metric.mse
 ```
@@ -156,7 +160,6 @@ mad_mse_min.setup(0.04)
 mad_mse_min.synthesize(max_iter=400, stop_criterion=1e-6)
 fig = po.synth.mad_competition.plot_synthesis_status(mad_mse_min)
 ```
-
 
 ```{code-cell} ipython3
 mad_mse_max = po.synth.MADCompetition(

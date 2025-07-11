@@ -7,7 +7,7 @@ import sys
 
 LINK_REGEX = re.escape("](")
 # we want basically everything except a backtick
-EVERYTHING_BUT_BACKTICK = r"[ A-Za-z_\(\)<>:/\-.=\[\]0-9\\^~{}|'\"]"
+EVERYTHING_BUT_BACKTICK = r"[ A-Za-z_\(\)<>:/\-.=\[\]0-9\\^~{}|'\",]"
 BACKTICK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK.replace(' ', '')}+?`+_?)"
 SPHINX_DIRECTIVE_REGEX = rf":[:a-z]+:(`+{EVERYTHING_BUT_BACKTICK}+?_?`+)"
 SPHINX_LINK_REGEX = rf"(`+{EVERYTHING_BUT_BACKTICK}+?`+_)"
@@ -68,6 +68,7 @@ for p in sys.argv[1:]:
     paths.extend(p)
 
 links = []
+defaults = []
 backticks = []
 unescaped = []
 missing_xref = []
@@ -85,6 +86,12 @@ for p in paths:
             dollarsigns.append((p, name))
         directives = re.findall(SPHINX_DIRECTIVE_REGEX, doc)
         sphinx_link = re.findall(SPHINX_LINK_REGEX, doc)
+        # if the word default is preceded / followed by an underscore, then the
+        # argument has "default" in its name, so don't match that (using
+        # negative look-ahead/behind)
+        default = re.findall("(?<!_)[Dd]efault(?!_)", doc)
+        if default:
+            defaults.append((p, name))
         backtick = [
             x
             for x in re.findall(BACKTICK_REGEX, doc)
@@ -115,7 +122,7 @@ for p in paths:
             if xr := re.findall(rf"``{lib}\.[a-z0-9_\.]+(?:\(\))?``", doc):
                 missing_xref.append((p, name, xr))
 
-if backticks or links or unescaped or missing_xref or dollarsigns:
+if backticks or links or unescaped or missing_xref or dollarsigns or defaults:
     if backticks:
         print("The following docstrings appear to contain markdown:")
         for p, name, markup in backticks:
@@ -149,5 +156,12 @@ if backticks or links or unescaped or missing_xref or dollarsigns:
             "signs; docstrings should be rst-formatted, use :math:`x` instead of $x$"
         )
         for p, name in dollarsigns:
+            print(f"{p}:{name}")
+    if defaults:
+        print(
+            "The following docstrings appear to contain a description of a default "
+            "argument. Remove that, it's hard to keep up-to-date."
+        )
+        for p, name in defaults:
             print(f"{p}:{name}")
     sys.exit(1)

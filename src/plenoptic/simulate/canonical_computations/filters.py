@@ -118,7 +118,7 @@ def circular_gaussian2d(
         not ``None``, all out channels will have the same value. If not a scalar and
         ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
     out_channels
-        Number of output channels. If None, inferred from shape of ``std``.
+        Number of output channels. If ``None``, inferred from shape of ``std``.
 
     Returns
     -------
@@ -278,7 +278,7 @@ def _validate_filter_args(
         not ``None``, all out channels will have the same value. If not a scalar and
         ``out_channels`` is not ``None``, ``len(std)`` must equal ``out_channels``.
     out_channels
-        Number of output channels. If None, inferred from ``len(std)``.
+        Number of output channels. If ``None``, inferred from ``len(std)``.
     std_name, out_channels_name
         Names of these variables to raise more informative error messages (when e.g.,
         calling from ``CenterSurround``, which uses this function to validate different
