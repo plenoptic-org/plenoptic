@@ -738,9 +738,7 @@ class MetamerCTF(Metamer):
         - ``"separate"``: compute the gradient with respect to each
           scale separately (ignoring the others), then with respect
           to all of them at the end.
-        (see `Metamer tutorial
-        <https://docs.plenoptic.org/docs/branch/main/tutorials/intro/06_Metamer.html>`_
-        for more details).
+        (see :ref:`Metamer tutorial <metamer-nb>`_ for more details).
 
     References
     ----------
@@ -1955,14 +1953,12 @@ def animate(
     ``metamer.plot_synthesis_status`` animated over time, for each stored
     iteration.
 
-    This functions returns a matplotlib FuncAnimation object. See our documentation
-    (e.g., `Quickstart
-    <https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html>`_) for
-    examples on how to view it in a Jupyter notebook. In order to save, use
-    ``anim.save(filename)``. In either case, this can take a while and you'll need the
-    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
-    `matplotlib documentation <https://matplotlib.org/stable/api/animation_api.html>`_
-    for more details.
+    This functions returns a matplotlib FuncAnimation object. See our
+    documentation (e.g., :ref:`quickstart-nb`) for examples on how to view it in
+    a Jupyter notebook. In order to save, use ``anim.save(filename)``. In either
+    case, this can take a while and you'll need the appropriate writer installed
+    and on your path, e.g., ffmpeg, imagemagick, etc). See
+    :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
 
     Parameters
     ----------
