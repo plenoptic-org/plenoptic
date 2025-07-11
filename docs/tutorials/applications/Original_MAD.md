@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -13,6 +13,7 @@ kernelspec:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 warnings.filterwarnings(
@@ -21,6 +22,7 @@ warnings.filterwarnings(
     category=RuntimeWarning,
 )
 ```
+
 :::{admonition} Under development
 :class: warning
 This currently contains examples of the earlier MAD synthesis, but we have yet to reproduce it using `plenoptic`.
@@ -48,10 +50,12 @@ import plenoptic as po
 # Download some data we'll need for this notebook
 import contextlib
 import os
+
 from plenoptic.data.fetch import fetch_data
+
 # the contextlib.redirect_stderr here is so that we don't print out the progressbar.
 # If you would like to see it, remove this line.
-with contextlib.redirect_stderr(open(os.devnull, 'w')):
+with contextlib.redirect_stderr(open(os.devnull, "w")):
     fetch_data("MAD_results.tar.gz")
     fetch_data("ssim_images.tar.gz")
 ```

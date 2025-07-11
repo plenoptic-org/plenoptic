@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -13,6 +13,7 @@ kernelspec:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 warnings.filterwarnings(
@@ -45,10 +46,11 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-# this notebook runs just about as fast with GPU and CPU
-DEVICE = torch.device("cpu")
 
 import plenoptic as po
+
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72

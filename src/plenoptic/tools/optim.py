@@ -17,7 +17,7 @@ def set_seed(seed: int | None = None) -> None:
     Parameters
     ----------
     seed
-        The seed to set. If None, do nothing.
+        The seed to set. If ``None``, do nothing.
     """
     if seed is not None:
         # random initialization

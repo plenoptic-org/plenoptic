@@ -10,8 +10,10 @@ kernelspec:
   language: python
   name: python3
 ---
+
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 import warnings
 
 warnings.filterwarnings(
@@ -89,12 +91,18 @@ image = po.data.einstein()
 curie = po.data.curie()
 
 new_mad = MADCompetitionVariant(
-    image, po.metric.mse, lambda *args: 1 - po.metric.ssim(*args), "min",
+    image,
+    po.metric.mse,
+    lambda *args: 1 - po.metric.ssim(*args),
+    "min",
     metric_tradeoff_lambda=0.1,
 )
 new_mad.setup(curie)
 old_mad = po.synth.MADCompetition(
-    image, po.metric.mse, lambda *args: 1 - po.metric.ssim(*args), "min",
+    image,
+    po.metric.mse,
+    lambda *args: 1 - po.metric.ssim(*args),
+    "min",
     metric_tradeoff_lambda=0.1,
 )
 old_mad.setup(0.1)

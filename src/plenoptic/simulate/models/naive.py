@@ -81,7 +81,7 @@ class Linear(nn.Module):
     pad_mode
         Mode with which to pad image using :func:`torch.nn.functional.pad()`.
     default_filters
-        Initialize the filters to a low-pass and a band-pass. If False, filters are
+        Initialize the filters to a low-pass and a band-pass. If ``False``, filters are
         randomly initialized.
 
     Raises
@@ -187,7 +187,7 @@ class Gaussian(nn.Module):
     pad_mode
         Padding mode argument to pass to :func:`torch.nn.functional.pad`.
     out_channels
-        Number of filters. If None, inferred from shape of ``std``.
+        Number of filters. If ``None``, inferred from shape of ``std``.
     cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
@@ -328,7 +328,7 @@ class CenterSurround(nn.Module):
     surround_std
         Standard deviation of circular Gaussian for surround.
     out_channels
-        Number of filters. If None, inferred from shape of ``center_std``.
+        Number of filters. If ``None``, inferred from shape of ``center_std``.
     pad_mode
         Padding for convolution.
     cache_filt

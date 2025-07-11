@@ -32,7 +32,7 @@ def update_ps_synthesis_test_file(
     ----------
     torch_version
         The version of pytorch for which we should grab the corresponding test
-        file. If None, we use the installed version.
+        file. If ``None``, we use the installed version.
 
     Returns
     -------

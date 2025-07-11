@@ -26,10 +26,10 @@ def validate_input(
 
     - Checks if input_tensor has a float or complex dtype (``TypeError``).
 
-    - If ``no_batch`` is True, check whether ``input_tensor.shape[0] == 1`` or
+    - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    - If ``allowed_range`` is not None, check whether all values of
+    - If ``allowed_range`` is not ``None``, check whether all values of
       ``input_tensor`` lie within the specified range (``ValueError``).
 
     Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
@@ -39,10 +39,10 @@ def validate_input(
     input_tensor
         The tensor to validate.
     no_batch
-        If True, raise a ValueError if the batch dimension of ``input_tensor``
+        If ``True``, raise a ValueError if the batch dimension of ``input_tensor``
         is greater than 1.
     allowed_range
-        If not None, ensure that all values of ``input_tensor`` lie within
+        If not ``None``, ensure that all values of ``input_tensor`` lie within
         allowed_range.
 
     Raises
@@ -299,7 +299,7 @@ def validate_coarse_to_fine(
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
-        specify the expected shape. If None, we use an image of shape
+        specify the expected shape. If ``None``, we use an image of shape
         ``(1,1,16,16)``.
     device
         Which device to place the test image on.
@@ -394,7 +394,7 @@ def validate_metric(
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
-        specify the expected shape. If None, we use an image of shape
+        specify the expected shape. If ``None``, we use an image of shape
         ``(1,1,16,16)``.
     image_dtype
         What dtype to validate against.

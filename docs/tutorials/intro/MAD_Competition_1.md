@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -14,7 +14,7 @@ kernelspec:
 :::{admonition} Download
 :class: important
 
-Download this notebook: **{nb-download}`MAD_Simple.ipynb`**!
+Download this notebook: **{nb-download}`MAD_Competition_1.ipynb`**!
 
 :::
 
@@ -30,11 +30,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
 import torch
-# this notebook runs just about as fast with GPU and CPU
-DEVICE = torch.device("cpu")
 
 import plenoptic as po
 from plenoptic.tools import to_numpy
+
+# this notebook runs just about as fast with GPU and CPU
+DEVICE = torch.device("cpu")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
@@ -48,8 +49,10 @@ First we pick our metrics and run our synthesis. We create four different {class
 ```{code-cell} ipython3
 img = torch.as_tensor([0.5, 0.5], device=DEVICE, dtype=torch.float32)
 
+
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
+
 
 metrics = [po.tools.optim.l2_norm, l1_norm]
 all_mad = {}
@@ -194,6 +197,7 @@ def create_checkerboard(image_size, period, values=[0, 1]):
         .to(torch.float32)
     )
 
+
 # by setting the image to lie between 0 and 255 and be slightly within the max possible
 # range, we make the optimizatio a bit easier.
 img = 255 * create_checkerboard((64, 64), 16, [0.1, 0.9]).to(DEVICE)
@@ -206,6 +210,7 @@ Now we'll do the same process of running synthesis and checking our loss as abov
 ```{code-cell} ipython3
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
+
 
 metrics = [po.tools.optim.l2_norm, l1_norm]
 tradeoffs = {

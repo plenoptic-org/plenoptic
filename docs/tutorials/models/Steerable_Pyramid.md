@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -20,15 +20,15 @@ Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
 
 # Steerable Pyramid
 
-
 This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`SteerablePyramidFreq <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq>`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
 
 Here we will specifically focus on the specifics of the torch version and how it may be used in concert with other differentiable torch models.
 
 ```{code-cell} ipython3
-import matplotlib.pyplot as plt
-import os
 import contextlib
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -377,9 +377,10 @@ for i in range(len(pyr_coeffs_downsample.keys())):
 We are now ready to demonstrate how the steerable pyramid can be used as a fixed frontend for further stages of (learnable) processing!
 
 ```{code-cell} ipython3
-# First we define/download the dataset. The with block here effectively suppresses stderr,
-# so we don't print out the progressbar. If you would like to see it, remove this line.
-with contextlib.redirect_stderr(open(os.devnull, 'w')):
+# First we define/download the dataset. The with block here effectively suppresses
+# stderr, so we don't print out the progressbar. If you would like to see it, remove
+# this line.
+with contextlib.redirect_stderr(open(os.devnull, "w")):
     train_set = torchvision.datasets.FashionMNIST(
         # change this line to wherever you'd like to download the FashionMNIST dataset
         root="../data",

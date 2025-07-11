@@ -58,9 +58,17 @@ repos:
       types_or: ["markdown"]
       entry: python linting/check_tutorials.py
     - id: check-docs-markdown
-      language: system
+      language: python
       # only run on docs/ folder
       name: Check for issues with markdown files in docs
       types_or: ["markdown"]
-      entry: python linting/check_markdown.py
+      entry: linting/check_markdown.py
       files: ^docs/
+      additional_dependencies: ["sphobjinv"]
+    - id: ruff notebooks
+      language: python
+      name: Convert myst-nb markdown notebooks to ipynb and run ruff on them
+      types_or: ["markdown"]
+      entry: linting/ruff_notebooks.py
+      files: ^docs/
+      additional_dependencies: ["ruff", "jupytext"]
