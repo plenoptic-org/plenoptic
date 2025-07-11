@@ -1,7 +1,9 @@
+import shutil
 from contextlib import nullcontext as does_not_raise
 from math import pi
 
 import einops
+import imageio
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -10,7 +12,14 @@ from numpy.random import randint
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.data.fetch import fetch_data
 from plenoptic.tools.data import _check_tensor_equality
+
+
+# used for load_images test as a folder that contains no images
+@pytest.fixture()
+def folder_with_no_images():
+    return fetch_data("portilla_simoncelli_test_vectors.tar.gz")
 
 
 class TestData:
@@ -22,6 +31,12 @@ class TestData:
                     IMG_DIR / "mixed" / "bubbles.png",
                 ]
             )
+
+    def test_load_images_non_image(self, folder_with_no_images):
+        err = pytest.raises(ValueError, match="None of the files found")
+        warn = pytest.warns(UserWarning, match="Unable to load in file")
+        with err, warn:
+            po.load_images(folder_with_no_images.parent)
 
     def test_load_images_sort(self):
         imgs = po.load_images(IMG_DIR / "256")
@@ -43,11 +58,46 @@ class TestData:
             "einstein.pgm",
             "color_wheel.jpg",
             "curie.pgm",
-            "nuts.pgm",
         ]
         sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
         imgs_2 = po.load_images(sorted_paths)
         torch.equal(imgs, imgs_2)
+
+    def test_load_images_custom_sort_fail(self):
+        imgs = list((IMG_DIR / "256").iterdir())
+        with pytest.raises(ValueError, match="When paths argument is"):
+            imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
+
+    # not sure why shutil.copy doesn't close the file
+    @pytest.mark.filterwarnings("ignore:unclosed file:ResourceWarning")
+    def test_load_images_some_non_image(
+        self, tmp_path, einstein_img, folder_with_no_images
+    ):
+        # for some reason, text files created by python (using any of
+        # pathlib.Path().touch() or pathlib.Path().write_text() or with
+        # open(...) as f: f.write()) all give a different error than I can
+        # achieve from any file I create normally. so we use this workaround of
+        # copying an existing non-image into a tmp directory
+        img = po.tools.convert_float_to_int(po.to_numpy(einstein_img).squeeze())
+        imageio.imwrite(tmp_path / "einstein.pgm", img)
+        non_img = list(folder_with_no_images.iterdir())[0]
+        shutil.copy(non_img, tmp_path / "non_image")
+        with pytest.warns(UserWarning, match="Unable to load in file"):
+            po.load_images(tmp_path)
+
+    def test_load_image_notfound(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="File .* not found!"):
+            po.load_images(tmp_path / "test.png")
+
+    def test_load_images_notfound(self, tmp_path, einstein_img):
+        imageio.imwrite(tmp_path / "einstein.pgm", po.to_numpy(einstein_img).squeeze())
+        with pytest.raises(FileNotFoundError, match="File .* not found!"):
+            po.load_images([tmp_path / "test.png", tmp_path / "einstein.pgm"])
+
+    @pytest.mark.parametrize("filename", ["color_wheel.jpg", "einstein.pgm"])
+    def test_load_images_color(self, filename):
+        img = po.load_images(IMG_DIR / "256" / filename, as_gray=False)
+        assert img.shape[1] == 3, "Didn't load image in color!"
 
 
 class TestSignal:

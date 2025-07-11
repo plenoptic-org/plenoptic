@@ -116,7 +116,8 @@ def load_images(
     ValueError
         If the images we attempt to load are not all the same shape.
     ValueError
-        If ``paths`` is a list of files and ``sorted_key`` is not ``None``.
+        If ``paths`` is a single file or list of files and ``sorted_key`` is not
+        ``None``.
 
     Warns
     -----
@@ -155,27 +156,25 @@ def load_images(
         paths = pathlib.Path(paths)
         if paths.is_file():
             paths = [paths]
-        elif paths.is_dir():
-            paths = sorted(paths.iterdir(), key=sorted_key)
-        else:
-            if not paths.exists():
-                raise FileNotFoundError(f"File {paths} not found!")
             if sorted_key is not None:
                 raise ValueError(
-                    "When paths argument is a list of paths, sorted_key must be None!"
+                    "When paths argument is a single file, sorted_key must be None!"
                 )
+        elif paths.is_dir():
+            paths = sorted(paths.iterdir(), key=sorted_key)
 
     except TypeError:
-        # assume it is an iterable of paths already
-        pass
+        # assume it is an iterable of paths
+        paths = [pathlib.Path(p) for p in paths]
+        if sorted_key is not None:
+            raise ValueError(
+                "When paths argument is a list of paths, sorted_key must be None!"
+            )
 
     images = []
     for p in paths:
-        # convert to pathlib path
-        p = pathlib.Path(p)
         if not p.exists():
             raise FileNotFoundError(f"File {p} not found!")
-
         try:
             im = iio.imread(p)
         except (ValueError, OSError):
@@ -207,6 +206,9 @@ def load_images(
             "All images must be the same shape but got the following: "
             f"{[i.shape for i in images]}"
         )
+    if not images:
+        paths = [p.name for p in paths]
+        raise ValueError(f"None of the files found at {paths} were images!")
     images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:
