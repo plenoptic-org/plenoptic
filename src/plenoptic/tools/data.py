@@ -154,14 +154,14 @@ def load_images(
     """
     try:
         paths = pathlib.Path(paths)
-        if paths.is_file():
+        if paths.is_dir():
+            paths = sorted(paths.iterdir(), key=sorted_key)
+        else:
             paths = [paths]
             if sorted_key is not None:
                 raise ValueError(
                     "When paths argument is a single file, sorted_key must be None!"
                 )
-        elif paths.is_dir():
-            paths = sorted(paths.iterdir(), key=sorted_key)
 
     except TypeError:
         # assume it is an iterable of paths
