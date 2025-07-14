@@ -44,14 +44,7 @@ class Metamer(OptimizedSynthesis):
     penalty_function
         A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
-    penalty_lambda
         Strength of the regularizer. Must be non-negative.
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
 
     References
     ----------
@@ -69,14 +62,12 @@ class Metamer(OptimizedSynthesis):
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
         penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
     ):
         super().__init__(
           penalty_function=penalty_function,
           penalty_lambda=penalty_lambda
         )
-        validate_input(image, allowed_range=allowed_range)
+        validate_input(image, allowed_range=(0, 1))
         validate_model(
             model,
             image_shape=image.shape,
@@ -112,7 +103,7 @@ class Metamer(OptimizedSynthesis):
         ----------
         initial_image
             The tensor we use to initialize the metamer. If ``None``, we initialize with
-            uniformly-distributed random noise lying within ``self.allowed_range``.
+            random noise uniformly-distributed in [0,1].
         optimizer
             The un-initialized optimizer object to use. If ``None``, we use
             :class:`torch.optim.Adam`.
@@ -199,9 +190,9 @@ class Metamer(OptimizedSynthesis):
         if self._metamer is None:
             if initial_image is None:
                 metamer = torch.rand_like(self.image)
-                metamer = signal.rescale(metamer, *self.allowed_range)
+                metamer = signal.rescale(metamer, 0, 1)
             else:
-                validate_input(initial_image, allowed_range=self.allowed_range)
+                validate_input(initial_image, allowed_range=(0, 1))
                 if initial_image.size() != self.image.size():
                     warnings.warn(
                         "initial_image and image are different sizes! This "
@@ -640,8 +631,7 @@ class Metamer(OptimizedSynthesis):
             If the object saved at ``file_path`` is not a ``Metamer`` object.
         ValueError
             If the saved and loading ``Metamer`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            or :attr:`allowed_range`.
+            for any of :attr:`image` or :attr:`penalty_lambda`,
         ValueError
             If the behavior of :attr:`loss_function` or :attr:`model` is different
             between the saved and loading objects.
@@ -736,8 +726,7 @@ class Metamer(OptimizedSynthesis):
         """
         check_attributes = [
             "_image",
-            "_range_penalty_lambda",
-            "_allowed_range",
+            "_penalty_lambda",
         ]
         check_attributes += additional_check_attributes
         check_io_attrs = [
@@ -843,12 +832,6 @@ class MetamerCTF(Metamer):
         image by penalizing specific image properties.
     penalty_lambda
         Strength of the regularizer. Must be non-negative.
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
     coarse_to_fine
         - ``"together"``: start with the coarsest scale, then gradually
           add each finer scale.
@@ -873,8 +856,6 @@ class MetamerCTF(Metamer):
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
         penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
         coarse_to_fine: Literal["together", "separate"] = "together",
     ):
         super().__init__(
@@ -1359,8 +1340,7 @@ class MetamerCTF(Metamer):
             If the object saved at ``file_path`` is not a ``MetamerCTF`` object.
         ValueError
             If the saved and loading ``MetamerCTF`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            :attr:`allowed_range`, or :attr:`coarse_to_fine`.
+            for any of :attr:`image`, :attr:`penalty_lambda`, or :attr:`coarse_to_fine`.
         ValueError
             If the behavior of :attr:`loss_function` or :attr:`model` is different
             between the saved and loading objects.

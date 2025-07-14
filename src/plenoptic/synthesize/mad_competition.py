@@ -64,11 +64,6 @@ class MADCompetition(OptimizedSynthesis):
         image by penalizing specific image properties.
     penalty_lambda
         Strength of the regularizer. Must be non-negative.
-    range_penalty_lambda
-        Lambda to multiply by range penalty and add to loss.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
 
     References
     ----------
@@ -87,14 +82,12 @@ class MADCompetition(OptimizedSynthesis):
         metric_tradeoff_lambda: float | None = None,
         penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
     ):
         super().__init__(
           penalty_function=penalty_function,
           penalty_lambda=penalty_lambda
         )
-        validate_input(image, allowed_range=allowed_range)
+        validate_input(image, allowed_range=(0, 1))
         validate_metric(
             optimized_metric,
             image_shape=image.shape,
@@ -240,7 +233,7 @@ class MADCompetition(OptimizedSynthesis):
             if initial_noise is None:
                 initial_noise = 0.1
             mad_image = self.image + initial_noise * torch.randn_like(self.image)
-            mad_image = mad_image.clamp(*self.allowed_range)
+            mad_image = mad_image.clamp(0, 1)
             self._initial_image = mad_image.clone()
             mad_image.requires_grad_()
             self._mad_image = mad_image
@@ -358,8 +351,8 @@ class MADCompetition(OptimizedSynthesis):
         :math:`L_1` is :attr:`optimized_metric`, :math:`L_2` is
         :attr:`reference_metric`, :math:`x` is :attr:`image`, :math:`\hat{x}` is
         :attr:`mad_image`, :math:`\epsilon` is the initial noise, :math:`\mathcal{B}` is
-        the quadratic bound penalty, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
-        and :math:`\lambda_2` is :attr:`range_penalty_lambda`.
+        the penalty function, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
+        and :math:`\lambda_2` is :attr:`penalty_lambda`.
 
         Parameters
         ----------
@@ -702,8 +695,8 @@ class MADCompetition(OptimizedSynthesis):
             If the object saved at ``file_path`` is not a ``MADCompetition`` object.
         ValueError
             If the saved and loading ``MADCompetition`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
+            for any of :attr:`image`, :attr:`penalty_lambda`,
+            :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
         ValueError
             If the behavior of :attr:`optimized_metric` or :attr:`reference_metric` is
             different between the saved and loading objects.
@@ -739,8 +732,7 @@ class MADCompetition(OptimizedSynthesis):
         check_attributes = [
             "_image",
             "_metric_tradeoff_lambda",
-            "_range_penalty_lambda",
-            "_allowed_range",
+            "_penalty_lambda",
             "_minmax",
         ]
         check_io_attrs = [

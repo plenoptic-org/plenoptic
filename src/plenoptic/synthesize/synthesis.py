@@ -293,7 +293,7 @@ class Synthesis(abc.ABC):
             )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
-            # range_penalty_lambda, where this function is checking the
+            # penalty_lambda, where this function is checking the
             # hidden version (which starts with '_'), but during
             # initialization, the user specifies the version without
             # the initial underscore. This is because this function
@@ -477,12 +477,6 @@ class OptimizedSynthesis(Synthesis):
 
     Parameters
     ----------
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
     penalty_function
         A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
@@ -492,8 +486,6 @@ class OptimizedSynthesis(Synthesis):
 
     def __init__(
         self,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
         penalty_function: Callable[[torch.Tensor], torch.Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
     ):
@@ -505,13 +497,9 @@ class OptimizedSynthesis(Synthesis):
         self._optimizer = None
         self._current_loss = None
         self.penalty_function = penalty_function
-        #if range_penalty_lambda < 0:
-        #    raise Exception("range_penalty_lambda must be non-negative!")
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
         self._penalty_lambda = penalty_lambda
-        self._range_penalty_lambda = range_penalty_lambda
-        self._allowed_range = allowed_range
 
     @abc.abstractmethod
     def setup(self):
@@ -944,18 +932,6 @@ class OptimizedSynthesis(Synthesis):
         """Magnitude of the regularization weight."""
         # numpydoc ignore=RT01,ES01
         return self._penalty_lambda
-
-    @property
-    def range_penalty_lambda(self) -> float:
-        """Magnitude of the penalty on pixel values outside :attr:`allowed_range`."""
-        # numpydoc ignore=RT01,ES01
-        return self._range_penalty_lambda
-
-    @property
-    def allowed_range(self) -> tuple[float, float]:
-        """Allowable range of pixel values."""
-        # numpydoc ignore=RT01,ES01
-        return self._allowed_range
 
     @property
     def losses(self) -> torch.Tensor:
