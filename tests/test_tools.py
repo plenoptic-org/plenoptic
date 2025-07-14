@@ -3,12 +3,13 @@ from contextlib import nullcontext as does_not_raise
 from math import pi
 
 import einops
-import imageio
+import imageio.v3 as iio
 import numpy as np
 import pytest
 import scipy.ndimage
 import torch
 from numpy.random import randint
+from skimage import color
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
@@ -48,7 +49,34 @@ class TestData:
             "nuts.pgm",
         ]
         sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
-        imgs_2 = po.load_images(sorted_paths)
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
+        torch.equal(imgs, imgs_2)
+
+    def test_load_images_paths(self):
+        sorted_paths = [
+            "color_wheel.jpg",
+            "curie.pgm",
+            "einstein.pgm",
+            "metal.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs = po.load_images(sorted_paths)
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
         torch.equal(imgs, imgs_2)
 
     def test_load_images_custom_sort(self):
@@ -58,9 +86,17 @@ class TestData:
             "einstein.pgm",
             "color_wheel.jpg",
             "curie.pgm",
+            "nuts.pgm",
         ]
         sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
-        imgs_2 = po.load_images(sorted_paths)
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
         torch.equal(imgs, imgs_2)
 
     def test_load_images_custom_sort_fail(self):
@@ -79,7 +115,7 @@ class TestData:
         # achieve from any file I create normally. so we use this workaround of
         # copying an existing non-image into a tmp directory
         img = po.tools.convert_float_to_int(po.to_numpy(einstein_img).squeeze())
-        imageio.imwrite(tmp_path / "einstein.pgm", img)
+        iio.imwrite(tmp_path / "einstein.pgm", img)
         non_img = list(folder_with_no_images.iterdir())[0]
         shutil.copy(non_img, tmp_path / "non_image")
         with pytest.warns(UserWarning, match="Unable to load in file"):
@@ -90,7 +126,7 @@ class TestData:
             po.load_images(tmp_path / "test.png")
 
     def test_load_images_notfound(self, tmp_path, einstein_img):
-        imageio.imwrite(tmp_path / "einstein.pgm", po.to_numpy(einstein_img).squeeze())
+        iio.imwrite(tmp_path / "einstein.pgm", po.to_numpy(einstein_img).squeeze())
         with pytest.raises(FileNotFoundError, match="File .* not found!"):
             po.load_images([tmp_path / "test.png", tmp_path / "einstein.pgm"])
 
