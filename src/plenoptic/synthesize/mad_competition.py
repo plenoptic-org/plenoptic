@@ -18,7 +18,7 @@ from pyrtools.tools.display import make_figure as pt_make_figure
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import data, display, optim
+from ..tools import data, display, optim, regularization
 from ..tools.convergence import loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
@@ -59,6 +59,11 @@ class MADCompetition(OptimizedSynthesis):
         Lambda to multiply by ``reference_metric`` loss and add to
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
+    penalty_function
+        A penalty function to help constrain the synthesized
+        image by penalizing specific image properties.
+    penalty_lambda
+        Strength of the regularizer. Must be non-negative.
     range_penalty_lambda
         Lambda to multiply by range penalty and add to loss.
     allowed_range
@@ -80,10 +85,15 @@ class MADCompetition(OptimizedSynthesis):
         reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
         metric_tradeoff_lambda: float | None = None,
+        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_lambda: float = 0.1,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
     ):
-        super().__init__(range_penalty_lambda, allowed_range)
+        super().__init__(
+          penalty_function=penalty_function,
+          penalty_lambda=penalty_lambda
+        )
         validate_input(image, allowed_range=allowed_range)
         validate_metric(
             optimized_metric,
@@ -377,11 +387,11 @@ class MADCompetition(OptimizedSynthesis):
         fixed_loss = (
             self._reference_metric_target - self.reference_metric(image, mad_image)
         ).pow(2)
-        range_penalty = optim.penalize_range(mad_image, self.allowed_range)
+        penalty = self.penalty_function(mad_image)
         return (
             synth_target * synthesis_loss
             + self.metric_tradeoff_lambda * fixed_loss
-            + self.range_penalty_lambda * range_penalty
+            + self.penalty_lambda * penalty
         )
 
     def get_progress(

@@ -16,12 +16,8 @@ from typing import Any, Literal
 import numpy as np
 import torch
 
-from ..tools import examine_saved_synthesis
+from ..tools import examine_saved_synthesis, regularization
 from ..tools.data import _check_tensor_equality
-
-
-def _penalize_range(metamer: torch.Tensor) -> torch.Tensor:
-    return torch.tensor(0.0)
 
 
 def _get_name(x: object) -> str:
@@ -498,7 +494,7 @@ class OptimizedSynthesis(Synthesis):
         self,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
-        penalty_function: Callable[[torch.Tensor], torch.Tensor] = _penalize_range,
+        penalty_function: Callable[[torch.Tensor], torch.Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__()
