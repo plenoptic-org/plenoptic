@@ -104,11 +104,12 @@ class TestData:
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
     def test_load_images_some_non_image(self):
+        test_dir = fetch_data("load_image_test.tar.gz")
         warn = pytest.warns(UserWarning, match="Unable to load in file")
         # hopefully imageio fixes this: https://github.com/imageio/imageio/issues/1137
         deprecation = pytest.warns(UserWarning, match="pkg_resources is deprecated")
         with warn, deprecation:
-            po.load_images("data/load_image_test")
+            po.load_images(test_dir)
 
     def test_load_image_notfound(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="File .* not found!"):
