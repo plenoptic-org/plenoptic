@@ -176,7 +176,9 @@ def load_images(
         if not p.exists():
             raise FileNotFoundError(f"File {p} not found!")
         try:
-            im = iio.imread(p)
+            # this makes sure we close the file properly on except
+            with open(p, "rb") as f:
+                im = iio.imread(f)
         except (ValueError, OSError):
             warnings.warn(
                 f"Unable to load in file {p}, it's probably not an image, skipping..."

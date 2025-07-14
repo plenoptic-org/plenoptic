@@ -1,4 +1,3 @@
-import shutil
 from contextlib import nullcontext as does_not_raise
 from math import pi
 
@@ -104,23 +103,12 @@ class TestData:
         with pytest.raises(ValueError, match="When paths argument is"):
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
-    # for some reason shutil.copy raises both these warnings
-    @pytest.mark.filterwarnings("ignore:unclosed file:ResourceWarning")
-    @pytest.mark.filterwarnings("ignore:pkg_resources is deprecated:UserWarning")
-    def test_load_images_some_non_image(
-        self, tmp_path, einstein_img, folder_with_no_images
-    ):
-        # for some reason, text files created by python (using any of
-        # pathlib.Path().touch() or pathlib.Path().write_text() or with
-        # open(...) as f: f.write()) all give a different error than I can
-        # achieve from any file I create normally. so we use this workaround of
-        # copying an existing non-image into a tmp directory
-        img = po.tools.convert_float_to_int(po.to_numpy(einstein_img).squeeze())
-        iio.imwrite(tmp_path / "einstein.pgm", img)
-        non_img = list(folder_with_no_images.iterdir())[0]
-        shutil.copy(non_img, tmp_path / "non_image")
-        with pytest.warns(UserWarning, match="Unable to load in file"):
-            po.load_images(tmp_path)
+    def test_load_images_some_non_image(self):
+        warn = pytest.warns(UserWarning, match="Unable to load in file")
+        # hopefully imageio fixes this: https://github.com/imageio/imageio/issues/1137
+        deprecation = pytest.warns(UserWarning, match="pkg_resources is deprecated")
+        with warn, deprecation:
+            po.load_images("data/load_image_test")
 
     def test_load_image_notfound(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="File .* not found!"):
