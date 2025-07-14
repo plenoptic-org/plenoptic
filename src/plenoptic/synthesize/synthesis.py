@@ -487,10 +487,10 @@ class OptimizedSynthesis(Synthesis):
     allowed_range
         Range (inclusive) of allowed pixel values. Any values outside this
         range will be penalized.
-    regularization
-        A regularization function to help constrain the synthesized
+    penalty_function
+        A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
-    regularization_lambda
+    penalty_lambda
         Strength of the regularizer. Must be non-negative.
     """
 
@@ -498,8 +498,8 @@ class OptimizedSynthesis(Synthesis):
         self,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
-        regularization: Callable[[torch.Tensor], torch.Tensor] = _penalize_range,
-        regularization_lambda: float = 0.1,
+        penalty_function: Callable[[torch.Tensor], torch.Tensor] = _penalize_range,
+        penalty_lambda: float = 0.1,
     ):
         super().__init__()
         self._losses = []
@@ -507,18 +507,13 @@ class OptimizedSynthesis(Synthesis):
         self._pixel_change_norm = []
         self._store_progress = None
         self._optimizer = None
-<<<<<<< HEAD
         self._current_loss = None
-        if range_penalty_lambda < 0:
-            raise Exception("range_penalty_lambda must be non-negative!")
-=======
-        self.regularization = regularization
+        self.penalty_function = penalty_function
         #if range_penalty_lambda < 0:
         #    raise Exception("range_penalty_lambda must be non-negative!")
-        if regularization_lambda < 0:
-            raise Exception("regularization_lambda must be non-negative!")
-        self._regularization_lambda = regularization_lambda
->>>>>>> First working regularization implementation
+        if penalty_lambda < 0:
+            raise Exception("penalty_lambda must be non-negative!")
+        self._penalty_lambda = penalty_lambda
         self._range_penalty_lambda = range_penalty_lambda
         self._allowed_range = allowed_range
 
@@ -949,10 +944,10 @@ class OptimizedSynthesis(Synthesis):
         return progress_info
 
     @property
-    def regularization_lambda(self) -> float:
+    def penalty_lambda(self) -> float:
         """Magnitude of the regularization weight."""
         # numpydoc ignore=RT01,ES01
-        return self._regularization_lambda
+        return self._penalty_lambda
 
     @property
     def range_penalty_lambda(self) -> float:

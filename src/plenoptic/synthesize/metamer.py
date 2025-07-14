@@ -45,10 +45,10 @@ class Metamer(OptimizedSynthesis):
     loss_function
         The loss function to use to compare the representations of the models
         in order to determine their loss.
-    regularization
-        A regularization function to help constrain the synthesized
+    penalty_function
+        A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
-    regularization_lambda
+    penalty_lambda
         Strength of the regularizer. Must be non-negative.
     range_penalty_lambda
         Strength of the regularizer that enforces the allowed_range. Must be
@@ -71,12 +71,15 @@ class Metamer(OptimizedSynthesis):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        regularization: Callable[[Tensor], Tensor] = _penalize_range,
-        regularization_lambda: float = 0.1,
+        penalty_function: Callable[[Tensor], Tensor] = _penalize_range,
+        penalty_lambda: float = 0.1,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
     ):
-        super().__init__(regularization, regularization_lambda)
+        super().__init__(
+          penalty_function=penalty_function,
+          penalty_lambda=penalty_lambda
+        )
         validate_input(image, allowed_range=allowed_range)
         validate_model(
             model,
@@ -338,8 +341,8 @@ class Metamer(OptimizedSynthesis):
             target_representation = self.target_representation
         metamer_representation = self.model(metamer, **analyze_kwargs)
         loss = self.loss_function(metamer_representation, target_representation)
-        regularization_penalty = self.regularization(self.metamer)
-        return loss + self.regularization_lambda * regularization_penalty
+        penalty = self.penalty_function(self.metamer)
+        return loss + self.penalty_lambda * penalty
 
     def get_progress(
         self,
@@ -839,10 +842,10 @@ class MetamerCTF(Metamer):
     loss_function
         The loss function to use to compare the representations of the models
         in order to determine their loss.
-    regularization
-        A regularization function to help constrain the synthesized
+    penalty_function
+        A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
-    regularization_lambda
+    penalty_lambda
         Strength of the regularizer. Must be non-negative.
     range_penalty_lambda
         Strength of the regularizer that enforces the allowed_range. Must be
@@ -872,8 +875,8 @@ class MetamerCTF(Metamer):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        regularization: Callable[[Tensor], Tensor] = _penalize_range,
-        regularization_lambda: float = 0.1,
+        penalty_function: Callable[[Tensor], Tensor] = _penalize_range,
+        penalty_lambda: float = 0.1,
         range_penalty_lambda: float = 0.1,
         allowed_range: tuple[float, float] = (0, 1),
         coarse_to_fine: Literal["together", "separate"] = "together",
@@ -882,8 +885,8 @@ class MetamerCTF(Metamer):
             image,
             model,
             loss_function,
-            regularization,
-            regularization_lambda,
+            penalty_function,
+            penalty_lambda,
         )
         self._init_ctf(coarse_to_fine)
 
