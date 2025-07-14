@@ -104,8 +104,9 @@ class TestData:
         with pytest.raises(ValueError, match="When paths argument is"):
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
-    # not sure why shutil.copy doesn't close the file
+    # for some reason shutil.copy raises both these warnings
     @pytest.mark.filterwarnings("ignore:unclosed file:ResourceWarning")
+    @pytest.mark.filterwarnings("ignore:pkg_resources is deprecated:UserWarning")
     def test_load_images_some_non_image(
         self, tmp_path, einstein_img, folder_with_no_images
     ):
