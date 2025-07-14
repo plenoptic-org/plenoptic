@@ -200,6 +200,7 @@ class Metamer(OptimizedSynthesis):
         if self._metamer is None:
             if initial_image is None:
                 metamer = torch.rand_like(self.image)
+                metamer = signal.rescale(metamer, *self.allowed_range)
             else:
                 validate_input(initial_image, allowed_range=self.allowed_range)
                 if initial_image.size() != self.image.size():
