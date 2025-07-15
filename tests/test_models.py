@@ -866,7 +866,7 @@ class TestPortillaSimoncelli:
             im0,
             model,
             loss_function=po.tools.optim.l2_norm,
-            range_penalty_lambda=0,
+            penalty_lambda=0,
             coarse_to_fine="together",
         )
         # this is the same as the default optimizer, but we explicitly

@@ -22,18 +22,16 @@ class TestMetamers:
     @pytest.mark.parametrize("loss_func", ["mse", "l2", "custom"])
     @pytest.mark.parametrize(
         "fail",
-        [False, "img", "model", "loss", "range_penalty", "dtype", "allowed_range"],
+        [False, "img", "model", "loss", "penalty_lambda", "dtype"],
     )
-    @pytest.mark.parametrize("range_penalty", [0.1, 0])
-    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
+    @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     def test_save_load(
         self,
         einstein_img,
         model,
         loss_func,
         fail,
-        range_penalty,
-        allowed_range,
+        penalty_lambda,
         tmp_path,
     ):
         if loss_func == "mse":
@@ -46,8 +44,7 @@ class TestMetamers:
             einstein_img,
             model,
             loss_function=loss,
-            allowed_range=allowed_range,
-            range_penalty_lambda=range_penalty,
+            penalty_lambda=penalty_lambda,
         )
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_save_load.pt"))
@@ -75,17 +72,11 @@ class TestMetamers:
                         "values"
                     ),
                 )
-            elif fail == "allowed_range":
-                allowed_range = (0, 5)
+            elif fail == "penalty_lambda":
+                penalty_lambda = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized allowed_range are different"),
-                )
-            elif fail == "range_penalty":
-                range_penalty = 0.5
-                expectation = pytest.raises(
-                    ValueError,
-                    match=("Saved and initialized range_penalty_lambda are different"),
+                    match=("Saved and initialized penalty_lambda are different"),
                 )
             elif fail == "dtype":
                 einstein_img = einstein_img.to(torch.float64)
@@ -103,8 +94,7 @@ class TestMetamers:
                 einstein_img,
                 model,
                 loss_function=loss,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
             )
             with expectation:
                 met_copy.load(
@@ -116,8 +106,7 @@ class TestMetamers:
                 einstein_img,
                 model,
                 loss_function=loss,
-                range_penalty_lambda=range_penalty,
-                allowed_range=allowed_range,
+                penalty_lambda=penalty_lambda,
             )
             met_copy.load(
                 op.join(tmp_path, "test_metamer_save_load.pt"),
@@ -576,13 +565,12 @@ class TestMetamers:
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     def test_load_tol(self, einstein_img, model, tmp_path):
-        met = po.synth.Metamer(einstein_img, model, allowed_range=(-1, 2))
+        met = po.synth.Metamer(einstein_img, model)
         met.synthesize(5)
         met.save(op.join(tmp_path, "test_metamer_load_tol.pt"))
         met = po.synth.Metamer(
             einstein_img + 1e-7 * torch.rand_like(einstein_img),
             model,
-            allowed_range=(-1, 2),
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             met.load(op.join(tmp_path, "test_metamer_load_tol.pt"))

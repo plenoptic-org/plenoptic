@@ -69,19 +69,17 @@ class TestMAD:
             "metric2",
             "target",
             "tradeoff",
-            "range_penalty",
-            "allowed_range",
+            "penalty_lambda",
         ],
     )
-    @pytest.mark.parametrize("range_penalty", [0.1, 0])
-    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
+    @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     @pytest.mark.parametrize("rgb", [False, True])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_save_load(
-        self, curie_img, fail, range_penalty, allowed_range, rgb, tmp_path
+        self, curie_img, fail, penalty_lambda, rgb, tmp_path
     ):
         # this works with either rgb or grayscale images
         metric = rgb_mse
@@ -98,8 +96,7 @@ class TestMAD:
             metric2,
             target,
             metric_tradeoff_lambda=tradeoff,
-            allowed_range=allowed_range,
-            range_penalty_lambda=range_penalty,
+            penalty_lambda=penalty_lambda,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_save_load.pt"))
@@ -146,17 +143,11 @@ class TestMAD:
                         "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
-            elif fail == "allowed_range":
-                allowed_range = (0, 5)
+            elif fail == "penalty_lambda":
+                penalty_lambda = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized allowed_range are different"),
-                )
-            elif fail == "range_penalty":
-                range_penalty = 0.5
-                expectation = pytest.raises(
-                    ValueError,
-                    match=("Saved and initialized range_penalty_lambda are different"),
+                    match=("Saved and initialized penalty_lambda are different"),
                 )
             mad_copy = po.synth.MADCompetition(
                 curie_img,
@@ -164,8 +155,7 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
             )
             with expectation:
                 mad_copy.load(
@@ -179,8 +169,7 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
             )
             mad_copy.load(
                 op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
@@ -615,7 +604,6 @@ class TestMAD:
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
             metric_tradeoff_lambda=1,
-            allowed_range=(-1, 2),
         )
         mad.synthesize(5)
         mad.save(op.join(tmp_path, "test_mad_load_tol.pt"))
@@ -625,7 +613,6 @@ class TestMAD:
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
             metric_tradeoff_lambda=1,
-            allowed_range=(-1, 2),
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             mad.load(op.join(tmp_path, "test_mad_load_tol.pt"))

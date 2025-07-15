@@ -794,12 +794,12 @@ class TestOptim:
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
-        assert po.tools.optim.penalize_range(img).item() == 4
+        assert po.tools.regularization.penalize_range(img).item() == 4
 
     def test_penalize_range_below(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = -1
-        assert po.tools.optim.penalize_range(img).item() == 4
+        assert po.tools.regularization.penalize_range(img).item() == 4
 
 
 class TestPolarImages:
