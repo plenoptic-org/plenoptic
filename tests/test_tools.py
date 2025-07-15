@@ -103,6 +103,15 @@ class TestData:
         with pytest.raises(ValueError, match="When paths argument is"):
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
+    # this deprecation warning is triggered during the same call to
+    # pkg_resources that triggers the deprecation warning caught by pytest in
+    # the function, but only happens if either sphinxcontrib-apidoc or
+    # sphinxcontrib-jsmath is also in your environment (they will be if your
+    # environment includes sphinx, which also gets installed by numpydoc). so
+    # hopefully when the above issue is resolved, so will this one.
+    @pytest.mark.filterwarnings(
+        "ignore:Deprecated call to `pkg_resources:DeprecationWarning"
+    )
     def test_load_images_some_non_image(self):
         test_dir = fetch_data("load_image_test.tar.gz")
         warn = pytest.warns(UserWarning, match="Unable to load in file")
