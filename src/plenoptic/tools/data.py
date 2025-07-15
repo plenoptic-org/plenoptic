@@ -4,6 +4,7 @@
 import contextlib
 import pathlib
 import warnings
+from collections.abc import Callable
 from typing import Literal
 
 import imageio.v3 as iio
@@ -64,7 +65,11 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     return x
 
 
-def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
+def load_images(
+    paths: str | list[str] | pathlib.Path | list[pathlib.Path],
+    as_gray: bool = True,
+    sorted_key: None | Callable = None,
+) -> Tensor:
     r"""
     Load in images.
 
@@ -92,6 +97,12 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
         loading them. If ``False``, we do nothing. If ``True``, we call
         skimage.color.rgb2gray on them, which will result in a single
         channel.
+    sorted_key
+        How to sort the images. If ``None`` and ``paths`` is a directory,
+        will sort the paths alphabetically. If ``paths`` is a list of files,
+        must be ``None`` and is ignored. See :ref:`python:sortinghowto`
+        for details on other possible values, and note that the objects to sort
+        are :class:`pathlib.Path` objects.
 
     Returns
     -------
@@ -104,37 +115,71 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
         If any of the explicit image paths do not exist.
     ValueError
         If the images we attempt to load are not all the same shape.
+    ValueError
+        If ``paths`` is a single file or list of files and ``sorted_key`` is not
+        ``None``.
 
     Warns
     -----
     UserWarning
         If ``paths`` is a directory and any of the files it contains
         are non-images.
+
+    Examples
+    --------
+    When ``sorted_key=None``, images from a directory are sorted alphabetically
+    by filename.
+
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> from plenoptic.data.fetch import fetch_data
+      >>> img_dir = fetch_data("test_images.tar.gz") / "256"
+      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
+      >>> imgs = po.load_images(img_dir)
+      >>> po.imshow(imgs, title=titles)
+      <PyrFigure size ... with 5 Axes>
+
+    Sort the images by the second letter of their filename:
+
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> from plenoptic.data.fetch import fetch_data
+      >>> img_dir = fetch_data("test_images.tar.gz") / "256"
+      >>> titles = ["metal", "einstein", "color_wheel", "curie", "nuts"]
+      >>> imgs = po.load_images(img_dir, sorted_key=lambda x: x.name[1])
+      >>> po.imshow(imgs, title=titles)
+      <PyrFigure size ... with 5 Axes>
     """
     try:
         paths = pathlib.Path(paths)
-        if paths.is_file():
-            paths = [paths]
-        elif paths.is_dir():
-            paths = [path for path in paths.iterdir()]
+        if paths.is_dir():
+            paths = sorted(paths.iterdir(), key=sorted_key)
         else:
-            if not paths.exists():
-                raise FileNotFoundError(f"File {paths} not found!")
+            paths = [paths]
+            if sorted_key is not None:
+                raise ValueError(
+                    "When paths argument is a single file, sorted_key must be None!"
+                )
 
     except TypeError:
-        # assume it is an iterable of paths already
-        pass
+        # assume it is an iterable of paths
+        paths = [pathlib.Path(p) for p in paths]
+        if sorted_key is not None:
+            raise ValueError(
+                "When paths argument is a list of paths, sorted_key must be None!"
+            )
 
     images = []
     for p in paths:
-        # convert to pathlib path
-        p = pathlib.Path(p)
         if not p.exists():
             raise FileNotFoundError(f"File {p} not found!")
-
         try:
-            im = iio.imread(p)
-        except ValueError:
+            # this makes sure we close the file properly on except
+            with open(p, "rb") as f:
+                im = iio.imread(f)
+        except (ValueError, OSError):
             warnings.warn(
                 f"Unable to load in file {p}, it's probably not an image, skipping..."
             )
@@ -163,6 +208,9 @@ def load_images(paths: str | list[str], as_gray: bool = True) -> Tensor:
             "All images must be the same shape but got the following: "
             f"{[i.shape for i in images]}"
         )
+    if not images:
+        paths = [p.name for p in paths]
+        raise ValueError(f"None of the files found at {paths} were images!")
     images = torch.as_tensor(np.array(images), dtype=torch.float32)
     if as_gray:
         if images.ndimension() != 3:

@@ -29,16 +29,8 @@ enhanced, suppressed, or discarded. More importantly, they can facilitate the
 scientific process, through use in further perceptual or neural experiments
 aimed at validating or falsifying model predictions.
 
-See our [documentation site](https://docs.plenoptic.org) for more details!
-
-## Getting started
-
--   If you are unfamiliar with stimulus synthesis, see the [conceptual
-    introduction](https://docs.plenoptic.org/docs/branch/main/conceptual_intro.html)
-    for an in-depth introduction.
--   If you understand the basics of synthesis and want to get started
-    using `plenoptic` quickly, see the
-    [Quickstart](https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html) tutorial.
+See our [documentation site](https://docs.plenoptic.org) for more details,
+including how to get started!
 
 ### Installation
 
