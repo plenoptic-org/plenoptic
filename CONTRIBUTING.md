@@ -468,29 +468,46 @@ try and debug some errors (though errors that result from environment issues
 obviously will be harder to figure out locally); `jupyter execute` is part of
 the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
-If your notebook takes more than ~10 minutes on a github runner, you should find
-a way to use reduce it for tests. The goal of the tests is only to check that
-each cell runs successfully. For example, the Portilla-Simoncelli texture model
-notebook runs several metamer syntheses to completion. This allows the user to
-better understand how the model works and confirm that we are able to reproduce
-the paper, as well as serving as a convenient way for the developers to ensure
-that we maintain this over time. However, the tests are *only intended* to
-ensure that everything runs, so we can reduce the number of iterations those
-metamer instances run for. We do this using
-[papermill](https://papermill.readthedocs.io/), which requires several steps:
+### Long-running synthesis and tutorial notebooks
 
-- Add a cell to the top of the notebook (under the import cell), add the
-  parameter tag (see [papermill
-  documentation](https://papermill.readthedocs.io/en/latest/usage-parameterize.html),
-  and create a variable for each synthesis duration (e.g., `vgg16_synth_max_iter
-  = 1000`).
-- Where synthesis is called later in the notebook, replace the number with the
-  variable (e.g., `metamer.synthesize(max_iter=vgg16_max_iter)`).
-- Add a conditional job to `ci.yml` for your notebook which installs papermill.
-  See `ci.yml` for examples.
+Occasionally, we want to include one or more synthesis calls within a tutorial
+notebook that take a long time to run (for example, because we're reproducing a
+result from the literature). In order to avoid having the documentation build
+take a long time, we instead write a regression test (in
+`tests/test_uploaded_files.py`), which runs the synthesis, saves the output, and
+compares it against a cached version stored in our OSF project. See
+`tests/test_uploaded_files.py` to see how these tests look. Some important notes:
 
-A similar procedure could be used to reduce the size of an image or other steps
-that could similarly reduce the total time necessary to run a notebook.
+- The new tests should be added to the `TestTutorialNotebooks` class in
+  `test_uploaded_files.py`, and within that class, they should be within a class
+  whose name matches that of the corresponding notebook (with underscores
+  removed). E.g., if the synthesis will be downloaded in
+  `docs/tutorials/applications/Demo_Eigendistortion.md`, the test should be
+  under `TestTutorialNotebooks` and `TestDemoEigendistortion`.
+- The synthesize call should be shown in the notebook, in a code block (unlike a
+  `code-cell`, `code-block` are not run) with a name that corresponds to the
+  name of the test. So, if our test was called `test_berardino_onoff`, the
+  corresponding code block should look like:
+  ````
+  ```{code-block} python
+  :name: test_berardino_onoff
+  eigendist_f.synthesize(k=3, method="power", max_iter=2000)
+  ```
+  ````
+  It probably should be wrapped in an admonition (to really make sure it doesn't
+  get run), but that's not necessary.
+- The test should be part of either the `gpu-0` or `gpu-1` [xdist
+  group](https://pytest-xdist.readthedocs.io/en/stable/distribution.html), and
+  thus use either `DEVICE` or `DEVICE2`, respectively.
+- `src/plenoptic/data/fetch.py` needs the hash and the URL slug of each new
+  file, so make sure to update them. The hash can be computed by calling
+  `openssl sha256 path/to/file` on the command line.
+
+We have a linter that checks the first two conditions above.
+
+The tests found under `TestTutorialNotebooks` are not run on every PR, because
+they take too long, even on the GPU, and are expected to rarely change. Instead,
+we only run them as part of our weekly tests on Jenkins.
 
 ### Test parameterizations and fixtures
 
