@@ -90,7 +90,7 @@ version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]
-addopts = "--cov=plenoptic --cov-append -n auto --cov-report term"
+addopts = "--cov=plenoptic --cov-append -n auto --cov-report term --dist loadgroup"
 testpaths = ["tests"]
 doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
 

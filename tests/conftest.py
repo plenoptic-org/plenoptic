@@ -5,6 +5,8 @@ import plenoptic as po
 from plenoptic.data.fetch import fetch_data
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# if we have a second gpu, can use it for some tests
+DEVICE2 = torch.device(1) if torch.cuda.device_count() > 1 else DEVICE
 IMG_DIR = fetch_data("test_images.tar.gz")
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
@@ -35,11 +37,6 @@ def einstein_img():
 
 
 @pytest.fixture(scope="package")
-def einstein_small_seq(einstein_img_small):
-    return po.tools.translation_sequence(einstein_img_small, 5)
-
-
-@pytest.fixture(scope="package")
 def einstein_img_small(einstein_img):
     return po.tools.center_crop(einstein_img, 64).to(DEVICE)
 
@@ -48,6 +45,22 @@ def einstein_img_small(einstein_img):
 def color_img():
     img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", as_gray=False).to(DEVICE)
     return img[..., :256, :256]
+
+
+@pytest.fixture(scope="package")
+def parrot_square():
+    img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
+    return po.tools.center_crop(img, 254)
+
+
+@pytest.fixture(scope="package")
+def parrot_square_double(parrot_square):
+    return parrot_square.to(torch.float64)
+
+
+@pytest.fixture(scope="package")
+def einstein_img_double(einstein_img):
+    return einstein_img.to(torch.float64)
 
 
 @pytest.fixture(scope="package")

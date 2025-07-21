@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.2
 kernelspec:
   display_name: plenoptic
   language: python
@@ -35,6 +35,7 @@ Our perception is influenced by our internal representation (neural responses) o
 import torch
 
 import plenoptic as po
+from plenoptic.data.fetch import fetch_data
 from plenoptic.simulate.models import OnOff
 from plenoptic.synthesize import Eigendistortion
 
@@ -51,52 +52,40 @@ except ModuleNotFoundError:
         "and restart the notebook kernel"
     )
 
-DEVICE = torch.device(0 if torch.cuda.is_available() else "cpu")
+# we do not actually run synthesis in this notebook, so the cpu is fine.
+DEVICE = torch.device("cpu")
 ```
 
-This notebook takes a while to run, especially if you don't have a GPU available. To reduce the amount of iterations we run synthesis for, and thus the duration of running the notebook, you can reduce the following values. Note that if you do so, the synthesis will not have completed and you *should not* interpret the resulting images as eigendistortions.
-
-```{code-cell} ipython3
-:tags: [parameters]
-
-max_iter_frontend = 2000
-max_iter_vgg = 5000
-```
+:::{attention}
+The eigendistortion synthesis investigated in this noteobok takes a long time to run, especially if you don't have a GPU available. Therefore, we have cached the result of these syntheses online and only download them for investigation in this notebok.
+:::
 
 ## Input preprocessing
 Let's load the parrot image used in the paper and display it:
 
 ```{code-cell} ipython3
 # crop the image to be square:
-image_tensor = po.data.parrot().to(DEVICE)
-# reduce size of image if we're on CPU, otherwise this will take too long
-if DEVICE.type == "cpu":
-    sz = 64
-    zoom = 256 / 64
-else:
-    sz = 254
-    zoom = 1
-
-image_tensor = po.tools.center_crop(image_tensor, sz)
+image_tensor = po.data.parrot().to(DEVICE).to(torch.float64)
+image_tensor = po.tools.center_crop(image_tensor, min(image_tensor.shape[-2:]))
 
 print("Torch image shape:", image_tensor.shape)
 
-po.imshow(image_tensor, zoom=zoom);
+po.imshow(image_tensor);
 ```
 
 Since the Front-end OnOff model only has two channel outputs, we can easily visualize the feature maps.
 We'll apply a circular mask to this model's inputs to avoid edge artifacts in the synthesis.
 
 ```{code-cell} ipython3
-mdl_f = OnOff(kernel_size=(31, 31), pretrained=True, apply_mask=True)
+mdl_f = OnOff(kernel_size=(31, 31), pretrained=True, apply_mask=True, cache_filt=True)
 po.tools.remove_grad(mdl_f)
-mdl_f = mdl_f.to(DEVICE)
+mdl_f = mdl_f.to(DEVICE).to(image_tensor.dtype)
+mdl_f.eval()
 
 response_f = mdl_f(image_tensor)
 po.imshow(
     response_f,
     title=["on channel response", "off channel response"],
-    zoom=zoom,
 );
 ```
 
@@ -110,8 +99,26 @@ The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `
 ```{code-cell} ipython3
 # synthesize the top and bottom k distortions
 eigendist_f = Eigendistortion(image=image_tensor, model=mdl_f)
-eigendist_f.synthesize(k=3, method="power", max_iter=max_iter_frontend)
 ```
+
+Because this synthesis takes a long time to run, we will load the result from a cache and investigate it.
+
+```{code-cell} ipython3
+eigendist_f.load(
+    fetch_data("berardino_onoff.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
+)
+```
+
+:::{note}
+
+The following cell shows the code used to synthesize this eigendistortion, which you are free to run yourself.
+
+```{code-block} python
+:name: test_berardino_onoff
+eigendist_f.synthesize(k=3, method="power", max_iter=2000)
+```
+:::
+
 
 ### Front-end model: eigendistortion display
 
@@ -119,7 +126,10 @@ Once synthesized, we can plot the distortion on the image using {func}`display_e
 
 ```{code-cell} ipython3
 po.synth.eigendistortion.display_eigendistortion_all(
-    eigendist_f, [0, -1], alpha=3, suptitle="OnOff", zoom=zoom
+    eigendist_f,
+    [0, -1],
+    alpha=3,
+    suptitle="OnOff",
 );
 ```
 
@@ -154,19 +164,36 @@ def normalize(img_tensor):
 # store these for later so we can un-normalize the image for display purposes
 orig_mean = image_tensor.mean().detach()
 orig_std = image_tensor.std().detach()
-image_tensor = normalize(image_tensor).to(DEVICE)
+image_tensor = normalize(image_tensor)
 
 image_tensor3 = image_tensor.repeat(1, 3, 1, 1)
 
 # "layer 3" according to Berardino et al (2017)
 vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
-mdl_v = TorchVision(vgg, "features.11").to(DEVICE)
+mdl_v = TorchVision(vgg, "features.11").to(DEVICE).to(image_tensor.dtype)
 po.tools.remove_grad(mdl_v)
 mdl_v.eval()
 
 eigendist_v = Eigendistortion(image=image_tensor3, model=mdl_v)
-eigendist_v.synthesize(k=2, method="power", max_iter=max_iter_vgg)
 ```
+
+Because this synthesis takes a long time to run, we will load the result from a cache and investigate it.
+
+```{code-cell} ipython3
+eigendist_v.load(
+    fetch_data("berardino_vgg16.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
+)
+```
+
+:::{note}
+
+The following cell shows the code used to synthesize this eigendistortion, which you are free to run yourself.
+
+```{code-block} python
+:name: test_berardino_vgg16
+eigendist_v.synthesize(k=2, method="power", max_iter=5000)
+```
+:::
 
 ### VGG16: eigendistortion display
 
@@ -186,7 +213,6 @@ po.synth.eigendistortion.display_eigendistortion_all(
     [0, -1],
     alpha=[15, 100],
     suptitle="VGG16",
-    zoom=zoom,
     as_rgb=True,
     process_image=unnormalize,
 );

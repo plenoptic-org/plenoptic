@@ -267,7 +267,7 @@ Before running tests locally, you'll need
 the `dev` optional dependencies (i.e., you should run `pip install -e ".[dev]"`
 from within your local copy of `plenoptic`).
 
-To run all tests, run `pytest tests/` from the main `plenoptic` directory. This
+To run all tests, run `pytest` from the main `plenoptic` directory. This
 will take a while, as we have many tests, broken into categories. There are
 several choices for how to run a subset of the tests:
 
@@ -286,6 +286,17 @@ several choices for how to run a subset of the tests:
 
 View the [pytest documentation](https://doc.pytest.org/en/latest/usage.html) for
 more info.
+
+### Running pytest with non-standard cache directories
+
+When running tests on some machines (e.g., nodes of the Flatiron cluster), the default cache directories used by some of the libraries will not exist, so running the tests like normal will result in errors that complain about directories not existing or not having permission to create directories in e.g., `/home/wbroderick`.
+
+To avoid this problem, we can use environment variables to control the behavior of these libraries. To do so for pooch (downloading test files), torch (downloading pretrained models), and matplotlib (caching config files), prepend the following to your pytest command: `TORCH_HOME=~/.cache/torch MPLCONFIGDIR=~/.cache/matplotlib PLENOPTIC_CACHE_DIR=~/.cache/plenoptic` (or replace `~/.cache/` with some other directory).
+
+> [!NOTE]
+> This may also be helpful when building the documentation.
+
+See relevant [torch](https://docs.pytorch.org/docs/stable/hub.html#where-are-my-downloaded-models-saved), [pooch](https://www.fatiando.org/pooch/latest/user-defined-cache.html), and [matplotlib](https://matplotlib.org/stable/install/environment_variables_faq.html#envvar-MPLCONFIGDIR) docs.
 
 ### Using nox to simplify testing and linting
 This section is optional but if you want to easily run tests in an isolated environment
