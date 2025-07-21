@@ -34,7 +34,7 @@ pipeline {
               pip install -U pip setuptools
               pip install -U .[test] --verbose
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              python3.11 -m pytest -n 8
+              python3.11 -m pytest -n $PARALLEL
            '''
           }
           post {
@@ -67,9 +67,13 @@ pipeline {
               pip install -U pip setuptools
               pip install .[test]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              python3.11 -m pytest -n 8
+              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n $PARALLEL
             '''
-            archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+          }
+          post {
+            always {
+              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+            }
           }
         }
         stage('docs') {
