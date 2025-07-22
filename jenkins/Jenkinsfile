@@ -19,7 +19,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
@@ -32,9 +32,9 @@ pipeline {
               source $HOME/bin/activate
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
-              pip install -U .[test] --verbose
+              pip install -U .[test]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              python3.11 -m pytest -n $PARALLEL
+              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
            '''
           }
           post {
@@ -52,7 +52,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
@@ -67,7 +67,7 @@ pipeline {
               pip install -U pip setuptools
               pip install .[test]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n $PARALLEL
+              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
             '''
           }
           post {
@@ -85,7 +85,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 2'
+              args '--gpus 1'
             }
           }
           environment {
