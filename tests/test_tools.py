@@ -2,15 +2,24 @@ from contextlib import nullcontext as does_not_raise
 from math import pi
 
 import einops
+import imageio.v3 as iio
 import numpy as np
 import pytest
 import scipy.ndimage
 import torch
 from numpy.random import randint
+from skimage import color
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
+from plenoptic.data.fetch import fetch_data
 from plenoptic.tools.data import _check_tensor_equality
+
+
+# used for load_images test as a folder that contains no images
+@pytest.fixture()
+def folder_with_no_images():
+    return fetch_data("portilla_simoncelli_test_vectors.tar.gz")
 
 
 class TestData:
@@ -22,6 +31,108 @@ class TestData:
                     IMG_DIR / "mixed" / "bubbles.png",
                 ]
             )
+
+    def test_load_images_non_image(self, folder_with_no_images):
+        err = pytest.raises(ValueError, match="None of the files found")
+        warn = pytest.warns(UserWarning, match="Unable to load in file")
+        with err, warn:
+            po.load_images(folder_with_no_images.parent)
+
+    def test_load_images_sort(self):
+        imgs = po.load_images(IMG_DIR / "256")
+        sorted_paths = [
+            "color_wheel.jpg",
+            "curie.pgm",
+            "einstein.pgm",
+            "metal.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
+        torch.equal(imgs, imgs_2)
+
+    def test_load_images_paths(self):
+        sorted_paths = [
+            "color_wheel.jpg",
+            "curie.pgm",
+            "einstein.pgm",
+            "metal.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs = po.load_images(sorted_paths)
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
+        torch.equal(imgs, imgs_2)
+
+    def test_load_images_custom_sort(self):
+        imgs = po.load_images(IMG_DIR / "256", sorted_key=lambda x: x.name[1])
+        sorted_paths = [
+            "metal.pgm",
+            "einstein.pgm",
+            "color_wheel.jpg",
+            "curie.pgm",
+            "nuts.pgm",
+        ]
+        sorted_paths = [IMG_DIR / "256" / f for f in sorted_paths]
+        imgs_2 = []
+        for p in sorted_paths:
+            img = iio.imread(p)
+            img = img / 255
+            if img.ndim == 3:
+                img = color.rgb2gray(img)
+            imgs_2.append(imgs)
+        imgs_2 = torch.as_tensor(np.array(imgs_2), dtype=torch.float32)
+        torch.equal(imgs, imgs_2)
+
+    def test_load_images_custom_sort_fail(self):
+        imgs = list((IMG_DIR / "256").iterdir())
+        with pytest.raises(ValueError, match="When paths argument is"):
+            imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
+
+    # this deprecation warning is triggered during the same call to
+    # pkg_resources that triggers the deprecation warning caught by pytest in
+    # the function, but only happens if either sphinxcontrib-apidoc or
+    # sphinxcontrib-jsmath is also in your environment (they will be if your
+    # environment includes sphinx, which also gets installed by numpydoc). so
+    # hopefully when the above issue is resolved, so will this one.
+    @pytest.mark.filterwarnings(
+        "ignore:Deprecated call to `pkg_resources:DeprecationWarning"
+    )
+    def test_load_images_some_non_image(self):
+        test_dir = fetch_data("load_image_test.tar.gz")
+        warn = pytest.warns(UserWarning, match="Unable to load in file")
+        # hopefully imageio fixes this: https://github.com/imageio/imageio/issues/1137
+        deprecation = pytest.warns(UserWarning, match="pkg_resources is deprecated")
+        with warn, deprecation:
+            po.load_images(test_dir)
+
+    def test_load_image_notfound(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="File .* not found!"):
+            po.load_images(tmp_path / "test.png")
+
+    def test_load_images_notfound(self, tmp_path, einstein_img):
+        iio.imwrite(tmp_path / "einstein.pgm", po.to_numpy(einstein_img).squeeze())
+        with pytest.raises(FileNotFoundError, match="File .* not found!"):
+            po.load_images([tmp_path / "test.png", tmp_path / "einstein.pgm"])
+
+    @pytest.mark.parametrize("filename", ["color_wheel.jpg", "einstein.pgm"])
+    def test_load_images_color(self, filename):
+        img = po.load_images(IMG_DIR / "256" / filename, as_gray=False)
+        assert img.shape[1] == 3, "Didn't load image in color!"
 
 
 class TestSignal:

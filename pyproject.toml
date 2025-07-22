@@ -54,14 +54,19 @@ docs = [
      "sphobjinv",
 ]
 
-dev = [
+test = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
+]
+
+lint = [
     "ruff>=0.6.8",
     'numpydoc',
 ]
+
+dev = ["plenoptic[test,lint]"]
 
 nb = [
     "jupyter",

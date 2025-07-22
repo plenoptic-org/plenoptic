@@ -35,7 +35,7 @@ jobs:
       uses: FedericoCarboni/setup-ffmpeg@v3.1
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager .[dev,nb] papermill
+        pip install --upgrade --upgrade-strategy eager .[nb] papermill
     - name: Run notebooks
       run: |
         for file in $(find docs/tutorials/ -name '*.md'); do
@@ -73,7 +73,7 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .[dev]
+        pip install --upgrade --upgrade-strategy eager .[test]
     - name: Run doctests with pytest
       run: |
         # ignore warnings in doctests, since otherwise pytest fails
@@ -120,7 +120,7 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .[dev]
+        pip install --upgrade --upgrade-strategy eager .[test]
     - name: Run tests with pytest
       run: |
         pytest --cov-report xml

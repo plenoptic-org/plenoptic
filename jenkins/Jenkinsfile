@@ -32,7 +32,7 @@ pipeline {
               source $HOME/bin/activate
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
-              pip install -U .[dev] --verbose
+              pip install -U .[test] --verbose
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
            '''
@@ -61,7 +61,7 @@ pipeline {
               source $HOME/bin/activate
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
-              pip install .[dev]
+              pip install .[test]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               python3.11 -m pytest -n 8
             '''

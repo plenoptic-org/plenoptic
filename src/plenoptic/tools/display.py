@@ -301,14 +301,12 @@ def animshow(
     ``zoom<1``, an integer number of input elements will be averaged into a single
     pixel.
 
-    This functions returns a matplotlib FuncAnimation object. See our documentation
-    (e.g., `Quickstart
-    <https://docs.plenoptic.org/docs/branch/main/tutorials/00_quickstart.html>`_) for
-    examples on how to view it in a Jupyter notebook. In order to save, use
-    ``anim.save(filename)``. In either case, this can take a while and you'll need the
-    appropriate writer installed and on your path, e.g., ffmpeg, imagemagick, etc). See
-    `matplotlib documentation <https://matplotlib.org/stable/api/animation_api.html>`_
-    for more details.
+    This functions returns a matplotlib FuncAnimation object. See our
+    documentation (e.g., :ref:`quickstart-nb`) for examples on how to view it in
+    a Jupyter notebook. In order to save, use ``anim.save(filename)``. In either
+    case, this can take a while and you'll need the appropriate writer installed
+    and on your path, e.g., ffmpeg, imagemagick, etc). See
+    :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
 
     Parameters
     ----------

@@ -144,9 +144,6 @@ tutorials/advanced/*
 
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
 
-```{nb-exec-table}
-```
-
 :::{image} /_static/images/CCN-logo-wText.png
 :align: center
 :alt: Flatiron Institute Center for Computational Neuroscience logo
