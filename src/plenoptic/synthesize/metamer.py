@@ -429,6 +429,7 @@ class Metamer(OptimizedSynthesis):
         """
         save_io_attrs = [
             ("loss_function", ("_image", "_metamer")),
+            ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
@@ -641,6 +642,7 @@ class Metamer(OptimizedSynthesis):
         check_attributes += additional_check_attributes
         check_io_attrs = [
             ("loss_function", ("_image", "_metamer")),
+            ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         check_io_attrs += additional_check_io_attributes
