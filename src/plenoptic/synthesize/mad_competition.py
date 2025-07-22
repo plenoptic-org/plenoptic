@@ -584,6 +584,7 @@ class MADCompetition(OptimizedSynthesis):
         save_io_attrs = [
             ("_optimized_metric", ("_image", "_mad_image")),
             ("_reference_metric", ("_image", "_mad_image")),
+            ("penalty_function", ("_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
@@ -738,6 +739,7 @@ class MADCompetition(OptimizedSynthesis):
         check_io_attrs = [
             ("_optimized_metric", ("_image", "_mad_image")),
             ("_reference_metric", ("_image", "_mad_image")),
+            ("penalty_function", ("_image",)),
         ]
         super().load(
             file_path,
