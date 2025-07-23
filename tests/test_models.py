@@ -14,7 +14,6 @@ from conftest import DEVICE, IMG_DIR
 from plenoptic.data.fetch import fetch_data
 from plenoptic.simulate.canonical_computations import circular_gaussian2d
 
-
 ALL_MODELS = [
     "LPyr",
     "SPyr",

@@ -11,10 +11,10 @@ update them.
 import os
 from collections import OrderedDict
 
+import einops
 import numpy as np
 import pytest
 import torch
-import einops
 from torchvision import models
 from torchvision.models import feature_extraction
 
@@ -24,7 +24,7 @@ from plenoptic.data.fetch import fetch_data
 from plenoptic.tools.data import _check_tensor_equality
 
 
-def compare_eigendistortion(eig, eig_up, rtol=1e-5, atol=1e-7):
+def compare_eigendistortions(eig, eig_up, rtol=1e-5, atol=1e-7):
     for k in ["_representation_flat", "eigendistortions"]:
         _check_tensor_equality(
             getattr(eig, k),
@@ -45,7 +45,7 @@ def compare_metamers(met, met_up, rtol=1e-5, atol=1e-7):
         "OSF",
         rtol,
         atol,
-        f"metamer has different {{error_type}}! Update the OSF version.",
+        "metamer has different {error_type}! Update the OSF version.",
     )
 
 
@@ -122,8 +122,8 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
     Additional Parameters
     ----------
     mask: Tensor
-        boolean mask with True in the part of the image that will be filled in during
-        synthesis
+        boolean mask with ``True`` in the part of the image that will be filled in
+        during synthesis
     target: Tensor
         image target for synthesis
 
@@ -440,7 +440,6 @@ class TestTutorialNotebooks:
                 "fig14c",
                 "fig14d",
                 "fig14e",
-                "fig14f",
                 "fig15a",
                 "fig15b",
                 "fig15c",
@@ -463,7 +462,12 @@ class TestTutorialNotebooks:
                 img = self.get_specific_img(*ps_images, fn)
             elif fn == "einstein":
                 img = einstein_img_double
-            model = po.simul.PortillaSimoncelli(img.shape[-2:])
+            # this is a sawtooth grating, with 4 scales the steerable pyramid's
+            # residual lowpass is uniform and thus correlation between it and
+            # the coarsest scale is all NaNs (i.e., the last scale of
+            # auto_correlation_reconstructed is all NaNs)
+            n_scales = 3 if fn == "fig12b" else 4
+            model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
             model.to(DEVICE).to(torch.float64)
             im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
             met = po.synth.MetamerCTF(
@@ -473,10 +477,7 @@ class TestTutorialNotebooks:
                 coarse_to_fine="together",
             )
             met.setup(im_init.clip(min=0, max=1))
-            if fn == "fig4a":
-                max_iter = 1000
-            else:
-                max_iter = 3000
+            max_iter = 1000 if fn == "fig4a" else 3000
             met.synthesize(
                 max_iter=max_iter, change_scale_criterion=None, ctf_iters_to_check=7
             )
@@ -625,14 +626,14 @@ class TestTutorialNotebooks:
             met.synthesize(
                 max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7
             )
-            met.save(f"uploaded_files/ps_mask.pt")
+            met.save("uploaded_files/ps_mask.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met_up.load(ps_regression / f"ps_mask.pt", tensor_equality_atol=1e-7)
+            met_up.load(ps_regression / "ps_mask.pt", tensor_equality_atol=1e-7)
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
@@ -645,7 +646,7 @@ class TestTutorialNotebooks:
                 ("fig15e", "fig14e"),
                 ("fig14b", "fig4a"),
                 ("fig15a", "fig15b"),
-             ]
+            ],
         )
         def test_ps_mixture(self, ps_images, fn, ps_regression):
             torch.use_deterministic_algorithms(True)
@@ -678,7 +679,10 @@ class TestTutorialNotebooks:
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met_up.load(ps_regression / f"ps_mixture_{'-'.join(fn)}.pt", tensor_equality_atol=1e-7)
+            met_up.load(
+                ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
+                tensor_equality_atol=1e-7,
+            )
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
@@ -689,7 +693,9 @@ class TestTutorialNotebooks:
             if mag_bool:
                 model = PortillaSimoncelliMagMeans(img.shape[-2:])
             else:
-                model = po.simul.PortillaSimoncelli(img.shape[-2:])
+                model = po.simul.PortillaSimoncelli(
+                    img.shape[-2:], spatial_corr_width=7
+                )
             model.to(DEVICE).to(torch.float64)
             met = po.synth.MetamerCTF(
                 img,

@@ -32,7 +32,7 @@ warnings.filterwarnings(
 :::{admonition} Download
 :class: important
 
-Download this notebook: **{nb-download}`Portilla-Simoncelli.ipynb`**!
+Download this notebook: **{nb-download}`Portilla_Simoncelli.ipynb`**!
 
 :::
 
@@ -357,7 +357,8 @@ remove_statistics = [
 
 # run on fig3a or fig3b to replicate paper
 fig_name = "fig3b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -369,6 +370,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 # synthesis with pixel and marginal statistics absent
 model_remove = PortillaSimoncelliRemove(
@@ -378,7 +380,7 @@ model_remove = PortillaSimoncelliRemove(
 # following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
-    model,
+    model_remove,
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
@@ -391,7 +393,6 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 ```{code-block} python
 :name: test_ps_remove
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 
@@ -434,8 +435,9 @@ These statistics play a role in representing periodic structures and long-range 
 remove_statistics = ["auto_correlation_reconstructed", "std_reconstructed"]
 
 # run on fig4a or fig4b to replicate paper
-fig_name = "fig4b" 
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+fig_name = "fig4b"
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -457,11 +459,11 @@ model_remove = PortillaSimoncelliRemove(
 # following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
-    model,
+    model_remove,
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
+met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 ```
 
 :::{admonition} How to run these syntheses manually
@@ -530,7 +532,8 @@ remove_statistics = [
 
 # run on fig6a or fig6b to replicate paper
 fig_name = "fig6a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -553,7 +556,7 @@ model_remove = PortillaSimoncelliRemove(
 # following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
-    model,
+    model_remove,
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
@@ -613,7 +616,8 @@ remove_statistics = ["cross_scale_correlation_real"]
 
 # run on fig8a and fig8b to replicate paper
 fig_name = "fig8b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -635,7 +639,7 @@ model_remove = PortillaSimoncelliRemove(
 # following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
-    model,
+    model_remove,
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
@@ -703,10 +707,14 @@ Examples
 
 ```{code-cell} ipython3
 fig_name = "fig12a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
-# synthesis with full PortillaSimoncelli model
-model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+# fig12b is a sawtooth grating, with 4 scales the steerable pyramid's residual lowpass
+# is uniform and thus correlation between it and the coarsest scale is all NaNs (i.e.,
+# the last scale of auto_correlation_reconstructed is all NaNs)
+n_scales = 3 if fig_name == "fig12b" else 4
+model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales).to(DEVICE)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met = po.synth.MetamerCTF(
@@ -747,7 +755,8 @@ Excerpt from paper: _"Figure 13 shows two pairs of counterexamples that have bee
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -775,7 +784,8 @@ met_left.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_che
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -805,10 +815,10 @@ And note that the two synthesized images (right column) or as distinguishable fr
 ```{code-cell} ipython3
 po.imshow(
     [
-        metamer_left.image,
-        metamer_left.metamer,
-        metamer_right.image,
-        metamer_right.metamer,
+        met_left.image,
+        met_left.metamer,
+        met_right.image,
+        met_right.metamer,
     ],
     title=[
         "Target image 1",
@@ -828,9 +838,10 @@ po.imshow(
 Excerpt from paper: _"Figure 14 shows synthesis results photographic textures that are pseudo-periodic, such as a brick wall and various types of woven fabric"_
 
 ```{code-cell} ipython3
-# Run on fig14a, fig14b, fig14c, fig14d, fig14e, fig14f to replicate examples in paper
+# Run on fig14a, fig14b, fig14c, fig14d, fig14e to replicate examples in paper
 fig_name = "fig14a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -872,7 +883,8 @@ Excerpt from paper: _"Figure 15 shows synthesis results for a set of photographi
 ```{code-cell} ipython3
 # Run on fig15a, fig15b, fig15c, fig15d to replicate examples in paper
 fig_name = "fig15a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -914,7 +926,8 @@ Excerpt from paper: _"Figure 16 shows several examples of textures with complex 
 ```{code-cell} ipython3
 # Run on fig16a, fig16b, fig16c, fig16d, fig16e to replicate examples in paper
 fig_name = "fig16e"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -1039,7 +1052,7 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
 
 ```{code-cell} ipython3
 img_file = IMG_PATH / "fig14b.jpg"
-img = po.tools.load_images(img_file).to(DEVICE)
+img = po.tools.load_images(img_file).to(DEVICE).to(torch.float64)
 mask = torch.zeros_like(img).bool()
 ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
 mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
@@ -1051,7 +1064,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_mask.pt")
+met.load(CACHE_DIR / "ps_mask.pt")
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1139,7 +1152,7 @@ class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
 
 fig_names = ["fig15e", "fig14e"]
 img_files = [IMG_PATH / f"{f}.jpg" for f in fig_names]
-imgs = po.tools.load_images(img_files).to(DEVICE)
+imgs = po.tools.load_images(img_files).to(DEVICE).to(torch.float64)
 n = imgs.shape[-1]
 
 model = PortillaSimoncelliMixture([n, n]).to(DEVICE)
@@ -1180,7 +1193,7 @@ Not all texture model metamers look perceptually similar to humans. The paper's 
 Note that for these examples, we were unable to locate the original images, so we present examples that serve the same purpose.
 
 ```{code-cell} ipython3
-img = po.data.einstein().to(DEVICE)
+img = po.data.einstein().to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -1192,7 +1205,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_einstein.pt")
+met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt")
 ```
 
 :class: dropdown note
@@ -1217,7 +1230,8 @@ po.imshow(
 In this example, we see the model metamer fails to reproduce the randomly distributed oriented black lines on a white background: in particular, several lines are curved and several appear discontinuous. From the paper: "Althought a texture of single-orientation bars is reproduced fairly well (see Fig. 12), the mixture of bar orientations in this example leads ot the synthesis of curved line segments. In general, the model is unable to distinguish straight from curved contours, except when the contours are all of the same orientation."
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig18a.png").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig18a.png")
+img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -1229,7 +1243,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_fig18a.pt")
+met.load(CACHE_DIR / "ps_basic_synthesis_fig18a.pt")
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1288,12 +1302,12 @@ As shown below, the output of `plenoptic` matches the number of statistics indic
 
 ```{code-cell} ipython3
 img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
-image_shape = img.shape[2:4]
+img = img.to(DEVICE).to(torch.float64)
 
 # Initialize the minimal model. Use same params as paper
 model = po.simul.PortillaSimoncelli(
-    image_shape, n_scales=4, n_orientations=4, spatial_corr_width=7
-)
+    img.shape[-2:], n_scales=4, n_orientations=4, spatial_corr_width=7
+).to(DEVICE)
 
 stats = model(img)
 
@@ -1474,7 +1488,7 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 Now, let's initialize our models and images for synthesis:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE).to(torch.float64)
 model = po.simul.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
 ```
