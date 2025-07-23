@@ -18,6 +18,10 @@ Download this notebook: **{nb-download}`Demo_Eigendistortion.ipynb`**!
 
 :::
 
+:::{attention}
+The eigendistortion synthesis investigated in this notebook takes a long time to run, especially if you don't have a GPU available. Therefore, we have cached the result of these syntheses online and only download them for investigation in this notebook.
+:::
+
 # Reproducing Berardino et al., 2017 (Eigendistortions)
 Author: Lyndon Duong, Jan 2021
 
@@ -55,10 +59,6 @@ except ModuleNotFoundError:
 # we do not actually run synthesis in this notebook, so the cpu is fine.
 DEVICE = torch.device("cpu")
 ```
-
-:::{attention}
-The eigendistortion synthesis investigated in this noteobok takes a long time to run, especially if you don't have a GPU available. Therefore, we have cached the result of these syntheses online and only download them for investigation in this notebok.
-:::
 
 ## Input preprocessing
 Let's load the parrot image used in the paper and display it:
@@ -99,19 +99,15 @@ The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `
 ```{code-cell} ipython3
 # synthesize the top and bottom k distortions
 eigendist_f = Eigendistortion(image=image_tensor, model=mdl_f)
-```
-
-Because this synthesis takes a long time to run, we will load the result from a cache and investigate it.
-
-```{code-cell} ipython3
+# this synthesis takes a long time to run, so we load in a cached version.
+# see the following admonition for how to run this yourself
 eigendist_f.load(
     fetch_data("berardino_onoff.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
 )
 ```
 
-:::{note}
-
-The following cell shows the code used to synthesize this eigendistortion, which you are free to run yourself.
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
 
 ```{code-block} python
 :name: test_berardino_onoff
@@ -175,19 +171,15 @@ po.tools.remove_grad(mdl_v)
 mdl_v.eval()
 
 eigendist_v = Eigendistortion(image=image_tensor3, model=mdl_v)
-```
-
-Because this synthesis takes a long time to run, we will load the result from a cache and investigate it.
-
-```{code-cell} ipython3
+# this synthesis takes a long time to run, so we load in a cached version.
+# see the following admonition for how to run this yourself
 eigendist_v.load(
     fetch_data("berardino_vgg16.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
 )
 ```
 
-:::{note}
-
-The following cell shows the code used to synthesize this eigendistortion, which you are free to run yourself.
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
 
 ```{code-block} python
 :name: test_berardino_vgg16
