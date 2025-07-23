@@ -426,10 +426,29 @@ class TestTutorialNotebooks:
             [
                 "fig4a",
                 "fig12a",
+                "fig12b",
+                "fig12c",
+                "fig12d",
+                "fig12e",
+                "fig12f",
                 "fig13a",
                 "fig13b",
+                "fig13c",
+                "fig13d",
                 "fig14a",
+                "fig14b",
+                "fig14c",
+                "fig14d",
+                "fig14e",
+                "fig14f",
                 "fig15a",
+                "fig15b",
+                "fig15c",
+                "fig15d",
+                "fig16a",
+                "fig16b",
+                "fig16c",
+                "fig16d",
                 "fig16e",
                 "fig18a",
                 "einstein",
@@ -511,6 +530,14 @@ class TestTutorialNotebooks:
             "fn, stats",
             [
                 (
+                    "fig3a",
+                    [
+                        "pixel_statistics",
+                        "skew_reconstructed",
+                        "kurtosis_reconstructed",
+                    ],
+                ),
+                (
                     "fig3b",
                     [
                         "pixel_statistics",
@@ -518,6 +545,7 @@ class TestTutorialNotebooks:
                         "kurtosis_reconstructed",
                     ],
                 ),
+                ("fig4a", ["auto_correlation_reconstructed", "std_reconstructed"]),
                 ("fig4b", ["auto_correlation_reconstructed", "std_reconstructed"]),
                 (
                     "fig6a",
@@ -528,6 +556,16 @@ class TestTutorialNotebooks:
                         "auto_correlation_magnitude",
                     ],
                 ),
+                (
+                    "fig6b",
+                    [
+                        "magnitude_std",
+                        "cross_orientation_correlation_magnitude",
+                        "cross_scale_correlation_magnitude",
+                        "auto_correlation_magnitude",
+                    ],
+                ),
+                ("fig8a", ["cross_scale_correlation_real"]),
                 ("fig8b", ["cross_scale_correlation_real"]),
             ],
         )
@@ -601,13 +639,21 @@ class TestTutorialNotebooks:
         @pytest.mark.filterwarnings(
             "ignore:initial_image and image are different sizes:UserWarning"
         )
-        def test_ps_mixture(self, ps_images, ps_regression):
+        @pytest.mark.parametrize(
+            "fn",
+            [
+                ("fig15e", "fig14e"),
+                ("fig14b", "fig4a"),
+                ("fig15a", "fig15b"),
+             ]
+        )
+        def test_ps_mixture(self, ps_images, fn, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             img = torch.cat(
                 [
-                    self.get_specific_img(*ps_images, "fig15e"),
-                    self.get_specific_img(*ps_images, "fig14e"),
+                    self.get_specific_img(*ps_images, fn[0]),
+                    self.get_specific_img(*ps_images, fn[1]),
                 ]
             )
             model = PortillaSimoncelliMixture(img.shape[-2:])
@@ -625,14 +671,14 @@ class TestTutorialNotebooks:
             met.synthesize(
                 max_iter=4000, change_scale_criterion=None, ctf_iters_to_check=7
             )
-            met.save(f"uploaded_files/ps_mixture.pt")
+            met.save(f"uploaded_files/ps_mixture_{'-'.join(fn)}.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met_up.load(ps_regression / f"ps_mixture.pt", tensor_equality_atol=1e-7)
+            met_up.load(ps_regression / f"ps_mixture_{'-'.join(fn)}.pt", tensor_equality_atol=1e-7)
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
