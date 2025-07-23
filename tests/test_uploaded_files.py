@@ -697,7 +697,7 @@ class TestTutorialNotebooks:
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met.setup((torch.rand_like(img[:1]) - 0.5) * 0.1 + img.mean())
+            met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
             met.synthesize(
                 max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7
             )

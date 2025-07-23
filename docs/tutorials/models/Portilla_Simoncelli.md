@@ -194,10 +194,10 @@ In the next block we will actually generate a metamer using the PortillaSimoncel
 
 It takes about 50s to run 100 iterations on my laptop.  And it takes hundreds of iterations to get convergence. So you'll have to wait a few minutes to generate the texture metamer.
 
-Note: we initialize synthesis with `im_init`, an initial uniform noise image with range `mean(target_signal)+[-.05,.05]`.  Initial images with uniform random noise covering the full pixel domain `[0,1]` (the default) don't result in the very best metamers: with the full range initial image, the optimization seems to get stuck.
+Note: we initialize synthesis with an initial uniform noise image with range `mean(target_signal)+[-.05,.05]`.  Initial images with uniform random noise covering the full pixel domain `[0,1]` (the default) don't result in the very best metamers: with the full range initial image, the optimization seems to get stuck.
 
 ```{code-cell} ipython3
-# send image and PS model to GPU, if available. then im_init and Metamer will also
+# send image and PS model to GPU, if available. then Metamer will also
 # use GPU
 img = img.to(DEVICE)
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -369,8 +369,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 # synthesis with pixel and marginal statistics absent
 model_remove = PortillaSimoncelliRemove(
@@ -384,7 +382,6 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 ```
 
@@ -393,6 +390,8 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 
 ```{code-block} python
 :name: test_ps_remove
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 
@@ -448,7 +447,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 # synthesis with coefficient correlations  absent
@@ -463,7 +461,6 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 ```
 
@@ -472,6 +469,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 ```{code-block} python
 :name: test_ps_remove
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 
@@ -544,7 +542,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 
@@ -560,7 +557,6 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 ```
 
@@ -569,6 +565,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 
 ```{code-block} python
 :name: test_ps_remove
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 `met_remove.synthesize` can be called with the same arguments.
@@ -628,7 +625,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
 
 # synthesis with pixel and marginal statistics absent
@@ -643,7 +639,6 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 ```
 
@@ -652,6 +647,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
 
 ```{code-block} python
 :name: test_ps_remove
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 `met_remove.synthesize` can be called with the same arguments.
@@ -719,7 +715,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -728,6 +723,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -763,7 +759,6 @@ met_left = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_left.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -772,6 +767,7 @@ met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met_left.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_left.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -791,7 +787,6 @@ met_right = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_right.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -800,6 +795,7 @@ met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met_right.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met_right.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -846,7 +842,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -855,6 +850,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -888,7 +884,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -897,6 +892,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -930,7 +926,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 ```
 
@@ -939,6 +934,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1144,7 +1140,6 @@ class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
 fig_names = ["fig15e", "fig14e"]
 img_files = [IMG_PATH / f"{f}.jpg" for f in fig_names]
 imgs = po.tools.load_images(img_files).to(DEVICE)
-im_init = torch.rand_like(imgs[0, :, :, :].unsqueeze(0)) * 0.01 + imgs.mean()
 n = imgs.shape[-1]
 
 model = PortillaSimoncelliMixture([n, n]).to(DEVICE)
@@ -1154,7 +1149,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup(im_init, optimizer_kwargs={"lr": 0.02, "amsgrad": True})
 met.load(CACHE_DIR / f"ps_mixture_{'-'.join(fig_names)}.pt")
 ```
 
@@ -1163,6 +1157,10 @@ met.load(CACHE_DIR / f"ps_mixture_{'-'.join(fig_names)}.pt")
 
 ```{code-block} python
 :name: test_ps_mixture
+met.setup(
+    (torch.rand_like(imgs[:1]) - 0.5) * 0.1 + img.mean(),
+    optimizer_kwargs={"lr": 0.02, "amsgrad": True},
+)
 met.synthesize(max_iter=4000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1194,7 +1192,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_einstein.pt")
 ```
 
@@ -1202,6 +1199,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_einstein.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1231,7 +1229,6 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.load(CACHE_DIR / f"ps_basic_synthesis_fig18a.pt")
 ```
 
@@ -1240,6 +1237,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_fig18a.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1479,7 +1477,6 @@ Now, let's initialize our models and images for synthesis:
 img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE)
 model = po.simul.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
-im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
 ```
 
 And run the synthesis with the regular model, which does not include the mean of the steerable pyramid magnitudes, and then the augmented model, which does.
@@ -1508,7 +1505,7 @@ met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt")
 
 ```{code-block} python
 :name: test_ps_mask
-met.setup((torch.rand_like(imgs[:1]) - 0.5) * 0.1 + img.mean())
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
