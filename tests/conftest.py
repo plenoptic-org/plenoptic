@@ -1,3 +1,4 @@
+import os
 import pytest
 import torch
 
@@ -8,6 +9,12 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # if we have a second gpu, can use it for some tests
 DEVICE2 = torch.device(1) if torch.cuda.device_count() > 1 else DEVICE
 IMG_DIR = fetch_data("test_images.tar.gz")
+
+# we do this to enable deterministic behavior on the gpu, for
+# PortillaSimoncelli, see
+# https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
+# details
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
 torch.manual_seed(0)

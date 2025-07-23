@@ -1,7 +1,3 @@
-# we do this to enable deterministic behavior on the gpu, see
-# https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
-# details
-import os
 from collections import OrderedDict
 from contextlib import nullcontext as does_not_raise
 
@@ -17,8 +13,6 @@ import plenoptic as po
 from conftest import DEVICE, IMG_DIR
 from plenoptic.data.fetch import fetch_data
 from plenoptic.simulate.canonical_computations import circular_gaussian2d
-
-os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 
 ALL_MODELS = [

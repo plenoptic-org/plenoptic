@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.2
 kernelspec:
   display_name: plenoptic
   language: python
@@ -36,6 +36,10 @@ Download this notebook: **{nb-download}`Portilla-Simoncelli.ipynb`**!
 
 :::
 
+:::{attention}
+This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of these syntheses online and only download them for investigation in this notebok.
+:::
+
 (ps-nb)=
 # Portilla-Simoncelli Texture Metamer
 
@@ -48,8 +52,6 @@ In this tutorial we will aim to replicate [Portilla & Simoncelli (1999)](https:/
 5. Extrapolation and Mixtures: Applying texture synthesis to more complex texture problems.
 6. Some model limitations.
 7. List of notable differences between the MATLAB and python implementations of the Portilla Simoncelli texture model and texture synthesis.
-
-Note that this notebook takes a long time to run (roughly an hour with a GPU, several hours without), because of all the metamers that are synthesized.
 
 ```{code-cell} ipython3
 import einops
@@ -67,7 +69,8 @@ import plenoptic as po
 # then install pooch in your plenoptic environment and restart your kernel.
 from plenoptic.data.fetch import fetch_data
 
-DATA_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
+IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
+CACHE_DIR = fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -76,17 +79,6 @@ plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
 po.tools.set_seed(1)
-```
-
-```{code-cell} ipython3
-:tags: [parameters]
-
-# These variables control how long metamer synthesis runs for. The values present
-# here will result in completed synthesis, but you may want to decrease these numbers
-# if you're on a machine with limited resources.
-short_synth_max_iter = 1000
-long_synth_max_iter = 3000
-longest_synth_max_iter = 4000
 ```
 
 ## 1. What is a visual texture?
@@ -122,17 +114,17 @@ natural = [
 artificial = ["4a", "4b", "14a", "16e", "14e", "14c", "5a"]
 hand_drawn = ["5b", "13a", "13b", "13c", "13d"]
 
-im_files = [DATA_PATH / f"fig{num}.jpg" for num in natural]
+im_files = [IMG_PATH / f"fig{num}.jpg" for num in natural]
 display_images(im_files, "Natural textures")
 ```
 
 ```{code-cell} ipython3
-im_files = [DATA_PATH / f"fig{num}.jpg" for num in artificial]
+im_files = [IMG_PATH / f"fig{num}.jpg" for num in artificial]
 display_images(im_files, "Articial textures")
 ```
 
 ```{code-cell} ipython3
-im_files = [DATA_PATH / f"fig{num}.jpg" for num in hand_drawn]
+im_files = [IMG_PATH / f"fig{num}.jpg" for num in hand_drawn]
 display_images(im_files, "Hand-drawn / computer-generated textures")
 ```
 
@@ -149,7 +141,7 @@ In the metamer paradigm they eventually arrived at, the authors generated model 
 Generating a metamer starts with a target image:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(DATA_PATH / "fig4a.jpg")
+img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
 po.imshow(img)
 ```
 
@@ -217,8 +209,8 @@ met = po.synth.MetamerCTF(
     coarse_to_fine="together",
 )
 met.setup(im_init)
-o = met.synthesize(
-    max_iter=short_synth_max_iter,
+met.synthesize(
+    max_iter=1000,
     store_progress=True,
     # setting change_scale_criterion=None means that we change scales every
     # ctf_iters_to_check, see the metamer notebook for details.
@@ -251,11 +243,9 @@ po.synth.metamer.plot_synthesis_status(
 # For the remainder of the notebook we will use this helper function to
 # run synthesis so that the cells are a bit less busy.
 
-# Be sure to run this cell.
-
 
 def run_synthesis(img, model, im_init=None):
-    r"""Performs synthesis with the full Portilla-Simoncelli model.
+    r"""Performs synthesis with PortillaSimoncelli model.
 
     Parameters
     ----------
@@ -269,7 +259,7 @@ def run_synthesis(img, model, im_init=None):
     Returns
     -------
     met: Metamer
-        Metamer from the full Portilla-Simoncelli Model
+        Metamer from specified Model
 
     """
     if im_init is None:
@@ -408,7 +398,7 @@ remove_statistics = [
 ]
 
 # run on fig3a or fig3b to replicate paper
-img = po.tools.load_images(DATA_PATH / "fig3b.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig3b.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -456,7 +446,7 @@ These statistics play a role in representing periodic structures and long-range 
 remove_statistics = ["auto_correlation_reconstructed", "std_reconstructed"]
 
 # run on fig4a or fig4b to replicate paper
-img = po.tools.load_images(DATA_PATH / "fig4b.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig4b.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -521,7 +511,7 @@ remove_statistics = [
 ]
 
 # run on fig6a or fig6b to replicate paper
-img = po.tools.load_images(DATA_PATH / "fig6a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig6a.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -575,7 +565,7 @@ These statistics play a role constraining high contrast locations to be organize
 remove_statistics = ["cross_scale_correlation_real"]
 
 # run on fig8a and fig8b to replicate paper
-img = po.tools.load_images(DATA_PATH / "fig8b.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig8b.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -637,7 +627,7 @@ Examples
 - (12f) pluses
 
 ```{code-cell} ipython3
-img = po.tools.load_images(DATA_PATH / "fig12a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig12a.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -662,7 +652,7 @@ Excerpt from paper: _"Figure 13 shows two pairs of counterexamples that have bee
 
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
-img = po.tools.load_images(DATA_PATH / "fig13a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig13a.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -671,7 +661,7 @@ metamer_left = run_synthesis(img, model)
 
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
-img = po.tools.load_images(DATA_PATH / "fig13b.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig13b.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -707,7 +697,7 @@ Excerpt from paper: _"Figure 14 shows synthesis results photographic textures th
 
 ```{code-cell} ipython3
 # Run on fig14a, fig14b, fig14c, fig14d, fig14e, fig14f to replicate examples in paper
-img = po.tools.load_images(DATA_PATH / "fig14a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig14a.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -730,7 +720,7 @@ Excerpt from paper: _"Figure 15 shows synthesis results for a set of photographi
 
 ```{code-cell} ipython3
 # Run on fig15a, fig15b, fig15c, fig15d to replicate examples in paper
-img = po.tools.load_images(DATA_PATH / "fig15a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig15a.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -753,7 +743,7 @@ Excerpt from paper: _"Figure 16 shows several examples of textures with complex 
 
 ```{code-cell} ipython3
 # Run on fig16a, fig16b, fig16c, fig16d to replicate examples in paper
-img = po.tools.load_images(DATA_PATH / "fig16e.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig16e.jpg").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -859,10 +849,10 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
 ```
 
 ```{code-cell} ipython3
-img_file = DATA_PATH / "fig14b.jpg"
+img_file = IMG_PATH / "fig14b.jpg"
 img = po.tools.load_images(img_file).to(DEVICE)
 im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
-mask = torch.zeros(1, 1, 256, 256).bool().to(DEVICE)
+mask = torch.zeros_like(img).bool()
 ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
 mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
 
@@ -956,7 +946,7 @@ class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
 # To replicate paper use the following combinations:
 # (Fig. 15a, Fig. 15b); (Fig. 14b, Fig. 4a); (Fig. 15e, Fig. 14e).
 
-img_files = [DATA_PATH / "fig15e.jpg", DATA_PATH / "fig14e.jpg"]
+img_files = [IMG_PATH / "fig15e.jpg", IMG_PATH / "fig14e.jpg"]
 imgs = po.tools.load_images(img_files).to(DEVICE)
 im_init = torch.rand_like(imgs[0, :, :, :].unsqueeze(0)) * 0.01 + imgs.mean()
 n = imgs.shape[-1]
@@ -1013,7 +1003,7 @@ po.imshow(
 In this example, we see the model metamer fails to reproduce the randomly distributed oriented black lines on a white background: in particular, several lines are curved and several appear discontinuous. From the paper: "Althought a texture of single-orientation bars is reproduced fairly well (see Fig. 12), the mixture of bar orientations in this example leads ot the synthesis of curved line segments. In general, the model is unable to distinguish straight from curved contours, except when the contours are all of the same orientation."
 
 ```{code-cell} ipython3
-img = po.tools.load_images(DATA_PATH / "fig18a.png").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig18a.png").to(DEVICE)
 
 # synthesis with full PortillaSimoncelli model
 model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
@@ -1065,7 +1055,7 @@ Note: This can be understood by thinking of $A_{i,0}$, the autocorrelation of ev
 As shown below, the output of `plenoptic` matches the number of statistics indicated in the paper:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(DATA_PATH / "fig4a.jpg")
+img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
 image_shape = img.shape[2:4]
 
 # Initialize the minimal model. Use same params as paper
@@ -1252,7 +1242,7 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 Now, let's initialize our models and images for synthesis:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(DATA_PATH / "fig4a.jpg").to(DEVICE)
+img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE)
 model = po.simul.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
 im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()

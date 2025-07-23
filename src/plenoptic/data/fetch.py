@@ -41,6 +41,7 @@ REGISTRY = {
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2083d1b4639e2c22b632f750282a52312993b5d5188a4ba63c724bdb6539cbff",  # noqa: E501
     "berardino_vgg16.pt": "c3b0951d5fe6691f990243c43d8a45cfb9489f3807a9b2179b3b5d8394e8a31f",  # noqa: E501
+    "ps_regression.tar.gz": "79fb61a7bb0cc657aa6ec9c690f705c1b42a6ed4d4751981231ed8ffc79ef780",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -74,6 +75,7 @@ REGISTRY_URLS = {
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
+    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj"),
 }
 
 #: List of files that can be downloaded using :func:`fetch_data`
