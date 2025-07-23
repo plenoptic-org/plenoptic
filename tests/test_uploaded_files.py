@@ -469,17 +469,17 @@ class TestTutorialNotebooks:
             n_scales = 3 if fn == "fig12b" else 4
             model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
             model.to(DEVICE).to(torch.float64)
-            im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
             met = po.synth.MetamerCTF(
                 img,
                 model,
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met.setup(im_init.clip(min=0, max=1))
-            max_iter = 1000 if fn == "fig4a" else 3000
+            met.setup(
+                ((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1)
+            )
             met.synthesize(
-                max_iter=max_iter, change_scale_criterion=None, ctf_iters_to_check=7
+                max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7
             )
             met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
             met_up = po.synth.MetamerCTF(

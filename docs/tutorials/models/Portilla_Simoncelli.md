@@ -731,7 +731,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -776,7 +776,7 @@ met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met_left.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met_left.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met_left.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -805,7 +805,7 @@ met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met_right.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met_right.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met_right.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -861,7 +861,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -904,7 +904,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -947,7 +947,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1213,7 +1213,7 @@ met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1252,7 +1252,7 @@ met.load(CACHE_DIR / "ps_basic_synthesis_fig18a.pt")
 
 ```{code-block} python
 :name: test_ps_basic_synthesis
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::
@@ -1520,7 +1520,8 @@ met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt")
 
 ```{code-block} python
 :name: test_ps_mask
-met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
+met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean(),
+          optimizer_kwargs={"lr": 0.02, "amsgrad": True})
 met.synthesize(max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
 :::

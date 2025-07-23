@@ -496,6 +496,10 @@ compares it against a cached version stored in our OSF project. See
   ````
   It probably should be wrapped in an admonition (to really make sure it doesn't
   get run), but that's not necessary.
+- This block (and the corresponding test) can contain a call to `.setup` as
+  well, but it must come directly before the call to `synthesize`.
+- Both calls can go over multiple lines, but they should not reference any other
+  variables.
 - The test should be part of either the `gpu-0` or `gpu-1` [xdist
   group](https://pytest-xdist.readthedocs.io/en/stable/distribution.html), and
   thus use either `DEVICE` or `DEVICE2`, respectively.

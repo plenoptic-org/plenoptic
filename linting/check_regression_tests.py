@@ -28,47 +28,61 @@ for p in sys.argv[2:]:
         p = []
     paths.extend(p)
 
+test_re_str = r"(?:\n.*setup\((.*)\)\n)?.*synthesize\((.*)\)"
+nb_re_str = rf"```.*\n:name: *(test.*)\n*{test_re_str}\n*```"
 match_not_found = []
-wrong_match = []
+synth_wrong = []
+setup_wrong = []
 for p in paths:
     with open(p) as f:
         md = f.read()
     if not md.startswith("---\njupytext"):
         # then this isn't a markdown notebook
         continue
-    # block should only contains the name (on the line right after the block is
-    # opened) and the synthesize line (with optional blank lines)
-    synth_check_blocks = re.findall(
-        "```.*\n:name: *(test.*)\n*.*synthesize\\((.*\n?.*)\\)\n*```", md
-    )
+    synth_check_blocks = re.findall(nb_re_str, md)
     check_funcs = tests.get(f"Test{p.stem.replace('_', '')}", None)
     if check_funcs is None:
         check_funcs = {}
     else:
-        check_funcs = {b.name: ast.unparse(b.body) for b in check_funcs.body}
-    if len(synth_check_blocks) != len(check_funcs):
-        match_not_found.append((p, len(synth_check_blocks), len(check_funcs)))
+        check_funcs = {
+            b.name: ast.unparse(b.body)
+            for b in check_funcs.body
+            if b.name.startswith("test")
+        }
+    checked = [b[0] not in check_funcs for b in synth_check_blocks]
+    if any(checked):
+        fail_blocks = [b[0] for b, t in zip(synth_check_blocks, checked) if t]
+        match_not_found.append((p, fail_blocks))
         continue
-    for test_name, synth_args in synth_check_blocks:
+    for test_name, setup_args, synth_args in synth_check_blocks:
         func_body = check_funcs[test_name]
-        test_args = re.findall(r".*synthesize\((.*)\)", func_body)[0]
+        test_setup_args, test_synth_args = re.findall(test_re_str, func_body)[0]
         # normalize the quotes
-        test_args = test_args.replace("'", '"')
+        test_synth_args = test_synth_args.replace("'", '"')
         synth_args = synth_args.replace("'", '"')
-        if test_args != synth_args:
-            wrong_match.append((p, test_name, test_args, synth_args))
+        if test_synth_args != synth_args:
+            synth_wrong.append((p, test_name, test_synth_args, synth_args))
+        # normalize the quotes
+        test_setup_args = test_setup_args.replace("'", '"')
+        setup_args = setup_args.replace("'", '"')
+        if test_setup_args != setup_args:
+            setup_wrong.append((p, test_name, test_setup_args, setup_args))
 
 
-if match_not_found or wrong_match:
+if match_not_found or synth_wrong or setup_wrong:
     if match_not_found:
         print(
-            "Didn't find the proper number of synthesize calls in the following"
-            " notebooks:"
+            "Each synthesize block in a notebook needs a corresponding test, the "
+            "following failed:"
         )
-        for p, found, target in match_not_found:
-            print(f"{p}: {found=}, {target=}")
-    if wrong_match:
+        for p, missing in match_not_found:
+            print(f"{p}: {missing=}")
+    if synth_wrong:
         print("Synthesize args did not match for the following:")
-        for p, func_name, test_args, nb_args in wrong_match:
+        for p, func_name, test_args, nb_args in synth_wrong:
+            print(f"{p}: {func_name=}\n\t{test_args} (test)\n\t{nb_args} (notebook)")
+    if setup_wrong:
+        print("Setup args did not match for the following:")
+        for p, func_name, test_args, nb_args in setup_wrong:
             print(f"{p}: {func_name=}\n\t{test_args} (test)\n\t{nb_args} (notebook)")
     sys.exit(1)
