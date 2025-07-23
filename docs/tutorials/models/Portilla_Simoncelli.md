@@ -142,7 +142,7 @@ Generating a metamer starts with a target image:
 
 ```{code-cell} ipython3
 img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
-po.imshow(img)
+po.imshow(img);
 ```
 
 Below we have an instance of the PortillaSimoncelli model with default parameters:
@@ -1208,6 +1208,7 @@ met = po.synth.MetamerCTF(
 met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt")
 ```
 
+:::{admonition} How to run this synthesis manually
 :class: dropdown note
 
 ```{code-block} python
