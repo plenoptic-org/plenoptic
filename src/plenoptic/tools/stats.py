@@ -113,6 +113,7 @@ def skew(
     >>> from plenoptic.tools.stats import skew, variance
     >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
     >>> s = skew(x)
+    >>> s
     tensor(0.2440)
 
     If you have precomputed the mean and/or variance,
@@ -181,6 +182,7 @@ def kurtosis(
     >>> from plenoptic.tools.stats import kurtosis, variance
     >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
     >>> k = kurtosis(x)
+    >>> k
     tensor(2.4031)
 
     If you have precomputed the mean and/or variance,
