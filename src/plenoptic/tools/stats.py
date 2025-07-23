@@ -33,6 +33,13 @@ def variance(
     out
         The variance tensor.
 
+    See Also
+    --------
+    :func:`~plenoptic.tools.stats.skewness`
+        Calculate sample skewness.
+    :func:`~plenoptic.tools.stats.kurtosis`
+        Calculate sample kurtosis.
+
     Examples
     --------
     >>> import torch
@@ -107,6 +114,11 @@ def skew(
     out
         The skewness tensor.
 
+    See Also
+    --------
+    :func:`~plenoptic.tools.stats.variance`
+        Calculate sample variance.
+
     Examples
     --------
     >>> import torch
@@ -175,6 +187,11 @@ def kurtosis(
     -------
     out
         The kurtosis tensor.
+
+    See Also
+    --------
+    :func:`~plenoptic.tools.stats.variance`
+        Calculate sample variance.
 
     Examples
     --------
