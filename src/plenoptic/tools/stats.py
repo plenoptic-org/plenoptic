@@ -32,6 +32,35 @@ def variance(
     -------
     out
         The variance tensor.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from plenoptic.tools.stats import variance
+    >>> x = torch.tensor([[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]])
+    >>> v = variance(x)
+    >>> v
+    tensor(1.6667)
+
+    If you have precomputed the mean, you can pass it and avoid recomputing it:
+
+    >>> precomputed_mean = torch.mean(x)
+    >>> v = variance(x, mean=precomputed_mean)
+    >>> v
+    tensor(1.6667)
+
+    If you want to compute along a specific dimension, you can specify it:
+
+    >>> v = variance(x, dim=0)
+    >>> v
+    tensor([1., 1., 1.])
+
+    This function differs from ``torch.var`` in that it does not apply a correction:
+
+    >>> plenoptic_v_corrected = v * x.shape[0] / (x.shape[0] - 1)
+    >>> torch_v = torch.var(x, dim=0)
+    >>> torch.isclose(plenoptic_v_corrected, torch_v)
+    tensor([True, True, True])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -77,6 +106,29 @@ def skew(
     -------
     out
         The skewness tensor.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from plenoptic.tools.stats import skew, variance
+    >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
+    >>> s = skew(x)
+    tensor(0.2440)
+
+    If you have precomputed the mean and/or variance,
+    you can pass them and avoid recomputing:
+
+    >>> precomputed_mean = torch.mean(x)
+    >>> precomputed_var = variance(x)
+    >>> s = skew(x, mean=precomputed_mean, var=precomputed_var)
+    >>> s
+    tensor(0.2440)
+
+    If you want to compute along a specific dimension, you can specify it:
+
+    >>> s = skew(x, dim=0)
+    >>> s
+    tensor([0., 0., 0., 0.])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
@@ -122,6 +174,29 @@ def kurtosis(
     -------
     out
         The kurtosis tensor.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from plenoptic.tools.stats import kurtosis, variance
+    >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
+    >>> k = kurtosis(x)
+    tensor(2.4031)
+
+    If you have precomputed the mean and/or variance,
+    you can pass them and avoid recomputing:
+
+    >>> precomputed_mean = torch.mean(x)
+    >>> precomputed_var = variance(x)
+    >>> k = kurtosis(x, mean=precomputed_mean, var=precomputed_var)
+    >>> k
+    tensor(2.4031)
+
+    If you want to compute along a specific dimension, you can specify it:
+
+    >>> k = kurtosis(x, dim=0)
+    >>> k
+    tensor([1., 1., 1., 1.])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
