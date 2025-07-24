@@ -52,6 +52,7 @@ docs = [
      "pooch",
      "jupytext",
      "sphobjinv",
+     "sphinx-togglebutton",
 ]
 
 test = [
