@@ -706,7 +706,7 @@ Examples
 - (12f) pluses
 
 ```{code-cell} ipython3
-fig_name = "fig12a"
+fig_name = "fig12c"
 img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 

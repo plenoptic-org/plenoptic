@@ -6,9 +6,9 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.1
 kernelspec:
-  display_name: plenoptic
-  language: python
   name: python3
+  display_name: Python 3 (ipykernel)
+  language: python
 ---
 
 :::{admonition} Download
@@ -39,8 +39,7 @@ plt.rcParams["animation.html"] = "html5"
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
-# this notebook runs just about as fast with GPU and CPU
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
 All `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here:

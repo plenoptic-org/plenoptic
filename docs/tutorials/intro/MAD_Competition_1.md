@@ -6,7 +6,7 @@ jupytext:
     format_version: 0.13
     jupytext_version: 1.17.2
 kernelspec:
-  display_name: plenoptic
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
@@ -219,6 +219,7 @@ tradeoffs = {
     "l1_norm_max": 1e2,
     "l1_norm_min": 1e3,
 }
+lr = {"l1_norm_min": 1}
 
 all_mad = {}
 
@@ -237,11 +238,11 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
         allowed_range=(0, 255),
         range_penalty_lambda=1,
     )
-    all_mad[name].setup(initial_noise=20, optimizer_kwargs={"lr": 0.1})
+    all_mad[name].setup(initial_noise=20, optimizer_kwargs={"lr": lr.get(name, 0.1)})
     print(f"Synthesizing {name}")
     all_mad[name].synthesize(
         store_progress=True,
-        max_iter=30000,
+        max_iter=10000,
         stop_criterion=1e-10,
     )
 
@@ -259,6 +260,12 @@ We're going to visualize these slightly different to the above, since they have 
 ```{code-cell} ipython3
 po.synth.mad_competition.plot_loss_all(*all_mad.values());
 ```
+
+:::{admonition} Synthesis duration
+:class: warning
+
+If you look at the loss curves above, you can see that the "Minimize l1_norm" curve hasn't saturated the way the others have. In a real experiment, it's recommended to run that particular synthesis longer, until the L1 norm loss has converged. However, for the purposes of this example, this result is good enough.
+:::
 
 Now we'll show all the synthesized MAD images. In the following, the top row shows the reference and initial images, then the MAD images:
 
