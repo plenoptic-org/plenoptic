@@ -515,7 +515,7 @@ The cell below replicates examples of synthesis failures with the following stat
 
 - correlation of the complex magnitude of pairs of coefficients at adjacent positions, orientations and scales.
 
-These statistics play a role constraining high contrast locations to be organized along lines and edges across all scales. For example, in the image named fig6a.jpg the absence of these statistics results in a completely different organization of the orientation content in the edges.
+These statistics play a role constraining high contrast locations to be organized along lines and edges across all scales. For example, in the image named fig6b.jpg the absence of these statistics results in a completely different organization of the orientation content in the edges.
 
 (see figure 6 of Portilla & Simoncelli 2000)
 
@@ -531,7 +531,7 @@ remove_statistics = [
 ]
 
 # run on fig6a or fig6b to replicate paper
-fig_name = "fig6a"
+fig_name = "fig6b"
 img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
