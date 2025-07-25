@@ -370,7 +370,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVICE)
 
 # synthesis with pixel and marginal statistics absent
 model_remove = PortillaSimoncelliRemove(
@@ -384,7 +384,7 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
+met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run these syntheses manually
@@ -449,7 +449,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVICE)
 
 # synthesis with coefficient correlations  absent
 model_remove = PortillaSimoncelliRemove(
@@ -463,7 +463,7 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
+met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run these syntheses manually
@@ -545,7 +545,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVICE)
 
 
 # synthesis with pixel and marginal statistics absent
@@ -560,7 +560,7 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
+met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run these syntheses manually
@@ -629,7 +629,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt")
+met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVICE)
 
 # synthesis with pixel and marginal statistics absent
 model_remove = PortillaSimoncelliRemove(
@@ -643,7 +643,7 @@ met_remove = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt")
+met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run these syntheses manually
@@ -723,7 +723,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -768,7 +768,7 @@ met_left = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -797,7 +797,7 @@ met_right = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -853,7 +853,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -896,7 +896,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -939,7 +939,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt")
+met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1064,7 +1064,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / "ps_mask.pt")
+met.load(CACHE_DIR / "ps_mask.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1162,7 +1162,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / f"ps_mixture_{'-'.join(fig_names)}.pt")
+met.load(CACHE_DIR / f"ps_mixture_{'-'.join(fig_names)}.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1205,7 +1205,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt")
+met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1244,7 +1244,7 @@ met = po.synth.MetamerCTF(
     loss_function=po.tools.optim.l2_norm,
     coarse_to_fine="together",
 )
-met.load(CACHE_DIR / "ps_basic_synthesis_fig18a.pt")
+met.load(CACHE_DIR / "ps_basic_synthesis_fig18a.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -1504,7 +1504,7 @@ met = po.synth.MetamerCTF(
     model,
     loss_function=po.tools.optim.l2_norm,
 )
-met.load(CACHE_DIR / "ps_mag_means-False.pt")
+met.load(CACHE_DIR / "ps_mag_means-False.pt", map_location=DEVICE)
 
 po.tools.set_seed(100)
 met_mag_means = po.synth.MetamerCTF(
@@ -1512,7 +1512,7 @@ met_mag_means = po.synth.MetamerCTF(
     model_mag_means,
     loss_function=po.tools.optim.l2_norm,
 )
-met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt")
+met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt", map_location=DEVICE)
 ```
 
 :::{admonition} How to run this synthesis manually
