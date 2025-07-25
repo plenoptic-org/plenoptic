@@ -4,9 +4,9 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.2
 kernelspec:
-  display_name: plenoptic
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
@@ -41,6 +41,7 @@ plt.rcParams["animation.html"] = "html5"
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 %load_ext autoreload
 %autoreload 2
@@ -60,7 +61,7 @@ For {func}`imshow <plenoptic.tools.display.imshow>`, we require that real-valued
 ```{code-cell} ipython3
 img = torch.cat([po.data.einstein(), po.data.curie()], axis=0)
 print(img.shape)
-fig = po.imshow(img)
+fig = po.imshow(img);
 ```
 
 We need to tell {func}`imshow <plenoptic.tools.display.imshow>` that the image(s) are RGB in order for it to be plot correctly.
@@ -68,7 +69,7 @@ We need to tell {func}`imshow <plenoptic.tools.display.imshow>` that the image(s
 ```{code-cell} ipython3
 rgb = torch.rand(2, 3, 256, 256)
 print(rgb.shape)
-fig = po.imshow(rgb, as_rgb=True)
+fig = po.imshow(rgb, as_rgb=True);
 ```
 
  This is because we don't want to assume that a tensor with 3 or 4 channels is always RGB. To pick a somewhat-contrived example, imagine the following steerable pyramid:
@@ -121,8 +122,8 @@ po.animshow(coeffs.unsqueeze(1), batch_idx=0, vrange="indep1")
 Each synthesis method has a variety of display code to visualize the state and progress of synthesis, as well as to ease understanding of the process and look for ways to improve. For example, in metamer synthesis, it can be useful to determine what component of the model has the largest error.
 
 ```{code-cell} ipython3
-img = po.data.einstein()
-model = po.simul.OnOff((7, 7))
+img = po.data.einstein().to(DEVICE)
+model = po.simul.OnOff((7, 7)).to(DEVICE)
 model.eval()
 rep = model(img)
 ```
@@ -249,8 +250,8 @@ po.synth.metamer.animate(
 While this provides a starting point, it's not always super useful. In the example above, the {class}`LinearNonlinear <plenoptic.simulate.models.frontend.LinearNonlinear>` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`PortillaSimoncelli <plenoptic.simulate.models.PortillaSimoncelli>` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
 
 ```{code-cell} ipython3
-img = po.data.reptile_skin()
-ps = po.simul.PortillaSimoncelli(img.shape[-2:])
+img = po.data.reptile_skin().to(DEVICE)
+ps = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
 rep = ps(img)
 po.tools.display.plot_representation(data=rep);
 ```

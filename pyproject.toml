@@ -18,7 +18,7 @@ keywords = ['neuroscience', 'pytorch', 'visual information processing', 'machine
 dependencies = [
     "numpy>=1.1",
     "torch>=1.8,!=1.12.0",
-    "pyrtools>=1.0.1",
+    "pyrtools>=1.0.9",
     "scipy>=1.0",
     "matplotlib>=3.3",
     "tqdm>=4.29",
@@ -52,6 +52,7 @@ docs = [
      "pooch",
      "jupytext",
      "sphobjinv",
+     "sphinx-togglebutton",
 ]
 
 test = [
@@ -59,6 +60,7 @@ test = [
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
+     "torchvision",
 ]
 
 lint = [
@@ -90,7 +92,7 @@ version_scheme = 'python-simplified-semver'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]
-addopts = "--cov=plenoptic --cov-append -n auto --cov-report term"
+addopts = "--cov=plenoptic --cov-append -n auto --cov-report term --dist loadgroup"
 testpaths = ["tests"]
 doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
 
