@@ -60,6 +60,7 @@ test = [
     'pytest-cov',
     'pytest-xdist',
     "pooch>=1.2.0",
+     "torchvision",
 ]
 
 lint = [
