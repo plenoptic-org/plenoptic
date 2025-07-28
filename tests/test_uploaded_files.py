@@ -469,6 +469,7 @@ class TestTutorialNotebooks:
                 "einstein",
             ],
         )
+        @pytest.mark.xdist_group(name="gpu-0")
         def test_ps_basic_synthesis(
             self, ps_images, fn, einstein_img_double, ps_regression
         ):
@@ -590,6 +591,7 @@ class TestTutorialNotebooks:
             ],
         )
         @pytest.mark.parametrize("remove_bool", [True, False])
+        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -598,12 +600,12 @@ class TestTutorialNotebooks:
                 f"uploaded_files/torch_rng_state_ps_remove_{fn}_remove-{remove_bool}.pt",
             )
             print(np.random.get_state())
-            img = self.get_specific_img(*ps_images, fn)
+            img = self.get_specific_img(*ps_images, fn).to(DEVICE2)
             if remove_bool:
                 model = PortillaSimoncelliRemove(img.shape[-2:], remove_keys=stats)
             else:
                 model = po.simul.PortillaSimoncelli(img.shape[-2:])
-            model.to(DEVICE).to(torch.float64)
+            model.to(DEVICE2).to(torch.float64)
             met = po.synth.MetamerCTF(
                 img,
                 model,
@@ -628,6 +630,7 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
+        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mask(self, ps_images, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -636,12 +639,12 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_ps_mask.pt",
             )
             print(np.random.get_state())
-            img = self.get_specific_img(*ps_images, "fig14b")
+            img = self.get_specific_img(*ps_images, "fig14b").to(DEVICE2)
             mask = torch.zeros_like(img).bool()
             ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
             mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
             model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask)
-            model.to(DEVICE).to(torch.float64)
+            model.to(DEVICE2).to(torch.float64)
             met = po.synth.MetamerCTF(
                 img,
                 model,
@@ -677,6 +680,7 @@ class TestTutorialNotebooks:
                 ("fig15a", "fig15b"),
             ],
         )
+        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mixture(self, ps_images, fn, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -690,9 +694,9 @@ class TestTutorialNotebooks:
                     self.get_specific_img(*ps_images, fn[0]),
                     self.get_specific_img(*ps_images, fn[1]),
                 ]
-            )
+            ).to(DEVICE2)
             model = PortillaSimoncelliMixture(img.shape[-2:])
-            model.to(DEVICE).to(torch.float64)
+            model.to(DEVICE2).to(torch.float64)
             met = po.synth.MetamerCTF(
                 img,
                 model,
@@ -720,6 +724,7 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
+        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(100)
@@ -728,14 +733,14 @@ class TestTutorialNotebooks:
                 f"uploaded_files/torch_rng_state_ps_mag_means-{mag_bool}.pt",
             )
             print(np.random.get_state())
-            img = self.get_specific_img(*ps_images, "fig4a")
+            img = self.get_specific_img(*ps_images, "fig4a").to(DEVICE2)
             if mag_bool:
                 model = PortillaSimoncelliMagMeans(img.shape[-2:])
             else:
                 model = po.simul.PortillaSimoncelli(
                     img.shape[-2:], spatial_corr_width=7
                 )
-            model.to(DEVICE).to(torch.float64)
+            model.to(DEVICE2).to(torch.float64)
             met = po.synth.MetamerCTF(
                 img,
                 model,
