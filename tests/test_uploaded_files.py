@@ -749,7 +749,10 @@ class TestTutorialNotebooks:
             )
             met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
             met.synthesize(
-                max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7
+                max_iter=1000,
+                change_scale_criterion=None,
+                ctf_iters_to_check=7,
+                store_progress=50,
             )
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
             met_up = po.synth.MetamerCTF(
