@@ -315,7 +315,10 @@ class TestDoctest:
         torch.use_deterministic_algorithms(True)
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
-        torch.save(torch.random.get_rng_state(), "uploaded_files/torch_rng_state.pt")
+        torch.save(
+            torch.random.get_rng_state(),
+            "uploaded_files/torch_rng_state_eigendistortion.pt",
+        )
         print(np.random.get_state())
         lg = po.simul.LuminanceGainControl(
             (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
@@ -343,6 +346,11 @@ class TestTutorialNotebooks:
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_berardino_onoff.pt",
+            )
+            print(np.random.get_state())
             model = po.simul.OnOff(
                 (31, 31),
                 pretrained=True,
@@ -381,6 +389,11 @@ class TestTutorialNotebooks:
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_berardino_vgg16.pt",
+            )
+            print(np.random.get_state())
             model = models.vgg16(
                 weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False
             )
@@ -461,6 +474,11 @@ class TestTutorialNotebooks:
         ):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ps_basic_{fn}.pt",
+            )
+            print(np.random.get_state())
             if fn.startswith("fig"):
                 img = self.get_specific_img(*ps_images, fn)
             elif fn == "einstein":
@@ -498,8 +516,6 @@ class TestTutorialNotebooks:
 
         # make sure we fail if save load with different stats removed
         def test_ps_remove_fail(self, ps_images, tmp_path):
-            torch.use_deterministic_algorithms(True)
-            po.tools.set_seed(0)
             img = self.get_specific_img(*ps_images, "fig4a")
             model = PortillaSimoncelliRemove(
                 img.shape[-2:], remove_keys=["pixel_statistics"]
@@ -577,6 +593,11 @@ class TestTutorialNotebooks:
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ps_remove_{fn}_remove-{remove_bool}.pt",
+            )
+            print(np.random.get_state())
             img = self.get_specific_img(*ps_images, fn)
             if remove_bool:
                 model = PortillaSimoncelliRemove(img.shape[-2:], remove_keys=stats)
@@ -610,6 +631,11 @@ class TestTutorialNotebooks:
         def test_ps_mask(self, ps_images, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_ps_mask.pt",
+            )
+            print(np.random.get_state())
             img = self.get_specific_img(*ps_images, "fig14b")
             mask = torch.zeros_like(img).bool()
             ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
@@ -654,6 +680,11 @@ class TestTutorialNotebooks:
         def test_ps_mixture(self, ps_images, fn, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ps_mixture_{'-'.join(fn)}.pt",
+            )
+            print(np.random.get_state())
             img = torch.cat(
                 [
                     self.get_specific_img(*ps_images, fn[0]),
@@ -692,6 +723,11 @@ class TestTutorialNotebooks:
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(100)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ps_mag_means-{mag_bool}.pt",
+            )
+            print(np.random.get_state())
             img = self.get_specific_img(*ps_images, "fig4a")
             if mag_bool:
                 model = PortillaSimoncelliMagMeans(img.shape[-2:])
