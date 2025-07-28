@@ -341,17 +341,15 @@ class Synthesis(abc.ABC):
             if k in [a[0] for a in check_io_attributes] + state_dict_attributes:
                 display_k = k[1:] if k.startswith("_") else k
                 init_attr = getattr(self, k, None)
-                # then check they have the same name and, since we've already checked
+                # then check their name has the same final part (e.g.,
+                # "plenoptic.simulate.PortillaSimoncelli" or
+                # "__main__.PortillaSimoncelli"), since we've already checked
                 # the behavior, keep going (don't update the object's attribute)
                 if init_attr is not None:
                     init_name = _get_name(init_attr)
                     saved_name = v[0]
-                    # then one of these was defined interactively (i.e. in the user's
-                    # script or notebook), and so we just want to make sure that the end
-                    # of the name is the same
-                    if "__main__" in init_name or "__main__" in saved_name:
-                        init_name = init_name.split(".")[-1]
-                        saved_name = saved_name.split(".")[-1]
+                    init_name = init_name.split(".")[-1]
+                    saved_name = saved_name.split(".")[-1]
                     if init_name != saved_name:
                         raise ValueError(
                             f"Saved and initialized {display_k} "

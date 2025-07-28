@@ -277,6 +277,60 @@ class TestMAD:
         ):
             mad.load(op.join(tmp_path, "test_mad_load_init_fail.pt"))
 
+    @pytest.mark.parametrize("fail", [False, "name", "behavior"])
+    def test_load_names(self, fail, einstein_img, tmp_path):
+        # name and behavior same, but module path is different
+        if fail is False:
+
+            def mse(x, y):
+                return po.tools.optim.mse(x, y)
+
+            metric2 = mse
+            expectation = does_not_raise()
+        # name different but behavior same
+        elif fail == "name":
+
+            def bad_metric(x, y):
+                return po.tools.optim.mse(x, y)
+
+            metric2 = bad_metric
+            expectation = pytest.raises(
+                ValueError,
+                match="Saved and initialized optimized_metric have different names",
+            )
+        # name same but behavior different
+        elif fail == "behavior":
+
+            def mse(x, y):
+                return po.tools.optim.l2_norm(x, y)
+
+            metric2 = mse
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Saved and initialized optimized_metric output have different"
+                    " values"
+                ),
+            )
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, f"test_mad_load_names_{fail}.pt"))
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            metric2,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        with expectation:
+            mad.load(op.join(tmp_path, f"test_mad_load_names_{fail}.pt"))
+
     def test_examine_saved_object(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
             einstein_img,

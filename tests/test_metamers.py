@@ -236,6 +236,65 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
+    @pytest.mark.parametrize("fail", [False, "name", "behavior"])
+    def test_load_names(self, fail, einstein_img, model, tmp_path):
+        # name and behavior same as our LinearNonlinear, but module path is
+        # different
+        if fail is False:
+
+            class LinearNonlinear(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinear()
+            expectation = does_not_raise()
+        # name different but behavior same
+        elif fail == "name":
+
+            class LinearNonlinearFAIL(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinearFAIL()
+            expectation = pytest.raises(
+                ValueError, match="Saved and initialized model have different names"
+            )
+        # name same but behavior different
+        elif fail == "behavior":
+
+            class LinearNonlinear(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = po.simul.LinearNonlinear((16, 16)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinear()
+            expectation = pytest.raises(
+                ValueError,
+                match="Saved and initialized model output have different values",
+            )
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=4, store_progress=True)
+        met.save(op.join(tmp_path, f"test_metamer_load_names_{fail}.pt"))
+        po.tools.remove_grad(model2)
+        model2.eval()
+        met = po.synth.Metamer(einstein_img, model2)
+        with expectation:
+            met.load(op.join(tmp_path, f"test_metamer_load_names_{fail}.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
     def test_examine_saved_object(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
