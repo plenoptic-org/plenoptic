@@ -507,6 +507,8 @@ class TestTutorialNotebooks:
                 store_progress=True,
             )
             met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
+            saved_out = torch.stack([model(m) for m in met.saved_metamer.to(0)])
+            torch.save(saved_out, f"uploaded_files/ps_basic_synthesis_{fn}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
@@ -730,7 +732,7 @@ class TestTutorialNotebooks:
         @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
-            po.tools.set_seed(100)
+            po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_mag_means-{mag_bool}.pt",
@@ -758,6 +760,8 @@ class TestTutorialNotebooks:
                 store_progress=True,
             )
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
+            saved_out = torch.stack([model(m) for m in met.saved_metamer.to(0)])
+            torch.save(saved_out, f"uploaded_files/ps_mag_means-{mag_bool}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
