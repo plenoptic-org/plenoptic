@@ -1000,7 +1000,8 @@ class MetamerCTF(Metamer):
         self._losses.append(overall_loss.item())
 
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
-        self._gradient_norm.append(grad_norm.item())
+        # self._gradient_norm.append(grad_norm.item())
+        self._gradient_norm.append(self.metamer.grad.data)
 
         # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:

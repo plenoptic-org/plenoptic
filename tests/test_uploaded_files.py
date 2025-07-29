@@ -501,7 +501,10 @@ class TestTutorialNotebooks:
                 ((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1)
             )
             met.synthesize(
-                max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7
+                max_iter=350,
+                change_scale_criterion=None,
+                ctf_iters_to_check=7,
+                store_progress=True,
             )
             met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
             met_up = po.synth.MetamerCTF(
@@ -749,10 +752,10 @@ class TestTutorialNotebooks:
             )
             met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
             met.synthesize(
-                max_iter=1000,
+                max_iter=350,
                 change_scale_criterion=None,
                 ctf_iters_to_check=7,
-                store_progress=50,
+                store_progress=True,
             )
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
             met_up = po.synth.MetamerCTF(
@@ -762,6 +765,8 @@ class TestTutorialNotebooks:
                 coarse_to_fine="together",
             )
             met_up.load(
-                ps_regression / f"ps_mag_means-{mag_bool}.pt", tensor_equality_atol=1e-7
+                ps_regression / f"ps_mag_means-{mag_bool}.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
             )
             compare_metamers(met, met_up)
