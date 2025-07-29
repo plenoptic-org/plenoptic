@@ -507,7 +507,8 @@ class TestTutorialNotebooks:
                 store_progress=True,
             )
             met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
-            saved_out = torch.stack([model(m) for m in met.saved_metamer.to(0)])
+            model.to("cpu")
+            saved_out = torch.stack([model(m) for m in met.saved_metamer])
             torch.save(saved_out, f"uploaded_files/ps_basic_synthesis_{fn}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
@@ -760,7 +761,8 @@ class TestTutorialNotebooks:
                 store_progress=True,
             )
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
-            saved_out = torch.stack([model(m) for m in met.saved_metamer.to(0)])
+            model.to("cpu")
+            saved_out = torch.stack([model(m) for m in met.saved_metamer])
             torch.save(saved_out, f"uploaded_files/ps_mag_means-{mag_bool}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
