@@ -66,6 +66,7 @@ pipeline {
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
               pip install .[test]
+              mkdir -p uploaded_files/
               pip freeze > uploaded_files/pip_freeze.txt
               python3.11 -c "import torch; print(torch.cuda.current_device())"
               RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 0 "tests/test_uploaded_files.py::TestTutorialNotebooks::TestPortillaSimoncelli::test_ps_mag_means[False]" "tests/test_uploaded_files.py::TestTutorialNotebooks::TestPortillaSimoncelli::test_ps_basic_synthesis[fig4a]"
