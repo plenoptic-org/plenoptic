@@ -72,3 +72,9 @@ repos:
       entry: linting/ruff_notebooks.py
       files: ^docs/
       additional_dependencies: ["ruff", "jupytext"]
+    - id: check-regression-tests
+      language: system
+      name: Ensure regression tests and notebook are matched
+      types_or: ["markdown"]
+      entry: python linting/check_regression_tests.py tests/test_uploaded_files.py
+      files: ^docs/tutorials

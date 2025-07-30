@@ -4,9 +4,9 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.2
 kernelspec:
-  display_name: plenoptic
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
@@ -53,8 +53,7 @@ except ModuleNotFoundError:
 import torchvision.transforms as transforms
 
 dtype = torch.float32
-# this notebook runs just about as fast with GPU and CPU
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 %load_ext autoreload
 

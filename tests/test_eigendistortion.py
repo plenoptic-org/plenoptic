@@ -10,6 +10,7 @@ import plenoptic.synthesize.autodiff as autodiff
 from conftest import DEVICE, ColorModel, get_model
 from plenoptic.metric import mse
 from plenoptic.simulate import Gaussian, OnOff
+from plenoptic.simulate import LinearNonlinear as LNL
 from plenoptic.synthesize import (
     MADCompetition,
     Metamer,
@@ -272,6 +273,65 @@ class TestEigendistortionSynthesis:
             ValueError, match="load can only be called with a just-initialized"
         ):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("fail", [False, "name", "behavior"])
+    def test_load_names(self, fail, einstein_img, model, tmp_path):
+        # name and behavior same as our LinearNonlinear, but module path is
+        # different
+        if fail is False:
+
+            class LinearNonlinear(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = LNL((31, 31)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinear()
+            expectation = does_not_raise()
+        # name different but behavior same
+        elif fail == "name":
+
+            class LinearNonlinearFAIL(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = LNL((31, 31)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinearFAIL()
+            expectation = pytest.raises(
+                ValueError, match="Saved and initialized model have different names"
+            )
+        # name same but behavior different
+        elif fail == "behavior":
+
+            class LinearNonlinear(torch.nn.Module):
+                def __init__(self, *args, **kwargs):
+                    super().__init__()
+                    self.model = LNL((16, 16)).to(DEVICE)
+
+                def forward(self, *args, **kwargs):
+                    return self.model(*args, **kwargs)
+
+            model2 = LinearNonlinear()
+            expectation = pytest.raises(
+                ValueError,
+                match="Saved and initialized model output have different values",
+            )
+        eig = Eigendistortion(einstein_img, model)
+        eig.synthesize(max_iter=4)
+        eig.save(op.join(tmp_path, f"test_eigendistortion_load_names_{fail}.pt"))
+        remove_grad(model2)
+        model2.eval()
+        eig = Eigendistortion(einstein_img, model2)
+        with expectation:
+            eig.load(op.join(tmp_path, f"test_eigendistortion_load_names_{fail}.pt"))
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

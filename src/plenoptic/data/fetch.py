@@ -39,6 +39,9 @@ REGISTRY = {
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": "ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4",  # noqa: E501
     "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
+    "berardino_onoff.pt": "fff55cf48f47babda62067f272643f20caee6e88b93a0746d8307d89e945e201",  # noqa: E501
+    "berardino_vgg16.pt": "8efad30d4d7b371bcd31a245f3d16f53c611fdc96bafc02e727a1f63af4606ed",  # noqa: E501
+    "ps_regression.tar.gz": "b8b52fe235a14e66e17fdb850f3ecffebd06cdb659266ac98a0bdccb94fbde12",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"
@@ -70,6 +73,9 @@ REGISTRY_URLS = {
     ),
     "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
+    "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
+    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
+    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj"),
 }
 
 #: List of files that can be downloaded using :func:`fetch_data`
@@ -91,6 +97,7 @@ else:
         registry=REGISTRY,
         retry_if_failed=2,
         allow_updates="POOCH_ALLOW_UPDATES",
+        env="PLENOPTIC_CACHE_DIR",
     )
 
 

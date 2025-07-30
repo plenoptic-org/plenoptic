@@ -62,10 +62,7 @@ import torch
 import plenoptic as po
 
 # use GPU if available
-if torch.cuda.device_count() > 1:
-    DEVICE = torch.device(1)
-else:
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # so that relative sizes of axes created by po.imshow and others look right
