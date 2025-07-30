@@ -310,7 +310,6 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
-    @pytest.mark.xdist_group(name="gpu-0")
     def test_eigendistortion(self, einstein_img_double):
         torch.use_deterministic_algorithms(True)
         po.tools.set_seed(0)
@@ -330,7 +329,11 @@ class TestDoctest:
         eig.synthesize(max_iter=1000)
         eig.save("uploaded_files/example_eigendistortion.pt")
         eig_up = po.synth.Eigendistortion(einstein_img_double, lg)
-        eig_up.load(fetch_data("example_eigendistortion.pt"), tensor_equality_atol=1e-7)
+        eig_up.load(
+            fetch_data("example_eigendistortion.pt"),
+            tensor_equality_atol=1e-7,
+            map_location=DEVICE,
+        )
         compare_eigendistortions(eig, eig_up)
 
 
@@ -341,7 +344,6 @@ class TestDoctest:
 )
 class TestTutorialNotebooks:
     class TestDemoEigendistortion:
-        @pytest.mark.xdist_group(name="gpu-0")
         def test_berardino_onoff(self, parrot_square_double):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -364,10 +366,13 @@ class TestTutorialNotebooks:
             eig.synthesize(k=3, method="power", max_iter=2000)
             eig.save("uploaded_files/berardino_onoff.pt")
             eig_up = po.synth.Eigendistortion(parrot_square_double, model)
-            eig_up.load(fetch_data("berardino_onoff.pt"), tensor_equality_atol=1e-7)
+            eig_up.load(
+                fetch_data("berardino_onoff.pt"),
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE,
+            )
             compare_eigendistortions(eig, eig_up)
 
-        @pytest.mark.xdist_group(name="gpu-1")
         def test_berardino_vgg16(self, parrot_square_double):
             # Create a class that takes the nth layer output of a given model
             class TorchVision(torch.nn.Module):
@@ -407,7 +412,11 @@ class TestTutorialNotebooks:
             eig.synthesize(k=2, method="power", max_iter=5000)
             eig.save("uploaded_files/berardino_vgg16.pt")
             eig_up = po.synth.Eigendistortion(img, model)
-            eig_up.load(fetch_data("berardino_vgg16.pt"), tensor_equality_atol=1e-7)
+            eig_up.load(
+                fetch_data("berardino_vgg16.pt"),
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
             compare_eigendistortions(eig, eig_up)
 
     @pytest.mark.filterwarnings(
@@ -469,7 +478,6 @@ class TestTutorialNotebooks:
                 "einstein",
             ],
         )
-        @pytest.mark.xdist_group(name="gpu-0")
         def test_ps_basic_synthesis(
             self, ps_images, fn, einstein_img_double, ps_regression
         ):
@@ -501,15 +509,11 @@ class TestTutorialNotebooks:
                 ((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1)
             )
             met.synthesize(
-                max_iter=350,
+                max_iter=3000,
                 change_scale_criterion=None,
                 ctf_iters_to_check=7,
-                store_progress=True,
             )
             met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
-            model.to("cpu")
-            saved_out = torch.stack([model(m) for m in met.saved_metamer])
-            torch.save(saved_out, f"uploaded_files/ps_basic_synthesis_{fn}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
@@ -517,7 +521,9 @@ class TestTutorialNotebooks:
                 coarse_to_fine="together",
             )
             met_up.load(
-                ps_regression / f"ps_basic_synthesis_{fn}.pt", tensor_equality_atol=1e-7
+                ps_regression / f"ps_basic_synthesis_{fn}.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE,
             )
             compare_metamers(met, met_up)
 
@@ -551,7 +557,7 @@ class TestTutorialNotebooks:
                 coarse_to_fine="together",
             )
             with pytest.raises(ValueError, match="Saved and initialized model output"):
-                met.load(tmp_path / "test_ps_remove_fail.pt")
+                met.load(tmp_path / "test_ps_remove_fail.pt", map_location=DEVICE)
 
         @pytest.mark.parametrize(
             "fn, stats",
@@ -597,7 +603,6 @@ class TestTutorialNotebooks:
             ],
         )
         @pytest.mark.parametrize("remove_bool", [True, False])
-        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -632,11 +637,11 @@ class TestTutorialNotebooks:
             met_up.load(
                 ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
                 tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
             )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
-        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mask(self, ps_images, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -671,7 +676,11 @@ class TestTutorialNotebooks:
                 loss_function=po.tools.optim.l2_norm,
                 coarse_to_fine="together",
             )
-            met_up.load(ps_regression / "ps_mask.pt", tensor_equality_atol=1e-7)
+            met_up.load(
+                ps_regression / "ps_mask.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
@@ -686,7 +695,6 @@ class TestTutorialNotebooks:
                 ("fig15a", "fig15b"),
             ],
         )
-        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mixture(self, ps_images, fn, ps_regression):
             torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
@@ -726,14 +734,14 @@ class TestTutorialNotebooks:
             met_up.load(
                 ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
                 tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
             )
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
-        @pytest.mark.xdist_group(name="gpu-1")
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
             torch.use_deterministic_algorithms(True)
-            po.tools.set_seed(0)
+            po.tools.set_seed(100)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_mag_means-{mag_bool}.pt",
@@ -755,15 +763,11 @@ class TestTutorialNotebooks:
             )
             met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
             met.synthesize(
-                max_iter=350,
+                max_iter=3000,
                 change_scale_criterion=None,
                 ctf_iters_to_check=7,
-                store_progress=True,
             )
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
-            model.to("cpu")
-            saved_out = torch.stack([model(m) for m in met.saved_metamer])
-            torch.save(saved_out, f"uploaded_files/ps_mag_means-{mag_bool}_rep.pt")
             met_up = po.synth.MetamerCTF(
                 img,
                 model,
