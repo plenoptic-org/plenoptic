@@ -45,6 +45,8 @@ class Metamer(OptimizedSynthesis):
         A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
         Strength of the regularizer. Must be non-negative.
+    penalty_lambda
+        Weight of the regularization term. Must be non-negative.
 
     References
     ----------
@@ -833,7 +835,7 @@ class MetamerCTF(Metamer):
         A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
     penalty_lambda
-        Strength of the regularizer. Must be non-negative.
+        Strength of the regularization term. Must be non-negative.
     coarse_to_fine
         - ``"together"``: start with the coarsest scale, then gradually
           add each finer scale.
