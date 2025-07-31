@@ -63,7 +63,7 @@ class MADCompetition(OptimizedSynthesis):
         A penalty function to help constrain the synthesized
         image by penalizing specific image properties.
     penalty_lambda
-        Strength of the regularizer. Must be non-negative.
+        Strength of the regularization term. Must be non-negative.
 
     References
     ----------
