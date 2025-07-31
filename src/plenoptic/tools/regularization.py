@@ -1,6 +1,8 @@
 """Tools for regularizing image synthesis."""
 # numpydoc ignore=ES01
 
+from typing import Any
+
 import torch
 from torch import Tensor
 
@@ -13,10 +15,13 @@ def penalize_range(
     r"""
     Calculate quadratic penalty on values outside of ``allowed_range``.
 
-    Instead of clamping values to exactly fall in a range, this provides
-    a 'softer' way of doing it, by imposing a quadratic penalty on any
-    values outside the allowed_range. All values within the
-    allowed_range have a penalty of 0.
+    Provides a 'soft' pixel-range regularization by imposing a
+    quadratic penalty on any values outside the allowed_range.
+    All values within the allowed_range have a penalty of 0.
+
+    To use as a `penalty_function` in synthesis methods,
+    `functools.partial` must be used to fix the `allowed_range`
+    (see Examples).
 
     Parameters
     ----------
@@ -31,6 +36,22 @@ def penalize_range(
     -------
     penalty
         Penalty for values outside range.
+
+    Examples
+    --------
+    Synthesize a metamer with pixel range (-1, 1):
+
+    >>> import functools
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> model = po.simul.Gaussian(30).eval()
+    >>> po.tools.remove_grad(model)
+    >>> # Make function penalizing values outside (-1, 1)
+    >>> custom_range = functools.partial(
+    >>>   po.tools.penalize_range, allowed_range=(-1, 1)
+    >>> )
+    >>> met = po.synth.Metamer(img, model, penalty_function=custom_range)
+    >>> met.synthesize(10)
     """
     # Using clip like this is equivalent to using boolean indexing (e.g.,
     # synth_img[synth_img < allowed_range[0]]) but much faster
