@@ -87,7 +87,7 @@ class MADCompetition(OptimizedSynthesis):
           penalty_function=penalty_function,
           penalty_lambda=penalty_lambda
         )
-        validate_input(image, allowed_range=(0, 1))
+        validate_input(image)
         validate_metric(
             optimized_metric,
             image_shape=image.shape,
