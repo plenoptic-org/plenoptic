@@ -1,5 +1,5 @@
 """
-Helper functions for comptuing Jacobian and related outputs.
+Helper functions for computing Jacobian and related outputs.
 
 Not intended for users to interact with directly; users should use
 :class:`~plenoptic.synthesize.eigendistortion.Eigendistortion`.

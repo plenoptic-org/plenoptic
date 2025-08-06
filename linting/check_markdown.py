@@ -70,13 +70,13 @@ for p in paths:
 
 if xrefs or missing_xrefs or double_backticks or method_format:
     if xrefs:
-        print("The following markdown documents' crossreferences are misformatted!")
+        print("The following markdown documents' cross-references are misformatted!")
         for p, xr in xrefs:
             print(f"{p}:")
             for x in xr:
                 print(f"\t{x}")
     if missing_xrefs:
-        print("The following markdown documents' is missing some crossreferences!")
+        print("The following markdown documents' is missing some cross-references!")
         for p, xr in missing_xrefs:
             print(f"{p}:")
             for x in xr:

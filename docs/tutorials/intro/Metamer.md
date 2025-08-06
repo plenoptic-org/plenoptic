@@ -68,7 +68,7 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 (metamer-basic-usage)=
 ## Basic usage
 
-As with all our synthesis methods, we start by grabbing a target image and initalizing our model.
+As with all our synthesis methods, we start by grabbing a target image and initializing our model.
 
 ```{code-cell} ipython3
 img = po.data.curie().to(DEVICE)
@@ -217,7 +217,7 @@ Some models, such as the Portilla-Simoncelli texture statistics, have a multisca
 We provide the option to use coarse-to-fine optimization, such that you optimize the different scales separately (starting with the coarsest and then moving progressively finer) and then, at the end, optimizing all of them simultaneously. This was first used in Portilla and Simoncelli, 2000, and can help avoid local optima in image space. Unlike everything else described in this notebook, it will not work for all models. There are two specifications the model must meet (see [Model requirements page](models-coarse-to-fine) for more details):
 
 1. It must have a `scales` <!-- skip-lint --> attribute that gives the scales in the order they should be optimized.
-2. Its `forward` <!-- skip-lint --> method must accept a `scales` keyword argument, which accpets a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
+2. Its `forward` <!-- skip-lint --> method must accept a `scales` keyword argument, which accepts a list and causes the model to return only the scale(s) included. See {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>` for an example.
 
 We can see that the included {class}`PortillaSimoncelli <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli>` model satisfies these constraints, and that the model returns a subset of its output when the `scales` argument is passed to {func}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward>`:
 
@@ -268,7 +268,7 @@ po.imshow(
 );
 ```
 
-And we can see these shfits happening in the animation of synthesis:
+And we can see these shifts happening in the animation of synthesis:
 
 ```{code-cell} ipython3
 po.synth.metamer.animate(met)
@@ -278,7 +278,7 @@ po.synth.metamer.animate(met)
 
 - {attr}`scales_loss <plenoptic.synthesize.metamer.MetamerCTF.scales_loss>`: this list contains the scale-specific loss at each iteration (that is, the loss computed on just the scale(s) we're optimizing on that iteration; which we use to determine when to switch scales).
 - {attr}`scales <plenoptic.synthesize.metamer.MetamerCTF.scales>`: this is a list of the scales in optimization order (i.e., from coarse to fine). The last entry will be `'all'` (since after we've optimized each individual scale, we move on to optimizing all at once). This attribute will be modified by the {func}`synthesize <plenoptic.synthesize.metamer.MetamerCTF.synthesize>` method and is used to track which scale we're currently optimizing (the first one). When we've gone through all the scales present, this will just contain a single value: `'all'`.
-- {attr}`scales_timing <plenoptic.synthesize.metamer.MetamerCTF.scales_timing>`: this is a dictionary whose keys are the values of scales. The values are lists, with 0 through 2 entries: the first entry is the iteration where we started optimizing this scale, the second is when we stopped (thus if it's an empty list, we haven't started optimzing it yet).
+- {attr}`scales_timing <plenoptic.synthesize.metamer.MetamerCTF.scales_timing>`: this is a dictionary whose keys are the values of scales. The values are lists, with 0 through 2 entries: the first entry is the iteration where we started optimizing this scale, the second is when we stopped (thus if it's an empty list, we haven't started optimizing it yet).
 - {attr}`scales_finished <plenoptic.synthesize.metamer.MetamerCTF.scales_finished>`: this is a list of the scales that we've finished optimizing (in the order we've finished). The union of this and {attr}`scales <plenoptic.synthesize.metamer.MetamerCTF.scales>` will be the same as `metamer.model.scales` (e.g., {attr}`PortillaSimoncelli.forward <plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.scales>`).
 
 A small wrinkle: if `coarse_to_fine=='together'`, then none of these will ever contain the final, finest scale, since that is equivalent to `'all'`.
