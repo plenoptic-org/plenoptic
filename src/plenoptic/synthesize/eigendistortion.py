@@ -230,7 +230,7 @@ class Eigendistortion(Synthesis):
         UserWarning
             If ``method == "power"`` but the Jacobian size is greater than 1e6 (which
             depends on the number of elements in the model's representation and input
-            image), in which case we're worried abour running out of memory.
+            image), in which case we're worried about running out of memory.
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
         if method not in allowed_methods:
