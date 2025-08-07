@@ -47,10 +47,10 @@ def variance(
         >>> import matplotlib.pyplot as plt
         >>> import torch
         >>> from plenoptic.tools.stats import variance
-        >>> torch.manual_seed(42)
-        >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
+        >>> _ = torch.manual_seed(42)
+        >>> x1 = torch.randn(10000)
         >>> v1 = variance(x1)
-        >>> x2 = torch.normal(mean=0, std=3, size=(10000,))
+        >>> x2 = x1 * 3
         >>> v2 = variance(x2)
         >>> fig, (ax1, ax2) = plt.subplots(
         ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
@@ -71,10 +71,10 @@ def variance(
 
     If you want to compute along a specific dimension, you can specify it:
 
-    >>> x = torch.normal(mean=torch.zeros(100, 2), std=torch.tensor([1.0, 2.0]))
+    >>> x = torch.randn(10000, 2)
     >>> v = variance(x, dim=0)
     >>> v
-    tensor([0.9067, 2.9203])
+    tensor([1.0127, 1.0045])
 
     This function differs from :func:`torch.var` in that it does not apply a correction:
 
@@ -139,43 +139,35 @@ def skew(
 
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        >>> from plenoptic.tools.stats import variance
-        >>> torch.manual_seed(42)
-        >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
-        >>> v1 = variance(x1)
-        >>> x2 = torch.normal(mean=0, std=3, size=(10000,))
-        >>> v2 = variance(x2)
-        >>> fig, (ax1, ax2) = plt.subplots(
-        ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
-        ... )
+        >>> from plenoptic.tools.stats import variance, skew
+        >>> _ = torch.manual_seed(42)
+        >>> x1 = torch.randn(10000)
+        >>> v1 = skew(x1)
+        >>> x2 = torch.exp(x1 / 2)
+        >>> v2 = skew(x2)
+        >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         >>> ax1.hist(x1, bins=50)
-        >>> ax1.set_title(f"Variance: {v1:.4f}")
+        >>> ax1.set_title(f"Skew: {v1:.4f}")
         >>> ax1.set_ylabel("Frequency")
         >>> ax2.hist(x2, bins=50)
-        >>> ax2.set_title(f"Variance: {v2:.4f}")
+        >>> ax2.set_title(f"Skew: {v2:.4f}")
         >>> plt.show()
-
-    >>> import torch
-    >>> from plenoptic.tools.stats import skew, variance
-    >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
-    >>> s = skew(x)
-    >>> s
-    tensor(0.2440)
 
     If you have precomputed the mean and/or variance,
     you can pass them and avoid recomputing:
 
-    >>> precomputed_mean = torch.mean(x)
-    >>> precomputed_var = variance(x)
-    >>> s = skew(x, mean=precomputed_mean, var=precomputed_var)
+    >>> precomputed_mean = torch.mean(x1)
+    >>> precomputed_var = variance(x1)
+    >>> s = skew(x1, mean=precomputed_mean, var=precomputed_var)
     >>> s
-    tensor(0.2440)
+    tensor(-0.0010)
 
     If you want to compute along a specific dimension, you can specify it:
 
+    >>> x = torch.randn(10000, 2)
     >>> s = skew(x, dim=0)
     >>> s
-    tensor([0., 0., 0., 0.])
+    tensor([-0.0257, -0.0063])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
