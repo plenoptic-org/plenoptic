@@ -47,7 +47,7 @@ def variance(
         >>> import matplotlib.pyplot as plt
         >>> import torch
         >>> from plenoptic.tools.stats import variance
-        >>> _ = torch.manual_seed(42)
+        >>> torch.manual_seed(42);
         >>> x1 = torch.randn(10000)
         >>> v1 = variance(x1)
         >>> x2 = x1 * 3
@@ -55,11 +55,11 @@ def variance(
         >>> fig, (ax1, ax2) = plt.subplots(
         ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
         ... )
-        >>> _ = ax1.hist(x1, bins=50)
-        >>> ax1.set_title(f"Variance: {v1:.4f}")
+        >>> ax1.hist(x1, bins=50);
+        >>> ax1.set_title(f"Variance: {v1:.4f}");
         >>> ax1.set_ylabel("Frequency")
-        >>> _ = ax2.hist(x2, bins=50)
-        >>> ax2.set_title(f"Variance: {v2:.4f}")
+        >>> ax2.hist(x2, bins=50);
+        >>> ax2.set_title(f"Variance: {v2:.4f}");
         >>> plt.show()
 
     If you have precomputed the mean, you can pass it and avoid recomputing it:
