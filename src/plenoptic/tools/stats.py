@@ -42,7 +42,9 @@ def variance(
     .. plot::
 
         >>> import matplotlib.pyplot as plt
-        >>> import torch; torch.manual_seed(42)
+        >>> import torch
+        ...
+        ... torch.manual_seed(42)
         >>> from plenoptic.tools.stats import variance
         >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
         >>> v1 = variance(x1)
