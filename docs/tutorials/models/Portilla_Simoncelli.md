@@ -1526,7 +1526,7 @@ Now let's examine the outputs. In the following plot, we display the synthesized
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(21, 11), gridspec_kw={"width_ratios": [1, 3.1]})
 for ax, im, info in zip(
-    axes[:, 0], [met.metamer, met_mag_means.metamer], ["with", "without"]
+    axes[:, 0], [met.metamer, met_mag_means.metamer], ["without", "with"]
 ):
     po.imshow(im, ax=ax, title=f"Metamer {info} magnitude means")
     ax.xaxis.set_visible(False)
