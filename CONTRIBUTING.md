@@ -498,18 +498,15 @@ compares it against a cached version stored in our OSF project. See
   well, but it must come directly before the call to `synthesize`.
 - Both calls can go over multiple lines, but they should not reference any other
   variables.
-- The test should be part of either the `gpu-0` or `gpu-1` [xdist
-  group](https://pytest-xdist.readthedocs.io/en/stable/distribution.html), and
-  thus use either `DEVICE` or `DEVICE2`, respectively.
 - `src/plenoptic/data/fetch.py` needs the hash and the URL slug of each new
   file, so make sure to update them. The hash can be computed by calling
   `openssl sha256 path/to/file` on the command line.
 
-We have a linter that checks the first two conditions above.
+We have a linter that checks the conditions above.
 
-The tests found under `TestTutorialNotebooks` are not run on every PR, because
-they take too long, even on the GPU, and are expected to rarely change. Instead,
-we only run them as part of our weekly tests on Jenkins.
+`pytest` does not run the tests found under `TestTutorialNotebooks` by default,
+since they take a long time. In order to run them, you must explicitly set the
+environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
 
 ### Test parameterizations and fixtures
 
@@ -705,7 +702,7 @@ However, it can be built locally as well. You would do this if you've made chang
 
 Then, to build the documentation, run: `make -C docs html O="-T -j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
 
-By default, the notebooks are not run because they take a long time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/tutorials/intro/Metamer`, `docs/tutorials/intro/MAD_Competition`, and `docs/tutorials/intro/MAD_Simple`.
+By default, the notebooks are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/tutorials/intro/Metamer`, `docs/tutorials/intro/MAD_Competition`, and `docs/tutorials/intro/MAD_Simple`.
 
 The index page of the documentation will then be located at
 `docs/_build/html/index.html`, open it in your browser to navigate

@@ -33,4 +33,3 @@ Affirm that you have done the following:
 - [ ] I have described the changes in this PR, following the template above.
 - [ ] I have added any necessary tests.
 - [ ] I have added any necessary documentation. This includes docstrings, updates to existing files found in `docs/`, or (for large changes) adding new files to the `docs/` folder.
-- [ ] If necessary, I have rerun the long-running regression tests found in `tests/test_uploaded_files.py`. See #366 and `CONTRIBUTING.md` for details.
