@@ -12,10 +12,7 @@ def variance(
     keepdim: bool = False,
 ) -> Tensor:
     r"""
-    Calculate sample variance.
-
-    Note that this is the uncorrected, or sample, variance, corresponding to
-    ``torch.var(*, correction=0)``.
+    Calculate the uncorrected (sample) variance, same as ``torch.var(*, correction=0)``.
 
     Parameters
     ----------
@@ -42,32 +39,45 @@ def variance(
 
     Examples
     --------
-    >>> import torch
-    >>> from plenoptic.tools.stats import variance
-    >>> x = torch.tensor([[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]])
-    >>> v = variance(x)
-    >>> v
-    tensor(1.6667)
+    .. plot::
+
+        >>> import matplotlib.pyplot as plt
+        >>> import torch; torch.manual_seed(42)
+        >>> from plenoptic.tools.stats import variance
+        >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
+        >>> v1 = variance(x1)
+        >>> x2 = torch.normal(mean=0, std=3, size=(10000,))
+        >>> v2 = variance(x2)
+        >>> fig, (ax1, ax2) = plt.subplots(
+        ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
+        ... )
+        >>> ax1.hist(x1, bins=50)
+        >>> ax1.set_title(f"Variance: {v1:.4f}")
+        >>> ax1.set_ylabel("Frequency")
+        >>> ax2.hist(x2, bins=50)
+        >>> ax2.set_title(f"Variance: {v2:.4f}")
+        >>> plt.show()
 
     If you have precomputed the mean, you can pass it and avoid recomputing it:
 
-    >>> precomputed_mean = torch.mean(x)
-    >>> v = variance(x, mean=precomputed_mean)
+    >>> precomputed_mean = torch.mean(x1)
+    >>> v = variance(x1, mean=precomputed_mean)
     >>> v
-    tensor(1.6667)
+    tensor(1.0088)
 
     If you want to compute along a specific dimension, you can specify it:
 
+    >>> x = torch.normal(mean=torch.zeros(100, 2), std=torch.tensor([1.0, 2.0]))
     >>> v = variance(x, dim=0)
     >>> v
-    tensor([1., 1., 1.])
+    tensor([0.9067, 2.9203])
 
-    This function differs from ``torch.var`` in that it does not apply a correction:
+    This function differs from :func:`torch.var` in that it does not apply a correction:
 
     >>> plenoptic_v_corrected = v * x.shape[0] / (x.shape[0] - 1)
     >>> torch_v = torch.var(x, dim=0)
     >>> torch.isclose(plenoptic_v_corrected, torch_v)
-    tensor([True, True, True])
+    tensor([True, True])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
