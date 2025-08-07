@@ -12,7 +12,10 @@ def variance(
     keepdim: bool = False,
 ) -> Tensor:
     r"""
-    Calculate the uncorrected (sample) variance, same as ``torch.var(*, correction=0)``.
+    Calculate sample variance.
+
+    This is the uncorrected, or sample, variance, corresponding to
+    ``torch.var(*, correction=0)``.
 
     Parameters
     ----------
