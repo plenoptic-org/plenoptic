@@ -37,7 +37,7 @@ Download this notebook: **{nb-download}`Portilla_Simoncelli.ipynb`**!
 :::
 
 :::{attention}
-This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of most of these syntheses online and only download them for investigation in this notebok.
+This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of most of these syntheses online and only download them for investigation in this notebook.
 :::
 
 (ps-nb)=
