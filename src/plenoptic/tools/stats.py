@@ -14,7 +14,7 @@ def variance(
     r"""
     Calculate sample variance.
 
-    This is the uncorrected, or sample, variance, corresponding to
+    Note that this is the uncorrected, or sample, variance, corresponding to
     ``torch.var(*, correction=0)``.
 
     Parameters
@@ -46,9 +46,8 @@ def variance(
 
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        ...
-        ... torch.manual_seed(42)
         >>> from plenoptic.tools.stats import variance
+        >>> torch.manual_seed(42)
         >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
         >>> v1 = variance(x1)
         >>> x2 = torch.normal(mean=0, std=3, size=(10000,))
@@ -136,6 +135,26 @@ def skew(
 
     Examples
     --------
+    .. plot::
+
+        >>> import matplotlib.pyplot as plt
+        >>> import torch
+        >>> from plenoptic.tools.stats import variance
+        >>> torch.manual_seed(42)
+        >>> x1 = torch.normal(mean=0, std=1, size=(10000,))
+        >>> v1 = variance(x1)
+        >>> x2 = torch.normal(mean=0, std=3, size=(10000,))
+        >>> v2 = variance(x2)
+        >>> fig, (ax1, ax2) = plt.subplots(
+        ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
+        ... )
+        >>> ax1.hist(x1, bins=50)
+        >>> ax1.set_title(f"Variance: {v1:.4f}")
+        >>> ax1.set_ylabel("Frequency")
+        >>> ax2.hist(x2, bins=50)
+        >>> ax2.set_title(f"Variance: {v2:.4f}")
+        >>> plt.show()
+
     >>> import torch
     >>> from plenoptic.tools.stats import skew, variance
     >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
