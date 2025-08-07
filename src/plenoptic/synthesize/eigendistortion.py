@@ -903,6 +903,7 @@ def display_eigendistortion_all(
     .. plot::
 
       >>> import plenoptic as po
+      >>> import torch
       >>> from plenoptic.data.fetch import fetch_data
       >>> img = po.data.einstein().to(torch.float64)
       >>> lg = po.simul.LuminanceGainControl(

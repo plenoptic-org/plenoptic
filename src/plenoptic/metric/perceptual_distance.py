@@ -82,7 +82,7 @@ def _ssim_parts(
     UserWarning
         If either ``img1`` or ``img2`` has a value outside of range ``[0, 1]``.
     """
-    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
+    img_ranges = torch.stack([img1.min(), img1.max(), img2.min(), img2.max()])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
             f"Image range falls outside [0, 1]. {func_name} output may not make sense.",
@@ -667,7 +667,7 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
             " the same way as batches)."
         )
 
-    img_ranges = torch.as_tensor([[img1.min(), img1.max()], [img2.min(), img2.max()]])
+    img_ranges = torch.stack([img1.min(), img1.max(), img2.min(), img2.max()])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
             "Image range falls outside [0, 1]. NLPD output may not make sense."
