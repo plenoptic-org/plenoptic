@@ -59,6 +59,7 @@ test = [
     "pytest>=5.1.2",
     'pytest-cov',
     'pytest-xdist',
+    'pytest-order',
     "pooch>=1.2.0",
      "torchvision",
 ]

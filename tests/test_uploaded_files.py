@@ -308,6 +308,7 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
         return data
 
 
+@pytest.mark.order(1)
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
     def test_eigendistortion(self, einstein_img_double):
@@ -337,6 +338,7 @@ class TestDoctest:
         compare_eigendistortions(eig, eig_up)
 
 
+@pytest.mark.order(0)
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 @pytest.mark.skipif(
     os.environ.get("RUN_REGRESSION_SYNTH", "") != "1",
