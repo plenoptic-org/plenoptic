@@ -55,10 +55,10 @@ def variance(
         >>> fig, (ax1, ax2) = plt.subplots(
         ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
         ... )
-        >>> ax1.hist(x1, bins=50)
+        >>> _ = ax1.hist(x1, bins=50)
         >>> ax1.set_title(f"Variance: {v1:.4f}")
         >>> ax1.set_ylabel("Frequency")
-        >>> ax2.hist(x2, bins=50)
+        >>> _ = ax2.hist(x2, bins=50)
         >>> ax2.set_title(f"Variance: {v2:.4f}")
         >>> plt.show()
 
@@ -146,10 +146,10 @@ def skew(
         >>> x2 = torch.exp(x1 / 2)
         >>> s2 = skew(x2)
         >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-        >>> ax1.hist(x1, bins=50)
+        >>> _ = ax1.hist(x1, bins=50)
         >>> ax1.set_title(f"Skew: {s1:.4f}")
         >>> ax1.set_ylabel("Frequency")
-        >>> ax2.hist(x2, bins=50)
+        >>> _ = ax2.hist(x2, bins=50)
         >>> ax2.set_title(f"Skew: {s2:.4f}")
         >>> plt.show()
 
@@ -232,10 +232,10 @@ def kurtosis(
         >>> x2 = torch.exp(x1 / 2)
         >>> k2 = kurtosis(x2)
         >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-        >>> ax1.hist(x1, bins=50)
+        >>> _ = ax1.hist(x1, bins=50)
         >>> ax1.set_title(f"Kurtosis: {k1:.4f}")
         >>> ax1.set_ylabel("Frequency")
-        >>> ax2.hist(x2, bins=50)
+        >>> _ = ax2.hist(x2, bins=50)
         >>> ax2.set_title(f"Kurtosis: {k2:.4f}")
         >>> plt.show()
 
