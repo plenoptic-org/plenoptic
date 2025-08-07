@@ -995,7 +995,15 @@ class MetamerCTF(Metamer):
             # Reset ctf target representation for the next update
             self._ctf_target_representation = None
 
-        loss, overall_loss = self.optimizer.step(self._closure)
+        loss = self.optimizer.step(self._closure)
+        if self.scales[0] == "all":
+            # then the loss computed above includes all scales
+            overall_loss = loss.clone()
+        else:
+            # then we compute it for display purposes
+            with torch.no_grad():
+                overall_loss = self.objective_function(None, None)
+
         self._scales_loss.append(loss.item())
         self._losses.append(overall_loss.item())
 
@@ -1026,7 +1034,7 @@ class MetamerCTF(Metamer):
         )
         return overall_loss
 
-    def _closure(self) -> tuple[Tensor, Tensor]:
+    def _closure(self) -> Tensor:
         r"""
         Calculate the gradient, before the optimization step.
 
@@ -1046,9 +1054,6 @@ class MetamerCTF(Metamer):
         -------
         loss
             Loss of the current objective function.
-        overall_loss
-            Loss of the complete model. This differs from ``loss`` because it
-            includes all scales.
         """
         self.optimizer.zero_grad()
         analyze_kwargs = {}
@@ -1068,19 +1073,13 @@ class MetamerCTF(Metamer):
                 self._ctf_target_representation = target_rep
             else:
                 target_rep = self._ctf_target_representation
-            # this is just for display, so don't compute gradients
-            with torch.no_grad():
-                overall_loss = self.objective_function(None, None)
         else:
             target_rep = None
-            overall_loss = None
 
         loss = self.objective_function(metamer_representation, target_rep)
         loss.backward(retain_graph=False)
-        if overall_loss is None:
-            overall_loss = loss.clone()
 
-        return loss, overall_loss
+        return loss
 
     def _check_convergence(
         self,
