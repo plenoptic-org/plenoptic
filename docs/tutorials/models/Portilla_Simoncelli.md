@@ -376,8 +376,6 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-# to avoid running so many syntheses in this notebook, we load a cached version. see the
-# following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
     model_remove,
@@ -455,8 +453,6 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-# to avoid running so many syntheses in this notebook, we load a cached version. see the
-# following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
     model_remove,
@@ -552,8 +548,6 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-# to avoid running so many syntheses in this notebook, we load a cached version. see the
-# following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
     model_remove,
@@ -635,8 +629,6 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-# to avoid running so many syntheses in this notebook, we load a cached version. see the
-# following admonition for how to run this yourself
 met_remove = po.synth.MetamerCTF(
     img,
     model_remove,
