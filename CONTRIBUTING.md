@@ -494,8 +494,6 @@ compares it against a cached version stored in our OSF project. See
   eigendist_f.synthesize(k=3, method="power", max_iter=2000)
   ```
   ````
-  It probably should be wrapped in an admonition (to really make sure it doesn't
-  get run), but that's not necessary.
 - This block (and the corresponding test) can contain a call to `.setup` as
   well, but it must come directly before the call to `synthesize`.
 - Both calls can go over multiple lines, but they should not reference any other
