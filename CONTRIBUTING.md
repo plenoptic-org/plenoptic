@@ -508,6 +508,12 @@ We have a linter that checks the conditions above.
 since they take a long time. In order to run them, you must explicitly set the
 environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
 
+#### Exact reproducibility
+
+Exact reproducibility with pytorch is hard. See [issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for some details, but the tl;dr is: you should not expect to get the same outputs (or even, within floating point precision) when running synthesis for long enough (seems to be > 1000 iterations) on devices with different CUDA versions and driver versions. Small differences in the output of e.g., `torch.einsum` / `torch.matmul` will lead to small differences in the gradient, which will accumulate and eventually lead to fairly different optimization outputs.
+
+To deal with this, your regression tests should save their output into the `uploaded_files` folder after synthesis (and before checking). The contents of that folder will be made available as [Jenkins artifacts](https://www.jenkins.io/doc/pipeline/tour/tests-and-artifacts/), which you can then download after the test. This will allow you to download the output of any failing test, manually verify the results look good, and then upload them to the OSF to test against.
+
 ### Test parameterizations and fixtures
 
 #### Parametrize
