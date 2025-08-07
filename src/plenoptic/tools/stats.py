@@ -139,18 +139,18 @@ def skew(
 
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        >>> from plenoptic.tools.stats import variance, skew
+        >>> from plenoptic.tools.stats import skew, variance
         >>> _ = torch.manual_seed(42)
         >>> x1 = torch.randn(10000)
-        >>> v1 = skew(x1)
+        >>> s1 = skew(x1)
         >>> x2 = torch.exp(x1 / 2)
-        >>> v2 = skew(x2)
+        >>> s2 = skew(x2)
         >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         >>> ax1.hist(x1, bins=50)
-        >>> ax1.set_title(f"Skew: {v1:.4f}")
+        >>> ax1.set_title(f"Skew: {s1:.4f}")
         >>> ax1.set_ylabel("Frequency")
         >>> ax2.hist(x2, bins=50)
-        >>> ax2.set_title(f"Skew: {v2:.4f}")
+        >>> ax2.set_title(f"Skew: {s2:.4f}")
         >>> plt.show()
 
     If you have precomputed the mean and/or variance,
@@ -221,27 +221,39 @@ def kurtosis(
 
     Examples
     --------
-    >>> import torch
-    >>> from plenoptic.tools.stats import kurtosis, variance
-    >>> x = torch.tensor([[1.0, 2.0, 3.0, 2.0], [3.0, 4.0, 5.0, 3.0]])
-    >>> k = kurtosis(x)
-    >>> k
-    tensor(2.4031)
+    .. plot::
+
+        >>> import matplotlib.pyplot as plt
+        >>> import torch
+        >>> from plenoptic.tools.stats import kurtosis, variance
+        >>> _ = torch.manual_seed(42)
+        >>> x1 = torch.randn(10000)
+        >>> k1 = kurtosis(x1)
+        >>> x2 = torch.exp(x1 / 2)
+        >>> k2 = kurtosis(x2)
+        >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
+        >>> ax1.hist(x1, bins=50)
+        >>> ax1.set_title(f"Kurtosis: {k1:.4f}")
+        >>> ax1.set_ylabel("Frequency")
+        >>> ax2.hist(x2, bins=50)
+        >>> ax2.set_title(f"Kurtosis: {k2:.4f}")
+        >>> plt.show()
 
     If you have precomputed the mean and/or variance,
     you can pass them and avoid recomputing:
 
-    >>> precomputed_mean = torch.mean(x)
-    >>> precomputed_var = variance(x)
-    >>> k = kurtosis(x, mean=precomputed_mean, var=precomputed_var)
+    >>> precomputed_mean = torch.mean(x1)
+    >>> precomputed_var = variance(x1)
+    >>> k = kurtosis(x1, mean=precomputed_mean, var=precomputed_var)
     >>> k
-    tensor(2.4031)
+    tensor(2.9354)
 
     If you want to compute along a specific dimension, you can specify it:
 
+    >>> x = torch.randn(10000, 2)
     >>> k = kurtosis(x, dim=0)
     >>> k
-    tensor([1., 1., 1., 1.])
+    tensor([2.9602, 3.0129])
     """
     if dim is None:
         dim = tuple(range(x.ndim))
