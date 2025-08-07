@@ -35,23 +35,11 @@ jobs:
       uses: FedericoCarboni/setup-ffmpeg@v3.1
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager .[nb] papermill
+        pip install --upgrade --upgrade-strategy eager .[nb]
     - name: Run notebooks
       run: |
         for file in $(find docs/tutorials/ -name '*.md'); do
-           nb="${file/md/ipynb}"
-           jupytext $file -o $nb --from myst
-           # these first two notebooks take much longer than the rest to run.
-           # So we use papermill's parameters to reduce the max number of steps
-           # for synthesis in them (we want to test that each cell runs on the
-           # cpu, but we don't need synthesis to go to completion).
-           if [[ "$file" =~ "Portilla-Simoncelli" ]]; then
-              papermill $nb $nb_output.ipynb -p short_synth_max_iter 10 -p long_synth_max_iter 10 -p longest_synth_max_iter 10 -k python3 --cwd "$(dirname $nb)"
-           elif [[ "$file" =~ "Demo_Eigendistortion" ]]; then
-              papermill $nb $nb_output.ipynb -p max_iter_frontend 10 -p max_iter_vgg 10 -k python3 --cwd "$(dirname $nb)"
-           else
-              jupyter execute $nb --kernel_name=python3
-            fi
+           jupytext --execute $file
         done
   doctests:
     runs-on: ubuntu-latest

@@ -52,6 +52,7 @@ extensions = [
     "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
+    "sphinx_togglebutton",
     "myst_nb",
     "sphinxcontrib.bibtex",
     "sphinx_design",

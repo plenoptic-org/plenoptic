@@ -1,7 +1,7 @@
 pipeline {
   agent none
   options {
-    disableConcurrentBuilds()
+    disableConcurrentBuilds(abortPrevious: true)
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
     timeout(time: 2, unit: 'HOURS')
   }
@@ -19,7 +19,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
@@ -32,11 +32,18 @@ pipeline {
               source $HOME/bin/activate
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
-              pip install -U .[test] --verbose
+              pip install -U .[test]
+              mkdir -p uploaded_files/
+              pip freeze
+              nvidia-smi
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              python3.11 -m pytest -n 8
+              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
            '''
-           archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+          }
+          post {
+            always {
+              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+            }
           }
         }
         stage('commit') {
@@ -48,7 +55,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 1'
+              args '--gpus 2'
             }
           }
           environment {
@@ -62,10 +69,17 @@ pipeline {
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
               pip install .[test]
+              mkdir -p uploaded_files/
+              pip freeze
+              nvidia-smi
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              python3.11 -m pytest -n 8
+              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
             '''
-            archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+          }
+          post {
+            always {
+              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+            }
           }
         }
         stage('docs') {
@@ -77,7 +91,7 @@ pipeline {
           agent {
             dockerfile {
               dir 'jenkins'
-              args '--gpus 2'
+              args '--gpus 1'
             }
           }
           environment {
