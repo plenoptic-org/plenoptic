@@ -278,7 +278,7 @@ class Metamer(OptimizedSynthesis):
 
             loss = self._optimizer_step(pbar)
 
-            if not torch.isfinite(loss):
+            if not np.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(stop_criterion, stop_iters_to_check):
@@ -339,7 +339,7 @@ class Metamer(OptimizedSynthesis):
         """  # numpydoc ignore=ES01
         last_iter_metamer = self.metamer.clone()
         loss = self.optimizer.step(self._closure)
-        self._losses.append(loss.item())
+        self._losses.append(loss)
 
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
@@ -347,7 +347,7 @@ class Metamer(OptimizedSynthesis):
         # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
             if self._scheduler_step_arg:
-                self.scheduler.step(loss.item())
+                self.scheduler.step(loss)
             else:
                 self.scheduler.step()
 
@@ -358,7 +358,7 @@ class Metamer(OptimizedSynthesis):
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(
-                loss=f"{loss.item():.04e}",
+                loss=f"{loss:.04e}",
                 learning_rate=self.optimizer.param_groups[0]["lr"],
                 gradient_norm=f"{grad_norm.item():.04e}",
                 pixel_change_norm=f"{pixel_change_norm.item():.04e}",
@@ -921,7 +921,7 @@ class MetamerCTF(Metamer):
                 pbar, change_scale_criterion, ctf_iters_to_check
             )
 
-            if not torch.isfinite(loss):
+            if not np.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(
@@ -1002,10 +1002,10 @@ class MetamerCTF(Metamer):
         else:
             # then we compute it for display purposes
             with torch.no_grad():
-                overall_loss = self.objective_function(None, None)
+                overall_loss = self.objective_function(None, None).item()
 
-        self._scales_loss.append(loss.item())
-        self._losses.append(overall_loss.item())
+        self._scales_loss.append(loss)
+        self._losses.append(overall_loss)
 
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
@@ -1013,7 +1013,7 @@ class MetamerCTF(Metamer):
         # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
             if self._scheduler_step_arg:
-                self.scheduler.step(loss.item())
+                self.scheduler.step(loss)
             else:
                 self.scheduler.step()
 
@@ -1024,12 +1024,12 @@ class MetamerCTF(Metamer):
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(
-                loss=f"{overall_loss.item():.04e}",
+                loss=f"{overall_loss:.04e}",
                 learning_rate=self.optimizer.param_groups[0]["lr"],
                 gradient_norm=f"{grad_norm.item():.04e}",
                 pixel_change_norm=f"{pixel_change_norm.item():.04e}",
                 current_scale=self.scales[0],
-                current_scale_loss=f"{loss.item():.04e}",
+                current_scale_loss=f"{loss:.04e}",
             )
         )
         return overall_loss
