@@ -47,7 +47,8 @@ def variance(
         >>> import matplotlib.pyplot as plt
         >>> import torch
         >>> from plenoptic.tools.stats import variance
-        >>> torch.manual_seed(42);
+        >>> from plenoptic.tools import set_seed
+        >>> set_seed(42)
         >>> x1 = torch.randn(10000)
         >>> v1 = variance(x1)
         >>> x2 = x1 * 3
@@ -55,12 +56,11 @@ def variance(
         >>> fig, (ax1, ax2) = plt.subplots(
         ...     1, 2, sharex=True, sharey=True, figsize=(8, 4)
         ... )
-        >>> ax1.hist(x1, bins=50);
-        >>> ax1.set_title(f"Variance: {v1:.4f}");
-        >>> ax1.set_ylabel("Frequency")
-        >>> ax2.hist(x2, bins=50);
-        >>> ax2.set_title(f"Variance: {v2:.4f}");
-        >>> plt.show()
+        >>> _ = ax1.hist(x1, bins=50)
+        >>> _ = ax1.set_title(f"Variance: {v1:.4f}")
+        >>> _ = ax1.set_ylabel("Frequency")
+        >>> _ = ax2.hist(x2, bins=50)
+        >>> _ = ax2.set_title(f"Variance: {v2:.4f}")
 
     If you have precomputed the mean, you can pass it and avoid recomputing it:
 
@@ -140,18 +140,18 @@ def skew(
         >>> import matplotlib.pyplot as plt
         >>> import torch
         >>> from plenoptic.tools.stats import skew, variance
-        >>> _ = torch.manual_seed(42)
+        >>> from plenoptic.tools import set_seed
+        >>> set_seed(42)
         >>> x1 = torch.randn(10000)
         >>> s1 = skew(x1)
         >>> x2 = torch.exp(x1 / 2)
         >>> s2 = skew(x2)
         >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         >>> _ = ax1.hist(x1, bins=50)
-        >>> ax1.set_title(f"Skew: {s1:.4f}")
-        >>> ax1.set_ylabel("Frequency")
+        >>> _ = ax1.set_title(f"Skew: {s1:.4f}")
+        >>> _ = ax1.set_ylabel("Frequency")
         >>> _ = ax2.hist(x2, bins=50)
-        >>> ax2.set_title(f"Skew: {s2:.4f}")
-        >>> plt.show()
+        >>> _ = ax2.set_title(f"Skew: {s2:.4f}")
 
     If you have precomputed the mean and/or variance,
     you can pass them and avoid recomputing:
@@ -226,18 +226,18 @@ def kurtosis(
         >>> import matplotlib.pyplot as plt
         >>> import torch
         >>> from plenoptic.tools.stats import kurtosis, variance
-        >>> _ = torch.manual_seed(42)
+        >>> from plenoptic.tools import set_seed
+        >>> set_seed(42)
         >>> x1 = torch.randn(10000)
         >>> k1 = kurtosis(x1)
-        >>> x2 = torch.exp(x1 / 2)
+        >>> x2 = x1 * torch.abs(x1)
         >>> k2 = kurtosis(x2)
         >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         >>> _ = ax1.hist(x1, bins=50)
-        >>> ax1.set_title(f"Kurtosis: {k1:.4f}")
-        >>> ax1.set_ylabel("Frequency")
+        >>> _ = ax1.set_title(f"Kurtosis: {k1:.4f}")
+        >>> _ = ax1.set_ylabel("Frequency")
         >>> _ = ax2.hist(x2, bins=50)
-        >>> ax2.set_title(f"Kurtosis: {k2:.4f}")
-        >>> plt.show()
+        >>> _ = ax2.set_title(f"Kurtosis: {k2:.4f}")
 
     If you have precomputed the mean and/or variance,
     you can pass them and avoid recomputing:
