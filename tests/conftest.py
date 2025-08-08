@@ -162,6 +162,23 @@ def get_model(name):
         po.tools.remove_grad(model)
         model.eval()
         return model
+    elif name == "frontend.OnOff.nograd.ctf":
+
+        class OnOffCTF(po.simul.OnOff):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.scales = [0, 1]
+
+            def forward(self, *args, scales=[], **kwargs):
+                rep = super().forward(*args, **kwargs)
+                if scales:
+                    rep = rep[:, scales]
+                return rep
+
+        model = OnOffCTF((31, 31)).to(DEVICE)
+        po.tools.remove_grad(model)
+        model.eval()
+        return model
     elif name == "VideoModel":
         # super simple model that combines across the batch dimension, as a
         # model with a temporal component would do
