@@ -123,7 +123,7 @@ def validate_model(
     device: str | torch.device = "cpu",
 ):
     """
-    Determine whether model can be used for sythesis.
+    Determine whether model can be used for synthesis.
 
     In particular, this function checks the following (with their associated
     errors raised):

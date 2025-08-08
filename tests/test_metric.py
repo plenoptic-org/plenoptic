@@ -153,7 +153,7 @@ class TestPerceptualMetrics:
             DEVICE
         )
         # dynamic range is 1 for these images, because po.load_images
-        # automatically re-ranges them. They were comptued with
+        # automatically re-ranges them. They were computed with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
         # that should be corrected for
         plen_val = po.metric.ssim(ssim_base_img, other, weighted)
