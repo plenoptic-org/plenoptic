@@ -32,7 +32,7 @@ LIBRARIES_XREF = [
 ]
 # we want to grab the references to above libraries that should be xrefs. So we don't
 # want to match: proper xrefs (which will have a ~ or ` before the library name) or urls
-# (which will have . or / before the nmae)
+# (which will have . or / before the name)
 XREF_EXCEPT = EVERYTHING_BUT_BACKTICK.replace("~", "").replace(".", "").replace("/", "")
 # additionally, = and ( show up in code snippets
 XREF_EXCEPT = XREF_EXCEPT.replace("=", "").replace("(", "")
@@ -137,7 +137,7 @@ if backticks or links or unescaped or missing_xref or dollarsigns or defaults:
     if unescaped:
         print(
             "The following docstrings appear to contain values that should be"
-            " surounded in backticks:"
+            " surrounded in backticks:"
         )
         for p, name, markup in unescaped:
             print(f"{p}:{name} {markup}")

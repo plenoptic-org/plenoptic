@@ -16,7 +16,7 @@ class LaplacianPyramid(nn.Module):
 
     The Laplacian pyramid [1]_ is a multiscale image representation. It
     decomposes the image by computing the local mean using Gaussian blurring
-    filters and substracting it from the image and repeating this operation on
+    filters and subtracting it from the image and repeating this operation on
     the local mean itself after downsampling. This representation is
     overcomplete and invertible.
 

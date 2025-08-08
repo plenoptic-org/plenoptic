@@ -129,10 +129,10 @@ def _ssim_parts(
         img2 = same_padding(img2, (real_size, real_size), pad_mode=pad)
 
     def windowed_average(img: torch.Tensor) -> torch.Tensor:  # numpydoc ignore=GL08
-        padd = 0
+        padding = 0
         (n_batches, n_channels, _, _) = img.shape
         img = img.reshape(n_batches * n_channels, 1, img.shape[2], img.shape[3])
-        img_average = F.conv2d(img, window, padding=padd)
+        img_average = F.conv2d(img, window, padding=padding)
         img_average = img_average.reshape(
             n_batches, n_channels, img_average.shape[2], img_average.shape[3]
         )
@@ -554,7 +554,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
     L = LaplacianPyramid(n_scales=N_scales, scale_filter=True)
     laplacian_activations = L.forward(img)
 
-    padd = 2
+    padding = 2
     normalized_laplacian_activations = []
     for N_b in range(0, N_scales):
         filt = torch.as_tensor(
@@ -563,7 +563,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
         filtered_activations = F.conv2d(
             torch.abs(laplacian_activations[N_b]),
             filt,
-            padding=padd,
+            padding=padding,
             groups=channel,
         )
         normalized_laplacian_activations.append(
