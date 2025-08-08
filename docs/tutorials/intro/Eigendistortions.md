@@ -245,7 +245,7 @@ The power method's first eigendistortion matches the ground-truth first eigendis
 
 (fisher-locally-adaptive)=
 ### 1.5 - The Fisher information matrix is locally adaptive
-Different inputs should in general have different sets of eigendistortions -- a noticible distortion in one image would not necessarily be noticeable in a different image. The only case where they should be the same regardless of input is when the model is fully linear, as in this simple example. So let's check if the Jacobian at a different input still equals the weight matrix $M$.
+Different inputs should in general have different sets of eigendistortions -- a noticeable distortion in one image would not necessarily be noticeable in a different image. The only case where they should be the same regardless of input is when the model is fully linear, as in this simple example. So let's check if the Jacobian at a different input still equals the weight matrix $M$.
 
 ```{code-cell} ipython3
 # generate some random input

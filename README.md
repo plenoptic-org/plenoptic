@@ -90,7 +90,7 @@ with a random string, `matplotlib` will tell you the available choices.
 -   Portilla-Simoncelli texture model, which measures the statistical properties of visual textures, here defined as "repeating visual patterns."
 -   Steerable pyramid, a multi-scale oriented image decomposition. The basis are oriented (steerable) filters, localized in space and frequency. Among other uses, the steerable pyramid serves as a good representation from which to build a primary visual cortex model. See the [pyrtools documentation](https://pyrtools.readthedocs.io/en/latest/index.html) for more details on image pyramids in general and the steerable pyramid in particular.
 -   Structural Similarity Index (SSIM), is a perceptual similarity metric, returning a number between -1 (totally different) and 1 (identical) reflecting how similar two images are. This is based on the images' luminance, contrast, and structure, which are computed convolutionally across the images.
--   Multiscale Structrual Similarity Index (MS-SSIM), is a perceptual similarity metric similar to SSIM, except it operates at multiple scales (i.e., spatial frequencies).
+-   Multiscale Structural Similarity Index (MS-SSIM), is a perceptual similarity metric similar to SSIM, except it operates at multiple scales (i.e., spatial frequencies).
 -   Normalized Laplacian distance, is a perceptual distance metric based on transformations associated with the early visual system: local luminance subtraction and local contrast gain control, at six scales.
 
 
