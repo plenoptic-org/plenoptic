@@ -74,7 +74,7 @@ plt.rcParams["figure.dpi"] = 72
 
 ## Basic usage
 
-As with all our synthesis methods, we start by grabbing a target image and initalizing our models.
+As with all our synthesis methods, we start by grabbing a target image and initializing our models.
 
 ```{code-cell} ipython3
 img = po.data.curie().to(DEVICE)
@@ -92,7 +92,7 @@ def model1(*args):
 model2 = po.metric.mse
 ```
 
-To intitialize the object, we only need to specify the target image, the two metrics, and the target. To start, we will hold MSE constant, while minimizing SSIM.
+To initialize the object, we only need to specify the target image, the two metrics, and the target. To start, we will hold MSE constant, while minimizing SSIM.
 
 Note that, as described in the beginning of this notebook, we synthesize these images by optimizing a tradeoff between the loss of these two metrics, weighted by the {attr}`metric_tradeoff_lambda <plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda>`. If that argument is unset, we default to something we think is reasonable, but in practice, we often need to experiment and find the appropriate value, trying out different values until the fixed metric stays constant while the synthesis metric decreases or increases as desired.
 

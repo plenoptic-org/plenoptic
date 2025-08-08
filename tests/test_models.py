@@ -175,7 +175,7 @@ class TestLaplacianPyramid:
             # performs padding before upsampling, and, depending on the parity of
             # the image, sometimes performs additional zero padding after upsampling
             # up to one row/column. This causes inconsistency on the right and
-            # bottom edges, so they are exluded in the comparison.
+            # bottom edges, so they are excluded in the comparison.
 
 
 class TestFrontEnd:

@@ -33,7 +33,7 @@ repos:
   - id: check-merge-conflict
   # Validates YAML files for syntax errors.
   - id: check-yaml
-  # Detects debug statments (e.g., print, console.log, etc.) left in code.
+  # Detects debug statements (e.g., print, console.log, etc.) left in code.
   - id: debug-statements
   # Ensures files have a newline at the end.
   - id: end-of-file-fixer
@@ -78,3 +78,11 @@ repos:
       types_or: ["markdown"]
       entry: python linting/check_regression_tests.py tests/test_uploaded_files.py
       files: ^docs/tutorials
+
+- repo: https://github.com/codespell-project/codespell
+  # Configuration for codespell is in pyproject.toml
+  rev: v2.4.1
+  hooks:
+    - id: codespell
+      additional_dependencies:
+        - tomli; python_version<'3.11'

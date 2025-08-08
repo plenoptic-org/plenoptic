@@ -86,7 +86,7 @@ model.to(DEVICE)
 rep = model(im)
 ```
 
-To work with out synthesis methods, a model must accept a tensor as input and return a tensor as output. In pytorch, images are generally represented as 4d tensors, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. The models included in `plenoptic` typically accept a 4d image tensor and return a tensor with a 3 (`batch, channel, vector`) or 4 (`batch, channel, height, width`) dimensions. While our synthesis methods work with modles that operate on tensors of different dimensionality, models which follow this behavior have been tested most extensively.
+To work with out synthesis methods, a model must accept a tensor as input and return a tensor as output. In pytorch, images are generally represented as 4d tensors, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. The models included in `plenoptic` typically accept a 4d image tensor and return a tensor with a 3 (`batch, channel, vector`) or 4 (`batch, channel, height, width`) dimensions. While our synthesis methods work with models that operate on tensors of different dimensionality, models which follow this behavior have been tested most extensively.
 
 We can see that our Gaussian model satisfies this constraint:
 

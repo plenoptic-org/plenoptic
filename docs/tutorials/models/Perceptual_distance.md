@@ -235,7 +235,7 @@ where $N(i)$ is the neighborhood of pixel $i$ which does not include $i$ itself,
 \mathbf{p}_k = \arg\min_{\mathbf{p}_k} \mathbb{E}_{\mathbf{X},i} \left( \mathbf{X}'_{k,i} - f(\mathbf{X}'_{k,N(i)}; \sigma_k, \mathbf{p}_k) \right)^2
 \end{gather*}
 
-Note that this learning is performed on the clean images only, without access to the corruption type or human phychophysics data. The sequence $\mathbf{X}''_1, \cdots, \mathbf{X}''_M$ is the normalized Laplacian pyramid. The same procudure is done for $\mathbf{Y}$. The NLPD is defined as:
+Note that this learning is performed on the clean images only, without access to the corruption type or human phychophysics data. The sequence $\mathbf{X}''_1, \cdots, \mathbf{X}''_M$ is the normalized Laplacian pyramid. The same procedure is done for $\mathbf{Y}$. The NLPD is defined as:
 
 $$
 \text{NLPD}(\mathbf{X}, \mathbf{Y}) = \frac{1}{M} \sum_{k=1}^M \sqrt{\frac{1}{N_k} \sum_{i=1}^{N_k} (\mathbf{X}''_{k,i} - \mathbf{Y}''_{k,i})^2}
@@ -301,7 +301,7 @@ def get_tid2013_data():
         (folder / "distorted_images").iterdir(), key=lambda p: p.stem[1:].split("_")
     )
     distorted_images = po.load_images(distorted_images)
-    # reshape the tensor so that the first dimension correponds to the reference image,
+    # reshape the tensor so that the first dimension corresponds to the reference image,
     # the second the distortion type, and the third the sample
     distorted_images = distorted_images.reshape((25, 24, 5, 1, 384, 512))
 
