@@ -1207,9 +1207,9 @@ class MetamerCTF(Metamer):
         >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
         >>> metamer = po.synth.MetamerCTF(img, model)
         >>> metamer.synthesize(max_iter=5, store_progress=True)
-        >>> metamer.save("metamers.pt")
+        >>> metamer.save("metamers_ctf.pt")
         >>> metamer_copy = po.synth.MetamerCTF(img, model)
-        >>> metamer_copy.load("metamers.pt")
+        >>> metamer_copy.load("metamers_ctf.pt")
         """
         super()._load(
             file_path,
