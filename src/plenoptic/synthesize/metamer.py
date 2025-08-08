@@ -1079,7 +1079,7 @@ class MetamerCTF(Metamer):
         loss = self.objective_function(metamer_representation, target_rep)
         loss.backward(retain_graph=False)
 
-        return loss
+        return loss.item()
 
     def _check_convergence(
         self,
