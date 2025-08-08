@@ -998,7 +998,7 @@ class MetamerCTF(Metamer):
         loss = self.optimizer.step(self._closure)
         if self.scales[0] == "all":
             # then the loss computed above includes all scales
-            overall_loss = loss.clone()
+            overall_loss = loss
         else:
             # then we compute it for display purposes
             with torch.no_grad():
