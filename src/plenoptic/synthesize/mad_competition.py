@@ -747,7 +747,11 @@ class MADCompetition(OptimizedSynthesis):
         How often the metamer is cached is determined by the ``store_progress`` argument
         to the :func:`synthesize` function.
         """  # numpydoc ignore=RT01
-        return torch.stack(self._saved_mad_image)
+        try:
+            return torch.stack(self._saved_mad_image)
+        except RuntimeError:
+            # then saved_mad_image is empty
+            return torch.empty(0)
 
 
 def plot_loss(

@@ -793,6 +793,18 @@ class TestMAD:
             "Didn't end up with enough reference metric losses after second synth!"
         )
 
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_save_mad_empty(self, einstein_img, model):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
+        )
+        torch.equal(mad.saved_mad_image, torch.empty([]))
+        mad.synthesize(max_iter=3)
+        torch.equal(mad.saved_mad_image, torch.empty([]))
+
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):
         mad = po.synth.MADCompetition(

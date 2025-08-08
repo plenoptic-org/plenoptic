@@ -701,7 +701,11 @@ class Metamer(OptimizedSynthesis):
         How often the metamer is cached is determined by the ``store_progress`` argument
         to the :func:`synthesize` function.
         """  # numpydoc ignore=RT01
-        return torch.stack(self._saved_metamer)
+        try:
+            return torch.stack(self._saved_metamer)
+        except RuntimeError:
+            # then saved_metamer is empty
+            return torch.empty(0)
 
 
 class MetamerCTF(Metamer):
