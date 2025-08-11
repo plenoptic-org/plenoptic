@@ -57,6 +57,7 @@ def variance(
         >>> v_less = variance(x_less)
         >>> fig, (ax_less, ax, ax_more) = plt.subplots(
         ...     1, 3, sharex=True, sharey=True, figsize=(12, 4)
+        ... )
         >>> _ = ax_less.hist(x_less, bins=50)
         >>> _ = ax_less.set(title=f"σ=0.3\nVariance: {v_less:.4f}", ylabel="Frequency")
         >>> _ = ax.hist(x, bins=50)
