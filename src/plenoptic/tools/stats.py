@@ -35,9 +35,9 @@ def variance(
 
     See Also
     --------
-    :func:`~plenoptic.tools.stats.skewness`
+    skew
         Calculate sample skewness.
-    :func:`~plenoptic.tools.stats.kurtosis`
+    kurtosis
         Calculate sample kurtosis.
 
     Examples
@@ -130,8 +130,10 @@ def skew(
 
     See Also
     --------
-    :func:`~plenoptic.tools.stats.variance`
+    variance
         Calculate sample variance.
+    kurtosis
+        Calculate sample kurtosis.
 
     Examples
     --------
@@ -216,8 +218,10 @@ def kurtosis(
 
     See Also
     --------
-    :func:`~plenoptic.tools.stats.variance`
+    variance
         Calculate sample variance.
+    skew
+        Calculate sample skewness.
 
     Examples
     --------
