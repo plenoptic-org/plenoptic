@@ -455,7 +455,7 @@ class MADCompetition(OptimizedSynthesis):
 
     def _store(self, i: int) -> bool:
         """
-        Store mad_image anbd model response, if appropriate.
+        Store mad_image and model response, if appropriate.
 
         If it's the right iteration, we update :attr:`saved_mad_image`.
 

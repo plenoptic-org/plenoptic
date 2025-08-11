@@ -792,7 +792,7 @@ class PortillaSimoncelli(nn.Module):
         ----------
         image
             4d tensor of shape (batch, channel, height, width) containing input
-            image. Stats are computed indepently for each batch and channel.
+            image. Stats are computed independently for each batch and channel.
 
         Returns
         -------

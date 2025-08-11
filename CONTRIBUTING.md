@@ -360,7 +360,7 @@ are system specific but the package readme is very details, see
 
 Follow carefully the instructions to configure pyenv after installation.
 
-Once you have tha package installed and configured, you can install multiple python version through it.
+Once you have the package installed and configured, you can install multiple python version through it.
 First get a list of the available versions with the command,
 
 ```bash

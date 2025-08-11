@@ -245,7 +245,7 @@ po.pyrshow(pcpyr_coeffs);
 ```
 
 ## Putting the "Steer" in Steerable Pyramid
-As we have seen, steerable pyramids decompose images into a fixed set of orientation bands (at several spatial scales). However given the responses at this fixed set of orientation bands, the pyramid coefficents for any arbitrary intermediate orientation can be calculated from a linear interpolation of the original bands. This property is known as "steerability."
+As we have seen, steerable pyramids decompose images into a fixed set of orientation bands (at several spatial scales). However given the responses at this fixed set of orientation bands, the pyramid coefficients for any arbitrary intermediate orientation can be calculated from a linear interpolation of the original bands. This property is known as "steerability."
 
 Below we steer a set of coefficients through a series of angles and visualize how the represented features rotate.
 
@@ -490,4 +490,4 @@ axs[1].set_xlabel("Iteration")
 axs[1].set_ylabel("Classification Performance");
 ```
 
-The steerable pyramid can be smoothly integrated with standard torch modules and autograd, so the impact of including such a frontend could be probed using the sythesis techniques provided by Plenoptic.
+The steerable pyramid can be smoothly integrated with standard torch modules and autograd, so the impact of including such a frontend could be probed using the synthesis techniques provided by Plenoptic.
