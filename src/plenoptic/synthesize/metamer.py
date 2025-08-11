@@ -4,7 +4,6 @@ Model metamers.
 Classes to perform the synthesis of model metamers.
 """
 
-import contextlib
 import re
 import warnings
 from collections import OrderedDict
@@ -1291,6 +1290,11 @@ def plot_loss(
     -------
     ax
         The matplotlib axes containing the plot.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
     if iteration is None:
         loss_idx = len(metamer.losses) - 1
@@ -1305,9 +1309,21 @@ def plot_loss(
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
 
-    with contextlib.suppress(IndexError):
+    if loss_idx < 0:
+        # if this is negative after our remapping above, then this it was too large
+        # and it wrapped around gain (e.g., -100 when there were only 90 iterations)
+        raise IndexError(
+            f"{iteration=} out of bounds for Metamer object with "
+            f"{len(metamer.losses)} iterations of synthesis"
+        )
+    try:
         # then there's no loss to plot
         ax.scatter(loss_idx, metamer.losses[loss_idx], c="r")
+    except IndexError:
+        raise IndexError(
+            f"{iteration=} out of bounds for Metamer object with "
+            f"{len(metamer.losses)} iterations of synthesis"
+        )
 
     ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
@@ -1361,8 +1377,20 @@ def display_metamer(
     ------
     ValueError
         If ``batch_idx`` is not an int.
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
-    image = metamer.metamer if iteration is None else metamer.saved_metamer[iteration]
+    if iteration is None:
+        image = metamer.metamer
+    else:
+        iter = iteration // metamer.store_progress
+        try:
+            image = metamer.saved_metamer[iter]
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for Metamer object with "
+                f"{len(metamer.losses)} iterations of synthesis"
+            )
     if not isinstance(batch_idx, int):
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -1411,11 +1439,23 @@ def _representation_error(
     -------
     representation_error
         The representation error at the specified iteration, for displaying.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
     if iteration is not None:
-        metamer_rep = metamer.model(
-            metamer.saved_metamer[iteration].to(metamer.target_representation.device)
-        )
+        iter = iteration // metamer.store_progress
+        try:
+            metamer_rep = metamer.model(
+                metamer.saved_metamer[iter].to(metamer.target_representation.device)
+            )
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for Metamer object with "
+                f"{len(metamer.losses)} iterations of synthesis"
+            )
     else:
         metamer_rep = metamer.model(metamer.metamer, **kwargs)
     return metamer_rep - metamer.target_representation
@@ -1465,6 +1505,11 @@ def plot_representation_error(
     -------
     axes :
         List of created axes.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
     representation_error = _representation_error(
         metamer=metamer, iteration=iteration, **kwargs
@@ -1522,6 +1567,11 @@ def plot_pixel_values(
     -------
     ax
         Created axes.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
@@ -1556,7 +1606,14 @@ def plot_pixel_values(
     if iteration is None:
         met = metamer.metamer[batch_idx]
     else:
-        met = metamer.saved_metamer[iteration, batch_idx]
+        iter = iteration // metamer.store_progress
+        try:
+            met = metamer.saved_metamer[iter, batch_idx]
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for Metamer object with "
+                f"{len(metamer.losses)} iterations of synthesis"
+            )
     image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
