@@ -787,6 +787,11 @@ def plot_loss(
     axes :
         The matplotlib axes containing the plot.
 
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+
     Notes
     -----
     We plot ``abs(mad.losses)`` because if we're maximizing the synthesis
@@ -796,9 +801,19 @@ def plot_loss(
     if iteration is None:
         loss_idx = len(mad.losses) - 1
     elif iteration < 0:
-        loss_idx = len(mad.losses) + iteration  # Work-around for x-value alignment
+        # in order to get the x-value of the dot to line up,
+        # need to use this work-around
+        loss_idx = len(mad.losses) + iteration
     else:
         loss_idx = iteration
+
+    if loss_idx < 0:
+        # if this is negative after our remapping above, then this it was too large
+        # and it wrapped around gain (e.g., -100 when there were only 90 iterations)
+        raise IndexError(
+            f"{iteration=} out of bounds for MADCompetition object with "
+            f"{len(mad.losses)} iterations of synthesis"
+        )
 
     if axes is None:
         axes = plt.gca()
@@ -813,7 +828,13 @@ def plot_loss(
     names = ["Reference metric loss", "Optimized metric loss"]
     for ax, loss, name in zip(axes, losses, names):
         ax.plot(loss, **kwargs)
-        ax.scatter(loss_idx, loss[loss_idx], c="r")
+        try:
+            ax.scatter(loss_idx, loss[loss_idx], c="r")
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for MADCompetition object with "
+                f"{len(mad.losses)} iterations of synthesis"
+            )
         ax.set(xlabel="Synthesis iteration", ylabel=name)
     return ax
 
@@ -869,8 +890,20 @@ def display_mad_image(
     ------
     ValueError
         If ``batch_idx`` is not an int.
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
-    image = mad.mad_image if iteration is None else mad.saved_mad_image[iteration]
+    if iteration is None:
+        image = mad.mad_image
+    else:
+        iter = iteration // mad.store_progress
+        try:
+            image = mad.saved_mad_image[iter]
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for MADCompetition object with "
+                f"{len(mad.losses)} iterations of synthesis"
+            )
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -933,6 +966,11 @@ def plot_pixel_values(
     -------
     ax :
         Creates axes.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
@@ -967,7 +1005,14 @@ def plot_pixel_values(
     if iteration is None:
         mad_image = mad.mad_image[batch_idx]
     else:
-        mad_image = mad.saved_mad_image[iteration, batch_idx]
+        iter = iteration // mad.store_progress
+        try:
+            mad_image = mad.saved_mad_image[iter, batch_idx]
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds for MADCompetition object with "
+                f"{len(mad.losses)} iterations of synthesis"
+            )
     image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
