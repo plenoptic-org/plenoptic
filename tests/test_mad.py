@@ -456,15 +456,22 @@ class TestMAD:
             mad.load(op.join(tmp_path, "test_mad_load_attributes.pt"))
 
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
-    )
-    @pytest.mark.parametrize(
         "optim_opts",
-        [None, "SGD", "SGD-args", "Adam", "Adam-args", "Scheduler", "Scheduler-args"],
+        [
+            None,
+            "SGD",
+            "SGD-args",
+            "Adam",
+            "Adam-args",
+            "Scheduler",
+            "Scheduler-args",
+            "LBFGS",
+            "LBFGS-args",
+        ],
     )
     @pytest.mark.parametrize("fail", [True, False])
     @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
-    def test_load_optimizer(self, curie_img, model, optim_opts, fail, tmp_path):
+    def test_load_optimizer(self, curie_img, optim_opts, fail, tmp_path):
         mad = po.synth.MADCompetition(
             curie_img,
             po.metric.mse,
@@ -495,6 +502,10 @@ class TestMAD:
                     optimizer = torch.optim.SGD
                     check_optimizer[0] = torch.optim.SGD
                     check_optimizer[1] = {"lr": 0.01}
+                elif "LBFGS" in optim_opts:
+                    optimizer = torch.optim.LBFGS
+                    check_optimizer[0] = torch.optim.LBFGS
+                    check_optimizer[1] = {"lr": 0.01}
                 if "args" in optim_opts:
                     optimizer_kwargs = {"lr": 1}
                     check_optimizer[1] = {"lr": 1}
@@ -522,6 +533,8 @@ class TestMAD:
                     optimizer = torch.optim.Adam
                 elif "SGD" in optim_opts:
                     optimizer = torch.optim.SGD
+                elif "LBFGS" in optim_opts:
+                    optimizer = torch.optim.LBFGS
                 if "Scheduler" in optim_opts:
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             expectation = does_not_raise()
@@ -543,6 +556,15 @@ class TestMAD:
                     expect_str = "Don't know how to initialize saved optimizer"
                 elif optim_opts == "SGD-args":
                     optimizer = torch.optim.SGD
+                    optimizer_kwargs = {"lr": 1}
+                    expect_str = (
+                        "When initializing optimizer after load, optimizer_kwargs"
+                    )
+                elif optim_opts == "LBFGS":
+                    optimizer = None
+                    expect_str = "Don't know how to initialize saved optimizer"
+                elif optim_opts == "LBFGS-args":
+                    optimizer = torch.optim.LBFGS
                     optimizer_kwargs = {"lr": 1}
                     expect_str = (
                         "When initializing optimizer after load, optimizer_kwargs"
@@ -611,7 +633,17 @@ class TestMAD:
 
     @pytest.mark.parametrize(
         "optimizer",
-        ["SGD", "SGD-args", "Adam", "Adam-args", None, "Scheduler-args", "Scheduler"],
+        [
+            "SGD",
+            "SGD-args",
+            "Adam",
+            "Adam-args",
+            None,
+            "Scheduler-args",
+            "Scheduler",
+            "LBFGS",
+            "LBFGS-args",
+        ],
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_optimizer(self, curie_img, optimizer):
@@ -641,6 +673,13 @@ class TestMAD:
             optimizer = torch.optim.SGD
             optimizer_kwargs = {"lr": 1}
             check_optimizer = [torch.optim.SGD, {"lr": 1}]
+        elif optimizer == "LBFGS":
+            optimizer = torch.optim.LBFGS
+            check_optimizer = [torch.optim.LBFGS, {"lr": 0.01}]
+        elif optimizer == "LBFGS-args":
+            optimizer = torch.optim.LBFGS
+            optimizer_kwargs = {"lr": 1, "history_size": 10}
+            check_optimizer = [torch.optim.LBFGS, {"lr": 1, "history_size": 10}]
         elif optimizer == "Scheduler":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau
             check_scheduler = [
