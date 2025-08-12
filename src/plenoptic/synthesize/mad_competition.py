@@ -717,6 +717,9 @@ class MADCompetition(OptimizedSynthesis):
 
         That is, the value of ``reference_metric(image, mad_image)``. Ideally, this is
         equal to ``reference_metric(image, initial_image)``.
+
+        This tensor always lives on the CPU, regardless of the device of the
+        ``MADCompetition`` object.
         """
         # numpydoc ignore=RT01
         return torch.as_tensor(self._reference_metric_loss)
@@ -728,6 +731,9 @@ class MADCompetition(OptimizedSynthesis):
 
         That is, the value of ``optimized_metric(image, mad_image)``. Ideally, this is
         either very different from ``optimized_metric(image, initial_image)``.
+
+        This tensor always lives on the CPU, regardless of the device of the
+        ``MADCompetition`` object.
         """
         # numpydoc ignore=RT01
         return torch.as_tensor(self._optimized_metric_loss)

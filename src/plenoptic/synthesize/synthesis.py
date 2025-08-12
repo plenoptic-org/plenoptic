@@ -736,6 +736,8 @@ class OptimizedSynthesis(Synthesis):
 
         Will have ``length=num_iter+1``, where ``num_iter`` is the number of
         iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
         """  # numpydoc ignore=RT01
         current_loss = self._current_loss
         # this will happen if we haven't run synthesize() yet or got
