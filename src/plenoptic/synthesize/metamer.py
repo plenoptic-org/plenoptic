@@ -1111,24 +1111,21 @@ class MetamerCTF(Metamer):
         r"""
         Check whether the loss has stabilized and whether we've synthesized all scales.
 
-        REMOVE THIS:
-        Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(self.loss[-1] - self._losses[-stop_iters_to_check] < stop_criterion``?
-         |      no |
-         |       | yes
-         |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
-         |              no  |
-         |               |  yes
-         |---------------'  '----> return ``True``
-         |
-         |
-         |
-         |
-         |
-         |
-         '---------> return ``False``
+        We check whether:
+
+        - We have been synthesizing for ``stop_iters_to_check`` iterations,
+          i.e. ``len(synth.losses) > stop_iters_to_check``.
+
+        - Loss has decreased by less than ``stop_criterion`` over the past
+          ``stop_iters_to_check`` iterations.
+
+        - We have finished synthesizing each individual scale, i.e. ``synth.scales[0] ==
+          "all"``.
+
+        - We have been synthesizing all scales for more than ``ctf_iters_to_check``
+          iterations, i.e. ``i - synth.scales_timing["all"][0]) > ctf_iters_to_check``.
+
+        If all conditions are met, we return ``True``. Else, we return ``False``.
 
         Parameters
         ----------
