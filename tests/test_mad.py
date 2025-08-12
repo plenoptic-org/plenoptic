@@ -826,9 +826,9 @@ class TestMAD:
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
-        torch.equal(mad.saved_mad_image, torch.empty([]))
+        torch.equal(mad.saved_mad_image, torch.empty(0))
         mad.synthesize(max_iter=3)
-        torch.equal(mad.saved_mad_image, torch.empty([]))
+        torch.equal(mad.saved_mad_image, mad.mad_image)
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):

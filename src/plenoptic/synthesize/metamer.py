@@ -715,7 +715,10 @@ class Metamer(OptimizedSynthesis):
         If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
         ``losses[i]`` is the error for ``saved_metamer[i]``
         """  # numpydoc ignore=RT01
-        return torch.stack([*self._saved_metamer, self.metamer])
+        if self._metamer is None:
+            return torch.empty(0)
+        else:
+            return torch.stack([*self._saved_metamer, self.metamer])
 
 
 class MetamerCTF(Metamer):

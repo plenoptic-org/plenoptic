@@ -757,7 +757,10 @@ class MADCompetition(OptimizedSynthesis):
         If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
         ``losses[i]`` is the error for ``saved_mad_image[i]``
         """  # numpydoc ignore=RT01
-        return torch.stack([*self._saved_mad_image, self.mad_image])
+        if self._mad_image is None:
+            return torch.empty(0)
+        else:
+            return torch.stack([*self._saved_mad_image, self.mad_image])
 
 
 def plot_loss(

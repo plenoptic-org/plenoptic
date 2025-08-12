@@ -662,9 +662,9 @@ class TestMetamers:
     )
     def test_save_metamer_empty(self, einstein_img, model):
         metamer = po.synth.Metamer(einstein_img, model)
-        torch.equal(metamer.saved_metamer, torch.empty([]))
+        torch.equal(metamer.saved_metamer, torch.empty(0))
         metamer.synthesize(max_iter=3)
-        torch.equal(metamer.saved_metamer, torch.empty([]))
+        torch.equal(metamer.saved_metamer, metamer.metamer)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
