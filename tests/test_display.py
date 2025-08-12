@@ -740,7 +740,6 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             axes_idx=axes_idx,
             **plot_kwargs,
         )
-        plt.close(fig)
     if func == "animate":
         # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
@@ -751,6 +750,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
+    plt.close(fig)
 
 
 class TestMADDisplay:
@@ -902,7 +902,8 @@ class TestMADDisplay:
             func = po.synth.mad_competition.plot_loss_all
         elif func == "image":
             func = po.synth.mad_competition.display_mad_image_all
-        func(*all_mad)
+        fig = func(*all_mad)
+        plt.close(fig)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # plot_representation_error is an allowed value for metamer, but not MAD.
@@ -927,6 +928,7 @@ class TestMADDisplay:
             kwargs["axes_idx"] = {val: 0, "plot_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_mad, **kwargs)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
@@ -1101,6 +1103,7 @@ class TestMetamerDisplay:
             kwargs["axes_idx"] = {val: 0, "plot_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_met, **kwargs)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
