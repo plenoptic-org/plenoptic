@@ -316,7 +316,7 @@ class MADCompetition(OptimizedSynthesis):
 
             loss = self._optimizer_step(pbar)
 
-            if not torch.isfinite(loss):
+            if not np.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
 
             if self._check_convergence(stop_criterion, stop_iters_to_check):
@@ -400,7 +400,7 @@ class MADCompetition(OptimizedSynthesis):
         """  # numpydoc ignore=ES01
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
-        self._losses.append(loss.item())
+        self._losses.append(loss)
         grad_norm = torch.linalg.vector_norm(self.mad_image.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
 
@@ -412,7 +412,7 @@ class MADCompetition(OptimizedSynthesis):
         # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
             if self._scheduler_step_arg:
-                self.scheduler.step(loss.item())
+                self.scheduler.step(loss)
             else:
                 self.scheduler.step()
 
@@ -424,7 +424,7 @@ class MADCompetition(OptimizedSynthesis):
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(
-                loss=f"{loss.item():.04e}",
+                loss=f"{loss:.04e}",
                 learning_rate=self.optimizer.param_groups[0]["lr"],
                 gradient_norm=f"{grad_norm.item():.04e}",
                 pixel_change_norm=f"{pixel_change_norm.item():.04e}",

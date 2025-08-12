@@ -529,7 +529,7 @@ class OptimizedSynthesis(Synthesis):
         self.optimizer.zero_grad()
         loss = self.objective_function()
         loss.backward(retain_graph=False)
-        return loss
+        return loss.item()
 
     def _initialize_optimizer(
         self,
