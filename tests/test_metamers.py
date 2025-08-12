@@ -670,8 +670,8 @@ class TestMetamers:
                 [metamer.losses[::store_progress], metamer.losses[-1]], "*"
             )[0]
         assert len(losses) == len(metamer.saved_metamer), "wrong length!"
-        for synth_loss, saved_met in zip(losses, metamer.saved_metamer):
-            loss = metamer.objective_function(saved_met)
+        for synth_loss, saved_met in zip(losses.to(DEVICE), metamer.saved_metamer):
+            loss = metamer.objective_function(saved_met.to(DEVICE))
             if not torch.equal(loss, synth_loss):
                 raise ValueError("saved_metamer and loss are misaligned!")
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
@@ -691,8 +691,8 @@ class TestMetamers:
                 [metamer.losses[::store_progress], metamer.losses[-1]], "*"
             )[0]
         assert len(losses) == len(metamer.saved_metamer), "wrong length!"
-        for synth_loss, saved_met in zip(losses, metamer.saved_metamer):
-            loss = metamer.objective_function(saved_met)
+        for synth_loss, saved_met in zip(losses.to(DEVICE), metamer.saved_metamer):
+            loss = metamer.objective_function(saved_met.to(DEVICE))
             if not torch.equal(loss, synth_loss):
                 raise ValueError("saved_metamer and loss are misaligned!")
 
@@ -703,7 +703,22 @@ class TestMetamers:
         metamer = po.synth.Metamer(einstein_img, model)
         torch.equal(metamer.saved_metamer, torch.empty(0))
         metamer.synthesize(max_iter=3)
-        torch.equal(metamer.saved_metamer, metamer.metamer)
+        torch.equal(metamer.saved_metamer, metamer.metamer.to("cpu"))
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_metamer_loss(self, einstein_img, model):
+        met = po.synth.Metamer(einstein_img, model)
+        with pytest.raises(Exception):
+            met.objective_function()
+        torch.equal(met.losses, torch.empty(0))
+        met.setup()
+        assert isinstance(met.objective_function(), torch.Tensor)
+        assert met.losses.numel() > 0
+        met.synthesize(max_iter=2)
+        assert isinstance(met.objective_function(), torch.Tensor)
+        assert met.losses.numel() > 0
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

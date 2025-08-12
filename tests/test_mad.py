@@ -827,8 +827,8 @@ class TestMAD:
             # then we need to add on the loss from the current mad.
             losses = einops.pack([mad.losses[::store_progress], mad.losses[-1]], "*")[0]
         assert len(losses) == len(mad.saved_mad_image), "wrong length!"
-        for synth_loss, saved_mad in zip(losses, mad.saved_mad_image):
-            loss = mad.objective_function(saved_mad)
+        for synth_loss, saved_mad in zip(losses.to(DEVICE), mad.saved_mad_image):
+            loss = mad.objective_function(saved_mad.to(DEVICE))
             if not torch.equal(loss.squeeze(), synth_loss):
                 raise ValueError("saved_mad_image and loss are misaligned!")
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
@@ -852,22 +852,34 @@ class TestMAD:
             # then we need to add on the loss from the current mad.
             losses = einops.pack([mad.losses[::store_progress], mad.losses[-1]], "*")[0]
         assert len(losses) == len(mad.saved_mad_image), "wrong length!"
-        for synth_loss, saved_mad in zip(losses, mad.saved_mad_image):
-            loss = mad.objective_function(saved_mad)
+        for synth_loss, saved_mad in zip(losses.to(DEVICE), mad.saved_mad_image):
+            loss = mad.objective_function(saved_mad.to(DEVICE))
             if not torch.equal(loss.squeeze(), synth_loss):
                 raise ValueError("saved_mad_image and loss are misaligned!")
 
-    @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
-    )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
-    def test_save_mad_empty(self, einstein_img, model):
+    def test_save_mad_empty(self, einstein_img):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         torch.equal(mad.saved_mad_image, torch.empty(0))
         mad.synthesize(max_iter=3)
-        torch.equal(mad.saved_mad_image, mad.mad_image)
+        torch.equal(mad.saved_mad_image, mad.mad_image.to("cpu"))
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_empty_loss(self, einstein_img):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
+        )
+        with pytest.raises(Exception):
+            mad.objective_function()
+        torch.equal(mad.losses, torch.empty(0))
+        mad.setup()
+        assert isinstance(mad.objective_function(), torch.Tensor)
+        assert mad.losses.numel() > 0
+        mad.synthesize(max_iter=2)
+        assert isinstance(mad.objective_function(), torch.Tensor)
+        assert mad.losses.numel() > 0
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):

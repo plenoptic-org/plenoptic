@@ -756,11 +756,15 @@ class MADCompetition(OptimizedSynthesis):
 
         If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
         ``losses[i]`` is the error for ``saved_mad_image[i]``
+
+        This tensor always lives on the CPU, regardless of the device of the
+        ``MADCompetition`` object.
         """  # numpydoc ignore=RT01
         if self._mad_image is None:
             return torch.empty(0)
         else:
-            return torch.stack([*self._saved_mad_image, self.mad_image])
+            # for memory purposes, always on CPU
+            return torch.stack([*self._saved_mad_image, self.mad_image.to("cpu")])
 
 
 def plot_loss(
@@ -1499,13 +1503,15 @@ def animate(
                 mad,
                 batch_idx=batch_idx,
                 channel_idx=channel_idx,
-                iteration=i,
+                iteration=i * mad.store_progress,
                 ax=fig.axes[axes_idx["plot_pixel_values"]],
             )
         if "plot_loss" in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i * mad.store_progress
+            if x_val >= len(mad.reference_metric_loss):
+                x_val = len(mad.reference_metric_loss) - 1
             scat[0].set_offsets((x_val, mad.reference_metric_loss[x_val]))
             scat[1].set_offsets((x_val, mad.optimized_metric_loss[x_val]))
             artists.extend(scat)

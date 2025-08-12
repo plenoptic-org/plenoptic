@@ -714,11 +714,15 @@ class Metamer(OptimizedSynthesis):
 
         If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
         ``losses[i]`` is the error for ``saved_metamer[i]``
+
+        This tensor always lives on the CPU, regardless of the device of the ``Metamer``
+        object.
         """  # numpydoc ignore=RT01
         if self._metamer is None:
             return torch.empty(0)
         else:
-            return torch.stack([*self._saved_metamer, self.metamer])
+            # for memory purposes, always on CPU
+            return torch.stack([*self._saved_metamer, self.metamer.to("cpu")])
 
 
 class MetamerCTF(Metamer):
@@ -2236,7 +2240,9 @@ def animate(
                 )
             )
         if "plot_representation_error" in included_plots:
-            rep_error = _representation_error(metamer, iteration=i)
+            rep_error = _representation_error(
+                metamer, iteration=i * metamer.store_progress
+            )
 
             # we pass rep_error_axes to update, and we've grabbed
             # the right things above
@@ -2266,13 +2272,15 @@ def animate(
                 metamer,
                 batch_idx=batch_idx,
                 channel_idx=channel_idx,
-                iteration=i,
+                iteration=i * metamer.store_progress,
                 ax=fig.axes[axes_idx["plot_pixel_values"]],
             )
         if "plot_loss" in included_plots:
             # loss always contains values from every iteration, but everything
             # else will be subsampled.
             x_val = i * metamer.store_progress
+            if x_val >= len(metamer.losses):
+                x_val = len(metamer.losses) - 1
             scat.set_offsets((x_val, metamer.losses[x_val]))
             artists.append(scat)
         # as long as blitting is True, need to return a sequence of artists

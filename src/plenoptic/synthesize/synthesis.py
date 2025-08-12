@@ -481,7 +481,7 @@ class OptimizedSynthesis(Synthesis):
         self._pixel_change_norm = []
         self._store_progress = None
         self._optimizer = None
-        self._current_loss = torch.empty(0)
+        self._current_loss = None
         if range_penalty_lambda < 0:
             raise Exception("range_penalty_lambda must be non-negative!")
         self._range_penalty_lambda = range_penalty_lambda
@@ -739,15 +739,16 @@ class OptimizedSynthesis(Synthesis):
         """  # numpydoc ignore=RT01
         current_loss = self._current_loss
         # this will happen if we haven't run synthesize() yet or got
-        # interrupted, but setup() has been called to initialize synthesis.
+        # interrupted
         if current_loss is None:
-            # compute current loss, no need to compute gradient
-            with torch.no_grad():
-                current_loss = self.objective_function().item()
-        # this will happen if setup() has not been called and so we can't
-        # compute loss because synthesis hasn't been initialized.
-        elif not current_loss:
-            return torch.empty(0)
+            try:
+                # compute current loss, no need to compute gradient
+                with torch.no_grad():
+                    current_loss = self.objective_function().item()
+            except Exception:
+                # this will happen if setup() has not been called and so we can't
+                # compute loss because synthesis hasn't been initialized.
+                return torch.empty(0)
         return torch.as_tensor([*self._losses, current_loss])
 
     @property
