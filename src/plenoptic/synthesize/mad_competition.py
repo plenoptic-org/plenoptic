@@ -302,6 +302,7 @@ class MADCompetition(OptimizedSynthesis):
         # if setup hasn't been called manually, call it now.
         if self._mad_image is None or isinstance(self._scheduler, tuple):
             self.setup()
+        self._current_loss = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -309,9 +310,9 @@ class MADCompetition(OptimizedSynthesis):
         pbar = tqdm(range(max_iter))
 
         for _ in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
+            # update saved_* attrs. len(_losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+            self._store(len(self._losses))
 
             loss = self._optimizer_step(pbar)
 
@@ -321,6 +322,10 @@ class MADCompetition(OptimizedSynthesis):
             if self._check_convergence(stop_criterion, stop_iters_to_check):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
+
+        # compute current loss, no need to compute gradient
+        with torch.no_grad():
+            self._current_loss = self.objective_function().item()
 
         pbar.close()
 
@@ -746,12 +751,13 @@ class MADCompetition(OptimizedSynthesis):
 
         How often the metamer is cached is determined by the ``store_progress`` argument
         to the :func:`synthesize` function.
+
+        The last entry will always be the current :attr:`mad_image`.
+
+        If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
+        ``losses[i]`` is the error for ``saved_mad_image[i]``
         """  # numpydoc ignore=RT01
-        try:
-            return torch.stack(self._saved_mad_image)
-        except RuntimeError:
-            # then saved_mad_image is empty
-            return torch.empty(0)
+        return torch.stack([*self._saved_mad_image, self.mad_image])
 
 
 def plot_loss(

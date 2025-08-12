@@ -780,6 +780,36 @@ class TestMADDisplay:
         mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
+    @pytest.fixture(
+        scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
+    )
+    def synthesized_mad_store_progress(self, request):
+        # make the images really small so nothing takes as long
+        img, max_iter = request.param.split("-")
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+        img = torch.cat([img, img])
+
+        # to serve as a metric, need to return a single value, but SSIM and MSE
+        # will return a separate value for each RGB channel. Additionally, MAD
+        # requires metrics are *dis*-similarity metrics, so that they return 0
+        # if two images are identical (SSIM normally returns 1)
+        def rgb_ssim(*args, **kwargs):
+            return 1 - po.metric.ssim(*args, **kwargs).mean()
+
+        def rgb_mse(*args, **kwargs):
+            return po.metric.mse(*args, **kwargs).mean()
+
+        mad = po.synth.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
+        mad.synthesize(max_iter=int(max_iter), store_progress=2)
+        return mad
+
     @pytest.mark.parametrize("iteration", [None, 1, -1])
     @pytest.mark.parametrize("display_mad", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
@@ -897,6 +927,43 @@ class TestMADDisplay:
             kwargs["axes_idx"] = {val: 0, "plot_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_mad, **kwargs)
+
+    @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
+    @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
+        included_plots = [
+            "display_mad_image",
+            "plot_loss",
+            "plot_pixel_values",
+        ]
+        max_iter = len(synthesized_mad_store_progress.losses) - 1
+        if iteration in [-10, 10]:
+            expectation = pytest.raises(IndexError, match="iteration.*out of bounds")
+        else:
+            expectation = does_not_raise()
+            if max_iter == 5:
+                mad_iter = {None: 3, 0: 0, -1: 3, 2: 1, 3: 1, 4: 2}[iteration]
+            elif max_iter == 4:
+                mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 1, 4: 2}[iteration]
+        with expectation:
+            fig, _ = po.synth.mad_competition.plot_synthesis_status(
+                synthesized_mad_store_progress,
+                iteration=iteration,
+                batch_idx=batch_idx,
+                included_plots=included_plots,
+            )
+            axes_img = fig.axes[0].images[0].get_array().data
+            plt.close(fig)
+            img = synthesized_mad_store_progress.saved_mad_image[mad_iter, batch_idx]
+            img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
+            # rgb images are clipped while plotting
+            if img.shape[-1] == 3:
+                img = img.clip(0, 1)
+            assert np.equal(axes_img, img).all(), "wrong saved mad_image plotted!"
 
 
 class TestMetamerDisplay:

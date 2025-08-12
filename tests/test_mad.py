@@ -2,6 +2,7 @@ import inspect
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
+import einops
 import numpy as np
 import pytest
 import torch
@@ -765,10 +766,10 @@ class TestMAD:
         if store_progress == 3:
             max_iter = 6
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(mad.saved_mad_image) == np.ceil(max_iter / store_progress), (
+        assert len(mad.saved_mad_image) == np.ceil(max_iter / store_progress) + 1, (
             "Didn't end up with enough saved mad after first synth!"
         )
-        assert len(mad.losses) == max_iter, (
+        assert len(mad.losses) == max_iter + 1, (
             "Didn't end up with enough losses after first synth!"
         )
         # these have a +1 because we calculate them during initialization as
@@ -779,11 +780,23 @@ class TestMAD:
         assert len(mad.reference_metric_loss) == max_iter + 1, (
             "Didn't end up with enough reference metric losses after first synth!"
         )
+        if store_progress is True:
+            losses = mad.losses
+        elif (max_iter % store_progress) == 0:
+            losses = mad.losses[::store_progress]
+        else:
+            # then we need to add on the loss from the current mad.
+            losses = einops.pack([mad.losses[::store_progress], mad.losses[-1]], "*")[0]
+        assert len(losses) == len(mad.saved_mad_image), "wrong length!"
+        for synth_loss, saved_mad in zip(losses, mad.saved_mad_image):
+            loss = mad.objective_function(saved_mad)
+            if not torch.equal(loss.squeeze(), synth_loss):
+                raise ValueError("saved_mad_image and loss are misaligned!")
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(mad.saved_mad_image) == np.ceil(2 * max_iter / store_progress), (
+        assert len(mad.saved_mad_image) == np.ceil(2 * max_iter / store_progress) + 1, (
             "Didn't end up with enough saved mad after second synth!"
         )
-        assert len(mad.losses) == 2 * max_iter, (
+        assert len(mad.losses) == 2 * max_iter + 1, (
             "Didn't end up with enough losses after second synth!"
         )
         assert len(mad.optimized_metric_loss) == 2 * max_iter + 1, (
@@ -792,6 +805,18 @@ class TestMAD:
         assert len(mad.reference_metric_loss) == 2 * max_iter + 1, (
             "Didn't end up with enough reference metric losses after second synth!"
         )
+        if store_progress is True:
+            losses = mad.losses
+        elif (2 * max_iter % store_progress) == 0:
+            losses = mad.losses[::store_progress]
+        else:
+            # then we need to add on the loss from the current mad.
+            losses = einops.pack([mad.losses[::store_progress], mad.losses[-1]], "*")[0]
+        assert len(losses) == len(mad.saved_mad_image), "wrong length!"
+        for synth_loss, saved_mad in zip(losses, mad.saved_mad_image):
+            loss = mad.objective_function(saved_mad)
+            if not torch.equal(loss.squeeze(), synth_loss):
+                raise ValueError("saved_mad_image and loss are misaligned!")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
