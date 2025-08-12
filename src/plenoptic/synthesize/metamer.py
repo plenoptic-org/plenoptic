@@ -264,6 +264,7 @@ class Metamer(OptimizedSynthesis):
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
+        self._current_loss = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -271,9 +272,9 @@ class Metamer(OptimizedSynthesis):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
+            # update saved_* attrs. len(_losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+            self._store(len(self._losses))
 
             loss = self._optimizer_step(pbar)
 
@@ -284,39 +285,48 @@ class Metamer(OptimizedSynthesis):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
 
+        # compute current loss, no need to compute gradient
+        with torch.no_grad():
+            self._current_loss = self.objective_function().item()
+
         pbar.close()
 
     def objective_function(
         self,
-        metamer_representation: Tensor | None = None,
+        metamer: Tensor | None = None,
         target_representation: Tensor | None = None,
+        **analyze_kwargs: Any,
     ) -> Tensor:
         """
         Compute the metamer synthesis loss.
 
-        This calls self.loss_function on ``metamer_representation`` and
-        ``target_representation`` and then adds the weighted range penalty.
+        This calls self.loss_function on
+        ``self.model(metamer, **analyze_kwargs)`` and
+        ``target_representation`` and then adds the weighted range penalty
+        on ``metamer``.
 
         Parameters
         ----------
-        metamer_representation
-            Model response to ``metamer``. If ``None``, we use
-            ``self.model(self.metamer)``.
+        metamer
+            Current ``metamer``. If ``None``, we use ``self.metamer``.
         target_representation
             Model response to ``image``. If ``None``, we use
             ``self.target_representation``.
+        **analyze_kwargs
+            Additional kwargs to pass to ``self.model(metamer)``.
 
         Returns
         -------
         loss
             1-element tensor containing the loss on this step.
         """
-        if metamer_representation is None:
-            metamer_representation = self.model(self.metamer)
+        if metamer is None:
+            metamer = self.metamer
         if target_representation is None:
             target_representation = self.target_representation
+        metamer_representation = self.model(metamer, **analyze_kwargs)
         loss = self.loss_function(metamer_representation, target_representation)
-        range_penalty = optim.penalize_range(self.metamer, self.allowed_range)
+        range_penalty = optim.penalize_range(metamer, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -699,12 +709,13 @@ class Metamer(OptimizedSynthesis):
 
         How often the metamer is cached is determined by the ``store_progress`` argument
         to the :func:`synthesize` function.
+
+        The last entry will always be the current :attr:`metamer`.
+
+        If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
+        ``losses[i]`` is the error for ``saved_metamer[i]``
         """  # numpydoc ignore=RT01
-        try:
-            return torch.stack(self._saved_metamer)
-        except RuntimeError:
-            # then saved_metamer is empty
-            return torch.empty(0)
+        return torch.stack([*self._saved_metamer, self.metamer])
 
 
 class MetamerCTF(Metamer):
@@ -916,9 +927,9 @@ class MetamerCTF(Metamer):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
+            # update saved_* attrs. len(_losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+            self._store(len(self._losses))
 
             loss = self._optimizer_step(
                 pbar, change_scale_criterion, ctf_iters_to_check
@@ -980,16 +991,16 @@ class MetamerCTF(Metamer):
                 < change_scale_criterion
             )
             and (
-                len(self.losses) - self.scales_timing[self.scales[0]][0]
+                len(self._losses) - self.scales_timing[self.scales[0]][0]
                 >= ctf_iters_to_check
             )
         ):
-            self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
+            self._scales_timing[self.scales[0]].append(len(self._losses) - 1)
             self._scales_finished.append(self._scales.pop(0))
 
             # Only append if scales list is still non-empty after the pop
             if self.scales:
-                self._scales_timing[self.scales[0]].append(len(self.losses))
+                self._scales_timing[self.scales[0]].append(len(self._losses))
 
             # Reset optimizer's learning rate
             for pg, lr in zip(self.optimizer.param_groups, self._initial_lr):
@@ -1062,7 +1073,6 @@ class MetamerCTF(Metamer):
             # scales
             if self.coarse_to_fine == "together":
                 analyze_kwargs["scales"] += self.scales_finished
-        metamer_representation = self.model(self.metamer, **analyze_kwargs)
         # if analyze_kwargs is empty, we can just compare
         # metamer_representation against our cached target_representation
         if analyze_kwargs:
@@ -1078,7 +1088,7 @@ class MetamerCTF(Metamer):
             target_rep = None
             overall_loss = None
 
-        loss = self.objective_function(metamer_representation, target_rep)
+        loss = self.objective_function(self.metamer, target_rep, **analyze_kwargs)
         loss.backward(retain_graph=False)
         if overall_loss is None:
             overall_loss = loss.clone()
@@ -1095,10 +1105,11 @@ class MetamerCTF(Metamer):
         r"""
         Check whether the loss has stabilized and whether we've synthesized all scales.
 
+        REMOVE THIS:
         Have we been synthesizing for ``stop_iters_to_check`` iterations?
          | |
         no yes
-         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
+         | '---->Is ``abs(self.loss[-1] - self._losses[-stop_iters_to_check] < stop_criterion``?
          |      no |
          |       | yes
          |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?

@@ -481,6 +481,7 @@ class OptimizedSynthesis(Synthesis):
         self._pixel_change_norm = []
         self._store_progress = None
         self._optimizer = None
+        self._current_loss = None
         if range_penalty_lambda < 0:
             raise Exception("range_penalty_lambda must be non-negative!")
         self._range_penalty_lambda = range_penalty_lambda
@@ -730,9 +731,19 @@ class OptimizedSynthesis(Synthesis):
 
     @property
     def losses(self) -> torch.Tensor:
-        """Optimization loss over iterations."""
-        # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._losses)
+        """
+        Optimization loss over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+        """  # numpydoc ignore=RT01
+        current_loss = self._current_loss
+        # this will happen if we haven't run synthesize() yet or got interrupted.
+        if current_loss is None:
+            # compute current loss, no need to compute gradient
+            with torch.no_grad():
+                current_loss = self.objective_function().item()
+        return torch.as_tensor([*self._losses, current_loss])
 
     @property
     def gradient_norm(self) -> torch.Tensor:

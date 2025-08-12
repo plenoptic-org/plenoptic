@@ -1,6 +1,7 @@
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
+import einops
 import numpy as np
 import pytest
 import torch
@@ -614,19 +615,47 @@ class TestMetamers:
         if store_progress == 3:
             max_iter = 6
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(metamer.saved_metamer) == np.ceil(max_iter / store_progress), (
+        assert len(metamer.saved_metamer) == np.ceil(max_iter / store_progress) + 1, (
             "Didn't end up with enough saved metamer after first synth!"
         )
-        assert len(metamer.losses) == max_iter, (
+        assert len(metamer.losses) == max_iter + 1, (
             "Didn't end up with enough losses after first synth!"
         )
+        if store_progress is True:
+            losses = metamer.losses
+        elif (max_iter % store_progress) == 0:
+            losses = metamer.losses[::store_progress]
+        else:
+            # then we need to add on the loss from the current metamer.
+            losses = einops.pack(
+                [metamer.losses[::store_progress], metamer.losses[-1]], "*"
+            )[0]
+        assert len(losses) == len(metamer.saved_metamer), "wrong length!"
+        for synth_loss, saved_met in zip(losses, metamer.saved_metamer):
+            loss = metamer.objective_function(saved_met)
+            if not torch.equal(loss, synth_loss):
+                raise ValueError("saved_metamer and loss are misaligned!")
         metamer.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(metamer.saved_metamer) == np.ceil(2 * max_iter / store_progress), (
-            "Didn't end up with enough saved metamer after second synth!"
-        )
-        assert len(metamer.losses) == 2 * max_iter, (
+        assert (
+            len(metamer.saved_metamer) == np.ceil(2 * max_iter / store_progress) + 1
+        ), "Didn't end up with enough saved metamer after second synth!"
+        assert len(metamer.losses) == 2 * max_iter + 1, (
             "Didn't end up with enough losses after second synth!"
         )
+        if store_progress is True:
+            losses = metamer.losses
+        elif (2 * max_iter % store_progress) == 0:
+            losses = metamer.losses[::store_progress]
+        else:
+            # then we need to add on the loss from the current metamer.
+            losses = einops.pack(
+                [metamer.losses[::store_progress], metamer.losses[-1]], "*"
+            )[0]
+        assert len(losses) == len(metamer.saved_metamer), "wrong length!"
+        for synth_loss, saved_met in zip(losses, metamer.saved_metamer):
+            loss = metamer.objective_function(saved_met)
+            if not torch.equal(loss, synth_loss):
+                raise ValueError("saved_metamer and loss are misaligned!")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
