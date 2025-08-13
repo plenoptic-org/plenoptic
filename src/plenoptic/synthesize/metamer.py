@@ -1324,8 +1324,8 @@ def plot_loss(
     ax.semilogy(metamer.losses, **kwargs)
 
     if loss_idx < 0:
-        # if this is negative after our remapping above, then this it was too large
-        # and it wrapped around gain (e.g., -100 when there were only 90 iterations)
+        # if this is negative after our remapping above, then it was too large
+        # and it wrapped around again (e.g., -100 when there were only 90 iterations)
         raise IndexError(
             f"{iteration=} out of bounds for Metamer object with "
             f"{len(metamer.losses)} iterations of synthesis"
