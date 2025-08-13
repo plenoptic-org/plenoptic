@@ -448,6 +448,8 @@ class SteerablePyramidFreq(nn.Module):
                 # high-pass mask is selected based on the current scale
                 himask = getattr(self, f"_himasks_scale_{i}")
                 # compute filter output at each orientation
+
+                complex_const = np.power(complex(0, -1), self.order)
                 for b in range(self.num_orientations):
                     # band pass filtering is done in the fourier space as multiplying
                     #  by the fft of a gaussian derivative.
@@ -460,7 +462,6 @@ class SteerablePyramidFreq(nn.Module):
 
                     anglemask = getattr(self, f"_anglemasks_scale_{i}")[b]
 
-                    complex_const = np.power(complex(0, -1), self.order)
                     banddft = complex_const * lodft * anglemask * himask
                     # fft output is then shifted to center frequencies
                     band = fft.ifftshift(banddft)
@@ -1043,6 +1044,7 @@ class SteerablePyramidFreq(nn.Module):
         himask = getattr(self, f"_himasks_scale_{scale}")
         orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
 
+        complex_const = np.power(complex(0, 1), self.order)
         for b in range(self.num_orientations):
             if (scale, b) in recon_keys:
                 anglemask = getattr(self, f"_anglemasks_recon_scale_{scale}")[b]
@@ -1053,7 +1055,6 @@ class SteerablePyramidFreq(nn.Module):
                 banddft = fft.fft2(coeffs, dim=(-2, -1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
-                complex_const = np.power(complex(0, 1), self.order)
                 banddft = complex_const * banddft * anglemask * himask
                 orientdft = orientdft + banddft
 
