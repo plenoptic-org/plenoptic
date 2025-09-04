@@ -827,9 +827,9 @@ class OptimizedSynthesis(Synthesis):
         Warns
         -----
         UserWarning
-            If ``iteration`` is not divisible by ``self.store_progress``, and so
-            the values shown for e.g., loss and the ``store_progress_attributes`` don't
-            come from the same iteration.
+            If the iteration used for ``store_progress_attributes`` is not the same as
+            the argument ``iteration`` (because e.g., you set ``iteration=3`` but
+            ``self.store_progress=2``).
         """
         if iteration is None:
             iter = len(self.losses) - 1

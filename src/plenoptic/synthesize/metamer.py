@@ -390,9 +390,9 @@ class Metamer(OptimizedSynthesis):
         Warns
         -----
         UserWarning
-            If ``iteration`` is not divisible by ``self.store_progress``, and so
-            the values shown for e.g., ``loss`` and ``saved_metamer`` don't come from
-            the same iteration.
+            If the iteration used for ``saved_metamer`` is not the same as the argument
+            ``iteration`` (because e.g., you set ``iteration=3`` but
+            ``self.store_progress=2``).
         """
         return super().get_progress(
             iteration,
@@ -1457,6 +1457,9 @@ def display_metamer(
     Warns
     -----
     UserWarning
+        If the iteration for the displayed metamer is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``self.store_progress=2``).
     """
     progress = metamer.get_progress(iteration)
     image = progress["saved_metamer"]
@@ -1529,6 +1532,9 @@ def _representation_error(
     Warns
     -----
     UserWarning
+        If the iteration for the used metamer is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``self.store_progress=2``).
     """
     if iteration is not None:
         progress = metamer.get_progress(iteration)
@@ -1592,6 +1598,9 @@ def plot_representation_error(
     Warns
     -----
     UserWarning
+        If the iteration for the metamer used to compute the error is not the same as
+        the argument ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``self.store_progress=2``).
     """
     representation_error = _representation_error(
         metamer=metamer, iteration=iteration, **kwargs
