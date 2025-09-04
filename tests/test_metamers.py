@@ -1,3 +1,4 @@
+import math
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
@@ -680,10 +681,9 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
-    def test_metamer_loss(self, einstein_img, model):
+    def test_metamer_empty_loss(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
-        with pytest.raises(Exception):
-            met.objective_function()
+        assert met.objective_function().numel() == 0
         torch.equal(met.losses, torch.empty(0))
         met.setup()
         assert isinstance(met.objective_function(), torch.Tensor)
@@ -691,6 +691,92 @@ class TestMetamers:
         met.synthesize(max_iter=2)
         assert isinstance(met.objective_function(), torch.Tensor)
         assert met.losses.numel() > 0
+
+    @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
+    @pytest.mark.parametrize("store_progress", [True, False, 2])
+    @pytest.mark.parametrize("store_progress_behavior", ["floor", "ceiling", "round"])
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_metamer_get_progress(
+        self, einstein_img, model, iteration, store_progress, store_progress_behavior
+    ):
+        met = po.synth.Metamer(einstein_img, model)
+        met.synthesize(max_iter=5, store_progress=store_progress)
+        if store_progress_behavior == "floor":
+            func = math.floor
+        elif store_progress_behavior == "ceiling":
+            func = math.ceil
+        else:
+            func = round
+        expected_dict = {}
+        if iteration is None:
+            expected_dict["losses"] = met.losses[-1]
+            expected_dict.update(
+                {
+                    "iteration": 5,
+                    "gradient_norm": None,
+                    "pixel_change_norm": None,
+                }
+            )
+            if store_progress:
+                expected_dict.update(
+                    {
+                        "saved_metamer": met.metamer,
+                        "store_progress_iteration": 5,
+                    }
+                )
+        elif iteration not in [6, -7]:
+            expected_dict["losses"] = met.losses[iteration]
+            if iteration < 0:
+                # add one to account for loss and these attributes being off by one
+                expected_dict.update(
+                    {
+                        "iteration": 6 + iteration,
+                        "gradient_norm": met.gradient_norm[iteration + 1],
+                        "pixel_change_norm": met.pixel_change_norm[iteration + 1],
+                    }
+                )
+                if store_progress:
+                    iter = func((6 + iteration) / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_metamer": met.saved_metamer[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+            else:
+                expected_dict.update(
+                    {
+                        "iteration": iteration,
+                        "gradient_norm": met.gradient_norm[iteration],
+                        "pixel_change_norm": met.pixel_change_norm[iteration],
+                    }
+                )
+                if store_progress:
+                    iter = func(iteration / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_metamer": met.saved_metamer[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+        if iteration in [6, -7]:
+            expectation = pytest.raises(IndexError, match=".*out of bounds with.*")
+        elif store_progress == 2 and iteration in [1, -3]:
+            expectation = pytest.warns(
+                UserWarning, match="loss iteration and iteration"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            progress = met.get_progress(iteration, store_progress_behavior)
+            assert progress.keys() == expected_dict.keys()
+            for k, v in progress.items():
+                if isinstance(v, torch.Tensor):
+                    assert torch.equal(v, expected_dict[k]), f"{k} not as expected!"
+                else:
+                    assert v == expected_dict[k], f"{k} not as expected!"
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

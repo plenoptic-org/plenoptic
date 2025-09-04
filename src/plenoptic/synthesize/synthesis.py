@@ -837,6 +837,16 @@ class OptimizedSynthesis(Synthesis):
             iter = len(self.losses) + iteration
         else:
             iter = iteration
+
+        if iter < 0:
+            # if this is negative after our remapping above, then it was too large
+            # and it wrapped around again (e.g., -100 when there were only 90
+            # iterations)
+            raise IndexError(
+                f"{iteration=} out of bounds with "
+                f"{len(self.losses)} iterations of synthesis"
+            )
+
         # len(self.losses) is the number of synthesis iterations plus 1 (for the current
         # loss), so we grab the hidden version, which has the proper length
         try:
@@ -850,34 +860,38 @@ class OptimizedSynthesis(Synthesis):
         # then this is the most recent one, which we don't have pixel_change_norm or
         # gradient_norm for
         if iter == len(self.losses) - 1:
-            progress_info.update(
-                {
-                    k: None
-                    for k in addt_every_iter_attributes
-                    + ["pixel_change_norm", "gradient_norm"]
-                }
-            )
+            progress_info.update({"pixel_change_norm": None, "gradient_norm": None})
         else:
             progress_info.update(
                 {
-                    k: getattr(self, k)[iter]
-                    for k in addt_every_iter_attributes
-                    + ["pixel_change_norm", "gradient_norm"]
+                    "pixel_change_norm": self.pixel_change_norm[iter],
+                    "gradient_norm": self.gradient_norm[iter],
                 }
             )
+        progress_info.update(
+            {k: getattr(self, k)[iter] for k in addt_every_iter_attributes}
+        )
         if self.store_progress:
-            store_progress_iter = self._convert_iteration(
-                iter, store_progress_behavior=store_progress_behavior
-            )
+            # treat None special: always grab current one
+            if iteration is None:
+                store_progress_iter = -1
+            else:
+                store_progress_iter = self._convert_iteration(
+                    iter, store_progress_behavior=store_progress_behavior
+                )
             progress_info.update(
                 {
                     k: getattr(self, k)[store_progress_iter]
                     for k in store_progress_attributes
                 }
             )
-            store_progress_iter = self._convert_iteration(
-                store_progress_iter, False, store_progress_behavior
-            )
+            # treat None special: always grab current one
+            if iteration is None:
+                store_progress_iter = iter
+            else:
+                store_progress_iter = self._convert_iteration(
+                    store_progress_iter, False, store_progress_behavior
+                )
             if store_progress_iter != iter:
                 warnings.warn(
                     f"loss iteration and iteration for {store_progress_attributes} are"

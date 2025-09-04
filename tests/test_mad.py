@@ -1,4 +1,5 @@
 import inspect
+import math
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
@@ -833,8 +834,7 @@ class TestMAD:
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
-        with pytest.raises(Exception):
-            mad.objective_function()
+        assert mad.objective_function().numel() == 0
         torch.equal(mad.losses, torch.empty(0))
         mad.setup()
         assert isinstance(mad.objective_function(), torch.Tensor)
@@ -842,6 +842,98 @@ class TestMAD:
         mad.synthesize(max_iter=2)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert mad.losses.numel() > 0
+
+    @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
+    @pytest.mark.parametrize("store_progress", [True, False, 2])
+    @pytest.mark.parametrize("store_progress_behavior", ["floor", "ceiling", "round"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_get_progress(
+        self, einstein_img, iteration, store_progress, store_progress_behavior
+    ):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
+        )
+        mad.synthesize(max_iter=5, store_progress=store_progress)
+        if store_progress_behavior == "floor":
+            func = math.floor
+        elif store_progress_behavior == "ceiling":
+            func = math.ceil
+        else:
+            func = round
+        expected_dict = {}
+        if iteration is None:
+            expected_dict["losses"] = mad.losses[-1]
+            expected_dict.update(
+                {
+                    "iteration": 5,
+                    "gradient_norm": None,
+                    "pixel_change_norm": None,
+                    "reference_metric_loss": mad.reference_metric_loss[-1],
+                    "optimized_metric_loss": mad.optimized_metric_loss[-1],
+                }
+            )
+            if store_progress:
+                expected_dict.update(
+                    {
+                        "saved_mad_image": mad.mad_image,
+                        "store_progress_iteration": 5,
+                    }
+                )
+        elif iteration not in [6, -7]:
+            expected_dict["losses"] = mad.losses[iteration]
+            if iteration < 0:
+                # add one to account for loss and these attributes being off by one
+                expected_dict.update(
+                    {
+                        "iteration": 6 + iteration,
+                        "gradient_norm": mad.gradient_norm[iteration + 1],
+                        "pixel_change_norm": mad.pixel_change_norm[iteration + 1],
+                        "reference_metric_loss": mad.reference_metric_loss[iteration],
+                        "optimized_metric_loss": mad.optimized_metric_loss[iteration],
+                    }
+                )
+                if store_progress:
+                    iter = func((6 + iteration) / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_mad_image": mad.saved_mad_image[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+            else:
+                expected_dict.update(
+                    {
+                        "iteration": iteration,
+                        "gradient_norm": mad.gradient_norm[iteration],
+                        "pixel_change_norm": mad.pixel_change_norm[iteration],
+                        "reference_metric_loss": mad.reference_metric_loss[iteration],
+                        "optimized_metric_loss": mad.optimized_metric_loss[iteration],
+                    }
+                )
+                if store_progress:
+                    iter = func(iteration / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_mad_image": mad.saved_mad_image[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+        if iteration in [6, -7]:
+            expectation = pytest.raises(IndexError, match=".*out of bounds with.*")
+        elif store_progress == 2 and iteration in [1, -3]:
+            expectation = pytest.warns(
+                UserWarning, match="loss iteration and iteration"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            progress = mad.get_progress(iteration, store_progress_behavior)
+            assert progress.keys() == expected_dict.keys()
+            for k, v in progress.items():
+                if isinstance(v, torch.Tensor):
+                    assert torch.equal(v, expected_dict[k]), f"{k} not as expected!"
+                else:
+                    assert v == expected_dict[k], f"{k} not as expected!"
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):
