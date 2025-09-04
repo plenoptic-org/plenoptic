@@ -916,7 +916,10 @@ class OptimizedSynthesis(Synthesis):
                 # compute current loss, no need to compute gradient
                 with torch.no_grad():
                     current_loss = self.objective_function().item()
-            except Exception:
+            except RuntimeError as e:
+                exp_msg = "a Tensor with 0 elements cannot be converted to Scalar"
+                if e.args[0] != exp_msg:
+                    raise e
                 # this will happen if setup() has not been called and so we can't
                 # compute loss because synthesis hasn't been initialized.
                 return torch.empty(0)

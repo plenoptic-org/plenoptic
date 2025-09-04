@@ -322,6 +322,9 @@ class Metamer(OptimizedSynthesis):
         """
         if metamer is None:
             metamer = self.metamer
+            # if this is empty, then self.metamer hasn't been initialized
+            if metamer.numel() == 0:
+                return torch.empty(0)
         if target_representation is None:
             target_representation = self.target_representation
         metamer_representation = self.model(metamer, **analyze_kwargs)
@@ -771,6 +774,8 @@ class Metamer(OptimizedSynthesis):
     def metamer(self) -> torch.Tensor:
         """Model metamer, the parameter we are optimizing."""
         # numpydoc ignore=RT01,ES01
+        if self._metamer is None:
+            return torch.empty(0)
         return self._metamer
 
     @property
@@ -1410,7 +1415,7 @@ def display_metamer(
     automatically find the most reasonable zoom value. You can override this
     value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
     is opinionated about the size of the resulting image and will throw an
-    Exception if the axis created is not big enough for the selected zoom.
+    exception if the axis created is not big enough for the selected zoom.
 
     Parameters
     ----------

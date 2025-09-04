@@ -369,6 +369,9 @@ class MADCompetition(OptimizedSynthesis):
             image = self.image
         if mad_image is None:
             mad_image = self.mad_image
+            # if this is empty, then self.mad_image hasn't been initialized
+            if mad_image.numel() == 0:
+                return torch.empty(0)
         synth_target = {"min": 1, "max": -1}[self.minmax]
         synthesis_loss = self.optimized_metric(image, mad_image)
         fixed_loss = (
@@ -750,6 +753,8 @@ class MADCompetition(OptimizedSynthesis):
     def mad_image(self) -> Tensor:
         """Maximally-differentiating image, the parameter we are optimizing."""
         # numpydoc ignore=RT01,ES01
+        if self._mad_image is None:
+            return torch.empty(0)
         return self._mad_image
 
     @property
