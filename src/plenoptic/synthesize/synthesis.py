@@ -8,8 +8,9 @@ inherit one of these classes, to provide a unified interface.
 import abc
 import importlib
 import inspect
+import math
 import warnings
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -716,6 +717,174 @@ class OptimizedSynthesis(Synthesis):
                 if len(step_args - {"self", "epoch"}):
                     # then we do want to pass the loss to scheduler.step
                     self._scheduler_step_arg = True
+
+    def _convert_iteration(
+        self,
+        iteration: int,
+        iteration_to_progress: bool = True,
+        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+    ) -> int:
+        """
+        Convert between synthesis iteration and ``store_progress``'s iteration.
+
+        Several of the ``OptimizedSynthesis`` attributes are not updated every
+        single iteration but every ``self.store_progress`` iterations. This
+        converts between the two.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize.
+        iteration_to_progress
+            Whether to convert from synthesis iteration to ``store_progress``
+            iteration (in which case, behavior is controlled by
+            ``store_progress_behavior``) or vice-versa (in which case we return
+            ``iteration * self.store_progress``).
+        store_progress_behavior
+
+            How to handle the situations where ``iteration`` is not evenly
+            divided by ``self.store_progress``:
+
+            * ``"floor"``: take the closest preceding iteration.
+
+            * ``"ceiling"``: take the closest following iteration.
+
+            * ``"round"``: take the closest iteration.
+
+        Returns
+        -------
+        converted_iteration
+            Converted iteration.
+        """
+        if iteration_to_progress:
+            # round and ceiling may be one greater than e.g., len(self._saved_metamer).
+            # however, self.saved_metamer always has the current metamer appended, and
+            # so this will be okay
+            if store_progress_behavior == "floor":
+                iter = math.floor(iteration / self.store_progress)
+            elif store_progress_behavior == "round":
+                iter = round(iteration / self.store_progress)
+            elif store_progress_behavior == "ceiling":
+                iter = math.ceil(iteration / self.store_progress)
+        else:
+            iter = iteration * self.store_progress
+            # this might go off the end
+            if iter >= len(self.losses):
+                iter = len(self.losses) - 1
+        return iter
+
+    @abc.abstractmethod
+    def get_progress(
+        self,
+        iteration: int | None,
+        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+        addt_every_iter_attributes: list[str] = [],
+        store_progress_attributes: list[str] = [],
+    ) -> dict[str, torch.Tensor | None]:
+        """
+        Return dictionary summarizing synthesis progress at ``iteration``.
+
+        Note that for the most recent iteration (``iteration=-1`` or ``iteration=None``
+        or ``iteration==len(self.losses)-1``), we do not have values for
+        :attr:`pixel_change_norm`, :attr:`gradient_norm` or
+        ``addt_every_iter_attributes``, since in this case we are showing the loss and
+        value for the current synthesis output.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize. If ``None``, grab the most recent.
+            Negative values are allowed.
+        store_progress_behavior
+
+            How to determine the relevant iteration from :attr:`saved_metamer`
+            when synthesis was run with ``store_progress>1``:
+
+            * ``"floor"``: take the closest preceding iteration.
+
+            * ``"ceiling"``: take the closest following iteration.
+
+            * ``"round"``: take the closest iteration.
+
+        addt_every_iter_attributes
+            Additional attributes that have values appended every iteration.
+            ``losses``, ``pixel_change_norm`` and ``gradient_norm`` are always
+            included.
+        store_progress_attributes
+            Attributes that have values appended every ``self.store_progress``
+            iterations (and may thus be ``None``).
+
+        Returns
+        -------
+        progress_info
+            Dictionary summarizing synthesis progress.
+
+        Raises
+        ------
+        IndexError
+            If ``iteration`` takes an illegal value.
+
+        Warns
+        -----
+        UserWarning
+            If ``iteration`` is not divisible by ``self.store_progress``, and so
+            the values shown for e.g., loss and the ``store_progress_attributes`` don't
+            come from the same iteration.
+        """
+        if iteration is None:
+            iter = len(self.losses) - 1
+        elif iteration < 0:
+            iter = len(self.losses) + iteration
+        else:
+            iter = iteration
+        # len(self.losses) is the number of synthesis iterations plus 1 (for the current
+        # loss), so we grab the hidden version, which has the proper length
+        try:
+            loss = self.losses[iter]
+        except IndexError:
+            raise IndexError(
+                f"{iteration=} out of bounds with "
+                f"{len(self.losses)} iterations of synthesis"
+            )
+        progress_info = {"losses": loss, "iteration": iter}
+        # then this is the most recent one, which we don't have pixel_change_norm or
+        # gradient_norm for
+        if iter == len(self.losses) - 1:
+            progress_info.update(
+                {
+                    k: None
+                    for k in addt_every_iter_attributes
+                    + ["pixel_change_norm", "gradient_norm"]
+                }
+            )
+        else:
+            progress_info.update(
+                {
+                    k: getattr(self, k)[iter]
+                    for k in addt_every_iter_attributes
+                    + ["pixel_change_norm", "gradient_norm"]
+                }
+            )
+        if self.store_progress:
+            store_progress_iter = self._convert_iteration(
+                iter, store_progress_behavior=store_progress_behavior
+            )
+            progress_info.update(
+                {
+                    k: getattr(self, k)[store_progress_iter]
+                    for k in store_progress_attributes
+                }
+            )
+            store_progress_iter = self._convert_iteration(
+                store_progress_iter, False, store_progress_behavior
+            )
+            if store_progress_iter != iter:
+                warnings.warn(
+                    f"loss iteration and iteration for {store_progress_attributes} are"
+                    " not the same"
+                )
+            progress_info.update({"store_progress_iteration": store_progress_iter})
+        return progress_info
 
     @property
     def range_penalty_lambda(self) -> float:
