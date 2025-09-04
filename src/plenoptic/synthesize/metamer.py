@@ -1389,16 +1389,7 @@ def plot_loss(
     if ax is None:
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
-
-    try:
-        # then there's no loss to plot
-        ax.scatter(progress["iteration"], progress["losses"], c="r")
-    except IndexError:
-        raise IndexError(
-            f"{iteration=} out of bounds for Metamer object with "
-            f"{len(metamer.losses)} iterations of synthesis"
-        )
-
+    ax.scatter(progress["iteration"], progress["losses"], c="r")
     ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
 
@@ -1459,7 +1450,7 @@ def display_metamer(
     UserWarning
         If the iteration for the displayed metamer is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
-        ``self.store_progress=2``).
+        ``metamer.store_progress=2``).
     """
     progress = metamer.get_progress(iteration)
     image = progress["saved_metamer"]
@@ -1534,7 +1525,7 @@ def _representation_error(
     UserWarning
         If the iteration for the used metamer is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
-        ``self.store_progress=2``).
+        ``metamer.store_progress=2``).
     """
     if iteration is not None:
         progress = metamer.get_progress(iteration)
@@ -1600,7 +1591,7 @@ def plot_representation_error(
     UserWarning
         If the iteration for the metamer used to compute the error is not the same as
         the argument ``iteration`` (because e.g., you set ``iteration=3`` but
-        ``self.store_progress=2``).
+        ``metamer.store_progress=2``).
     """
     representation_error = _representation_error(
         metamer=metamer, iteration=iteration, **kwargs
@@ -1663,6 +1654,13 @@ def plot_pixel_values(
     ------
     IndexError
         If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_metamer`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
@@ -1983,6 +1981,13 @@ def plot_synthesis_status(
     ValueError
         If the ``iteration is not None`` and the given ``metamer`` object was run
         with ``store_progress=False``.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_metamer`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
     if iteration is not None and not metamer.store_progress:
         raise ValueError(
@@ -2268,7 +2273,6 @@ def animate(
         rep_error_axes = []
     if "display_metamer" in included_plots:
         fig.axes[axes_idx["display_metamer"]].set_title("Metamer")
-    # can also have multiple plots
 
     if metamer.target_representation.ndimension() == 4:
         if "plot_representation_error" in included_plots:
@@ -2298,7 +2302,7 @@ def animate(
         artists
             The updated matplotlib artists.
         """
-        # this warning is not relevant for this plotting function
+        # this warning is not relevant for animate
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", message="loss iteration and iteration for"

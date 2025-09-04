@@ -381,6 +381,78 @@ class MADCompetition(OptimizedSynthesis):
             + self.range_penalty_lambda * range_penalty
         )
 
+    def get_progress(
+        self,
+        iteration: int,
+        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+    ) -> dict:
+        """
+        Return dictionary summarizing synthesis progress at ``iteration``.
+
+        This returns a dictionary containing info from :attr:`losses`,
+        :attr:`pixel_change_norm`, :attr:`gradient_norm`, and
+        :attr:`saved_mad_image` corresponding to ``iteration``. If synthesis was
+        run with ``store_progress=False`` (and so we did not cache anything in
+        :attr`saved_mad_image`), then that key will be missing. If synthesis was
+        run with ``store_progress>1``, we will grab the corresponding tensor
+        from :attr`saved_mad_image`, with behavior determined by
+        ``store_progress_behavior``.
+
+        The returned dictionary will additionally contain the keys:
+
+        - ``"iteration"``: the (0-indexed positive) synthesis iteration that the
+          values for :attr:`losses`, :attr:`pixel_change_norm`, and
+          :attr:`gradient_norm` come from.
+
+        - If ``self.store_progress``, ``"store_progress_iteration"``: the (0-indexed
+          positive) synthesis iteration that the value for :attr:`saved_mad_image` comes
+          from.
+
+        Note that for the most recent iteration (``iteration=-1`` or ``iteration=None``
+        or ``iteration==len(self.losses)-1``), we do not have values for
+        :attr:`pixel_change_norm` or :attr:`gradient_norm`, since in this case we are
+        showing the loss and value for the current MAD image.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize. If ``None``, grab the most recent.
+            Negative values are allowed.
+        store_progress_behavior
+
+            How to determine the relevant iteration from :attr:`saved_mad_image`
+            when synthesis was run with ``store_progress>1``:
+
+            * ``"floor"``: take the closest preceding iteration.
+
+            * ``"ceiling"``: take the closest following iteration.
+
+            * ``"round"``: take the closest iteration.
+
+        Returns
+        -------
+        progress_info
+            Dictionary summarizing synthesis progress.
+
+        Raises
+        ------
+        IndexError
+            If ``iteration`` takes an illegal value.
+
+        Warns
+        -----
+        UserWarning
+            If the iteration used for ``saved_mad_image`` is not the same as the
+            argument ``iteration`` (because e.g., you set ``iteration=3`` but
+            ``self.store_progress=2``).
+        """
+        return super().get_progress(
+            iteration,
+            store_progress_behavior,
+            ["reference_metric_loss", "optimized_metric_loss"],
+            store_progress_attributes=["saved_mad_image"],
+        )
+
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""
         Compute and propagate gradients, then step optimizer to update mad_image.
@@ -755,8 +827,8 @@ class MADCompetition(OptimizedSynthesis):
         """
         :attr:`mad_image`, cached over time for later examination.
 
-        How often the metamer is cached is determined by the ``store_progress`` argument
-        to the :func:`synthesize` function.
+        How often the MAD image is cached is determined by the ``store_progress``
+        argument to the :func:`synthesize` function.
 
         The last entry will always be the current :attr:`mad_image`.
 
@@ -817,22 +889,10 @@ def plot_loss(
     metric, we minimized its negative. By plotting the absolute value, we get
     them all on the same scale.
     """
-    if iteration is None:
-        loss_idx = len(mad.losses) - 1
-    elif iteration < 0:
-        # in order to get the x-value of the dot to line up,
-        # need to use this work-around
-        loss_idx = len(mad.losses) + iteration
-    else:
-        loss_idx = iteration
-
-    if loss_idx < 0:
-        # if this is negative after our remapping above, then it was too large
-        # and it wrapped around again (e.g., -100 when there were only 90 iterations)
-        raise IndexError(
-            f"{iteration=} out of bounds for MADCompetition object with "
-            f"{len(mad.losses)} iterations of synthesis"
-        )
+    # this warning is not relevant for this plotting function
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="loss iteration and iteration for")
+        progress = mad.get_progress(iteration)
 
     if axes is None:
         axes = plt.gca()
@@ -844,17 +904,11 @@ def plot_loss(
         fig = axes.figure
         axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
     losses = [mad.reference_metric_loss, mad.optimized_metric_loss]
-    names = ["Reference metric loss", "Optimized metric loss"]
+    names = ["reference_metric_loss", "optimized_metric_loss"]
     for ax, loss, name in zip(axes, losses, names):
         ax.plot(loss, **kwargs)
-        try:
-            ax.scatter(loss_idx, loss[loss_idx], c="r")
-        except IndexError:
-            raise IndexError(
-                f"{iteration=} out of bounds for MADCompetition object with "
-                f"{len(mad.losses)} iterations of synthesis"
-            )
-        ax.set(xlabel="Synthesis iteration", ylabel=name)
+        ax.scatter(progress["iteration"], progress[name], c="r")
+        ax.set(xlabel="Synthesis iteration", ylabel=name.capitalize().replace("_", " "))
     return ax
 
 
@@ -865,7 +919,6 @@ def display_mad_image(
     zoom: float | None = None,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
-    title: str = "MADCompetition",
     **kwargs: Any,
 ) -> mpl.axes.Axes:
     """
@@ -895,8 +948,6 @@ def display_mad_image(
         Negative values are also allowed.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
-    title :
-        Title of the axis.
     **kwargs
         Passed to :func:`~plenoptic.tools.display.imshow`.
 
@@ -911,18 +962,17 @@ def display_mad_image(
         If ``batch_idx`` is not an int.
     IndexError
         If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``mad.store_progress=2``).
     """
-    if iteration is None:
-        image = mad.mad_image
-    else:
-        iter = iteration // mad.store_progress
-        try:
-            image = mad.saved_mad_image[iter]
-        except IndexError:
-            raise IndexError(
-                f"{iteration=} out of bounds for MADCompetition object with "
-                f"{len(mad.losses)} iterations of synthesis"
-            )
+    progress = mad.get_progress(iteration)
+    image = progress["saved_mad_image"]
+
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -933,7 +983,7 @@ def display_mad_image(
     display.imshow(
         image,
         ax=ax,
-        title=title,
+        title=f"MAD Image [iteration={progress['store_progress_iteration']}]",
         zoom=zoom,
         batch_idx=batch_idx,
         channel_idx=channel_idx,
@@ -990,6 +1040,13 @@ def plot_pixel_values(
     ------
     IndexError
         If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``mad.store_progress=2``).
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
@@ -1021,35 +1078,27 @@ def plot_pixel_values(
             return int(np.ceil((a.max() - a.min()) / h))
 
     kwargs.setdefault("alpha", 0.4)
-    if iteration is None:
-        mad_image = mad.mad_image[batch_idx]
-    else:
-        iter = iteration // mad.store_progress
-        try:
-            mad_image = mad.saved_mad_image[iter, batch_idx]
-        except IndexError:
-            raise IndexError(
-                f"{iteration=} out of bounds for MADCompetition object with "
-                f"{len(mad.losses)} iterations of synthesis"
-            )
+    progress = mad.get_progress(iteration)
+    mad_image = progress["saved_mad_image"][batch_idx]
     image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
         mad_image = mad_image[channel_idx]
-    if ax is None:
-        ax = plt.gca()
     image = data.to_numpy(image).flatten()
     mad_image = data.to_numpy(mad_image).flatten()
+
+    if ax is None:
+        ax = plt.gca()
+    ax.hist(
+        mad_image,
+        bins=min(_freedman_diaconis_bins(image), 50),
+        label=f"MAD image [iteration={progress['store_progress_iteration']}]",
+        **kwargs,
+    )
     ax.hist(
         image,
         bins=min(_freedman_diaconis_bins(image), 50),
         label="Reference image",
-        **kwargs,
-    )
-    ax.hist(
-        mad_image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label="MAD image",
         **kwargs,
     )
     ax.legend()
@@ -1291,6 +1340,13 @@ def plot_synthesis_status(
     ValueError
         If the ``iteration is not None`` and the given ``mad`` object was run
         with ``store_progress=False``.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``mad.store_progress=2``).
     """
     if iteration is not None and not mad.store_progress:
         raise ValueError(
@@ -1472,7 +1528,8 @@ def animate(
     # MAD image plot, because we use the update_plot function for that)
     if "plot_loss" in included_plots:
         scat = [fig.axes[i].collections[0] for i in axes_idx["plot_loss"]]
-    # can also have multiple plots
+    if "display_mad_image" in included_plots:
+        fig.axes[axes_idx["display_mad_image"]].set_title("MAD Image")
 
     def movie_plot(i: int) -> list[mpl.artist.Artist]:
         """
@@ -1490,39 +1547,42 @@ def animate(
         artists
             The updated matplotlib artists.
         """
-        artists = []
-        if "display_mad_image" in included_plots:
-            artists.extend(
-                display.update_plot(
-                    fig.axes[axes_idx["display_mad_image"]],
-                    data=mad.saved_mad_image[i],
-                    batch_idx=batch_idx,
+        # this warning is not relevant for animate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="loss iteration and iteration for"
+            )
+            artists = []
+            if "display_mad_image" in included_plots:
+                artists.extend(
+                    display.update_plot(
+                        fig.axes[axes_idx["display_mad_image"]],
+                        data=mad.saved_mad_image[i],
+                        batch_idx=batch_idx,
+                    )
                 )
-            )
-        if "plot_pixel_values" in included_plots:
-            # this is the dumbest way to do this, but it's simple --
-            # clearing the axes can cause problems if the user has, for
-            # example, changed the tick locator or formatter. not sure how
-            # to handle this best right now
-            fig.axes[axes_idx["plot_pixel_values"]].clear()
-            plot_pixel_values(
-                mad,
-                batch_idx=batch_idx,
-                channel_idx=channel_idx,
-                iteration=i * mad.store_progress,
-                ax=fig.axes[axes_idx["plot_pixel_values"]],
-            )
-        if "plot_loss" in included_plots:
-            # loss always contains values from every iteration, but everything
-            # else will be subsampled.
-            x_val = i * mad.store_progress
-            if x_val >= len(mad.reference_metric_loss):
-                x_val = len(mad.reference_metric_loss) - 1
-            scat[0].set_offsets((x_val, mad.reference_metric_loss[x_val]))
-            scat[1].set_offsets((x_val, mad.optimized_metric_loss[x_val]))
-            artists.extend(scat)
-        # as long as blitting is True, need to return a sequence of artists
-        return artists
+            if "plot_pixel_values" in included_plots:
+                # this is the dumbest way to do this, but it's simple --
+                # clearing the axes can cause problems if the user has, for
+                # example, changed the tick locator or formatter. not sure how
+                # to handle this best right now
+                fig.axes[axes_idx["plot_pixel_values"]].clear()
+                plot_pixel_values(
+                    mad,
+                    batch_idx=batch_idx,
+                    channel_idx=channel_idx,
+                    iteration=min(i * mad.store_progress, len(mad.losses) - 1),
+                    ax=fig.axes[axes_idx["plot_pixel_values"]],
+                )
+            if "plot_loss" in included_plots:
+                # loss always contains values from every iteration, but everything
+                # else will be subsampled.
+                x_val = mad._convert_iteration(i, False)
+                scat[0].set_offsets((x_val, mad.reference_metric_loss[x_val]))
+                scat[1].set_offsets((x_val, mad.optimized_metric_loss[x_val]))
+                artists.extend(scat)
+            # as long as blitting is True, need to return a sequence of artists
+            return artists
 
     # don't need an init_func, since we handle initialization ourselves
     anim = mpl.animation.FuncAnimation(

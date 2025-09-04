@@ -780,7 +780,7 @@ class OptimizedSynthesis(Synthesis):
         store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
         addt_every_iter_attributes: list[str] = [],
         store_progress_attributes: list[str] = [],
-    ) -> dict[str, torch.Tensor | None]:
+    ) -> dict[str, torch.Tensor | None | int]:
         """
         Return dictionary summarizing synthesis progress at ``iteration``.
 
