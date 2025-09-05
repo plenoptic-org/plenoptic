@@ -924,6 +924,7 @@ def display_mad_image(
     zoom: float | None = None,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
+    title: str | None = None,
     **kwargs: Any,
 ) -> mpl.axes.Axes:
     """
@@ -953,6 +954,9 @@ def display_mad_image(
         Negative values are also allowed.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
+    title
+        Title to add to axis. If ``None``, we use ``"MAD Image [iteration={iter}]"``,
+        where ``iter`` gives the iteration corresponding to the displayed image.
     **kwargs
         Passed to :func:`~plenoptic.tools.display.imshow`.
 
@@ -976,7 +980,14 @@ def display_mad_image(
         ``mad.store_progress=2``).
     """
     progress = mad.get_progress(iteration)
-    image = progress["saved_mad_image"]
+    try:
+        image = progress["saved_mad_image"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError("When mad.store_progress=False, iteration must be None!")
+        image = mad.mad_image
+        iter = len(mad.losses)
 
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
@@ -985,10 +996,12 @@ def display_mad_image(
     as_rgb = bool(channel_idx is None and image.shape[1] > 1)
     if ax is None:
         ax = plt.gca()
+    if title is None:
+        title = f"MAD Image [iteration={iter}]"
     display.imshow(
         image,
         ax=ax,
-        title=f"MAD Image [iteration={progress['store_progress_iteration']}]",
+        title=title,
         zoom=zoom,
         batch_idx=batch_idx,
         channel_idx=channel_idx,
@@ -1084,7 +1097,14 @@ def plot_pixel_values(
 
     kwargs.setdefault("alpha", 0.4)
     progress = mad.get_progress(iteration)
-    mad_image = progress["saved_mad_image"][batch_idx]
+    try:
+        mad_image = progress["saved_mad_image"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError("When mad.store_progress=False, iteration must be None!")
+        mad_image = mad.mad_image
+        iter = len(mad.losses)
     image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
@@ -1097,7 +1117,7 @@ def plot_pixel_values(
     ax.hist(
         mad_image,
         bins=min(_freedman_diaconis_bins(image), 50),
-        label=f"MAD image [iteration={progress['store_progress_iteration']}]",
+        label=f"MAD image [iteration={iter}]",
         **kwargs,
     )
     ax.hist(

@@ -936,6 +936,7 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
         included_plots = [
             "display_mad_image",
@@ -948,9 +949,9 @@ class TestMADDisplay:
         else:
             expectation = does_not_raise()
             if max_iter == 5:
-                mad_iter = {None: 3, 0: 0, -1: 3, 2: 1, 3: 1, 4: 2}[iteration]
+                mad_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
             elif max_iter == 4:
-                mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 1, 4: 2}[iteration]
+                mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
         with expectation:
             fig, _ = po.synth.mad_competition.plot_synthesis_status(
                 synthesized_mad_store_progress,
@@ -969,6 +970,35 @@ class TestMADDisplay:
 
 
 class TestMetamerDisplay:
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    def synthesized_met_nostore(self, request):
+        img = request.param
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.simul.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[(0, 0)]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=2, store_progress=False)
+        return met
+
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_met(self, request):
         img = request.param
@@ -1084,6 +1114,60 @@ class TestMetamerDisplay:
             synthesized_met, func, fig_creation, tmp_path
         )
 
+    # mix together func and iteration, because iteration doesn't make sense to
+    # pass to animate
+    @pytest.mark.parametrize("display_metamer", [True, False])
+    @pytest.mark.parametrize("loss", [True, False])
+    @pytest.mark.parametrize("representation_error", [True, False])
+    @pytest.mark.parametrize("pixel_values", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot_nostore(
+        self,
+        synthesized_met_nostore,
+        display_metamer,
+        loss,
+        representation_error,
+        pixel_values,
+        fig_creation,
+    ):
+        # tests whether we can plot all possible combinations of plots.
+        # test_custom_fig tests whether these animate correctly.
+        template_test_synthesis_all_plot(
+            synthesized_met_nostore,
+            iteration=None,
+            display_synth=display_metamer,
+            loss=loss,
+            representation_error=representation_error,
+            pixel_values=pixel_values,
+            fig_creation=fig_creation,
+        )
+
+    @pytest.mark.parametrize("func", ["plot"])
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Looks like representation is image-like, haven't:UserWarning"
+    )
+    def test_custom_fig_nostore(
+        self, synthesized_met_nostore, func, fig_creation, tmp_path
+    ):
+        # tests whether we can create our own figure and pass it to Metamer's
+        # plotting and animating functions, specifying some or all of the
+        # locations for the plots
+        template_test_synthesis_custom_fig(
+            synthesized_met_nostore, func, fig_creation, tmp_path
+        )
+
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # display_mad_image is an allowed value for MAD but not metamer.
     # the second is just a typo
@@ -1107,6 +1191,7 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_met_store_progress, iteration, batch_idx):
         included_plots = [
             "display_metamer",
@@ -1120,9 +1205,9 @@ class TestMetamerDisplay:
         else:
             expectation = does_not_raise()
             if max_iter == 5:
-                met_iter = {None: 3, 0: 0, -1: 3, 2: 1, 3: 1, 4: 2}[iteration]
+                met_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
             elif max_iter == 4:
-                met_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 1, 4: 2}[iteration]
+                met_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
         with expectation:
             fig, _ = po.synth.metamer.plot_synthesis_status(
                 synthesized_met_store_progress,

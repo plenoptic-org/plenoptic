@@ -1458,7 +1458,16 @@ def display_metamer(
         ``metamer.store_progress=2``).
     """
     progress = metamer.get_progress(iteration)
-    image = progress["saved_metamer"]
+    try:
+        image = progress["saved_metamer"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError(
+                "When metamer.store_progress=False, iteration must be None!"
+            )
+        image = metamer.metamer
+        iter = len(metamer.losses)
 
     if not isinstance(batch_idx, int):
         raise ValueError("batch_idx must be an integer!")
@@ -1470,7 +1479,7 @@ def display_metamer(
     display.imshow(
         image,
         ax=ax,
-        title=f"Metamer [iteration={progress['store_progress_iteration']}]",
+        title=f"Metamer [iteration={iter}]",
         zoom=zoom,
         batch_idx=batch_idx,
         channel_idx=channel_idx,
@@ -1698,7 +1707,16 @@ def plot_pixel_values(
 
     kwargs.setdefault("alpha", 0.4)
     progress = metamer.get_progress(iteration)
-    met = progress["saved_metamer"][batch_idx]
+    try:
+        met = progress["saved_metamer"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError(
+                "When metamer.store_progress=False, iteration must be None!"
+            )
+        met = metamer.metamer
+        iter = len(metamer.losses)
     image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
@@ -1711,7 +1729,7 @@ def plot_pixel_values(
     ax.hist(
         met,
         bins=min(_freedman_diaconis_bins(image), 50),
-        label=f"Metamer [iteration={progress['store_progress_iteration']}]",
+        label=f"Metamer [iteration={iter}]",
         **kwargs,
     )
     ax.hist(
