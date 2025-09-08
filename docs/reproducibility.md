@@ -29,7 +29,7 @@ import torch
 plen_object = torch.load("saved_plen_object.pt", weights_only=False)
 ```
 
-Note that setting `weights_only=False` allows arbitrary code execution and thus is unsafe --- only run the above code when you know and trust what the saved file! (See [related issue](https://github.com/plenoptic-org/plenoptic/issues/313) for more details.)
+Note that setting `weights_only=False` allows arbitrary code execution and thus is unsafe --- only run the above code when you know the contents of and trust the saved file! (See [related issue](https://github.com/plenoptic-org/plenoptic/issues/313) for more details.)
 
 If your object was saved in plenoptic 1.2 or later, `weights_only=False` is unnecessary:
 
@@ -42,7 +42,7 @@ The object you have loaded is a dictionary with strings as keys. Once you've loa
 
 ### Breaking change to load in plenoptic 1.2
 
-Prior to plenoptic 1.2, we were saving python functions and pytorch optimization objects. This was incompatible with a breaking change made to :func:`torch.load` in `pytorch` version 2.6. Unfortunately, there is no way to make an object saved prior to 1.2 compatible with later `plenoptic` releases; see [](compat) for how to extract the outputs of your synthesis.
+Prior to plenoptic 1.2, we were saving python functions and pytorch optimization objects. This was incompatible with a breaking change made to {func}`torch.load` in `pytorch` version 2.6. Unfortunately, there is no way to make an object saved prior to 1.2 compatible with later `plenoptic` releases; see [](compat) for how to extract the outputs of your synthesis.
 
 ### FutureWarning in load in plenoptic 1.4
 
