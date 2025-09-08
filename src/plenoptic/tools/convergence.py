@@ -61,9 +61,14 @@ def loss_convergence(
     loss_stabilized :
         Whether the loss has stabilized or not.
     """
+    try:
+        # get the private losses if available.
+        losses = synth._losses
+    except AttributeError:
+        losses = synth.losses
     return (
-        len(synth.losses) > stop_iters_to_check
-        and abs(synth.losses[-stop_iters_to_check] - synth.losses[-1]) < stop_criterion
+        len(losses) > stop_iters_to_check
+        and abs(losses[-stop_iters_to_check] - losses[-1]) < stop_criterion
     )
 
 
