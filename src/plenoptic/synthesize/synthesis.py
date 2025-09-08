@@ -259,13 +259,26 @@ class Synthesis(abc.ABC):
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            init_not_save_str = "\n ".join(
-                [f"{k}: {getattr(self, k)}" for k in init_not_save]
-            )
-            raise ValueError(
-                f"Initialized object has {len(init_not_save)} attribute(s) "
-                f"not present in the saved object!\n {init_not_save_str}"
-            )
+            # in PR #370 (release 1.4), added _current_loss attribute, which we'll
+            # handle for now, but warn about.
+            if init_not_save == {"_current_loss"}:
+                tmp_dict["_current_loss"] = None
+                warnings.warn(
+                    "The saved object was saved with plenoptic 1.3 or earlier and will "
+                    "not be compatible with future releases. Save this object with "
+                    "current version of plenoptic or see the 'Reproducibility and "
+                    "Compatibility' page of the documentation for how to make the "
+                    "saved object futureproof and avoid this warning.",
+                    category=FutureWarning,
+                )
+            else:
+                init_not_save_str = "\n ".join(
+                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+                )
+                raise ValueError(
+                    f"Initialized object has {len(init_not_save)} attribute(s) "
+                    f"not present in the saved object!\n {init_not_save_str}"
+                )
         # there shouldn't be any extra keys in the saved dictionary (we removed
         # save_metadata above)
         save_not_init = set(tmp_dict) - set(vars(self))
