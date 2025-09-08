@@ -722,7 +722,7 @@ class TestMetamers:
             if store_progress:
                 expected_dict.update(
                     {
-                        "saved_metamer": met.metamer,
+                        "saved_metamer": met.metamer.to("cpu"),
                         "store_progress_iteration": 5,
                     }
                 )

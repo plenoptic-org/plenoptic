@@ -875,7 +875,7 @@ class TestMAD:
             if store_progress:
                 expected_dict.update(
                     {
-                        "saved_mad_image": mad.mad_image,
+                        "saved_mad_image": mad.mad_image.to("cpu"),
                         "store_progress_iteration": 5,
                     }
                 )
