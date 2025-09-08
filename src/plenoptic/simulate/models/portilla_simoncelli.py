@@ -941,12 +941,14 @@ class PortillaSimoncelli(nn.Module):
             raise ValueError(
                 "coeffs_list must contain tensors of either 4 or 5 dimensions!"
             )
-        acs = [signal.autocorrelation(coeff) for coeff in coeffs_list]
-        var = [signal.center_crop(ac, 1) for ac in acs]
-        acs = [ac / v for ac, v in zip(acs, var)]
-        var = einops.rearrange(var, f"s b c {dims} 1 1 -> b c {dims} s")
-        acs = [signal.center_crop(ac, self.spatial_corr_width) for ac in acs]
+        acs = [
+            signal.center_crop(signal.autocorrelation(coeff), self.spatial_corr_width)
+            for coeff in coeffs_list
+        ]
         acs = torch.stack(acs, 2)
+        var = signal.center_crop(acs, 1)
+        acs = acs / var
+        var = einops.rearrange(var, f"b c s {dims} 1 1 -> b c {dims} s")
         return einops.rearrange(acs, f"b c s {dims} a1 a2 -> b c a1 a2 {dims} s"), var
 
     @staticmethod
