@@ -118,7 +118,7 @@ pipeline {
               RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-T -j $PARALLEL"
               mv docs/_build/ $HOME/built-docs/
            '''
-            lock('plenoptic_docs_publish') {
+            lock('plenoptic_publish') {
               script {
                 def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
                 dir(path: 'docs') {
