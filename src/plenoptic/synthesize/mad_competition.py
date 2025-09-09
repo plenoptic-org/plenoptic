@@ -987,7 +987,8 @@ def display_mad_image(
         if iteration is not None:
             raise IndexError("When mad.store_progress=False, iteration must be None!")
         image = mad.mad_image
-        iter = len(mad.losses)
+        # losses will always have one extra value, the current loss.
+        iter = len(mad.losses) - 1
 
     if batch_idx is None:
         raise ValueError("batch_idx must be an integer!")
@@ -1104,7 +1105,8 @@ def plot_pixel_values(
         if iteration is not None:
             raise IndexError("When mad.store_progress=False, iteration must be None!")
         mad_image = mad.mad_image
-        iter = len(mad.losses)
+        # losses will always have one extra value, the current loss.
+        iter = len(mad.losses) - 1
     image = mad.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]

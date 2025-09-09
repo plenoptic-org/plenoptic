@@ -1475,7 +1475,8 @@ def display_metamer(
                 "When metamer.store_progress=False, iteration must be None!"
             )
         image = metamer.metamer
-        iter = len(metamer.losses)
+        # losses will always have one extra value, the current loss.
+        iter = len(metamer.losses) - 1
 
     if not isinstance(batch_idx, int):
         raise ValueError("batch_idx must be an integer!")
@@ -1724,7 +1725,8 @@ def plot_pixel_values(
                 "When metamer.store_progress=False, iteration must be None!"
             )
         met = metamer.metamer
-        iter = len(metamer.losses)
+        # losses will always have one extra value, the current loss.
+        iter = len(metamer.losses) - 1
     image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
