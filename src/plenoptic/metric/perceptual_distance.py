@@ -257,8 +257,8 @@ def ssim(
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
-    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
+    .. [2] matlab code: `<https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [3] project page: `<https://www.cns.nyu.edu/~lcv/ssim/>`_
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
@@ -357,8 +357,8 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
-    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
+    .. [2] matlab code `<https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [3] project page `<https://www.cns.nyu.edu/~lcv/ssim/>`_
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
@@ -525,7 +525,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
+    .. [2] matlab code: `<https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
 
     Examples
     --------
@@ -636,7 +636,7 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
+    .. [2] matlab code: `<https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
 
     Examples
     --------
