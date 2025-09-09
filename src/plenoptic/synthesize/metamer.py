@@ -1003,6 +1003,7 @@ class MetamerCTF(Metamer):
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
+        self._current_loss = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -1026,6 +1027,10 @@ class MetamerCTF(Metamer):
             ):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
+
+        # compute current loss, no need to compute gradient
+        with torch.no_grad():
+            self._current_loss = self.objective_function().item()
 
         pbar.close()
 
@@ -1092,14 +1097,17 @@ class MetamerCTF(Metamer):
             # Reset ctf target representation for the next update
             self._ctf_target_representation = None
 
+        # the loss returned by objective_function is from *before* updating the metamer,
+        # so to compute the equivalent for display purposes, we need to call this before
+        # calling step()
+        if self.scales[0] != "all":
+            with torch.no_grad():
+                overall_loss = self.objective_function(None, None).item()
+
         loss = self.optimizer.step(self._closure)
         if self.scales[0] == "all":
             # then the loss computed above includes all scales
             overall_loss = loss
-        else:
-            # then we compute it for display purposes
-            with torch.no_grad():
-                overall_loss = self.objective_function(None, None).item()
 
         self._scales_loss.append(loss)
         self._losses.append(overall_loss)

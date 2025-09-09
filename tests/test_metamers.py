@@ -644,11 +644,19 @@ class TestMetamers:
         met.synthesize(5)
 
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+        "model",
+        ["frontend.LinearNonlinear.nograd", "PortillaSimoncelli"],
+        indirect=True,
     )
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_store_rep(self, einstein_img, model, store_progress):
-        metamer = po.synth.Metamer(einstein_img, model)
+        if hasattr(model, "scales"):
+            metamer = po.synth.MetamerCTF(einstein_img, model)
+        else:
+            metamer = po.synth.Metamer(einstein_img, model)
         max_iter = 3
         if store_progress == 3:
             max_iter = 6
@@ -670,19 +678,35 @@ class TestMetamers:
         )
 
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+        "model",
+        ["frontend.LinearNonlinear.nograd", "PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_save_metamer_empty(self, einstein_img, model):
-        metamer = po.synth.Metamer(einstein_img, model)
+        if hasattr(model, "scales"):
+            metamer = po.synth.MetamerCTF(einstein_img, model)
+        else:
+            metamer = po.synth.Metamer(einstein_img, model)
         torch.equal(metamer.saved_metamer, torch.empty(0))
         metamer.synthesize(max_iter=3)
         torch.equal(metamer.saved_metamer, metamer.metamer.to("cpu"))
 
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+        "model",
+        ["frontend.LinearNonlinear.nograd", "PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_metamer_empty_loss(self, einstein_img, model):
-        met = po.synth.Metamer(einstein_img, model)
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(einstein_img, model)
+        else:
+            met = po.synth.Metamer(einstein_img, model)
         assert met.objective_function().numel() == 0
         torch.equal(met.losses, torch.empty(0))
         met.setup()
@@ -696,12 +720,20 @@ class TestMetamers:
     @pytest.mark.parametrize("store_progress", [True, False, 2])
     @pytest.mark.parametrize("store_progress_behavior", ["floor", "ceiling", "round"])
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+        "model",
+        ["frontend.LinearNonlinear.nograd", "PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_metamer_get_progress(
         self, einstein_img, model, iteration, store_progress, store_progress_behavior
     ):
-        met = po.synth.Metamer(einstein_img, model)
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(einstein_img, model)
+        else:
+            met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=5, store_progress=store_progress)
         if store_progress_behavior == "floor":
             func = math.floor
@@ -1019,18 +1051,37 @@ class TestMetamers:
         met_copy.synthesize(max_iter=5)
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
-    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
+    @pytest.mark.parametrize(
+        "model", ["frontend.OnOff.nograd", "PortillaSimoncelli"], indirect=True
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_stop_criterion(self, einstein_img, model):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility
         po.tools.set_seed(0)
-        met = po.synth.Metamer(einstein_img, model)
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(einstein_img, model)
+            synth_kwargs = {
+                "change_scale_criterion": None,
+                "ctf_iters_to_check": 2,
+                "max_iter": 200,
+            }
+            stop_crit = 1e-1
+        else:
+            met = po.synth.Metamer(einstein_img, model)
+            synth_kwargs = {"max_iter": 35}
+            stop_crit = 1e-5
         # takes different numbers of iter to converge on GPU and CPU
-        met.synthesize(max_iter=35, stop_criterion=1e-5, stop_iters_to_check=5)
-        assert abs(met.losses[-5] - met.losses[-1]) < 1e-5, (
+        met.synthesize(stop_criterion=stop_crit, stop_iters_to_check=5, **synth_kwargs)
+        # losses[-1] corresponds to the *current* loss (of met.metamer), not the loss
+        # from the most recent iteration. so losses[-2] is the loss of the last
+        # synthesis iteration.
+        assert abs(met.losses[-6] - met.losses[-2]) < stop_crit, (
             "Didn't stop when hit criterion!"
         )
-        assert abs(met.losses[-6] - met.losses[-2]) > 1e-5, (
+        assert abs(met.losses[-7] - met.losses[-3]) > stop_crit, (
             "Stopped after hit criterion!"
         )
