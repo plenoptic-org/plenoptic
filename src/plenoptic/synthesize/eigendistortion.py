@@ -120,15 +120,14 @@ class Eigendistortion(Synthesis):
     differentiable) mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean
     output response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
     Gaussian noise in the response space.
-    The Jacobian matrix at :math:`x` is:
-        :math:`J(x) = J = dydx`,
-        :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
+
+    The Jacobian matrix at :math:`x` is: :math:`J(x) = J = dydx`, where
+    :math:`J\in\mathbb{R}^{m \times n}` (i.e. output_dim x input_dim).
+
     The matrix consists of all partial derivatives of the vector-valued function
     :math:`f`. The Fisher Information Matrix (FIM) at :math:`x`, under white Gaussian
-    noise in the response space, is:
-        :math:`F = J^T J`
-    It is a quadratic approximation of the discriminability of distortions
-    relative to :math:`x`.
+    noise in the response space, is: :math:`F = J^T J` It is a quadratic approximation
+    of the discriminability of distortions relative to :math:`x`.
 
     References
     ----------
@@ -555,11 +554,17 @@ class Eigendistortion(Synthesis):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
         floating point desired :attr:`dtype` s. In addition, this method will
