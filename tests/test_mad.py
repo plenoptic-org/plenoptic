@@ -986,10 +986,13 @@ class TestMAD:
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=0.1
         )
+        # losses[-1] corresponds to the *current* loss (of mad.mad_image), not the loss
+        # from the most recent iteration. so losses[-2] is the loss of the last
+        # synthesis iteration.
         mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
-        assert abs(mad.losses[-5] - mad.losses[-1]) < 1e-3, (
+        assert abs(mad.losses[-6] - mad.losses[-2]) < 1e-3, (
             "Didn't stop when hit criterion!"
         )
-        assert abs(mad.losses[-6] - mad.losses[-2]) > 1e-3, (
+        assert abs(mad.losses[-7] - mad.losses[-3]) > 1e-3, (
             "Stopped after hit criterion!"
         )
