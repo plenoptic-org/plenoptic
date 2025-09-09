@@ -151,10 +151,8 @@ def imshow(
         Number of axes to have in each row. If ``None``, will fit all axes in a
         single row.
     ax
-        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception,
-        so first define a large enough figure).
+        If ``None``, we make the appropriate figure. Otherwise, we shrink the axes
+        so that it's the appropriate number of pixels.
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
@@ -373,15 +371,13 @@ def animshow(
         Number of axes to have in each row. If ``None``, will fit all axes in a
         single row.
     ax
-        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception,
-        so first define a large enough figure).
+        If ``None``, we make the appropriate figure. Otherwise, we shrink the axes
+        so that it's the appropriate number of pixels.
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
         ``"RdBu_r"``, else we use ``"gray"`` (see :doc:`matplotlib documentation
-        <matplotlib:colormaps>).
+        <matplotlib:colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
