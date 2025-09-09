@@ -158,8 +158,8 @@ def imshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
-        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+        ``"RdBu_r"``, else we use ``"gray"`` (see :doc:`matplotlib documentation
+        <matplotlib:colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
@@ -380,8 +380,8 @@ def animshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
-        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+        ``"RdBu_r"``, else we use ``"gray"`` (see :doc:`matplotlib documentation
+        <matplotlib:colormaps>).
     plot_complex
         Specifies handling of complex values.
 
