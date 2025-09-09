@@ -344,9 +344,9 @@ class Metamer(OptimizedSynthesis):
         :attr:`pixel_change_norm`, :attr:`gradient_norm`, and
         :attr:`saved_metamer` corresponding to ``iteration``. If synthesis was
         run with ``store_progress=False`` (and so we did not cache anything in
-        :attr`saved_metamer`), then that key will be missing. If synthesis was
+        :attr:`saved_metamer`), then that key will be missing. If synthesis was
         run with ``store_progress>1``, we will grab the corresponding tensor
-        from :attr`saved_metamer`, with behavior determined by
+        from :attr:`saved_metamer`, with behavior determined by
         ``store_progress_behavior``.
 
         The returned dictionary will additionally contain the keys:
