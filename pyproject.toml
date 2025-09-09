@@ -43,7 +43,7 @@ docs = [
      'sphinx-autodoc-typehints',
      'sphinx-copybutton',
      "myst-parser",
-     "sphinxcontrib-bibtex",
+     "sphinxcontrib-bibtex>=2.6.4",
      "sphinx-design",
      "pooch",
      "myst-nb",
