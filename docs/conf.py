@@ -151,11 +151,6 @@ numpydoc_class_members_toctree = False
 #
 html_theme = "sphinx_rtd_theme"
 
-# these are for the sphinx_rtd_theme
-html_theme_options = {
-    "display_version": True,
-}
-
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
