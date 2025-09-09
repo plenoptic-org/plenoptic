@@ -389,7 +389,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_remove
+:name: test_ps_remove-1
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -466,7 +466,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_remove
+:name: test_ps_remove-2
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -561,7 +561,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_remove
+:name: test_ps_remove-3
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -642,7 +642,7 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_remove
+:name: test_ps_remove-4
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -722,7 +722,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-1
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -767,7 +767,7 @@ met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVI
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-2
 met_left.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met_left.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -796,7 +796,7 @@ met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEV
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-3
 met_right.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met_right.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -852,7 +852,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-4
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -895,7 +895,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-5
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -938,7 +938,7 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-6
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -1063,7 +1063,7 @@ met.load(CACHE_DIR / "ps_mask.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_mask
+:name: test_ps_mask-1
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean(), optimizer_kwargs={"lr": 0.02, "amsgrad": True})
 met.synthesize(max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -1204,7 +1204,7 @@ met.load(CACHE_DIR / "ps_basic_synthesis_einstein.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-7
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -1243,7 +1243,7 @@ met.load(CACHE_DIR / "ps_basic_synthesis_fig18a.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_basic_synthesis
+:name: test_ps_basic_synthesis-8
 met.setup(((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1))
 met.synthesize(max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7)
 ```
@@ -1511,7 +1511,7 @@ met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt", map_location=DEVICE)
 :class: dropdown note
 
 ```{code-block} python
-:name: test_ps_mask
+:name: test_ps_mask-2
 met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean(),
           optimizer_kwargs={"lr": 0.02, "amsgrad": True})
 met.synthesize(max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7)

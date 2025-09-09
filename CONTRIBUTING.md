@@ -494,6 +494,10 @@ compares it against a cached version stored in our OSF project. See
   eigendist_f.synthesize(k=3, method="power", max_iter=2000)
   ```
   ````
+  If multiple code blocks correspond to the same test, the `:name:` of each code
+  block should end with `-N`, where `N` is a (potentially multi-digit,
+  1-indexed) number. This is to prevent sphinx complaining about having multiple
+  targets with the same name.
 - This block (and the corresponding test) can contain a call to `.setup` as
   well, but it must come directly before the call to `synthesize`.
 - Both calls can go over multiple lines, but they should not reference any other

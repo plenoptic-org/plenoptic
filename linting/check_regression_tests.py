@@ -29,7 +29,7 @@ for p in sys.argv[2:]:
     paths.extend(p)
 
 test_re_str = r"(?:\n.*setup\((.*)\)\n)?.*synthesize\((.*)\)"
-nb_re_str = rf"```.*\n:name: *(test.*)\n*{test_re_str}\n*```"
+nb_re_str = rf"```.*\n:name: *(test.*?)(-[0-9]+)?\n*{test_re_str}\n*```"
 match_not_found = []
 synth_wrong = []
 setup_wrong = []
@@ -54,7 +54,7 @@ for p in paths:
         fail_blocks = [b[0] for b, t in zip(synth_check_blocks, checked) if t]
         match_not_found.append((p, fail_blocks))
         continue
-    for test_name, setup_args, synth_args in synth_check_blocks:
+    for test_name, _, setup_args, synth_args in synth_check_blocks:
         func_body = check_funcs[test_name]
         test_setup_args, test_synth_args = re.findall(test_re_str, func_body)[0]
         # normalize the quotes
