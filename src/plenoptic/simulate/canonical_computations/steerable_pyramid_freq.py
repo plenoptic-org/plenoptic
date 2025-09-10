@@ -157,7 +157,8 @@ class SteerablePyramidFreq(nn.Module):
 
         self.order = order
         # complex_const comes from the Fourier transform of a gaussian derivative.
-        self.complex_const = np.power(complex(0, 1), self.order)
+        self._complex_const_forward = np.power(complex(0, -1), self.order)
+        self._complex_const_recon = np.power(complex(0, 1), self.order)
         try:
             self.image_shape = tuple([int(i) for i in image_shape])
         except ValueError:
@@ -462,7 +463,7 @@ class SteerablePyramidFreq(nn.Module):
 
                     anglemask = getattr(self, f"_anglemasks_scale_{i}")[b]
 
-                    banddft = self.complex_const * lodft * anglemask * himask
+                    banddft = self._complex_const_forward * lodft * anglemask * himask
                     # fft output is then shifted to center frequencies
                     band = fft.ifftshift(banddft)
                     # ifft is applied to recover the filtered representation in spatial
@@ -1050,7 +1051,7 @@ class SteerablePyramidFreq(nn.Module):
                 banddft = fft.fft2(coeffs, dim=(-2, -1), norm=self.fft_norm)
                 banddft = fft.fftshift(banddft)
 
-                banddft = self.complex_const * banddft * anglemask * himask
+                banddft = self._complex_const_recon * banddft * anglemask * himask
                 orientdft = orientdft + banddft
 
         # get the bounding box indices for the low-pass component
