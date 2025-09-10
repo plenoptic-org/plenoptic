@@ -242,7 +242,9 @@ class SteerablePyramidFreq(nn.Module):
         # create low and high masks
         lo0mask = interpolate1d(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = interpolate1d(self.log_rad, self.Yrcos, self.Xrcos)
-        self.register_buffer("lo0mask", torch.as_tensor(lo0mask).unsqueeze(0))
+        self.register_buffer(
+            "lo0mask", rearrange(torch.as_tensor(lo0mask), "h w -> 1 1 1 h w")
+        )
         self.register_buffer("hi0mask", torch.as_tensor(hi0mask).unsqueeze(0))
 
         # need a mock image to down-sample so that we correctly
@@ -423,65 +425,62 @@ class SteerablePyramidFreq(nn.Module):
             assert (max(scale_ints) < self.num_scales) and (min(scale_ints) >= 0), (
                 "Scales must be within 0 and num_scales-1"
             )
-        angle = self.angle.copy()
-        log_rad = self.log_rad.copy()
-        lo0mask = self.lo0mask.clone()
-        hi0mask = self.hi0mask.clone()
 
         # x is a torch tensor batch of images of size (batch, channel, height,
         # width)
         assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
 
         imdft = fft.fft2(x, dim=(-2, -1), norm=self.fft_norm)
-        imdft = fft.fftshift(imdft)
+        imdft = fft.fftshift(imdft, dim=(-2, -1))
 
         if "residual_highpass" in scales:
             # high-pass
-            hi0dft = imdft * hi0mask
-            hi0 = fft.ifftshift(hi0dft)
+            hi0dft = imdft * self.hi0mask
+            hi0 = fft.ifftshift(hi0dft, dim=(-2, -1))
             hi0 = fft.ifft2(hi0, dim=(-2, -1), norm=self.fft_norm)
             pyr_coeffs["residual_highpass"] = hi0.real
             self.pyr_size["residual_highpass"] = tuple(hi0.real.shape[-2:])
 
-        # input to the next scale is the low-pass filtered component
-        lodft = imdft * lo0mask
+        # input to the next scale is the low-pass filtered component. after this
+        # multiplication, lodft will be shape (batch, channel, orientations, height,
+        # width)
+        lodft = imdft * self.lo0mask
 
         for i in range(self.num_scales):
             if i in scales:
                 # high-pass mask is selected based on the current scale
                 himask = getattr(self, f"_himasks_scale_{i}")
+                mask = getattr(self, f"_anglemasks_scale_{i}") * himask
                 # compute filter output at each orientation
-                for b in range(self.num_orientations):
-                    # band pass filtering is done in the fourier space as multiplying
-                    #  by the fft of a gaussian derivative.
-                    # The oriented dft is computed as a product of the fft of the
-                    # low-passed component, the precomputed anglemask (specifies
-                    # orientation), and the precomputed hipass mask (creating a bandpass
-                    # filter) the complex_const variable comes from the Fourier
-                    # transform of a gaussian derivative.
-                    # Based on the order of the gaussian, this constant changes.
 
-                    anglemask = getattr(self, f"_anglemasks_scale_{i}")[b]
+                # band pass filtering is done in the fourier space as multiplying
+                #  by the fft of a gaussian derivative.
+                # The oriented dft is computed as a product of the fft of the
+                # low-passed component, the precomputed anglemask (specifies
+                # orientation), and the precomputed hipass mask (creating a bandpass
+                # filter) the complex_const variable comes from the Fourier
+                # transform of a gaussian derivative.
+                # Based on the order of the gaussian, this constant changes.
 
-                    banddft = self._complex_const_forward * lodft * anglemask * himask
-                    # fft output is then shifted to center frequencies
-                    band = fft.ifftshift(banddft)
-                    # ifft is applied to recover the filtered representation in spatial
-                    # domain
-                    band = fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
+                banddft = self._complex_const_forward * lodft * mask
+                # fft output is then shifted to center frequencies
+                band = fft.ifftshift(banddft, dim=(-2, -1))
+                # ifft is applied to recover the filtered representation in spatial
+                # domain
+                band = fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
 
-                    # for real pyramid, take the real component of the complex band
-                    if not self.is_complex:
-                        pyr_coeffs[(i, b)] = band.real
-                    else:
-                        # Because the input signal is real, to maintain a tight frame
-                        # if the complex pyramid is used, magnitudes need to be divided
-                        # by sqrt(2) because energy is doubled.
+                # for real pyramid, take the real component of the complex band
+                if not self.is_complex:
+                    pyr_coeffs[i] = band.real
+                else:
+                    # Because the input signal is real, to maintain a tight frame
+                    # if the complex pyramid is used, magnitudes need to be divided
+                    # by sqrt(2) because energy is doubled.
 
-                        if self.tight_frame:
-                            band = band / np.sqrt(2)
-                        pyr_coeffs[(i, b)] = band
-                    self.pyr_size[(i, b)] = tuple(band.shape[-2:])
+                    if self.tight_frame:
+                        band = band / np.sqrt(2)
+                    pyr_coeffs[i] = band
+                self.pyr_size[i] = tuple(band.shape[-2:])
 
             if not self.downsample:
                 # no subsampling of angle and rad
@@ -494,29 +493,24 @@ class SteerablePyramidFreq(nn.Module):
                 # subsampling, so that energy in each band remains the same
                 # the energy is cut by factor of 4 so we need to scale magnitudes
                 # by factor of 2.
-
                 if self.fft_norm != "ortho":
                     lodft = 2 * lodft
             else:
                 # subsample indices
                 lostart, loend = self._loindices[i]
 
-                log_rad = log_rad[lostart[0] : loend[0], lostart[1] : loend[1]]
-                angle = angle[lostart[0] : loend[0], lostart[1] : loend[1]]
-
                 # subsampling of the dft for next scale
-                lodft = lodft[:, :, lostart[0] : loend[0], lostart[1] : loend[1]]
+                lodft = lodft[..., lostart[0] : loend[0], lostart[1] : loend[1]]
                 # low-pass filter mask is selected
                 lomask = getattr(self, f"_lomasks_scale_{i}")
                 # again multiply dft by subsampled mask (convolution in spatial domain)
-
                 lodft = lodft * lomask
 
         if "residual_lowpass" in scales:
             # compute residual lowpass when height <=1
-            lo0 = fft.ifftshift(lodft)
+            lo0 = fft.ifftshift(lodft, dim=(-2, -1))
             lo0 = fft.ifft2(lo0, dim=(-2, -1), norm=self.fft_norm)
-            pyr_coeffs["residual_lowpass"] = lo0.real
+            pyr_coeffs["residual_lowpass"] = lo0.real.squeeze(2)
             self.pyr_size["residual_lowpass"] = tuple(lo0.real.shape[-2:])
 
         return pyr_coeffs
