@@ -155,7 +155,6 @@ class SteerablePyramidFreq(nn.Module):
     ):
         super().__init__()
 
-        self.pyr_size = OrderedDict()
         self.order = order
         try:
             self.image_shape = tuple([int(i) for i in image_shape])
@@ -256,6 +255,7 @@ class SteerablePyramidFreq(nn.Module):
             + list(range(self.num_scales))[::-1]
             + ["residual_highpass"]
         )
+        self.pyr_size = OrderedDict({k: () for k in self.scales})
 
         # we create these copies because they will be modified in the
         # following loops
@@ -880,11 +880,7 @@ class SteerablePyramidFreq(nn.Module):
         bands: Literal["all"] | list[int] = "all",
     ) -> Tensor:
         """
-        Reconstruct the image or batch of images, optionally using subset coefficients.
-
-        NOTE: in order to call this function, you need to have previously called
-        :meth:`forward`, with the tensor you wish to reconstruct. This will fail if
-        you called ``forward()`` with a subset of scales.
+        Reconstruct image from coefficients, optionally using a subset.
 
         Parameters
         ----------
@@ -934,7 +930,7 @@ class SteerablePyramidFreq(nn.Module):
           >>> titles = ["Original", "Reconstructed", "Difference"]
           >>> po.imshow([img, recon, img - recon], title=titles)
           <PyrFigure ...>
-        """
+        """  # numpydoc ignore=ES01
         # For reconstruction to work, last time we called forward needed
         # to include all levels
         for s in self.scales:

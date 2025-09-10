@@ -375,6 +375,18 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
         np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
+        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
+        # should be able to reconstruct from corresponding coefficients if we haven't
+        # called forward yet
+        spyr_copy = po.simul.SteerablePyramidFreq(
+            img.shape[-2:],
+            spyr.num_scales,
+            spyr.order,
+            is_complex=spyr.is_complex,
+            downsample=spyr.downsample,
+            tight_frame=spyr.tight_frame,
+        )
+        np.testing.assert_array_equal(recon, to_numpy(spyr_copy.recon_pyr(pyr_coeffs)))
 
     @pytest.mark.parametrize(
         "spyr_multi",
@@ -473,10 +485,8 @@ class TestSteerablePyramid:
                 )
 
         # recon_pyr should always fail
-        with pytest.raises(Exception):
-            spyr.recon_pyr()
-        with pytest.raises(Exception):
-            spyr.recon_pyr(scales)
+        with pytest.raises(ValueError, match="scale.* not in pyr_coeffs"):
+            spyr.recon_pyr(reduced_pyr_coeffs)
 
     @pytest.mark.parametrize("height", range(-1, 8))
     def test_height_values(self, img, height):
