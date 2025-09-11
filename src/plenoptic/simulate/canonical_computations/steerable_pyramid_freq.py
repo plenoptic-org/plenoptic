@@ -809,7 +809,6 @@ class SteerablePyramidFreq(nn.Module):
                 raise TypeError(
                     f"bands must be a list of ints or the string 'all' but got {bands}"
                 )
-            bands = np.arange(self.num_orientations)
         else:
             if not hasattr(bands, "__iter__"):
                 raise TypeError(
@@ -822,52 +821,7 @@ class SteerablePyramidFreq(nn.Module):
                     "Error: band numbers must be in the range "
                     f"[0, {self.num_orientations - 1:d}]"
                 )
-        return list(bands)
-
-    def _recon_keys(
-        self,
-        levels: Literal["all"] | list[SCALES_TYPE],
-        bands: Literal["all"] | list[int],
-    ) -> list[KEYS_TYPE]:
-        """
-        Make a list of all the relevant keys from to use in pyramid reconstruction.
-
-        When reconstructing the input image (i.e., when calling :meth:`recon_pyr()`),
-        the user specifies some subset of the pyramid coefficients to include
-        in the reconstruction. This function takes in those specifications,
-        checks that they're valid, and returns a list of tuples that are keys
-        into the ``pyr_coeffs`` dictionary.
-
-        Parameters
-        ----------
-        levels
-            If ``list`` should contain some subset of integers from ``0`` to
-            ``self.num_scales-1`` (inclusive) and ``"residual_highpass"`` and
-            ``"residual_lowpass"`` (if appropriate for the pyramid). If ``"all"``,
-            returned value will contain all valid levels.
-        bands
-            If list, should contain some subset of integers from ``0`` to
-            ``self.num_orientations-1``. If ``"all"``, returned value will contain
-            all valid orientations.
-
-        Returns
-        -------
-        recon_keys
-            List of tuples, all of which are keys in ``pyr_coeffs``. These are
-            the coefficients to include in the reconstruction of the image.
-        """
-        levels = self._recon_levels_check(levels)
-        bands = self._recon_bands_check(bands)
-        recon_keys = []
-        for level in levels:
-            # residual highpass and lowpass
-            if isinstance(level, str):
-                recon_keys.append(level)
-            # else we have to get each of the (specified) bands at
-            # that level
-            else:
-                recon_keys.extend([(level, band) for band in bands])
-        return recon_keys
+        return bands
 
     def recon_pyr(
         self,
@@ -930,62 +884,51 @@ class SteerablePyramidFreq(nn.Module):
         # For reconstruction to work, last time we called forward needed
         # to include all levels
         for s in self.scales:
-            if isinstance(s, str):
-                if s not in pyr_coeffs:
-                    raise ValueError(
-                        f"scale {s} not in pyr_coeffs! pyr_coeffs must include"
-                        " all scales, so make sure forward() was called with"
-                        " arg scales=None"
-                    )
-            else:
-                for b in range(self.num_orientations):
-                    if (s, b) not in pyr_coeffs:
-                        raise ValueError(
-                            f"scale {s} not in pyr_coeffs! pyr_coeffs must"
-                            " include all scales, so make sure forward() was"
-                            " called with arg scales=None"
-                        )
+            if s not in pyr_coeffs:
+                raise ValueError(
+                    f"scale {s} not in pyr_coeffs! pyr_coeffs must include"
+                    " all scales, so make sure forward() was called with"
+                    " arg scales=None"
+                )
 
-        recon_keys = self._recon_keys(levels, bands)
+        levels = self._recon_levels_check(levels)
+        bands = self._recon_bands_check(bands)
         scale = 0
-
-        # load masks from model
-        lo0mask = self.lo0mask
-        hi0mask = self.hi0mask
 
         # Recursively generate the reconstruction - function starts with
         # fine scales going down to coarse and then the reconstruction
         # is built recursively from the coarse scale up
 
-        recondft = self._recon_levels(pyr_coeffs, recon_keys, scale)
+        recondft = self._recon_levels(pyr_coeffs, levels, bands, scale)
 
+        outdft = recondft * self.lo0mask.squeeze()
         # generate highpass residual Reconstruction
-        if "residual_highpass" in recon_keys:
+        if "residual_highpass" in levels:
             hidft = fft.fft2(
                 pyr_coeffs["residual_highpass"],
                 dim=(-2, -1),
                 norm=self.fft_norm,
             )
-            hidft = fft.fftshift(hidft)
+            hidft = fft.fftshift(hidft, dim=(-2, -1))
 
             # output dft is the sum of the recondft from the recursive
             # function times the lomask (low pass component) with the
             # highpass dft * the highpass mask
-            outdft = recondft * lo0mask + hidft * hi0mask
-        else:
-            outdft = recondft * lo0mask
+            outdft = outdft + hidft * self.hi0mask
 
         # get output reconstruction by inverting the fft
-        reconstruction = fft.ifftshift(outdft)
+        reconstruction = fft.ifftshift(outdft, dim=(-2, -1))
         reconstruction = fft.ifft2(reconstruction, dim=(-2, -1), norm=self.fft_norm)
 
         # get real part of reconstruction (if complex)
-        reconstruction = reconstruction.real
-
-        return reconstruction
+        return reconstruction.real
 
     def _recon_levels(
-        self, pyr_coeffs: OrderedDict, recon_keys: list[KEYS_TYPE], scale: int
+        self,
+        pyr_coeffs: OrderedDict,
+        recon_levels: list[SCALES_TYPE],
+        recon_bands: list[int] | Literal["all"],
+        scale: int,
     ) -> Tensor:
         """
         Recursive function used to build the reconstruction. Called by recon_pyr.
@@ -999,8 +942,11 @@ class SteerablePyramidFreq(nn.Module):
             ``(level, band)`` tuples and the strings ``"residual_lowpass"`` and
             ``"residual_highpass"`` and values are Tensors of shape (batch,
             channel, height, width).
-        recon_keys
-            List of the keys that index into the pyr_coeffs Dictionary.
+        recon_levels
+            List of scales to include in the reconstruction.
+        recon_bands
+            Either ``"all"`` (in which case we include all bands)
+            or list of bands to include in the reconstruction.
         scale
             Current scale that is being used to build the reconstruction
             scale is incremented by 1 on each call of the function.
@@ -1014,7 +960,7 @@ class SteerablePyramidFreq(nn.Module):
         """
         # base case, return the low-pass residual
         if scale == self.num_scales:
-            if "residual_lowpass" in recon_keys:
+            if "residual_lowpass" in recon_levels:
                 lodft = fft.fft2(
                     pyr_coeffs["residual_lowpass"],
                     dim=(-2, -1),
@@ -1033,20 +979,21 @@ class SteerablePyramidFreq(nn.Module):
         # Reconstruct from orientation bands
         # update himask
         himask = getattr(self, f"_himasks_scale_{scale}")
-        orientdft = torch.zeros_like(pyr_coeffs[(scale, 0)])
-
-        for b in range(self.num_orientations):
-            if (scale, b) in recon_keys:
-                anglemask = getattr(self, f"_anglemasks_recon_scale_{scale}")[b]
-                coeffs = pyr_coeffs[(scale, b)]
-                if self.tight_frame and self.is_complex:
-                    coeffs = coeffs * np.sqrt(2)
-
-                banddft = fft.fft2(coeffs, dim=(-2, -1), norm=self.fft_norm)
-                banddft = fft.fftshift(banddft)
-
-                banddft = self._complex_const_recon * banddft * anglemask * himask
-                orientdft = orientdft + banddft
+        mask = getattr(self, f"_anglemasks_recon_scale_{scale}") * himask
+        if scale in recon_levels:
+            coeffs = pyr_coeffs[scale]
+            # then recon_bands is not "all" and we're subselecting them
+            if not isinstance(recon_bands, str):
+                coeffs = coeffs[:, :, recon_bands]
+                mask = mask[recon_bands]
+            if self.tight_frame and self.is_complex:
+                coeffs = coeffs * np.sqrt(2)
+            orientdft = fft.fft2(coeffs, dim=(-2, -1), norm=self.fft_norm)
+            orientdft = fft.fftshift(orientdft, dim=(-2, -1))
+            orientdft = self._complex_const_recon * orientdft * mask
+            orientdft = orientdft.sum(2)
+        else:
+            orientdft = torch.zeros_like(pyr_coeffs[scale][:, :, 0])
 
         # get the bounding box indices for the low-pass component
         lostart, loend = self._loindices[scale]
@@ -1055,16 +1002,16 @@ class SteerablePyramidFreq(nn.Module):
         lomask = getattr(self, f"_lomasks_scale_{scale}")
 
         # Recursively reconstruct by going to the next scale
-        reslevdft = self._recon_levels(pyr_coeffs, recon_keys, scale + 1)
+        reslevdft = self._recon_levels(pyr_coeffs, recon_levels, recon_bands, scale + 1)
         # in not downsampled case, rescale the magnitudes of the reconstructed
         # dft at each level by factor of 2 to account for the scaling in the forward
         if (not self.tight_frame) and (not self.downsample):
             reslevdft = reslevdft / 2
         # create output for reconstruction result
-        resdft = torch.zeros_like(pyr_coeffs[(scale, 0)], dtype=torch.complex64)
+        resdft = torch.zeros_like(pyr_coeffs[scale][:, :, 0], dtype=torch.complex64)
 
         # place upsample and convolve lowpass component
-        resdft[:, :, lostart[0] : loend[0], lostart[1] : loend[1]] = reslevdft * lomask
+        resdft[..., lostart[0] : loend[0], lostart[1] : loend[1]] = reslevdft * lomask
         recondft = resdft + orientdft
         # add orientation interpolated and added images to the lowpass image
         return recondft
