@@ -638,24 +638,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     mx = int(mx)
     my = int(my)
 
-    y1 = im_y / 2 + 1 - my / 2
-    y2 = im_y / 2 + my / 2
-    x1 = im_x / 2 + 1 - mx / 2
-    x2 = im_x / 2 + mx / 2
-
-    # if input is real-valued, don't need the full fft
-    if x.is_complex():
-        fft_func = torch.fft.fft2
-        ifft_func = torch.fft.ifft2
-    else:
-        fft_func = torch.fft.rfft2
-        ifft_func = torch.fft.irfft2
-        x1 -= im_x / 4
-        x2 -= im_x / 4
-
-    fourier = (
-        1 / factor**2 * torch.fft.fftshift(fft_func(x, dim=(-2, -1)), dim=(-2, -1))
-    )
+    fourier = 1 / factor**2 * torch.fft.fftshift(torch.fft.fft2(x), dim=(-2, -1))
     fourier_small = torch.zeros(
         *x.shape[:-2],
         my,
@@ -663,6 +646,11 @@ def shrink(x: Tensor, factor: int) -> Tensor:
         device=fourier.device,
         dtype=fourier.dtype,
     )
+
+    y1 = im_y / 2 + 1 - my / 2
+    y2 = im_y / 2 + my / 2
+    x1 = im_x / 2 + 1 - mx / 2
+    x2 = im_x / 2 + mx / 2
     # when any of these numbers are non-integers, if you round down, the
     # resulting image will be off.
     y1 = int(np.ceil(y1))
@@ -686,6 +674,11 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     ) / 4
 
     fourier_small = torch.fft.ifftshift(fourier_small, dim=(-2, -1))
-    im_small = ifft_func(fourier_small, dim=(-2, -1))
+    im_small = torch.fft.ifft2(fourier_small)
 
+    # if input was real-valued, output should be real-valued, but
+    # using fft/ifft above means im_small will always be complex,
+    # so make sure they align.
+    if not x.is_complex():
+        im_small = torch.real(im_small)
     return im_small
