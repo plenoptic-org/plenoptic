@@ -777,10 +777,7 @@ class PortillaSimoncelli(nn.Module):
         # This is a list of tensors, one for each scale, where each tensor is
         # of shape (batch, channel, n_orientations, height, width) (note that
         # height and width halves on each scale)
-        coeffs_list = [
-            torch.stack([pyr_coeffs[(i, j)] for j in range(self.n_orientations)], 2)
-            for i in range(self.n_scales)
-        ]
+        coeffs_list = [pyr_coeffs[i] for i in range(self.n_scales)]
         return pyr_coeffs, coeffs_list, highpass, lowpass
 
     @staticmethod
@@ -819,7 +816,7 @@ class PortillaSimoncelli(nn.Module):
 
     @staticmethod
     def _compute_intermediate_representations(
-        pyr_coeffs: Tensor,
+        pyr_coeffs: list[Tensor],
     ) -> tuple[list[Tensor], list[Tensor]]:
         """
         Compute useful intermediate representations.
