@@ -978,9 +978,9 @@ class SteerablePyramidFreq(nn.Module):
 
         # Reconstruct from orientation bands
         # update himask
-        himask = getattr(self, f"_himasks_scale_{scale}")
-        mask = getattr(self, f"_anglemasks_recon_scale_{scale}") * himask
         if scale in recon_levels:
+            himask = getattr(self, f"_himasks_scale_{scale}")
+            mask = getattr(self, f"_anglemasks_recon_scale_{scale}") * himask
             coeffs = pyr_coeffs[scale]
             # then recon_bands is not "all" and we're subselecting them
             if not isinstance(recon_bands, str):
