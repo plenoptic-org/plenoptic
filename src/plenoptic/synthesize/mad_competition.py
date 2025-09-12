@@ -951,7 +951,9 @@ def display_mad_image(
         attempt to find the best value ourselves.
     iteration
         Which iteration to display. If ``None``, we show the most recent one.
-        Negative values are also allowed.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``mad.store_progress>1`` (that is, the MAD image was not cached on every
+        iteration), then we show the cached MAD image from the nearest iteration.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     title
@@ -1040,7 +1042,9 @@ def plot_pixel_values(
         channels (assumed use-case is RGB(A) images).
     iteration
         Which iteration to display. If ``None``, we show the most recent one.
-        Negative values are also allowed.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``mad.store_progress>1`` (that is, the MAD image was not cached on every
+        iteration), then we use the cached MAD image from the nearest iteration.
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
@@ -1319,8 +1323,10 @@ def plot_synthesis_status(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``mad.store_progress>1`` (that is, the MAD image was not cached on every
+        iteration), then we use the cached MAD image from the nearest iteration.
     vrange
         The vrange option to pass to ``display_mad_image()``. See
         docstring of :func:`~plenoptic.tools.display.imshow` for possible values.

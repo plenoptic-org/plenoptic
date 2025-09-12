@@ -1440,7 +1440,9 @@ def display_metamer(
         value ourselves.
     iteration
         Which iteration to display. If ``None``, we show the most recent one.
-        Negative values are also allowed.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     **kwargs
@@ -1518,8 +1520,10 @@ def _representation_error(
     metamer
         Metamer object whose representation error we want to compute.
     iteration
-        Which iteration to compute the representation error for. If ``None``, we
-        show the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     store_progress_behavior
 
         How to determine the relevant iteration from :attr:`saved_metamer`
@@ -1581,8 +1585,10 @@ def plot_representation_error(
     batch_idx
         Which index to take from the batch dimension.
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         If ``ylim`` is ``None``, we sets the axes' y-limits to be ``(-y_max,
         y_max)``, where ``y_max=np.abs(data).max()``. If it's ``False``, we do
@@ -1657,8 +1663,10 @@ def plot_pixel_values(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) images).
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
@@ -1954,8 +1962,10 @@ def plot_synthesis_status(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         The ylimit to use for the representation_error plot. We pass
         this value directly to ``plot_representation_error``.
