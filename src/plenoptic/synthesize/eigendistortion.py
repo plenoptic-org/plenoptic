@@ -207,12 +207,12 @@ class Eigendistortion(Synthesis):
             computation. Ignored for other methods.
         p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled,
-            and k will be returned. See docstring of :meth:`_synthesize_randomized_svd`
+            and k will be returned. See docstring of ``_synthesize_randomized_svd``
             for more details including algorithm reference.
         q
             Matrix power parameter for randomized SVD. This is an effective trick for
             the algorithm to converge to the correct eigenvectors when the
-            eigenspectrum does not decay quickly. See :meth:`_synthesize_randomized_svd`
+            eigenspectrum does not decay quickly. See ``_synthesize_randomized_svd``
             for more details including algorithm reference.
         stop_criterion
             Used if ``method='power'`` to check for convergence. If the L2-norm
@@ -310,7 +310,11 @@ class Eigendistortion(Synthesis):
 
     def compute_jacobian(self) -> Tensor:
         r"""
-        Compute (via :func:`autodiff.jacobian`), cache, and return jacobian.
+        Compute, cache, and return jacobian.
+
+        If the jacobian has not been cached: compute, cache, and return.
+
+        If the jacobian has already been cached, we simply return it.
 
         Returns
         -------
@@ -322,7 +326,7 @@ class Eigendistortion(Synthesis):
         UserWarning
             If input dimensionality is greater than 1e4, in which case we believe that
             this calculation will take too long.
-        """  # numpydoc ignore=ES01
+        """
         if self.jacobian is None:
             J = jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
