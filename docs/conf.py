@@ -11,15 +11,10 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import glob
-import inspect
 import os
 import pathlib
 import sys
 from importlib.metadata import version
-
-import torch
-
-import plenoptic
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
@@ -44,7 +39,6 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "numpydoc",
     "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autodoc",
@@ -58,6 +52,8 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.viewcode",
 ]
+
+numfig = True
 
 add_module_names = False
 
@@ -85,7 +81,6 @@ master_doc = "index"
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
-
 # Napoleon settings
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -97,52 +92,18 @@ napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
+# when napoleon_use_rtype is true, the return type is often confused. setting this to
+# false let's sphinx-autodoc-typehints handle it instead.
 napoleon_use_rtype = False
 
-numfig = True
+# SPHINX AUTODOC TYPEHINTS
+
+always_use_bars_union = True
+typehints_defaults = "braces"
 
 # SPHINX CROSS REFERENCES
 
 add_function_parentheses = False
-
-# numpydoc
-
-
-# find whether the object is part of plenoptic
-def is_part_of_plenoptic(obj):
-    try:
-        return obj.__module__.startswith("plenoptic")
-    except AttributeError:
-        # then it's a module
-        return obj.__name__.startswith("plenoptic")
-
-
-def is_interesting(obj):
-    # find whether the object is a class or a module
-    is_right_object = inspect.isclass(obj) or inspect.ismodule(obj)
-    return is_right_object and is_part_of_plenoptic(obj)
-
-
-def find_module(obj):
-    members = inspect.getmembers(obj, is_interesting)
-    to_return = []
-    for name, mem in set(members):
-        if inspect.ismodule(mem):
-            # go through the modules recursively
-            to_return.extend(find_module(mem))
-        else:
-            # if they inherit torch Module
-            if issubclass(mem, torch.nn.Module):
-                to_return.append(f"{mem.__module__}.{name}")
-    # remove duplicates
-    return set(to_return)
-
-
-# avoid showing all the torch.nn.Module attributes and methods
-numpydoc_show_inherited_class_members = {k: False for k in find_module(plenoptic)}
-
-# to avoid this issue https://stackoverflow.com/a/73294408/4659293
-numpydoc_class_members_toctree = False
 
 # -- Options for HTML output -------------------------------------------------
 
