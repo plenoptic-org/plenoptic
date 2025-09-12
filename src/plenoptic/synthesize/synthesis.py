@@ -864,11 +864,11 @@ class OptimizedSynthesis(Synthesis):
         # loss), so we grab the hidden version, which has the proper length
         try:
             loss = self.losses[iter]
-        except IndexError:
+        except IndexError as e:
             raise IndexError(
                 f"{iteration=} out of bounds with "
                 f"{len(self.losses)} iterations of synthesis"
-            )
+            ) from e
         progress_info = {"losses": loss, "iteration": iter}
         # then this is the most recent one, which we don't have pixel_change_norm or
         # gradient_norm for
