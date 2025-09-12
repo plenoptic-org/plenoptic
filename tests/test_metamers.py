@@ -718,7 +718,7 @@ class TestMetamers:
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
-    @pytest.mark.parametrize("store_progress_behavior", ["floor", "ceiling", "round"])
+    @pytest.mark.parametrize("iteration_selection", ["floor", "ceiling", "round"])
     @pytest.mark.parametrize(
         "model",
         ["frontend.LinearNonlinear.nograd", "PortillaSimoncelli"],
@@ -728,16 +728,16 @@ class TestMetamers:
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_metamer_get_progress(
-        self, einstein_img, model, iteration, store_progress, store_progress_behavior
+        self, einstein_img, model, iteration, store_progress, iteration_selection
     ):
         if hasattr(model, "scales"):
             met = po.synth.MetamerCTF(einstein_img, model)
         else:
             met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=5, store_progress=store_progress)
-        if store_progress_behavior == "floor":
+        if iteration_selection == "floor":
             func = math.floor
-        elif store_progress_behavior == "ceiling":
+        elif iteration_selection == "ceiling":
             func = math.ceil
         else:
             func = round
@@ -802,7 +802,7 @@ class TestMetamers:
         else:
             expectation = does_not_raise()
         with expectation:
-            progress = met.get_progress(iteration, store_progress_behavior)
+            progress = met.get_progress(iteration, iteration_selection)
             assert progress.keys() == expected_dict.keys()
             for k, v in progress.items():
                 if isinstance(v, torch.Tensor):

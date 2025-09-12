@@ -735,7 +735,7 @@ class OptimizedSynthesis(Synthesis):
         self,
         iteration: int,
         iteration_to_progress: bool = True,
-        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
     ) -> int:
         """
         Convert between synthesis iteration and ``store_progress``'s iteration.
@@ -751,9 +751,9 @@ class OptimizedSynthesis(Synthesis):
         iteration_to_progress
             Whether to convert from synthesis iteration to ``store_progress``
             iteration (in which case, behavior is controlled by
-            ``store_progress_behavior``) or vice-versa (in which case we return
+            ``iteration_selection``) or vice-versa (in which case we return
             ``iteration * self.store_progress``).
-        store_progress_behavior
+        iteration_selection
 
             How to handle the situations where ``iteration`` is not evenly
             divided by ``self.store_progress``:
@@ -773,11 +773,11 @@ class OptimizedSynthesis(Synthesis):
             # round and ceiling may be one greater than e.g., len(self._saved_metamer).
             # however, self.saved_metamer always has the current metamer appended, and
             # so this will be okay
-            if store_progress_behavior == "floor":
+            if iteration_selection == "floor":
                 iter = math.floor(iteration / self.store_progress)
-            elif store_progress_behavior == "round":
+            elif iteration_selection == "round":
                 iter = round(iteration / self.store_progress)
-            elif store_progress_behavior == "ceiling":
+            elif iteration_selection == "ceiling":
                 iter = math.ceil(iteration / self.store_progress)
         else:
             iter = iteration * self.store_progress
@@ -790,7 +790,7 @@ class OptimizedSynthesis(Synthesis):
     def get_progress(
         self,
         iteration: int | None,
-        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
         addt_every_iter_attributes: list[str] = [],
         store_progress_attributes: list[str] = [],
     ) -> dict[str, torch.Tensor | None | int]:
@@ -808,7 +808,7 @@ class OptimizedSynthesis(Synthesis):
         iteration
             Synthesis iteration to summarize. If ``None``, grab the most recent.
             Negative values are allowed.
-        store_progress_behavior
+        iteration_selection
 
             How to determine the relevant iteration from :attr:`saved_metamer`
             when synthesis was run with ``store_progress>1``:
@@ -890,7 +890,7 @@ class OptimizedSynthesis(Synthesis):
                 store_progress_iter = -1
             else:
                 store_progress_iter = self._convert_iteration(
-                    iter, store_progress_behavior=store_progress_behavior
+                    iter, iteration_selection=iteration_selection
                 )
             progress_info.update(
                 {
@@ -903,7 +903,7 @@ class OptimizedSynthesis(Synthesis):
                 store_progress_iter = iter
             else:
                 store_progress_iter = self._convert_iteration(
-                    store_progress_iter, False, store_progress_behavior
+                    store_progress_iter, False, iteration_selection
                 )
             if store_progress_iter != iter:
                 warnings.warn(

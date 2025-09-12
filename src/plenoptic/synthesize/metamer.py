@@ -335,7 +335,7 @@ class Metamer(OptimizedSynthesis):
     def get_progress(
         self,
         iteration: int | None,
-        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
     ) -> dict:
         """
         Return dictionary summarizing synthesis progress at ``iteration``.
@@ -347,7 +347,7 @@ class Metamer(OptimizedSynthesis):
         :attr:`saved_metamer`), then that key will be missing. If synthesis was
         run with ``store_progress>1``, we will grab the corresponding tensor
         from :attr:`saved_metamer`, with behavior determined by
-        ``store_progress_behavior``.
+        ``iteration_selection``.
 
         The returned dictionary will additionally contain the keys:
 
@@ -369,16 +369,23 @@ class Metamer(OptimizedSynthesis):
         iteration
             Synthesis iteration to summarize. If ``None``, grab the most recent.
             Negative values are allowed.
-        store_progress_behavior
+        iteration_selection
 
-            How to determine the relevant iteration from :attr:`saved_metamer`
-            when synthesis was run with ``store_progress>1``:
+            How to select the relevant iteration from :attr:`saved_metamer`
+            when the request iteration wasn't stored.
 
-            * ``"floor"``: take the closest preceding iteration.
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            metamers are only saved every ``n`` iterations. If you request an
+            iteration where a metamer wasn't saved, this determines which available
+            iteration is used instead:
 
-            * ``"ceiling"``: take the closest following iteration.
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
 
-            * ``"round"``: take the closest iteration.
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
 
         Returns
         -------
@@ -399,7 +406,7 @@ class Metamer(OptimizedSynthesis):
         """
         return super().get_progress(
             iteration,
-            store_progress_behavior,
+            iteration_selection,
             store_progress_attributes=["saved_metamer"],
         )
 
@@ -1505,7 +1512,7 @@ def display_metamer(
 def _representation_error(
     metamer: Metamer,
     iteration: int | None = None,
-    store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+    iteration_selection: Literal["floor", "ceiling", "round"] = "round",
     **kwargs: Any,
 ) -> Tensor:
     r"""
@@ -1524,7 +1531,7 @@ def _representation_error(
         Negative values are also allowed. If ``iteration!=None`` and
         ``metamer.store_progress>1`` (that is, the metamer was not cached on every
         iteration), then we show the cached metamer from the nearest iteration.
-    store_progress_behavior
+    iteration_selection
 
         How to determine the relevant iteration from :attr:`saved_metamer`
         when synthesis was run with ``store_progress>1``:

@@ -845,18 +845,18 @@ class TestMAD:
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
-    @pytest.mark.parametrize("store_progress_behavior", ["floor", "ceiling", "round"])
+    @pytest.mark.parametrize("iteration_selection", ["floor", "ceiling", "round"])
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_mad_get_progress(
-        self, einstein_img, iteration, store_progress, store_progress_behavior
+        self, einstein_img, iteration, store_progress, iteration_selection
     ):
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5, store_progress=store_progress)
-        if store_progress_behavior == "floor":
+        if iteration_selection == "floor":
             func = math.floor
-        elif store_progress_behavior == "ceiling":
+        elif iteration_selection == "ceiling":
             func = math.ceil
         else:
             func = round
@@ -927,7 +927,7 @@ class TestMAD:
         else:
             expectation = does_not_raise()
         with expectation:
-            progress = mad.get_progress(iteration, store_progress_behavior)
+            progress = mad.get_progress(iteration, iteration_selection)
             assert progress.keys() == expected_dict.keys()
             for k, v in progress.items():
                 if isinstance(v, torch.Tensor):

@@ -387,7 +387,7 @@ class MADCompetition(OptimizedSynthesis):
     def get_progress(
         self,
         iteration: int,
-        store_progress_behavior: Literal["floor", "ceiling", "round"] = "round",
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
     ) -> dict:
         """
         Return dictionary summarizing synthesis progress at ``iteration``.
@@ -399,7 +399,7 @@ class MADCompetition(OptimizedSynthesis):
         :attr:`saved_mad_image`), then that key will be missing. If synthesis was
         run with ``store_progress>1``, we will grab the corresponding tensor
         from :attr:`saved_mad_image`, with behavior determined by
-        ``store_progress_behavior``.
+        ``iteration_selection``.
 
         The returned dictionary will additionally contain the keys:
 
@@ -421,7 +421,7 @@ class MADCompetition(OptimizedSynthesis):
         iteration
             Synthesis iteration to summarize. If ``None``, grab the most recent.
             Negative values are allowed.
-        store_progress_behavior
+        iteration_selection
 
             How to determine the relevant iteration from :attr:`saved_mad_image`
             when synthesis was run with ``store_progress>1``:
@@ -451,7 +451,7 @@ class MADCompetition(OptimizedSynthesis):
         """
         return super().get_progress(
             iteration,
-            store_progress_behavior,
+            iteration_selection,
             ["reference_metric_loss", "optimized_metric_loss"],
             store_progress_attributes=["saved_mad_image"],
         )
