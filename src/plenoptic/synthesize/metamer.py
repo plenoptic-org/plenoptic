@@ -1533,14 +1533,22 @@ def _representation_error(
         iteration), then we show the cached metamer from the nearest iteration.
     iteration_selection
 
-        How to determine the relevant iteration from :attr:`saved_metamer`
-        when synthesis was run with ``store_progress>1``:
+        How to select the relevant iteration from :attr:`saved_metamer`
+        when the request iteration wasn't stored.
 
-        * ``"floor"``: take the closest preceding iteration.
+        When synthesis was run with ``store_progress=n`` (where ``n>1``),
+        metamers are only saved every ``n`` iterations. If you request an
+        iteration where a metamer wasn't saved, this determines which available
+        iteration is used instead:
 
-        * ``"ceiling"``: take the closest following iteration.
+        * ``"floor"``: use the closest saved iteration **before** the
+          requested one.
 
-        * ``"round"``: take the closest iteration.
+        * ``"ceiling"``: use the closest saved iteration **after** the
+          requested one.
+
+        * ``"round"``: use the closest saved iteration.
+
     **kwargs
         Passed to ``metamer.model.forward``.
 

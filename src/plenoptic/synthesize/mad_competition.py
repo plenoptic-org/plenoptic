@@ -423,14 +423,21 @@ class MADCompetition(OptimizedSynthesis):
             Negative values are allowed.
         iteration_selection
 
-            How to determine the relevant iteration from :attr:`saved_mad_image`
-            when synthesis was run with ``store_progress>1``:
+            How to select the relevant iteration from :attr:`saved_mad_image`
+            when the request iteration wasn't stored.
 
-            * ``"floor"``: take the closest preceding iteration.
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            MAD images are only saved every ``n`` iterations. If you request an
+            iteration where a MAD image wasn't saved, this determines which available
+            iteration is used instead:
 
-            * ``"ceiling"``: take the closest following iteration.
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
 
-            * ``"round"``: take the closest iteration.
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
 
         Returns
         -------

@@ -755,14 +755,21 @@ class OptimizedSynthesis(Synthesis):
             ``iteration * self.store_progress``).
         iteration_selection
 
-            How to handle the situations where ``iteration`` is not evenly
-            divided by ``self.store_progress``:
+            How to select the relevant iteration from the saved synthesis attribute
+            when the request iteration wasn't stored.
 
-            * ``"floor"``: take the closest preceding iteration.
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            synthesis outputs are only saved every ``n`` iterations. If you request an
+            iteration where synthesis wasn't saved, this determines which available
+            iteration is used instead:
 
-            * ``"ceiling"``: take the closest following iteration.
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
 
-            * ``"round"``: take the closest iteration.
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
 
         Returns
         -------
@@ -810,14 +817,21 @@ class OptimizedSynthesis(Synthesis):
             Negative values are allowed.
         iteration_selection
 
-            How to determine the relevant iteration from :attr:`saved_metamer`
-            when synthesis was run with ``store_progress>1``:
+            How to select the relevant iteration from the saved synthesis attribute
+            when the request iteration wasn't stored.
 
-            * ``"floor"``: take the closest preceding iteration.
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            synthesis outputs are only saved every ``n`` iterations. If you request an
+            iteration where synthesis wasn't saved, this determines which available
+            iteration is used instead:
 
-            * ``"ceiling"``: take the closest following iteration.
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
 
-            * ``"round"``: take the closest iteration.
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
 
         addt_every_iter_attributes
             Additional attributes that have values appended every iteration.
@@ -983,7 +997,7 @@ class OptimizedSynthesis(Synthesis):
         Parameters
         ----------
         store_progress : bool or int, optional
-            Whether we should store the metamer image in progress on every
+            Whether we should store the synthesis output in progress on every
             iteration. If ``False``, we don't save anything. If ``True``, we save
             every iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as ``False`` and 1 the same as ``True``).
