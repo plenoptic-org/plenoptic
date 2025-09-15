@@ -8,8 +8,9 @@ inherit one of these classes, to provide a unified interface.
 import abc
 import importlib
 import inspect
+import math
 import warnings
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -258,13 +259,26 @@ class Synthesis(abc.ABC):
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            init_not_save_str = "\n ".join(
-                [f"{k}: {getattr(self, k)}" for k in init_not_save]
-            )
-            raise ValueError(
-                f"Initialized object has {len(init_not_save)} attribute(s) "
-                f"not present in the saved object!\n {init_not_save_str}"
-            )
+            # in PR #370 (release 1.4), added _current_loss attribute, which we'll
+            # handle for now, but warn about.
+            if init_not_save == {"_current_loss"}:
+                tmp_dict["_current_loss"] = None
+                warnings.warn(
+                    "The saved object was saved with plenoptic 1.3 or earlier and will "
+                    "not be compatible with future releases. Save this object with "
+                    "current version of plenoptic or see the 'Reproducibility and "
+                    "Compatibility' page of the documentation for how to make the "
+                    "saved object futureproof and avoid this warning.",
+                    category=FutureWarning,
+                )
+            else:
+                init_not_save_str = "\n ".join(
+                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+                )
+                raise ValueError(
+                    f"Initialized object has {len(init_not_save)} attribute(s) "
+                    f"not present in the saved object!\n {init_not_save_str}"
+                )
         # there shouldn't be any extra keys in the saved dictionary (we removed
         # save_metadata above)
         save_not_init = set(tmp_dict) - set(vars(self))
@@ -481,6 +495,7 @@ class OptimizedSynthesis(Synthesis):
         self._pixel_change_norm = []
         self._store_progress = None
         self._optimizer = None
+        self._current_loss = None
         if range_penalty_lambda < 0:
             raise Exception("range_penalty_lambda must be non-negative!")
         self._range_penalty_lambda = range_penalty_lambda
@@ -716,6 +731,202 @@ class OptimizedSynthesis(Synthesis):
                     # then we do want to pass the loss to scheduler.step
                     self._scheduler_step_arg = True
 
+    def _convert_iteration(
+        self,
+        iteration: int,
+        iteration_to_progress: bool = True,
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
+    ) -> int:
+        """
+        Convert between synthesis iteration and ``store_progress``'s iteration.
+
+        Several of the ``OptimizedSynthesis`` attributes are not updated every
+        single iteration but every ``self.store_progress`` iterations. This
+        converts between the two.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize.
+        iteration_to_progress
+            Whether to convert from synthesis iteration to ``store_progress``
+            iteration (in which case, behavior is controlled by
+            ``iteration_selection``) or vice-versa (in which case we return
+            ``iteration * self.store_progress``).
+        iteration_selection
+
+            How to select the relevant iteration from the saved synthesis attribute
+            when the request iteration wasn't stored.
+
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            synthesis outputs are only saved every ``n`` iterations. If you request an
+            iteration where synthesis wasn't saved, this determines which available
+            iteration is used instead:
+
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
+
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
+
+        Returns
+        -------
+        converted_iteration
+            Converted iteration.
+        """
+        if iteration_to_progress:
+            # round and ceiling may be one greater than e.g., len(self._saved_metamer).
+            # however, self.saved_metamer always has the current metamer appended, and
+            # so this will be okay
+            if iteration_selection == "floor":
+                iter = math.floor(iteration / self.store_progress)
+            elif iteration_selection == "round":
+                iter = round(iteration / self.store_progress)
+            elif iteration_selection == "ceiling":
+                iter = math.ceil(iteration / self.store_progress)
+        else:
+            iter = iteration * self.store_progress
+            # this might go off the end
+            if iter >= len(self.losses):
+                iter = len(self.losses) - 1
+        return iter
+
+    @abc.abstractmethod
+    def get_progress(
+        self,
+        iteration: int | None,
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
+        addt_every_iter_attributes: list[str] = [],
+        store_progress_attributes: list[str] = [],
+    ) -> dict[str, torch.Tensor | None | int]:
+        """
+        Return dictionary summarizing synthesis progress at ``iteration``.
+
+        Note that for the most recent iteration (``iteration=-1`` or ``iteration=None``
+        or ``iteration==len(self.losses)-1``), we do not have values for
+        :attr:`pixel_change_norm`, :attr:`gradient_norm` or
+        ``addt_every_iter_attributes``, since in this case we are showing the loss and
+        value for the current synthesis output.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize. If ``None``, grab the most recent.
+            Negative values are allowed.
+        iteration_selection
+
+            How to select the relevant iteration from the saved synthesis attribute
+            when the request iteration wasn't stored.
+
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            synthesis outputs are only saved every ``n`` iterations. If you request an
+            iteration where synthesis wasn't saved, this determines which available
+            iteration is used instead:
+
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
+
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
+
+        addt_every_iter_attributes
+            Additional attributes that have values appended every iteration.
+            ``losses``, ``pixel_change_norm`` and ``gradient_norm`` are always
+            included.
+        store_progress_attributes
+            Attributes that have values appended every ``self.store_progress``
+            iterations (and may thus be ``None``).
+
+        Returns
+        -------
+        progress_info
+            Dictionary summarizing synthesis progress.
+
+        Raises
+        ------
+        IndexError
+            If ``iteration`` takes an illegal value.
+
+        Warns
+        -----
+        UserWarning
+            If the iteration used for ``store_progress_attributes`` is not the same as
+            the argument ``iteration`` (because e.g., you set ``iteration=3`` but
+            ``self.store_progress=2``).
+        """
+        if iteration is None:
+            iter = len(self.losses) - 1
+        elif iteration < 0:
+            iter = len(self.losses) + iteration
+        else:
+            iter = iteration
+
+        if iter < 0:
+            # if this is negative after our remapping above, then it was too large
+            # and it wrapped around again (e.g., -100 when there were only 90
+            # iterations)
+            raise IndexError(
+                f"{iteration=} out of bounds with "
+                f"{len(self.losses)} iterations of synthesis"
+            )
+
+        # len(self.losses) is the number of synthesis iterations plus 1 (for the current
+        # loss), so we grab the hidden version, which has the proper length
+        try:
+            loss = self.losses[iter]
+        except IndexError as e:
+            raise IndexError(
+                f"{iteration=} out of bounds with "
+                f"{len(self.losses)} iterations of synthesis"
+            ) from e
+        progress_info = {"losses": loss, "iteration": iter}
+        # then this is the most recent one, which we don't have pixel_change_norm or
+        # gradient_norm for
+        if iter == len(self.losses) - 1:
+            progress_info.update({"pixel_change_norm": None, "gradient_norm": None})
+        else:
+            progress_info.update(
+                {
+                    "pixel_change_norm": self.pixel_change_norm[iter],
+                    "gradient_norm": self.gradient_norm[iter],
+                }
+            )
+        progress_info.update(
+            {k: getattr(self, k)[iter] for k in addt_every_iter_attributes}
+        )
+        if self.store_progress:
+            # treat None special: always grab current one
+            if iteration is None:
+                store_progress_iter = -1
+            else:
+                store_progress_iter = self._convert_iteration(
+                    iter, iteration_selection=iteration_selection
+                )
+            progress_info.update(
+                {
+                    k: getattr(self, k)[store_progress_iter]
+                    for k in store_progress_attributes
+                }
+            )
+            # treat None special: always grab current one
+            if iteration is None:
+                store_progress_iter = iter
+            else:
+                store_progress_iter = self._convert_iteration(
+                    store_progress_iter, False, iteration_selection
+                )
+            if store_progress_iter != iter:
+                warnings.warn(
+                    f"loss iteration and iteration for {store_progress_attributes} are"
+                    " not the same"
+                )
+            progress_info.update({"store_progress_iteration": store_progress_iter})
+        return progress_info
+
     @property
     def range_penalty_lambda(self) -> float:
         """Magnitude of the penalty on pixel values outside :attr:`allowed_range`."""
@@ -730,9 +941,30 @@ class OptimizedSynthesis(Synthesis):
 
     @property
     def losses(self) -> torch.Tensor:
-        """Optimization loss over iterations."""
-        # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._losses)
+        """
+        Optimization loss over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+        """  # numpydoc ignore=RT01
+        current_loss = self._current_loss
+        # this will happen if we haven't run synthesize() yet or got
+        # interrupted
+        if current_loss is None:
+            try:
+                # compute current loss, no need to compute gradient
+                with torch.no_grad():
+                    current_loss = self.objective_function().item()
+            except RuntimeError as e:
+                exp_msg = "a Tensor with 0 elements cannot be converted to Scalar"
+                if e.args[0] != exp_msg:
+                    raise e
+                # this will happen if setup() has not been called and so we can't
+                # compute loss because synthesis hasn't been initialized.
+                return torch.empty(0)
+        return torch.as_tensor([*self._losses, current_loss])
 
     @property
     def gradient_norm(self) -> torch.Tensor:
@@ -765,7 +997,7 @@ class OptimizedSynthesis(Synthesis):
         Parameters
         ----------
         store_progress : bool or int, optional
-            Whether we should store the metamer image in progress on every
+            Whether we should store the synthesis output in progress on every
             iteration. If ``False``, we don't save anything. If ``True``, we save
             every iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as ``False`` and 1 the same as ``True``).

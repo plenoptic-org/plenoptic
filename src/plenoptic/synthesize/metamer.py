@@ -4,7 +4,6 @@ Model metamers.
 Classes to perform the synthesis of model metamers.
 """
 
-import contextlib
 import re
 import warnings
 from collections import OrderedDict
@@ -265,6 +264,7 @@ class Metamer(OptimizedSynthesis):
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
+        self._current_loss = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -272,9 +272,9 @@ class Metamer(OptimizedSynthesis):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
+            # update saved_* attrs. len(_losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+            self._store(len(self._losses))
 
             loss = self._optimizer_step(pbar)
 
@@ -285,40 +285,130 @@ class Metamer(OptimizedSynthesis):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
 
+        # compute current loss, no need to compute gradient
+        with torch.no_grad():
+            self._current_loss = self.objective_function().item()
+
         pbar.close()
 
     def objective_function(
         self,
-        metamer_representation: Tensor | None = None,
+        metamer: Tensor | None = None,
         target_representation: Tensor | None = None,
+        **analyze_kwargs: Any,
     ) -> Tensor:
         """
         Compute the metamer synthesis loss.
 
-        This calls self.loss_function on ``metamer_representation`` and
-        ``target_representation`` and then adds the weighted range penalty.
+        This calls self.loss_function on
+        ``self.model(metamer, **analyze_kwargs)`` and
+        ``target_representation`` and then adds the weighted range penalty
+        on ``metamer``.
 
         Parameters
         ----------
-        metamer_representation
-            Model response to ``metamer``. If ``None``, we use
-            ``self.model(self.metamer)``.
+        metamer
+            Current ``metamer``. If ``None``, we use ``self.metamer``.
         target_representation
             Model response to ``image``. If ``None``, we use
             ``self.target_representation``.
+        **analyze_kwargs
+            Additional kwargs to pass to ``self.model(metamer)``.
 
         Returns
         -------
         loss
             1-element tensor containing the loss on this step.
         """
-        if metamer_representation is None:
-            metamer_representation = self.model(self.metamer)
+        if metamer is None:
+            metamer = self.metamer
+            # if this is empty, then self.metamer hasn't been initialized
+            if metamer.numel() == 0:
+                return torch.empty(0)
         if target_representation is None:
             target_representation = self.target_representation
+        metamer_representation = self.model(metamer, **analyze_kwargs)
         loss = self.loss_function(metamer_representation, target_representation)
-        range_penalty = optim.penalize_range(self.metamer, self.allowed_range)
+        range_penalty = optim.penalize_range(metamer, self.allowed_range)
         return loss + self.range_penalty_lambda * range_penalty
+
+    def get_progress(
+        self,
+        iteration: int | None,
+        iteration_selection: Literal["floor", "ceiling", "round"] = "round",
+    ) -> dict:
+        """
+        Return dictionary summarizing synthesis progress at ``iteration``.
+
+        This returns a dictionary containing info from :attr:`losses`,
+        :attr:`pixel_change_norm`, :attr:`gradient_norm`, and
+        :attr:`saved_metamer` corresponding to ``iteration``. If synthesis was
+        run with ``store_progress=False`` (and so we did not cache anything in
+        :attr:`saved_metamer`), then that key will be missing. If synthesis was
+        run with ``store_progress>1``, we will grab the corresponding tensor
+        from :attr:`saved_metamer`, with behavior determined by
+        ``iteration_selection``.
+
+        The returned dictionary will additionally contain the keys:
+
+        - ``"iteration"``: the (0-indexed positive) synthesis iteration that the
+          values for :attr:`losses`, :attr:`pixel_change_norm`, and
+          :attr:`gradient_norm` come from.
+
+        - If ``self.store_progress``, ``"store_progress_iteration"``: the (0-indexed
+          positive) synthesis iteration that the value for :attr:`saved_metamer` comes
+          from.
+
+        Note that for the most recent iteration (``iteration=-1`` or ``iteration=None``
+        or ``iteration==len(self.losses)-1``), we do not have values for
+        :attr:`pixel_change_norm` or :attr:`gradient_norm`, since in this case we are
+        showing the loss and value for the current metamer.
+
+        Parameters
+        ----------
+        iteration
+            Synthesis iteration to summarize. If ``None``, grab the most recent.
+            Negative values are allowed.
+        iteration_selection
+
+            How to select the relevant iteration from :attr:`saved_metamer`
+            when the request iteration wasn't stored.
+
+            When synthesis was run with ``store_progress=n`` (where ``n>1``),
+            metamers are only saved every ``n`` iterations. If you request an
+            iteration where a metamer wasn't saved, this determines which available
+            iteration is used instead:
+
+            * ``"floor"``: use the closest saved iteration **before** the
+              requested one.
+
+            * ``"ceiling"``: use the closest saved iteration **after** the
+              requested one.
+
+            * ``"round"``: use the closest saved iteration.
+
+        Returns
+        -------
+        progress_info
+            Dictionary summarizing synthesis progress.
+
+        Raises
+        ------
+        IndexError
+            If ``iteration`` takes an illegal value.
+
+        Warns
+        -----
+        UserWarning
+            If the iteration used for ``saved_metamer`` is not the same as the argument
+            ``iteration`` (because e.g., you set ``iteration=3`` but
+            ``self.store_progress=2``).
+        """
+        return super().get_progress(
+            iteration,
+            iteration_selection,
+            store_progress_attributes=["saved_metamer"],
+        )
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""
@@ -691,6 +781,8 @@ class Metamer(OptimizedSynthesis):
     def metamer(self) -> torch.Tensor:
         """Model metamer, the parameter we are optimizing."""
         # numpydoc ignore=RT01,ES01
+        if self._metamer is None:
+            return torch.empty(0)
         return self._metamer
 
     @property
@@ -700,8 +792,20 @@ class Metamer(OptimizedSynthesis):
 
         How often the metamer is cached is determined by the ``store_progress`` argument
         to the :func:`synthesize` function.
+
+        The last entry will always be the current :attr:`metamer`.
+
+        If ``store_progress==1``, then this corresponds directly to :attr:`losses`:
+        ``losses[i]`` is the error for ``saved_metamer[i]``
+
+        This tensor always lives on the CPU, regardless of the device of the ``Metamer``
+        object.
         """  # numpydoc ignore=RT01
-        return torch.stack(self._saved_metamer)
+        if self._metamer is None:
+            return torch.empty(0)
+        else:
+            # for memory purposes, always on CPU
+            return torch.stack([*self._saved_metamer, self.metamer.to("cpu")])
 
 
 class MetamerCTF(Metamer):
@@ -906,6 +1010,7 @@ class MetamerCTF(Metamer):
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
+        self._current_loss = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -913,9 +1018,9 @@ class MetamerCTF(Metamer):
         pbar = tqdm(range(max_iter))
 
         for i in pbar:
-            # update saved_* attrs. len(losses) gives the total number of
+            # update saved_* attrs. len(_losses) gives the total number of
             # iterations and will be correct across calls to `synthesize`
-            self._store(len(self.losses))
+            self._store(len(self._losses))
 
             loss = self._optimizer_step(
                 pbar, change_scale_criterion, ctf_iters_to_check
@@ -929,6 +1034,10 @@ class MetamerCTF(Metamer):
             ):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
+
+        # compute current loss, no need to compute gradient
+        with torch.no_grad():
+            self._current_loss = self.objective_function().item()
 
         pbar.close()
 
@@ -977,16 +1086,16 @@ class MetamerCTF(Metamer):
                 < change_scale_criterion
             )
             and (
-                len(self.losses) - self.scales_timing[self.scales[0]][0]
+                len(self._losses) - self.scales_timing[self.scales[0]][0]
                 >= ctf_iters_to_check
             )
         ):
-            self._scales_timing[self.scales[0]].append(len(self.losses) - 1)
+            self._scales_timing[self.scales[0]].append(len(self._losses) - 1)
             self._scales_finished.append(self._scales.pop(0))
 
             # Only append if scales list is still non-empty after the pop
             if self.scales:
-                self._scales_timing[self.scales[0]].append(len(self.losses))
+                self._scales_timing[self.scales[0]].append(len(self._losses))
 
             # Reset optimizer's learning rate
             for pg, lr in zip(self.optimizer.param_groups, self._initial_lr):
@@ -995,14 +1104,17 @@ class MetamerCTF(Metamer):
             # Reset ctf target representation for the next update
             self._ctf_target_representation = None
 
+        # the loss returned by objective_function is from *before* updating the metamer,
+        # so to compute the equivalent for display purposes, we need to call this before
+        # calling step()
+        if self.scales[0] != "all":
+            with torch.no_grad():
+                overall_loss = self.objective_function(None, None).item()
+
         loss = self.optimizer.step(self._closure)
         if self.scales[0] == "all":
             # then the loss computed above includes all scales
             overall_loss = loss
-        else:
-            # then we compute it for display purposes
-            with torch.no_grad():
-                overall_loss = self.objective_function(None, None).item()
 
         self._scales_loss.append(loss)
         self._losses.append(overall_loss)
@@ -1064,7 +1176,6 @@ class MetamerCTF(Metamer):
             # scales
             if self.coarse_to_fine == "together":
                 analyze_kwargs["scales"] += self.scales_finished
-        metamer_representation = self.model(self.metamer, **analyze_kwargs)
         # if analyze_kwargs is empty, we can just compare
         # metamer_representation against our cached target_representation
         if analyze_kwargs:
@@ -1076,7 +1187,7 @@ class MetamerCTF(Metamer):
         else:
             target_rep = None
 
-        loss = self.objective_function(metamer_representation, target_rep)
+        loss = self.objective_function(self.metamer, target_rep, **analyze_kwargs)
         loss.backward(retain_graph=False)
 
         return loss.item()
@@ -1091,23 +1202,21 @@ class MetamerCTF(Metamer):
         r"""
         Check whether the loss has stabilized and whether we've synthesized all scales.
 
-        Have we been synthesizing for ``stop_iters_to_check`` iterations?
-         | |
-        no yes
-         | '---->Is ``abs(self.loss[-1] - self.losses[-stop_iters_to_check] < stop_criterion``?
-         |      no |
-         |       | yes
-         |-------' '---->Have we synthesized all scales and done so for ``ctf_iters_to_check`` iterations?
-         |              no  |
-         |               |  yes
-         |---------------'  '----> return ``True``
-         |
-         |
-         |
-         |
-         |
-         |
-         '---------> return ``False``
+        We check whether:
+
+        - We have been synthesizing for ``stop_iters_to_check`` iterations,
+          i.e. ``len(synth.losses) > stop_iters_to_check``.
+
+        - Loss has decreased by less than ``stop_criterion`` over the past
+          ``stop_iters_to_check`` iterations.
+
+        - We have finished synthesizing each individual scale, i.e. ``synth.scales[0] ==
+          "all"``.
+
+        - We have been synthesizing all scales for more than ``ctf_iters_to_check``
+          iterations, i.e. ``i - synth.scales_timing["all"][0]) > ctf_iters_to_check``.
+
+        If all conditions are met, we return ``True``. Else, we return ``False``.
 
         Parameters
         ----------
@@ -1286,24 +1395,21 @@ def plot_loss(
     -------
     ax
         The matplotlib axes containing the plot.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
     """
-    if iteration is None:
-        loss_idx = len(metamer.losses) - 1
-    elif iteration < 0:
-        # in order to get the x-value of the dot to line up,
-        # need to use this work-around
-        loss_idx = len(metamer.losses) + iteration
-    else:
-        loss_idx = iteration
+    # this warning is not relevant for this plotting function
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="loss iteration and iteration for")
+        progress = metamer.get_progress(iteration)
 
     if ax is None:
         ax = plt.gca()
     ax.semilogy(metamer.losses, **kwargs)
-
-    with contextlib.suppress(IndexError):
-        # then there's no loss to plot
-        ax.scatter(loss_idx, metamer.losses[loss_idx], c="r")
-
+    ax.scatter(progress["iteration"], progress["losses"], c="r")
     ax.set(xlabel="Synthesis iteration", ylabel="Loss")
     return ax
 
@@ -1324,7 +1430,7 @@ def display_metamer(
     automatically find the most reasonable zoom value. You can override this
     value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
     is opinionated about the size of the resulting image and will throw an
-    Exception if the axis created is not big enough for the selected zoom.
+    exception if the axis created is not big enough for the selected zoom.
 
     Parameters
     ----------
@@ -1341,7 +1447,9 @@ def display_metamer(
         value ourselves.
     iteration
         Which iteration to display. If ``None``, we show the most recent one.
-        Negative values are also allowed.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     **kwargs
@@ -1356,8 +1464,29 @@ def display_metamer(
     ------
     ValueError
         If ``batch_idx`` is not an int.
+    IndexError
+        If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration for the displayed metamer is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
-    image = metamer.metamer if iteration is None else metamer.saved_metamer[iteration]
+    progress = metamer.get_progress(iteration)
+    try:
+        image = progress["saved_metamer"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError(
+                "When metamer.store_progress=False, iteration must be None!"
+            )
+        image = metamer.metamer
+        # losses will always have one extra value, the current loss.
+        iter = len(metamer.losses) - 1
+
     if not isinstance(batch_idx, int):
         raise ValueError("batch_idx must be an integer!")
     # we're only plotting one image here, so if the user wants multiple
@@ -1368,7 +1497,7 @@ def display_metamer(
     display.imshow(
         image,
         ax=ax,
-        title="Metamer",
+        title=f"Metamer [iteration={iter}]",
         zoom=zoom,
         batch_idx=batch_idx,
         channel_idx=channel_idx,
@@ -1383,6 +1512,7 @@ def display_metamer(
 def _representation_error(
     metamer: Metamer,
     iteration: int | None = None,
+    iteration_selection: Literal["floor", "ceiling", "round"] = "round",
     **kwargs: Any,
 ) -> Tensor:
     r"""
@@ -1397,8 +1527,28 @@ def _representation_error(
     metamer
         Metamer object whose representation error we want to compute.
     iteration
-        Which iteration to compute the representation error for. If ``None``, we
-        show the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
+    iteration_selection
+
+        How to select the relevant iteration from :attr:`saved_metamer`
+        when the request iteration wasn't stored.
+
+        When synthesis was run with ``store_progress=n`` (where ``n>1``),
+        metamers are only saved every ``n`` iterations. If you request an
+        iteration where a metamer wasn't saved, this determines which available
+        iteration is used instead:
+
+        * ``"floor"``: use the closest saved iteration **before** the
+          requested one.
+
+        * ``"ceiling"``: use the closest saved iteration **after** the
+          requested one.
+
+        * ``"round"``: use the closest saved iteration.
+
     **kwargs
         Passed to ``metamer.model.forward``.
 
@@ -1406,11 +1556,23 @@ def _representation_error(
     -------
     representation_error
         The representation error at the specified iteration, for displaying.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration for the used metamer is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
     if iteration is not None:
-        metamer_rep = metamer.model(
-            metamer.saved_metamer[iteration].to(metamer.target_representation.device)
-        )
+        progress = metamer.get_progress(iteration)
+        image = progress["saved_metamer"].to(metamer.target_representation.device)
+        metamer_rep = metamer.model(image, **kwargs)
     else:
         metamer_rep = metamer.model(metamer.metamer, **kwargs)
     return metamer_rep - metamer.target_representation
@@ -1438,8 +1600,10 @@ def plot_representation_error(
     batch_idx
         Which index to take from the batch dimension.
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         If ``ylim`` is ``None``, we sets the axes' y-limits to be ``(-y_max,
         y_max)``, where ``y_max=np.abs(data).max()``. If it's ``False``, we do
@@ -1460,6 +1624,18 @@ def plot_representation_error(
     -------
     axes :
         List of created axes.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration for the metamer used to compute the error is not the same as
+        the argument ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
     representation_error = _representation_error(
         metamer=metamer, iteration=iteration, **kwargs
@@ -1502,8 +1678,10 @@ def plot_pixel_values(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) images).
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
@@ -1517,6 +1695,18 @@ def plot_pixel_values(
     -------
     ax
         Created axes.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_metamer`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
@@ -1548,28 +1738,37 @@ def plot_pixel_values(
             return int(np.ceil((a.max() - a.min()) / h))
 
     kwargs.setdefault("alpha", 0.4)
-    if iteration is None:
-        met = metamer.metamer[batch_idx]
-    else:
-        met = metamer.saved_metamer[iteration, batch_idx]
+    progress = metamer.get_progress(iteration)
+    try:
+        met = progress["saved_metamer"]
+        iter = progress["store_progress_iteration"]
+    except KeyError:
+        if iteration is not None:
+            raise IndexError(
+                "When metamer.store_progress=False, iteration must be None!"
+            )
+        met = metamer.metamer
+        # losses will always have one extra value, the current loss.
+        iter = len(metamer.losses) - 1
     image = metamer.image[batch_idx]
     if channel_idx is not None:
         image = image[channel_idx]
-        image = image[channel_idx]
-    if ax is None:
-        ax = plt.gca()
+        met = met[channel_idx]
     image = data.to_numpy(image).flatten()
     met = data.to_numpy(met).flatten()
+
+    if ax is None:
+        ax = plt.gca()
     ax.hist(
         met,
         bins=min(_freedman_diaconis_bins(image), 50),
-        label="metamer",
+        label=f"Metamer [iteration={iter}]",
         **kwargs,
     )
     ax.hist(
         image,
         bins=min(_freedman_diaconis_bins(image), 50),
-        label="target image",
+        label="Target image",
         **kwargs,
     )
     ax.legend()
@@ -1778,8 +1977,10 @@ def plot_synthesis_status(
         Which index to take from the channel dimension. If ``None``, we use all
         channels (assumed use-case is RGB(A) image).
     iteration
-        Which iteration to display. If ``None``, we show
-        the most recent one. Negative values are also allowed.
+        Which iteration to display. If ``None``, we show the most recent one.
+        Negative values are also allowed. If ``iteration!=None`` and
+        ``metamer.store_progress>1`` (that is, the metamer was not cached on every
+        iteration), then we show the cached metamer from the nearest iteration.
     ylim
         The ylimit to use for the representation_error plot. We pass
         this value directly to ``plot_representation_error``.
@@ -1838,6 +2039,13 @@ def plot_synthesis_status(
     ValueError
         If the ``iteration is not None`` and the given ``metamer`` object was run
         with ``store_progress=False``.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_metamer`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``metamer.store_progress=2``).
     """
     if iteration is not None and not metamer.store_progress:
         raise ValueError(
@@ -2121,7 +2329,8 @@ def animate(
             rep_error_axes = [fig.axes[axes_idx["plot_representation_error"]]]
     else:
         rep_error_axes = []
-    # can also have multiple plots
+    if "display_metamer" in included_plots:
+        fig.axes[axes_idx["display_metamer"]].set_title("Metamer")
 
     if metamer.target_representation.ndimension() == 4:
         if "plot_representation_error" in included_plots:
@@ -2151,57 +2360,65 @@ def animate(
         artists
             The updated matplotlib artists.
         """
-        artists = []
-        if "display_metamer" in included_plots:
-            artists.extend(
-                display.update_plot(
-                    fig.axes[axes_idx["display_metamer"]],
-                    data=metamer.saved_metamer[i],
-                    batch_idx=batch_idx,
+        # this warning is not relevant for animate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="loss iteration and iteration for"
+            )
+            artists = []
+            if "display_metamer" in included_plots:
+                artists.extend(
+                    display.update_plot(
+                        fig.axes[axes_idx["display_metamer"]],
+                        data=metamer.saved_metamer[i],
+                        batch_idx=batch_idx,
+                    )
                 )
-            )
-        if "plot_representation_error" in included_plots:
-            rep_error = _representation_error(metamer, iteration=i)
-
-            # we pass rep_error_axes to update, and we've grabbed
-            # the right things above
-            artists.extend(
-                display.update_plot(
-                    rep_error_axes,
-                    batch_idx=batch_idx,
-                    model=metamer.model,
-                    data=rep_error,
+            if "plot_representation_error" in included_plots:
+                rep_error = _representation_error(
+                    metamer,
+                    iteration=min(i * metamer.store_progress, len(metamer.losses) - 1),
                 )
-            )
-            # again, we know that rep_error_axes contains all the axes
-            # with the representation ratio info
-            if (
-                (i + 1) % ylim_rescale_interval == 0
-                and metamer.target_representation.ndimension() == 3
-            ):
-                display.rescale_ylim(rep_error_axes, rep_error)
 
-        if "plot_pixel_values" in included_plots:
-            # this is the dumbest way to do this, but it's simple --
-            # clearing the axes can cause problems if the user has, for
-            # example, changed the tick locator or formatter. not sure how
-            # to handle this best right now
-            fig.axes[axes_idx["plot_pixel_values"]].clear()
-            plot_pixel_values(
-                metamer,
-                batch_idx=batch_idx,
-                channel_idx=channel_idx,
-                iteration=i,
-                ax=fig.axes[axes_idx["plot_pixel_values"]],
-            )
-        if "plot_loss" in included_plots:
-            # loss always contains values from every iteration, but everything
-            # else will be subsampled.
-            x_val = i * metamer.store_progress
-            scat.set_offsets((x_val, metamer.losses[x_val]))
-            artists.append(scat)
-        # as long as blitting is True, need to return a sequence of artists
-        return artists
+                # we pass rep_error_axes to update, and we've grabbed
+                # the right things above
+                artists.extend(
+                    display.update_plot(
+                        rep_error_axes,
+                        batch_idx=batch_idx,
+                        model=metamer.model,
+                        data=rep_error,
+                    )
+                )
+                # again, we know that rep_error_axes contains all the axes
+                # with the representation ratio info
+                if (
+                    (i + 1) % ylim_rescale_interval == 0
+                    and metamer.target_representation.ndimension() == 3
+                ):
+                    display.rescale_ylim(rep_error_axes, rep_error)
+
+            if "plot_pixel_values" in included_plots:
+                # this is the dumbest way to do this, but it's simple --
+                # clearing the axes can cause problems if the user has, for
+                # example, changed the tick locator or formatter. not sure how
+                # to handle this best right now
+                fig.axes[axes_idx["plot_pixel_values"]].clear()
+                plot_pixel_values(
+                    metamer,
+                    batch_idx=batch_idx,
+                    channel_idx=channel_idx,
+                    iteration=min(i * metamer.store_progress, len(metamer.losses) - 1),
+                    ax=fig.axes[axes_idx["plot_pixel_values"]],
+                )
+            if "plot_loss" in included_plots:
+                # loss always contains values from every iteration, but everything
+                # else will be subsampled.
+                x_val = metamer._convert_iteration(i, False)
+                scat.set_offsets((x_val, metamer.losses[x_val]))
+                artists.append(scat)
+            # as long as blitting is True, need to return a sequence of artists
+            return artists
 
     # don't need an init_func, since we handle initialization ourselves
     anim = mpl.animation.FuncAnimation(
