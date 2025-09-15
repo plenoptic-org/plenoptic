@@ -25,8 +25,8 @@ jobs:
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -49,9 +49,9 @@ jobs:
       fail-fast: false
     name: Run doctests
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -70,11 +70,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Check sphinx references
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: '3.12'
         cache: pip
         cache-dependency-path: setup.py
     - name: Install dependencies
@@ -96,9 +96,9 @@ jobs:
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -113,14 +113,14 @@ jobs:
       run: |
         pytest --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5.4.0
+      uses: codecov/codecov-action@v5.5.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   check_urls:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst
