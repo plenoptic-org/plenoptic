@@ -7,7 +7,7 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
-from typing import Literal
+from typing import Literal, Any
 
 import numpy as np
 import torch
@@ -351,6 +351,8 @@ class SteerablePyramidFreq(nn.Module):
         self.to(torch.float32)
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
+        # we are always on the CPU to start.
+        self._compute_band = self._compute_band_cpu
 
     def forward(
         self,
@@ -450,24 +452,7 @@ class SteerablePyramidFreq(nn.Module):
             if i in scales:
                 # high-pass mask is selected based on the current scale
                 himask = getattr(self, f"_himasks_scale_{i}")
-                mask = getattr(self, f"_anglemasks_scale_{i}") * himask
-                # compute filter output at each orientation
-
-                # band pass filtering is done in the fourier space as multiplying
-                #  by the fft of a gaussian derivative.
-                # The oriented dft is computed as a product of the fft of the
-                # low-passed component, the precomputed anglemask (specifies
-                # orientation), and the precomputed hipass mask (creating a bandpass
-                # filter) the complex_const variable comes from the Fourier
-                # transform of a gaussian derivative.
-                # Based on the order of the gaussian, this constant changes.
-
-                banddft = self._complex_const_forward * lodft * mask
-                # fft output is then shifted to center frequencies
-                band = fft.ifftshift(banddft, dim=(-2, -1))
-                # ifft is applied to recover the filtered representation in spatial
-                # domain
-                band = fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
+                band = self._compute_band(lodft, i)
 
                 # for real pyramid, take the real component of the complex band
                 if not self.is_complex:
@@ -514,6 +499,78 @@ class SteerablePyramidFreq(nn.Module):
             self.pyr_size["residual_lowpass"] = tuple(lo0.real.shape[-2:])
 
         return pyr_coeffs
+
+    def _compute_band_gpu(self, lodft, scale_n):
+        # high-pass mask is selected based on the current scale
+        himask = getattr(self, f"_himasks_scale_{scale_n}")
+        mask = getattr(self, f"_anglemasks_scale_{scale_n}") * himask
+        # compute filter output at each orientation
+
+        # band pass filtering is done in the fourier space as multiplying
+        #  by the fft of a gaussian derivative.
+        # The oriented dft is computed as a product of the fft of the
+        # low-passed component, the precomputed anglemask (specifies
+        # orientation), and the precomputed hipass mask (creating a bandpass
+        # filter) the complex_const variable comes from the Fourier
+        # transform of a gaussian derivative.
+        # Based on the order of the gaussian, this constant changes.
+
+        banddft = self._complex_const_forward * lodft * mask
+        # fft output is then shifted to center frequencies
+        band = fft.ifftshift(banddft, dim=(-2, -1))
+        # ifft is applied to recover the filtered representation in spatial
+        # domain
+        return fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
+
+    def _compute_band_cpu_2(self, lodft, scale_n):
+        # high-pass mask is selected based on the current scale
+        himask = getattr(self, f"_himasks_scale_{scale_n}")
+        bands = []
+        mask = getattr(self, f"_anglemasks_scale_{scale_n}") * himask
+        for b in range(self.num_orientations):
+            # compute filter output at each orientation
+
+            # band pass filtering is done in the fourier space as multiplying
+            #  by the fft of a gaussian derivative.
+            # The oriented dft is computed as a product of the fft of the
+            # low-passed component, the precomputed anglemask (specifies
+            # orientation), and the precomputed hipass mask (creating a bandpass
+            # filter) the complex_const variable comes from the Fourier
+            # transform of a gaussian derivative.
+            # Based on the order of the gaussian, this constant changes.
+
+            banddft = self._complex_const_forward * lodft * mask[b]
+            # fft output is then shifted to center frequencies
+            band = fft.ifftshift(banddft, dim=(-2, -1))
+            # ifft is applied to recover the filtered representation in spatial
+            # domain
+            bands.append(fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm))
+        return torch.cat(bands, dim=2)
+
+    def _compute_band_cpu(self, lodft, scale_n):
+        # high-pass mask is selected based on the current scale
+        himask = getattr(self, f"_himasks_scale_{scale_n}")
+        bands = []
+        for b in range(self.num_orientations):
+            mask = getattr(self, f"_anglemasks_scale_{scale_n}")[b] * himask
+            # compute filter output at each orientation
+
+            # band pass filtering is done in the fourier space as multiplying
+            #  by the fft of a gaussian derivative.
+            # The oriented dft is computed as a product of the fft of the
+            # low-passed component, the precomputed anglemask (specifies
+            # orientation), and the precomputed hipass mask (creating a bandpass
+            # filter) the complex_const variable comes from the Fourier
+            # transform of a gaussian derivative.
+            # Based on the order of the gaussian, this constant changes.
+
+            banddft = self._complex_const_forward * lodft * mask
+            # fft output is then shifted to center frequencies
+            band = fft.ifftshift(banddft, dim=(-2, -1))
+            # ifft is applied to recover the filtered representation in spatial
+            # domain
+            bands.append(fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm))
+        return torch.cat(bands, dim=2)
 
     @staticmethod
     def convert_pyr_to_tensor(
@@ -1097,3 +1154,46 @@ class SteerablePyramidFreq(nn.Module):
                 )
 
         return resteered_coeffs, resteering_weights
+
+    def to(self, *args: Any, **kwargs: Any):
+        r"""
+        Move and/or cast the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See :meth:`torch.nn.Module.to` for examples.
+
+        .. note::
+            This method modifies the module in-place.
+
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """
+        super().to(*args, **kwargs)
+        if self.lo0mask.device.type == "cuda":
+            self._compute_band = self._compute_band_gpu
+        else:
+            self._compute_band = self._compute_band_cpu
